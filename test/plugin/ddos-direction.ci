@@ -19,6 +19,13 @@
 #   observer plugin (ze_api handshake), same harness as ddos-bps-amplification.
 
 option=needs-linux
+# Every ddos test floods the SAME loopback interface, and the detector picks the
+# victim by top-destination-bytes over that interface's counters, so a sibling's
+# concurrent flood is indistinguishable from this test's own. Unique victim
+# addresses only stop the bind collision; they cannot partition the counters.
+# Without this, QEMU pass 4 had test 155 resolve 127.0.0.4 (test 157's victim)
+# and this test resolve no victim at all (direction fell back to remote).
+option=exclusive:group=ddos-flood
 option=env:var=ze.log.ddos.detect:value=info
 option=env:var=ze.log.ddos.local:value=info
 option=timeout:value=90s

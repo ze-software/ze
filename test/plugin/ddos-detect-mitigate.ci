@@ -18,7 +18,7 @@
 #   root driver.py, which the runner keeps privileged for exactly this
 #   (runner_exec.go:740-744).
 #   The static surface (config leaves, nft table name `ddos-local`, log strings)
-#   is grounded in source; these runtime behaviours are proven by the QEMU run:
+#   is grounded in source; these runtime behaviors are proven by the QEMU run:
 #     - the iface rate collector reports `lo` RxPackets to the detector
 #       (rate.go ListInterfaces feeds all kernel links to onRate),
 #     - trafficusage TCX attaches to `lo` and records the destination in
@@ -29,6 +29,11 @@
 #   to a dedicated veth created before the daemon starts.
 
 option=needs-linux
+# Serialize against every other ddos test: they all flood the SAME loopback
+# interface and the detector picks the victim by top-destination-bytes over that
+# interface, so a sibling's concurrent flood is indistinguishable from this
+# test's own. Rationale in full: test/plugin/ddos-direction.ci.
+option=exclusive:group=ddos-flood
 option=env:var=ze.log.ddos.detect:value=info
 option=env:var=ze.log.ddos.local:value=info
 option=timeout:value=40s

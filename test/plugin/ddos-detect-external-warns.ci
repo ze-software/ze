@@ -34,6 +34,11 @@
 # fired through the real external-plugin transport, exactly as before.
 
 option=needs-linux
+# Serialize against every other ddos test: they all flood the SAME loopback
+# interface and the detector picks the victim by top-destination-bytes over that
+# interface, so a sibling's concurrent flood is indistinguishable from this
+# test's own. Rationale in full: test/plugin/ddos-direction.ci.
+option=exclusive:group=ddos-flood
 
 stdin=ze-bgp:terminator=EOF_CONF
 ddos {

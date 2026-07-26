@@ -332,6 +332,28 @@ read each other's rules or collide on an identical `ip rule`; the `firewall` sui
 installs `policy drop` base chains at the input hook, which nftables applies to
 every other test's traffic. Do not raise the parallelism of these suites.
 <!-- source: scripts/evidence/qemu-all-tests.sh -- fsuite traffic, fsuite firewall, fsuite policy at -p 1 -->
+
+Dropping a whole suite to `-p 1` is not always the right tool. When only a
+*cluster* of tests inside a large suite contends, they declare
+`option=exclusive:group=<name>`: members of one group never run concurrently with
+each other, while every unrelated test in the suite keeps running in parallel.
+The `plugin` suite is 530 tests and only the ddos cluster contends, so serializing
+all of it would cost minutes per QEMU run.
+
+The ddos tests are the motivating case (`option=exclusive:group=ddos-flood`). Each
+one floods a victim address and its daemon's detector picks the victim by
+top-destination-bytes over the *interface* those counters belong to, which in the
+VM's single root namespace is the same loopback for every test. Unique victim
+addresses do not partition that view -- they only stop the `EADDRINUSE` bind
+collision -- so a sibling's concurrent flood is indistinguishable from the test's
+own: `ddos-detect-characterize` resolved `127.0.0.4`, which belongs to
+`ddos-detect-mitigate`, and `ddos-direction` resolved no victim at all and fell
+back to `direction=remote`. Non-overlap is the only property that fixes it.
+`TestDDoSFunctionalTestsDeclareExclusiveGroup` ratchets the invariant so a new
+needs-linux ddos test cannot land without it.
+<!-- source: internal/test/runner/record_parse.go -- option=exclusive parsing, ExclusiveGroup -->
+<!-- source: internal/test/runner/parallel.go -- per-group lock taken before the concurrency semaphore -->
+<!-- source: internal/test/runner/exclusive_group_test.go -- TestDDoSFunctionalTestsDeclareExclusiveGroup ratchet -->
 <!-- source: internal/plugins/policyroute/translate.go -- policyRoutingTable = "ze_pr" -->
 <!-- source: internal/plugins/policyroute/marks.go -- fwmarkBase deterministic per process -->
 <!-- source: test/traffic/022-boot-qdisc-tc.ci -- needs-linux tc qdisc assertion -->

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -403,5 +404,114 @@ func TestParallelRunnerAddTestWithNickRegistersStableNick(t *testing.T) {
 	}
 	if got := r.display.tests.failedNicks(); len(got) != 1 || got[0] != "X" {
 		t.Fatalf("failed nicks = %v, want [X]", got)
+	}
+}
+
+// TestParallelRunnerExclusiveGroupNeverOverlaps proves option=exclusive:group
+// serializes the tests that share a group name.
+//
+// VALIDATES: a test carrying ExclusiveGroup never executes while another member
+//
+//	of the SAME group is executing.
+//
+// PREVENTS:  the ddos QEMU failures -- every ddos test floods the same loopback
+//
+//	interface, and each daemon's detector picks the top destination by
+//	bytes over that interface, so a sibling's concurrent flood is
+//	indistinguishable from the test's own. Test 155 latched onto
+//	127.0.0.4 (test 157's victim) and 158 resolved no victim at all.
+//	Unique addresses cannot fix this; only non-overlap can.
+func TestParallelRunnerExclusiveGroupNeverOverlaps(t *testing.T) {
+	// Members must exceed 1 and the concurrency cap must admit them all at once,
+	// otherwise the semaphore alone could produce the property under test.
+	const members = 8
+
+	r := NewParallelRunner[string](NewColorsWithOverride(false))
+	r.SetConcurrency(members)
+	r.SetLabel("exclusive-test")
+	r.SetQuiet(true)
+
+	// Capacity-1 channel: a non-blocking send FAILS iff another member is inside.
+	// A counter+mutex would report the same thing; this makes the intent explicit.
+	inside := make(chan struct{}, 1)
+	var mu sync.Mutex
+	overlaps := 0
+
+	for i := range members {
+		name := fmt.Sprintf("excl-%d", i)
+		rec := r.AddTest(name, name, func(_ context.Context, _ string) (bool, error) {
+			select {
+			case inside <- struct{}{}:
+			default:
+				mu.Lock()
+				overlaps++
+				mu.Unlock()
+				return true, nil
+			}
+			// Widen the window so that, without the group lock, the other members
+			// admitted by the semaphore are near-certain to land inside it. This is
+			// what makes the mutation (deleting the lock) reliably go red.
+			for range 200 {
+				runtime.Gosched()
+			}
+			<-inside
+			return true, nil
+		})
+		rec.ExclusiveGroup = "flood"
+	}
+
+	if !r.Run(context.Background()) {
+		t.Fatal("expected all tests to pass")
+	}
+	if overlaps != 0 {
+		t.Fatalf("exclusive group overlapped %d times; members of one group must never run concurrently", overlaps)
+	}
+}
+
+// TestParallelRunnerExclusiveGroupDoesNotSerializeOthers proves the group lock
+// constrains only its own members.
+//
+// VALIDATES: a test with no ExclusiveGroup runs CONCURRENTLY with a group member.
+// PREVENTS:  the cheap fix of dropping the whole suite to -p 1. The plugin suite
+//
+//	is 530 tests and only the ddos cluster contends, so serializing all
+//	of it would cost minutes of wall-clock per QEMU run.
+//
+// The rendezvous is the assertion: it completes only if a non-member is scheduled
+// while a member holds the group lock. A regression that serialized everything
+// would block here rather than report a wrong value.
+func TestParallelRunnerExclusiveGroupDoesNotSerializeOthers(t *testing.T) {
+	r := NewParallelRunner[string](NewColorsWithOverride(false))
+	r.SetConcurrency(4)
+	r.SetLabel("exclusive-mixed")
+	r.SetQuiet(true)
+
+	memberIn := make(chan struct{})
+	outsiderIn := make(chan struct{})
+	const rendezvous = 10 * time.Second
+
+	rec := r.AddTest("member", "member", func(_ context.Context, _ string) (bool, error) {
+		close(memberIn)
+		select {
+		case <-outsiderIn:
+			return true, nil
+		case <-time.After(rendezvous):
+			return false, errors.New("no non-member ran while a group member held the lock")
+		}
+	})
+	rec.ExclusiveGroup = "flood"
+
+	r.AddTest("outsider", "outsider", func(_ context.Context, _ string) (bool, error) {
+		select {
+		case <-memberIn:
+			close(outsiderIn)
+			return true, nil
+		case <-time.After(rendezvous):
+			return false, errors.New("group member never started")
+		}
+	})
+
+	if !r.Run(context.Background()) {
+		t.Fatal("a non-member must run concurrently with an exclusive-group member")
 	}
 }

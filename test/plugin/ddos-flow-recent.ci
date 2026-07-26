@@ -17,6 +17,11 @@
 #   may be empty -- the assertions cover dispatch reachability and response shape.
 
 option=needs-linux
+# Serialize against every other ddos test: they all flood the SAME loopback
+# interface and the detector picks the victim by top-destination-bytes over that
+# interface, so a sibling's concurrent flood is indistinguishable from this
+# test's own. Rationale in full: test/plugin/ddos-direction.ci.
+option=exclusive:group=ddos-flood
 
 # ze-peer scaffolding hosts the external test-plugin process below.
 stdin=peer:terminator=EOF_PEER

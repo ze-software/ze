@@ -220,10 +220,31 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, conc)
 
+	// option=exclusive:group=<name>: one lock per group, so members of a group
+	// never overlap each other while unrelated tests keep running concurrently.
+	// Built up-front (not lazily under a mutex) because r.tests is fixed here.
+	exclusive := make(map[string]chan struct{})
+	for _, t := range r.tests {
+		if g := t.Record.ExclusiveGroup; g != "" && exclusive[g] == nil {
+			exclusive[g] = make(chan struct{}, 1)
+		}
+	}
+
 	for _, test := range r.tests {
 		wg.Add(1)
 		go func(t *parallelTest[T]) {
 			defer wg.Done()
+
+			// Take the group lock BEFORE the concurrency semaphore. Reversing these
+			// would let members of one group occupy every semaphore slot while
+			// blocked on each other, starving unrelated tests -- with a group of 8
+			// and -p 4 that stalls the suite instead of just serializing the group.
+			// Only ever one lock is held at a time, so there is no lock-order cycle.
+			if lock := exclusive[t.Record.ExclusiveGroup]; lock != nil {
+				lock <- struct{}{}
+				defer func() { <-lock }()
+			}
+
 			sem <- struct{}{}        // Acquire
 			defer func() { <-sem }() // Release
 

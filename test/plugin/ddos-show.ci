@@ -14,6 +14,11 @@
 # configured and no OS default available") and fails startup before the show
 # handlers run. Runs on Linux (CI/QEMU) where the netlink backend is available.
 option=needs-linux
+# Serialize against every other ddos test: they all flood the SAME loopback
+# interface and the detector picks the victim by top-destination-bytes over that
+# interface, so a sibling's concurrent flood is indistinguishable from this
+# test's own. Rationale in full: test/plugin/ddos-direction.ci.
+option=exclusive:group=ddos-flood
 
 # ze-peer: accepts connection
 stdin=peer:terminator=EOF_PEER

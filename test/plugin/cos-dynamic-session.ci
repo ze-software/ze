@@ -10,6 +10,14 @@
 # from config, the plugin starts, and the show command returns correct data.
 
 option=needs-linux
+# Serialize against every other needs-linux cos test: they all configure the SAME
+# VLAN (unit v100 / vlan-id 100) on the VM's real eth0, and the QEMU run gives
+# them one shared root namespace, so concurrent daemons create, reconcile and
+# remove the same kernel device eth0.100. That produced `eth0.100 remove stale
+# address fe80::.../64: cannot assign requested address` -- one daemon removing an
+# address another had already taken away. Same mechanism as the ddos cluster; see
+# test/plugin/ddos-direction.ci for the full rationale.
+option=exclusive:group=cos-vlan
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1

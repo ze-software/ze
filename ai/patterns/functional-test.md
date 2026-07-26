@@ -205,6 +205,7 @@ expect=json:json=<expected-json>
 | `option=env:var=KEY:value=VAL` | Set environment variable |
 | `option=open:value=drop-capability:code=N` | Remove capability from peer OPEN |
 | `option=open:value=add-capability:code=N:hex=<val>` | Add capability to peer OPEN |
+| `option=exclusive:group=<name>` | Never run concurrently with another test in the same group (unrelated tests still run alongside). For tests contending on a kernel-global surface that unique names cannot partition -- see `docs/architecture/testing/ci-format.md` |
 
 ## Naming Convention
 

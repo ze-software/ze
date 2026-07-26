@@ -38,6 +38,7 @@ var (
 	errOptionSkipEnvMissingVar          = errors.New("option:skip-env missing var=")
 	errOptionRequireTagMissingValue     = errors.New("option:require-tag missing value=")
 	errOptionNetnsLinkMissingName       = errors.New("option:netns-link missing name=")
+	errOptionExclusiveMissingGroup      = errors.New("option:exclusive missing group=")
 	errExpectBgpMissingHex              = errors.New("expect:bgp missing hex=")
 	errExpectJsonMissingJson            = errors.New("expect:json missing json=")
 	errExpectExitMissingCode            = errors.New("expect:exit missing code=")
@@ -463,6 +464,18 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		// The skip gate for this option is applied once, after every option is
 		// parsed (see parseAndAdd), so it does not depend on the order the .ci
 		// file lists its options in.
+
+	case "exclusive":
+		// Serialize this test against every other test carrying the SAME group
+		// name. Unrelated tests keep running concurrently, so this is much cheaper
+		// than -p 1 for the whole suite. Applies on every platform and in every
+		// runner mode -- the contention it guards is a property of the tests, not
+		// of the host.
+		group := kv["group"]
+		if group == "" {
+			return errOptionExclusiveMissingGroup
+		}
+		r.ExclusiveGroup = group
 
 	case "skip-env":
 		varName := kv["var"]

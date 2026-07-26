@@ -227,6 +227,18 @@ type Record struct {
 	// on the default host path and never touches the host.
 	NetnsLinks []NetnsLinkSpec
 
+	// ExclusiveGroup names a set of tests that must never execute concurrently
+	// with EACH OTHER (option=exclusive:group=<name>). Tests outside the group are
+	// unaffected and still run alongside them, so this costs far less wall-clock
+	// than dropping a whole suite to -p 1.
+	//
+	// Use it when tests contend for a kernel-global observation surface that
+	// unique names/addresses cannot partition. The ddos suite is the motivating
+	// case: every test floods the SAME loopback interface, and each daemon's
+	// detector picks the top destination by bytes over that interface's counters,
+	// so a sibling's flood is indistinguishable from the test's own.
+	ExclusiveGroup string
+
 	// ParseFailed marks a .ci file that could not be parsed at discovery time.
 	// Discover records the file as a permanent failure (State=StateFail, Error
 	// set) and continues, so one unparseable file fails loudly without aborting
