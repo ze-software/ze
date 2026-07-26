@@ -77,8 +77,8 @@
 <section><h2>Sensitivity</h2><p><em>If the code were wrong, would something go red?</em></p>
 <article class="th-card th-ok">
   <h3>Tests with no reachable failure call</h3>
-  <p class="th-value">136 / 20386 (floor 136) <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="136 of 20386"><span class="th-meter-fill" style="width:0.7%"></span></div><p class="th-meter-note">136 of 20386 (0.7%)</p>
+  <p class="th-value">136 / 20389 (floor 136) <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="136 of 20389"><span class="th-meter-fill" style="width:0.7%"></span></div><p class="th-meter-note">136 of 20389 (0.7%)</p>
   <p>These execute code and pass unconditionally. Breaking the code under test would not turn them red.</p>
   <p class="th-action"><strong>If this degrades:</strong> Add a real assertion, or annotate with `// test-asserts-nothing: &lt;why&gt;` when the oracle is genuinely implicit (a must-not-panic smoke test).</p>
   <table><thead><tr><th>file</th><th>test</th></tr></thead><tbody><tr><td><code>cmd/ze/hub/aaa_lifecycle_test.go</code></td><td><code>TestCloseAAABundleNoBundle</code></td></tr><tr><td><code>internal/chaos/chaos_test.go</code></td><td><code>TestChaosConcurrency</code></td></tr><tr><td><code>internal/chaos/watchdog/watchdog_test.go</code></td><td><code>TestWatchdogRouteRegression</code></td></tr><tr><td><code>internal/component/bfd/api/registry_test.go</code></td><td><code>TestSetGetService_ConcurrentNoRace</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestMetricsHookStateChangeCounters</code></td></tr><tr><td><code>internal/component/bfd/metrics_test.go</code></td><td><code>TestRefreshSessionsGauge</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestBMPPeerUpSkippedOnCacheMiss</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/event_test.go</code></td><td><code>TestHandleSenderNoSenders</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_MonitorMode_StoresInBMPRIB</code></td></tr><tr><td><code>internal/component/bgp/plugins/bmp/route_action_test.go</code></td><td><code>TestProcessRouteMonitoring_ShortUpdate_Skipped</code></td></tr></tbody></table>
@@ -119,16 +119,16 @@
 </article>
 <article class="th-card th-ok">
   <h3>In-repo test inventory</h3>
-  <p class="th-value">20416 test functions <span class="th-status">Within threshold</span></p>
+  <p class="th-value">20419 test functions <span class="th-status">Within threshold</span></p>
   
-  <p>2696 Go test files, 72 fuzz targets, 122 benchmarks, 1464 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
+  <p>2698 Go test files, 72 fuzz targets, 122 benchmarks, 1464 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.</p>
   <p class="th-action"><strong>If this degrades:</strong> This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.</p>
   
 </article>
 <article class="th-card th-ok">
   <h3>Test files that expect a specific error</h3>
-  <p class="th-value">877 / 2696 <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="877 of 2696"><span class="th-meter-fill" style="width:32.5%"></span></div><p class="th-meter-note">877 of 2696 (32.5%)</p>
+  <p class="th-value">879 / 2698 <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="879 of 2698"><span class="th-meter-fill" style="width:32.6%"></span></div><p class="th-meter-note">879 of 2698 (32.6%)</p>
   <p>Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.</p>
   <p class="th-action"><strong>If this degrades:</strong> Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.</p>
   <table><thead><tr><th>area</th><th>files</th><th>negative</th><th>percent</th></tr></thead><tbody><tr><td><code>internal/chaos/report</code></td><td><code>6</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/chaos/web</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/rib</code></td><td><code>9</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/stats</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/plugins/completion</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/test/mock</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/component/doctor</code></td><td><code>12</code></td><td><code>1</code></td><td><code>8.3</code></td></tr><tr><td><code>internal/chaos/peer</code></td><td><code>11</code></td><td><code>1</code></td><td><code>9.1</code></td></tr><tr><td><code>internal/component/sysrib</code></td><td><code>11</code></td><td><code>1</code></td><td><code>9.1</code></td></tr><tr><td><code>cmd/ze</code></td><td><code>20</code></td><td><code>2</code></td><td><code>10.0</code></td></tr></tbody></table>
