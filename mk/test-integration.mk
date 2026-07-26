@@ -345,8 +345,15 @@ ze-qemu-needs-linux-test:
 # "timeout ... server likely failed to start or crashed". That test then FAILS
 # here while PASSING in the real ze-qemu-needs-linux-test run, which is the worst
 # possible signal from a tool whose entire job is reproducing a failure.
+# RUN reaches the guard through the environment, not through the recipe text.
+# `test -n "$(RUN)"` looked equivalent and was not: make pastes RUN in literally,
+# so a RUN carrying its own double quotes -- `RUN='sh -c "go test ..."'`, the
+# form needed to run anything but a bare ze-test invocation -- closed the guard's
+# quotes early, test saw four arguments, and the target printed its usage line as
+# though RUN had been empty. Silent, and it looks like the caller's mistake.
+ze-qemu-debug: export ZE_QEMU_DEBUG_RUN = $(RUN)
 ze-qemu-debug:
-	@test -n "$(RUN)" || { echo 'usage: make ze-qemu-debug RUN='"'"'$(ZE_QEMU_TEST_BIN) bgp <suite> <N...> -v'"'"; exit 2; }
+	@test -n "$$ZE_QEMU_DEBUG_RUN" || { echo 'usage: make ze-qemu-debug RUN='"'"'$(ZE_QEMU_TEST_BIN) bgp <suite> <N...> -v'"'"; exit 2; }
 ifneq ($(NOBUILD),1)
 	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-test on host (CGO off)..."
 	@mkdir -p bin
