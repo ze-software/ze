@@ -1498,3 +1498,66 @@ func TestCollectPrefixWarningsRuntime(t *testing.T) {
 // test-relax: convertMVPNRoute/MVPNRouteConfig removed by spec-route-config-plugin-migration;
 // MVPN config parsing (incl originator-id/cluster-list) is now in plugins/nlri/mvpn/config.go,
 // verified byte-for-byte by test/encode/mvpn.ci.
+
+// TestExpandDependenciesResolvesUseLabel pins dependency resolution to the
+// REGISTERED plugin name rather than the operator's config label.
+//
+// VALIDATES: `plugin { internal <label> { use <plugin> } }` expands the
+// dependencies declared by <plugin>.
+//
+// PREVENTS: the shipped defect where ExpandDependencies keyed on p.Name (the
+// label). ResolveDependencies treats a name absent from the registry as an
+// external plugin and skips expanding it, so a route server configured as
+// `internal rs { use bgp-rs }` silently loaded no bgp-adj-rib-in and lost its
+// peer-up replay entirely -- no error, no warning. Hard Dependencies were
+// dropped just as silently on the same path.
+func TestExpandDependenciesResolvesUseLabel(t *testing.T) {
+	newReg := func(name string, opt, hard []string) registry.Registration {
+		return registry.Registration{
+			Name:                 name,
+			Description:          name,
+			Dependencies:         hard,
+			OptionalDependencies: opt,
+			RunEngine:            func(_ net.Conn) int { return 0 },
+			CLIHandler:           func(_ []string) int { return 0 },
+		}
+	}
+
+	for _, tt := range []struct {
+		name string
+		run  string
+	}{
+		{"bare use value", "bgp-rs"},
+		{"ze-prefixed use value", "ze.bgp-rs"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			snap := registry.Snapshot()
+			t.Cleanup(func() { registry.Restore(snap) })
+			registry.Reset()
+
+			require.NoError(t, registry.Register(
+				newReg("bgp-rs", []string{"bgp-adj-rib-in"}, []string{"bgp-rib"})))
+			require.NoError(t, registry.Register(newReg("bgp-adj-rib-in", nil, nil)))
+			require.NoError(t, registry.Register(newReg("bgp-rib", nil, nil)))
+
+			// The operator labels the instance "rs" and runs the plugin "bgp-rs".
+			plugins := []reactor.PluginConfig{
+				{Name: "rs", Internal: true, Run: tt.run, Encoder: "json"},
+			}
+
+			result, err := config.ExpandDependencies(plugins)
+			require.NoError(t, err)
+
+			names := make([]string, 0, len(result))
+			for _, p := range result {
+				names = append(names, p.Name)
+			}
+			assert.Contains(t, names, "bgp-adj-rib-in",
+				"the optional dependency of the plugin named by `use` must be expanded")
+			assert.Contains(t, names, "bgp-rib",
+				"the hard dependency of the plugin named by `use` must be expanded")
+			assert.Contains(t, names, "rs", "the operator's labeled entry must survive")
+			assert.Len(t, result, 3, "bgp-rs runs under the label; it must not be added twice")
+		})
+	}
+}

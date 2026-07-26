@@ -367,14 +367,41 @@ func MergeCliPlugins(plugins []plugin.PluginConfig, cliPlugins []string) ([]plug
 	return append(newPlugins, plugins...), nil
 }
 
+// registryName returns the name a plugin config is known by in the plugin
+// registry, which is NOT always the operator's config label.
+//
+// `plugin { internal <label> { use <plugin> } }` names the instance <label>
+// while running the registered plugin <plugin>. Dependency resolution must key
+// on the latter: ResolveDependencies treats a name it cannot find in the
+// registry as an external plugin and skips expanding it, so keying on the label
+// silently dropped both Dependencies and OptionalDependencies. A route server
+// configured as `internal rs { use bgp-rs }` therefore never pulled in
+// bgp-adj-rib-in, and lost its peer-up replay with no error and no warning.
+//
+// Falls back to the label when Run names no registered plugin, which is the
+// external case (Run is a command line there, not a registry name).
+func registryName(p plugin.PluginConfig) string {
+	if p.Run == "" {
+		return p.Name
+	}
+	if candidate := strings.TrimPrefix(p.Run, "ze."); registry.Has(candidate) {
+		return candidate
+	}
+	return p.Name
+}
+
 // ExpandDependencies resolves plugin dependencies from the registry and adds
 // missing dependency plugins to the list.
 func ExpandDependencies(plugins []plugin.PluginConfig) ([]plugin.PluginConfig, error) {
 	names := make([]string, 0, len(plugins))
 	existing := make(map[string]bool, len(plugins))
 	for _, p := range plugins {
-		names = append(names, p.Name)
-		existing[p.Name] = true
+		// Keyed on the registered name, not the label. Only the resolved name is
+		// marked as existing: marking the label too could suppress a genuine
+		// dependency that happens to share the operator's chosen label.
+		name := registryName(p)
+		names = append(names, name)
+		existing[name] = true
 	}
 
 	resolved, err := registry.ResolveDependencies(names)
