@@ -275,8 +275,10 @@ ze-qemu-all-test:
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 	@echo "Running full test suite in QEMU Linux VM (host-compiled binaries; no in-VM ze/ze-test compile)..."
+	# e2fsprogs: same reason as ze-qemu-needs-linux-test below -- this target runs
+	# the same qemu-all-tests.sh, so its unit phase needs debugfs/mkfs.ext4 too.
 	python3 scripts/evidence/qemu-run.py \
-		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
+		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables e2fsprogs" \
 		--timeout 3600 \
 		--run 'ZE_BIN="$(ZE_QEMU_BIN)" ZE_STRIPPED_BIN="$(ZE_QEMU_STRIPPED_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" ZE_QEMU_SKIP_SUITES="$(ZE_QEMU_SKIP_SUITES)" ZE_QEMU_PARALLEL="$(ZE_QEMU_PARALLEL)" bash scripts/evidence/qemu-all-tests.sh'
 
@@ -297,9 +299,19 @@ ze-qemu-needs-linux-test:
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 	@echo "Running ONLY option=needs-linux tests in QEMU Linux VM (ZE_QEMU_LINUX_ONLY=1)..."
+	# 3600s, matching ze-qemu-all-test. 1800s was sized when the unit phase died
+	# on startup (GOCACHE pointed through a host-only symlink, see
+	# qemu-all-tests.sh) and so cost seconds. With that repaired the phase compiles
+	# and runs the whole tree in the VM, which alone exceeded the old budget: the
+	# run was killed mid-unit-phase and the integration phase never executed.
+	#
+	# e2fsprogs supplies mkfs.ext4/debugfs/e2fsck. internal/appliance's injectZeFS
+	# tests write the credential database into a /perm ext4 image with debugfs and
+	# then verify it; without the package debugfs is absent, the write "silently
+	# failed" and four tests failed on a missing tool rather than on ze's behavior.
 	python3 scripts/evidence/qemu-run.py \
-		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
-		--timeout 1800 \
+		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables e2fsprogs" \
+		--timeout 3600 \
 		--run 'ZE_QEMU_LINUX_ONLY=1 ZE_BIN="$(ZE_QEMU_BIN)" ZE_STRIPPED_BIN="$(ZE_QEMU_STRIPPED_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" ZE_QEMU_SKIP_SUITES="web" ZE_QEMU_PARALLEL="$(ZE_QEMU_PARALLEL)" bash scripts/evidence/qemu-all-tests.sh'
 
 # Debug specific functional tests in the QEMU VM with verbose output.
@@ -320,6 +332,17 @@ ze-qemu-needs-linux-test:
 # working tree (debug the code you are editing). NOBUILD=1 skips the compile and
 # reuses whatever linux binaries already sit in bin/ (a prior cross-compile, or a
 # restored set) so you can debug a specific build without rebuilding.
+#
+# The /tmp/ze-qemu-bin PATH shim mirrors qemu-all-tests.sh:68-76 and is REQUIRED
+# for parity, not a convenience. ZE_BIN/ZE_TEST_BIN only tell the RUNNER which
+# binaries to launch; a test whose config asks the daemon to spawn a helper by
+# bare name -- `plugin { external ddos-detect { run "ze-test plugin-external
+# ddos-detect" } }` in test/plugin/ddos-detect-external-warns.ci -- resolves that
+# name through the daemon's PATH. Without the shim the helper is simply not found,
+# the daemon emits nothing, and the runner reports the maximally unhelpful
+# "timeout ... server likely failed to start or crashed". That test then FAILS
+# here while PASSING in the real ze-qemu-needs-linux-test run, which is the worst
+# possible signal from a tool whose entire job is reproducing a failure.
 ze-qemu-debug:
 	@test -n "$(RUN)" || { echo 'usage: make ze-qemu-debug RUN='"'"'$(ZE_QEMU_TEST_BIN) bgp <suite> <N...> -v'"'"; exit 2; }
 ifneq ($(NOBUILD),1)
@@ -331,7 +354,7 @@ endif
 	python3 scripts/evidence/qemu-run.py \
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
 		--timeout 1200 \
-		--run 'ZE_TEST_NO_BUILD=1 ZE_QEMU=1 ZE_BIN="$(ZE_QEMU_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" $(RUN)'
+		--run 'mkdir -p /tmp/ze-qemu-bin && ln -sf /workspace/$(ZE_QEMU_BIN) /tmp/ze-qemu-bin/ze && ln -sf /workspace/$(ZE_QEMU_STRIPPED_BIN) /tmp/ze-qemu-bin/ze-stripped && ln -sf /workspace/$(ZE_QEMU_TEST_BIN) /tmp/ze-qemu-bin/ze-test && export PATH=/tmp/ze-qemu-bin:$$PATH && ZE_TEST_NO_BUILD=1 ZE_QEMU=1 ZE_BIN="$(ZE_QEMU_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" $(RUN)'
 
 # Boot a QEMU VM and keep it alive for interactive failure investigation.
 #

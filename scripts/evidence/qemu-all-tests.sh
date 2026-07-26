@@ -184,13 +184,36 @@ fsuite traffic "$ZE_TEST_BIN" traffic --all -p 1
 
 # 2. Unit tests: full pass, no -race, cacheable. Picks up the //go:build linux
 #    test files that never compile on macOS.
+#
+# GOCACHE/GOMODCACHE are passed as make COMMAND-LINE variables, not inherited from
+# the environment qemu-run.py exports. Makefile:17 does `export GOCACHE :=
+# $(CURDIR)/cache/go-cache`, and a makefile assignment beats an environment
+# variable, so the exported value was silently discarded for every make target.
+# $(CURDIR)/cache is a symlink to the HOST's ~/.cache/ze, which does not exist in
+# the VM, so go died with `failed to initialize build cache at
+# /workspace/cache/go-cache: mkdir /workspace/cache: file exists` (the dangling
+# symlink is the "file"). `go list ./...` failed the same way, so the package list
+# collapsed to the root module and the phase reported the misleading `build
+# constraints exclude all Go files in /workspace`. A command-line assignment DOES
+# override the makefile and propagates to sub-makes via MAKEFLAGS.
+#
+# This is why the phase-3 integration tests below compiled fine while this phase
+# could not: they invoke `go test` directly and never pass through the Makefile.
 run_check "unit tests (no -race, cacheable)" \
-	make --no-print-directory ze-unit-test-cached
+	make --no-print-directory GOCACHE="$GOCACHE" GOMODCACHE="$GOMODCACHE" ze-unit-test-cached
 
 # 3. Integration tests: linux-only, netlink/nft/fib/socket. Same package set as
 #    `make ze-qemu-integration-test`; IS-IS transport is added when present.
 integration_pkgs=(
-	./cmd/ze/doctor
+	# The doctor's integration test is internal/component/doctor
+	# (checks_integration_linux_test.go, TestCheckMachineIDIntegration). This
+	# entry read ./cmd/ze/doctor, a directory that does not exist -- `ze doctor`
+	# dispatches from cmd/ze, it has no package of its own -- so every run
+	# reported `FAIL ./cmd/ze/doctor [setup failed]: stat /workspace/cmd/ze/doctor:
+	# directory not found` and the check never executed. Unlike the optional
+	# transport entries below it carried no `[ -d ]` guard, so the typo failed the
+	# whole phase instead of being skipped.
+	./internal/component/doctor/...
 	./internal/component/host/...
 	./internal/component/iface/...
 	./internal/component/config/system/...
@@ -226,6 +249,21 @@ fi
 # real veth pair. The root isis package carries the integration-tagged test.
 if [ -d ./internal/plugins/isis ]; then
 	integration_pkgs+=(./internal/plugins/isis)
+fi
+# Fail loudly on a package path that does not exist. `go test` reports a missing
+# directory as `FAIL <pkg> [setup failed]` buried among real results, which is how
+# ./cmd/ze/doctor sat here broken while the phase looked merely "red as usual".
+# A path typo is a bug in THIS file, not a test failure, so say so in those terms.
+missing_pkgs=""
+for pkg in "${integration_pkgs[@]}"; do
+	if [ ! -d "${pkg%/...}" ]; then
+		missing_pkgs="$missing_pkgs $pkg"
+	fi
+done
+if [ -n "$missing_pkgs" ]; then
+	red "integration_pkgs names path(s) that do not exist:$missing_pkgs"
+	echo "       Fix the list in scripts/evidence/qemu-all-tests.sh; this is a script bug, not a test failure." >&2
+	exit 1
 fi
 run_check "integration tests (-tags integration)" \
 	go test -tags integration -count=1 -timeout 120s "${integration_pkgs[@]}"
