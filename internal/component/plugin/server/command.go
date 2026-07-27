@@ -27,6 +27,7 @@ var errReactorNotAvailable = errors.New("reactor not available")
 // matched" without string matching.
 var (
 	errNoSpecificPeer        = errors.New("command requires one specific peer")
+	errExcludePeerSelector   = errors.New("exclusion selector cannot name one peer")
 	errNoPeerMatchesSelector = errors.New("no peer matches selector")
 	errAmbiguousPeerSelector = errors.New("selector matches more than one peer")
 )
@@ -252,6 +253,16 @@ func RequireReactor(ctx *CommandContext) (plugin.ReactorLifecycle, *plugin.Respo
 // (ai/rules/fail-closed-guards.md). An ambiguous selector that matches several
 // peers is refused the same way: this returns ONE peer or an error, never a
 // guess at which one was meant.
+//
+// An EXCLUSION selector ("!edge1", "!as65001", "!10.0.0.0/24") is refused on
+// the same grounds -- see the comment on the check below for why a set
+// complement cannot address a single destructive action.
+//
+// Arity, not vocabulary, is what separates this from cmd/peer's
+// filterPeersBySelectorValue. That one FILTERS a list for `show`, where a
+// complement is a perfectly good answer and "!edge1" legitimately returns
+// several peers. This one must name one target for a destructive verb, so it
+// accepts the same selector spellings and a strictly narrower set of meanings.
 func ResolveSinglePeer(ctx *CommandContext, action string) (netip.Addr, *plugin.Response, error) {
 	r, errResp, err := RequireReactor(ctx)
 	if err != nil {
@@ -267,6 +278,30 @@ func ResolveSinglePeer(ctx *CommandContext, action string) (netip.Addr, *plugin.
 	}
 
 	parsed := selector.ParseDefault(sel)
+
+	// An EXCLUSION selector is refused for the same reason `*` is, only more
+	// sharply. "!edge1" names a SET -- every peer except edge1 -- while every
+	// caller here acts on exactly one session, so the two cannot be reconciled:
+	// in a two-peer topology "!edge1" would resolve to precisely one peer and
+	// silently tear down / delete / pause the OTHER one, and the same command
+	// would start erroring the day a third peer is configured. A destructive
+	// command whose target depends on how many peers happen to exist is not an
+	// interface, so this refuses the whole exclusion family up front rather than
+	// resolving it (ai/rules/fail-closed-guards.md).
+	//
+	// The string check catches the forms ParseDefault cannot type: Parse rejects
+	// "!*", "!" and "!a,b", and ParseDefault turns a parse error into
+	// PeerName(s), so those would otherwise fall through to "no peer matches
+	// selector "!*"" -- an accurate refusal with unusable advice, since it sends
+	// the operator looking for a peer literally named "!*"
+	// (ai/rules/error-messages.md, leg 3 must be TRUE).
+	if parsed.IsExclude() || strings.HasPrefix(strings.TrimSpace(sel), "!") {
+		var tb textbuf.Buffer
+		msg := tb.Str(action).Str(": selector ").Quoted(sel).
+			Str(" excludes peers instead of naming one; this command acts on a single peer, so give its address or configured name (see `show bgp peer list`)").String()
+		return netip.Addr{}, &plugin.Response{Status: plugin.StatusError, Error: msg}, errExcludePeerSelector
+	}
+
 	peers := r.Peers()
 	var matched []netip.Addr
 	for i := range peers {
@@ -304,15 +339,32 @@ func ResolveSinglePeer(ctx *CommandContext, action string) (netip.Addr, *plugin.
 // selectorMatchesPeer applies the selector to one peer, mirroring the kind
 // handling the peer-listing commands use (cmd/peer's filterPeersBySelectorValue)
 // so a selector means the same thing whichever command consumes it.
+//
+// The exclude flag is applied HERE for the name and ASN kinds, and only there.
+// Selector.Matches already negates internally for the address-shaped kinds
+// (KindAddr, KindAddrs, KindGlob) but returns a flat false for KindName and
+// KindASN, because IP-only matching cannot answer them -- so those two arms
+// own the negation. Returning the raw comparison instead INVERTS them: "!edge1"
+// matched edge1 and "!as65001" matched the peer inside AS 65001, which is the
+// opposite of what the operator typed. ResolveSinglePeer now refuses exclusion
+// selectors outright, so nothing reaches here with one today; the polarity is
+// still correct rather than merely unreachable, because a future caller reading
+// the doc line above has every right to expect the parity it claims
+// (ai/rules/fail-closed-guards.md).
 func selectorMatchesPeer(sel *selector.Selector, p *plugin.PeerInfo) bool {
+	var match bool
 	switch sel.SelectorKind() {
 	case selector.KindName:
-		return p.Name == sel.NameValue()
+		match = p.Name == sel.NameValue()
 	case selector.KindASN:
-		return p.PeerAS == sel.ASNValue()
+		match = p.PeerAS == sel.ASNValue()
 	default:
 		return sel.Matches(p.Address)
 	}
+	if sel.IsExclude() {
+		return !match
+	}
+	return match
 }
 
 // PeerSelector returns the effective neighbor selector.

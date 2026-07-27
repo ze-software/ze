@@ -559,9 +559,17 @@ func TestHandlerTeardownByName(t *testing.T) {
 
 // TestHandlerTeardownUnknownName verifies teardown rejects unknown peer name.
 //
-// VALIDATES: Teardown returns error when peer name is not found in reactor peers.
+// VALIDATES: Teardown returns error when peer name is not found in reactor peers,
+// and the message names both the action and the offending selector.
 //
 // PREVENTS: Silent no-op when operator typos a peer name.
+//
+// The assertion moved off the literal "unknown peer" when teardown adopted the
+// shared ResolveSinglePeer: the message is now "teardown: no peer matches
+// selector \"nonexistent\"; ...". Asserting on the ACTION and the QUOTED VALUE
+// instead of one hand-rolled phrase is strictly stronger -- it pins the two legs
+// ai/rules/error-messages.md requires (what failed, on which value) rather than
+// wording that changed for a good reason. The behavior under test is unchanged.
 func TestHandlerTeardownUnknownName(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
@@ -574,7 +582,124 @@ func TestHandlerTeardownUnknownName(t *testing.T) {
 	resp, err := handleTeardown(ctx, []string{"2"})
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
-	assert.Contains(t, resp.Error, "unknown peer")
+	assert.Contains(t, resp.Error, "teardown", "error must name the action")
+	assert.Contains(t, resp.Error, `"nonexistent"`, "error must quote the offending selector")
+	require.Empty(t, reactor.teardownCalls, "an unresolved selector must tear down nothing")
+}
+
+// TestHandlerTeardownSelectorParity proves teardown resolves the same selector
+// vocabulary as its sibling verbs, and refuses the same set-valued forms.
+//
+// VALIDATES: `request peer <sel> teardown` accepts an ASN selector and refuses an
+// exclusion selector, matching pause/resume/raw/clear-soft/remove.
+// PREVENTS: the divergence that existed while teardown kept its own resolver --
+// `request peer as65001 teardown` failed with "unknown peer" while
+// `request peer as65001 pause`, the same selector against the same peer, worked.
+// The exclusion row additionally prevents teardown ever tearing down the peer the
+// operator asked to SPARE.
+func TestHandlerTeardownSelectorParity(t *testing.T) {
+	east := netip.MustParseAddr("192.0.2.1")
+
+	t.Run("asn selector resolves", func(t *testing.T) {
+		reactor := &mockReactor{peers: []plugin.PeerInfo{
+			{Name: "router-east", Address: east, PeerAS: 65001},
+			{Name: "router-west", Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002},
+		}}
+		ctx := newTestContext(reactor)
+		ctx.Peer = "as65001"
+
+		resp, err := handleTeardown(ctx, []string{"2"})
+		require.NoError(t, err)
+		assert.Equal(t, plugin.StatusDone, resp.Status)
+		require.Len(t, reactor.teardownCalls, 1)
+		assert.Equal(t, east, reactor.teardownCalls[0].addr)
+	})
+
+	t.Run("exclusion selector refused", func(t *testing.T) {
+		reactor := &mockReactor{peers: []plugin.PeerInfo{
+			{Name: "router-east", Address: east, PeerAS: 65001},
+			{Name: "router-west", Address: netip.MustParseAddr("192.0.2.2"), PeerAS: 65002},
+		}}
+		ctx := newTestContext(reactor)
+		ctx.Peer = "!router-east"
+
+		resp, err := handleTeardown(ctx, []string{"2"})
+		require.Error(t, err)
+		assert.Equal(t, plugin.StatusError, resp.Status)
+		assert.Empty(t, reactor.teardownCalls, "an exclusion selector must tear down nothing")
+	})
+}
+
+// TestHandlerFlushUnresolvedSelectorFailsClosed proves flush reports an error
+// rather than success when its selector names no peer.
+//
+// VALIDATES: `request peer <sel> flush` with an unresolvable non-address selector
+// returns StatusError and never calls FlushForwardPoolPeer.
+// PREVENTS: the fail-open no-op it replaced -- an unresolved selector was handed
+// to the forward pool verbatim, the pool found no worker, returned immediately,
+// and the handler answered StatusDone. A barrier that reports "drained" for a
+// queue it never looked at is worse than one that errors.
+func TestHandlerFlushUnresolvedSelectorFailsClosed(t *testing.T) {
+	reactor := &mockReactor{peers: []plugin.PeerInfo{
+		{Name: "router-east", Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001},
+	}}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "router-easr" // typo
+
+	resp, err := handleBgpPeerFlush(ctx, nil)
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Error, "flush", "error must name the action")
+	assert.Contains(t, resp.Error, `"router-easr"`, "error must quote the offending selector")
+}
+
+// TestHandlerFlushWildcardStillFlushesAll pins the ONE place flush legitimately
+// differs from its destructive siblings.
+//
+// VALIDATES: `request peer * flush` takes the flush-all branch and succeeds,
+// rather than inheriting ResolveSinglePeer's wildcard refusal.
+// PREVENTS: unifying the resolver from silently removing flush-all. `*` is
+// refused for teardown/delete/pause because fanning those out is destructive;
+// draining every forward-pool worker is a barrier, is idempotent, and is the
+// documented meaning of a bare `request peer flush`.
+func TestHandlerFlushWildcardStillFlushesAll(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "*"
+
+	resp, err := handleBgpPeerFlush(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+	assert.Equal(t, "*", data["peer"])
+}
+
+// TestHandlerFlushByName proves flush resolves a configured peer NAME to its
+// address before handing it to the forward pool.
+//
+// VALIDATES: `request peer <name> flush` reaches FlushForwardPoolPeer with the
+// peer's canonical address string, not the name.
+// PREVENTS: passing a name straight through to the pool, which keys workers by
+// address -- the pool would find no worker and report a successful no-op.
+func TestHandlerFlushByName(t *testing.T) {
+	reactor := &mockReactor{peers: []plugin.PeerInfo{
+		{Name: "router-east", Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001},
+	}}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "router-east"
+
+	resp, err := handleBgpPeerFlush(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+	assert.Equal(t, "192.0.2.1", data["peer"], "name must resolve to the peer address")
 }
 
 // TestHandlerTeardownSubcodeOutOfRange verifies teardown rejects subcode > 255.

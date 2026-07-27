@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/selector"
 )
 
 // TestDispatcherRegister verifies command registration.
@@ -1493,15 +1494,26 @@ func TestTakesInlineSelector(t *testing.T) {
 }
 
 // TestResolveSinglePeer proves the selector resolution the peer-scoped commands
-// share: a configured NAME resolves, an address still resolves, the wildcard is
-// refused by name, and an unmatched or ambiguous selector fails with the value
-// quoted.
+// share: a configured NAME resolves, an address still resolves, the wildcard and
+// every exclusion form are refused by name, and an unmatched or ambiguous
+// selector fails with the value quoted.
+//
+// The two-peer fixture is load-bearing for the exclusion rows. With exactly two
+// peers "!edge1" matches exactly one peer, so the ambiguity branch would NOT
+// catch it: without the explicit refusal it resolves cleanly and hands the
+// caller the WRONG peer. That is the shape the refusal exists to stop, and a
+// three-peer fixture would hide it behind an ambiguity error.
 //
 // VALIDATES: ResolveSinglePeer accepts every selector form the YANG leaf
-// advertises ("Peer selector") and returns exactly one peer or a named error.
-// PREVENTS: the regression this replaced -- raw/pause/resume/clear-soft/remove
-// calling netip.ParseAddr on the selector, so `peer peer1 raw ...` was rejected
-// with "invalid peer address" even though peer1 is the configured peer's name.
+// advertises ("Peer selector"), returns exactly one peer or a named error, and
+// refuses set-valued selectors (`*`, `!<sel>`) rather than resolving them.
+// PREVENTS: two regressions. (1) the one this replaced --
+// raw/pause/resume/clear-soft/remove calling netip.ParseAddr on the selector, so
+// `peer peer1 raw ...` was rejected with "invalid peer address" even though
+// peer1 is the configured peer's name. (2) the INVERSION that shipped with it:
+// selectorMatchesPeer dropped the exclude flag on the name and ASN arms, so
+// `delete bgp peer !edge1` resolved to edge1 -- deleting exactly the peer the
+// operator asked to spare.
 func TestResolveSinglePeer(t *testing.T) {
 	edge1 := netip.MustParseAddr("10.0.0.1")
 	edge2 := netip.MustParseAddr("10.0.0.2")
@@ -1529,6 +1541,20 @@ func TestResolveSinglePeer(t *testing.T) {
 		// resolve here, since nothing downstream could interpret one.
 		{"unknown address passes through", "192.0.2.9", netip.MustParseAddr("192.0.2.9"), nil, ""},
 		{"ambiguous glob", "10.0.0.*", netip.Addr{}, errAmbiguousPeerSelector, `"10.0.0.*"`},
+		// Exclusion selectors name a SET. Each of these would otherwise resolve
+		// to exactly one peer in this two-peer topology -- the wrong one for the
+		// name/ASN arms, the complement for the address/glob arms -- and would
+		// change meaning the day a third peer is configured.
+		{"exclude by name refused", "!edge1", netip.Addr{}, errExcludePeerSelector, `"!edge1"`},
+		{"exclude by asn refused", "!as65001", netip.Addr{}, errExcludePeerSelector, `"!as65001"`},
+		{"exclude by address refused", "!10.0.0.1", netip.Addr{}, errExcludePeerSelector, `"!10.0.0.1"`},
+		{"exclude by glob refused", "!10.0.0.2*", netip.Addr{}, errExcludePeerSelector, `"!10.0.0.2*"`},
+		// Parse rejects "!*" outright, so ParseDefault falls back to
+		// PeerName("!*") and IsExclude() is false. The raw-string half of the
+		// guard is what refuses it with usable advice instead of sending the
+		// operator to look for a peer named "!*".
+		{"exclude-all refused", "!*", netip.Addr{}, errExcludePeerSelector, `"!*"`},
+		{"bare bang refused", "!", netip.Addr{}, errExcludePeerSelector, `"!"`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -1544,6 +1570,50 @@ func TestResolveSinglePeer(t *testing.T) {
 			}
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestSelectorMatchesPeerPolarity pins the exclude flag on every selector kind
+// the helper handles, INCLUDING the two arms Selector.Matches cannot answer.
+//
+// Why this exists separately from TestResolveSinglePeer: that test now refuses
+// exclusion selectors before the helper ever runs, so it can no longer detect an
+// inverted arm. The helper still claims, in its own doc comment, to mirror
+// cmd/peer's filterPeersBySelectorValue -- and a claim of parity that nothing
+// checks is how the inversion got in. Driving the helper directly keeps the
+// claim honest for the next caller, who may well want the set semantics.
+//
+// VALIDATES: selectorMatchesPeer negates the KindName and KindASN comparisons
+// when the selector carries "!", and defers to Selector.Matches (which negates
+// internally) for the address-shaped kinds.
+// PREVENTS: the shipped inversion -- `return p.Name == sel.NameValue()` and
+// `return p.PeerAS == sel.ASNValue()` discarding the exclude flag, so "!edge1"
+// matched edge1 and "!as65001" matched the peer inside AS 65001.
+func TestSelectorMatchesPeerPolarity(t *testing.T) {
+	edge1 := plugin.PeerInfo{Address: netip.MustParseAddr("10.0.0.1"), Name: "edge1", PeerAS: 65001}
+	edge2 := plugin.PeerInfo{Address: netip.MustParseAddr("10.0.0.2"), Name: "edge2", PeerAS: 65002}
+
+	tests := []struct {
+		name      string
+		selector  string
+		wantEdge1 bool
+		wantEdge2 bool
+	}{
+		{"name includes only its own peer", "edge1", true, false},
+		{"excluded name spares its own peer", "!edge1", false, true},
+		{"asn includes only its own peer", "as65001", true, false},
+		{"excluded asn spares its own peer", "!as65001", false, true},
+		{"address includes only its own peer", "10.0.0.1", true, false},
+		{"excluded address spares its own peer", "!10.0.0.1", false, true},
+		{"glob includes matching peers", "10.0.0.*", true, true},
+		{"excluded glob spares matching peers", "!10.0.0.*", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sel := selector.ParseDefault(tt.selector)
+			assert.Equal(t, tt.wantEdge1, selectorMatchesPeer(sel, &edge1), "edge1 (as65001)")
+			assert.Equal(t, tt.wantEdge2, selectorMatchesPeer(sel, &edge2), "edge2 (as65002)")
 		})
 	}
 }

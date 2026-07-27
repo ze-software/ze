@@ -22,7 +22,6 @@ import (
 var (
 	errReactorNotAvailable = errors.New("reactor not available")
 	errMissingCeaseSubcode = errors.New("missing cease subcode")
-	errNoPeerSpecified     = errors.New("no peer specified")
 	errEmptyString         = errors.New("empty string")
 )
 
@@ -363,35 +362,15 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 		}, errMissingCeaseSubcode
 	}
 
-	// Parse peer selector from context (name or IP).
-	peer := ctx.PeerSelector()
-	if peer == "*" || peer == "" {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "teardown requires specific peer: peer <name> teardown <subcode>",
-		}, errNoPeerSpecified
-	}
-
-	// Resolve peer selector to address (supports both name and IP).
-	addr, err := netip.ParseAddr(peer)
+	// One resolver for every peer-scoped command. This used to be a hand-rolled
+	// "not an IP, try the name" loop that knew only two of the six selector
+	// forms the YANG leaf advertises, so `request peer as65001 teardown` failed
+	// with "unknown peer" while `request peer as65001 pause` -- the same
+	// selector, the same peer, the adjacent verb -- succeeded. The wildcard and
+	// exclusion refusals come with it (ai/rules/derive-not-hardcode.md).
+	addr, errResp, err := pluginserver.ResolveSinglePeer(ctx, "teardown")
 	if err != nil {
-		// Not an IP -- try resolving as a name via peer list.
-		found := false
-		peers := ctx.Reactor().Peers()
-		for i := range peers {
-			if peers[i].Name == peer {
-				addr = peers[i].Address
-				found = true
-				break
-			}
-		}
-		if !found {
-			var tb textbuf.Buffer
-			return &plugin.Response{
-				Status: plugin.StatusError,
-				Error:  tb.Str("unknown peer: ").Str(peer).String(),
-			}, fmt.Errorf("unknown peer %s", peer)
-		}
+		return errResp, err
 	}
 
 	// Parse subcode
@@ -560,25 +539,24 @@ func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ []string) (*plugin.R
 		}, nil
 	}
 
-	// Specific peer: resolve selector to address (supports both name and IP).
-	peerAddr := selector
-	if _, parseErr := netip.ParseAddr(selector); parseErr != nil {
-		// Not an IP -- try resolving as a name via peer list.
-		peers := ctx.Reactor().Peers()
-		found := false
-		for i := range peers {
-			if peers[i].Name == selector {
-				peerAddr = peers[i].Address.String()
-				found = true
-				break
-			}
-		}
-		if !found {
-			// Unknown selector -- flush by selector string anyway.
-			// The forward pool will return immediately if no worker exists.
-			peerAddr = selector
-		}
+	// Specific peer: the same resolver every other peer-scoped command uses.
+	//
+	// This replaces a second hand-rolled name loop whose miss branch FAILED OPEN:
+	// an unresolvable selector was handed to the forward pool verbatim, the pool
+	// found no worker for it, returned immediately, and the handler reported
+	// StatusDone. A typo'd peer name therefore claimed to have drained a queue it
+	// never looked at -- a silent no-op reported as success, which is the one
+	// thing a barrier must never do (ai/rules/fail-closed-guards.md). It now
+	// errors with the selector quoted.
+	//
+	// An unmatched ADDRESS still passes through unchanged, which is
+	// ResolveSinglePeer's documented contract and keeps flushing a peer that is
+	// configured but has no live worker a successful no-op rather than an error.
+	addr, errResp, err := pluginserver.ResolveSinglePeer(ctx, "flush")
+	if err != nil {
+		return errResp, err
 	}
+	peerAddr := addr.String()
 
 	if err := ctx.Reactor().FlushForwardPoolPeer(flushCtx, peerAddr); err != nil {
 		return &plugin.Response{

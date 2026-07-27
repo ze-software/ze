@@ -1407,8 +1407,15 @@ class API:
         Empty dict when the command has not completed or the payload is not the
         expected shape, so a caller polling on it simply keeps waiting rather
         than crashing on a transient.
+
+        Routed through the module-level guarded :func:`dispatch`, NOT
+        ``API.dispatch``: the method reaches ``_call_engine``, which raises on
+        an RPC error, and every caller here is a poller. A poller that raises on
+        its first attempt cannot wait for the condition it exists to wait for --
+        which is exactly how ``wait_peers_established`` came to be unusable in
+        the two observers that reached for it.
         """
-        result = self.dispatch(f"show bgp peer {peer} detail") or {}
+        result = dispatch(self, f"show bgp peer {peer} detail") or {}
         result = result.get("result", result)
         if result.get("status") != "done":
             return {}
@@ -1792,6 +1799,15 @@ def dispatch_until(
     the FIRST attempt, which is the swallow described in
     :func:`_emit_sentinel_if_unwinding`. It now polls out and hands the caller
     ``{"status": "error", ...}`` to fail on explicitly.
+
+    An UNRESOLVABLE command short-circuits on that first attempt rather than
+    burning the whole budget. Making the failure non-raising fixed the swallow
+    but left a typo'd command costing ``attempts * delay`` (5s at the defaults)
+    before the caller ever saw it, on every test that hit one. Polling cannot
+    make a command exist, so retrying it buys nothing but latency. Every other
+    error -- including a command-level ``status == "error"`` payload from a
+    command that DOES resolve -- stays retryable, because "peer not established
+    yet" is exactly what a poll is for.
     """
     import time
 
@@ -1799,6 +1815,8 @@ def dispatch_until(
     for _ in range(max(1, attempts)):
         result = dispatch(api, command)
         if predicate(result):
+            return result
+        if result.get("unresolvable"):
             return result
         time.sleep(delay)
     return result
@@ -1996,6 +2014,19 @@ def _emit_sentinel_if_unwinding() -> None:
     _write_sentinel(f"uncaught observer exception during shutdown: {detail}")
 
 
+# Text of the engine's ErrUnknownCommand
+# (internal/component/plugin/server/command.go), matched as a STRING because
+# errors lose their wrap chain crossing the plugin IPC boundary -- the same
+# reason and the same literal as errUnknownCommandMarker in
+# internal/component/bgp/plugins/rs/server_handlers.go. It marks the one failure
+# polling can never fix: the command does not exist in the tree, so no amount of
+# waiting will make it resolve.
+#
+# Deliberately NOT matched: "not available (plugin may not be running)". That one
+# CAN come good -- the plugin may still be starting -- so it stays retryable.
+_UNRESOLVABLE_COMMAND_MARKER = "unknown command"
+
+
 def dispatch(api: "API", command: str) -> dict:
     """Dispatch ``command`` and return its RPC result dict, never raising.
 
@@ -2017,7 +2048,11 @@ def dispatch(api: "API", command: str) -> dict:
             "ze-plugin-engine:dispatch-command", {"command": command}
         )
     except RuntimeError as exc:
-        return {"status": "error", "data": str(exc)}
+        detail = str(exc)
+        result = {"status": "error", "data": detail}
+        if _UNRESOLVABLE_COMMAND_MARKER in detail:
+            result["unresolvable"] = True
+        return result
     if resp is None:
         return {"status": "error", "data": "engine call returned None"}
     return resp.get("result", {}) or {}
