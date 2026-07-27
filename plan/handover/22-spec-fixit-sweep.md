@@ -186,6 +186,43 @@ observer missed it and a 250 ms poll missed it, both while the Cease was already
 on the wire. If you write another test around a fast teardown, reach for a
 monotonic counter rather than a transient state.
 
+## START HERE: five spec-fixits are finished and need only paperwork (2026-07-27)
+
+`python3 scripts/dev/spec-closure-check.py --list` reports **8 completed-but-not-closed
+specs at high confidence** -- each already has its own committed learned summary and is
+still sitting in `plan/` counted as open work. Commit A landed; commit B never ran.
+
+Five are spec-fixits:
+
+| Spec | Its learned summary |
+|------|---------------------|
+| `spec-fixit-bgp-egress-rail-divergence` | `plan/learned/1271-*` |
+| `spec-fixit-bgp-session-fsm-lifecycle` | `plan/learned/1202-*` |
+| `spec-fixit-firewall-concurrency-deadlock` | `plan/learned/1182-*` |
+| `spec-fixit-ipsec-verify-siblings` | `plan/learned/1256-*` |
+| `spec-fixit-mgmt-listener-auth-guard` | `plan/learned/1200-*` |
+
+(The other three are `spec-bgp-plugin-speaker`, `spec-migrate-plugin-sleeps`,
+`spec-relocate-scratch-and-cache`.)
+
+**This changes the size of the job.** The raw file count in `plan/` overstates what is
+left to BUILD by roughly half: these five need a review artifact and the two-commit
+closure, not implementation. Do them before writing any code -- it is the cheapest real
+progress available, and it makes the remaining backlog legible.
+
+**Closure is the unowned step in this workflow, and it fails in both directions.** For
+specs the detector CAN see (a committed learned summary matching the stem), nobody had
+run it -- `firewall-concurrency-deadlock` has been finished since learned 1182. For specs
+it CANNOT see -- where the summary was never written -- it stays silent forever; that is
+how `spec-fixit-rfc6286-bgp-identifier` sat finished at Phase 5/5 and invisible
+(`plan/learned/1277-*`). Never read the tool's silence as "this spec is genuinely open",
+and never assume its high-confidence list has been actioned.
+
+Each closure still needs an INDEPENDENT review artifact (`review_gate.py`), because
+`commit_helper.py` refuses the closure commit without one. That is not a formality: of the
+specs reviewed this session, the review found a real defect every single time -- see the
+OTC rounds below, and the ISSUE that surfaced in `rfc6286`'s otherwise clean pass.
+
 ## Triage of the untouched specs (2026-07-27)
 
 The goal "implement all the spec-fixit" is NOT met: 20 specs, 3 with code
