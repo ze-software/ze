@@ -328,7 +328,19 @@ func (r *AdjRIBInManager) replayCommand(args []string) (string, any, error) {
 		return statusError, "", fmt.Errorf("adj-rib-in replay to %s: %w", args[0], err)
 	}
 
-	return statusDone, map[string]any{"last-index": maxSeq, "replayed": len(routes)}, nil
+	// ingested-msg-id is the caller's convergence signal: it lets a cut-bounded
+	// caller stop for a reason instead of inferring completion from an empty
+	// answer, which an empty STORE also produces. Conflating those two is what
+	// let a caller stop at once while the cut was still suppressing the same
+	// routes on the live rail, so neither rail delivered them.
+	//
+	// Omitted rather than zeroed when untracked: 0 is the real "nothing ingested
+	// yet" and is precisely the losing case (see replay_cut.go).
+	result := map[string]any{"last-index": maxSeq, "replayed": len(routes)}
+	if pos, tracked := r.ingestPosition(); tracked {
+		result["ingested-msg-id"] = pos
+	}
+	return statusDone, result, nil
 }
 
 // claimReplayCommand handles "request bgp adj-rib-in claim-replay".

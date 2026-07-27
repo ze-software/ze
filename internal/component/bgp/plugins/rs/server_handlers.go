@@ -1,4 +1,6 @@
 // Design: docs/architecture/core-design.md — peer event handlers for route server
+// RFC: rfc/short/rfc4724.md — End-of-RIB marker, sent per negotiated family once peer-up replay terminates (sendEOR)
+// RFC: rfc/short/rfc4760.md — Section 1: ipv4/unicast is implicit only when the peer advertises no MP capability (handleOpen)
 // Overview: server.go — route server plugin orchestration
 
 package rs
@@ -61,6 +63,31 @@ const ClaimPeerUpReplay = "bgp-peer-up-replay"
 // on an idle darwin host when it WAS the startup path: 1-2 ms, 6/6 runs of
 // test/plugin/rfc7606-relay-one-field.
 const cmdAdjRIBInClaimReplay = "request bgp adj-rib-in claim-replay"
+
+// now reports the current time from this plugin's injected clock.
+//
+// A nil clk means real time, so a RouteServer built as a struct literal (the
+// test helpers do) is usable without wiring one. Kept as a helper rather than a
+// clock.Clock accessor so the default path costs no interface dispatch.
+func (rs *RouteServer) now() time.Time {
+	if rs.clk == nil {
+		return time.Now()
+	}
+	return rs.clk.Now()
+}
+
+// sleep pauses using this plugin's injected clock. See now for the nil case.
+//
+// Under a fake clock this returns immediately and time advances only where the
+// test says it does, which is what makes replayForPeer's catch-up budget
+// testable without a real wait.
+func (rs *RouteServer) sleep(d time.Duration) {
+	if rs.clk == nil {
+		time.Sleep(d)
+		return
+	}
+	rs.clk.Sleep(d)
+}
 
 // isDispatchUnknownCommand reports whether err from rs.dispatchCommand comes
 // from the engine's ErrUnknownCommand -- i.e. no plugin handled the command.
@@ -305,8 +332,8 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen, cut uint64) {
 		return
 	}
 
-	// Parse last-index from replay response.
-	lastIndex, _ := parseReplayResponse(data)
+	// Parse last-index and adj-rib-in's ingest position from the replay response.
+	progress := parseReplayProgress(data)
 
 	// Add peer to forward targets (new UPDATEs now flow to this peer).
 	// Only if this goroutine's generation is still current.
@@ -321,32 +348,63 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen, cut uint64) {
 		return
 	}
 
-	// Convergent delta replay: catch routes that adj-rib-in received after
-	// the full replay snapshot. For internal plugins, events arrive via
-	// DirectBridge on the engine's delivery goroutine while replay commands
-	// arrive via MuxConn — these are concurrent, so adj-rib-in may not have
-	// stored recently-delivered routes when the full replay ran. Repeat until
-	// no new routes appear (replayed==0), with a brief pause between attempts
-	// to let adj-rib-in's event handler process pending deliveries.
+	// Two convergence phases, because there are two different things to wait for
+	// and only one of them used to be waited on at all. Each plugin has its OWN
+	// delivery goroutine and event queue (plugin/process/delivery.go: one
+	// eventChan per Process), so adj-rib-in routinely trails this plugin by
+	// several UPDATEs, and replay commands arrive on a different path again
+	// (MuxConn).
+	//
+	// PHASE 1, catch up to the cut. The cut suppressed every UPDATE at or below
+	// it on the live rail (server_forward.go selectForwardTargets) on the promise
+	// that this replay carries them, and adj-rib-in can only carry them once it
+	// has consumed the stream that far. Nothing here can be inferred from "did
+	// that call return routes": an empty answer means either "level with the cut,
+	// genuinely nothing left" or "not there yet", and the old loop read both as
+	// done -- in fact it skipped the loop ENTIRELY when the full replay came back
+	// empty (last-index 0), which is exactly the state "adj-rib-in has ingested
+	// nothing yet". Then neither rail delivered those routes and they were lost.
+	// test/plugin/forward-overflow-two-tier.ci catches it as an UPDATE dropped
+	// with why="below-cut(N)" and the destination peer missing 10.0.0.0/24.
+	//
+	// PHASE 2, drain. Once adj-rib-in is level with the cut, an empty answer is
+	// unambiguous, so the original "stop when a call adds nothing" is sound and
+	// unchanged.
+	deadline := rs.now().Add(replayCatchUpBudget)
+	for !progress.coversCut(cut) {
+		if rs.now().After(deadline) {
+			// Say it rather than let the peer look complete: past this point the
+			// cut is knowingly suppressing UPDATEs the replay could not cover
+			// (ai/rules/fail-closed-guards.md).
+			logger().Warn("peer-up replay gave up waiting for adj-rib-in to reach the cut; routes at or below it may be missing",
+				"peer", peerAddr, "cut", cut, "ingested", progress.ingestedString(), "budget", replayCatchUpBudget)
+			break
+		}
+		rs.sleep(replayConvergenceDelay)
+		next, deltaErr := rs.deltaReplay(ctx, peerAddr, cutArg, progress)
+		if deltaErr != nil {
+			logger().Warn("catch-up replay failed", "peer", peerAddr, "error", deltaErr)
+			break
+		}
+		progress = next
+	}
+
 	for i := range replayConvergenceMax {
-		if lastIndex == 0 {
+		if progress.replayed == 0 {
 			break
 		}
 		if i > 0 {
-			time.Sleep(replayConvergenceDelay)
+			rs.sleep(replayConvergenceDelay)
 		}
-		deltaArgs := []string{peerAddr, textbuf.StringUint(lastIndex), cutArg}
-		_, deltaData, deltaErr := rs.dispatchCommand(ctx, replayCommand, deltaArgs...)
+		next, deltaErr := rs.deltaReplay(ctx, peerAddr, cutArg, progress)
 		if deltaErr != nil {
 			logger().Warn("delta replay failed", "peer", peerAddr, "attempt", i, "error", deltaErr)
 			break
 		}
-		newLast, replayed := parseReplayResponse(deltaData)
-		if replayed == 0 {
-			break
+		progress = next
+		if progress.replayed > 0 {
+			logger().Debug("delta replay caught new routes", "peer", peerAddr, "attempt", i, "replayed", progress.replayed)
 		}
-		logger().Debug("delta replay caught new routes", "peer", peerAddr, "attempt", i, "replayed", replayed)
-		lastIndex = newLast
 	}
 
 	// Send End-of-RIB per negotiated family (RFC 4271).
@@ -378,17 +436,78 @@ func (rs *RouteServer) sendEOR(peerAddr string, gen uint64) {
 	logger().Info("sent EOR", "peer", peerAddr, "families", families)
 }
 
-// parseReplayResponse extracts last-index and replayed count from a replay response.
-// Expected format: {"last-index":N,"replayed":M}.
-func parseReplayResponse(data json.RawMessage) (lastIndex uint64, replayed int) {
+// replayProgress is what one replay call reports back about the replay's state.
+type replayProgress struct {
+	// cursor is the highest sequence index DELIVERED so far ("last-index"), the
+	// resume point for the next call.
+	cursor uint64
+	// replayed is how many routes the most recent call delivered.
+	replayed int
+	// ingested is adj-rib-in's ingest position ("ingested-msg-id"), or nil when
+	// it tracks none.
+	ingested *uint64
+}
+
+// coversCut reports whether adj-rib-in has consumed the UPDATE stream far enough
+// for a replay bounded at cut to be ABLE to carry every route the live rail
+// suppressed on the promise that this replay would.
+//
+// No signal (ingested == nil) reads as covered. That is not a fail-open: it means
+// adj-rib-in stores no MessageIDs, so replayCut.excludes (adj_rib_in/replay_cut.go)
+// never excludes anything and its replay is already unbounded. There is nothing to
+// wait for, and waiting would tax every peer-up for it.
+func (p replayProgress) coversCut(cut uint64) bool {
+	return p.ingested == nil || *p.ingested >= cut
+}
+
+// ingestedString renders the ingest position for a log line, printing the VALUE
+// rather than the pointer and naming the absent case explicitly. Cold path (the
+// give-up branch only), so the allocation is not on any hot path.
+func (p replayProgress) ingestedString() string {
+	if p.ingested == nil {
+		return "none"
+	}
+	return textbuf.StringUint(*p.ingested)
+}
+
+// parseReplayProgress decodes one replay call's answer, including the
+// responder's ingest position.
+//
+// Format: {"last-index":N,"replayed":M[,"ingested-msg-id":P]}. The third field is
+// a POINTER so its absence is distinguishable from a value of 0 -- adj-rib-in
+// omits it when it tracks no position (a forked plugin on the text path, whose
+// stored routes carry no MessageID and are therefore never cut-excluded), while 0
+// is the real position of a plugin that has ingested nothing yet. Conflating the
+// two is what this whole signal exists to avoid.
+func parseReplayProgress(data json.RawMessage) replayProgress {
 	var resp struct {
-		LastIndex uint64 `json:"last-index"`
-		Replayed  int    `json:"replayed"`
+		LastIndex uint64  `json:"last-index"`
+		Replayed  int     `json:"replayed"`
+		Ingested  *uint64 `json:"ingested-msg-id"`
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
-		return 0, 0
+		return replayProgress{}
 	}
-	return resp.LastIndex, resp.Replayed
+	return replayProgress{cursor: resp.LastIndex, replayed: resp.Replayed, ingested: resp.Ingested}
+}
+
+// deltaReplay asks adj-rib-in for whatever it has stored since prev.cursor,
+// still bounded by the same cut, and folds the answer into a new progress.
+//
+// The cursor advances only on a call that delivered something: "last-index" is
+// the highest sequence DELIVERED, so an empty call reports 0, and adopting that
+// as the cursor would rewind the next call to the start of the store.
+func (rs *RouteServer) deltaReplay(ctx context.Context, peerAddr, cutArg string, prev replayProgress) (replayProgress, error) {
+	args := []string{peerAddr, textbuf.StringUint(prev.cursor), cutArg}
+	_, data, err := rs.dispatchCommand(ctx, cmdAdjRIBInReplay, args...)
+	if err != nil {
+		return prev, err
+	}
+	next := parseReplayProgress(data)
+	if next.replayed == 0 {
+		next.cursor = prev.cursor
+	}
+	return next, nil
 }
 
 // handleOpen processes OPEN events to capture peer capabilities.

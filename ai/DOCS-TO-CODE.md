@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3109 files
+Total: 298 design docs, 3111 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -863,6 +863,7 @@ Total: 298 design docs, 3109 files
 | `internal/component/bgp/grmarker/grmarker.go` | GR restart marker for Restarting Speaker detection |
 | `internal/component/bgp/message/rfc7606_withdraw.go` | RFC 7606 treat-as-withdraw synthesis |
 | `internal/component/bgp/plugin/register.go` | BGP plugin registration with ConfigRoots |
+| `internal/component/bgp/plugins/adj_rib_in/ingest_position_test.go` | Adj-RIB-In ingest position |
 | `internal/component/bgp/plugins/bmp/bmp.go` | BMP plugin lifecycle |
 | `internal/component/bgp/plugins/bmp/doc.go` | BGP plugin model |
 | `internal/component/bgp/plugins/bmp/header.go` | BMP wire format |
@@ -920,6 +921,7 @@ Total: 298 design docs, 3109 files
 | `internal/component/bgp/plugins/rr/withdrawal.go` | withdrawal tracking for route reflector |
 | `internal/component/bgp/plugins/rs/community.go` | community-based selective forwarding for RS |
 | `internal/component/bgp/plugins/rs/peer.go` | route server plugin |
+| `internal/component/bgp/plugins/rs/replay_catchup_test.go` | route-server peer-up replay convergence |
 | `internal/component/bgp/plugins/rs/server.go` | route server plugin |
 | `internal/component/bgp/plugins/rs/server_forward.go` | forward routing for route server |
 | `internal/component/bgp/plugins/rs/server_handlers.go` | peer event handlers for route server |

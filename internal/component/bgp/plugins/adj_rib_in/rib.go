@@ -163,6 +163,28 @@ type AdjRIBInManager struct {
 	// idempotent at the receiver, whereas standing down for an owner that never
 	// replays loses routes outright (ai/rules/fail-closed-guards.md).
 	replayOwned atomic.Bool
+
+	// ingestedMsgID is the INGEST POSITION: the newest reactor MessageID taken
+	// delivery of, the counterpart of bgp-rs's seenMsgID over the same stream.
+	// A peer-up cut promises the replay carries everything at or below it, and
+	// this is what lets the caller CHECK that instead of assuming it -- bgp-rs
+	// runs on its own delivery goroutine (plugin/process/delivery.go, one
+	// eventChan per Process) and routinely gets there first.
+	//
+	// CAS max, published after the store mutex is released
+	// (handleReceivedStructured), so observing N means every route through N is
+	// visible to a subsequent replay.
+	ingestedMsgID atomic.Uint64
+
+	// ingestTracked carries PRESENCE separately from ingestedMsgID's VALUE, for
+	// the reason replayCut does (replay_cut.go): position 0 is the real answer
+	// "nothing ingested yet", and it is exactly the losing case, so it must not
+	// double as "no signal".
+	//
+	// True only on the structured (in-process) path, the only one carrying a
+	// MessageID. Forked ingest stores MsgID 0, which replayCut.excludes never
+	// excludes, so that replay is already unbounded. Set before any event.
+	ingestTracked bool
 }
 
 // newSeqMap creates a new seqmap for route storage.
@@ -183,6 +205,10 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 		peerUp:         make(map[netip.Addr]bool),
 		pending:        make(map[compactPendingKey]*PendingRoute),
 		earlyDecisions: make(map[compactPendingKey]*EarlyDecision),
+		// Only the in-process path carries a reactor MessageID, so only there is
+		// an ingest position meaningful. Resolved here, before Stage 2, so no
+		// event can observe it unset.
+		ingestTracked: p.IsInternal(),
 	}
 
 	// Structured event handler for DirectBridge delivery.
@@ -282,7 +308,19 @@ func parsePeerAddress(peerAddr string) (netip.Addr, error) {
 // text/JSON plugins.
 func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
-	if !ok || msg == nil || msg.WireUpdate == nil {
+	if !ok || msg == nil {
+		return
+	}
+
+	// Unconditional, because bgp-rs advances its cut on exactly this event and is
+	// equally unconditional (rs/server.go dispatchStructured). An UPDATE skipped
+	// below for an empty WireUpdate or an unparseable peer still moved that cut,
+	// so recording the position only where a route is stored would leave the
+	// caller waiting for a position that never arrives. Deferred, so it publishes
+	// after this UPDATE's routes are visible.
+	defer r.noteIngested(msg.MessageID)
+
+	if msg.WireUpdate == nil {
 		return
 	}
 
@@ -792,6 +830,26 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 			logger().Error("peer-up replay failed", "peer", event.GetPeerAddress(), "routes", len(routes), "error", err)
 		}
 	}
+}
+
+// noteIngested advances the ingest position to msgID if it is newer.
+//
+// A CAS max, not a store: MessageIDs are allocated per receive across all peers,
+// so they arrive out of numeric order and a late low one must not pull the
+// position back past a cut a peer is waiting on.
+func (r *AdjRIBInManager) noteIngested(msgID uint64) {
+	for {
+		cur := r.ingestedMsgID.Load()
+		if msgID <= cur || r.ingestedMsgID.CompareAndSwap(cur, msgID) {
+			return
+		}
+	}
+}
+
+// ingestPosition reports how far this plugin has consumed the UPDATE stream,
+// and whether that number means anything at all (see the ingestTracked field).
+func (r *AdjRIBInManager) ingestPosition() (msgID uint64, tracked bool) {
+	return r.ingestedMsgID.Load(), r.ingestTracked
 }
 
 // buildReplayRoutes collects the stored routes to replay to a target peer.

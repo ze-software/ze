@@ -1,4 +1,6 @@
 // Design: docs/architecture/core-design.md — route server plugin
+// RFC: rfc/short/rfc7313.md — BoRR/EoRR arrive on the "refresh" subscription as markers, not refresh requests
+// RFC: rfc/short/rfc5492.md — capability advertisement in OPEN optional parameter type 2 (supersedes RFC 3392)
 // Detail: worker.go — per-source-peer worker pool with backpressure
 // Detail: peer.go — PeerState tracking (families, up/down)
 // Detail: server_text.go — text event parsing (Event, FamilyOperation, OpenInfo types)
@@ -24,6 +26,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/selector"
@@ -67,6 +70,19 @@ const replayConvergenceMax = 10
 // Gives adj-rib-in's event handler time to process pending deliveries
 // from the engine's DirectBridge (concurrent with replay commands).
 const replayConvergenceDelay = 20 * time.Millisecond
+
+// replayCatchUpBudget bounds how long a peer-up replay waits for bgp-adj-rib-in
+// to consume the UPDATE stream up to that peer's cut (replayForPeer phase 1).
+//
+// It is a FAILSAFE, not the convergence criterion: the loop exits the instant
+// adj-rib-in reports an ingest position at or past the cut, which normally takes
+// one or two 20 ms polls. The budget only decides how long to keep trying before
+// admitting the cut is suppressing UPDATEs the replay could not cover, and it is
+// deliberately far larger than the expected wait -- the two outcomes are not
+// symmetric. Waiting too long costs peer-up latency once per session; giving up
+// too early loses routes silently, which is the defect this phase exists to
+// close.
+const replayCatchUpBudget = 5 * time.Second
 
 // Event type constants matching ze-bgp message.type values.
 //
@@ -130,6 +146,14 @@ type RouteServer struct {
 	peers   map[string]*PeerState
 	mu      sync.RWMutex
 	workers *workerPool
+
+	// clk is the time source for peer-up replay convergence (replayForPeer).
+	// Production sets clock.RealClock{}; a test injects a fake so the catch-up
+	// budget can be exercised without a real 5-second wait -- writing a
+	// wall-clock-dependent test to prove a fix for a wall-clock-dependent bug
+	// would just move the flake. Nil is a valid zero value and means real time
+	// (see now/sleep): RouteServer is also built as a struct literal.
+	clk clock.Clock
 
 	// pausedPeers tracks source peers for which we have sent a pause RPC.
 	// Protected by mu. Nil until wireFlowControl is called.
@@ -197,6 +221,7 @@ func RunRouteServer(conn net.Conn) int {
 		plugin:      p,
 		peers:       make(map[string]*PeerState),
 		withdrawals: make(map[string]map[withdrawalKey]struct{}),
+		clk:         clock.RealClock{},
 	}
 
 	// ze.bgp.route-server.worker-queue-size overrides the per-source-peer worker channel capacity.
