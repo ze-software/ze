@@ -186,6 +186,36 @@ observer missed it and a 250 ms poll missed it, both while the Cease was already
 on the wire. If you write another test around a fast teardown, reach for a
 monotonic counter rather than a transient state.
 
+## Triage of the untouched specs (2026-07-27)
+
+The goal "implement all the spec-fixit" is NOT met: 20 specs, 3 with code
+landed, 1 closed as stale, 15 unstarted. What follows is the cheap part done, so
+the next session spends its context on work rather than on re-deriving state.
+
+**Verify before working. One of these was already fixed.**
+`spec-fixit-sleeps-cli-harness` was closed on a single grep (`a95f0b7f8`) -- the
+work had landed and nobody had told the spec. Two more were checked this
+session and are genuinely LIVE:
+
+| Spec | Keystone claim | Verified at |
+|------|----------------|-------------|
+| `forward-rail-initial-sync-ordering` | forwarding rail never consults `ShouldQueue` | 3 non-test callers, all injection-rail: `reactor_api_batch.go:111`, `:241`, `reactor_api_forward.go:103`. None in `forward_rs.go` / `forwardUpdateCore` |
+| `stored-route-relay-hardening` | ADD-PATH replay still refused | `reactor_api_relay.go:328` returns `errRelayAddPath`, pinned by `reactor_api_relay_test.go:432` |
+
+**The remaining set is not homogeneous, and sizing it by file length misleads.**
+`forward-rail-initial-sync-ordering` is the smallest file (6.7K) but is a
+hot-path reactor ordering change: `ai/rules/testing.md` makes
+`make ze-race-reactor` mandatory for it. `stored-route-relay-hardening` (19K) is
+explicitly an INVESTIGATION spec -- its own Task section records that the
+previous round's guessing at that layer "produces worse outcomes than the bug
+being fixed", having added a guard that failed an entire replay over a correctly
+suppressed route. Neither is a quick win; pick them with a full context budget.
+
+**What this session proved about pace.** Every one of the five defects fixed
+here needed independent review, and three of the five had a further defect found
+only in that review -- twice the same missed sibling call site. Budget for the
+review round; it is not optional overhead on this codebase.
+
 ## Environment warnings for whoever picks this up
 
 - **This working tree is shared with another active session.** At handover it had
