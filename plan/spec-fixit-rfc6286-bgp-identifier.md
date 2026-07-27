@@ -520,17 +520,40 @@ registry; Section 2.3 above the collision branch.
 
 ## Review Gate
 
+Run by an INDEPENDENT subagent in a fresh context, 2026-07-27. The implementation
+had reached Phase 5/5 with all three goals met, but had never been reviewed: this
+section was empty template and `review_gate.py check` returned BLOCKED.
+
+Artifact: `tmp/review/fixit-rfc6286-bgp-identifier-<session>.md` (verdict clean,
+9 files hash-pinned). `review_gate.py check` exits 0.
+
 ### Run 1 (initial)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| 1 | ISSUE | Equal-identifier collision branch justified by a false ordering claim: the comment asserted Section 2.2 had already rejected an internal peer and that equal AS numbers could not reach the branch. `DetectCollision` runs from `ResolvePendingCollision` BEFORE the Section 2.2 check, which runs only on the winning connection. Outcome always safe (`PeerAS > LocalAS` false for equal AS), so a wrong justification rather than wrong behavior | `internal/component/bgp/reactor/session.go` equal-identifier branch | FIXED `e2229e924` -- comment now names the comparison as what makes the case safe |
+| 2 | NOTE | `session_open_validation.go` reads mutable `s.settings.PeerAS` without `p.mu`, unlike sibling `claimPeerAS` | `session_open_validation.go:40` | Recorded in learned 1277; dynamic-peers-only and timeout-gated, not demonstrated as a race |
+| 3 | NOTE | Global `router-id` zero rejection has no test binding; the enforcing test and ledger id both bind the per-peer leaf | `config.go` `parseRouterID` | Recorded in learned 1277; behavior triple-covered |
+| 4 | NOTE | `parsePeersFromTree` parses peer `router-id` with bare `netip.ParseAddr`, accepts `0.0.0.0` | `reactor_api.go:782-786` | Recorded in learned 1277; unreachable in production, pre-existing (`437429c0e`) |
+| 5 | NOTE | Stale reference to the deleted `checkRouterIDConflict` | `reactor_dynamic.go:346` | FIXED `e2229e924` |
+| 6 | NOTE | `runOpenValidator` returns nil when `localOpen == nil`, a fail-open shape | `session_open_validation.go:86` | Recorded in learned 1277; verified unreachable, defensive only |
 
 ### Fixes applied
+`e2229e924` -- comment-only, no behavior change: corrects the ordering claim (finding 1)
+and retires the stale `checkRouterIDConflict` reference (finding 5).
 
 ### Run 2+ (re-runs until clean)
 | # | Severity | Finding | Location | Action |
 |---|----------|---------|----------|--------|
+| - | - | 0 BLOCKER, 0 ISSUE remaining after the fixes above | - | - |
 
 ### Final status
+**CLEAN.** 0 BLOCKER, 0 ISSUE. Four NOTEs recorded in `plan/learned/1277-*` rather than
+fixed; none blocks closure and each names why.
+
+Verification: `go test -race ./internal/component/bgp/reactor/ ./internal/component/bgp/message/`
+exit 0; `rfc_requirements.py --check` exit 0. Nine mutations applied and reverted, every one
+turning a test red -- including both polarities of the Section 2.3 tie-break. No vacuous test
+found.
 - [ ] `/ze-review` re-run shows 0 BLOCKER, 0 ISSUE
 - [ ] All NOTEs recorded above (or explicitly "none")
 
