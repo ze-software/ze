@@ -2,7 +2,9 @@
 // Design: docs/architecture/core-design.md -- BMP sender (outbound to collectors)
 //
 // Related: bmp.go -- plugin lifecycle, config parsing
+// Related: bmp_events.go -- the reactor events written to these sessions
 // Related: msg.go -- BMP message encoding
+// Detail: sender_drain.go -- enqueue (producer side) and the drain goroutine
 
 package bmp
 
@@ -14,6 +16,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -22,22 +25,44 @@ import (
 	"github.com/ze-software/ze/internal/core/network"
 )
 
-var errNotConnected = errors.New("not connected")
+var (
+	errNotConnected = errors.New("not connected")
+
+	// errQueueOverflow is returned to a producer whose message did not fit in
+	// the session's transmit queue. The message is NOT queued and the session
+	// is being reset; the producer must not retry, and must not block.
+	errQueueOverflow = errors.New("transmit queue overflow, session reset")
+)
 
 // RFC 7854 suggested reconnection intervals.
 const (
 	reconnectMin = 30 * time.Second
 	reconnectMax = 720 * time.Second
 	writeTimeout = 10 * time.Second
+
+	// terminationWait bounds how long a teardown waits for an in-flight socket
+	// write before giving up on sending the final Termination message. Short:
+	// past it the collector is provably not reading.
+	terminationWait = 1 * time.Second
+	// flushPollInterval is the retry granularity of that wait.
+	flushPollInterval = 2 * time.Millisecond
 )
 
 // senderSession manages a single outbound TCP connection to a BMP collector.
 //
 // Caller MUST call stop() to shut down the session goroutine, then
-// wait on the WaitGroup that tracks it.
+// wait on the WaitGroup that tracks it. run() waits for the drain goroutine
+// before returning, so that WaitGroup covers both.
+//
+// Transmit path: producers never touch the socket. A write* method encodes into
+// `scratch` and COPIES the finished message into the session's bounded transmit
+// queue (txqueue.go); the drain goroutine started on first use is the only
+// writer of queued bytes to the socket. That is what keeps a wedged collector
+// from stalling a producer -- in particular the RIB best-change publisher, whose
+// EventBus handler "MUST NOT block on I/O" (pkg/ze/eventbus.go).
 //
 // Scratch usage: writePeerUp/Down/RouteMonitoring/Mirroring/StatisticsReport all
-// encode into `scratch` and then flush it to the TCP connection. More than one
+// encode into `scratch` and then hand it to the queue. More than one
 // goroutine reaches those methods:
 //
 //   - the bmp plugin's own delivery loop (RunBMPPlugin's OnStructuredEvent ->
@@ -48,12 +73,12 @@ const (
 //     internal/component/plugin/server/engine_event.go), so bmp_locrib.go's
 //     handleBestChange runs on the RIB plugin's delivery goroutine.
 //
-// writeMu therefore covers the whole encode-then-flush, not just the flush:
+// writeMu therefore covers the whole encode-then-enqueue, not just the encode:
 // without it two producers interleave in the one scratch array and a message
 // goes out whose Common Header length does not describe its content, which
-// desynchronises the collector's framing for every message after it. Holding it
-// across the write also keeps each BMP message contiguous on the wire without
-// depending on any net.Conn write-atomicity that net.Conn does not promise.
+// desynchronizes the collector's framing for every message after it. Holding it
+// across the copy into the transmit queue keeps each BMP message contiguous in
+// the queue, and the single drain goroutine keeps it contiguous on the wire.
 type senderSession struct {
 	name          string
 	address       string
@@ -67,10 +92,57 @@ type senderSession struct {
 	stopCtx context.Context
 	cancel  context.CancelFunc
 
-	// writeMu guards scratch AND the ordering of writes to conn. Every method
-	// that encodes into scratch or writes to the collector MUST hold it.
+	// writeMu guards scratch AND the order messages enter the transmit queue.
+	// Every method that encodes into scratch or enqueues MUST hold it.
 	writeMu sync.Mutex
 	scratch []byte
+
+	// flushMu serializes the actual socket writes. Only the drain goroutine and
+	// the session's own goroutine (Initiation, Termination) write, and they must
+	// not interleave halves of two BMP messages on the wire.
+	flushMu sync.Mutex
+
+	// stopOnce guards stop(), which two teardown paths can reach (a config
+	// reload restarting the senders, and plugin shutdown). termOnce keeps the
+	// session's final Termination to exactly one however many of those paths
+	// race for it.
+	stopOnce sync.Once
+	termOnce sync.Once
+
+	// drainMu guards txq/drainStarted/drainDone: the drain goroutine's whole
+	// lifecycle. ensureDrain starts it on first use, run() waits for it.
+	drainMu      sync.Mutex
+	txq          *txQueue
+	drainStarted bool
+	drainDone    chan struct{}
+
+	// txLimit is the transmit queue's byte bound. Zero means txQueueLimitBytes.
+	txLimit int
+
+	// retryWait is the base reconnection delay (RFC 7854 Section 3.2 suggests
+	// backing off rather than redialing in a tight loop). Zero means
+	// reconnectMin. A field rather than the bare constant so a test can drive a
+	// full disconnect -> reconnect cycle without waiting out production timing.
+	retryWait time.Duration
+
+	// onPrimed, when set, runs on the session goroutine with writeMu HELD, in
+	// the same critical section that publishes the connection. Whatever it
+	// enqueues is therefore guaranteed to be the first thing on the new BMP
+	// session after Initiation: every producer takes writeMu before it can
+	// enqueue, so none can slip a Route Monitoring in front of the Peer Ups this
+	// replays. It MUST use the *Locked write helpers and MUST NOT re-enter the
+	// producer path.
+	onPrimed func()
+
+	// onConnected, when set, runs on the session goroutine after priming, with
+	// no lock held. It is for work that re-enters the producer path -- the RFC
+	// 9069 Loc-RIB dump request, whose replay batches call back into write*.
+	onConnected func()
+
+	// locRIBUpSent records whether the RFC 9069 Loc-RIB Peer Up has been sent on
+	// the CURRENT connection. Cleared when the connection ends, because a new
+	// BMP session starts with no state at the collector.
+	locRIBUpSent atomic.Bool
 }
 
 // newSenderSession creates a sender session for the given collector.
@@ -84,6 +156,8 @@ func newSenderSession(name string, cfg collectorConfig) *senderSession {
 		stopCh:        make(chan struct{}),
 		stopCtx:       ctx,
 		cancel:        cancel,
+		txLimit:       txQueueLimitBytes,
+		retryWait:     reconnectMin,
 		// maxBMPMsgSize (65535) is the RFC 7854 ceiling. Allocating
 		// this once per collector session keeps the BGP-UPDATE → BMP
 		// Route Monitoring hot path allocation-free.
@@ -96,8 +170,12 @@ func newSenderSession(name string, cfg collectorConfig) *senderSession {
 // and enters a loop that reconnects on failure.
 func (ss *senderSession) run() {
 	defer ss.cancel()
+	// The drain goroutine outlives no session: run() is the goroutine the
+	// plugin's WaitGroup tracks, so it is the one that must not return until
+	// the drain has exited.
+	defer ss.waitDrain()
 	addr := net.JoinHostPort(ss.address, strconv.Itoa(int(ss.port)))
-	reconnectWait := reconnectMin
+	reconnectWait := ss.retryBase()
 
 	for {
 		if ss.isStopping() {
@@ -124,12 +202,12 @@ func (ss *senderSession) run() {
 			continue
 		}
 
-		reconnectWait = reconnectMin
+		reconnectWait = ss.retryBase()
 		logger().Info("bmp: sender connected", "collector", ss.name, "address", addr)
 
 		// RFC 7854 Section 4.3: Initiation MUST be the first message on a new BMP
 		// session. Publishing ss.conn is what makes this session reachable by the
-		// concurrent producers in sendLocked, so it happens only AFTER Initiation
+		// concurrent producers in enqueueLocked, so it happens only AFTER Initiation
 		// is on the wire -- otherwise a Peer Up or a Loc-RIB Route Monitoring
 		// racing in from another goroutine reaches the collector first.
 		//
@@ -146,7 +224,7 @@ func (ss *senderSession) run() {
 		if err := ss.sendInitiation(conn); err != nil {
 			logger().Warn("bmp: sender initiation failed", "collector", ss.name, "error", err)
 			closeLog(conn, "sender-init-fail")
-			// Back off before redialling. Without this a collector that accepts the
+			// Back off before redialing. Without this a collector that accepts the
 			// TCP connection and then rejects the Initiation produces a tight
 			// dial -> write -> close spin: reconnectWait was reset to reconnectMin
 			// above and this branch never waits.
@@ -157,16 +235,57 @@ func (ss *senderSession) run() {
 			continue
 		}
 
+		// A BMP session carries no state across a TCP connection: the collector
+		// that just accepted knows nothing about the peers that came up while it
+		// was away. Publishing the connection and queueing the Peer Ups happen
+		// under ONE writeMu critical section, so no producer can enqueue a Route
+		// Monitoring for a peer before that peer's Peer Up (RFC 7854 Section
+		// 4.10 ordering). Neither step can block on the socket: publishing is a
+		// pointer store and the Peer Ups go into the transmit queue.
+		ss.writeMu.Lock()
 		ss.connMu.Lock()
 		ss.conn = conn
 		ss.connMu.Unlock()
+		if ss.onPrimed != nil {
+			ss.onPrimed()
+		}
+		ss.writeMu.Unlock()
+
+		// Then the work that re-enters the producer path (and so must not hold
+		// writeMu): the full fresh Loc-RIB dump.
+		if ss.onConnected != nil {
+			ss.onConnected()
+		}
 
 		// Hold connection open until stopped or error.
 		ss.holdConnection(conn)
 
-		// Clear conn so concurrent sendLocked callers see nil (not a closed conn).
+		// Clear conn so concurrent producers see nil (not a closed conn), then
+		// drop whatever is still queued: those messages belong to the BMP
+		// session that just ended, and the next connection starts with a fresh
+		// Initiation and a fresh dump (BIRD frees its whole TX queue the same
+		// way on session down, proto/bmp/bmp.c:1197-1215).
 		ss.clearConn()
+		ss.resetQueue()
+		ss.locRIBUpSent.Store(false)
+
+		// Back off before redialing. Without this a session that is reset by a
+		// transmit-queue overflow, or a collector that accepts and immediately
+		// closes, produces a tight dial -> dump -> reset spin that hammers both
+		// ends. RFC 7854 Section 3.2 asks for a backoff rather than a busy retry.
+		if ss.waitOrStop(reconnectWait) {
+			return
+		}
 	}
+}
+
+// retryBase returns the base reconnection delay, falling back to the RFC 7854
+// suggested minimum when the field was never set (struct-literal test fixtures).
+func (ss *senderSession) retryBase() time.Duration {
+	if ss.retryWait <= 0 {
+		return reconnectMin
+	}
+	return ss.retryWait
 }
 
 // clearConn sets the conn field to nil under lock.
@@ -176,13 +295,40 @@ func (ss *senderSession) clearConn() {
 	ss.connMu.Unlock()
 }
 
-// sendInitiation sends a BMP Initiation message to the collector. It takes
-// writeMu so the Initiation stays contiguous on the wire; run() publishes
-// ss.conn only after this returns, so no other producer can precede it.
-func (ss *senderSession) sendInitiation(conn net.Conn) error {
-	ss.writeMu.Lock()
-	defer ss.writeMu.Unlock()
+// clearConnIf clears the conn field only when it is still c, and reports
+// whether it did. Used by the paths that give up on a connection
+// asynchronously (the drain's failed write, the transmit-queue overflow): by
+// the time they run, run() may have already replaced c with a live connection,
+// and clearing that one would leave the session connected but unreachable to
+// every producer.
+//
+// The return value answers "was I still the current connection?", which is also
+// the only safe basis for dropping the transmit queue: a caller that was NOT
+// current is looking at a queue that now belongs to a newer session.
+func (ss *senderSession) clearConnIf(c net.Conn) bool {
+	ss.connMu.Lock()
+	defer ss.connMu.Unlock()
 
+	if ss.conn != c {
+		return false
+	}
+	ss.conn = nil
+	return true
+}
+
+// sendInitiation sends a BMP Initiation message to the collector.
+//
+// It deliberately does NOT take writeMu. writeMu is the producers' lock, and
+// this is a blocking socket write bounded only by writeTimeout: holding it here
+// would stall the RIB best-change publisher for up to ten seconds on every
+// reconnect against a collector that accepts TCP and then stops reading --
+// exactly the failure the transmit queue exists to remove. Contiguity on the
+// wire comes from flushMu (inside writeRaw), and ordering comes from run()
+// publishing ss.conn only after this returns: a producer arriving meanwhile
+// takes writeMu, sees a nil conn and returns errNotConnected immediately
+// instead of waiting. Nothing is lost by that -- run() primes the new session
+// with a Peer Up for every established peer as soon as the conn is published.
+func (ss *senderSession) sendInitiation(conn net.Conn) error {
 	init := &Initiation{
 		TLVs: []TLV{
 			MakeStringTLV(InitTLVSysName, "ze"),
@@ -201,14 +347,56 @@ func (ss *senderSession) sendInitiation(conn net.Conn) error {
 	return ss.writeRaw(conn, buf[:n])
 }
 
-// sendTermination sends a BMP Termination message before closing. Called from
-// the session's own goroutine (holdConnection), but ss.conn is still published
-// at that point, so it takes writeMu to stay contiguous against a producer that
-// is mid-message.
+// sendTermination sends the RFC 7854 Section 4.5 Termination message. It waits
+// for the socket-write lock rather than the scratch lock: Termination is built
+// on the stack and goes straight to the socket, so what it must not do is
+// interleave with a drain write, not with a producer's encode.
+//
+// It gives up after terminationWait rather than waiting out an in-flight write:
+// past that the collector is not reading, so the Termination would not reach it
+// either, and every other collector's teardown is queued behind this one.
 func (ss *senderSession) sendTermination(conn net.Conn) {
-	ss.writeMu.Lock()
-	defer ss.writeMu.Unlock()
+	if !ss.acquireFlush(terminationWait) {
+		logger().Debug("bmp: skipping termination, collector write still in flight",
+			"collector", ss.name)
+		return
+	}
+	defer ss.flushMu.Unlock()
+	ss.writeTerminationLocked(conn)
+}
 
+// terminateAndClose ends a BMP session the way RFC 7854 Section 4.5 asks: a
+// Termination message, then the TCP close. Exactly one Termination is sent per
+// session however many teardown paths race (stop() and holdConnection both
+// call this).
+func (ss *senderSession) terminateAndClose(conn net.Conn, why string) {
+	ss.termOnce.Do(func() { ss.sendTermination(conn) })
+	closeLog(conn, why)
+}
+
+// acquireFlush takes the socket-write lock, giving up after d.
+func (ss *senderSession) acquireFlush(d time.Duration) bool {
+	deadline := time.Now().Add(d)
+	for {
+		if ss.flushMu.TryLock() {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(flushPollInterval)
+	}
+}
+
+// writeTerminationLocked writes the Termination message.
+//
+// It uses terminationWait rather than writeTimeout as the write deadline: this
+// is the last thing a dying session does, and a collector that cannot take 23
+// bytes in a second is not going to take them in ten. Without the shorter
+// deadline one wedged collector adds writeTimeout to plugin shutdown.
+//
+// Caller MUST hold flushMu.
+func (ss *senderSession) writeTerminationLocked(conn net.Conn) {
 	term := &Termination{
 		TLVs: []TLV{
 			MakeStringTLV(TermTLVString, "shutting down"),
@@ -222,36 +410,38 @@ func (ss *senderSession) sendTermination(conn net.Conn) {
 	var stack [CommonHeaderSize + TLVHeaderSize + 13]byte
 	buf := stack[:]
 	n := WriteTermination(buf, 0, term)
-	if err := ss.writeRaw(conn, buf[:n]); err != nil {
+	if err := ss.writeDeadlineLocked(conn, buf[:n], terminationWait); err != nil {
 		logger().Debug("bmp: sender termination write failed", "collector", ss.name, "error", err)
 	}
 }
 
 // writeRaw writes data to a connection with a write deadline.
+//
+// It is the ONLY place BMP bytes reach a socket, and it holds flushMu for the
+// whole call so the drain goroutine and the session goroutine (Initiation,
+// Termination) can never interleave halves of two messages. The deadline
+// applies per call, and the drain never hands it more than one queue page, so a
+// slow-but-alive collector is not mistaken for a wedged one.
 func (ss *senderSession) writeRaw(conn net.Conn, data []byte) error {
-	if err := conn.SetWriteDeadline(time.Now().Add(writeTimeout)); err != nil {
+	ss.flushMu.Lock()
+	defer ss.flushMu.Unlock()
+	return ss.writeRawLocked(conn, data)
+}
+
+// writeRawLocked writes data to a connection with the standard write deadline.
+// Caller MUST hold flushMu.
+func (ss *senderSession) writeRawLocked(conn net.Conn, data []byte) error {
+	return ss.writeDeadlineLocked(conn, data, writeTimeout)
+}
+
+// writeDeadlineLocked writes data to a connection, bounded by deadline.
+// Caller MUST hold flushMu.
+func (ss *senderSession) writeDeadlineLocked(conn net.Conn, data []byte, deadline time.Duration) error {
+	if err := conn.SetWriteDeadline(time.Now().Add(deadline)); err != nil {
 		return err
 	}
 	_, err := conn.Write(data)
 	return err
-}
-
-// sendLocked writes a pre-encoded BMP message to the collector connection.
-// Returns error if the connection is not available or the write fails.
-//
-// Caller MUST hold writeMu: data is almost always a slice of the shared scratch
-// buffer, and the lock is what keeps this message's bytes contiguous against the
-// other producer goroutines described on senderSession.
-func (ss *senderSession) sendLocked(data []byte) error {
-	ss.connMu.Lock()
-	c := ss.conn
-	ss.connMu.Unlock()
-
-	if c == nil {
-		return errNotConnected
-	}
-
-	return ss.writeRaw(c, data)
 }
 
 // holdConnection blocks until stopCh is closed or the connection errors.
@@ -263,8 +453,7 @@ func (ss *senderSession) holdConnection(conn net.Conn) {
 	discard := discardArr[:]
 	for {
 		if ss.isStopping() {
-			ss.sendTermination(conn)
-			closeLog(conn, "sender-hold-stop")
+			ss.terminateAndClose(conn, "sender-hold-stop")
 			return
 		}
 
@@ -275,8 +464,7 @@ func (ss *senderSession) holdConnection(conn net.Conn) {
 		_, err := conn.Read(discard)
 		if err != nil {
 			if ss.isStopping() {
-				ss.sendTermination(conn)
-				closeLog(conn, "sender-hold-stop")
+				ss.terminateAndClose(conn, "sender-hold-stop")
 				return
 			}
 			var netErr net.Error
@@ -290,20 +478,61 @@ func (ss *senderSession) holdConnection(conn net.Conn) {
 	}
 }
 
-// stop signals the session goroutine to exit.
+// stop signals the session goroutine to exit. Idempotent.
+//
+// It also ENDS the BMP session properly: RFC 7854 Section 4.5 requires a
+// Termination message when the session is closed, and stop() is the path that
+// closes the socket, so stop() is the path that must send it. Leaving it to
+// holdConnection did not work -- by the time holdConnection's blocked Read
+// returned, the socket stop() had just closed could no longer carry anything,
+// so no collector ever received a Termination on shutdown.
 func (ss *senderSession) stop() {
-	close(ss.stopCh)
-	ss.cancel() // cancel dial context
+	ss.stopOnce.Do(func() {
+		// Give the drain a bounded chance to write what is already queued. The
+		// plugin's own teardown enqueues the RFC 9069 Loc-RIB Peer Down just
+		// before calling this (RunBMPPlugin's defer), and closing stopCh first
+		// would throw it away: the drain checks stopCh before it checks the
+		// queue. Bounded, because a collector that has not drained in a second
+		// is not going to.
+		ss.flushPending(terminationWait)
 
-	// Close conn to unblock holdConnection's Read.
-	ss.connMu.Lock()
-	c := ss.conn
-	ss.connMu.Unlock()
+		close(ss.stopCh)
+		if ss.cancel != nil {
+			ss.cancel() // cancel dial context
+		}
 
-	if c != nil {
-		// This unblocks holdConnection's Read, which then sees isStopping()
-		// and sends Termination before returning.
-		closeLog(c, "sender-stop")
+		// Wake a drain parked waiting for bytes so it observes stopCh.
+		if q := ss.queue(); q != nil {
+			q.wake()
+		}
+
+		ss.connMu.Lock()
+		c := ss.conn
+		ss.connMu.Unlock()
+
+		if c != nil {
+			// Termination, then the close that unblocks holdConnection's Read.
+			ss.terminateAndClose(c, "sender-stop")
+		}
+	})
+}
+
+// flushPending waits, for at most d, until the transmit queue is empty. Used on
+// teardown so the last messages a session was given still reach the collector.
+func (ss *senderSession) flushPending(d time.Duration) {
+	q := ss.queue()
+	if q == nil {
+		return
+	}
+	deadline := time.Now().Add(d)
+	for q.bytesPending() > 0 {
+		if time.Now().After(deadline) {
+			logger().Debug("bmp: session stopped with unwritten messages",
+				"collector", ss.name, "queued-bytes", q.bytesPending())
+			return
+		}
+		// Poll interval; the loop returns as soon as the drain reports empty.
+		time.Sleep(flushPollInterval)
 	}
 }
 
@@ -334,8 +563,8 @@ func (ss *senderSession) waitOrStop(d time.Duration) bool {
 // caller skips the write rather than truncating.
 //
 // Caller MUST hold writeMu: the returned slice aliases the one buffer every
-// producer encodes into, and MUST stay owned until the matching sendLocked
-// has flushed it.
+// producer encodes into, and MUST stay owned until the matching enqueueLocked
+// has copied it into the transmit queue.
 func (ss *senderSession) scratchFor(need int) ([]byte, error) {
 	if ss.scratch == nil {
 		ss.scratch = make([]byte, maxBMPMsgSize)
@@ -348,6 +577,18 @@ func (ss *senderSession) scratchFor(need int) ([]byte, error) {
 
 // writePeerUp encodes and sends a BMP Peer Up message.
 func (ss *senderSession) writePeerUp(peer PeerHeader, localAddr [16]byte, localPort, remotePort uint16, sentOpen, recvOpen []byte) error {
+	ss.writeMu.Lock()
+	defer ss.writeMu.Unlock()
+	return ss.writePeerUpLocked(peer, localAddr, localPort, remotePort, sentOpen, recvOpen)
+}
+
+// writePeerUpLocked is writePeerUp for a caller that already holds writeMu --
+// the session's own priming step (run() -> onPrimed), which queues the Peer Ups
+// of every established peer in the same critical section that publishes the
+// connection so nothing can precede them.
+//
+// Caller MUST hold writeMu.
+func (ss *senderSession) writePeerUpLocked(peer PeerHeader, localAddr [16]byte, localPort, remotePort uint16, sentOpen, recvOpen []byte) error {
 	pu := &PeerUp{
 		Peer:            peer,
 		LocalAddress:    localAddr,
@@ -357,15 +598,12 @@ func (ss *senderSession) writePeerUp(peer PeerHeader, localAddr [16]byte, localP
 		ReceivedOpenMsg: recvOpen,
 	}
 
-	ss.writeMu.Lock()
-	defer ss.writeMu.Unlock()
-
 	buf, err := ss.scratchFor(CommonHeaderSize + PeerHeaderSize + peerUpFixedSize + len(sentOpen) + len(recvOpen))
 	if err != nil {
 		return err
 	}
 	n := WritePeerUp(buf, 0, pu)
-	return ss.sendLocked(buf[:n])
+	return ss.enqueueLocked(buf[:n])
 }
 
 // writePeerDown encodes and sends a BMP Peer Down message.
@@ -384,7 +622,7 @@ func (ss *senderSession) writePeerDown(peer PeerHeader, reason uint8, data []byt
 		return err
 	}
 	n := WritePeerDown(buf, 0, pd)
-	return ss.sendLocked(buf[:n])
+	return ss.enqueueLocked(buf[:n])
 }
 
 // writeRouteMonitoring encodes and sends a BMP Route Monitoring message.
@@ -415,7 +653,7 @@ func (ss *senderSession) writeRouteMonitoring(peer PeerHeader, msgType msgtype.M
 	off += message.HeaderLen
 	copy(buf[off:], bgpBody)
 	WriteCommonHeader(buf, 0, CommonHeader{Version: Version, Length: uint32(total), Type: MsgRouteMonitoring}) //nolint:gosec // total bounded by scratch size
-	return ss.sendLocked(buf[:total])
+	return ss.enqueueLocked(buf[:total])
 }
 
 // writeStatisticsReport encodes and sends a BMP Statistics Report.
@@ -438,7 +676,7 @@ func (ss *senderSession) writeStatisticsReport(peer PeerHeader, stats []StatEntr
 		return err
 	}
 	n := WriteStatisticsReport(buf, 0, sr)
-	return ss.sendLocked(buf[:n])
+	return ss.enqueueLocked(buf[:n])
 }
 
 // writeRouteMirroring encodes and sends a BMP Route Mirroring message.
@@ -474,7 +712,7 @@ func (ss *senderSession) writeRouteMirroring(peer PeerHeader, msgType msgtype.Me
 	copy(buf[off:], bgpBody)
 
 	WriteCommonHeader(buf, 0, CommonHeader{Version: Version, Length: uint32(total), Type: MsgRouteMirroring}) //nolint:gosec // bounded
-	return ss.sendLocked(buf[:total])
+	return ss.enqueueLocked(buf[:total])
 }
 
 // makeStatGauge creates a StatEntry with a uint64 gauge value.

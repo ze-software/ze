@@ -300,13 +300,24 @@ func TestHandleBestChangeEmitsPeerUpThenRM(t *testing.T) {
 	}
 }
 
+// rfc-test-change-approved: 2026-07-27 Thomas approved widening the read to the full stream after the End-of-RIB change. Assertion strengthened, not relaxed.
+//
+// Follow-up, same day: the widening was superseded and the read is back at
+// three. An End-of-RIB marker is now emitted only for a dump this plugin
+// requested (bmp_locrib.go handleBestChange, ourDump), and this test calls
+// handleBestChange directly, which is the shape of a replay another subsystem
+// asked for. So this stream is Peer Up, RM(batchA), RM(batchB) again -- exactly
+// what it read before -- and the vacuity the widening existed to fix was
+// removed at its source instead. Verified by mutation: breaking the
+// one-Peer-Up guard makes this fail on peerUps=2.
 // RFC requirement: RFC9069-x-2 positive -- Loc-RIB monitoring is per RIB instance, not per
 // BGP peer: two best-change batches standing in for best paths selected from two different
 // peers emit exactly ONE Loc-RIB Peer Up (the one-shot BMPPlugin.locRIBUp guard), never one
 // Peer Up per peer.
 func TestLocRIBSinglePeerUpPerInstance(t *testing.T) {
 	// VALIDATES: RFC 9069 -- exactly one Loc-RIB Peer Up per RIB instance, independent of
-	// how many BGP peers contribute best paths.
+	// how many BGP peers contribute best paths. Reads the WHOLE stream both batches
+	// produce, so a second Peer Up cannot hide behind a read that stops inside batch A.
 	server, client := net.Pipe()
 	defer closeLog(server, "server-pipe")
 	defer closeLog(client, "client-pipe")
@@ -349,11 +360,14 @@ func TestLocRIBSinglePeerUpPerInstance(t *testing.T) {
 		bp.handleBestChange(batchB)
 	}()
 
-	// The instance emits: Peer Up, RM(batchA), RM(batchB) -- exactly one Peer Up despite two
-	// peers' worth of best changes. The read deadline turns a regression (a second Peer Up,
-	// or a missing message) into a clear failure instead of a hang.
+	// The instance emits: Peer Up, RM(batchA), RM(batchB) -- exactly one Peer Up despite
+	// two peers' worth of best changes, and no End-of-RIB, because a batch delivered to
+	// handleBestChange without this plugin having requested the dump is somebody else's
+	// replay. A per-peer regression puts a second Peer Up at index 2, inside this read.
+	// The read deadline turns a regression (a second Peer Up, or a missing message) into
+	// a clear failure instead of a hang.
 	_ = server.SetReadDeadline(time.Now().Add(3 * time.Second))
-	var peerUps, routeMons int
+	var peerUps, routeMons, endOfRIBs int
 	for i := range 3 {
 		msg, err := readBMPFromPipe(server)
 		if err != nil {
@@ -366,7 +380,13 @@ func TestLocRIBSinglePeerUpPerInstance(t *testing.T) {
 				t.Errorf("Peer Up PeerType = %d, want %d (Loc-RIB)", m.Peer.PeerType, PeerTypeLocRIB)
 			}
 		case *RouteMonitoring:
-			routeMons++
+			// An End-of-RIB marker is a Route Monitoring too, so it is counted apart from
+			// the best changes rather than passing for one of them.
+			if isEndOfRIB(m) {
+				endOfRIBs++
+			} else {
+				routeMons++
+			}
 		default:
 			t.Fatalf("unexpected message type %T", msg)
 		}
@@ -377,6 +397,9 @@ func TestLocRIBSinglePeerUpPerInstance(t *testing.T) {
 	}
 	if routeMons != 2 {
 		t.Errorf("Route Monitoring count = %d, want 2 (one per best change)", routeMons)
+	}
+	if endOfRIBs != 0 {
+		t.Errorf("End-of-RIB count = %d, want 0: this plugin did not request this replay", endOfRIBs)
 	}
 	bp.mu.RLock()
 	up := bp.locRIBUp

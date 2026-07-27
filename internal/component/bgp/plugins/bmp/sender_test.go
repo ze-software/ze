@@ -435,23 +435,19 @@ func TestStartSenderIsIdempotent(t *testing.T) {
 	}
 }
 
-// NOTE for anyone implementing the bounded transmit queue in
-// plan/spec-fixit-bmp-sender-blocking-and-reload.md.
+// NOTE (resolved 2026-07-27): the bounded transmit queue landed, and none of
+// the tests in this file needed changing -- including the four that carry RFC
+// 7854 tags (RFC7854-x-8 through x-11).
 //
-// The tests in this file construct senderSession directly and assume sendLocked
-// writes to the connection SYNCHRONOUSLY. Moving the socket write onto a drain
-// goroutine (which is the point of that spec: no socket write on an EventBus
-// subscriber goroutine) breaks that assumption, so every such test needs a
-// running drain to see any bytes.
+// The socket write DID move onto a per-session drain goroutine, so a test that
+// hands a senderSession a connection and then reads it back does need a drain
+// running. It gets one from the shipped code: enqueueLocked starts the drain on
+// first use (sender_drain.go ensureDrain), so these fixtures exercise exactly
+// the asynchronous path production takes -- encode into scratch, copy into the
+// queue, drain writes the socket. There is no nil-queue synchronous fallback,
+// which the previous note rightly ruled out as coverage that proves nothing.
 //
-// That is not a free refactor. Four tests here carry RFC 7854 tags
-// (RFC7854-x-8 through x-11), and ai/rules/testing.md makes ANY behavioral
-// change to a tagged test require the user's explicit approval plus an
-// `// rfc-test-change-approved:` marker -- self-justification via
-// `// test-relax:` does NOT satisfy it. Get that approval BEFORE writing the
-// queue, not after, or the work cannot be landed.
-//
-// An attempt on 2026-07-27 stopped exactly here. Do not route around it with a
-// nil-queue fallback in sendLocked: that would leave these tests exercising a
-// synchronous path production never takes, which is coverage that proves
-// nothing about the shipped code.
+// What a new test here DOES have to account for: a write* call returning nil
+// means the message is QUEUED, not that it is on the wire. If a test closes the
+// connection or asserts on socket bytes right after the call, wait for the
+// queue first (waitQueueDrained in sender_queue_test.go).

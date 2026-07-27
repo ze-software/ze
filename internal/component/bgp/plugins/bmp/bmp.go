@@ -4,6 +4,7 @@
 // Related: header.go -- wire format encode/decode
 // Related: tlv.go -- TLV encode/decode
 // Related: msg.go -- message type encode/decode
+// Detail: bmp_events.go -- reactor events turned into BMP sender messages
 
 package bmp
 
@@ -17,16 +18,11 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"net/netip"
 	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/bgp/msgtype"
-
-	"github.com/ze-software/ze/internal/component/bgp/message"
-	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -124,6 +120,32 @@ type openPair struct {
 	received []byte // complete BGP OPEN (marker + length + type + body)
 }
 
+// dumpScope marks a full-table Loc-RIB replay this plugin requested. session
+// names the one collector session the dump is for; nil session means every
+// connected session (the dump requested when Loc-RIB monitoring starts, which
+// is addressed to whoever is already connected).
+type dumpScope struct {
+	session *senderSession
+}
+
+// peerUpState is everything the Peer Up message for one established BGP peer
+// needs. It is recorded when the peer comes up and dropped when it goes down,
+// so a collector that connects (or reconnects) later can be told about every
+// peer that is up right now -- a BMP session carries no state across TCP
+// connections, and RFC 7854 Section 4.10 Route Monitoring only makes sense to a
+// collector that has seen the peer's Peer Up first.
+//
+// The timestamp inside peer is the moment the peer came up, not the moment the
+// Peer Up is (re)sent: it describes the event, per RFC 7854 Section 4.2.
+type peerUpState struct {
+	peer       PeerHeader
+	localAddr  [16]byte
+	localPort  uint16
+	remotePort uint16
+	sentOpen   []byte
+	recvOpen   []byte
+}
+
 // BMPPlugin implements the bgp-bmp plugin.
 // It manages both receiver (TCP listener for inbound BMP) and
 // sender (outbound TCP to collectors) functionality.
@@ -138,14 +160,21 @@ type BMPPlugin struct {
 	listeners []net.Listener
 	sessions  sync.WaitGroup
 
-	// Sender state.
+	// Sender state. All three are protected by mu: the sender set and the two
+	// config leaves are written on the configure path and read on the plugin's
+	// event-delivery goroutine, which snapshots them together (see
+	// handleStructuredEvent).
 	senders            []*senderSession
 	routeMonitorPolicy string // "pre-policy", "post-policy", "all"
 	routeMirroring     bool
 
 	// Loc-RIB monitoring state (RFC 9069, PeerType=3). locRIBUnsub is the
 	// best-change EventBus unsubscribe (nil when not subscribed). locRIBUp
-	// guards the one-shot Loc-RIB Peer Up. Protected by mu.
+	// records that Loc-RIB monitoring has been announced to at least one
+	// collector, which is what gates the Loc-RIB Peer Down on shutdown; the
+	// once-per-session guard for the Peer Up itself lives on the session
+	// (senderSession.locRIBUpSent), because each BMP session needs its own.
+	// Protected by mu.
 	locRIBUnsub func()
 	locRIBUp    bool
 
@@ -154,6 +183,27 @@ type BMPPlugin struct {
 	// consumed by state events. Protected by mu.
 	openCache map[string]*openPair
 
+	// dumpScope describes the full-table Loc-RIB replay THIS plugin currently
+	// has in flight, published only for the duration of its replay-request Emit.
+	// nil means the plugin did not ask for the replay being delivered -- another
+	// subscriber did (internal/component/sysrib/sysrib.go emits on the same
+	// broadcast handle), and such a batch must not be mistaken for this
+	// plugin's own dump.
+	//
+	// One pointer rather than a target plus a flag: the two questions ("is this
+	// ours" and "who is it for") are answered from a single atomic load, so a
+	// dump that ends mid-batch cannot leave a reader holding half of each.
+	// dumpMu serializes the whole publish/emit/retract window so two collectors
+	// reconnecting together cannot overwrite each other's scope.
+	dumpMu    sync.Mutex
+	dumpScope atomic.Pointer[dumpScope]
+
+	// peerUps holds the Peer Up state of every currently established BGP peer,
+	// keyed by peer address. Written on peer up/down, read when a collector
+	// connects so the new BMP session is told about the peers that came up
+	// before it. Protected by mu.
+	peerUps map[string]*peerUpState
+
 	// dedupState tracks per-peer UPDATE body hashes for Route Monitoring dedup.
 	// Key: peer address. Value: set of FNV-64 hashes of RawBytes.
 	// Cleared per-peer on peer-down. Protected by mu.
@@ -161,7 +211,10 @@ type BMPPlugin struct {
 	dedupState map[string]map[uint64]struct{}
 
 	// dedupHasher is pre-allocated FNV-64a hasher, reused via Reset().
-	// Safe without locking: event handler is serial per senderSession.
+	// Safe without locking because it is touched only from handleSenderUpdate,
+	// and structured events reach a plugin on ONE delivery goroutine
+	// (internal/component/plugin/process/delivery.go startDeliveryLocked starts
+	// a single deliveryLoop per process). Nothing else may use it.
 	dedupHasher hash.Hash64
 
 	// stopCh signals all background goroutines to stop.
@@ -179,6 +232,7 @@ func RunBMPPlugin(conn net.Conn) int {
 		plugin:      p,
 		state:       newBMPState(),
 		openCache:   make(map[string]*openPair),
+		peerUps:     make(map[string]*peerUpState),
 		dedupState:  make(map[string]map[uint64]struct{}),
 		dedupHasher: fnv.New64a(),
 		stopCh:      make(chan struct{}),
@@ -243,10 +297,7 @@ func RunBMPPlugin(conn net.Conn) int {
 					logger().Error("bmp: sender config parse failed", "error", err)
 					return err
 				}
-				if snd.RouteMonitoringPolicy != "" {
-					bp.routeMonitorPolicy = snd.RouteMonitoringPolicy
-				}
-				bp.routeMirroring = snd.RouteMirroring == yangTrue
+				bp.setSenderPolicy(snd.RouteMonitoringPolicy, snd.RouteMirroring == yangTrue)
 				if len(snd.Collectors) > 0 {
 					bp.startSender(snd)
 				}
@@ -376,21 +427,51 @@ func (bp *BMPPlugin) startSender(cfg *senderConfig) {
 
 	for name, col := range cfg.Collectors {
 		ss := newSenderSession(name, col)
+		// Every connection this session makes is a NEW BMP session and starts
+		// from scratch: Peer Up for the peers that are up (queued in the same
+		// critical section that publishes the connection, so nothing precedes
+		// them), then a full fresh dump.
+		ss.onPrimed = func() { bp.primeSender(ss) }
+		ss.onConnected = func() { bp.requestLocRIBDump(ss) }
 		bp.senders = append(bp.senders, ss)
 		bp.sessions.Go(ss.run)
 		logger().Info("bmp: sender started", "collector", name, "address", col.Address, "port", col.Port)
 	}
 }
 
-// stopSenders stops all sender sessions.
-func (bp *BMPPlugin) stopSenders() {
+// setSenderPolicy publishes the two config leaves that decide what a reactor
+// event produces: which direction is streamed as Route Monitoring, and whether
+// Route Mirroring is on. An empty policy leaves the current one in place, which
+// is what the YANG leaf being absent means.
+//
+// Both are published in ONE write lock because handleStructuredEvent snapshots
+// them together: an event must be processed under a single configuration, never
+// under the policy from one and the mirroring flag from the next.
+func (bp *BMPPlugin) setSenderPolicy(policy string, mirroring bool) {
 	bp.mu.Lock()
 	defer bp.mu.Unlock()
 
-	for _, ss := range bp.senders {
+	if policy != "" {
+		bp.routeMonitorPolicy = policy
+	}
+	bp.routeMirroring = mirroring
+}
+
+// stopSenders stops all sender sessions.
+//
+// The session list is detached under the lock and the sessions are stopped
+// outside it: stop() now writes the RFC 7854 Section 4.5 Termination message
+// before closing, and no other plugin path should have to wait behind a
+// collector's socket for that.
+func (bp *BMPPlugin) stopSenders() {
+	bp.mu.Lock()
+	senders := bp.senders
+	bp.senders = nil
+	bp.mu.Unlock()
+
+	for _, ss := range senders {
 		ss.stop()
 	}
-	bp.senders = nil
 }
 
 // acceptLoop accepts BMP connections on the listener until it is closed.
@@ -668,261 +749,6 @@ func (bp *BMPPlugin) processRouteMirroring(remote string, m *RouteMirroring) {
 	)
 }
 
-// --- Sender event handling ---
-
-// handleStructuredEvent processes a reactor event and forwards it to all sender sessions.
-func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
-	// Maintain internal state regardless of whether senders are connected.
-	// Peers may establish before any collector connects (AC-3).
-	switch se.EventType { //nolint:exhaustive // only open and state need pre-sender work
-	case rpc.EventKindOpen:
-		bp.cacheOpenPDU(se)
-	case rpc.EventKindState:
-		if se.State == rpc.SessionStateDown {
-			bp.mu.Lock()
-			delete(bp.openCache, se.PeerAddress)
-			delete(bp.dedupState, se.PeerAddress)
-			bp.mu.Unlock()
-		}
-	}
-
-	bp.mu.RLock()
-	senders := bp.senders
-	bp.mu.RUnlock()
-
-	if len(senders) == 0 {
-		return
-	}
-
-	switch se.EventType { //nolint:exhaustive // BMP handles state, update, open, notification, keepalive, refresh
-	case rpc.EventKindState:
-		bp.handleSenderState(se, senders)
-	case rpc.EventKindOpen:
-		if bp.routeMirroring {
-			bp.handleSenderMirror(se, senders)
-		}
-	case rpc.EventKindUpdate:
-		// Filter by route-monitoring-policy:
-		// "pre-policy" = received only, "post-policy" = sent only, "all" = both.
-		policy := bp.routeMonitorPolicy
-		if policy == "" {
-			policy = "all"
-		}
-		switch {
-		case policy == "all":
-			bp.handleSenderUpdate(se, senders)
-		case policy == "pre-policy" && se.Direction == rpc.DirectionReceived:
-			bp.handleSenderUpdate(se, senders)
-		case policy == "post-policy" && se.Direction == rpc.DirectionSent:
-			bp.handleSenderUpdate(se, senders)
-		}
-		if bp.routeMirroring {
-			bp.handleSenderMirror(se, senders)
-		}
-	case rpc.EventKindNotification, rpc.EventKindKeepalive, rpc.EventKindRefresh:
-		if bp.routeMirroring {
-			bp.handleSenderMirror(se, senders)
-		}
-	}
-}
-
-// cacheOpenPDU caches a real BGP OPEN PDU from an OPEN message event.
-// RawMessage.RawBytes is the OPEN body (no 19-byte BGP header); we synthesize
-// the full BGP OPEN PDU (marker + length + type + body) for Peer Up.
-// Non-UPDATE RawBytes are independently allocated copies (reactor_notify.go),
-// safe to hold beyond the event handler.
-func (bp *BMPPlugin) cacheOpenPDU(se *rpc.StructuredEvent) {
-	rawBytes, msgType := rawUpdateBytes(se)
-	if rawBytes == nil || msgType != msgtype.TypeOPEN {
-		return
-	}
-
-	// RFC 7854 S4.10: Peer Up includes complete BGP OPEN messages.
-	// Build full PDU: 16-byte marker + 2-byte length + 1-byte type + body.
-	pduLen := message.HeaderLen + len(rawBytes)
-	pdu := make([]byte, pduLen)
-	copy(pdu, message.Marker[:])
-	pdu[message.MarkerLen] = byte(pduLen >> 8)     //nolint:gosec // pduLen bounded by maxBMPMsgSize
-	pdu[message.MarkerLen+1] = byte(pduLen & 0xFF) //nolint:gosec // pduLen bounded by maxBMPMsgSize
-	pdu[message.MarkerLen+2] = byte(msgtype.TypeOPEN)
-	copy(pdu[message.HeaderLen:], rawBytes)
-
-	bp.mu.Lock()
-	pair, ok := bp.openCache[se.PeerAddress]
-	if !ok {
-		pair = &openPair{}
-		bp.openCache[se.PeerAddress] = pair
-	}
-	if se.Direction == rpc.DirectionSent {
-		pair.sent = pdu
-	} else {
-		pair.received = pdu
-	}
-	bp.mu.Unlock()
-}
-
-// handleSenderState sends Peer Up or Peer Down to all collectors.
-func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*senderSession) {
-	peer := peerHeaderFromEvent(se)
-
-	switch se.State { //nolint:exhaustive // only up/down are actionable for BMP
-	case rpc.SessionStateUp:
-		// RFC 7854 S4.10: Peer Up MUST include sent and received OPEN PDUs.
-		// Use cached real OPENs from OPEN message events.
-		bp.mu.RLock()
-		pair := bp.openCache[se.PeerAddress]
-		bp.mu.RUnlock()
-
-		var sentOpen, recvOpen []byte
-		if pair != nil {
-			sentOpen = pair.sent
-			recvOpen = pair.received
-		}
-		if sentOpen == nil || recvOpen == nil {
-			logger().Warn("bmp: OPEN cache miss for peer, skipping Peer Up", "peer", se.PeerAddress)
-			return
-		}
-
-		var localAddr [16]byte
-		parseIPInto(se.LocalAddress, &localAddr)
-
-		for _, ss := range senders {
-			if err := ss.writePeerUp(peer, localAddr, 179, 0, sentOpen, recvOpen); err != nil {
-				logger().Debug("bmp: sender peer up failed", "collector", ss.name, "error", err)
-			}
-		}
-	case rpc.SessionStateDown:
-		reason := peerDownReasonFromString(se.Reason)
-		for _, ss := range senders {
-			if err := ss.writePeerDown(peer, reason, nil); err != nil {
-				logger().Debug("bmp: sender peer down failed", "collector", ss.name, "error", err)
-			}
-		}
-	}
-}
-
-// handleSenderMirror sends a Route Mirroring message wrapping the verbatim
-// BGP PDU to all collectors. RFC 7854 Section 4.7: TLV type 0 carries the
-// complete BGP message (marker + length + type + body).
-// Unlike Route Monitoring, nil body is valid (e.g. KEEPALIVE = header only).
-func (bp *BMPPlugin) handleSenderMirror(se *rpc.StructuredEvent, senders []*senderSession) {
-	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
-	if !ok || msg == nil {
-		return
-	}
-
-	peer := peerHeaderFromEvent(se)
-	rawBytes := msg.RawBytes
-	msgType := msg.Type
-	for _, ss := range senders {
-		if err := ss.writeRouteMirroring(peer, msgType, rawBytes); err != nil {
-			logger().Debug("bmp: sender route mirroring failed", "collector", ss.name, "error", err)
-		}
-	}
-}
-
-// handleSenderUpdate sends Route Monitoring to all collectors.
-// Handles both received (pre-policy, Adj-RIB-In) and sent (post-policy,
-// Adj-RIB-Out per RFC 8671) updates. The O flag in the Per-Peer Header
-// distinguishes the two directions.
-// Per-NLRI dedup: suppresses Route Monitoring when the UPDATE body hash
-// is unchanged for a given peer (AC-7). Different attributes pass (AC-8).
-func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*senderSession) {
-	rawBytes, msgType := rawUpdateBytes(se)
-	if rawBytes == nil {
-		return
-	}
-
-	if bp.dedupState != nil {
-		if bp.dedupHasher == nil {
-			bp.dedupHasher = fnv.New64a()
-		}
-		bp.dedupHasher.Reset()
-		bp.dedupHasher.Write(rawBytes)
-		sum := bp.dedupHasher.Sum64()
-
-		bp.mu.Lock()
-		peerMap, ok := bp.dedupState[se.PeerAddress]
-		if !ok {
-			peerMap = make(map[uint64]struct{})
-			bp.dedupState[se.PeerAddress] = peerMap
-		}
-		if _, dup := peerMap[sum]; dup {
-			bp.mu.Unlock()
-			return
-		}
-		if len(peerMap) < maxDedupPerPeer {
-			peerMap[sum] = struct{}{}
-		}
-		bp.mu.Unlock()
-	}
-
-	peer := peerHeaderFromEvent(se)
-	for _, ss := range senders {
-		if err := ss.writeRouteMonitoring(peer, msgType, rawBytes); err != nil {
-			logger().Debug("bmp: sender route monitoring failed", "collector", ss.name, "error", err)
-		}
-	}
-}
-
-// peerHeaderFromEvent builds a BMP PeerHeader from a StructuredEvent.
-// Sets flags based on event metadata:
-//   - V flag: IPv6 peer address
-//   - L flag: post-policy (sent direction)
-//   - O flag: Adj-RIB-Out (sent direction, RFC 8671)
-func peerHeaderFromEvent(se *rpc.StructuredEvent) PeerHeader {
-	ph := PeerHeader{
-		PeerType:     PeerTypeGlobal,
-		PeerAS:       se.PeerAS,
-		TimestampSec: uint32(time.Now().Unix()),
-	}
-
-	parseIPInto(se.PeerAddress, &ph.Address)
-
-	// Check if IPv6 by looking for ':' in the address.
-	for _, c := range se.PeerAddress {
-		if c == ':' {
-			ph.Flags |= PeerFlagV
-			break
-		}
-	}
-
-	// RFC 8671: set O flag for Adj-RIB-Out (sent direction).
-	// Also set L flag (post-policy) since sent updates have passed export policy.
-	if se.Direction == rpc.DirectionSent {
-		ph.Flags |= PeerFlagO | PeerFlagL
-	}
-
-	return ph
-}
-
-// parseIPInto parses an IP string into a 16-byte BMP address field.
-// IPv4 is stored as ::ffff:x.x.x.x per RFC 7854.
-func parseIPInto(addr string, out *[16]byte) {
-	parsed, err := netip.ParseAddr(addr)
-	if err != nil {
-		return
-	}
-	*out = parsed.As16()
-}
-
-// peerDownReasonFromString maps a ze close reason string to a BMP Peer Down reason code.
-func peerDownReasonFromString(reason string) uint8 {
-	switch reason {
-	case "notification":
-		return PeerDownLocalNotify
-	case "tcp-failure", "timer-expired":
-		return PeerDownLocalNoNotify
-	case "remote-notification":
-		return PeerDownRemoteNotify
-	case "remote-close":
-		return PeerDownRemoteNoData
-	case "config-changed", "deconfigured":
-		return PeerDownDeconfigured
-	}
-	return PeerDownLocalNoNotify // default for unknown reasons
-}
-
 // parseUint16 parses a string to uint16, returning def on error or empty input.
 func parseUint16(s string, def uint16) uint16 {
 	if s == "" {
@@ -933,21 +759,4 @@ func parseUint16(s string, def uint16) uint16 {
 		return def
 	}
 	return uint16(v)
-}
-
-// rawUpdateBytes returns the BGP message body bytes (without the 19-byte BGP
-// header) and the BGP message type from a StructuredEvent, or (nil, 0) if
-// not available. The BGP message header is synthesized downstream by
-// writeRouteMonitoring using the returned msgType.
-//
-// se.RawMessage is interface{}-typed for SDK-protocol reasons, but in
-// production it is always *bgptypes.RawMessage (set by server/events.go
-// getStructuredEvent); msg.RawBytes is documented as the message body without
-// marker/header, matching session_read.go body and session_write.go body.
-func rawUpdateBytes(se *rpc.StructuredEvent) ([]byte, msgtype.MessageType) {
-	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
-	if !ok || msg == nil {
-		return nil, 0
-	}
-	return msg.RawBytes, msg.Type
 }

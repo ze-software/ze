@@ -73,6 +73,10 @@ func TestBMPSenderConcurrentProducers(t *testing.T) {
 	defer closeLog(server, "test-server")
 
 	ss := &senderSession{name: "test", conn: client, stopCh: make(chan struct{})}
+	t.Cleanup(func() {
+		ss.stop()
+		ss.waitDrain()
+	})
 
 	const rounds = 200
 	sentOpen := makeBGPOpen(65001, 0x01020304)
@@ -153,6 +157,12 @@ func TestBMPSenderConcurrentProducers(t *testing.T) {
 		}
 	}()
 	wg.Wait()
+	// The socket write happens on the session's drain goroutine, so a producer
+	// returning means the message is QUEUED, not that it is on the wire. Wait
+	// for the transmit queue to empty before closing the write side; closing it
+	// first would cut off messages the producers legitimately enqueued and the
+	// count assertion below would blame framing for a teardown race.
+	waitQueueDrained(t, ss)
 	// Closing the write side is what ends the reader's drain loop.
 	closeLog(client, "test-producers-done")
 
