@@ -29,12 +29,16 @@ tmpfs=announce-test.run:mode=755:terminator=EOF_RUN
 import time
 from ze_api import API, runtime_fail
 
-# // test-relax: DEFERRED sleep-conversion. Establishment here is slow/variable
-# (startup connect race + 5s DefaultReconnectMin backoff) and there is no fast
-# ze-side outbound barrier (redistribute UPDATEs bypass the updates-sent counter
-# via the forward-pool send path; quiesce blocks ~10s on the forward-pool
-# barrier), so every deterministic conversion overruns the 15s foreground
-# timeout. Original blind sleeps retained as the known-good baseline.
+# Both sleeps are converted. The claim that blocked this -- "redistribute
+# UPDATEs bypass the updates-sent counter via the forward-pool send path" -- is
+# false: writeRawUpdateBody (reactor/session_write.go), the forward-pool raw-body
+# write invoked from fwdBatchHandler (reactor/forward_pool.go), calls
+# onMessageReceived(..., rpc.DirectionSent, ...), which reaches
+# peer.IncrUpdatesSent() (reactor/reactor_notify.go) on the sent branch for
+# TypeUPDATE. So the counter DOES see a redistribute UPDATE, and this test now
+# gates on it. The other half of that comment was right and still is: quiesce
+# blocks ~10s on the forward-pool quiescer, which is why the two ABSENCE tests
+# in this family (filtered-out, metrics) cannot use it inside a 15s budget.
 
 
 def dispatch(api, command):
@@ -50,7 +54,13 @@ def main():
     api.ready()
 
     # Wait for BGP session up so the UPDATE has a destination peer.
-    time.sleep(2.0)
+    # Baseline AFTER the initial-sync EOR settles: the EOR counts into
+    # updates-sent, so a threshold taken before it would be met by
+    # establishment alone rather than by the redistribute UPDATE.
+    if not api.wait_peer_eor_sent():
+        runtime_fail('initial-sync EOR never reached the wire')
+        return
+    base = api.peer_counter('updates-sent')
 
     resp = dispatch(api, 'request fakeredist emit add ipv4/unicast 10.0.0.1/32')
     result = resp.get('result', {})
@@ -58,8 +68,13 @@ def main():
         runtime_fail(f'request fakeredist emit failed: {result}')
         return
 
-    # Give the consumer + reactor time to dispatch the UPDATE.
-    time.sleep(2.0)
+    # Wait for the redistribute UPDATE to be COUNTED as sent, rather than
+    # holding a blind 2s and hoping. writeRawUpdateBody increments this counter
+    # after the body reaches the session, and TCP FIFO then delivers it ahead of
+    # the shutdown below.
+    if not api.wait_peer_counter('updates-sent', base + 1):
+        runtime_fail('redistribute UPDATE never counted as sent')
+        return
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 

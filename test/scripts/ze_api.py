@@ -1395,6 +1395,102 @@ class API:
             )
         )
 
+    def peer_fields(self, peer: str = "*") -> dict:
+        """Return ``show bgp peer <sel> detail``'s per-peer rows, keyed by address.
+
+        Empty dict when the command has not completed or the payload is not the
+        expected shape, so a caller polling on it simply keeps waiting rather
+        than crashing on a transient.
+        """
+        result = self.dispatch(f"show bgp peer {peer} detail") or {}
+        result = result.get("result", result)
+        if result.get("status") != "done":
+            return {}
+        try:
+            payload = result_json_data(result, {})
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return {}
+        if not isinstance(payload, dict):
+            return {}
+        rows = payload.get("peers", {})
+        return rows if isinstance(rows, dict) else {}
+
+    def peer_counter(self, field: str, peer: str = "*", default: int = 0) -> int:
+        """Return the SUM of an integer per-peer counter across matching peers.
+
+        Summing (not first-match) so a caller can baseline and then wait for
+        ``>= base + N`` without caring which session carried the message.
+        """
+        total = 0
+        seen = False
+        for row in self.peer_fields(peer).values():
+            if not isinstance(row, dict):
+                continue
+            try:
+                total += int(row.get(field, 0) or 0)
+                seen = True
+            except (TypeError, ValueError):
+                continue
+        return total if seen else default
+
+    def wait_peer_counter(
+        self,
+        field: str,
+        minimum: int,
+        peer: str = "*",
+        attempts: int = 60,
+        delay: float = 0.25,
+    ) -> bool:
+        """Block until a summed per-peer counter reaches `minimum`.
+
+        This is the deterministic replacement for ``time.sleep(N)`` after
+        dispatching something that makes ze send. The redistribute tests used a
+        blind 2s hold justified by "redistribute UPDATEs bypass the updates-sent
+        counter via the forward-pool send path". That is false for the
+        forward-pool raw write: ``writeRawUpdateBody``
+        (internal/component/bgp/reactor/session_write.go), invoked from
+        ``fwdBatchHandler`` (reactor/forward_pool.go), calls
+        ``onMessageReceived(..., rpc.DirectionSent, ...)``, which reaches
+        ``peer.IncrUpdatesSent()`` (reactor/reactor_notify.go) on the sent branch
+        for ``TypeUPDATE``. ``redistribute-as112-announce.ci`` already gates on
+        this counter for a redistribute emit with zero sleeps.
+
+        Baseline BEFORE the action and wait for ``base + N``: the counter is a
+        per-peer lifetime total that also counts the initial-sync EOR, so an
+        absolute threshold would be satisfied by establishment alone.
+
+        Returns True once the sum reaches `minimum`.
+        """
+        return self.wait_until(
+            lambda: self.peer_counter(field, peer=peer) >= minimum,
+            attempts=attempts,
+            delay=delay,
+        )
+
+    def wait_peers_established(
+        self,
+        expected_peers: int = 1,
+        peer: str = "*",
+        attempts: int = 60,
+        delay: float = 0.25,
+    ) -> bool:
+        """Block until `expected_peers` peers report state ``established``.
+
+        Replaces ``time.sleep(N)`` "wait for BGP session up". Note the field is
+        ``state``; do NOT test ``'established' in <json>``, because every row
+        carries the key ``connections-established`` and that substring is
+        present from the first poll.
+        """
+
+        def _ready() -> bool:
+            ready = 0
+            for row in self.peer_fields(peer).values():
+                if isinstance(row, dict) and row.get("state", "") == "established":
+                    ready += 1
+            return ready >= expected_peers
+
+        return self.wait_until(_ready, attempts=attempts, delay=delay)
+
     def wait_rs_replayed(
         self,
         expected_peers: int,

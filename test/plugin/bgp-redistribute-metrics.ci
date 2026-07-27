@@ -33,8 +33,11 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # blind hold: no fast barrier for BGP establishment here; the P0 establishment stall blocks converting this (see spec-fixit-redistribute-establishment-stall)
-    time.sleep(2.0)
+    # Wait on the peer's own state, then on its initial-sync EOR reaching the
+    # wire, instead of holding a fixed 2s and hoping establishment fitted in it.
+    if not api.wait_peer_eor_sent():
+        runtime_fail('initial-sync EOR never reached the wire')
+        return
 
     sequence = [
         'request fakeredist emit add ipv4/unicast 10.0.0.1/32',     # accepted add
@@ -52,7 +55,14 @@ def main():
         # deliberate pacing: space each emit so the consumer handles them as separate events, not batched
         time.sleep(0.2)
 
-    # blind hold: no queryable signal that the emitted routes finished dispatching; left un-converted pending the redistribute P0 investigation
+    # needs-signal: this test asserts an ABSENCE (the emitted route must NOT
+    # reach the wire), so there is no positive marker to wait on -- and adding
+    # one would perturb the very wire being asserted. `request quiesce` IS the
+    # correct drain barrier, but it blocks ~10s on the forward-pool quiescer
+    # against this test's 15s budget. The establishment half above is now
+    # deterministic; this hold is what remains, and closing it needs a fast
+    # forward-pool-drained signal in the daemon (spec-fixit-redistribute-
+    # establishment-stall owns that gap).
     time.sleep(2.0)
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()

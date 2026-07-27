@@ -32,10 +32,11 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # // test-relax: DEFERRED sleep-conversion (slow/variable establishment +
-    # no fast ze-side outbound barrier; every conversion overruns the 15s
-    # timeout). Original blind sleep retained as the known-good baseline.
-    time.sleep(2.0)
+    # Wait on the peer's own state, then on its initial-sync EOR reaching the
+    # wire, instead of holding a fixed 2s and hoping establishment fitted in it.
+    if not api.wait_peer_eor_sent():
+        runtime_fail('initial-sync EOR never reached the wire')
+        return
 
     resp = dispatch(api, 'request fakeredist emit add ipv4/unicast 10.0.0.1/32 192.0.2.1')
     result = resp.get('result', {})
@@ -43,8 +44,12 @@ def main():
         runtime_fail(f'request fakeredist emit failed: {result}')
         return
 
-    # blind hold: no queryable signal that the emitted route finished dispatching; left un-converted pending the redistribute P0 investigation
-    time.sleep(2.0)
+    # There IS a queryable signal: `request quiesce` returns once the BGP
+    # forward pool and every peer's initial-sync opQueue have settled, which is
+    # exactly "the emitted route finished dispatching".
+    if not api.quiesce():
+        runtime_fail('quiesce barrier did not complete')
+        return
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
