@@ -47,8 +47,24 @@ INTEROP_DIR = os.path.join(PROJECT_ROOT, "test", "interop")
 CONFIGS_DIR = os.path.join(SCRIPT_DIR, "configs")
 RESULTS_DIR = os.path.join(SCRIPT_DIR, "results")
 
-ZE_PERF = os.path.join(PROJECT_ROOT, "bin", "ze-perf")
+# ZE_PERF_BIN lets the caller name the host binary. Under an AI session every
+# canonical binary is built session-suffixed (mk/session.mk ZE_BIN_SUFFIX), so
+# `make ze-perf-bench` passes $(ZEBIN_PERF) rather than relying on a bare name
+# a sibling session could be rebuilding underneath this run.
+ZE_PERF_SRC = os.environ.get("ZE_PERF_BIN") or os.path.join(
+    PROJECT_ROOT, "bin", "ze-perf"
+)
 ZE_PERF_LINUX = os.path.join(PROJECT_ROOT, "bin", "ze-perf-linux")
+# Scratch dir for anything this run materialises on the host.
+RUN_DIR = os.path.join(PROJECT_ROOT, "tmp", "perf-run")
+# Rebound in main() to a path whose basename is exactly `ze-perf` (bare_named_perf).
+ZE_PERF = ZE_PERF_SRC
+
+# ze-perf is cmd/ze selected by build tag, not its own cmd/ directory (folded in
+# by eac6ec186). ze_perf drives an in-process BGP reactor, so it must force
+# ze_bgp on -- its own tag does not include ZE_FEATURES, and without ze_bgp the
+# BGP plugins register nothing. Mirrors the Makefile ZEBIN_PERF recipe.
+ZE_PERF_TAGS = "ze_perf ze_bgp"
 
 SUBNET = "172.31.0.0/24"
 SENDER_IP = "172.31.0.10"
@@ -202,6 +218,76 @@ def docker(*args, check=True, timeout=60, capture=False, **kwargs):
         return subprocess.CompletedProcess(cmd, 1)
 
 
+def unmeasured_duts(result_files):
+    """DUT names this run produced no result for.
+
+    A non-empty list means the run is a PARTIAL fleet measurement, which must
+    not be allowed to rewrite the committed whole-fleet docs/performance.md.
+    Result files are named <dut>.json; ze additionally emits
+    ze-propagation.json, which is an extra measurement rather than a DUT, so
+    matching DUT names against the measured set (not the other way round)
+    keeps it from being mistaken for a missing DUT.
+    """
+    measured = {os.path.basename(p)[: -len(".json")] for p in result_files}
+    return [d["name"] for d in DUTS if d["name"] not in measured]
+
+
+def generate_to_file(cmd, dest):
+    """Run `cmd`, replacing `dest` only if it succeeds. Returns True on success.
+
+    Never truncate the destination up front. The obvious `with open(dest, "w")
+    as f: subprocess.run(..., check=False, stdout=f)` empties the file BEFORE the
+    generator runs and then ignores its exit code, so a generator that fails for
+    any reason leaves nothing behind -- that is how a failing `ze-perf report`
+    (unknown subcommand, see bare_named_perf) silently emptied the committed
+    docs/performance.md to zero bytes. Write to a sibling temp file, check the
+    exit code, and only then move it into place.
+    """
+    tmp = dest + ".new"
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    try:
+        with open(tmp, "w") as f:
+            r = subprocess.run(cmd, check=False, timeout=30, stdout=f)
+        if r.returncode != 0:
+            print(
+                f"  warning: {os.path.basename(dest)} NOT updated:"
+                f" {' '.join(os.path.basename(c) for c in cmd[:2])} exited"
+                f" {r.returncode}; existing file left untouched",
+                file=sys.stderr,
+            )
+            return False
+        os.replace(tmp, dest)
+        return True
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+
+
+def bare_named_perf(src):
+    """Return a path to `src` whose basename is exactly `ze-perf`.
+
+    ze-perf is cmd/ze under a build tag, and WHICH personality it runs is decided
+    by argv[0]: binarySuffixRoot (cmd/ze/dispatch.go:127) takes the name segment
+    after the LAST '-' and dispatches it only when it names a registered root
+    command. A session-suffixed bin/ze-perf-<session-id> ends in the session id,
+    so nothing is prepended and `ze-perf report ...` dies with
+    "unknown command: report". The Linux binary is already bind-mounted into the
+    container as /usr/local/bin/ze-perf for exactly this reason; give the host
+    binary the same treatment through a symlink in our own scratch dir rather
+    than clobbering the shared bare bin/ze-perf that a sibling session may be
+    running.
+    """
+    if os.path.basename(src) == "ze-perf":
+        return src
+    link_dir = os.path.join(RUN_DIR, "bin")
+    os.makedirs(link_dir, exist_ok=True)
+    link = os.path.join(link_dir, "ze-perf")
+    if os.path.islink(link) or os.path.exists(link):
+        os.remove(link)
+    os.symlink(os.path.abspath(src), link)
+    return link
+
+
 def build_linux_binary():
     """Cross-compile ze-perf for Linux if missing or wrong architecture."""
     import platform
@@ -223,7 +309,7 @@ def build_linux_binary():
         print(f"Cross-compiling ze-perf for Linux/{go_arch}...")
     env = {**os.environ, "GOOS": "linux", "GOARCH": go_arch, "CGO_ENABLED": "0"}
     subprocess.run(
-        ["go", "build", "-o", ZE_PERF_LINUX, "./cmd/ze-perf/"],
+        ["go", "build", "-tags", ZE_PERF_TAGS, "-o", ZE_PERF_LINUX, "./cmd/ze"],
         check=True,
         timeout=120,
         env=env,
@@ -472,9 +558,15 @@ def start_dut(dut):
 
     extra = []
     if name == "ze":
+        # --pprof is a GLOBAL flag consumed before dispatch
+        # (cmd/ze/ze_core_dispatch.go:190), so it precedes the verb.
         if PPROF:
             extra += ["--pprof", f"127.0.0.1:{PPROF_PORT}"]
-        extra += ["/etc/ze/bgp.conf"]
+        # `start` is required: the bare `ze <config-file>` launch form was
+        # removed (test/ui/deprecated-bare-config.ci guards the removal), and a
+        # bare positional now falls through to usage, so the container printed
+        # help and the DUT was reported as "did not start within 30s".
+        extra += ["start", "/etc/ze/bgp.conf"]
 
     env_flags = []
     if name == "ze" and GCTRACE:
@@ -811,9 +903,15 @@ def main():
         return 0
 
     # Check prerequisites.
-    if not os.path.isfile(ZE_PERF):
-        print(f"error: ze-perf not found. Run: make ze-perf", file=sys.stderr)
+    if not os.path.isfile(ZE_PERF_SRC):
+        print(
+            f"error: ze-perf not found at {ZE_PERF_SRC}. Run: make ze-perf",
+            file=sys.stderr,
+        )
         return 1
+
+    global ZE_PERF
+    ZE_PERF = bare_named_perf(ZE_PERF_SRC)
 
     build_linux_binary()
 
@@ -957,24 +1055,30 @@ def main():
         )
 
         html_path = os.path.join(RESULTS_DIR, "report.html")
-        with open(html_path, "w") as f:
-            subprocess.run(
-                [ZE_PERF, "report", "--html"] + result_files,
-                check=False,
-                timeout=30,
-                stdout=f,
-            )
-        print(f"\nHTML report: {html_path}")
+        if generate_to_file([ZE_PERF, "report", "--html"] + result_files, html_path):
+            print(f"\nHTML report: {html_path}")
 
+        # A benchmark run NEVER writes docs/performance.md. That file is
+        # committed, published, and hand-curated: it carries dated historical
+        # sections (2026-04-22 through 2026-06-05) that `report --doc` cannot
+        # reproduce, because the generator only ever emits ONE undated section
+        # from the result files handed to it. So overwriting it from a run
+        # destroys the history on ANY run, and a DUT-filtered run additionally
+        # drops the unmeasured DUTs' rows. Emit the snapshot to scratch instead
+        # and let a human fold it in; the regenerate command the doc documents
+        # still works verbatim when someone runs it deliberately.
         perf_doc = os.path.join(PROJECT_ROOT, "docs", "performance.md")
-        with open(perf_doc, "w") as f:
-            subprocess.run(
-                [ZE_PERF, "report", "--doc"] + result_files,
-                check=False,
-                timeout=30,
-                stdout=f,
+        snapshot = os.path.join(RUN_DIR, "performance.md")
+        if generate_to_file([ZE_PERF, "report", "--doc"] + result_files, snapshot):
+            missing = unmeasured_duts(result_files)
+            print(f"\nPerformance doc snapshot: {snapshot}")
+            if missing:
+                print(f"  covers this run only; no result for: {', '.join(missing)}")
+            print(
+                f"  {perf_doc} is NOT written by a benchmark run -- it keeps dated"
+                f"\n  history the generator cannot reproduce. Fold the snapshot in"
+                f"\n  by hand, keeping the existing sections."
             )
-        print(f"Performance doc: {perf_doc}")
 
     print()
     parts = []

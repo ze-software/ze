@@ -43,6 +43,12 @@ import (
 var pythonTestRoots = []string{
 	"scripts/dev",
 	"test/scripts",
+	// The perf harness is a third Python source root, and it earned its place
+	// the same way test/scripts did: test/perf/run.py writes a COMMITTED
+	// document (docs/performance.md), and a truncate-before-generate bug there
+	// emptied it to zero bytes during an ordinary benchmark run without failing
+	// anything. Its guards are only guards if something runs their tests.
+	"test/perf",
 }
 
 // test-relax: removes a DUPLICATE repoRoot helper I had added here, which did not

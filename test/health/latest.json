@@ -5,21 +5,21 @@
       "annotations": {
         "gap": 535,
         "not-applicable": 841,
-        "single-polarity": 369
+        "single-polarity": 370
       },
-      "detail": "35.8% carry both polarities. Of the remaining 1745: 841 not-applicable (ze deliberately does not do it, so no test is owed), 535 known gap (unimplemented, genuinely untested), and 369 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.",
+      "detail": "35.8% carry both polarities. Of the remaining 1746: 841 not-applicable (ze deliberately does not do it, so no test is owed), 535 known gap (unimplemented, genuinely untested), and 370 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing. Only the gap column is untested work.",
       "key": "rfc-proof-density",
       "label": "RFC MUST requirements proven by a positive+negative test pair",
       "proof_density": {
-        "denominator": 2716,
-        "numerator": 971,
+        "denominator": 2720,
+        "numerator": 974,
         "percent": 35.8
       },
       "question": "Q2",
-      "rfcs_total": 165,
+      "rfcs_total": 166,
       "rfcs_without_any_proof": 36,
       "status": "ok",
-      "value": "971 / 2716",
+      "value": "974 / 2720",
       "worst": [
         {
           "gated": 38,
@@ -71,17 +71,17 @@
       "question": "Q2",
       "status": "warn",
       "unproven": {
-        "denominator": 165,
+        "denominator": 166,
         "numerator": 36,
-        "percent": 21.8
+        "percent": 21.7
       },
-      "value": "36 / 165"
+      "value": "36 / 166"
     },
     {
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 20113,
+        "denominator": 20616,
         "numerator": 136,
         "percent": 0.7
       },
@@ -89,7 +89,7 @@
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "136 / 20113 (floor 136)",
+      "value": "136 / 20616 (floor 136)",
       "worst": [
         {
           "file": "cmd/ze/hub/aaa_lifecycle_test.go",
@@ -180,19 +180,19 @@
     {
       "action": "This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.",
       "counts": {
-        "bench_funcs": 122,
-        "ci_files": 1458,
+        "bench_funcs": 123,
+        "ci_files": 1474,
         "et_files": 164,
-        "fuzz_funcs": 72,
-        "test_files": 2635,
-        "test_funcs": 20142
+        "fuzz_funcs": 76,
+        "test_files": 2729,
+        "test_funcs": 20646
       },
-      "detail": "2635 Go test files, 72 fuzz targets, 122 benchmarks, 1458 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "2729 Go test files, 76 fuzz targets, 123 benchmarks, 1474 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "20142 test functions"
+      "value": "20646 test functions"
     },
     {
       "action": "Take the lowest-scoring package and add tests until its survivors die.",
@@ -254,15 +254,15 @@
     },
     {
       "action": "Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change.",
-      "actual": 122,
-      "baseline": 125,
+      "actual": 100,
+      "baseline": 100,
       "detail": "A sleep is a guess about timing that hides the race it was added to mask. The ratchet allows the count to fall, never rise.",
-      "headroom": 3,
+      "headroom": 0,
       "key": "ci-sleeps",
       "label": "time.sleep() calls in .ci tests",
       "question": "Q1",
       "status": "ok",
-      "value": "122 (floor 125)"
+      "value": "100 (floor 100)"
     },
     {
       "action": "Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.",
@@ -270,13 +270,13 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 2635,
-        "numerator": 846,
-        "percent": 32.1
+        "denominator": 2729,
+        "numerator": 895,
+        "percent": 32.8
       },
       "question": "Q2",
       "status": "ok",
-      "value": "846 / 2635",
+      "value": "895 / 2729",
       "worst": [
         {
           "area": "internal/chaos/report",
@@ -316,9 +316,9 @@
         },
         {
           "area": "internal/component/doctor",
-          "files": 12,
+          "files": 14,
           "negative": 1,
-          "percent": 8.3
+          "percent": 7.1
         },
         {
           "area": "internal/chaos/peer",
@@ -328,9 +328,9 @@
         },
         {
           "area": "internal/component/sysrib",
-          "files": 10,
+          "files": 11,
           "negative": 1,
-          "percent": 10.0
+          "percent": 9.1
         },
         {
           "area": "cmd/ze",
@@ -350,9 +350,9 @@
           "with_rfc_tag": 0
         },
         "2026": {
-          "packages": 487,
+          "packages": 489,
           "with_ci": 30,
-          "with_fuzz": 29,
+          "with_fuzz": 30,
           "with_rfc_tag": 88
         }
       },
@@ -366,14 +366,14 @@
     },
     {
       "action": "Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.",
-      "detail": "Reds logged rather than fixed, one shard file per live failure (28 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.",
+      "detail": "Reds logged rather than fixed, one shard file per live failure (41 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.",
       "key": "known-failures",
       "label": "Logged known-failing tests",
-      "live": 11,
+      "live": 1,
       "question": "Q3",
-      "resolved": 28,
+      "resolved": 41,
       "status": "warn",
-      "value": "11"
+      "value": "1"
     }
   ]
 }

@@ -10,20 +10,22 @@
 
 PERF_DUT ?=
 
-ze-perf:
-	@echo "Building ze-perf..."
-	@mkdir -p bin
-	$(GO) build -o $(ZEBIN_PERF) ./cmd/ze-perf
+# One build recipe for ze-perf, and it lives in the root Makefile beside every
+# other binary ($(ZEBIN_PERF): tags 'ze_perf ze_bgp' over ./cmd/ze). This target
+# is the named alias, never a second copy -- the copy that used to live here
+# built ./cmd/ze-perf, a directory folded into cmd/ze by eac6ec186, so
+# `make ze-perf` and everything depending on it had been failing since.
+ze-perf: $(ZEBIN_PERF)
 
 ze-perf-bench: ze-perf
 	@echo "Running performance benchmarks (requires Docker)..."
-	@python3 test/perf/run.py --build --test $(PERF_DUT)
+	@ZE_PERF_BIN=$(CURDIR)/$(ZEBIN_PERF) python3 test/perf/run.py --build --test $(PERF_DUT)
 	@python3 scripts/dev/perf-suggest.py --record
 
-ze-perf-report:
+ze-perf-report: ze-perf
 	@$(ZEBIN_PERF) report test/perf/results/*.json --md
 
-ze-perf-track:
+ze-perf-track: ze-perf
 	@for f in test/perf/results/*.json; do \
 		dut=$$(basename "$$f" .json); \
 		$(ZEBIN_PERF) track "test/perf/history/$${dut}.ndjson" --append "$$f"; \
