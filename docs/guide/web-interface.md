@@ -84,6 +84,7 @@ All authenticated responses include security headers: HSTS (`max-age=63072000`),
 
 URLs follow a verb-first three-tier pattern:
 <!-- source: internal/component/web/handler.go -- ParseURL, knownPrefixes, configVerbs -->
+<!-- source: internal/component/web/handler_config_form.go -- HandleConfigDeleteWithAuthorizer -->
 
 | Tier | URL Pattern | Method | Description |
 |------|-------------|--------|-------------|
@@ -94,7 +95,7 @@ URLs follow a verb-first three-tier pattern:
 | Config | `/config/add/<path>` | POST | Create a list entry (with optional field values) |
 | Config | `/config/add-form/<path>` | GET | Fetch add-entry overlay form |
 | Config | `/config/rename/<path>` | POST | Rename a keyed list entry |
-| Config | `/config/delete/<path>` | POST | Delete a leaf value |
+| Config | `/config/delete/<path>` | POST | Delete the node named by the `leaf` form field: a leaf, a leaf-list member, a container, a whole list, or one list entry (the delete button on a list row) |
 | Config | `/config/commit/` | GET/POST | View diff and commit changes |
 | Config | `/config/discard/` | POST | Discard pending changes |
 | Config | `/config/changes` | GET | Commit bar state (pending change count) |

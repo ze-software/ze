@@ -537,11 +537,18 @@
       headers: {'Content-Type': 'application/x-www-form-urlencoded'},
       body: 'leaf=' + encodeURIComponent(entryKey)
     }).then(function(r) {
-      if (r.ok) {
-        // Refresh the current view
-        var curPath = window.location.pathname.replace(/^\/show\//, '').replace(/\/$/, '');
-        refreshDetail(curPath);
+      if (!r.ok) {
+        // Surface the failure. Swallowing it is how a delete that never
+        // reached the tree looked identical to one that succeeded.
+        return r.text().then(function(text) {
+          throw new Error(text || 'Delete failed');
+        });
       }
+      // Refresh the current view
+      var curPath = window.location.pathname.replace(/^\/show\//, '').replace(/\/$/, '');
+      refreshDetail(curPath);
+    }).catch(function(err) {
+      window.alert(err.message || 'Delete failed');
     });
   }
 

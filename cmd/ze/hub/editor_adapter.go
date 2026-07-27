@@ -32,6 +32,9 @@ func (a *editorAdapter) SetValue(path []string, key, value string) error {
 func (a *editorAdapter) DeleteValue(path []string, key string) error {
 	return a.ed.DeleteValue(path, key)
 }
+func (a *editorAdapter) DeleteByPath(fullPath []string) error {
+	return a.ed.DeleteByPath(fullPath)
+}
 func (a *editorAdapter) RenameListEntry(parentPath []string, listName, oldKey, newKey string) error {
 	return a.ed.RenameListEntry(parentPath, listName, oldKey, newKey)
 }

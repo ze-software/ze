@@ -1,0 +1,103 @@
+# Test: the web config editor deletes a BGP peer (a YANG list entry)
+# VALIDATES: POST /config/delete/<parent>/ with leaf=<list-entry-key> -- what the
+#            list-table delete button sends (assets/cli.js deleteEntry) -- actually
+#            removes the entry, leaving its siblings and freeing its key.
+# PREVENTS: the handler routing back to EditorManager.DeleteValue, whose
+#           Tree.Delete only touches t.values/t.multiValues and early-returns for
+#           anything held in t.lists (config/setparser.go). That returned HTTP 400
+#           "path not found" and the browser swallowed it, so the delete button
+#           looked like it did nothing.
+#
+# Deterministic by construction: http=wait polls the listener, and every other
+# step is a request/response check. No sleeps (the .ci sleep ratchet has no
+# headroom -- ai/rules/ci-sleep-justification.md).
+
+option=env:var=ze.config.dir:value=.
+option=timeout:value=30s
+
+tmpfs=web-delete.conf:terminator=EOF_CONF
+bgp {
+    router-id 1.2.3.4
+    peer alpha {
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 1
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+    }
+    peer beta {
+        connection {
+            remote {
+                ip 127.0.0.2
+            }
+            local {
+                ip 127.0.0.1
+                accept false
+            }
+        }
+        session {
+            asn {
+                local 1
+                remote 2
+            }
+            router-id 1.2.3.4
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+        behavior {
+            group-updates disable
+        }
+    }
+}
+EOF_CONF
+
+tmpfs=delete-alpha.form:encoding=base64:terminator=EOF_DEL
+bGVhZj1hbHBoYQ==
+EOF_DEL
+
+
+# Re-creating the deleted key: 200 only if the key is free. handleConfigAdd
+# rejects a still-present key with 409 "entry already exists" BEFORE it looks at
+# any field, so this is a positive assertion that alpha is really gone -- a
+# handler that answered 200 without removing anything would fail here.
+#
+# name=alpha, connection/remote/ip=198.51.100.9, session/asn/local=64500,
+# session/asn/remote=64501. Every value differs from the surviving beta peer:
+# handleConfigAdd runs checkUniqueConstraint on each submitted field and also
+# answers 409 on a collision, so a shared value would make the 409 ambiguous.
+tmpfs=readd-alpha.form:encoding=base64:terminator=EOF_ADD
+bmFtZT1hbHBoYSZmaWVsZCUzQWNvbm5lY3Rpb24lMkZyZW1vdGUlMkZpcD0xOTguNTEuMTAwLjkmZmllbGQlM0FzZXNzaW9uJTJGYXNuJTJGbG9jYWw9NjQ1MDAmZmllbGQlM0FzZXNzaW9uJTJGYXNuJTJGcmVtb3RlPTY0NTAx
+EOF_ADD
+
+cmd=foreground:seq=1:exec=ze start --web $PORT2 --insecure-web web-delete.conf:timeout=30s
+
+# Precondition: the editor is serving and the peer to delete is in the tree.
+http=wait:seq=1:url=https://127.0.0.1:$PORT2/show/bgp/peer/:status=200:contains=alpha:insecure-tls=true:timeout=15s
+
+# The delete button's request. 200 is the followed 303 redirect back one level;
+# before the fix this was 400 "path not found".
+http=post:seq=2:url=https://127.0.0.1:$PORT2/config/delete/bgp/peer/:status=200:sendfile=delete-alpha.form:content-type=application/x-www-form-urlencoded:insecure-tls=true
+
+# The sibling entry survives, so this is an entry delete and not a list wipe.
+http=get:seq=3:url=https://127.0.0.1:$PORT2/show/bgp/peer/:status=200:contains=beta:insecure-tls=true
+
+# The entry is really gone: its key can be claimed again.
+http=post:seq=4:url=https://127.0.0.1:$PORT2/config/add/bgp/peer/:status=200:sendfile=readd-alpha.form:content-type=application/x-www-form-urlencoded:insecure-tls=true

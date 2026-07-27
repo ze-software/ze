@@ -161,6 +161,31 @@ func (m *EditorManager) DeleteValue(username string, path []string, key string) 
 	return us.editor.DeleteValue(path, key)
 }
 
+// DeleteByPath removes whatever the schema says lives at path+leaf in the
+// user's working tree: a leaf, a leaf-list member, a container, a whole list, or
+// a single list entry. Every web surface that deletes an operator-named node
+// (the list-table delete button, the CLI bar, the terminal) MUST use this rather
+// than DeleteValue, which only ever removes a scalar leaf and silently no-ops on
+// a list entry. Errors -- including the editor's schema guard -- are returned
+// unchanged; there is deliberately no fallback to DeleteValue.
+func (m *EditorManager) DeleteByPath(username string, path []string, leaf string) error {
+	us, err := m.GetOrCreate(username)
+	if err != nil {
+		return err
+	}
+
+	// Copy rather than append: path is a sub-slice of the parsed request URL,
+	// and appending into its spare capacity would rewrite the caller's segments.
+	fullPath := make([]string, 0, len(path)+1)
+	fullPath = append(fullPath, path...)
+	fullPath = append(fullPath, leaf)
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	return us.editor.DeleteByPath(fullPath)
+}
+
 // RenameListEntry renames a list entry key in the user's working tree.
 func (m *EditorManager) RenameListEntry(username string, parentPath []string, listName, oldKey, newKey string) error {
 	us, err := m.GetOrCreate(username)

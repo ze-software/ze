@@ -389,22 +389,27 @@ func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath, args []st
 	htmxRedirect(w, r, buildConfigEditURL(contextPath))
 }
 
-// handleCLIDelete processes the "delete" verb: removes a value at the current context path.
+// handleCLIDelete processes the "delete" verb: removes the node named by the
+// argument under the current context path. Schema-aware (mgr.DeleteByPath), so
+// it deletes list entries and containers as well as leaves, matching the SSH
+// CLI's `delete` (cli.Model.cmdDelete). The leaf-only DeleteValue silently
+// no-ops on a list entry.
 func handleCLIDelete(w http.ResponseWriter, r *http.Request, contextPath, args []string, mgr *EditorManager, username string) {
 	if len(args) < 1 {
-		writeCLINotification(w, "usage: delete <leaf>", "error")
+		writeCLINotification(w, "usage: delete <name>", "error")
 		return
 	}
 
 	key := args[0]
 
 	if err := ValidatePathSegments([]string{key}); err != nil {
-		writeCLINotification(w, "invalid leaf name", "error")
+		writeCLINotification(w, "invalid name", "error")
 		return
 	}
 
-	if err := mgr.DeleteValue(username, contextPath, key); err != nil {
-		writeCLINotification(w, "delete error: "+err.Error(), "error")
+	if err := mgr.DeleteByPath(username, contextPath, key); err != nil {
+		var tb textbuf.Buffer
+		writeCLINotification(w, tb.Str("delete error: ").Str(key).Str(": ").Err(err).String(), "error")
 		return
 	}
 

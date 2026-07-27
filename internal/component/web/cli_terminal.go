@@ -794,18 +794,21 @@ func executeTerminalSet(mgr *EditorManager, username string, contextPath, args [
 }
 
 // executeTerminalDelete handles the delete command in terminal mode.
+// Schema-aware (mgr.DeleteByPath), so it deletes list entries and containers as
+// well as leaves, matching the SSH CLI's `delete` (cli.Model.cmdDelete). The
+// leaf-only DeleteValue silently no-ops on a list entry.
 func executeTerminalDelete(mgr *EditorManager, username string, contextPath, args []string) string {
 	if len(args) < 1 {
-		return "error: usage: delete <leaf>"
+		return "error: usage: delete <name>"
 	}
 
 	var tb textbuf.Buffer
 	if err := ValidatePathSegments([]string{args[0]}); err != nil {
-		return tb.Str("error: invalid leaf name: ").Str(args[0]).String()
+		return tb.Str("error: invalid name: ").Str(args[0]).String()
 	}
 
-	if err := mgr.DeleteValue(username, contextPath, args[0]); err != nil {
-		return tb.Reset().Str("error: ").Err(err).String()
+	if err := mgr.DeleteByPath(username, contextPath, args[0]); err != nil {
+		return tb.Reset().Str("error: ").Str(args[0]).Str(": ").Err(err).String()
 	}
 
 	return tb.Reset().Str("deleted ").Str(args[0]).String()

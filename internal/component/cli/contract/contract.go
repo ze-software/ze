@@ -133,6 +133,11 @@ type Editor interface {
 	CreateEntry(path []string) error
 	SetValue(path []string, key, value string) error
 	DeleteValue(path []string, key string) error
+	// DeleteByPath deletes whatever the schema says lives at fullPath: a leaf,
+	// a leaf-list member, a container, a whole list, or one list entry. Callers
+	// that hold a full path MUST prefer it over DeleteValue, which can only
+	// remove a scalar leaf and silently no-ops on everything else.
+	DeleteByPath(fullPath []string) error
 	RenameListEntry(parentPath []string, listName, oldKey, newKey string) error
 	CopyListEntry(parentPath []string, listName, srcKey, dstKey string) error
 	DeactivatePath(path []string) error

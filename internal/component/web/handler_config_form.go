@@ -75,6 +75,10 @@ func HandleConfigSetWithAuthorizer(mgr *EditorManager, schema *config.Schema, re
 		value := r.FormValue("value")
 
 		// __default__ means "delete this leaf, revert to YANG default".
+		// Deliberately DeleteValue, not the schema-aware DeleteByPath used by
+		// /config/delete/: this is the SET endpoint and "leaf" is unchecked form
+		// input, so DeleteByPath would let `leaf=peer&value=__default__` erase a
+		// whole list here. Reverting a leaf to its default is exactly a leaf op.
 		if value == "__default__" {
 			if err := mgr.DeleteValue(username, path, leaf); err != nil {
 				errPath := textbuf.Join(append(path, leaf), "/")
@@ -214,6 +218,9 @@ func HandleConfigFormWithAuthorizer(mgr *EditorManager, schema *config.Schema, r
 		}
 		currentTree := mgr.Tree(username)
 
+		// Cleared fields delete. DeleteValue (not the schema-aware DeleteByPath)
+		// is correct here: parseConfigFormFields resolves every entry through
+		// findLeafNode, so f.leaf is provably a leaf.
 		for _, f := range fields {
 			var setErr error
 			if f.delete {
@@ -379,7 +386,7 @@ func backToRefererOrShow(r *http.Request) string {
 
 // handleConfigDelete returns a POST handler for /config/delete/<yang-path>/.
 // It extracts the authenticated username, parses the form body for "leaf",
-// and calls mgr.DeleteValue to remove the configured value.
+// and calls mgr.DeleteByPath to remove whatever the schema says lives there.
 //
 // On success, redirects one level up. HTMX support mirrors handleConfigSet.
 func handleConfigDelete(mgr *EditorManager) http.HandlerFunc {
@@ -430,8 +437,19 @@ func HandleConfigDeleteWithAuthorizer(mgr *EditorManager, authorizer aaa.Authori
 			return
 		}
 
-		if err := mgr.DeleteValue(username, path, leaf); err != nil {
-			http.Error(w, fmt.Sprintf("delete value: %v", err), http.StatusBadRequest)
+		// Schema-aware: "leaf" is whatever the UI addressed -- a leaf, a
+		// container, a whole list, or (the list-table delete button) one list
+		// entry key. DeleteValue can only remove a scalar leaf: Tree.Delete
+		// early-returns for anything held in t.lists, so a peer delete returned
+		// "path not found" and the browser silently swallowed it.
+		if err := mgr.DeleteByPath(username, path, leaf); err != nil {
+			var tb textbuf.Buffer
+			tb.Str("delete ").Join(path, " ")
+			if len(path) > 0 {
+				tb.Byte(' ')
+			}
+			tb.Str(leaf).Str(": ").Err(err)
+			http.Error(w, tb.String(), http.StatusBadRequest)
 			return
 		}
 
