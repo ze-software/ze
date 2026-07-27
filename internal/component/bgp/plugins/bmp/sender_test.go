@@ -434,3 +434,24 @@ func TestStartSenderIsIdempotent(t *testing.T) {
 		t.Fatalf("second startSender: got %d senders, want %d (sender set doubled)", afterSecond, len(cfg.Collectors))
 	}
 }
+
+// NOTE for anyone implementing the bounded transmit queue in
+// plan/spec-fixit-bmp-sender-blocking-and-reload.md.
+//
+// The tests in this file construct senderSession directly and assume sendLocked
+// writes to the connection SYNCHRONOUSLY. Moving the socket write onto a drain
+// goroutine (which is the point of that spec: no socket write on an EventBus
+// subscriber goroutine) breaks that assumption, so every such test needs a
+// running drain to see any bytes.
+//
+// That is not a free refactor. Four tests here carry RFC 7854 tags
+// (RFC7854-x-8 through x-11), and ai/rules/testing.md makes ANY behavioral
+// change to a tagged test require the user's explicit approval plus an
+// `// rfc-test-change-approved:` marker -- self-justification via
+// `// test-relax:` does NOT satisfy it. Get that approval BEFORE writing the
+// queue, not after, or the work cannot be landed.
+//
+// An attempt on 2026-07-27 stopped exactly here. Do not route around it with a
+// nil-queue fallback in sendLocked: that would leave these tests exercising a
+// synchronous path production never takes, which is coverage that proves
+// nothing about the shipped code.
