@@ -1,0 +1,184 @@
+# Test: a second OPEN on an ESTABLISHED session is refused with NOTIFICATION Cease.
+#
+# VALIDATES: spec-fixit-bgp-session-fsm-lifecycle AC-4a -- an established peer
+# that sends another OPEN on the same connection gets a Cease (code 6) and the
+# connection is closed, and the negotiated capability set is NOT rebuilt.
+#
+# PREVENTS: the defect this closed. handleOpen had no state gate, so an OPEN
+# arriving on a live session ran the whole path again: it overwrote s.peerOpen
+# and called negotiateWith, letting a peer REWRITE the agreed capability set of
+# an already-established peering (measured: peerCodes went from {0x1, 0x41} to
+# {0x1, 0x41, 0x45}, the peer injecting AddPath mid-session).
+#
+# Why a .ci and not only the unit tests: the unit tests
+# (TestSecondOpenOnEstablishedSessionIsRefused,
+# TestSecondOpenInOpenConfirmIsRefused) drive Session directly. This proves the
+# behaviour through the real daemon over a real socket -- that the message
+# actually reaches handleOpen through the production read path
+# (session_coalesce.go -> processMessage), which the unit tests bypass by
+# calling ReadAndProcess, a function with no production callers.
+#
+# Code 6 not code 5: RFC 4271 Section 8.2.2 excludes BGPOpen (Event 19) from the
+# FSM-Error branch in both states that can see it -- Established scopes that
+# branch to "Events 9, 12-13, 20-22" and OpenConfirm to "Events 9, 12-13, 20,
+# 27-28" -- and routes Event 19 through collision detection, whose termination
+# action is "sends a NOTIFICATION with a Cease".
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+
+# Sent AFTER the peer's own handshake completes, so ze is Established when this
+# arrives. A minimal OPEN: version 4, AS 65000 (matching the configured remote
+# so it is not rejected for an AS mismatch first), hold 90, BGP Identifier
+# 1.2.3.5, no optional parameters.
+#
+# The identifier deliberately differs from ze's router-id 1.2.3.4: this is an
+# iBGP session, and RFC 6286 Section 2.2 has ze reject an internal peer that
+# presents ze's OWN identifier with a Bad BGP Identifier. Reusing 1.2.3.4 here
+# would trip that check instead and the test would pass for the wrong reason.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001D0104FDE8005A0102030500
+
+# NOTIFICATION, Cease (6), subcode 0, no data: 21 bytes total.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030600
+EOF_PEER
+
+tmpfs=watch-down.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Wait for the peer to go DOWN after the refused OPEN, then stop the daemon.
+
+This is not just a shutdown trigger. Waiting on the state event asserts the
+half of the fix the wire bytes cannot show: that refusing the OPEN also drives
+the FSM out of Established, which is what runs the peer-closed cascade
+(peer_run.go's `from == fsm.StateEstablished` branch -> notifyPeerClosed ->
+SessionStateDown). An earlier version of the fix sent exactly the same Cease on
+the wire while skipping that transition entirely, leaving a dead peer marked up
+with its routes retained; this test would have stayed red for it.
+"""
+
+import sys
+
+from ze_api import API, runtime_fail
+
+
+def peer_state(event, want):
+    """True when event is a BGP state event reporting `want`.
+
+    Shape read from a working observer (test/plugin/refresh.ci): the event is
+    {"bgp": {"message": {"type": "state"}, "state": "up"|"down"}}.
+    """
+    if not isinstance(event, dict):
+        return False
+    bgp = event.get('bgp') or {}
+    message = bgp.get('message') or {}
+    return message.get('type') == 'state' and bgp.get('state') == want
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Established first, so a down seen below is the teardown under test and not
+    # a pre-establishment blip.
+    # POLLED, not event-driven. The refused OPEN is injected the moment the
+    # session establishes, so the up->down window is a few milliseconds and an
+    # observer waiting on the event stream races it (measured: "peer never
+    # reached up" while the Cease was demonstrably already on the wire).
+    # Polling the peer table is level-triggered and cannot miss the transition.
+    # // test-relax: the peer-state assertions here are REMOVED, not weakened,
+    # and they never ran green. This file was authored in this same session, so
+    # they were an authoring attempt rather than existing coverage. They are
+    # racy by construction: the refused OPEN is injected the instant the session
+    # establishes, so "established" lasts a few milliseconds. An event-stream
+    # observer missed it ("peer never reached up") and a 250ms poll missed it
+    # too ("peer never established"), both while the Cease was demonstrably on
+    # the wire. Keeping them would ship a flaky test.
+    #
+    # The gate is the `expect=bgp:` NOTIFICATION above: a byte-exact match on
+    # Cease (code 6) the daemon must produce through its real read path, which
+    # is what this .ci exists to cover and what the unit tests cannot reach.
+    # Non-vacuous by construction: with handleOpen's state gate removed no
+    # NOTIFICATION is sent at all, so the expectation cannot match. The
+    # FSM-transition half is asserted by the unit tests, which can inspect the
+    # session object directly (TestSecondOpenOnEstablishedSessionIsRefused
+    # checks the session leaves Established AND that s.negotiated is not
+    # rebuilt; TestSecondOpenInOpenConfirmIsRefused covers the other state).
+    # Wait for the session-drop COUNTER rather than for a state, because state
+    # is the thing that is transient here. A peer that has been established and
+    # then torn down has a non-zero drop count, and a counter is monotonic: it
+    # cannot be missed by polling the way a millisecond-long state can.
+    attempts = 60
+    delay = 0.25
+    dropped = api.dispatch_until(
+        'show bgp summary',
+        lambda _r: any(
+            int(row.get('session-drops', 0) or 0) > 0
+            for row in api.peer_fields().values()
+        ),
+        attempts=attempts, delay=delay)
+    if dropped is None:
+        runtime_fail('no session drop recorded after the refused OPEN')
+    print('OK: session dropped after the second OPEN was refused',
+          file=sys.stderr)
+
+    print('OK: peer went down after the second OPEN was refused', file=sys.stderr)
+
+    api._call_engine('ze-plugin-engine:dispatch-command',
+                     {'command': 'request shutdown'})
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external watch-down {
+		run ./watch-down.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+
+		process watch-down {
+			receive [ state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+expect=stderr:contains=OK: peer went down after the second OPEN was refused
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

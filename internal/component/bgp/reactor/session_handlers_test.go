@@ -637,6 +637,95 @@ func TestSecondOpenOnEstablishedSessionIsRefused(t *testing.T) {
 	})
 }
 
+// VALIDATES: AC-4a's OpenConfirm half -- a second OPEN arriving after the peer's
+// first OPEN but BEFORE the confirming KEEPALIVE is refused with Cease, exactly
+// as in Established.
+// PREVENTS: a gate that reads correct but only covers one of the two states it
+// names. handleOpen's guard tests Established||OpenConfirm; before this test
+// only the Established arm was exercised, so dropping the OpenConfirm arm would
+// not have turned anything red.
+//
+// RFC 4271 Section 8.2.2 treats the two states the same way for BGPOpen (Event
+// 19): OpenConfirm's any-other-event branch is scoped to "Events 9, 12-13, 20,
+// 27-28" and Established's to "Events 9, 12-13, 20-22", so 19 is excluded from
+// both and routed through collision detection, terminating with a Cease.
+func TestSecondOpenInOpenConfirmIsRefused(t *testing.T) {
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
+	settings.Connection = ConnectionPassive
+	settings.ReceiveHoldTime = 90 * time.Second
+	settings.Capabilities = []capability.Capability{
+		&capability.ASN4{ASN: 65001},
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+	}
+
+	session := NewSession(settings)
+	require.NoError(t, session.Start())
+
+	client, server := net.Pipe()
+	_ = acceptWithReader(t, session, server, client)
+	t.Cleanup(func() {
+		client.Close() //nolint:errcheck // test cleanup
+		server.Close() //nolint:errcheck // test cleanup
+	})
+
+	peerOpen := &message.Open{
+		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
+		OptionalParams: []byte{
+			0x02, 0x06, 0x41, 0x04, 0x00, 0x00, 0xFD, 0xEA, // ASN4
+			0x02, 0x06, 0x01, 0x04, 0x00, 0x01, 0x00, 0x01, // IPv4/Unicast
+		},
+	}
+	fromZe := make(chan []byte, 16)
+	go func() {
+		defer close(fromZe)
+		buf := make([]byte, 65536)
+		for {
+			n, readErr := client.Read(buf)
+			if readErr != nil {
+				return
+			}
+			msg := make([]byte, n)
+			copy(msg, buf[:n])
+			fromZe <- msg
+		}
+	}()
+	go func() {
+		if _, writeErr := client.Write(message.PackTo(peerOpen, nil)); writeErr != nil {
+			return
+		}
+	}()
+	require.NoError(t, session.ReadAndProcess())
+
+	// No KEEPALIVE yet, so the FSM sits in OpenConfirm -- the state this test
+	// exists for. handleOpen fires EventBGPOpen at its end, which is what moved
+	// us out of OpenSent.
+	require.Equal(t, fsm.StateOpenConfirm, session.State(),
+		"precondition: a first OPEN with no KEEPALIVE leaves the session in OpenConfirm")
+
+	go func() {
+		if _, writeErr := client.Write(message.PackTo(peerOpen, nil)); writeErr != nil {
+			return
+		}
+	}()
+	err := session.ReadAndProcess()
+
+	assert.NotEqual(t, fsm.StateOpenConfirm, session.State(),
+		"session must leave OpenConfirm rather than silently re-negotiating")
+	require.Error(t, err, "a second OPEN in OpenConfirm must be refused")
+	require.ErrorIs(t, err, ErrInvalidState)
+
+	var notification []byte
+	for msg := range fromZe {
+		if len(msg) >= message.HeaderLen+2 && msg[message.HeaderLen-1] == byte(msgtype.TypeNOTIFICATION) {
+			notification = msg
+			break
+		}
+	}
+	require.NotNil(t, notification, "expected a NOTIFICATION on the wire")
+	assert.Equal(t, uint8(message.NotifyCease), notification[message.HeaderLen],
+		"RFC 4271 Section 8.2.2 terminates Event 19 with a Cease in OpenConfirm too")
+}
+
 // TestHandleUpdate_FamilyMismatchIgnoreMode verifies IgnoreFamilyMismatch mode.
 // RFC 4760 Section 6: lenient mode logs but doesn't reject.
 func TestHandleUpdate_FamilyMismatchIgnoreMode(t *testing.T) {

@@ -227,7 +227,24 @@ against source: `session_handlers.go:43-47`, `:98-115`, `:121-124`; cancel-gorou
 | AC-2 | Normal 90 s hold session, one graced expiry | Hold timer is still armed afterwards (`IsHoldTimerRunning` true) |
 | AC-3 | Established peer triggers each StopAll-free error path (all 8 sites listed in defect 2) | After teardown, `IsKeepaliveTimerRunning` is false and the `Session` is not retained by a timer closure |
 | AC-4 | ~~Established peer sends a second OPEN on the same connection~~ SUPERSEDED 2026-07-27 (Thomas: "Drop AC-4") | ~~A NOTIFICATION (FSM Error, code 5, subcode 0) is sent and the connection is closed~~ -> **Cease (code 6)**, connection closed, negotiated capabilities UNCHANGED. See AC-4a. |
-| AC-4a | Established (or OpenConfirm) peer sends a second OPEN on the same connection | A NOTIFICATION with Cease (code 6) is sent, the connection is closed, and `s.negotiated` is not rebuilt |
+| AC-4a | Established (or OpenConfirm) peer sends a second OPEN on the same connection | A NOTIFICATION with Cease (code 6) is sent, the connection is closed, the session leaves Established (so the peer-closed cascade runs), and `s.negotiated` is not rebuilt |
+
+**AC-4a evidence (2026-07-27), all mutation-verified.** Implemented at
+`reactor/session_handlers.go:61-82`:
+
+| Test | Covers | Mutation that turns it red |
+|------|--------|----------------------------|
+| `TestSecondOpenOnEstablishedSessionIsRefused` (`reactor/session_handlers_test.go`) | Established: Cease on the wire, session leaves Established, `s.negotiated` NOT rebuilt | remove `logFSMEvent` -> state stays Established (32); swap `NotifyCease` -> `NotifyFSMError` -> wire code 5 not 6; remove the gate -> `peerCodes` gains `0x45` |
+| `TestSecondOpenInOpenConfirmIsRefused` (same file) | OpenConfirm, the other state the gate names | drop the `state == fsm.StateOpenConfirm` arm -> red |
+| `test/plugin/open-in-established.ci` | the REAL daemon path end-to-end: byte-exact Cease produced through `session_coalesce.go` -> `processMessage` -> `handleOpen`, which the unit tests bypass by calling `ReadAndProcess` (a function with no production callers) | remove the gate -> no NOTIFICATION at all, so the expectation cannot match (verified: FAILED CHECK PEERS) |
+
+The `.ci` observer is deliberately lifecycle-only and waits on the
+`session-drops` COUNTER, not on peer state. State is the wrong signal here: the
+refused OPEN is injected the instant the session establishes, so `established`
+lasts milliseconds. An event-stream observer missed it ("peer never reached up")
+and a 250 ms poll missed it ("peer never established"), both while the Cease was
+already on the wire. A counter is monotonic and cannot be missed by polling.
+Asserting on the transient state would have shipped a flaky test, not a strict one.
 | AC-5 | `FSM.Event` receives an event that lands in a state handler's default arm | Returns a non-nil sentinel; `logFSMEvent` logs the rejection (its warn branch becomes live code) |
 | AC-6 | Import policy filter requests a session teardown | NOTIFICATION sent, `Run` returns a teardown reason promptly (no `conn == nil` spin), peer reconnect class is deliberate (see D-7) |
 | AC-7 | ~~(PROPOSED, needs approval)~~ (APPROVED 2026-07-17, Q-2) Any read-loop error return, including ones that skip `closeConn` today | TCP connection is closed by the time `Run` has returned |
