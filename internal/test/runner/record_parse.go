@@ -426,9 +426,21 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		// everywhere: validating after the return would silently accept
 		// `caps=net-admn` on macOS, leaving the author who wrote it with no
 		// feedback and the gate quietly disabled until someone ran on Linux.
-		caps := kv["caps"]
-		if caps != "" && caps != capsNetAdmin {
-			return fmt.Errorf("option=needs-linux: unknown caps %q (supported: %s)", caps, capsNetAdmin)
+		// caps is a comma-separated LIST: a test that both programs netlink and
+		// loads eBPF declares `caps=net-admin,bpf` and is gated on BOTH.
+		// Declaring only one of a pair a test really needs makes the gate fail
+		// OPEN -- a host holding just that one passes a check it cannot satisfy,
+		// and the test then fails or hangs exactly as it did before the marker
+		// existed (ai/rules/fail-closed-guards.md).
+		var caps []string
+		if raw := kv["caps"]; raw != "" {
+			for c := range strings.SplitSeq(raw, ",") {
+				c = strings.TrimSpace(c)
+				if _, ok := capsRequired[c]; !ok {
+					return fmt.Errorf("option=needs-linux: unknown caps %q (supported: %s)", c, capsAccepted())
+				}
+				caps = append(caps, c)
+			}
 		}
 
 		if runtime.GOOS != goosLinux {
@@ -436,8 +448,10 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 			r.SkipReason = tb.Str("needs-linux (run via make ze-qemu-needs-linux-test; current GOOS=").Str(runtime.GOOS).Byte(')').String()
 			return nil
 		}
-		if caps == capsNetAdmin && !hasNetAdmin() {
-			r.SkipReason = "needs-linux caps=net-admin (no CAP_NET_ADMIN; run via make ze-qemu-needs-linux-test)"
+		if len(caps) > 0 && !hasCaps(caps) {
+			var tb textbuf.Buffer
+			r.SkipReason = tb.Str("needs-linux caps=").Str(strings.Join(caps, ",")).
+				Str(" (capability absent; run via make ze-qemu-needs-linux-test)").String()
 			return nil
 		}
 

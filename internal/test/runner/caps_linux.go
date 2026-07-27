@@ -14,33 +14,29 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// capNetAdmin is CAP_NET_ADMIN's bit position in the Linux capability bitmask
-// (include/uapi/linux/capability.h).
-const capNetAdmin = 12
-
-// probeNetAdmin reports whether this process may perform privileged network
-// configuration: creating interfaces, bringing links up, programming netlink.
+// probeCaps reports whether this process holds EVERY capability in bits.
+// The bit positions themselves live in caps.go so every platform can parse the
+// caps= vocabulary.
 //
 // It reads the effective capability set from /proc/self/status rather than
 // testing for uid 0, because the two are not the same thing: a setcap'd binary
-// or an ambient-capability environment has CAP_NET_ADMIN without being root,
-// and a root process inside a restrictive container may have had it dropped.
+// or an ambient-capability environment has capabilities without being root, and
+// a root process inside a restrictive container may have had them dropped.
 //
-// A test that applies interface config and does NOT have this capability cannot
-// pass: the interface plugin fails its stage-3 handshake with "operation not
-// permitted", exits, and the daemon never reaches the state the test asserts.
-// Before this probe existed those tests did not fail cleanly -- they HUNG until
-// the suite timeout, because the assertion was waiting on a BGP message from a
-// daemon whose plugin had already died.
-func probeNetAdmin() bool {
+// A test that needs a capability it does not have cannot pass: the owning
+// plugin fails its stage-3 handshake with "operation not permitted", exits, and
+// the daemon never reaches the state the test asserts. Before this probe existed
+// those tests did not fail cleanly -- they HUNG until the suite timeout, because
+// the assertion was waiting on a message from a daemon whose plugin had died.
+func probeCaps(bits ...int) bool {
 	data, err := os.ReadFile("/proc/self/status")
 	if err != nil {
-		// Unreadable procfs: assume the capability is present rather than skip.
-		// Over-skipping silently removes coverage, which is the worse failure
-		// (ai/rules/no-test-deletion.md). But a guard that cannot evaluate must
-		// SAY so (ai/rules/fail-closed-guards.md): without this line a broken
-		// probe is indistinguishable from a genuine failure, and the next agent
-		// re-derives the root cause from a hang.
+		// Unreadable procfs: assume the capabilities are present rather than
+		// skip. Over-skipping silently removes coverage, which is the worse
+		// failure (ai/rules/no-test-deletion.md). But a guard that cannot
+		// evaluate must SAY so (ai/rules/fail-closed-guards.md): without this
+		// line a broken probe is indistinguishable from a genuine failure, and
+		// the next agent re-derives the root cause from a hang.
 		capsWarn("cannot read /proc/self/status", err)
 		return true
 	}
@@ -54,7 +50,12 @@ func probeNetAdmin() bool {
 			capsWarn("cannot parse CapEff", perr)
 			return true
 		}
-		return mask&(1<<capNetAdmin) != 0
+		for _, bit := range bits {
+			if mask&(1<<uint(bit)) == 0 { //nolint:gosec // bit is a package const, 0..63
+				return false
+			}
+		}
+		return true
 	}
 	capsWarn("no CapEff line in /proc/self/status", nil)
 	return true
@@ -64,7 +65,7 @@ func probeNetAdmin() bool {
 // then runs and fails is not mistaken for a genuine product failure.
 func capsWarn(what string, err error) {
 	var tb textbuf.Buffer
-	tb.Str("runner: CAP_NET_ADMIN probe: ").Str(what).Str("; assuming the capability IS present")
+	tb.Str("runner: capability probe: ").Str(what).Str("; assuming the capabilities ARE present")
 	if err != nil {
 		tb.Str(": ").Err(err)
 	}

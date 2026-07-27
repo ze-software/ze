@@ -3,31 +3,91 @@
 
 package runner
 
+import (
+	"slices"
+	"strings"
+)
+
 // goosLinux is runtime.GOOS on Linux. Named so the several capability/netns
 // guards in this package share one spelling instead of repeating the literal.
 const goosLinux = "linux"
 
-// capsNetAdmin is the only value `option=needs-linux:caps=` accepts today. It
-// declares that the test performs privileged network configuration (creating
-// interfaces, bringing links up, programming netlink).
-const capsNetAdmin = "net-admin"
+// Capability bit positions in the Linux capability bitmask
+// (include/uapi/linux/capability.h). Declared here rather than in caps_linux.go
+// so capsRequired below -- which every platform parses -- can name them: a `.ci`
+// typo must be rejected on macOS too, or the author who wrote it gets no
+// feedback until someone runs on Linux.
+const (
+	capNetAdmin    = 12 // CAP_NET_ADMIN: interfaces, netlink, nftables
+	capSysResource = 24 // CAP_SYS_RESOURCE: raise rlimits (RLIMIT_MEMLOCK for eBPF)
+	capBPF         = 39 // CAP_BPF: load eBPF programs and create maps (>= 5.8)
+)
 
-// hasNetAdmin reports whether this process may perform privileged network
-// configuration. It is a package var, not a direct call, so a test can drive
-// BOTH polarities of the gate on any host: asserting only the host's real
-// answer makes the test vacuous in exactly the environment where the suite runs
-// for real (the QEMU VM, where the capability is present and the "skips without
-// it" branch is never taken). Same seam as interfaceByName in
+// Values `option=needs-linux:caps=` accepts, as a comma-separated list.
+//
+//   - net-admin: privileged network configuration -- creating interfaces,
+//     bringing links up, programming netlink and nftables.
+//   - bpf: loading eBPF programs and creating maps, AND raising RLIMIT_MEMLOCK
+//     to do it. Both are needed: the ebpf library's rlimit.RemoveMemlock
+//     (vendor/github.com/cilium/ebpf/rlimit/rlimit_linux.go) probes with
+//     BPF_MAP_CREATE and, when memcg accounting is unavailable, falls back to
+//     prlimit(2), which is CAP_SYS_RESOURCE. Declaring only one of the pair
+//     would let a host that holds it pass a gate it cannot actually satisfy.
+const (
+	capsNetAdmin = "net-admin"
+	capsBPF      = "bpf"
+)
+
+// capsRequired maps each accepted token to the capability bits a host must hold
+// for it. Deriving the probe from this table rather than from a per-token `if`
+// keeps the declared name and the tested bits in one place: the failure this
+// prevents is a token whose NAME says one capability while the probe checks
+// another, which is a guard that cannot evaluate what it claims to
+// (ai/rules/fail-closed-guards.md).
+var capsRequired = map[string][]int{
+	capsNetAdmin: {capNetAdmin},
+	capsBPF:      {capBPF, capSysResource},
+}
+
+// capsAccepted lists the accepted tokens for an error message, derived from the
+// table so a new capability cannot be added without the diagnostic naming it
+// (ai/rules/derive-not-hardcode.md).
+func capsAccepted() string {
+	names := make([]string, 0, len(capsRequired))
+	for name := range capsRequired {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return strings.Join(names, ", ")
+}
+
+// hasCaps reports whether this process holds every capability the named tokens
+// require. It is a package var, not a direct call, so a test can drive BOTH
+// polarities of the gate on any host: asserting only the host's real answer
+// makes the test vacuous in exactly the environment where the suite runs for
+// real (the QEMU VM, where the capabilities are present and the "skips without
+// them" branch is never taken). Same seam as interfaceByName in
 // internal/component/ike/engine/doctor.go.
 //
 // This is a deliberate, precedented exception to the "no global mutable state"
 // rule in ai/rules/go-standards.md: it is a test seam, never written in
-// production (only probeNetAdmin's result is read), and it mirrors
-// interfaceByName in internal/component/ike/engine/doctor.go and in
-// internal/component/doctor/checks_listener.go. Without it the capability
-// test is vacuous on any host that HAS the capability -- which is the QEMU
-// runner, the one environment where the gated tests actually execute.
-var hasNetAdmin = probeNetAdmin
+// production (only probeCaps's result is read), and it mirrors interfaceByName
+// in internal/component/ike/engine/doctor.go and in
+// internal/component/doctor/checks_listener.go.
+var hasCaps = func(tokens []string) bool {
+	n := 0
+	for _, t := range tokens {
+		n += len(capsRequired[t])
+	}
+	if n == 0 {
+		return true
+	}
+	bits := make([]int, 0, n)
+	for _, t := range tokens {
+		bits = append(bits, capsRequired[t]...)
+	}
+	return probeCaps(bits...)
+}
 
 // skipReasonNetnsLink is the skip reason applied by applyNetnsLinkGate. It names
 // both targets that DO provision the links, so the reader's next step is one
