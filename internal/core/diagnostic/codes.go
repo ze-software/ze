@@ -310,6 +310,12 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json", "ze explain doctor-vpp-lcp-netns"},
 	},
 	{
+		Code:        "doctor-vpp-lcp-plugin",
+		Title:       "VPP linux_cp plugin not loaded",
+		Description: "vpp.lcp is enabled, so ze writes a startup.conf that enables linux_cp_plugin.so, but the running VPP does not report that plugin as loaded. The linux_cp API is therefore unavailable and the config apply fails at the binapi layer with a raw VPP error that names the failing message rather than the missing plugin. Remedy: run a VPP build that ships linux_cp_plugin.so (and linux_nl_plugin.so), or disable vpp.lcp. When the probe itself fails -- vppctl missing, VPP socket absent, VPP wedged -- this is reported as a WARNING instead, because none of those is evidence about which plugins VPP loaded.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-vpp-lcp-plugin"},
+	},
+	{
 		Code:        "doctor-kernel-nexthop",
 		Title:       "Kernel nexthop objects unavailable",
 		Description: "The kernel does not support nexthop objects (requires Linux 5.3+). ECMP will fall back to multipath routes.",

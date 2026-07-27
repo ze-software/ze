@@ -13,10 +13,20 @@
 //   - lcp netns: LCP TAPs land in vpp.lcp.netns; BGP can only bind on a shadow
 //     interface when it runs in that namespace. doctor warns when BGP is
 //     enabled and the netns is not a root-reachable namespace (see A-4).
+//   - lcp plugin: enabling vpp.lcp makes startup.conf load linux_cp_plugin.so
+//     (component/vpp/startupconf.go). A VPP built without it accepts the config
+//     and then fails the whole apply at the binapi layer with a raw VPP error,
+//     so doctor probes the RUNNING VPP and says so first.
 
 package ifacevpp
 
 import (
+	"context"
+	"os/exec"
+	"runtime"
+	"strings"
+	"time"
+
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -35,6 +45,16 @@ func registerDoctorChecks() error {
 			Platforms:    []string{diagnostic.DoctorPlatformAny},
 			Codes:        []string{"doctor-vpp-wireguard"},
 			Check:        checkVPPWireguardPlugin,
+		},
+		{
+			Name:         "vpp-lcp-plugin",
+			Phase:        diagnostic.DoctorPhasePostConfig,
+			Order:        742,
+			Component:    "vpp",
+			Dependencies: []string{"vpp-lcp"},
+			Platforms:    []string{diagnostic.DoctorPlatformAny},
+			Codes:        []string{"doctor-vpp-lcp-plugin"},
+			Check:        checkVPPLCPPlugin,
 		},
 		{
 			Name:         "vpp-lcp-netns",
@@ -161,4 +181,77 @@ func lcpNetnsIsRootReachable(netns string) bool {
 	default:
 		return false
 	}
+}
+
+// lcpPluginSO is the VPP plugin startup.conf enables when vpp.lcp is on
+// (component/vpp/startupconf.go). Matched as a substring of `vppctl show
+// plugins` output rather than probed on the filesystem: what matters is whether
+// the RUNNING VPP loaded it, not whether some copy exists on disk.
+const lcpPluginSO = "linux_cp_plugin.so"
+
+// vppProbeTimeout bounds the vppctl probe. Doctor runs before apply and must
+// stay responsive on a host where VPP is wedged rather than merely absent.
+const vppProbeTimeout = 3 * time.Second
+
+// lcpEnabled reports whether vpp.lcp is on. Absent container means off; a
+// present container with no `enabled` leaf means on (the YANG default), which
+// is why this is not a plain Get.
+func lcpEnabled(tree *config.Tree) bool {
+	lcp := tree.GetContainerPath("vpp/lcp")
+	if lcp == nil {
+		return false
+	}
+	enabled, ok := lcp.Get("enabled")
+	return !ok || enabled != "false"
+}
+
+// checkVPPLCPPlugin reports when vpp.lcp is enabled but the running VPP does
+// not load linux_cp_plugin.so.
+//
+// Without this, the misconfiguration surfaces only at apply time, as a raw VPP
+// binapi error that fails the WHOLE config apply -- and names the failing
+// message, not the missing plugin. Probing here turns that into an actionable
+// pre-apply diagnostic.
+//
+// A failed probe degrades to a WARNING and never claims the plugin is missing:
+// `vppctl` exits non-zero for an absent binary, an absent socket and a wedged
+// VPP alike, and none of those is evidence about the plugin set. Reporting an
+// error there would fail closed in the wrong direction -- it would tell an
+// operator to rebuild VPP when the real problem is that VPP is not running.
+func checkVPPLCPPlugin(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	tree, ok := ctx.Tree.(*config.Tree)
+	if !ok || tree == nil {
+		return nil
+	}
+	if !lcpEnabled(tree) {
+		return nil
+	}
+	// VPP is Linux-only, so on any other host there is nothing to probe and no
+	// connection is opened. Checked AFTER the config gate so the skip reason is
+	// "wrong platform", not "config absent".
+	if runtime.GOOS != "linux" {
+		return nil
+	}
+
+	probeCtx, cancel := context.WithTimeout(context.Background(), vppProbeTimeout)
+	defer cancel()
+	out, err := exec.CommandContext(probeCtx, "vppctl", "show", "plugins").Output() //nolint:gosec // fixed command, no user input
+	var tb textbuf.Buffer
+	if err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-vpp-lcp-plugin",
+			Severity: diagnostic.SeverityWarning,
+			Message: tb.Str("vpp.lcp is enabled but the running VPP could not be probed for ").
+				Str(lcpPluginSO).Str(": ").Err(err).String(),
+		}}
+	}
+	if strings.Contains(string(out), lcpPluginSO) {
+		return nil
+	}
+	return []diagnostic.Diagnostic{{
+		Code:     "doctor-vpp-lcp-plugin",
+		Severity: diagnostic.SeverityError,
+		Message: "vpp.lcp is enabled but the running VPP does not load " + lcpPluginSO +
+			"; the linux_cp API is unavailable and the config apply will fail at the binapi layer",
+	}}
 }

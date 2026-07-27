@@ -1,0 +1,34 @@
+# Test: ze doctor --json reports on the VPP linux_cp plugin when vpp.lcp is on.
+# VALIDATES: fixit-vpp-lcp-reachability AC-6 and AC-7 -- the check is reachable
+# from the USER entry point (registration, phase, platform filtering and the
+# diagnostic code all have to line up), and a FAILED probe degrades to a
+# warning that names the probe rather than claiming the plugin is missing.
+# PREVENTS: the check regressing to error-on-probe-failure. `vppctl` exits
+# non-zero for an absent binary, an absent socket and a wedged VPP alike, and
+# none of those is evidence about which plugins VPP loaded -- reporting an
+# error there would tell an operator to rebuild VPP when the real problem is
+# that VPP is not running. This host has no vppctl, so it exercises exactly
+# that path.
+# Required by ai/rules/doctor-checks.md ("Test Requirement": unit AND
+# functional), modelled on test/ui/doctor-ipsec-iface.ci.
+#
+# needs-linux: the check returns early on any non-Linux host (VPP is
+# Linux-only, and AC-11 requires that no probe is opened there), so on darwin
+# this would assert an absence that is true for the wrong reason.
+option=needs-linux
+
+tmpfs=vpp-lcp.conf:terminator=EOF_CONF
+interface {
+    backend vpp
+}
+
+vpp {
+    lcp {
+        enabled true
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json vpp-lcp.conf
+expect=stdout:contains=doctor-vpp-lcp-plugin
+expect=stdout:contains=could not be probed

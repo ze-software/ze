@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3111 files
+Total: 298 design docs, 3112 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -69,6 +69,7 @@ Total: 298 design docs, 3111 files
 | `internal/plugins/iface/netlink/doctor_linux.go` | kernel macvlan capability probe |
 | `internal/plugins/iface/netlink/doctor_other.go` | macvlan capability probe (non-Linux stub) |
 | `internal/plugins/iface/vpp/doctor.go` | self-contained doctor checks owned by |
+| `internal/plugins/iface/vpp/doctor_lcp_plugin_test.go` | doctor checks owned by the plugin that |
 
 ## `ai/rules/fail-closed-guards.md`
 
