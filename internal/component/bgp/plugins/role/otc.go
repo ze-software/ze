@@ -361,6 +361,44 @@ func OTCIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[str
 	return true, nil
 }
 
+// resolveSrcRole returns OUR configured role toward the source peer, which is
+// what the Gao-Rexford egress check keys on.
+//
+// meta["src-role"] is written by OTCIngressFilter (above) from
+// getFilterConfig(src).role. It is therefore a CACHE of config, not an
+// independent input, which is why config is a sound fallback and not a guess:
+// both sides read the same field of the same peer's config.
+//
+// Precisely: they are the same VALUE only at a single instant. meta is captured
+// when the route is RECEIVED; this fallback reads config when the route is
+// FORWARDED. An operator changing the peer's import role between the two makes
+// them differ. That is not a defect here -- the relay-time role is the one that
+// describes the relationship the route is being forwarded under, and is the
+// safer of the two to gate a leak check on -- but it is not the identity a
+// reader might assume from "recovered from the same field".
+//
+// The fallback exists because not every egress caller has been through the
+// ingress filter. RelayStoredRoute replays out of the Adj-RIB-In with no
+// ingress metadata, and treating a missing key as "no restriction" silently
+// skipped an RFC 9234 Section 5 leak guard on that path -- the zero-value trap
+// in ai/rules/fail-closed-guards.md, where the absent value selects the
+// permissive branch. A relay path is not the only caller that can lack meta,
+// so the fix is at the read, not at the one caller.
+//
+// An unusable value (present but not a string) takes the fallback too: a
+// malformed input must never be MORE permissive than a missing one. When the
+// source has no role config at all there is genuinely nothing to recover, and
+// "" correctly means the peer is unconfigured rather than unrestricted.
+func resolveSrcRole(meta map[string]any, srcCfg *peerRoleConfig) string {
+	if role, ok := meta["src-role"].(string); ok && role != "" {
+		return role
+	}
+	if srcCfg != nil {
+		return srcCfg.role
+	}
+	return ""
+}
+
 // OTCEgressFilter is the egress filter function registered with the BGP filter pipeline (filterapi).
 // Called by the reactor per destination peer during ForwardUpdate.
 // Checks both export role filtering and OTC egress suppression per RFC 9234 Section 5.
@@ -394,7 +432,7 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 	//   customer  → source IS Provider    peer     → source IS Peer
 	//   rs-client → source IS RS          provider → source IS Customer (allowed to transit)
 	if destRemoteRole == roleProvider || destRemoteRole == rolePeer || destRemoteRole == roleRS {
-		srcRole, _ := meta["src-role"].(string)
+		srcRole := resolveSrcRole(meta, srcCfg)
 		if srcRole == roleCustomer || srcRole == rolePeer || srcRole == roleRSClient {
 			logger().Debug("OTC egress suppress (src-role)",
 				"src", src.Address, "src-role", srcRole, "dest", dest.Address, "dest-role", destRemoteRole)

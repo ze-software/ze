@@ -2,7 +2,7 @@
 
 | Date | Source | What | Reason | Destination | Status |
 |------|--------|------|--------|-------------|--------|
-| 2026-07-24 | spec-fixit-bgp-egress-rail-divergence | `OTCEgressFilter`'s Gao-Rexford safety net reads `meta["src-role"]` and treats a MISSING key as "no restriction", so it goes unevaluated for any caller without ingress metadata (the Adj-RIB-In relay path, and any future one). The value is recoverable exactly — `OTCIngressFilter` writes `meta["src-role"] = cfg.role` from the same `getFilterConfig(src)` lookup the egress filter already performs — so the fix is a config-derived fallback when meta is absent. | Not required by any AC of this spec: RFC 9234 egress suppression on the replay path already works, because the ingress filter stamps OTC into the WIRE bytes before the route is stored and the wire-bytes rule (`checkOTCEgress`, `role/otc.go:201-206`) sees it on the reconstruction. Verified by removing the fallback and re-running 394/395 — both still pass. Landing it here would also require editing `TestOTCEgressNoStampProvider`, which carries `RFC requirement: RFC9234-5-4 negative` and may only be changed with explicit user approval (`ai/rules/testing.md` RFC-Tagged Tests). | plan/spec-fixit-otc-src-role-meta-fallback.md | deferred |
+| 2026-07-24 | spec-fixit-bgp-egress-rail-divergence | `OTCEgressFilter`'s Gao-Rexford safety net reads `meta["src-role"]` and treats a MISSING key as "no restriction", so it goes unevaluated for any caller without ingress metadata (the Adj-RIB-In relay path, and any future one). The value is recoverable exactly — `OTCIngressFilter` writes `meta["src-role"] = cfg.role` from the same `getFilterConfig(src)` lookup the egress filter already performs — so the fix is a config-derived fallback when meta is absent. | Not required by any AC of this spec: RFC 9234 egress suppression on the replay path already works, because the ingress filter stamps OTC into the WIRE bytes before the route is stored and the wire-bytes rule (`checkOTCEgress`, `role/otc.go:201-206`) sees it on the reconstruction. Verified by removing the fallback and re-running 394/395 — both still pass. Landing it here would also require editing `TestOTCEgressNoStampProvider`, which carries `RFC requirement: RFC9234-5-4 negative` and may only be changed with explicit user approval (`ai/rules/testing.md` RFC-Tagged Tests). | plan/spec-fixit-otc-src-role-meta-fallback.md | done |
 
 | 2026-07-25 | spec-fixit-bgp-egress-rail-divergence | Normalize the stored NLRI framing so ADD-PATH (RFC 7911) routes can be replayed. The structured ingest strips the 4-byte path-id (`nlri/iterator.go` `Next`, stored verbatim by `installStructuredNLRIs`) while the legacy ingest prepends it (`prefixToWireHex`, and only when non-zero though path-id 0 is legal), so the stored bytes carry one of two framings and nothing records which. | Emitting either framing under the source's add-path context corrupts the destination session, so the relay refuses add-path sources outright (`errRelayAddPath`) rather than guess. Refusing loses the replay; guessing loses the session. Spec assumption A-3, Phase 5. | plan/spec-fixit-stored-route-relay-hardening.md | deferred |
 | 2026-07-25 | spec-fixit-bgp-egress-rail-divergence | `test/plugin/adj-rib-in-replay-on-peerup.ci` replays to `10.0.0.99`, which is not a configured peer, so `RelayStoredRoute` returns at destination resolution and the test asserts on the SELECTED route count. It passes with the relay entirely dead (fails the mutation check in `ai/rules/functional-test-gate.md`). | Found by independent review; making it gate needs a second source peer and wire-byte assertions, which is test authoring beyond this spec's fix. The relay path is covered meanwhile by the four target `.ci` tests plus the reactor unit tests. | plan/spec-fixit-stored-route-relay-hardening.md | deferred |
@@ -31,3 +31,25 @@ NEW test asserting the Provider→Provider leak is suppressed with `meta == nil`
 
 That is a strengthening rewrite, not a relaxation — but the RFC-tagged-test hook
 cannot tell the two apart, and correctly demands user approval first.
+
+**RESOLVED 2026-07-27.** Thomas approved the RFC-tagged test change, and the fix
+landed exactly as prescribed above:
+
+- `resolveSrcRole` (`role/otc.go`) recovers our role for the source peer from
+  `srcCfg.role` when meta carries no usable `src-role`. It is an exact recovery,
+  not a guess: `OTCIngressFilter` only ever copied that same config field into
+  meta. An unusable value (present but not a string) takes the fallback too, so
+  a malformed input is never more permissive than a missing one.
+- `TestOTCEgressNoStampProvider` keeps its `RFC9234-5-4 negative` tag and now
+  configures local role `provider` toward the source, so the route legitimately
+  reaches the stamp block and the tag still proves stamping scope. Flipping its
+  assertion instead would have made it vacuous: a suppressed route returns
+  before the stamping code, so "no stamp" would have held for the wrong reason.
+- `TestOTCEgressSuppressProviderLearnedWithoutMeta` is the new test carrying the
+  old fixture with the correct expectation. Mutation-verified: disabling the
+  fallback turns it red.
+- `meta_wrong_type_not_suppressed` moved to a config-less source (10.0.0.99).
+  Its old source had config role `provider`, which the fallback would have made
+  the reason it passed, hiding whether the type check still worked.
+- The stale comment at `reactor_api_relay.go` that documented this gap as open
+  is updated to record it closed.

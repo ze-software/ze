@@ -409,11 +409,14 @@ func (a *reactorAPIAdapter) buildRelayUpdate(route *rpc.StoredRoute, src relaySo
 		// stored, so the wire-bytes egress rule (role/otc.go checkOTCEgress) sees
 		// it on the reconstruction without needing meta.
 		//
-		// The meta-based Gao-Rexford safety net in OTCEgressFilter does go
-		// unevaluated for a replayed route, which is a real gap -- but a
-		// pre-existing and separable one (it fires for ANY caller without ingress
-		// meta, not just this path), and closing it means changing an RFC-tagged
-		// test. Tracked in plan/deferrals/fixit-bgp-egress-rail-divergence.md.
+		// The meta-based Gao-Rexford safety net in OTCEgressFilter used to go
+		// unevaluated for a replayed route, because it read meta["src-role"] and
+		// treated the missing key as "no restriction". That is CLOSED: the filter
+		// now recovers our role for the source peer from config when meta lacks
+		// it (resolveSrcRole, role/otc.go), which is an exact recovery rather than
+		// a guess because the ingress filter only ever copied it out of the same
+		// config field. So a nil Meta here no longer weakens the leak guard.
+		// Proven by TestOTCEgressSuppressProviderLearnedWithoutMeta.
 		Meta: nil,
 	}
 	// The stored bytes are still in the SOURCE peer's encoding, so the wire must

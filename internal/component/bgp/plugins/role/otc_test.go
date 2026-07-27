@@ -633,7 +633,18 @@ func TestOTCEgressFilter(t *testing.T) {
 	t.Run("meta_wrong_type_not_suppressed", func(t *testing.T) {
 		// meta["src-role"] with wrong type (int instead of string) must NOT trigger Gao-Rexford suppression.
 		// Use noOTC payload: wire-bytes OTC check would suppress withOTC to Provider regardless of meta.
-		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
+		//
+		// rfc-test-change-approved: 2026-07-27 Thomas approved the RFC-tagged test
+		// changes for spec-fixit-otc-src-role-meta-fallback; this untagged subtest
+		// sits inside the same tagged function and is adjusted for the same reason.
+		//
+		// The source is 10.0.0.99, which has NO role config, and that is now
+		// load-bearing. It used to be 10.0.0.7, whose config role is "provider" --
+		// once resolveSrcRole falls back to config, "provider" means the source IS
+		// our Customer and is never suppressed anyway, so the assertion would have
+		// held whether or not the type check worked. A config-less source leaves
+		// meta as the only signal, which is what this subtest is about.
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
 		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
 		assert.True(t, OTCEgressFilter(src, dest, noOTC, map[string]any{"src-role": 42}, nil),
 			"int src-role is not string -- Gao-Rexford must not trigger")
@@ -992,11 +1003,34 @@ func TestOTCEgressStampMod(t *testing.T) {
 // PREVENTS: OTC stamped on routes to Provider (upstream).
 //
 // RFC requirement: RFC9234-5-4 negative -- a route without OTC advertised to a Provider is not stamped; egress stamping is scoped to Customer/Peer/RS-Client.
+//
+// rfc-test-change-approved: 2026-07-27 Thomas approved changing this RFC-tagged
+// test so OTCEgressFilter can recover src-role from config when meta lacks it
+// (spec-fixit-otc-src-role-meta-fallback).
+//
+// WHAT CHANGED AND WHY. The source was configured {role: customer}, i.e. the
+// source peer IS our Provider, and the destination is also a Provider. Under
+// Gao-Rexford that route MUST be suppressed (RFC 9234 Section 5), and this test
+// asserted it was ACCEPTED. It only passed because meta was nil, so the old
+// egress filter read "" for src-role and skipped the check -- the test was
+// pinning the fail-open as correct behavior.
+//
+// The fix is NOT to flip the assertion to accept==false. That would have kept
+// the RFC9234-5-4 tag on a test that no longer proves it: a suppressed route
+// returns before the stamping code, so "no stamp" would hold for the wrong
+// reason and pass equally if stamping were deleted. Instead the source is now
+// {role: provider} (source IS our Customer), a route that legitimately MAY
+// transit to a Provider. It reaches the stamping path and must not be stamped
+// there because the destination is a Provider, which is exactly what the tag
+// claims. meta stays nil so the config fallback is still the thing under test.
+//
+// The suppression case this fixture used to hold is now proven, with the
+// correct expectation, by TestOTCEgressSuppressProviderLearnedWithoutMeta.
 func TestOTCEgressNoStampProvider(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
-		"10.0.0.1": {role: roleCustomer},
+		"10.0.0.1": {role: roleProvider},
 	}, nil)
-	setFilterRemoteRole("10.0.0.1", roleProvider)
+	setFilterRemoteRole("10.0.0.1", roleCustomer)
 	setFilterRemoteRole("10.0.0.5", roleProvider)
 	defer func() {
 		setFilterState(nil, nil)
@@ -1013,6 +1047,43 @@ func TestOTCEgressNoStampProvider(t *testing.T) {
 	accept := OTCEgressFilter(src, dest, noOTC, nil, &mods)
 	assert.True(t, accept)
 	assert.Equal(t, 0, mods.Len(), "no mod should be written for Provider destination")
+}
+
+// VALIDATES: spec-fixit-otc-src-role-meta-fallback -- a caller with NO ingress
+// metadata still gets the Gao-Rexford leak guard, because the egress filter
+// recovers our role for the source peer from config.
+// PREVENTS: the fail-open this spec was opened for. OTCEgressFilter read
+// meta["src-role"] and treated a missing key as "no restriction", so any caller
+// that had not been through OTCIngressFilter -- RelayStoredRoute replaying the
+// Adj-RIB-In is one, and not the only possible one -- leaked a Provider-learned
+// route to a Provider. Deleting the fallback in resolveSrcRole turns this red.
+//
+// This fixture is the one TestOTCEgressNoStampProvider used to carry, with the
+// expectation corrected from accept to suppress.
+//
+// RFC requirement: RFC9234-3.1-1 positive -- a route learned from a Provider (our role Customer) is not propagated to a Provider destination, including when the egress filter is reached with no ingress metadata.
+func TestOTCEgressSuppressProviderLearnedWithoutMeta(t *testing.T) {
+	setFilterState(map[string]*peerRoleConfig{
+		"10.0.0.1": {role: roleCustomer}, // our role customer => 10.0.0.1 IS our Provider
+	}, nil)
+	setFilterRemoteRole("10.0.0.1", roleProvider)
+	setFilterRemoteRole("10.0.0.5", roleProvider)
+	defer func() {
+		setFilterState(nil, nil)
+		filterMu.Lock()
+		filterRemoteRoles = nil
+		filterMu.Unlock()
+	}()
+
+	noOTC := buildTestPayload(buildTestAttrs(0), nil)
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+
+	var mods filterapi.ModAccumulator
+	// meta is nil: exactly the RelayStoredRoute shape.
+	accept := OTCEgressFilter(src, dest, noOTC, nil, &mods)
+	assert.False(t, accept,
+		"Provider-learned route to a Provider must be suppressed even with no ingress metadata (RFC 9234 Section 5)")
 }
 
 // VALIDATES: AC-5 — Route with existing OTC preserved unchanged (no mod written).
