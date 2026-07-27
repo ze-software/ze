@@ -14,6 +14,27 @@
 2. `plan/learned/1252-masked-verdict-and-rfc-exemption.md` (the session that found this)
 3. Source files under Current Behavior
 
+## Freshness check (2026-07-27)
+
+Re-verified against the tree at `5b6d64c35`; the defect is **still live** and the
+premise holds. Line numbers below have drifted since 2026-07-22, so use these:
+
+| Spec said | Now | What it is |
+|-----------|-----|------------|
+| `peer.go:899-906` | `peer.go:1148` | `ShouldQueue` definition |
+| `reactor_api_batch.go:106` | `reactor_api_batch.go:111` | batch announce gate |
+| `reactor_api_batch.go:235` | `reactor_api_batch.go:241` | batch withdraw gate |
+| `reactor_api_forward.go:58` | `reactor_api_forward.go:103` | `AnnounceEOR` gate |
+
+Still exactly three non-test callers, all on the route-INJECTION rail. A full
+`grep -rn ShouldQueue internal/component/bgp/reactor/` shows no call in
+`forward_rs.go` and none in `forwardUpdateCore`, so the forwarding rail remains
+ungated.
+
+Not started: this is a hot-path ordering change in the reactor, so it needs
+`make ze-race-reactor` (`ai/rules/testing.md` makes that mandatory for reactor
+concurrency edits) and an independent review pass before it can close.
+
 ## Task
 
 The BGP forwarding rail never consults `Peer.ShouldQueue()`, so a forwarded UPDATE
