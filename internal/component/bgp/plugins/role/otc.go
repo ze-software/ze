@@ -520,17 +520,21 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 		}
 	}
 
-	// Source has no role config: no export role filtering.
-	if srcCfg == nil {
-		return true
-	}
-
 	// Export role filtering: check if destination role is in the allowed set.
 	// Uses pre-computed resolvedExport (resolved at config time, not per-UPDATE).
-	if len(srcCfg.resolvedExport) > 0 {
+	//
+	// A source with no role config gets no export filtering, but MUST still fall
+	// through to the stamping rule below. This used to be an early
+	// `if srcCfg == nil { return true }`, which also skipped the RFC MUST --
+	// and the RFC does not condition that rule on the source at all. It made
+	// every route from a config-less source (iBGP, an RR client, a locally
+	// originated or API-injected route) reach a Customer WITHOUT OTC, so the
+	// customer could leak it upward with nothing for a compliant neighbor to
+	// catch, which is the entire purpose of the attribute.
+	if srcCfg != nil && len(srcCfg.resolvedExport) > 0 {
 		// Capability-only on purpose: "unknown" is an operator-selected export
 		// target for peers that announced no role (config.go:36), not an
-		// unanswered question. See resolveDestRole's scope note.
+		// unanswered question. See resolvePeerRole's scope note.
 		destRole := destCapRole
 		if destRole == "" {
 			destRole = roleUnknown

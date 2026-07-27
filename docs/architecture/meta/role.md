@@ -20,7 +20,7 @@
 
 The fallback exists because not every egress caller has been through the ingress filter. `RelayStoredRoute` replays out of the Adj-RIB-In with no ingress metadata, and treating the missing key as "no restriction" silently skipped an RFC 9234 Section 5 leak guard on that path.
 
-The destination side has the same shape. The destination role comes from the peer's OPEN Role capability, which a peer may legitimately not send (accepted when `strict` is unset), so `resolveDestRole` recovers what the peer IS from the complement of our configured role toward it. That recovery feeds the Section 5 gates only: export-set matching keeps using the capability value, because `unknown` there is an operator-selected target for peers that announced no role, not an unanswered question.
+The destination side has the same shape. The destination role comes from the peer's OPEN Role capability, which a peer may legitimately not send (accepted when `strict` is unset), so `resolvePeerRole` recovers what the peer IS from the complement of our configured role toward it. That recovery feeds the Section 5 gates only: export-set matching keeps using the capability value, because `unknown` there is an operator-selected target for peers that announced no role, not an unanswered question.
 
 Export role filtering (separate from OTC) still applies based on the source peer's export policy.
 
@@ -33,7 +33,8 @@ Ordering is enforced by pipeline structure, not convention. On the receive path 
 
 Do **not** read that as "egress always sees ingress metadata". Egress is reachable on paths that never ran ingress for the advertisement being built: `RelayStoredRoute` replays out of the Adj-RIB-In and passes `meta` as nil. That is why the egress filter recovers the source role from config rather than trusting the key to be present (see Absence above).
 
-<!-- source: internal/component/bgp/reactor/received_update.go -- ingress/egress pipeline -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- ingress filter step loop -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- egress filter step loop -->
 
 ## Coupling
 
@@ -49,7 +50,9 @@ Egress is **not** a single map lookup. `OTCEgressFilter` scans the payload up to
 
 ## Role resolution
 
-Both directions resolve "what is this peer to us" through `resolvePeerRole`: the OPEN Role capability when the peer sent one, otherwise the complement of our configured role toward it (`peerRoleComplement`, the value form of RFC 9234 Table 2). RFC 9234 Section 4.2 makes the configured role the prescribed input for the Section 5 procedures, so a peer that sends no capability is still fully filtered.
+Both directions resolve "what is this peer to us" through `resolvePeerRole`: the OPEN Role capability when the peer sent one, otherwise the complement of our configured role toward it (`peerRoleComplement`, the value form of RFC 9234 Table 2). RFC 9234 Section 4.2 makes the configured role the prescribed input for the Section 5 procedures, so a peer that sends no capability is still subject to those procedures rather than skipping them.
+
+Two asymmetries are worth stating plainly, because they are policy choices rather than oversights. A peer with **no role config at all** is not filtered as a *source* (`OTCIngressFilter` returns early, and the egress source role resolves to empty), but a config-less *destination* is still gated from whatever capability it announced. And an ingress rejection now follows from **local config alone** rather than from a bilaterally negotiated capability, so a one-sided role typo can blackhole prefixes rather than merely misroute policy. The egress stamping rule is the exception to the first asymmetry: it depends on the destination only, exactly as RFC 9234 Section 5 states, and applies even when the source has no role config.
 
 One consequence operators should know: that recovery feeds the RFC gates only. Export-set matching still sees such a peer as `unknown`, so a peer can hold two roles at once -- its real role for conformance, `unknown` for policy. Reaching a capability-less customer with `export default` therefore also needs `unknown` in the export set.
 

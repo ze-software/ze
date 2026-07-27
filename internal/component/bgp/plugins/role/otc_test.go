@@ -1102,6 +1102,49 @@ func TestOTCEgressSuppressProviderLearnedWithoutMeta(t *testing.T) {
 		"Provider-learned route to a Provider must be suppressed even with no ingress metadata (RFC 9234 Section 5)")
 }
 
+// VALIDATES: RFC 9234 Section 5 egress rule 1 does NOT depend on the SOURCE
+// peer having role config -- a route advertised to a Customer is stamped with
+// the local AS whatever the source is.
+// PREVENTS: the fourth gate on this MUST, found in review round 3. An early
+// `if srcCfg == nil { return true }` sat between the export check and the
+// stamping block, so every route from a source with no `role { import ... }`
+// container -- an iBGP peer, an RR client, a locally originated or
+// API-injected route -- reached a Customer WITHOUT OTC. The customer could
+// then leak it upward with nothing for a compliant neighbor to catch, which is
+// the entire purpose of the attribute. The RFC conditions this rule on the
+// DESTINATION only.
+//
+// This had zero coverage before: making the stamp source-independent left the
+// whole package green, while ai/RFC-REQUIREMENTS.md still reported
+// RFC9234-5-4 proven -- by a test whose source DOES have role config.
+func TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig(t *testing.T) {
+	setFilterState(map[string]*peerRoleConfig{
+		// Only the destination is configured. 10.0.0.70 (the source) has no
+		// role container at all: an iBGP peer, an RR client, or an origination.
+		"10.0.0.71": {role: roleProvider}, // our role provider => 10.0.0.71 IS our Customer
+	}, nil)
+	setFilterRemoteRole("10.0.0.71", roleCustomer)
+	defer func() {
+		setFilterState(nil, nil)
+		filterMu.Lock()
+		filterRemoteRoles = nil
+		filterMu.Unlock()
+	}()
+
+	noOTC := buildTestPayload(buildTestAttrs(0), nil)
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.70")}
+	dest := filterapi.PeerFilterInfo{
+		Address: netip.MustParseAddr("10.0.0.71"),
+		LocalAS: 65000,
+	}
+
+	var mods filterapi.ModAccumulator
+	accept := OTCEgressFilter(src, dest, noOTC, nil, &mods)
+	assert.True(t, accept, "the route is advertised to the Customer")
+	assert.Equal(t, 1, mods.Len(),
+		"RFC 9234 Section 5: a route advertised to a Customer MUST be stamped with OTC even when the source has no role config")
+}
+
 // VALIDATES: resolvePeerRole on INGRESS -- the RFC 9234 Section 5 ingress
 // procedures still run for a source peer that sent no Role capability, using
 // the locally configured role, so a route without OTC from a configured
@@ -1214,7 +1257,7 @@ func TestOTCEgressMetaTakesPrecedenceOverConfig(t *testing.T) {
 		"meta src-role must take precedence over the config fallback")
 }
 
-// VALIDATES: resolveDestRole -- the RFC 9234 Section 5 leak guard still fires
+// VALIDATES: resolvePeerRole -- the RFC 9234 Section 5 leak guard still fires
 // when the destination peer sent NO Role capability, by recovering what the peer
 // IS from the complement of our configured role toward it.
 // PREVENTS: the destination-side twin of the src-role fail-open. filterRemoteRoles
@@ -1222,7 +1265,7 @@ func TestOTCEgressMetaTakesPrecedenceOverConfig(t *testing.T) {
 // validateOpenRolePair deliberately ACCEPTS a peer that sent none when strict is
 // unset. destRemoteRole was then "", which selected the permissive branch of
 // every Section 5 gate, so a route carrying OTC was forwarded to a peer we have
-// configured as our Provider. Deleting the destCfg fallback in resolveDestRole
+// configured as our Provider. Deleting the destCfg fallback in resolvePeerRole
 // turns this red.
 func TestOTCEgressSuppressToProviderWithoutRoleCapability(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
