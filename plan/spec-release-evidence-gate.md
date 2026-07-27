@@ -29,6 +29,31 @@ external infrastructure. Some shipped functional suites are also non-gated (stat
 traffic, vpp, l2tp-wire). Add a `ze-release-evidence` target that runs the full
 evidence matrix while keeping `ze-verify` fast.
 
+### Inherited item: the `static` suite currently runs NOWHERE (2026-07-27)
+
+Rehomed here from `plan/spec-fixit-sleeps-cli-harness.md` at its closure; it was that
+spec's A-4 obligation ("wire the linux-gated static suite into an actually-run linux
+path, do NOT drop the gate") and was the one live item left in it. Verified unmet by an
+independent check, with the tree having moved AGAINST it since:
+
+| Producer | Fact |
+|----------|------|
+| `test/static/004-show.ci:18`, `005-table-interface.ci:18` | both carry `option=needs-linux` |
+| `internal/test/runner/record_parse.go:445-449` | on `GOOS != linux` the record gets a `SkipReason`, so they never run on the darwin dev host |
+| `mk/test-functional.mk:190` (`all_suites`) | no `static`, so `make ze-verify` never runs it |
+| `scripts/evidence/qemu-all-tests.sh` (`fsuite` lines) | no `static`, so `make ze-qemu-needs-linux-test` never runs it -- and that is the only automated Linux functional path (`.github/workflows/qemu-nightly.yml`) |
+| `mk/test-functional.mk:299`, `mk/test-release.mk:71` | the suite's only two invocation sites tree-wide, and `ze-release-evidence` is invoked by no workflow |
+
+So a rewrite fixed a real defect in those tests and left them behind a gate no runner
+honors. They are not skipped honestly; they are simply never reached. Either add `static`
+to the QEMU functional list, or make `ze-release-evidence` an invoked path -- this spec's
+own subject.
+
+Carry with it: both tests run `ip link add` in `setup.py` (`004:26-30`, `005:28-35`) while
+declaring `option=needs-linux` with no `caps=net-admin`. `record_parse.go:413-433`
+documents that exact shape as fail-open: on an unprivileged Linux host they hang or fail
+rather than skipping honestly.
+
 ## Required Reading
 
 ### Architecture Docs
