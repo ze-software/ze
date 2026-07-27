@@ -687,7 +687,8 @@ func (s *Session) DetectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 			// peer's identifier afterwards on the winning connection. Keep that
 			// reasoning intact if you touch this: it is the comparison, not an
 			// upstream guarantee, that makes the equal-AS case safe.
-			return s.settings.PeerAS > s.settings.LocalAS, s.settings.PeerAS > s.settings.LocalAS
+			preserveRemote := s.collisionPeerAS() > s.settings.LocalAS
+			return preserveRemote, preserveRemote
 		}
 		// RFC 4271 §6.8: "Otherwise, the local system closes the newly created
 		// BGP connection and continues to use the existing one"
@@ -701,6 +702,42 @@ func (s *Session) DetectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 	}
 	// Unreachable, but required for exhaustive switch
 	return true, false
+}
+
+// collisionPeerAS returns the peer's AS number for the RFC 6286 Section 2.3
+// equal-identifier tie-break, falling back to the AS the peer ADVERTISES when no
+// AS is configured.
+//
+// A DYNAMIC peer carries PeerAS 0: buildDynamicPeerSettings sets it to 0
+// (reactor_dynamic.go) and resolveDynamicPeerSettings only fills it on the
+// Established transition (peer_run.go), which is strictly AFTER the OpenConfirm
+// state this branch runs in. Reading that 0 raw makes `PeerAS > LocalAS` false
+// against any real LocalAS, so the tie-break silently always preserved the local
+// connection -- the zero value selecting a valid-looking answer
+// (ai/rules/fail-closed-guards.md).
+//
+// This is the same fallback validateOpenIdentifier applies one function away
+// (session_open_validation.go); that call site was fixed and this sibling was
+// missed (ai/rules/before-writing-code.md, Sibling Call-Site Audit).
+//
+// Both colliding connections belong to the SAME peer, so the OPEN already
+// received on this connection carries the AS that the pending connection would
+// advertise too. openAdvertisedAS reads it through the AS4 capability rather
+// than My AS, so a 4-byte-AS peer is judged on its real ASN and not on AS_TRANS
+// (RFC 6793). peerOpen is guarded by s.mu (see the lock hierarchy above).
+func (s *Session) collisionPeerAS() uint32 {
+	if as := s.settings.PeerAS; as != 0 {
+		return as
+	}
+
+	s.mu.RLock()
+	open := s.peerOpen
+	s.mu.RUnlock()
+
+	if open == nil {
+		return 0
+	}
+	return openAdvertisedAS(open)
 }
 
 // Start triggers the ManualStart event to begin the connection process.

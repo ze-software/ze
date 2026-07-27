@@ -779,10 +779,18 @@ func parsePeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 			reactorLogger().Warn("connect and accept both false, using default", "peer", peerName)
 			settings.Connection = ConnectionBoth
 		}
+		// Same helper as the full pipeline (configToPeer), so the two parses of this
+		// leaf cannot drift: a bare netip.ParseAddr here accepted 0.0.0.0 as a valid
+		// BGP Identifier (RFC 6286 Section 2.1 requires non-zero) and swallowed a
+		// malformed value into a silent RouterID of 0 -- a zero that reads as a
+		// valid answer (ai/rules/fail-closed-guards.md). Reject instead, matching
+		// how this function already treats an invalid remote ip.
 		if v, ok := fields["router-id"].(string); ok {
-			if rid, err := netip.ParseAddr(v); err == nil && rid.Is4() {
-				settings.RouterID = ipv4ToUint32(rid)
+			id, err := parseRouterID(v)
+			if err != nil {
+				return nil, fmt.Errorf("peer %s: %w", peerName, err)
 			}
+			settings.RouterID = id
 		}
 
 		peers = append(peers, settings)
@@ -803,12 +811,6 @@ func parseUint32FromString(s string, out *uint32) {
 	if n <= 0xFFFFFFFF {
 		*out = uint32(n)
 	}
-}
-
-// ipv4ToUint32 converts an IPv4 address to a uint32 (network byte order).
-func ipv4ToUint32(addr netip.Addr) uint32 {
-	b := addr.As4()
-	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
 }
 
 // peerSettingsEqual compares two PeerSettings for reload diffing.

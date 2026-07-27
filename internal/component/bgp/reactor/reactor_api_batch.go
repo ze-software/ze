@@ -155,7 +155,11 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 				nlriHandle := getBuildBuf()
 				update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, peer.Settings().RSClient, asn4, addPath, peer.Settings().LocalAS)
 
-				if err := peer.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
+				// Build rejected (already logged). Not sent, and not counted as
+				// accepted, so the caller gets an error instead of a silent drop.
+				if update == nil {
+					lastErr = errAnnounceTooLarge
+				} else if err := peer.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
 					lastErr = err
 				} else {
 					acceptedCount++
@@ -187,6 +191,15 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 		nlriHandle := getBuildBuf()
 		update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, bg.nextHop, bg.key.isIBGP, bg.key.rsClient, bg.key.asn4, bg.key.addPath, bg.key.localAS)
 
+		// Build rejected (already logged): every peer in this group shares the
+		// build parameters, so none of them can be sent this batch.
+		if update == nil {
+			lastErr = errAnnounceTooLarge
+			putBuildBuf(attrHandle)
+			putBuildBuf(nlriHandle)
+			continue
+		}
+
 		for _, peer := range bg.peers {
 			if err := peer.sendUpdateWithSplit(update, maxMsgSize, bg.key.addPath); err != nil {
 				lastErr = err
@@ -198,8 +211,24 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 		putBuildBuf(nlriHandle)
 	}
 
-	// Return warning-level error if no peers accepted (all skipped due to family)
+	// Return warning-level error if no peers accepted (all skipped due to family).
+	//
+	// A rejected BUILD is the one failure that must not be downgraded here.
+	// ErrNoPeersAcceptedFamily means "every matching peer was SKIPPED because it
+	// does not carry this family", and DispatchNLRIGroups turns it into a warning
+	// on that basis. For a batch that could not be encoded the family WAS
+	// negotiated, so that cause is untrue (ai/rules/error-messages.md: leg 3 must
+	// be TRUE) and the warning downgrade would hide a route that never went out.
+	//
+	// Deliberately narrow: every OTHER lastErr keeps the previous behavior. Widening
+	// it to `lastErr != nil` also promoted long-standing soft cases -- a send error
+	// against a peer that was still coming up -- into hard failures, which turned 19
+	// functional tests red. That is a real question about how send errors should be
+	// reported, but it is a separate one from this guard.
 	if acceptedCount == 0 {
+		if errors.Is(lastErr, errAnnounceTooLarge) {
+			return lastErr
+		}
 		return route.ErrNoPeersAcceptedFamily
 	}
 	return lastErr
@@ -474,8 +503,13 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 		}
 		attrOff := a.writeMandatoryAttrs(attrBuf, batch.Wire, isIBGP, rsClient, srcKnown, srcASN4, asn4, localAS, batch.OriginAS)
 		update := a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
-		if !hadASPath {
-			a.appendAnnounceAS4Path(update, attrBuf, isIBGP, asn4, localAS, batch.OriginAS)
+		if update == nil {
+			logAnnounceTooLarge(batch, len(attrBuf), "wire")
+			return nil
+		}
+		if !hadASPath && !a.insertAnnounceAS4Path(update, attrBuf, isIBGP, asn4, localAS, batch.OriginAS) {
+			logAnnounceTooLarge(batch, len(attrBuf), "wire-as4path")
+			return nil
 		}
 		return update
 	}
@@ -498,26 +532,60 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 
 	// Add NEXT_HOP or MP_REACH_NLRI
 	update := a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
-	if !hadASPath {
-		a.appendAnnounceAS4Path(update, attrBuf, isIBGP, asn4, localAS, batch.OriginAS)
+	if update == nil {
+		logAnnounceTooLarge(batch, len(attrBuf), "builder")
+		return nil
+	}
+	if !hadASPath && !a.insertAnnounceAS4Path(update, attrBuf, isIBGP, asn4, localAS, batch.OriginAS) {
+		logAnnounceTooLarge(batch, len(attrBuf), "builder-as4path")
+		return nil
 	}
 	return update
 }
 
-// appendAnnounceAS4Path appends an AS4_PATH attribute to update's PathAttributes
+// errAnnounceTooLarge is what a caller reports when buildBatchAnnounceUpdate could
+// not encode the batch into its pooled build buffer.
+var errAnnounceTooLarge = errors.New("announce attributes exceed the build buffer; split the batch into smaller announcements")
+
+// logAnnounceTooLarge records a rejected announce. This is the "or say something"
+// half of the fail-closed guard in insertAttrOrdered: the build is abandoned
+// rather than truncated, so without this line an operator would see routes simply
+// not arrive. The plugin that issued the command also sees it -- AnnounceNLRIBatch
+// returns errAnnounceTooLarge, which DispatchNLRIGroups turns into a StatusError
+// response -- so the failure is observable from both ends
+// (ai/rules/fail-closed-guards.md, ai/rules/error-messages.md).
+func logAnnounceTooLarge(batch bgptypes.NLRIBatch, bufLen int, stage string) {
+	routesLogger().Warn("announce rejected: attributes do not fit the build buffer",
+		"family", batch.Family, "nlri-count", len(batch.NLRIs),
+		"buffer-bytes", bufLen, "stage", stage,
+		"action", "route not sent to this peer; send fewer prefixes per announce")
+}
+
+// insertAnnounceAS4Path adds an AS4_PATH attribute to update's PathAttributes
 // (which alias attrBuf) when writeASPath synthesized a two-octet AS_PATH that had
 // to carry AS_TRANS toward an OLD peer. It is called only when this builder
 // synthesized the AS_PATH -- a verbatim AS_PATH copied from batch.Wire/Attrs owns
-// its own encoding. AS4_PATH's type code (17) is higher than every attribute this
-// builder emits (NEXT_HOP 3, LOCAL_PREF 5, communities 8, MP_REACH 14), so
-// appending it last keeps the attributes in type-code order.
-func (a *reactorAPIAdapter) appendAnnounceAS4Path(update *message.Update, attrBuf []byte, isIBGP, asn4 bool, localAS, originAS uint32) {
+// its own encoding.
+//
+// It goes in at its type-code position (17), not at the end. The comment this
+// replaces claimed 17 was "higher than every attribute this builder emits" and
+// listed only the attributes the builder ITSELF writes; the block also carries the
+// caller's attributes verbatim, and IPV6_EXT_COMMUNITIES (25) and
+// LARGE_COMMUNITIES (32) both outrank AS4_PATH.
+// Returns false when the AS4_PATH is owed but does not fit, so the caller aborts
+// the build rather than send an UPDATE missing an attribute RFC 6793 §4.2.2 makes
+// mandatory in that case.
+func (a *reactorAPIAdapter) insertAnnounceAS4Path(update *message.Update, attrBuf []byte, isIBGP, asn4 bool, localAS, originAS uint32) bool {
 	off := len(update.PathAttributes)
 	n := writeAnnounceAS4Path(attrBuf, off, isIBGP, asn4, localAS, originAS)
-	if n == 0 {
-		return
+	switch {
+	case n < 0:
+		return false
+	case n == 0:
+		return true
 	}
 	update.PathAttributes = attrBuf[:off+n]
+	return true
 }
 
 // buildWireModeUpdate builds UPDATE using pre-written attribute bytes in attrBuf[:attrOff].
@@ -525,8 +593,14 @@ func (a *reactorAPIAdapter) appendAnnounceAS4Path(update *message.Update, attrBu
 // attrBuf[:attrOff] must contain mandatory attrs from writeMandatoryAttrs.
 // RFC 4271: NEXT_HOP (type 3) must come after AS_PATH (type 2) but before other attrs.
 // RFC 4271 §5.1.5: LOCAL_PREF is well-known mandatory for iBGP sessions.
+//
+// Returns nil when the attributes do not fit in attrBuf. Every insert below is a
+// fallible write into a pooled slot whose cap runs into the next peer's buffer
+// (see insertAttrOrdered), so "does not fit" has to abort the build rather than
+// produce a truncated or over-long block.
 func (a *reactorAPIAdapter) buildWireModeUpdate(attrBuf []byte, attrOff int, nlriBytes []byte, fam family.Family, nextHop netip.Addr, isIBGP bool) *message.Update {
 	isIPv4Unicast := fam == (family.IPv4Unicast)
+	var ok bool
 
 	if isIPv4Unicast {
 		// Write exactly one NEXT_HOP, the authoritative resolved address. The wire block
@@ -546,20 +620,20 @@ func (a *reactorAPIAdapter) buildWireModeUpdate(attrBuf []byte, attrOff int, nlr
 		if nextHop.IsValid() {
 			attrOff = a.stripAttribute(attrBuf, attrOff, attribute.AttrNextHop)
 
-			// Insert NEXT_HOP after AS_PATH for correct type code order.
-			insertPos := a.findNextHopInsertPosition(attrBuf[:attrOff])
-			nhSize := 7 // NEXT_HOP is 7 bytes (3 header + 4 IP)
-			// Shift tail right to make room for NEXT_HOP (copy handles overlap).
-			copy(attrBuf[insertPos+nhSize:], attrBuf[insertPos:attrOff])
+			// Insert NEXT_HOP (type 3) after AS_PATH for correct type code order.
 			nh := &attribute.NextHop{Addr: nextHop}
-			attribute.WriteAttrTo(nh, attrBuf, insertPos)
-			attrOff += nhSize
+			if attrOff, ok = insertAttrOrdered(attrBuf, attrOff, nh); !ok {
+				return nil
+			}
 		}
 
-		// Append LOCAL_PREF=100 at end if needed for iBGP.
+		// LOCAL_PREF=100 for iBGP, inserted in type-code order (5): the block may
+		// already carry COMMUNITIES (8) or EXTENDED_COMMUNITIES (16) copied
+		// verbatim from the caller's attributes, which appending would follow.
 		if isIBGP && !a.hasAttribute(attrBuf[:attrOff], attribute.AttrLocalPref) {
-			lp := attribute.LocalPref(100)
-			attrOff += attribute.WriteAttrTo(lp, attrBuf, attrOff)
+			if attrOff, ok = insertAttrOrdered(attrBuf, attrOff, attribute.LocalPref(100)); !ok {
+				return nil
+			}
 		}
 
 		return &message.Update{
@@ -568,19 +642,27 @@ func (a *reactorAPIAdapter) buildWireModeUpdate(attrBuf []byte, attrOff int, nlr
 		}
 	}
 
-	// Non-IPv4 unicast: append LOCAL_PREF and MP_REACH_NLRI to existing attrs. As with
+	// Non-IPv4 unicast: add LOCAL_PREF and MP_REACH_NLRI to the existing attrs. As with
 	// NEXT_HOP above, a relayed/replayed block may already carry an MP_REACH_NLRI; drop
-	// it before appending the authoritative one so the route is not duplicated (RFC 7606
+	// it before writing the authoritative one so the route is not duplicated (RFC 7606
 	// Section 3(g)).
+	//
+	// Both go in at their type-code position, not at the end. The block here is the
+	// caller's attributes copied verbatim by writeMandatoryAttrs, so it routinely holds
+	// codes above 14 -- a FlowSpec announce carries its traffic-rate in
+	// EXTENDED_COMMUNITIES (16) -- and appending put MP_REACH after it.
 	attrOff = a.stripAttribute(attrBuf, attrOff, attribute.AttrMPReachNLRI)
 	hasLocalPref := a.hasAttribute(attrBuf[:attrOff], attribute.AttrLocalPref)
 	if isIBGP && !hasLocalPref {
-		lp := attribute.LocalPref(100)
-		attrOff += attribute.WriteAttrTo(lp, attrBuf, attrOff)
+		if attrOff, ok = insertAttrOrdered(attrBuf, attrOff, attribute.LocalPref(100)); !ok {
+			return nil
+		}
 	}
 
 	mpReach := attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI), []netip.Addr{nextHop}, nlriBytes)
-	attrOff += attribute.WriteAttrTo(mpReach, attrBuf, attrOff)
+	if attrOff, ok = insertAttrOrdered(attrBuf, attrOff, mpReach); !ok {
+		return nil
+	}
 
 	return &message.Update{
 		PathAttributes: attrBuf[:attrOff],
@@ -727,10 +809,13 @@ func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.Attr
 	return off + len(packed) - originEnd
 }
 
-// findNextHopInsertPosition finds where to insert NEXT_HOP (type 3) in wire attrs.
-// RFC 4271: attributes should be in type code order.
-// Returns position after AS_PATH (type 2) or at end if no attrs with type > 2.
-func (a *reactorAPIAdapter) findNextHopInsertPosition(wireAttrs []byte) int {
+// findAttrInsertPosition finds where an attribute of type `code` belongs in wire
+// attrs so the block stays in ascending type-code order.
+// RFC 4271 Section 5: "The sender of an UPDATE message SHOULD order path
+// attributes within the UPDATE message in ascending order of attribute type."
+// Returns the offset of the first attribute whose type code is >= code, or the
+// end of the block when every attribute present is lower-coded.
+func findAttrInsertPosition(wireAttrs []byte, code attribute.AttributeCode) int {
 	pos := 0
 	for pos < len(wireAttrs) {
 		if pos+2 > len(wireAttrs) {
@@ -739,8 +824,8 @@ func (a *reactorAPIAdapter) findNextHopInsertPosition(wireAttrs []byte) int {
 		flags := wireAttrs[pos]
 		typeCode := wireAttrs[pos+1]
 
-		// If we find an attr with type >= 3, insert NEXT_HOP here
-		if typeCode >= 3 {
+		// First attribute at or above our type code: we belong here.
+		if attribute.AttributeCode(typeCode) >= code {
 			return pos
 		}
 
@@ -760,8 +845,71 @@ func (a *reactorAPIAdapter) findNextHopInsertPosition(wireAttrs []byte) int {
 
 		pos += attrLen
 	}
-	// No attr with type >= 3 found, insert at end
+	// Nothing at or above our type code: append at the end.
 	return pos
+}
+
+// attrWireLen returns the total wire size (header + value) that WriteAttrTo will
+// write for attr. It has to agree with WriteHeaderTo, which promotes to the
+// 4-octet extended-length header when the value exceeds 255 octets: an ordered
+// insert shifts the tail by exactly this many bytes before writing, so a
+// disagreement would corrupt the block rather than merely misorder it.
+func attrWireLen(attr attribute.Attribute) int {
+	valueLen := attr.Len()
+	if valueLen > 255 || attr.Flags().IsExtLength() {
+		return 4 + valueLen
+	}
+	return 3 + valueLen
+}
+
+// insertAttrOrdered writes attr into attrBuf[:attrOff] at the position that keeps
+// the block in ascending attribute-type-code order (RFC 4271 Section 5), shifting
+// any higher-coded attributes right to make room, and returns the new length.
+//
+// Appending at the end is only correct when nothing higher-coded is already
+// present, and on this rail that does not hold: writeMandatoryAttrs copies the
+// caller's attribute block VERBATIM, so an announce carrying EXTENDED_COMMUNITIES
+// (16), IPV6_EXT_COMMUNITIES (25) or LARGE_COMMUNITIES (32) used to receive
+// LOCAL_PREF (5) and MP_REACH_NLRI (14) after them. The queued rail
+// (peer_rib_routes.go buildRIBRouteUpdate) and message/update_build.go both emit
+// ascending, and which rail runs is decided by Peer.ShouldQueue() -- that is, by
+// scheduling -- so the same route encoded to two different byte strings depending
+// on timing.
+//
+// copy is a memmove and is defined for overlapping ranges, which is what the
+// right-shift needs. No allocation: everything is written at an offset into the
+// caller's pooled buffer (ai/rules/buffer-first.md).
+// It returns ok=false, and writes nothing, when the attribute does not fit in
+// attrBuf. That guard is not defensive tidiness, it is the difference between a
+// rejected announce and a cross-session memory disclosure.
+//
+// attrBuf comes from getBuildBuf, which hands out backing[off:off+4096] from a
+// 128-slot slab (session.go), so its CAP runs into the next peer's buffer while
+// its LEN is the slot. Without the check, an announce whose attributes exceed the
+// slot would: shift the tail into the neighboring slot
+// (attrBuf[pos+n:attrOff+n] is within cap, so no panic to stop it), have
+// MPReachNLRI.WriteTo silently clamp its final copy at len(attrBuf) so the NLRI
+// is short, and then return attrOff+n past len -- which the caller reslices as
+// attrBuf[:attrOff], handing the next peer's bytes to sendUpdateWithSplit. For
+// the LAST slot in a slab cap == len, so the same reslice panics instead.
+//
+// Returning attrOff+written instead would be no better: MPReachNLRI's length
+// field is written from Len() before the clamped copy, so a short write yields an
+// attribute whose declared length exceeds its content -- malformed wire rather
+// than leaked wire. There is no truncation that is correct here, which is why
+// this fails closed and the caller rejects the announce
+// (ai/rules/exact-or-reject.md, ai/rules/fail-closed-guards.md).
+func insertAttrOrdered(attrBuf []byte, attrOff int, attr attribute.Attribute) (int, bool) {
+	n := attrWireLen(attr)
+	if attrOff < 0 || n < 0 || attrOff+n > len(attrBuf) {
+		return attrOff, false
+	}
+	pos := findAttrInsertPosition(attrBuf[:attrOff], attr.Code())
+	if pos < attrOff {
+		copy(attrBuf[pos+n:attrOff+n], attrBuf[pos:attrOff])
+	}
+	attribute.WriteAttrTo(attr, attrBuf, pos)
+	return attrOff + n, true
 }
 
 // announceASPathASNs appends to dst, and returns, the AS_PATH ASN sequence this
@@ -802,18 +950,37 @@ func (a *reactorAPIAdapter) writeASPath(buf []byte, isIBGP, asn4 bool, localAS, 
 	return writeASPathAttr(buf, 0, announceASPathASNs(scratch[:0], isIBGP, localAS, originAS), asn4)
 }
 
-// writeAnnounceAS4Path appends an AS4_PATH attribute into buf at off when the
-// AS_PATH synthesized by announceASPathASNs had to substitute AS_TRANS toward an
-// OLD (2-octet) peer, returning bytes written (0 when none is needed).
+// writeAnnounceAS4Path adds an AS4_PATH attribute to the block in buf[:off] when
+// the AS_PATH synthesized by announceASPathASNs had to substitute AS_TRANS toward
+// an OLD (2-octet) peer, returning bytes added (0 when none is needed).
 //
 // RFC 6793 §4.2.2: a NEW speaker sending a two-octet AS_PATH that contains a
 // non-mappable AS MUST also send the AS4_PATH (four-octet encoding of the same
 // sequence); when every AS is mappable it MUST NOT. asn4 == true means the peer
 // negotiated 4-octet support, so AS_PATH already carries the real ASNs and no
 // AS4_PATH is sent.
+//
+// The attribute goes in at its type-code position (17), not at the end: the block
+// carries the caller's attributes verbatim, and IPV6_EXT_COMMUNITIES (25) and
+// LARGE_COMMUNITIES (32) both outrank AS4_PATH. With an empty or all-lower-coded
+// block the insert IS an append, which is why the sibling appenders in
+// reactor_wire.go keep using writeAS4PathForASNs directly.
+//
+// Returns -1, distinct from the 0 meaning "none owed", when the attribute IS owed
+// but does not fit in buf. RFC 6793 §4.2.2 makes it a MUST once the AS_PATH
+// carries AS_TRANS, so quietly returning 0 there would ship a path the OLD peer
+// cannot reconstruct -- a fail-open the caller must turn into a rejected build.
 func writeAnnounceAS4Path(buf []byte, off int, isIBGP, asn4 bool, localAS, originAS uint32) int {
 	var scratch [2]uint32
-	return writeAS4PathForASNs(buf, off, asn4, announceASPathASNs(scratch[:0], isIBGP, localAS, originAS))
+	as4 := as4PathForASNs(asn4, announceASPathASNs(scratch[:0], isIBGP, localAS, originAS))
+	if as4 == nil {
+		return 0
+	}
+	newOff, ok := insertAttrOrdered(buf, off, as4)
+	if !ok {
+		return -1
+	}
+	return newOff - off
 }
 
 // buildBatchWithdrawUpdate builds an UPDATE message for withdrawing a batch of NLRIs.
@@ -1010,6 +1177,12 @@ func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRI
 	defer putBuildBuf(attrHandle)
 	defer putBuildBuf(nlriHandle)
 	update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, rsClient, asn4, addPath, localAS)
+	if update == nil {
+		// Build rejected (already logged). Report not-accepted so the caller
+		// surfaces route.ErrNoPeersAcceptedFamily rather than counting a send
+		// that never happened.
+		return false
+	}
 
 	// Run the readvertise egress filters. LLGREgressFilter keys off meta["stale"]
 	// and the destination peer's LLGR capability; it writes into mods.
@@ -1018,6 +1191,18 @@ func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRI
 		Address: peer.Settings().Address,
 		PeerAS:  peer.PeerAS(), // guarded: dest may be a dynamic peer still resolving its ASN
 		LocalAS: localAS,
+		// Name/GroupName complete the destination identity. The other six
+		// PeerFilterInfo fills in this package carry them
+		// (reactor_api_forward.go, reactor_api_forward_batch.go,
+		// reactor_api_relay.go, peer_forward_facts.go, forward_rs.go,
+		// reactor_notify.go); this readvertise rail was the one that did not,
+		// so a filter that looks a peer up by name read a silent empty string
+		// from here alone -- the zero-value trap of
+		// ai/rules/fail-closed-guards.md, and the same shape that let the OTC
+		// gates go permissive on an unresolved lookup. Both are immutable
+		// after peer construction (see forward_rs.go), so no lock is needed.
+		Name:      peer.Settings().Name,
+		GroupName: peer.Settings().GroupName,
 	}
 	outcome, modified := a.decideStaleReadvertise(dest, body, batch.Stale)
 

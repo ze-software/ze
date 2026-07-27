@@ -100,7 +100,24 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 		// family. Counted as handled (so a route-server replay does not see a
 		// spurious "no peers" error) but not metered: sendInitialRoutes meters
 		// the EoR it sends.
+		//
+		// RFC 4724 Section 2 is why this is a DROP and not a defer: the marker
+		// means "my initial routing update is complete". Emitting a caller's EoR
+		// at its position in a still-draining queue would assert that falsely, so
+		// the marker has to come from the producer that knows the dump is done.
+		//
+		// The suppression is logged because it is otherwise invisible: the caller
+		// is told the EoR was handled, so a plugin author whose EoR never reached
+		// the wire has nothing to grep for (ai/rules/fail-closed-guards.md -- a
+		// guard that neither denies nor speaks does not exist). Cold path: once
+		// per EoR command per peer, never per UPDATE. No counter is added -- the
+		// package's only EoR counters are eorSent/eorReceived, whose documented
+		// contract (peer_stats.go IncrEORSent) is "markers that reached the
+		// socket", and both operators and test/scripts/ze_api.py
+		// wait_peer_eor_sent read them as exactly that. A suppression must not
+		// touch them.
 		if peer.ShouldQueue() {
+			logEORSuppressed(peer, fam)
 			sentCount++
 			continue
 		}
@@ -132,6 +149,39 @@ func (a *reactorAPIAdapter) AnnounceEOR(sel *selector.Selector, afi uint16, safi
 	}
 
 	return errors.Join(errs...)
+}
+
+// logEORSuppressed records an End-of-RIB that AnnounceEOR declined to send, and
+// says which of the three ShouldQueue conditions caused it.
+//
+// One message covering all three would have to hedge, and the obvious wording --
+// "the marker will be emitted when the drain completes" -- is FALSE in two of
+// them: sendInitialRoutes iterates nc.Families() only, so a family that is not
+// negotiated never gets a marker at all; and when ShouldQueue is true merely
+// because route operations are still queued after the sync finished, the marker
+// was already sent rather than pending. ai/rules/error-messages.md requires the
+// "what to do next" leg to be TRUE, not merely present.
+func logEORSuppressed(peer *Peer, fam family.Family) {
+	addr := peer.Settings().Address
+	nc := peer.negotiated.Load()
+
+	switch {
+	case nc == nil || !nc.Has(fam):
+		routesLogger().Warn("end-of-rib suppressed: family is not negotiated on this session",
+			"peer", addr, "family", fam,
+			"reason", "family-not-negotiated",
+			"effect", "no end-of-rib is emitted for this family; sendInitialRoutes covers negotiated families only")
+	case peer.initialSyncInProgress():
+		routesLogger().Warn("end-of-rib suppressed: peer is still draining its initial route sync",
+			"peer", addr, "family", fam,
+			"reason", "initial-sync-in-progress",
+			"effect", "marker will be emitted by sendInitialRoutes when the drain completes")
+	default:
+		routesLogger().Warn("end-of-rib suppressed: route operations are still queued for this peer",
+			"peer", addr, "family", fam,
+			"reason", "operations-queued-after-initial-sync",
+			"effect", "initial sync already completed for this peer and emitted its marker; this one is redundant")
+	}
 }
 
 // SendRefresh sends a normal ROUTE-REFRESH message to matching peers.

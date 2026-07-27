@@ -9,13 +9,23 @@
 # PREVENTS: the community list being dropped on redistribution.
 
 # ze-peer -- iBGP session. The bgp contains= rule matches AS_PATH [112] +
-# NEXT_HOP + COMMUNITIES 0xFFFFFF04 + LOCAL_PREF + NLRI tail of each covering
+# NEXT_HOP + LOCAL_PREF + COMMUNITIES 0xFFFFFF04 + NLRI tail of each covering
 # UPDATE; matching both completes the peer so the JSON validator runs.
+#
+# These two hex strings used to read ...C00804FFFFFF04 4005040000006418..., i.e.
+# COMMUNITIES (type 8) BEFORE LOCAL_PREF (type 5). That is the wire this daemon
+# emitted, and it violated RFC 4271 Section 5 ("The sender of an UPDATE message
+# SHOULD order path attributes within the UPDATE message in ascending order of
+# attribute type"): the batch announce builder appended LOCAL_PREF after the
+# producer's attribute block instead of placing it at its type-code position. The
+# builder was fixed (reactor_api_batch.go insertAttrOrdered) and these fixtures
+# corrected to the conformant order -- they were pinning the defect, not the
+# behaviour.
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
-expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F000001C00804FFFFFF044005040000006418C0AF30
-expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F000001C00804FFFFFF044005040000006418C01FC4
+expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F00000140050400000064C00804FFFFFF0418C0AF30
+expect=bgp:conn=1:seq=1:contains=4002060201000000704003047F00000140050400000064C00804FFFFFF0418C01FC4
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","as-path":[112],"local-preference":100,"ipv4/unicast":[{"action":"add","nlri":["192.175.48.0/24"],"next-hop":"127.0.0.1"}]}
 EOF_PEER
 

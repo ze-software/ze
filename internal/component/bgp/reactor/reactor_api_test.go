@@ -367,3 +367,77 @@ func (j *testJournal) rollback() []error {
 func (j *testJournal) Discard() {
 	j.entries = nil
 }
+
+// TestParsePeersFromTreeRejectsBadRouterID verifies that the tree-parsing fallback
+// applies the same BGP Identifier rule as the full config pipeline.
+//
+// This is the SECOND parse of the per-peer `router-id` leaf. It used a bare
+// netip.ParseAddr with an Is4 test and no non-zero check, so 0.0.0.0 produced a
+// RouterID of 0 and a malformed value was swallowed into that same 0 -- a zero
+// that reads as a valid answer rather than a rejection
+// (ai/rules/fail-closed-guards.md). The YANG `ze:validate "nonzero-ipv4"` on the
+// leaf is the outer defense; this test pins the inner one so the two parses of
+// one leaf cannot drift apart.
+//
+// VALIDATES: router-id 0.0.0.0 through parsePeersFromTree is REJECTED with an
+// error naming the peer and RFC 6286 Section 2.1, not accepted as RouterID 0.
+// VALIDATES: a malformed router-id is rejected rather than silently ignored.
+// VALIDATES: a valid router-id is still parsed into RouterID.
+// PREVENTS: a peer reaching the reactor with a zero BGP Identifier, which every
+// RFC 6286 Section 2.2 implementation answers with Bad BGP Identifier, so the
+// session can never come up.
+func TestParsePeersFromTreeRejectsBadRouterID(t *testing.T) {
+	tests := []struct {
+		name       string
+		routerID   string
+		wantErr    bool
+		wantErrHas string
+		wantID     uint32
+	}{
+		{
+			name:       "zero identifier rejected",
+			routerID:   "0.0.0.0",
+			wantErr:    true,
+			wantErrHas: "0.0.0.0",
+		},
+		{
+			name:       "malformed identifier rejected",
+			routerID:   "not-an-ip",
+			wantErr:    true,
+			wantErrHas: "not-an-ip",
+		},
+		{
+			name:     "valid identifier parsed",
+			routerID: "10.0.0.1",
+			wantID:   0x0A000001,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := map[string]any{
+				"peer": map[string]any{
+					"peer1": map[string]any{
+						"remote":    map[string]any{"ip": "192.0.2.1", "as": "65001"},
+						"local":     map[string]any{"as": "65000"},
+						"router-id": tt.routerID,
+					},
+				},
+			}
+
+			peers, err := parsePeersFromTree(tree)
+
+			if tt.wantErr {
+				require.Error(t, err, "router-id %q must be rejected", tt.routerID)
+				assert.Contains(t, err.Error(), "peer1", "error must name the offending peer")
+				assert.Contains(t, err.Error(), tt.wantErrHas, "error must quote the offending value")
+				assert.Nil(t, peers, "no peers may be returned when a peer is rejected")
+				return
+			}
+
+			require.NoError(t, err)
+			require.Len(t, peers, 1)
+			assert.Equal(t, tt.wantID, peers[0].RouterID)
+		})
+	}
+}

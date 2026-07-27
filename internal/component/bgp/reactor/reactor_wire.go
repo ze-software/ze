@@ -151,11 +151,23 @@ func asPathHasNonMappableAS(asPath *attribute.ASPath) bool {
 // (multi-segment stored paths use asPathHasNonMappableAS + an AS4Path built from
 // the segments directly). Reuses the tested AS4Path encoder.
 func writeAS4PathForASNs(buf []byte, off int, asn4 bool, asns []uint32) int {
-	if asn4 || !anyNonMappableAS(asns) {
+	as4 := as4PathForASNs(asn4, asns)
+	if as4 == nil {
 		return 0
 	}
-	as4 := &attribute.AS4Path{Segments: []attribute.ASPathSegment{{Type: attribute.ASSequence, ASNs: asns}}}
 	return attribute.WriteAttrTo(as4, buf, off)
+}
+
+// as4PathForASNs returns the AS4_PATH attribute writeAS4PathForASNs would write,
+// or nil when none is owed. Split out so a caller that must place the attribute at
+// its type-code position (rather than at the current end of the block) can ask for
+// the attribute and hand it to an ordered insert, without duplicating the RFC 6793
+// §4.2.2 "only toward an OLD peer, only for a non-mappable AS" condition.
+func as4PathForASNs(asn4 bool, asns []uint32) *attribute.AS4Path {
+	if asn4 || !anyNonMappableAS(asns) {
+		return nil
+	}
+	return &attribute.AS4Path{Segments: []attribute.ASPathSegment{{Type: attribute.ASSequence, ASNs: asns}}}
 }
 
 // writeNextHopAttr writes NEXT_HOP attribute directly to buf.

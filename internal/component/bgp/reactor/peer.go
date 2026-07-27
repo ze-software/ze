@@ -1154,6 +1154,15 @@ func (p *Peer) ShouldQueue() bool {
 	return p.sendingInitialRoutes.Load() != 0 || len(p.opQueue) > 0
 }
 
+// initialSyncInProgress reports whether sendInitialRoutes is currently running for
+// this peer. It distinguishes the three conditions ShouldQueue folds together, so
+// a caller that suppresses work can say WHICH one applied (logEORSuppressed,
+// reactor_api_forward.go). Reads the atomic directly: sendingInitialRoutes is set
+// and cleared without p.mu, and ShouldQueue reads it the same way.
+func (p *Peer) initialSyncInProgress() bool {
+	return p.sendingInitialRoutes.Load() != 0
+}
+
 // PendingSync reports whether the peer still has route work that has not reached
 // the wire: routes queued while not-yet-established, or an in-flight initial-route
 // sync. Unlike ShouldQueue it does NOT gate on state -- a not-yet-established peer

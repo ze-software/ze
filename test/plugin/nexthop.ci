@@ -3,37 +3,94 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 # Step 5: commands migrated to bgp peer prefix
+#
+# // test-relax: the seq-2 End-of-RIB rule was removed on Thomas's ruling:
+#
+#   "RFC 4724 S2 orders the EOR only against this speaker's own initial dump,
+#   never against routes learned afterwards. There is no ordering here for a
+#   test to assert. Same ruling as role-otc-unicast-scope."
+#
+# Precedent: role-otc-unicast-scope.ci:43-52 removed an equivalent EOR-position
+# rule for the same reason. The marker this rule pinned is the daemon's OWN
+# initial-sync EOR (peer_initial_sync.go); whether it landed before or after a
+# plugin-injected announce was decided by host scheduling, so the rule asserted
+# an ordering Ze never owed and failed intermittently (reproduced 13/40 under
+# scripts/dev/stress-repro.py).
+#
+# Its cmd=api documentation line went with it: cmd=api sets Cmd on the message at
+# that conn/seq (internal/test/runner/record_parse.go:797), so leaving it would
+# have relabelled the renumbered 2001::2 announce with the EOR command text.
+#
+# The marker's EXISTENCE is still required, just not its position: the plugin
+# below blocks on wait_peer_eor_sent() and calls runtime_fail if it never
+# reaches the wire.
+#
+# Nothing else is relaxed. All three announce rules keep their exact hex,
+# including the ORIGIN, AS_PATH, LOCAL_PREF, MP_REACH attribute order that
+# reactor_api_batch.go insertAttrOrdered now guarantees on both announce rails.
 cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E020000003740010100400200400504000001F4800E260002011020010000000000000000000000000001008026050000000000000000000000000002
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":500,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2605::2/128"],"next-hop":"2001::1"}]}
-cmd=api:conn=1:seq=2:text=peer * update text nlri ipv6/unicast eor
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
-cmd=api:conn=1:seq=3:text=peer * update text origin igp local-preference 500 nhop 2001::2 nlri ipv6/unicast add 2605::2/128
-expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E020000003740010100400200400504000001F4800E260002011020010000000000000000000000000002008026050000000000000000000000000002
-expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":500,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2605::2/128"],"next-hop":"2001::2"}]}
-cmd=api:conn=1:seq=4:text=peer * update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128
-expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E020000003740010100400200400504000001F4800E260002011020010000000000000000000000000001008026050000000000000000000000000002
-expect=json:conn=1:seq=4:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":500,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2605::2/128"],"next-hop":"2001::1"}]}
+cmd=api:conn=1:seq=2:text=peer * update text origin igp local-preference 500 nhop 2001::2 nlri ipv6/unicast add 2605::2/128
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E020000003740010100400200400504000001F4800E260002011020010000000000000000000000000002008026050000000000000000000000000002
+expect=json:conn=1:seq=2:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":500,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2605::2/128"],"next-hop":"2001::2"}]}
+cmd=api:conn=1:seq=3:text=peer * update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E020000003740010100400200400504000001F4800E260002011020010000000000000000000000000001008026050000000000000000000000000002
+expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":500,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2605::2/128"],"next-hop":"2001::1"}]}
 EOF_PEER
 
 # Python plugin script
 tmpfs=nexthop.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 
-from ze_api import ready, send, wait_for_ack, wait_for_shutdown
+from ze_api import API, runtime_fail, wait_for_shutdown
 
 
 def main() -> None:
-    ready()
+    # Explicit 5-stage handshake (the module-level ready() drives the singleton;
+    # this observer needs the API object for wait_peer_eor_sent).
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
 
-    send('peer * update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128')
-    wait_for_ack()
+    api.send('peer * update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128')
+    api.wait_for_ack()
 
-    send('peer * update text origin igp local-preference 500 nhop 2001::2 nlri ipv6/unicast add 2605::2/128')
-    wait_for_ack()
+    # Readiness barrier, not a delay -- and after the seq-2 rule was dropped (see
+    # the test-relax note above) it is the ONLY thing asserting the daemon's
+    # initial-sync End-of-RIB reaches the wire at all.
+    #
+    # What it covers: the marker's EXISTENCE. eor-sent is a true "on the socket"
+    # signal -- sendInitialRoutes writes the marker through Session.SendUpdateHeld,
+    # which calls writeUpdate THEN flushWrites, and only then does IncrEORSent run
+    # (session_write.go:461-478, peer_stats.go IncrEORSent). If the marker never
+    # arrives this poll runs out and runtime_fail reds the test.
+    #
+    # What nobody asserts any more: the marker's POSITION relative to the announces
+    # below. RFC 4724 Section 2 does not order it against routes learned after the
+    # initial dump, so there was no ordering here to assert (Thomas's ruling, quoted
+    # above; same as role-otc-unicast-scope.ci:43-52).
+    #
+    # quiesce() drains the daemon's pending async work so the announces that follow
+    # are unambiguously post-sync, which keeps their own hex assertions stable.
+    # A plugin EOR issued while the peer is still draining is suppressed on purpose
+    # and logged (reactor_api_forward.go) -- this test does not issue one.
+    # attempts=24 (6s) deliberately undercuts the 10s ze timeout below. At the
+    # default 40 attempts the poll and the test budget both expire at 10s, so a
+    # daemon that never emits the marker red-flags as a bare "timeout" with no
+    # cause; undercutting it lets runtime_fail name what went wrong instead.
+    if not api.wait_peer_eor_sent(attempts=24):
+        runtime_fail('initial-sync end-of-rib never reached the wire')
+    api.quiesce()
 
-    send('peer * update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128')
-    wait_for_ack()
+    api.send('peer * update text origin igp local-preference 500 nhop 2001::2 nlri ipv6/unicast add 2605::2/128')
+    api.wait_for_ack()
+
+    api.send('peer * update text origin igp local-preference 500 nhop 2001::1 nlri ipv6/unicast add 2605::2/128')
+    api.wait_for_ack()
 
     wait_for_shutdown()
 

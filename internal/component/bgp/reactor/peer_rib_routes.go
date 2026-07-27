@@ -145,22 +145,32 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 		// ones (EXT_COMMUNITIES 16). See the ordered writes below.
 	}
 
-	// Copy the stored route's optional attributes, in ascending type-code order
-	// around MP_REACH_NLRI (type 14): codes below 14 first, then MP_REACH, then
-	// codes above it.
+	// Copy the stored route's optional attributes in ascending type-code order,
+	// interleaved with the two attributes this builder injects at fixed codes:
+	// MP_REACH_NLRI (14) and AS4_PATH (17).
 	//
 	// The ordering is load-bearing, not cosmetic. This builder has two siblings
 	// that emit the SAME route, and both keep attributes in type-code order:
-	// reactor_api_batch.go buildWireModeUpdate appends MP_REACH after the
-	// lower-coded attributes (see appendAnnounceAS4Path's comment on type-code
-	// order), and message/update_build.go sorts explicitly, "per RFC 4271
-	// Appendix F.3". Which builder runs is decided by Peer.ShouldQueue()
-	// (reactor_api_batch.go:111) -- that is, by scheduling: a route queued during
-	// initial sync is drained through here, the same route sent after
-	// establishment goes through the batch builder. Emitting MP_REACH at a
-	// different position here therefore made one route encode to two different
-	// byte strings depending on timing.
-	writeOptionalAttrs := func(below bool) {
+	// reactor_api_batch.go buildWireModeUpdate places LOCAL_PREF, MP_REACH and
+	// AS4_PATH at their type-code position via insertAttrOrdered, and
+	// message/update_build.go sorts explicitly, "per RFC 4271 Appendix F.3". Which
+	// builder runs is decided by Peer.ShouldQueue() (reactor_api_batch.go:111) --
+	// that is, by scheduling: a route queued during initial sync is drained through
+	// here, the same route sent after establishment goes through the batch builder.
+	// Emitting an attribute at a different position here therefore makes one route
+	// encode to two different byte strings depending on timing.
+	//
+	// Both rails have been caught doing it. The batch builder used to APPEND, so it
+	// put LOCAL_PREF (5) and MP_REACH (14) after an EXTENDED_COMMUNITIES (16) the
+	// caller supplied -- that is what made test/plugin/ddos-flowspec-announce.ci
+	// fail intermittently. This builder then appended AS4_PATH (17) after
+	// LARGE_COMMUNITIES (32), which a reviewer caught only because the fix to the
+	// other rail made the two disagree.
+	//
+	// writeOptionalAttrs writes the stored optional attributes whose type code lies
+	// in [lo, hi), so the injected attributes can be slotted between the ranges
+	// instead of appended after all of them.
+	writeOptionalAttrs := func(lo, hi attribute.AttributeCode) {
 		for _, attr := range route.Attributes() {
 			switch attr.(type) {
 			case attribute.Origin, *attribute.ASPath, *attribute.NextHop, attribute.LocalPref, attribute.MED:
@@ -171,7 +181,7 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 				attribute.IPv6ExtendedCommunities,
 				attribute.AtomicAggregate, *attribute.Aggregator,
 				attribute.OriginatorID, attribute.ClusterList:
-				if (attr.Code() < attribute.AttrMPReachNLRI) != below {
+				if attr.Code() < lo || attr.Code() >= hi {
 					continue
 				}
 				off += attribute.WriteAttrTo(attr, attrBuf, off)
@@ -180,22 +190,32 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 	}
 
 	// ATOMIC_AGGREGATE 6, AGGREGATOR 7, COMMUNITIES 8, ORIGINATOR_ID 9, CLUSTER_LIST 10.
-	writeOptionalAttrs(true)
+	writeOptionalAttrs(0, attribute.AttrMPReachNLRI)
 	if mpReach != nil {
 		off += attribute.WriteAttrTo(mpReach, attrBuf, off)
 	}
-	// EXT_COMMUNITIES 16, IPV6_EXT_COMMUNITIES 25, LARGE_COMMUNITIES 32.
-	writeOptionalAttrs(false)
+	// EXT_COMMUNITIES 16 -- everything between MP_REACH (14) and AS4_PATH (17).
+	writeOptionalAttrs(attribute.AttrMPReachNLRI, attribute.AttrAS4Path)
 
 	// AS4_PATH (RFC 6793 §4.2.2): re-announcing to an OLD (2-octet) peer, the
 	// AS_PATH written above encoded any non-mappable four-octet AS as AS_TRANS;
 	// carry the real AS numbers in an AS4_PATH so the peer can reconstruct the
-	// path. Emitted last -- type code 17 is the highest attribute here -- and
-	// built from the same AS_PATH (AS4Path.WriteTo drops confed segments per §3).
+	// path. Built from the same AS_PATH (AS4Path.WriteTo drops confed segments
+	// per §3).
+	//
+	// It goes at its type-code position, NOT last. The comment here used to say
+	// "type code 17 is the highest attribute here", which was false for the same
+	// reason the batch builder's identical claim was: IPV6_EXT_COMMUNITIES (25)
+	// and LARGE_COMMUNITIES (32) both outrank it, and a stored route can carry
+	// either. Appending produced [.. 32 17] on this rail against the batch rail's
+	// [.. 17 32] -- the two-rail divergence this builder exists to avoid.
 	if !asn4 && asPathHasNonMappableAS(asPath) {
 		as4 := &attribute.AS4Path{Segments: asPath.Segments}
 		off += attribute.WriteAttrTo(as4, attrBuf, off)
 	}
+
+	// IPV6_EXT_COMMUNITIES 25, LARGE_COMMUNITIES 32.
+	writeOptionalAttrs(attribute.AttrAS4Path, 255)
 
 	return &message.Update{
 		PathAttributes: attrBuf[:off],
