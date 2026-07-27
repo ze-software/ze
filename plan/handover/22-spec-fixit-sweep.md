@@ -209,6 +209,35 @@ immediately, and every conversion must append its own signed delta line rather
 than edit the integer. Whoever works those two specs should expect the gate to
 bite on unrelated test work in the meantime.
 
+### A second spec is finished and nobody told it: `rfc6286-bgp-identifier`
+
+Status `in-progress`, **Phase 5/5**, Review Gate section EMPTY, no learned
+summary. All three of its goals verify as MET against the tree:
+
+| Goal | Evidence |
+|------|----------|
+| G-1 reject an invalid BGP Identifier on every OPEN rail | `Open.ValidateBGPIdentifier` (`message/open.go:266`) implements RFC 6286 Section 2.2 including the internal-peer gate; called from `reactor/session_open_validation.go:45` |
+| G-2 exactly one peer wins a same-AS identifier, atomically | `reactor/routerid_unique.go` exists as a dedicated claim/release; the racy `checkRouterIDConflict` the spec names is GONE (only a stale comment mention at `reactor_dynamic.go:346`) |
+| G-3 disclosed | `rfc/short/rfc6286.md` exists, `rfc/enrolled.txt:186` enrols it, `docs/features/rfc-status.md:12` carries a full "Supported" row |
+
+So the blocker to closing it is NOT implementation. It is that the work was
+never independently reviewed: `review_gate.py check` returns BLOCKED (exit 3,
+no artifact) and `commit_helper.py` will refuse the closure commit until one
+exists. **An independent review was launched 2026-07-27** against those goals.
+When its verdict lands: fix anything it finds, `review_gate.py record`, fill the
+spec's Review Gate section, then commit A (spec) + commit B (learned summary +
+`git rm`).
+
+Note `spec-closure-check.py --spec` does NOT flag this one -- its
+high-confidence detector keys on a committed `plan/learned/NNN-<slug>.md`
+matching the spec stem, and that summary is exactly what is missing. A spec that
+never got its summary written is invisible to the closure detector. Do not treat
+that tool's silence as evidence a spec is genuinely open.
+
+Also checked and NOT stale: `mgmt-listener-auth-guard-deferred-reload-auth-rebuild`
+names `ReloadListeners`, which no longer exists under that name anywhere in
+`internal/` -- re-derive its entry point before working it.
+
 **The remaining set is not homogeneous, and sizing it by file length misleads.**
 `forward-rail-initial-sync-ordering` is the smallest file (6.7K) but is a
 hot-path reactor ordering change: `ai/rules/testing.md` makes
