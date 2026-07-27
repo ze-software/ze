@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-07-22 |
+| Updated | 2026-07-27 |
 
 ## Post-Compaction Recovery
 
@@ -34,6 +34,54 @@ ungated.
 Not started: this is a hot-path ordering change in the reactor, so it needs
 `make ze-race-reactor` (`ai/rules/testing.md` makes that mandatory for reactor
 concurrency edits) and an independent review pass before it can close.
+
+## Design analysis (2026-07-27)
+
+Not implemented. This records the shape the fix must take and, more usefully,
+which two cheap-looking fixes are WRONG.
+
+**D-1. Dropping the forwarded update is NOT safe: the fix must defer, not skip.**
+The tempting one-liner is "if `ShouldQueue()`, skip this destination", mirroring
+the existing drop for a not-established peer. It loses data. Initial sync reads
+from the RIB, so for a withdraw of prefix P arriving mid-sync:
+
+| Sync position | Effect of dropping the forwarded withdraw | Correct? |
+|---------------|-------------------------------------------|----------|
+| has not yet reached P | RIB already has P withdrawn, so sync never announces it | yes, by luck |
+| already sent P | nothing else will ever withdraw P | **no -- peer holds P forever** |
+
+The second row is the reported bug reproduced by its own proposed fix, so
+`ShouldQueue` cannot gate a discard here. The not-established drop is safe only
+because that peer gets a full RIB replay on establishment; a mid-sync peer does
+not get a second replay.
+
+**D-2. It cannot go on `opQueue` as-is.** `PeerOp` (`peer.go:111-118`, verified)
+carries `Route *rib.Route`, `NLRI nlri.NLRI`, `Subcode`, `Message` -- structured
+operations only, no wire-body member. A forwarded UPDATE here is wire bytes
+deliberately: not re-deriving structure per destination is the entire purpose of
+the forward rail, so converting it to a `PeerOp` would undo the change this spec
+descends from.
+
+**D-3. Strict order forbids a second queue.** Two queues drained independently
+lose the relative order of a queued announce and a forwarded withdraw, which is
+the exact invariant being restored. One FIFO must carry both, so `PeerOp` grows
+a wire variant (`PeerOpForward` holding a pooled buffer handle) rather than the
+forward rail growing a parallel path.
+
+**D-4. The open question is buffer lifetime, and it is a memory-architecture
+question, not a reactor one.** A queued wire body must outlive the source peer's
+read buffer, so deferring means pinning a pooled buffer for the whole
+initial-sync window. `opQueueMax` defaults to `DefaultOpQueueSize` = 10000
+(`peer.go`) and scales with prefix-maximum, so a COUNT-bounded queue of wire
+bodies is a BYTE-unbounded pin on the forward pools. Per
+`ai/rules/memory-architecture.md` the queue has to be byte-budgeted like the
+global shared pool, and the overflow behaviour chosen deliberately: pool
+exhaustion is the backpressure signal, and the honest options are tearing the
+destination session down (it re-syncs) or ending the sync early -- never a silent
+drop, which is D-1 again by another route.
+
+Settle D-4 first. It decides whether this is a small `PeerOp` extension or a
+forward-pool change, and it is the part most likely to be got quietly wrong.
 
 ## Task
 
@@ -118,7 +166,9 @@ A peer is Established but still draining its initial sync when an UPDATE arrives
 from a different peer for a prefix already queued to it.
 
 ### Transformation Path
-(fill during design)
+See "Design analysis" under the Freshness check above: D-1 to D-4 establish that
+the forwarded update must be deferred on the SAME FIFO as `opQueue`, and that
+buffer lifetime is the open question.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
