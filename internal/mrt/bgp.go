@@ -64,6 +64,11 @@ type ParsedNotification struct {
 }
 
 // ParseBGPMessage parses a complete BGP message (including 19-byte header).
+//
+// For an UPDATE it may return a non-nil message TOGETHER with a non-nil error:
+// the message holds everything that decoded and the error names what did not
+// (see parseUpdate). Callers that only want fully-clean records check err
+// first, as before; callers that render records check the value too.
 func ParseBGPMessage(data []byte) (*ParsedMessage, error) {
 	if len(data) < 19 {
 		return nil, errShortMessage
@@ -91,11 +96,17 @@ func ParseBGPMessage(data []byte) (*ParsedMessage, error) {
 		}
 		msg.Open = open
 	case 2:
-		update, err := parseUpdate(body)
-		if err != nil {
-			return nil, err
+		// Salvage: a UPDATE whose withdrawn/NLRI field is damaged still returns
+		// the fields that decoded, together with the error. Only a body too
+		// broken to yield anything (updateSections failed) returns nil.
+		update, uerr := parseUpdate(body)
+		if update == nil {
+			return nil, uerr
 		}
 		msg.Update = update
+		if uerr != nil {
+			return msg, uerr
+		}
 	case 3:
 		msg.Notification = parseNotification(body)
 	case 4:
@@ -179,6 +190,18 @@ func UpdateAttributeBytes(body []byte) ([]byte, error) {
 	return attrs, err
 }
 
+// UpdateSections splits an UPDATE body into its withdrawn-routes, path-attribute
+// and NLRI sections (RFC 4271 Section 4.3).
+//
+// This is the exported face of the single source of truth for the UPDATE field
+// layout. A caller that needs more than the attribute bytes -- counting the
+// prefixes in all four NLRI locations, for instance -- MUST come through here
+// rather than re-deriving the offsets, because a second copy of the layout is a
+// second thing to get wrong and it will not be wrong in the same way.
+func UpdateSections(body []byte) (withdrawn, attrs, nlri []byte, err error) {
+	return updateSections(body)
+}
+
 // updateSections splits an UPDATE body into its three variable-length fields
 // (RFC 4271 Section 4.3):
 //
@@ -217,26 +240,34 @@ func updateSections(body []byte) (withdrawn, attrs, nlri []byte, err error) {
 	return withdrawn, attrs, nlri, nil
 }
 
+// parseUpdate decodes an UPDATE body.
+//
+// A damaged withdrawn-routes or NLRI field returns the ParsedUpdate decoded so
+// far ALONGSIDE the error, so a caller that renders a record (ze-analyze show)
+// can print what survived and mark it damaged, while a caller that needs
+// correctness still sees the failure. Both fields are attempted even when the
+// first fails: they are independent, and reporting only the earlier one would
+// hide a second fault.
 func parseUpdate(body []byte) (*ParsedUpdate, error) {
 	withdrawn, attrs, nlri, err := updateSections(body)
 	if err != nil {
 		return nil, err
 	}
 
-	withdrawnPrefixes, err := ParsePrefixes(withdrawn, false)
-	if err != nil {
-		return nil, fmt.Errorf("UPDATE withdrawn routes: %w", err)
+	withdrawnPrefixes, wErr := ParsePrefixes(withdrawn, false)
+	if wErr != nil {
+		wErr = fmt.Errorf("UPDATE withdrawn routes: %w", wErr)
 	}
-	announcedPrefixes, err := ParsePrefixes(nlri, false)
-	if err != nil {
-		return nil, fmt.Errorf("UPDATE NLRI: %w", err)
+	announcedPrefixes, aErr := ParsePrefixes(nlri, false)
+	if aErr != nil {
+		aErr = fmt.Errorf("UPDATE NLRI: %w", aErr)
 	}
 
 	return &ParsedUpdate{
 		WithdrawnPrefixes: withdrawnPrefixes,
 		Attributes:        parseAttributes(attrs),
 		AnnouncedPrefixes: announcedPrefixes,
-	}, nil
+	}, errors.Join(wErr, aErr)
 }
 
 func parseNotification(body []byte) *ParsedNotification {
@@ -327,7 +358,7 @@ func ParsePrefixesAFI(data []byte, afi uint16, addPath bool) ([]netip.Prefix, er
 	case AFIIPv6:
 		maxBits = 128
 	default:
-		return nil, fmt.Errorf("%w: %d, want %d (IPv4) or %d (IPv6)", errBadAFI, afi, AFIIPv4, AFIIPv6)
+		return nil, fmt.Errorf("%w: %d, want %d (IPv4) or %d (IPv6)", ErrBadAFI, afi, AFIIPv4, AFIIPv6)
 	}
 
 	var prefixes []netip.Prefix
@@ -335,7 +366,7 @@ func ParsePrefixesAFI(data []byte, afi uint16, addPath bool) ([]netip.Prefix, er
 	for off < len(data) {
 		if addPath {
 			if off+4 >= len(data) {
-				return prefixes, fmt.Errorf("%w: NLRI truncated inside the add-path Path Identifier at offset %d", errShortData, off)
+				return prefixes, fmt.Errorf("%w: NLRI truncated inside the add-path Path Identifier at offset %d", ErrShortData, off)
 			}
 			off += 4
 		}
@@ -346,7 +377,7 @@ func ParsePrefixesAFI(data []byte, afi uint16, addPath bool) ([]netip.Prefix, er
 		}
 		byteLen := (pfxLen + 7) / 8
 		if off+byteLen > len(data) {
-			return prefixes, fmt.Errorf("%w: prefix at offset %d needs %d octets, %d remain", errShortData, off, byteLen, len(data)-off)
+			return prefixes, fmt.Errorf("%w: prefix at offset %d needs %d octets, %d remain", ErrShortData, off, byteLen, len(data)-off)
 		}
 
 		var buf [16]byte
@@ -373,14 +404,14 @@ func ParseASPath(data []byte, fourByte bool) ([]ASPathSegment, error) {
 	off := 0
 	for off < len(data) {
 		if off+2 > len(data) {
-			return nil, errShortData
+			return nil, ErrShortData
 		}
 		segType := data[off]
 		count := int(data[off+1])
 		off += 2
 		needed := count * asnSize
 		if off+needed > len(data) {
-			return nil, errShortData
+			return nil, ErrShortData
 		}
 		asns := make([]uint32, count)
 		for i := range count {

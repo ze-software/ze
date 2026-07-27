@@ -1,4 +1,5 @@
 // Design: (none -- research/analysis tool)
+// RFC: rfc/short/rfc6396.md -- MRT BGP4MP records; RFC 4271 Section 4.3 UPDATE layout via internal/mrt
 //
 // Analyzes MRT BGP4MP dumps to measure UPDATE message density:
 // how many NLRIs per UPDATE, and how many UPDATEs per second.
@@ -9,11 +10,13 @@
 package analyze
 
 import (
-	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"os"
 	"sort"
+
+	"github.com/ze-software/ze/internal/mrt"
 )
 
 // secondSample records the update count for one timestamp.
@@ -90,11 +93,15 @@ Examples:
 	}
 
 	st := newDensityStats()
+	// Without this, a damaged UPDATE contributes wrong counts to every
+	// distribution below and the run still exits 0 with no warning: the
+	// operator reads a fabricated burst profile as a measurement.
+	var damaged malformedCounter
 
 	for _, fname := range args {
 		if err := processMRTFile(fname, mrtHandler{
 			OnBGP4MP: func(data []byte, subtype uint16, ts uint32) {
-				densityProcessBGP4MP(data, subtype, ts, st)
+				damaged.note(densityProcessBGP4MP(data, subtype, ts, st))
 			},
 		}); err != nil {
 			fmt.Fprintf(os.Stderr, "error processing %s: %v\n", fname, err)
@@ -114,14 +121,20 @@ Examples:
 		}
 	}
 
+	// Before the results, not after: the warning qualifies every number that
+	// follows, and on a long report a trailing note scrolls past unread.
+	damaged.report(os.Stderr)
 	printDensityResults(st)
 	return 0
 }
 
-func densityProcessBGP4MP(data []byte, subtype uint16, ts uint32, st *densityStats) {
+// densityProcessBGP4MP folds one BGP4MP record into the density statistics.
+// It returns the NLRI-counting error so the caller can tell the operator the
+// figures are incomplete; a nil return means the record counted cleanly.
+func densityProcessBGP4MP(data []byte, subtype uint16, ts uint32, st *densityStats) error {
 	body, peerASN := extractBGP4MPUpdate(subtype, data)
 	if body == nil {
-		return
+		return nil
 	}
 
 	// Track per-peer-AS per-second counts.
@@ -145,7 +158,7 @@ func densityProcessBGP4MP(data []byte, subtype uint16, ts uint32, st *densitySta
 		}
 	}
 
-	annCount, wdCount := countUpdateNLRIs(body)
+	annCount, wdCount, countErr := countUpdateNLRIs(body)
 
 	st.totalUpdates++
 	st.totalAnnNLRI += annCount
@@ -171,7 +184,7 @@ func densityProcessBGP4MP(data []byte, subtype uint16, ts uint32, st *densitySta
 		if ts < st.lastTS {
 			st.lastTS = ts
 			st.currentBin = 1
-			return
+			return countErr
 		}
 		gap := min(int(ts-st.lastTS), 3600) // cap at 1 hour to avoid runaway loop on file boundaries
 		for range gap - 1 {
@@ -180,75 +193,69 @@ func densityProcessBGP4MP(data []byte, subtype uint16, ts uint32, st *densitySta
 		st.lastTS = ts
 		st.currentBin = 1
 	}
+	return countErr
 }
 
-// countUpdateNLRIs parses an UPDATE body and returns (announced, withdrawn) NLRI counts.
-// Counts from all four locations: withdrawn field, trailing NLRI, MP_REACH, MP_UNREACH.
-func countUpdateNLRIs(body []byte) (announced, withdrawn int) {
-	if len(body) < 4 {
-		return 0, 0
+// countUpdateNLRIs parses an UPDATE body and returns (announced, withdrawn) NLRI
+// counts from all four locations: the withdrawn field, the trailing NLRI field,
+// MP_REACH_NLRI and MP_UNREACH_NLRI.
+//
+// Every offset and every prefix walk is delegated to internal/mrt. The previous
+// hand-rolled version re-derived the RFC 4271 Section 4.3 field layout that
+// mrt.UpdateSections owns, and counted prefixes with a walker that had no
+// prefix-length ceiling and stopped silently on truncation: a single corrupt
+// NLRI octet reading 0xFF skipped 32 bytes and kept counting, so the totals, the
+// burst histogram and the per-peer distribution were all wrong with exit 0 and
+// no warning.
+//
+// The returned error is non-nil when any section was damaged. The counts are
+// still the best available -- the salvage contract of mrt.ParsePrefixesAFI --
+// but the caller MUST surface the error, or it has reintroduced the same silent
+// under-count in a new place (ai/rules/fail-closed-guards.md).
+func countUpdateNLRIs(body []byte) (announced, withdrawn int, err error) {
+	wd, attrs, nlri, serr := mrt.UpdateSections(body)
+	if serr != nil {
+		return 0, 0, serr
 	}
 
-	// Withdrawn routes (IPv4 unicast).
-	wdLen := int(binary.BigEndian.Uint16(body[0:2]))
-	off := 2
-	if off+wdLen > len(body) {
-		return 0, 0
-	}
-	withdrawn = countPackedPrefixes(body[off : off+wdLen])
-	off += wdLen
+	var damage []error
 
-	// Path attributes.
-	if off+2 > len(body) {
-		return announced, withdrawn
+	// RFC 4271 Section 4.3: the UPDATE's own withdrawn and NLRI fields are
+	// IPv4 unicast; every other family travels in MP_REACH/MP_UNREACH.
+	wdPrefixes, wderr := mrt.ParsePrefixes(wd, false)
+	withdrawn = len(wdPrefixes)
+	if wderr != nil {
+		damage = append(damage, fmt.Errorf("withdrawn routes: %w", wderr))
 	}
-	attrLen := int(binary.BigEndian.Uint16(body[off : off+2]))
-	off += 2
-	if off+attrLen > len(body) {
-		return announced, withdrawn
-	}
-	attrEnd := off + attrLen
 
-	// Scan attributes for MP_REACH and MP_UNREACH.
-	iterateAttrs(body[off:attrEnd], func(_, typeCode uint8, value []byte) {
-		switch typeCode {
-		case attrMPReachNLRI:
-			announced += countMPReachNLRI(value)
-		case attrMPUnreachNLRI:
-			withdrawn += countMPUnreachNLRI(value)
+	annPrefixes, anerr := mrt.ParsePrefixes(nlri, false)
+	announced = len(annPrefixes)
+	if anerr != nil {
+		damage = append(damage, fmt.Errorf("NLRI: %w", anerr))
+	}
+
+	for _, a := range mrt.ParseAttributes(attrs) {
+		switch a.Code {
+		case mrt.AttrMPReachNLRI:
+			mp, mperr := mrt.ParseMPReach(a.Value)
+			if mp != nil {
+				announced += len(mp.Prefixes)
+			}
+			if mperr != nil {
+				damage = append(damage, mperr)
+			}
+		case mrt.AttrMPUnreachNLRI:
+			mp, mperr := mrt.ParseMPUnreach(a.Value)
+			if mp != nil {
+				withdrawn += len(mp.Prefixes)
+			}
+			if mperr != nil {
+				damage = append(damage, mperr)
+			}
 		}
-	})
-	off = attrEnd
-
-	// Trailing NLRI field (IPv4 unicast announcements).
-	if off < len(body) {
-		announced += countPackedPrefixes(body[off:])
 	}
 
-	return announced, withdrawn
-}
-
-// countMPReachNLRI counts NLRIs inside an MP_REACH_NLRI attribute value.
-// Format: AFI(2) + SAFI(1) + NH_len(1) + NH(var) + reserved(1) + NLRI(rest).
-func countMPReachNLRI(val []byte) int {
-	if len(val) < 5 {
-		return 0
-	}
-	nhLen := int(val[3])
-	off := 4 + nhLen + 1 // AFI(2)+SAFI(1)+NHlen(1) + NH + reserved(1)
-	if off > len(val) {
-		return 0
-	}
-	return countPackedPrefixes(val[off:])
-}
-
-// countMPUnreachNLRI counts NLRIs inside an MP_UNREACH_NLRI attribute value.
-// Format: AFI(2) + SAFI(1) + withdrawn_routes(rest).
-func countMPUnreachNLRI(val []byte) int {
-	if len(val) < 3 {
-		return 0
-	}
-	return countPackedPrefixes(val[3:])
+	return announced, withdrawn, errors.Join(damage...)
 }
 
 func printDensityResults(st *densityStats) {

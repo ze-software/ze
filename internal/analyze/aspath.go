@@ -1,4 +1,5 @@
 // Design: (none -- research/analysis tool)
+// RFC: rfc/short/rfc6396.md -- per-record-type AS width; rfc/short/rfc6793.md -- AS4_PATH is always 4-octet
 //
 // Analyzes AS_PATH suffix sharing across MRT dumps to determine whether
 // a reversed trie would be effective for AS_PATH dedup.
@@ -19,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/mrt"
 )
 
 type aspathAnalysis struct {
@@ -29,6 +31,12 @@ type aspathAnalysis struct {
 	TotalASNs   uint64
 
 	LengthDist map[int]uint64
+
+	// damagedPaths counts AS_PATH attributes that failed to decode. They are
+	// excluded from every statistic below, so the operator has to be told:
+	// otherwise a file full of unreadable paths reports a clean, small,
+	// entirely fictitious distribution.
+	damagedPaths uint64
 
 	trie     *trieNode
 	pathSeen map[uint64]bool
@@ -80,8 +88,10 @@ Examples:
 		if err := processMRTFile(fname, mrtHandler{
 			OnPeerIndex: func(_ []byte) {},
 			OnRIB: func(data []byte, subtype uint16) {
+				// TABLE_DUMP_V2 is 4-byte AS throughout (RFC 6396 Section 4.3.4).
+				fourByteAS := mrt.ASPathIsFourByte(mrt.TypeTableDumpV2, subtype)
 				damaged.note(forEachRIBEntry(data, subtype, func(_ uint16, attrs []byte) {
-					aspathAnalyzeRoute(attrs, st)
+					aspathAnalyzeRoute(attrs, fourByteAS, st)
 				}))
 			},
 			OnBGP4MP: func(data []byte, subtype uint16, _ uint32) {
@@ -91,7 +101,10 @@ Examples:
 				}
 				attrs := extractUpdateAttrs(body)
 				if attrs != nil {
-					aspathAnalyzeRoute(attrs, st)
+					// Subtypes 1 and 6 are 2-byte AS; only the _AS4 subtypes
+					// are 4-byte. Reading a 2-byte path as 4-byte silently
+					// fabricates ASNs (RFC 6396 Section 4.4.2 vs 4.4.3).
+					aspathAnalyzeRoute(attrs, bgp4mpFourByteAS(subtype), st)
 				}
 			},
 		}); err != nil {
@@ -107,12 +120,28 @@ Examples:
 	return 0
 }
 
-func aspathAnalyzeRoute(attrs []byte, st *aspathAnalysis) {
+// aspathAnalyzeRoute folds one route's AS_PATH into the trie statistics.
+//
+// fourByteAS MUST come from the enclosing MRT record type/subtype
+// (mrt.ASPathIsFourByte): RFC 6396 fixes the AS width per record type and it is
+// NOT inferable from the attribute bytes, because a 2-byte and a 4-byte path
+// can occupy the same number of octets. AS4_PATH is the one exception -- RFC
+// 6793 Section 4 encodes it with four-octet AS numbers whatever the record's
+// own width -- so it is parsed as 4-byte unconditionally.
+func aspathAnalyzeRoute(attrs []byte, fourByteAS bool, st *aspathAnalysis) {
 	iterateAttrs(attrs, func(_, typeCode uint8, value []byte) {
 		if typeCode != attrASPath && typeCode != attrAS4Path {
 			return
 		}
-		asns := parseASPathASNs(value)
+		segs, err := mrt.ParseASPath(value, fourByteAS || typeCode == attrAS4Path)
+		if err != nil {
+			st.damagedPaths++
+			return
+		}
+		var asns []uint32
+		for _, seg := range segs {
+			asns = append(asns, seg.ASNs...)
+		}
 		if len(asns) == 0 {
 			return
 		}
@@ -129,27 +158,6 @@ func aspathAnalyzeRoute(attrs []byte, st *aspathAnalysis) {
 
 		insertReversed(st.trie, asns)
 	})
-}
-
-func parseASPathASNs(value []byte) []uint32 {
-	var asns []uint32
-	off := 0
-	for off < len(value) {
-		if off+2 > len(value) {
-			break
-		}
-		// segType := value[off] // 1=AS_SET, 2=AS_SEQUENCE
-		segLen := int(value[off+1])
-		off += 2
-		for range segLen {
-			if off+4 > len(value) {
-				return asns
-			}
-			asns = append(asns, binary.BigEndian.Uint32(value[off:off+4]))
-			off += 4
-		}
-	}
-	return asns
 }
 
 func hashASPath(asns []uint32) uint64 {
@@ -206,18 +214,23 @@ func trieFanoutStats(node *trieNode, fanout map[int]uint64) {
 }
 
 type aspathJSONOutput struct {
-	Files       []string              `json:"files"`
-	TotalPaths  uint64                `json:"total-paths"`
-	UniquePaths uint64                `json:"unique-paths"`
-	PathDedup   float64               `json:"path-dedup-rate"`
-	TotalASNs   uint64                `json:"total-asns"`
-	TrieNodes   uint64                `json:"trie-nodes"`
-	NaiveASNs   uint64                `json:"naive-asn-slots"`
-	TrieRatio   float64               `json:"trie-compression-ratio"`
-	LengthDist  map[int]uint64        `json:"length-distribution"`
-	DepthStats  map[int]uint64        `json:"trie-depth-node-count"`
-	FanoutDist  map[string]uint64     `json:"trie-fanout-distribution"`
-	TopOrigins  []aspathJSONOriginASN `json:"top-origin-asns"`
+	Files       []string `json:"files"`
+	TotalPaths  uint64   `json:"total-paths"`
+	UniquePaths uint64   `json:"unique-paths"`
+	// DamagedPaths is non-zero when AS_PATH attributes failed to decode and
+	// were excluded from every other figure here. The human summary goes to
+	// stderr, so a JSON consumer would otherwise never learn the run was
+	// incomplete.
+	DamagedPaths uint64                `json:"damaged-paths"`
+	PathDedup    float64               `json:"path-dedup-rate"`
+	TotalASNs    uint64                `json:"total-asns"`
+	TrieNodes    uint64                `json:"trie-nodes"`
+	NaiveASNs    uint64                `json:"naive-asn-slots"`
+	TrieRatio    float64               `json:"trie-compression-ratio"`
+	LengthDist   map[int]uint64        `json:"length-distribution"`
+	DepthStats   map[int]uint64        `json:"trie-depth-node-count"`
+	FanoutDist   map[string]uint64     `json:"trie-fanout-distribution"`
+	TopOrigins   []aspathJSONOriginASN `json:"top-origin-asns"`
 }
 
 type aspathJSONOriginASN struct {
@@ -271,18 +284,19 @@ func aspathPrintJSON(w io.Writer, st *aspathAnalysis) {
 	origins := collectOrigins(st.trie)
 
 	out := &aspathJSONOutput{
-		Files:       st.Files,
-		TotalPaths:  st.TotalPaths,
-		UniquePaths: st.UniquePaths,
-		PathDedup:   pathDedup,
-		TotalASNs:   st.TotalASNs,
-		TrieNodes:   trieNodes,
-		NaiveASNs:   naiveASNs,
-		TrieRatio:   trieRatio,
-		LengthDist:  st.LengthDist,
-		DepthStats:  depthStats,
-		FanoutDist:  fanoutDist,
-		TopOrigins:  origins,
+		Files:        st.Files,
+		TotalPaths:   st.TotalPaths,
+		UniquePaths:  st.UniquePaths,
+		DamagedPaths: st.damagedPaths,
+		PathDedup:    pathDedup,
+		TotalASNs:    st.TotalASNs,
+		TrieNodes:    trieNodes,
+		NaiveASNs:    naiveASNs,
+		TrieRatio:    trieRatio,
+		LengthDist:   st.LengthDist,
+		DepthStats:   depthStats,
+		FanoutDist:   fanoutDist,
+		TopOrigins:   origins,
 	}
 
 	enc := json.NewEncoder(w)
@@ -337,6 +351,10 @@ func aspathPrintSummary(w io.Writer, st *aspathAnalysis) {
 	wf(w, "Files: %s\n", textbuf.Join(st.Files, ", "))
 	wf(w, "Total AS_PATHs:  %s\n", formatNumber(st.TotalPaths))
 	wf(w, "Unique AS_PATHs: %s (%5.2f%% whole-path dedup)\n", formatNumber(st.UniquePaths), pathDedup)
+	if st.damagedPaths > 0 {
+		wf(w, "warning: %s AS_PATH attribute(s) failed to decode and are excluded; results are incomplete\n",
+			formatNumber(st.damagedPaths))
+	}
 
 	wf(w, "\nSTORAGE COMPARISON:\n")
 	wf(w, "  Naive (one ASN slot per path entry): %s ASN slots\n", formatNumber(naiveASNs))

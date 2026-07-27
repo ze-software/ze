@@ -265,3 +265,61 @@ func TestFindAttribute(t *testing.T) {
 	assert.NotNil(t, mrt.FindAttribute(attrs, 2))
 	assert.Nil(t, mrt.FindAttribute(attrs, 99))
 }
+
+func TestParseBGPMessage_DamagedUpdateSalvagesAndReports(t *testing.T) {
+	// VALIDATES: an UPDATE whose withdrawn or NLRI field is damaged returns BOTH
+	// the fields that decoded AND the error naming what did not.
+	// PREVENTS: two failures at once. Returning nil threw away every readable
+	// field, so `ze-analyze show` collapsed the whole record to "[parse error]";
+	// and dropping the error let a truncated record render as though it were
+	// complete. Both errors must survive, not just the first: the withdrawn and
+	// NLRI fields are independent and reporting one hides the other.
+	//
+	// Body layout: withdrawn-len(2) + withdrawn + attr-len(2) + attrs + NLRI.
+	body := []byte{
+		0, 4, // withdrawn routes length 4
+		8, 10, // 10.0.0.0/8 -- decodes
+		24, 172, // claims /24 (3 octets), only 1 follows -- truncated
+		0, 0, // path attribute length 0
+		16, 192, // claims /16 (2 octets), only 1 follows -- truncated
+	}
+	msg, err := mrt.ParseBGPMessage(buildBGPMessage(2, body))
+
+	require.Error(t, err, "a damaged UPDATE MUST be reported")
+	require.NotNil(t, msg, "the salvaged message MUST be returned, not discarded")
+	require.NotNil(t, msg.Update)
+
+	assert.ErrorIs(t, err, mrt.ErrShortData)
+	assert.Contains(t, err.Error(), "withdrawn routes", "the withdrawn fault must be named")
+	assert.Contains(t, err.Error(), "NLRI", "the NLRI fault must be named too, not just the first")
+
+	require.Len(t, msg.Update.WithdrawnPrefixes, 1, "the good withdrawn prefix survives")
+	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/8"), msg.Update.WithdrawnPrefixes[0])
+	assert.Empty(t, msg.Update.AnnouncedPrefixes, "the truncated NLRI yields nothing")
+}
+
+func TestParseBGPMessage_CleanUpdateReportsNoError(t *testing.T) {
+	// VALIDATES: a well-formed UPDATE returns a nil error.
+	// PREVENTS: the salvage change making every record look damaged, which would
+	// train the operator to ignore the warning.
+	body := []byte{
+		0, 2, // withdrawn length 2
+		8, 10, // 10.0.0.0/8
+		0, 0, // attribute length 0
+		16, 192, 168, // 192.168.0.0/16
+	}
+	msg, err := mrt.ParseBGPMessage(buildBGPMessage(2, body))
+	require.NoError(t, err)
+	require.NotNil(t, msg.Update)
+	assert.Len(t, msg.Update.WithdrawnPrefixes, 1)
+	assert.Len(t, msg.Update.AnnouncedPrefixes, 1)
+}
+
+func TestParseBGPMessage_UnsalvageableUpdateReturnsNil(t *testing.T) {
+	// VALIDATES: a body too broken to yield any field still returns nil.
+	// PREVENTS: handing callers a ParsedMessage whose Update is nil, which the
+	// existing consumers dereference.
+	msg, err := mrt.ParseBGPMessage(buildBGPMessage(2, []byte{0, 99}))
+	require.Error(t, err)
+	assert.Nil(t, msg)
+}

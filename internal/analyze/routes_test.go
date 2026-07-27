@@ -48,7 +48,7 @@ func TestBuildRouteRecord_IPv6NextHopFromTruncatedMPReach(t *testing.T) {
 	nh := netip.MustParseAddr("2001:db8::1").As16()
 	attrs := []mrt.PathAttribute{ribMPReach(nh[:])}
 
-	rec := buildRouteRecord("2001:db8::/32", attrs, nil, 0, true)
+	rec, _ := buildRouteRecord("2001:db8::/32", attrs, nil, 0, true)
 	assert.Equal(t, "2001:db8::1", rec.NextHop)
 }
 
@@ -61,7 +61,7 @@ func TestBuildRouteRecord_IPv6NextHopGlobalPlusLinkLocal(t *testing.T) {
 	linkLocal := netip.MustParseAddr("fe80::1").As16()
 	attrs := []mrt.PathAttribute{ribMPReach(append(append([]byte{}, global[:]...), linkLocal[:]...))}
 
-	rec := buildRouteRecord("2001:db8::/32", attrs, nil, 0, true)
+	rec, _ := buildRouteRecord("2001:db8::/32", attrs, nil, 0, true)
 	assert.Equal(t, "2001:db8::1", rec.NextHop)
 }
 
@@ -72,16 +72,34 @@ func TestBuildRouteRecord_ASPathWidthComesFromRecordType(t *testing.T) {
 	// PREVENTS: a hardcoded 4-byte assumption silently corrupting the AS path of
 	// every 2-byte record, the RFC 6396 "AS width mismatch" pitfall.
 	fourByteWire := asPathAttr(true, 65000, 65001)
-	rec := buildRouteRecord("10.0.0.0/8", []mrt.PathAttribute{fourByteWire}, nil, 0, true)
+	rec, err := buildRouteRecord("10.0.0.0/8", []mrt.PathAttribute{fourByteWire}, nil, 0, true)
+	require.NoError(t, err)
 	assert.Equal(t, []uint32{65000, 65001}, rec.ASPath)
 
 	twoByteWire := asPathAttr(false, 65000, 65001)
-	rec = buildRouteRecord("10.0.0.0/8", []mrt.PathAttribute{twoByteWire}, nil, 0, false)
+	rec, err = buildRouteRecord("10.0.0.0/8", []mrt.PathAttribute{twoByteWire}, nil, 0, false)
+	require.NoError(t, err)
 	assert.Equal(t, []uint32{65000, 65001}, rec.ASPath)
 
-	// Reading the 2-byte wire at 4-byte width must not yield the true path.
-	rec = buildRouteRecord("10.0.0.0/8", []mrt.PathAttribute{twoByteWire}, nil, 0, true)
+	// Reading the 2-byte wire at 4-byte width must be REPORTED, not merely
+	// produce a different answer. Asserting only NotEqual passed vacuously: a
+	// swallowed error left ASPath nil, and nil is trivially not the true path.
+	// The error is the contract -- an empty as-path in the JSON output reads as
+	// "locally originated" to every consumer.
+	rec, err = buildRouteRecord("10.0.0.0/8", []mrt.PathAttribute{twoByteWire}, nil, 0, true)
+	require.Error(t, err, "an AS-width mismatch MUST be reported, not silently emitted as an empty path")
+	assert.ErrorIs(t, err, mrt.ErrShortData)
 	assert.NotEqual(t, []uint32{65000, 65001}, rec.ASPath)
+}
+
+func TestBuildRouteRecord_CleanRecordReportsNoDamage(t *testing.T) {
+	// VALIDATES: a well-formed record returns a nil error, so the damage tally
+	// counts only real damage.
+	// PREVENTS: a counter that fires on every record, which an operator learns
+	// to ignore and which would make the warning worthless.
+	attrs := []mrt.PathAttribute{asPathAttr(true, 65000), {Flags: 0x40, Code: mrt.AttrOrigin, Value: []byte{0}}}
+	_, err := buildRouteRecord("10.0.0.0/8", attrs, nil, 0, true)
+	require.NoError(t, err)
 }
 
 func TestBuildRouteRecord_IPv4NextHopAttribute(t *testing.T) {
@@ -89,7 +107,7 @@ func TestBuildRouteRecord_IPv4NextHopAttribute(t *testing.T) {
 	// which is how ze's own TABLE_DUMP_V2 writer encodes it, still works.
 	// PREVENTS: the RIB-specific path regressing the common IPv4 case.
 	attrs := []mrt.PathAttribute{{Flags: 0x40, Code: mrt.AttrNextHop, Value: []byte{192, 0, 2, 1}}}
-	rec := buildRouteRecord("10.0.0.0/8", attrs, nil, 0, true)
+	rec, _ := buildRouteRecord("10.0.0.0/8", attrs, nil, 0, true)
 	assert.Equal(t, "192.0.2.1", rec.NextHop)
 }
 
@@ -101,7 +119,7 @@ func TestBuildRouteRecord_PeerFromIndexTable(t *testing.T) {
 		{IP: []byte{10, 0, 0, 1}, ASN: 64500},
 		{IP: []byte{10, 0, 0, 2}, ASN: 64501},
 	}}
-	rec := buildRouteRecord("10.0.0.0/8", nil, pit, 1, true)
+	rec, _ := buildRouteRecord("10.0.0.0/8", nil, pit, 1, true)
 	assert.Equal(t, "10.0.0.2", rec.PeerIP)
 	assert.Equal(t, uint32(64501), rec.PeerASN)
 }
@@ -120,7 +138,7 @@ func TestBuildRouteRecord_LargeCommunities(t *testing.T) {
 	binary.BigEndian.PutUint32(v[20:], 4)
 
 	attrs := []mrt.PathAttribute{{Code: mrt.AttrLargeCommunity, Value: v}}
-	rec := buildRouteRecord("10.0.0.0/8", attrs, nil, 0, true)
+	rec, _ := buildRouteRecord("10.0.0.0/8", attrs, nil, 0, true)
 	assert.Equal(t, []string{"65000:1:2", "65001:3:4"}, rec.LargeCommunities)
 }
 
@@ -130,7 +148,7 @@ func TestBuildRouteRecord_ExtendedCommunities(t *testing.T) {
 	// PREVENTS: dropping route targets and other extended communities.
 	v := []byte{0x00, 0x02, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	attrs := []mrt.PathAttribute{{Code: mrt.AttrExtCommunity, Value: v}}
-	rec := buildRouteRecord("10.0.0.0/8", attrs, nil, 0, true)
+	rec, _ := buildRouteRecord("10.0.0.0/8", attrs, nil, 0, true)
 	require.Len(t, rec.ExtendedCommunities, 1)
 	assert.Equal(t, "0:2:fde800000064", rec.ExtendedCommunities[0])
 }
@@ -145,7 +163,7 @@ func TestBuildRouteRecord_AggregatorAndAtomicAggregate(t *testing.T) {
 		{Code: mrt.AttrAggregator, Value: agg},
 		{Code: mrt.AttrAtomicAggregate},
 	}
-	rec := buildRouteRecord("10.0.0.0/8", attrs, nil, 0, true)
+	rec, _ := buildRouteRecord("10.0.0.0/8", attrs, nil, 0, true)
 	assert.Equal(t, "AS65536:192.0.2.1", rec.Aggregator)
 	assert.True(t, rec.AtomicAggregate)
 }
@@ -158,11 +176,11 @@ func TestBuildRouteRecord_OnlyToCustomer(t *testing.T) {
 	v := make([]byte, 4)
 	binary.BigEndian.PutUint32(v, 64500)
 	attrs := []mrt.PathAttribute{{Code: mrt.AttrOTC, Value: v}}
-	rec := buildRouteRecord("10.0.0.0/8", attrs, nil, 0, true)
+	rec, _ := buildRouteRecord("10.0.0.0/8", attrs, nil, 0, true)
 	assert.Equal(t, uint32(64500), rec.OnlyToCustomer)
 
 	// Absent OTC must stay zero so `omitempty` drops the field entirely.
-	bare := buildRouteRecord("10.0.0.0/8", nil, nil, 0, true)
+	bare, _ := buildRouteRecord("10.0.0.0/8", nil, nil, 0, true)
 	assert.Zero(t, bare.OnlyToCustomer)
 }
 
@@ -173,7 +191,7 @@ func TestBuildRouteRecord_OutOfRangePeerIndex(t *testing.T) {
 	// reference a peer the PEER_INDEX_TABLE does not contain.
 	pit := &mrt.PeerIndexTable{Peers: []mrt.PeerEntry{{IP: []byte{10, 0, 0, 1}, ASN: 64500}}}
 	require.NotPanics(t, func() {
-		rec := buildRouteRecord("10.0.0.0/8", nil, pit, 99, true)
+		rec, _ := buildRouteRecord("10.0.0.0/8", nil, pit, 99, true)
 		assert.Empty(t, rec.PeerIP)
 	})
 }

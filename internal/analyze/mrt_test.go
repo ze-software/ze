@@ -399,44 +399,11 @@ func TestCountAttrs(t *testing.T) {
 	}
 }
 
-func TestCountPackedPrefixes(t *testing.T) {
-	// VALIDATES: countPackedPrefixes correctly counts NLRI prefix entries.
-	// PREVENTS: miscounting due to incorrect ceil(prefixLen/8) byte consumption.
-
-	tests := []struct {
-		name string
-		data []byte
-		want int
-	}{
-		{"empty", nil, 0},
-		{"single /24", packedPrefix(24), 1},
-		{"single /32", packedPrefix(32), 1},
-		{"single /0 (default route)", packedPrefix(0), 1},
-		{"single /1", packedPrefix(1), 1},
-		{
-			"three prefixes",
-			concatBytes(packedPrefix(24), packedPrefix(16), packedPrefix(8)),
-			3,
-		},
-		{
-			"/25 consumes 4 bytes total",
-			packedPrefix(25),
-			1,
-		},
-		{
-			"truncated prefix data stops count",
-			[]byte{24}, // claims /24 but no prefix bytes follow
-			0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, countPackedPrefixes(tt.data))
-		})
-	}
-}
-
+// test-relax: countPackedPrefixes, countMPReachNLRI and countMPUnreachNLRI were
+// DELETED, not weakened. They were a second, laxer copy of the NLRI walk that
+// internal/mrt owns: no prefix-length ceiling and a silent stop on truncation.
+// Every input they covered is now a row in TestCountUpdateNLRIs above, which
+// additionally asserts the error those functions could not report.
 func TestBuildUpdate(t *testing.T) {
 	// VALIDATES: buildUpdate constructs valid UPDATE bodies that extractUpdateAttrs can parse.
 	// PREVENTS: incorrect length fields or misaligned sections in constructed UPDATEs.
@@ -576,14 +543,20 @@ func TestFormatNumber(t *testing.T) {
 
 func TestCountUpdateNLRIs(t *testing.T) {
 	// VALIDATES: countUpdateNLRIs correctly counts announced and withdrawn NLRIs
-	//   from all four locations: withdrawn field, trailing NLRI, MP_REACH, MP_UNREACH.
-	// PREVENTS: missing counts from any of the four NLRI locations.
+	//   from all four locations (withdrawn field, trailing NLRI, MP_REACH,
+	//   MP_UNREACH), AND reports an error whenever any of those sections is
+	//   damaged so the count cannot be read as exact.
+	// PREVENTS: missing counts from any of the four NLRI locations; and the
+	//   silent under-count that made `ze-analyze density` publish a fabricated
+	//   burst profile with exit 0 -- a single NLRI octet reading 0xFF used to
+	//   skip 32 bytes and keep counting.
 
 	tests := []struct {
 		name          string
 		body          []byte
 		wantAnnounced int
 		wantWithdrawn int
+		wantErr       bool
 	}{
 		{
 			name:          "empty UPDATE",
@@ -644,115 +617,124 @@ func TestCountUpdateNLRIs(t *testing.T) {
 			wantWithdrawn: 2, // 1 IPv4 + 1 MP_UNREACH
 		},
 		{
+			// Absorbed from the deleted TestCountPackedPrefixes: these inputs
+			// now reach the shared mrt walker through countUpdateNLRIs.
+			name: "boundary prefix lengths /0 /1 /25 /32",
+			body: buildUpdate(nil, nil, concatBytes(
+				packedPrefix(0), packedPrefix(1), packedPrefix(25), packedPrefix(32),
+			)),
+			wantAnnounced: 4,
+			wantWithdrawn: 0,
+		},
+		{
+			// Absorbed from the deleted TestCountMPReachNLRI: IPv4 multicast
+			// SAFI with a 4-byte next hop, the other AFI/next-hop shape.
+			name: "MP_REACH IPv4 multicast, 4-byte next hop, 2 prefixes",
+			body: buildUpdate(nil,
+				makeAttr(0x80|0x40, attrMPReachNLRI,
+					makeMPReachNLRI(1, 2, 4, concatBytes(packedPrefix(24), packedPrefix(16)))),
+				nil,
+			),
+			wantAnnounced: 2,
+			wantWithdrawn: 0,
+		},
+		{
+			// Absorbed from the deleted TestCountMPReachNLRI.
+			name: "MP_REACH 32-byte next hop (RFC 2545 link-local), 3 prefixes",
+			body: buildUpdate(nil,
+				makeAttr(0x80|0x40, attrMPReachNLRI,
+					makeMPReachNLRI(2, 1, 32, concatBytes(
+						packedPrefix(128), packedPrefix(64), packedPrefix(48)))),
+				nil,
+			),
+			wantAnnounced: 3,
+			wantWithdrawn: 0,
+		},
+		{
+			// Absorbed from the deleted TestCountMPUnreachNLRI.
+			name: "MP_UNREACH IPv4 multicast, 3 withdrawn",
+			body: buildUpdate(nil,
+				makeAttr(0x80|0x40, attrMPUnreachNLRI,
+					makeMPUnreachNLRI(1, 2, concatBytes(
+						packedPrefix(24), packedPrefix(16), packedPrefix(8)))),
+				nil,
+			),
+			wantAnnounced: 0,
+			wantWithdrawn: 3,
+		},
+		{
+			// The defect this whole rewrite exists for. 0xFF is not a legal
+			// IPv4 prefix length; the old counter skipped ceil(255/8)=32 bytes
+			// and carried on counting whatever it landed on.
+			name: "trailing NLRI with an out-of-range prefix length is reported",
+			body: buildUpdate(nil, nil, concatBytes(
+				packedPrefix(24),
+				[]byte{0xFF, 1, 2, 3, 4, 5, 6, 7, 8},
+			)),
+			wantAnnounced: 1, // the good prefix survives (salvage)
+			wantWithdrawn: 0,
+			wantErr:       true,
+		},
+		{
+			name: "truncated trailing NLRI is reported",
+			body: buildUpdate(nil, nil, concatBytes(
+				packedPrefix(24),
+				[]byte{24, 10, 0}, // claims /24, only 2 of 3 octets present
+			)),
+			wantAnnounced: 1,
+			wantWithdrawn: 0,
+			wantErr:       true,
+		},
+		{
+			name: "truncated withdrawn field is reported",
+			body: buildUpdate(
+				concatBytes(packedPrefix(8), []byte{32, 10, 0}),
+				nil, nil,
+			),
+			wantAnnounced: 0,
+			wantWithdrawn: 1,
+			wantErr:       true,
+		},
+		{
+			name: "damaged MP_REACH NLRI is reported and its good prefixes kept",
+			body: buildUpdate(nil,
+				makeAttr(0x80|0x40, attrMPReachNLRI,
+					makeMPReachNLRI(2, 1, 16, concatBytes(
+						packedPrefix(48),
+						[]byte{129, 0, 0}, // /129 exceeds the IPv6 128-bit ceiling
+					))),
+				nil,
+			),
+			wantAnnounced: 1,
+			wantWithdrawn: 0,
+			wantErr:       true,
+		},
+		{
 			name:          "too short body",
 			body:          []byte{0, 0},
 			wantAnnounced: 0,
 			wantWithdrawn: 0,
+			wantErr:       true,
 		},
 		{
 			name:          "nil body",
 			body:          nil,
 			wantAnnounced: 0,
 			wantWithdrawn: 0,
+			wantErr:       true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ann, wd := countUpdateNLRIs(tt.body)
+			ann, wd, err := countUpdateNLRIs(tt.body)
 			assert.Equal(t, tt.wantAnnounced, ann, "announced")
 			assert.Equal(t, tt.wantWithdrawn, wd, "withdrawn")
-		})
-	}
-}
-
-func TestCountMPReachNLRI(t *testing.T) {
-	// VALIDATES: countMPReachNLRI correctly parses MP_REACH_NLRI attribute values.
-	// PREVENTS: incorrect offset calculation when next-hop length varies.
-
-	tests := []struct {
-		name string
-		val  []byte
-		want int
-	}{
-		{
-			name: "single IPv6 prefix with 16-byte NH",
-			val:  makeMPReachNLRI(2, 1, 16, packedPrefix(48)),
-			want: 1,
-		},
-		{
-			name: "two prefixes with 4-byte NH and multicast SAFI",
-			val:  makeMPReachNLRI(1, 2, 4, concatBytes(packedPrefix(24), packedPrefix(16))),
-			want: 2,
-		},
-		{
-			name: "no NLRI after header",
-			val:  makeMPReachNLRI(2, 1, 16, nil),
-			want: 0,
-		},
-		{
-			name: "too short",
-			val:  []byte{0, 2, 1},
-			want: 0,
-		},
-		{
-			name: "nil",
-			val:  nil,
-			want: 0,
-		},
-		{
-			name: "32-byte NH (IPv6 link-local)",
-			val:  makeMPReachNLRI(2, 1, 32, concatBytes(packedPrefix(128), packedPrefix(64), packedPrefix(48))),
-			want: 3,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, countMPReachNLRI(tt.val))
-		})
-	}
-}
-
-func TestCountMPUnreachNLRI(t *testing.T) {
-	// VALIDATES: countMPUnreachNLRI correctly parses MP_UNREACH_NLRI attribute values.
-	// PREVENTS: wrong offset (must skip 3-byte AFI+SAFI header, no NH).
-
-	tests := []struct {
-		name string
-		val  []byte
-		want int
-	}{
-		{
-			name: "single withdrawn prefix",
-			val:  makeMPUnreachNLRI(2, 1, packedPrefix(64)),
-			want: 1,
-		},
-		{
-			name: "three withdrawn prefixes IPv4",
-			val:  makeMPUnreachNLRI(1, 1, concatBytes(packedPrefix(24), packedPrefix(16), packedPrefix(8))),
-			want: 3,
-		},
-		{
-			name: "no withdrawn after header multicast",
-			val:  makeMPUnreachNLRI(2, 2, nil),
-			want: 0,
-		},
-		{
-			name: "too short",
-			val:  []byte{0, 2},
-			want: 0,
-		},
-		{
-			name: "nil",
-			val:  nil,
-			want: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, countMPUnreachNLRI(tt.val))
+			if tt.wantErr {
+				require.Error(t, err, "a damaged section MUST be reported: a silent count is read as exact")
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }
@@ -1002,7 +984,8 @@ func TestExtractAndCountRoundTrip(t *testing.T) {
 	require.NotNil(t, body)
 	assert.Equal(t, uint32(65000), peerASN)
 
-	ann, wd := countUpdateNLRIs(body)
+	ann, wd, err := countUpdateNLRIs(body)
+	require.NoError(t, err, "a well-formed record must count cleanly")
 	assert.Equal(t, 3, ann, "expected 3 announced (trailing NLRI)")
 	assert.Equal(t, 1, wd, "expected 1 withdrawn")
 

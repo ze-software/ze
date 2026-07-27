@@ -128,6 +128,15 @@ func ParseMPReachRIBEntry(value []byte) (netip.Addr, error) {
 //
 // Use ParseMPReachRIBEntry for TABLE_DUMP_V2 RIB entries, which omit every
 // field except the next hop.
+//
+// A damaged NLRI section returns BOTH the attribute decoded so far (AFI, SAFI,
+// next hop, and the prefixes read before the damage) AND an error, mirroring
+// ParsePrefixesAFI. A caller that wants to render what survived checks the
+// value; a caller that wants correctness checks the error. Returning nil with
+// the error would throw away good prefixes and leave a caller that counts them
+// unable to tell "3 prefixes" from "3 prefixes and the rest is unreadable".
+// A failure BEFORE the NLRI section (a truncated fixed header or an unusable
+// next hop) yields nil, because nothing was decoded.
 func ParseMPReach(value []byte) (*MPReach, error) {
 	const fixedHeader = 4 // AFI(2) + SAFI(1) + Next Hop Length(1)
 	if len(value) < fixedHeader {
@@ -158,17 +167,21 @@ func ParseMPReach(value []byte) (*MPReach, error) {
 	}
 	off++ // Reserved
 	if off < len(value) {
+		// Salvage: keep the prefixes decoded before the damage and report it.
 		prefixes, perr := ParsePrefixesAFI(value[off:], mp.AFI, false)
-		if perr != nil {
-			return nil, fmt.Errorf("MP_REACH_NLRI (afi %d, safi %d): %w", mp.AFI, mp.SAFI, perr)
-		}
 		mp.Prefixes = prefixes
+		if perr != nil {
+			return mp, fmt.Errorf("MP_REACH_NLRI (afi %d, safi %d): %w", mp.AFI, mp.SAFI, perr)
+		}
 	}
 	return mp, nil
 }
 
 // ParseMPUnreach decodes the MP_UNREACH_NLRI attribute (RFC 4760 Section 4):
 // AFI(2) + SAFI(1) + Withdrawn Routes(var).
+//
+// Like ParseMPReach, a damaged withdrawn-routes section returns both the
+// prefixes decoded so far and an error.
 func ParseMPUnreach(value []byte) (*MPUnreach, error) {
 	const fixedHeader = 3 // AFI(2) + SAFI(1)
 	if len(value) < fixedHeader {
@@ -179,11 +192,12 @@ func ParseMPUnreach(value []byte) (*MPUnreach, error) {
 		SAFI: value[2],
 	}
 	if len(value) > fixedHeader {
+		// Salvage: keep the prefixes decoded before the damage and report it.
 		prefixes, perr := ParsePrefixesAFI(value[fixedHeader:], mp.AFI, false)
-		if perr != nil {
-			return nil, fmt.Errorf("MP_UNREACH_NLRI (afi %d, safi %d): %w", mp.AFI, mp.SAFI, perr)
-		}
 		mp.Prefixes = prefixes
+		if perr != nil {
+			return mp, fmt.Errorf("MP_UNREACH_NLRI (afi %d, safi %d): %w", mp.AFI, mp.SAFI, perr)
+		}
 	}
 	return mp, nil
 }

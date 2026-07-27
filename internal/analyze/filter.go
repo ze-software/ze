@@ -1,4 +1,5 @@
 // Design: docs/architecture/mrt.md — MRT record filtering
+// RFC: rfc/short/rfc6396.md -- per-record-type AS width (Sections 4.2, 4.3.4, 4.4.2, 4.4.3)
 
 package analyze
 
@@ -216,7 +217,7 @@ func runFilter(args []string) int {
 				return nil
 			}
 			if opts.asPathRe != nil || opts.communityRe != nil {
-				if !matchMessageContent(m, mrt.IsAS4Subtype(h.Subtype), opts) {
+				if !matchMessageContent(m, mrt.ASPathIsFourByte(h.Type, h.Subtype), opts) {
 					pendingData = nil
 					return nil
 				}
@@ -259,7 +260,11 @@ func runFilter(args []string) int {
 				return nil
 			}
 			if opts.asPathRe != nil || opts.communityRe != nil {
-				if !matchAttrsContent(t.Attributes, true, opts) {
+				// TABLE_DUMP (type 12) is 2-byte AS (RFC 6396 Section 4.2).
+				// Hardcoding 4-byte here made ParseASPath overrun every record,
+				// matchASPath return false for all of them, and the run report
+				// "filtered 0/N records" with exit 0: silent total data loss.
+				if !matchAttrsContent(t.Attributes, mrt.ASPathIsFourByte(h.Type, h.Subtype), opts) {
 					pendingData = nil
 					return nil
 				}

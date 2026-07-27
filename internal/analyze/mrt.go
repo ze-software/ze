@@ -11,6 +11,7 @@ import (
 	"compress/bzip2"
 	"compress/gzip"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -29,14 +30,12 @@ const (
 	mrtBGP4MPET    = 17
 )
 
-// TABLE_DUMP_V2 subtypes.
+// TABLE_DUMP_V2 subtypes. The RIB subtypes are taken from internal/mrt rather
+// than respelled here: a second copy is a second thing to drift, and this file
+// already drifted once by omitting the RFC 8050 add-path subtypes (8-12), which
+// made forEachRIBEntry's add-path handling unreachable from every subcommand.
 const (
-	subtypePeerIndexTable   = 1
-	subtypeRIBIPv4Unicast   = 2
-	subtypeRIBIPv4Multicast = 3
-	subtypeRIBIPv6Unicast   = 4
-	subtypeRIBIPv6Multicast = 5
-	subtypeRIBGeneric       = 6
+	subtypePeerIndexTable = 1
 )
 
 // BGP4MP subtypes.
@@ -161,9 +160,17 @@ func readMRTRecords(r io.Reader, h mrtHandler) error {
 				if h.OnPeerIndex != nil {
 					h.OnPeerIndex(data)
 				}
-			case subtypeRIBIPv4Unicast, subtypeRIBIPv4Multicast,
-				subtypeRIBIPv6Unicast, subtypeRIBIPv6Multicast,
-				subtypeRIBGeneric:
+			// RFC 6396 Section 4.3 RIB subtypes plus the RFC 8050 add-path
+			// subtypes (8-12). The add-path ones were missing, so a dump from a
+			// collector with add-path enabled produced NO routes at all from
+			// count/dump/aspath/attributes/communities -- an empty analysis
+			// presented as a complete one, with exit 0.
+			case mrt.TDV2RIBIPv4Unicast, mrt.TDV2RIBIPv4Multicast,
+				mrt.TDV2RIBIPv6Unicast, mrt.TDV2RIBIPv6Multicast,
+				mrt.TDV2RIBGeneric,
+				mrt.TDV2RIBIPv4UnicastAP, mrt.TDV2RIBIPv4MulticastAP,
+				mrt.TDV2RIBIPv6UnicastAP, mrt.TDV2RIBIPv6MulticastAP,
+				mrt.TDV2RIBGenericAP:
 				if h.OnRIB != nil {
 					h.OnRIB(data, subtype)
 				}
@@ -182,6 +189,49 @@ func readMRTRecords(r io.Reader, h mrtHandler) error {
 		}
 	}
 	return nil
+}
+
+// errShortRIBRecord marks a TABLE_DUMP_V2 RIB record too short to carry the
+// sequence number, prefix length and prefix that RFC 6396 Section 4.3.2
+// requires. getRIBPrefix reports that as a nil slice, which on its own is
+// indistinguishable from "nothing to do".
+var errShortRIBRecord = errors.New("analyze: RIB record too short to carry a prefix")
+
+// damageTag renders a short, stable classification of a decode failure, for the
+// one-line-per-record surfaces where the full error would not fit.
+//
+// It matches on the exported sentinels rather than the message text, so a
+// reworded error can never silently reclassify a record
+// (ai/rules/error-messages.md: one stable leading phrase per failure kind).
+// The default arm is deliberately not "unknown": every arm names something an
+// operator can act on, and "damaged" is the honest fallback.
+func damageTag(err error) string {
+	switch {
+	case err == nil:
+		return "none"
+	case errors.Is(err, mrt.ErrShortData):
+		return "truncated"
+	case errors.Is(err, mrt.ErrBadAFI):
+		return "unsupported-afi"
+	default:
+		return "damaged"
+	}
+}
+
+// bgp4mpFourByteAS reports whether AS_PATH inside a BGP4MP record with this
+// subtype uses 4-byte AS numbers.
+//
+// readMRTRecords delivers OnBGP4MP for TypeBGP4MP and TypeBGP4MPET alike, and
+// RFC 6396 gives the two the same per-subtype AS width (mrt.ASPathIsFourByte
+// switches on subtype for both), so the subtype decides on its own and the
+// callback does not need to carry the record type.
+//
+// Every AS_PATH consumer in this package MUST reach the width through this
+// helper or mrt.ASPathIsFourByte. Hardcoding 4 bytes reads a 2-byte path
+// (subtypes 1 and 6) as half as many, twice-as-large, entirely fictitious ASNs
+// -- and the byte count alone cannot reveal the mistake.
+func bgp4mpFourByteAS(subtype uint16) bool {
+	return mrt.ASPathIsFourByte(mrt.TypeBGP4MP, subtype)
 }
 
 // extractBGP4MPUpdate extracts the UPDATE body and peer ASN from a BGP4MP record.
@@ -268,23 +318,6 @@ func iterateAttrs(attrs []byte, fn func(flags, typeCode uint8, value []byte)) {
 // countAttrs counts the number of attributes in a packed attribute section.
 func countAttrs(attrs []byte) int {
 	return len(mrt.ParseAttributes(attrs))
-}
-
-// countPackedPrefixes counts prefix entries in a packed NLRI field.
-// Format: repeated [prefix_len(1) + prefix_bytes(ceil(prefix_len/8))].
-func countPackedPrefixes(data []byte) int {
-	count := 0
-	off := 0
-	for off < len(data) {
-		prefixLen := int(data[off])
-		off++
-		off += (prefixLen + 7) / 8
-		if off > len(data) {
-			break
-		}
-		count++
-	}
-	return count
 }
 
 // parsePeerIndexTable parses a TABLE_DUMP_V2 PEER_INDEX_TABLE record.
@@ -405,8 +438,13 @@ func forEachRIBEntry(data []byte, subtype uint16, fn func(peerIndex uint16, attr
 	return nil
 }
 
-// malformedCounter tallies records that failed to decode, so a subcommand can
-// tell the operator the input is damaged instead of silently under-reporting.
+// malformedCounter tallies MRT records that failed to decode, so a subcommand
+// can tell the operator the input is damaged instead of silently
+// under-reporting.
+//
+// The noun is "record" rather than "RIB record" because both record kinds reach
+// it: RIB records via forEachRIBEntry, and BGP4MP UPDATE records via density's
+// NLRI counting. The zero value is ready to use.
 type malformedCounter struct {
 	records int
 }
@@ -417,13 +455,14 @@ func (m *malformedCounter) note(err error) {
 	}
 }
 
-// report writes a warning to w when any record failed to decode.
+// report writes a warning to w when any record failed to decode. Silent when
+// the input was clean, so a good run prints no noise.
 func (m *malformedCounter) report(w io.Writer) {
 	if m.records == 0 {
 		return
 	}
 	var tb textbuf.Buffer
-	tb.Str("warning: ").Int(int64(m.records)).Str(" malformed RIB record(s) skipped; results are incomplete\n")
+	tb.Str("warning: ").Int(int64(m.records)).Str(" malformed MRT record(s) skipped or partially decoded; results are incomplete\n")
 	wf(w, "%s", tb.Slice())
 }
 

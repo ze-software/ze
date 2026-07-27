@@ -7,6 +7,7 @@ package analyze
 import (
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"net"
 	"os"
 
@@ -66,6 +67,12 @@ func runRoutes(args []string) int {
 	enc := json.NewEncoder(os.Stdout)
 	var count int
 	var peerIndex *mrt.PeerIndexTable
+	// routes emits one JSON object per route to stdout. A route whose AS_PATH
+	// failed to decode is emitted with an EMPTY as-path, which a consumer reads
+	// as "originated locally" rather than "unreadable", so the count of damaged
+	// records has to reach the operator on stderr.
+	var damaged malformedCounter
+	defer damaged.report(os.Stderr)
 
 	handler := &mrt.Handler{
 		OnPeerIndex: func(_ mrt.Header, pit *mrt.PeerIndexTable) error {
@@ -81,7 +88,8 @@ func runRoutes(args []string) int {
 				}
 				count++
 				attrs := mrt.ParseAttributes(e.Attributes)
-				rec := buildRouteRecord(pfx, attrs, peerIndex, e.PeerIndex, fourByteAS)
+				rec, recErr := buildRouteRecord(pfx, attrs, peerIndex, e.PeerIndex, fourByteAS)
+				damaged.note(recErr)
 				_ = enc.Encode(rec)
 			}
 			return nil
@@ -98,8 +106,15 @@ func runRoutes(args []string) int {
 // buildRouteRecord assembles one output row. fourByteAS MUST come from the
 // enclosing MRT record type via mrt.ASPathIsFourByte (RFC 6396 fixes the AS
 // width per record type; it is not inferable from the attribute bytes).
-func buildRouteRecord(prefix string, attrs []mrt.PathAttribute, pit *mrt.PeerIndexTable, peerIdx uint16, fourByteAS bool) routeRecord {
+//
+// The returned error reports a field that could not be decoded. The record is
+// still returned and still emitted -- the prefix and next-hop are usable even
+// when the AS_PATH is not -- but the caller MUST count the error, because an
+// undecodable AS_PATH leaves as-path empty in the JSON and an empty as-path
+// means "locally originated" to every consumer.
+func buildRouteRecord(prefix string, attrs []mrt.PathAttribute, pit *mrt.PeerIndexTable, peerIdx uint16, fourByteAS bool) (routeRecord, error) {
 	rec := routeRecord{Prefix: prefix}
+	var damage error
 
 	// RIB entries carry the abbreviated MP_REACH_NLRI (RFC 6396 Section 4.3.4).
 	nh := mrt.ExtractNextHopRIB(attrs)
@@ -109,10 +124,11 @@ func buildRouteRecord(prefix string, attrs []mrt.PathAttribute, pit *mrt.PeerInd
 
 	if a := mrt.FindAttribute(attrs, mrt.AttrASPath); a != nil {
 		segs, err := mrt.ParseASPath(a.Value, fourByteAS)
-		if err == nil {
-			for _, seg := range segs {
-				rec.ASPath = append(rec.ASPath, seg.ASNs...)
-			}
+		if err != nil {
+			damage = fmt.Errorf("AS_PATH for %s: %w", prefix, err)
+		}
+		for _, seg := range segs {
+			rec.ASPath = append(rec.ASPath, seg.ASNs...)
 		}
 	}
 
@@ -180,5 +196,5 @@ func buildRouteRecord(prefix string, attrs []mrt.PathAttribute, pit *mrt.PeerInd
 		rec.PeerASN = p.ASN
 	}
 
-	return rec
+	return rec, damage
 }

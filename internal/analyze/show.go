@@ -48,6 +48,11 @@ func runShow(args []string) int {
 
 	var count int
 	var peerIndex *mrt.PeerIndexTable
+	// show renders one line per record, so a damaged record is easy to scroll
+	// past. The tally at the end is what tells the operator the dump they just
+	// read was not the whole file.
+	var damaged malformedCounter
+	defer damaged.report(os.Stderr)
 
 	handler := &mrt.Handler{
 		OnPeerIndex: func(_ mrt.Header, pit *mrt.PeerIndexTable) error {
@@ -87,10 +92,20 @@ func runShow(args []string) int {
 			count++
 			ts := time.Unix(int64(h.Timestamp), int64(usec)*1000)
 			peer := net.IP(m.PeerIP).String()
+			// ParseBGPMessage salvages: a damaged UPDATE still returns what
+			// decoded, alongside the error. Render that rather than collapsing
+			// the whole record to "[parse error]", which threw away every
+			// readable field and told the operator nothing about WHAT was wrong.
 			parsed, parseErr := mrt.ParseBGPMessage(m.BGPMessage)
 			if parseErr != nil {
-				os.Stdout.WriteString(ts.UTC().Format("15:04:05") + " " + peer + " [parse error]\n") //nolint:errcheck // output
-				return nil                                                                           //nolint:nilerr // skip unparseable records, continue iteration
+				damaged.note(parseErr)
+			}
+			if parsed == nil {
+				var tb textbuf.Buffer
+				tb.Str(ts.UTC().Format("15:04:05")).Byte(' ').Str(peer).
+					Str(" [unparseable: ").Str(damageTag(parseErr)).Str("] ").Err(parseErr).Byte('\n')
+				os.Stdout.WriteString(tb.Slice()) //nolint:errcheck // output
+				return nil                        //nolint:nilerr // skip unparseable records, continue iteration
 			}
 			showParsedMessage(ts, peer, m.PeerAS, parsed, mrt.ASPathIsFourByte(h.Type, h.Subtype))
 			return nil
@@ -130,16 +145,28 @@ func showParsedMessage(ts time.Time, peer string, peerAS uint32, parsed *mrt.Par
 		// The UPDATE's own withdrawn/NLRI fields are IPv4 only; every other
 		// family travels in MP_UNREACH/MP_REACH, so both must be counted or an
 		// IPv6 UPDATE renders with no prefix counts at all.
-		withdrawn := len(u.WithdrawnPrefixes) + mpUnreachCount(u.Attributes)
-		announced := len(u.AnnouncedPrefixes) + mpReachCount(u.Attributes)
-		if withdrawn > 0 {
+		mpW, wOK := mpUnreachCount(u.Attributes)
+		mpA, aOK := mpReachCount(u.Attributes)
+		withdrawn := len(u.WithdrawnPrefixes) + mpW
+		announced := len(u.AnnouncedPrefixes) + mpA
+		// A partial count is printed with a trailing '+' so it can never be read
+		// as an exact one: "A=3+" says at least 3 and the rest is unreadable.
+		// Printed even at zero when damaged -- "no A= field" is precisely the
+		// ambiguity this exists to remove.
+		if withdrawn > 0 || !wOK {
 			lb.Str("W=").Uint(uint64(withdrawn))
+			if !wOK {
+				lb.Byte('+')
+			}
 		}
-		if announced > 0 {
+		if announced > 0 || !aOK {
 			if lb.Len() > 0 {
 				lb.Byte(' ')
 			}
 			lb.Str("A=").Uint(uint64(announced))
+			if !aOK {
+				lb.Byte('+')
+			}
 		}
 		aspathStr := formatASPathFromAttrs(u.Attributes, fourByteAS)
 		if aspathStr != "" {
@@ -162,33 +189,41 @@ func showParsedMessage(ts time.Time, peer string, peerAS uint32, parsed *mrt.Par
 }
 
 // mpReachCount returns the number of prefixes announced via MP_REACH_NLRI
-// (RFC 4760 Section 3). A malformed attribute contributes nothing rather than
-// aborting the record: show renders one line per record and a damaged
-// attribute must not hide the rest of it.
-func mpReachCount(attrs []mrt.PathAttribute) int {
+// (RFC 4760 Section 3) and whether that count is COMPLETE.
+//
+// A malformed attribute still contributes the prefixes that decoded before the
+// damage rather than aborting the record: show renders one line per record and
+// a damaged attribute must not hide the rest of it. But it MUST NOT contribute
+// them as if they were the whole story -- returning a bare 0, as this did,
+// printed a cut IPv6 MP_REACH carrying 40 prefixes with no A= field at all,
+// indistinguishable from an UPDATE that announced nothing
+// (ai/rules/fail-closed-guards.md: a guard that neither denies nor speaks does
+// not exist). ok=false is what the caller renders the damage marker from.
+func mpReachCount(attrs []mrt.PathAttribute) (count int, ok bool) {
 	a := mrt.FindAttribute(attrs, mrt.AttrMPReachNLRI)
 	if a == nil {
-		return 0
+		return 0, true
 	}
 	mp, err := mrt.ParseMPReach(a.Value)
-	if err != nil {
-		return 0
+	if mp != nil {
+		count = len(mp.Prefixes)
 	}
-	return len(mp.Prefixes)
+	return count, err == nil
 }
 
 // mpUnreachCount returns the number of prefixes withdrawn via MP_UNREACH_NLRI
-// (RFC 4760 Section 4).
-func mpUnreachCount(attrs []mrt.PathAttribute) int {
+// (RFC 4760 Section 4) and whether that count is complete. Same contract as
+// mpReachCount.
+func mpUnreachCount(attrs []mrt.PathAttribute) (count int, ok bool) {
 	a := mrt.FindAttribute(attrs, mrt.AttrMPUnreachNLRI)
 	if a == nil {
-		return 0
+		return 0, true
 	}
 	mp, err := mrt.ParseMPUnreach(a.Value)
-	if err != nil {
-		return 0
+	if mp != nil {
+		count = len(mp.Prefixes)
 	}
-	return len(mp.Prefixes)
+	return count, err == nil
 }
 
 // formatASPathFromAttrs renders AS_PATH for display. fourByte MUST come from

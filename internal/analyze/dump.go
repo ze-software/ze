@@ -39,6 +39,11 @@ Examples:
 			OnRIB: func(data []byte, subtype uint16) {
 				nlri := getRIBPrefix(data)
 				if nlri == nil {
+					// A record too short to carry a prefix is damaged, not
+					// empty. Returning here without counting it emitted a
+					// short dump that looked complete -- the exact silence
+					// the counter exists to break.
+					damaged.note(errShortRIBRecord)
 					return
 				}
 				damaged.note(forEachRIBEntry(data, subtype, func(_ uint16, attrs []byte) {

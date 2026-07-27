@@ -245,6 +245,95 @@ func TestParsePrefixesAFI_SalvagesGoodEntriesBeforeDamage(t *testing.T) {
 	assert.Equal(t, netip.MustParsePrefix("192.168.0.0/16"), pfxs[1])
 }
 
+func TestParsePrefixesAFI_TruncatedPrefixIsReportedNotPadded(t *testing.T) {
+	// VALIDATES: a prefix whose declared byte length runs past the end of the
+	// NLRI returns mrt.ErrShortData and is NOT emitted, while the prefixes decoded
+	// before it survive.
+	// PREVENTS: the truncation branch going untested. The salvage test above
+	// exercises only the prefix-LENGTH ceiling, so replacing either
+	// mrt.ErrShortData return with a `break`, or with a clamp that zero-pads the
+	// short tail and appends it, left the whole suite green. A zero-padded
+	// prefix is IsValid(), so the fuzz invariant cannot catch it either: it
+	// enters the salvage list as a real-looking route that is not in the file.
+	// Truncation is the commonest shape of real MRT damage.
+	data := []byte{
+		8, 10, // 10.0.0.0/8
+		16, 192, 168, // 192.168.0.0/16
+		24, 172, 16, // claims /24 (3 octets) but only 2 follow
+	}
+	pfxs, err := mrt.ParsePrefixesAFI(data, mrt.AFIIPv4, false)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, mrt.ErrShortData)
+	require.Len(t, pfxs, 2, "the truncated prefix must NOT be emitted, padded or otherwise")
+	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/8"), pfxs[0])
+	assert.Equal(t, netip.MustParsePrefix("192.168.0.0/16"), pfxs[1])
+	assert.NotContains(t, pfxs, netip.MustParsePrefix("172.16.0.0/24"),
+		"a zero-padded reconstruction of the truncated prefix is a fabricated route")
+}
+
+func TestParsePrefixesAFI_TruncatedAddPathIdentifierIsReported(t *testing.T) {
+	// VALIDATES: NLRI that ends inside a 4-octet add-path Path Identifier
+	// (RFC 8050) returns mrt.ErrShortData with the prefixes decoded so far.
+	// PREVENTS: the second mrt.ErrShortData branch going untested; silently
+	// dropping the tail of an add-path dump.
+	data := []byte{
+		0, 0, 0, 7, // Path ID 7
+		8, 10, // 10.0.0.0/8
+		0, 0, // a second Path ID, cut short
+	}
+	pfxs, err := mrt.ParsePrefixesAFI(data, mrt.AFIIPv4, true)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, mrt.ErrShortData)
+	require.Len(t, pfxs, 1)
+	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/8"), pfxs[0])
+}
+
+func TestParseMPReach_SalvagesPrefixesBeforeDamage(t *testing.T) {
+	// VALIDATES: the salvage contract has a real implementation -- a damaged
+	// NLRI section returns the decoded prefixes AND the error.
+	// PREVENTS: the documented promise going unhonored. Every caller used to
+	// receive nil, so 500 good NLRIs followed by one truncated prefix lost all
+	// 500 (ai/rules/no-parking.md: honor the contract or delete it).
+	nh := netip.MustParseAddr("2001:db8::1").As16()
+	value := fullMPReach(mrt.AFIIPv6, 1, nh[:], []byte{
+		32, 0x20, 0x01, 0x0d, 0xb8, // 2001:db8::/32
+		48, 0x20, 0x01, // /48 claims 6 octets, 2 follow
+	})
+	mp, err := mrt.ParseMPReach(value)
+	require.Error(t, err)
+	require.NotNil(t, mp, "the partial attribute MUST be returned, not discarded")
+	assert.ErrorIs(t, err, mrt.ErrShortData)
+	require.Len(t, mp.Prefixes, 1)
+	assert.Equal(t, netip.MustParsePrefix("2001:db8::/32"), mp.Prefixes[0])
+	assert.Equal(t, mrt.AFIIPv6, mp.AFI)
+}
+
+func TestParseMPUnreach_SalvagesPrefixesBeforeDamage(t *testing.T) {
+	// VALIDATES: MP_UNREACH salvages the same way as MP_REACH.
+	// PREVENTS: an asymmetric contract between the two attributes.
+	value := []byte{
+		0, 2, // AFI IPv6
+		1,                          // SAFI unicast
+		32, 0x20, 0x01, 0x0d, 0xb8, // 2001:db8::/32
+		48, 0x20, 0x01, // truncated
+	}
+	mp, err := mrt.ParseMPUnreach(value)
+	require.Error(t, err)
+	require.NotNil(t, mp)
+	assert.ErrorIs(t, err, mrt.ErrShortData)
+	require.Len(t, mp.Prefixes, 1)
+}
+
+func TestParseMPReach_HeaderFailureReturnsNil(t *testing.T) {
+	// VALIDATES: a failure BEFORE the NLRI section still returns nil, because
+	// nothing was decoded.
+	// PREVENTS: the salvage change handing callers a half-built attribute whose
+	// AFI/SAFI were never read.
+	mp, err := mrt.ParseMPReach([]byte{0, 2})
+	require.Error(t, err)
+	assert.Nil(t, mp, "nothing decoded means nothing to salvage")
+}
+
 func TestASPathIsFourByte(t *testing.T) {
 	// VALIDATES: the AS_PATH width is derived from the MRT record type/subtype
 	// exactly as RFC 6396 mandates, never guessed from the attribute bytes.

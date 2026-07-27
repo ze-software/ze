@@ -203,27 +203,35 @@ func (b *readerCloser) Close() error               { return b.cls.Close() }
 
 func readRecords(r io.Reader, handler *Handler) error {
 	var hdrBuf [CommonHeaderLen]byte
+	// Record ordinal, 1-based, counting every record read from this stream.
+	// It is the only handle a user has on WHICH record failed: a decode error
+	// carries an offset inside the record's own fields, which on a multi-GB
+	// dump locates nothing (ai/rules/error-messages.md, "what to do next").
+	var ordinal uint64
 	for {
 		_, err := io.ReadFull(r, hdrBuf[:])
 		if err != nil {
 			if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 				return nil
 			}
-			return err
+			return fmt.Errorf("mrt: reading the header of record %d: %w", ordinal+1, err)
 		}
+		ordinal++
 
 		h, err := DecodeHeader(hdrBuf[:])
 		if err != nil {
-			return err
+			return fmt.Errorf("mrt: record %d header: %w", ordinal, err)
 		}
 
 		if h.Length > MaxRecordLen {
-			return fmt.Errorf("%w: %d bytes (type %d subtype %d)", ErrRecordTooLarge, h.Length, h.Type, h.Subtype)
+			return fmt.Errorf("%w: %d bytes (record %d, type %d subtype %d, timestamp %d)",
+				ErrRecordTooLarge, h.Length, ordinal, h.Type, h.Subtype, h.Timestamp)
 		}
 
 		data := make([]byte, h.Length)
 		if _, err := io.ReadFull(r, data); err != nil {
-			return fmt.Errorf("mrt: truncated record (type %d subtype %d): %w", h.Type, h.Subtype, err)
+			return fmt.Errorf("mrt: truncated record %d (type %d subtype %d, timestamp %d): %w",
+				ordinal, h.Type, h.Subtype, h.Timestamp, err)
 		}
 
 		var microsecond uint32
@@ -235,12 +243,14 @@ func readRecords(r io.Reader, handler *Handler) error {
 
 		if handler.OnHeader != nil {
 			if err := handler.OnHeader(h, microsecond, data); err != nil {
-				return err
+				return fmt.Errorf("mrt: record %d (type %d subtype %d, timestamp %d): %w",
+					ordinal, h.Type, h.Subtype, h.Timestamp, err)
 			}
 		}
 
 		if err := dispatch(h, microsecond, msgData, handler); err != nil {
-			return err
+			return fmt.Errorf("mrt: record %d (type %d subtype %d, timestamp %d): %w",
+				ordinal, h.Type, h.Subtype, h.Timestamp, err)
 		}
 	}
 }

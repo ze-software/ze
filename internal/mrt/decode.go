@@ -9,9 +9,16 @@ import (
 	"math"
 )
 
+// Exported so a caller can tell the failure kinds apart with errors.Is instead
+// of matching on message text. internal/analyze needs exactly that: a truncated
+// NLRI (ErrShortData) is a damaged record it should count and keep going on,
+// while an unrecognized address family (ErrBadAFI) means the record is not one
+// it understands at all.
 var (
-	errShortData = errors.New("mrt: short data")
-	errBadAFI    = errors.New("mrt: unsupported address family")
+	// ErrShortData reports input that ends before a field the format requires.
+	ErrShortData = errors.New("mrt: short data")
+	// ErrBadAFI reports an Address Family Identifier this decoder does not handle.
+	ErrBadAFI = errors.New("mrt: unsupported address family")
 )
 
 // Header is the MRT common header (RFC 6396 Section 2).
@@ -82,13 +89,13 @@ func ipSize(afi uint16) (int, error) {
 	case AFIIPv6:
 		return 16, nil
 	}
-	return 0, fmt.Errorf("%w: %d", errBadAFI, afi)
+	return 0, fmt.Errorf("%w: %d", ErrBadAFI, afi)
 }
 
 // DecodeHeader parses a 12-byte MRT common header.
 func DecodeHeader(data []byte) (Header, error) {
 	if len(data) < CommonHeaderLen {
-		return Header{}, fmt.Errorf("header: %w (have %d, need %d)", errShortData, len(data), CommonHeaderLen)
+		return Header{}, fmt.Errorf("header: %w (have %d, need %d)", ErrShortData, len(data), CommonHeaderLen)
 	}
 	return Header{
 		Timestamp: binary.BigEndian.Uint32(data[0:4]),
@@ -102,7 +109,7 @@ func DecodeHeader(data []byte) (Header, error) {
 // common header in _ET type records (RFC 6396 Section 3).
 func DecodeMicrosecond(data []byte) (uint32, error) {
 	if len(data) < ExtTimestampLen {
-		return 0, fmt.Errorf("microsecond: %w (have %d, need %d)", errShortData, len(data), ExtTimestampLen)
+		return 0, fmt.Errorf("microsecond: %w (have %d, need %d)", ErrShortData, len(data), ExtTimestampLen)
 	}
 	return binary.BigEndian.Uint32(data[0:4]), nil
 }
@@ -110,7 +117,7 @@ func DecodeMicrosecond(data []byte) (uint32, error) {
 // DecodePeerIndexTable parses a TABLE_DUMP_V2 PEER_INDEX_TABLE message body.
 func DecodePeerIndexTable(data []byte) (*PeerIndexTable, error) {
 	if len(data) < 8 {
-		return nil, fmt.Errorf("peer index table: %w (have %d, need >=8)", errShortData, len(data))
+		return nil, fmt.Errorf("peer index table: %w (have %d, need >=8)", ErrShortData, len(data))
 	}
 
 	pit := &PeerIndexTable{}
@@ -119,7 +126,7 @@ func DecodePeerIndexTable(data []byte) (*PeerIndexTable, error) {
 	viewNameLen := int(binary.BigEndian.Uint16(data[4:6]))
 	off := 6
 	if off+viewNameLen > len(data) {
-		return nil, fmt.Errorf("peer index table view name: %w", errShortData)
+		return nil, fmt.Errorf("peer index table view name: %w", ErrShortData)
 	}
 	if viewNameLen > 0 {
 		pit.ViewName = string(data[off : off+viewNameLen])
@@ -127,7 +134,7 @@ func DecodePeerIndexTable(data []byte) (*PeerIndexTable, error) {
 	off += viewNameLen
 
 	if off+2 > len(data) {
-		return nil, fmt.Errorf("peer index table peer count: %w", errShortData)
+		return nil, fmt.Errorf("peer index table peer count: %w", ErrShortData)
 	}
 	peerCount := int(binary.BigEndian.Uint16(data[off : off+2]))
 	off += 2
@@ -135,13 +142,13 @@ func DecodePeerIndexTable(data []byte) (*PeerIndexTable, error) {
 	pit.Peers = make([]PeerEntry, 0, peerCount)
 	for i := range peerCount {
 		if off >= len(data) {
-			return nil, fmt.Errorf("peer entry %d: %w", i, errShortData)
+			return nil, fmt.Errorf("peer entry %d: %w", i, ErrShortData)
 		}
 		pe := PeerEntry{Type: data[off]}
 		off++
 
 		if off+4 > len(data) {
-			return nil, fmt.Errorf("peer entry %d bgp id: %w", i, errShortData)
+			return nil, fmt.Errorf("peer entry %d bgp id: %w", i, ErrShortData)
 		}
 		copy(pe.BGPID[:], data[off:off+4])
 		off += 4
@@ -151,7 +158,7 @@ func DecodePeerIndexTable(data []byte) (*PeerIndexTable, error) {
 			ipLen = 16
 		}
 		if off+ipLen > len(data) {
-			return nil, fmt.Errorf("peer entry %d ip: %w", i, errShortData)
+			return nil, fmt.Errorf("peer entry %d ip: %w", i, ErrShortData)
 		}
 		pe.IP = make([]byte, ipLen)
 		copy(pe.IP, data[off:off+ipLen])
@@ -162,7 +169,7 @@ func DecodePeerIndexTable(data []byte) (*PeerIndexTable, error) {
 			asLen = 4
 		}
 		if off+asLen > len(data) {
-			return nil, fmt.Errorf("peer entry %d as: %w", i, errShortData)
+			return nil, fmt.Errorf("peer entry %d as: %w", i, ErrShortData)
 		}
 		if asLen == 4 {
 			pe.ASN = binary.BigEndian.Uint32(data[off : off+4])
@@ -181,7 +188,7 @@ func DecodePeerIndexTable(data []byte) (*PeerIndexTable, error) {
 // (subtypes 2-5 and add-path 8-11).
 func DecodeRIBRecord(subtype uint16, data []byte) (*RIBRecord, error) {
 	if len(data) < 5 {
-		return nil, fmt.Errorf("rib record: %w (have %d, need >=5)", errShortData, len(data))
+		return nil, fmt.Errorf("rib record: %w (have %d, need >=5)", ErrShortData, len(data))
 	}
 
 	rec := &RIBRecord{
@@ -192,14 +199,14 @@ func DecodeRIBRecord(subtype uint16, data []byte) (*RIBRecord, error) {
 
 	prefixBytes := int((rec.PrefixLength + 7) / 8)
 	if off+prefixBytes > len(data) {
-		return nil, fmt.Errorf("rib record prefix: %w", errShortData)
+		return nil, fmt.Errorf("rib record prefix: %w", ErrShortData)
 	}
 	rec.Prefix = make([]byte, prefixBytes)
 	copy(rec.Prefix, data[off:off+prefixBytes])
 	off += prefixBytes
 
 	if off+2 > len(data) {
-		return nil, fmt.Errorf("rib record entry count: %w", errShortData)
+		return nil, fmt.Errorf("rib record entry count: %w", ErrShortData)
 	}
 	entryCount := binary.BigEndian.Uint16(data[off : off+2])
 	off += 2
@@ -217,7 +224,7 @@ func DecodeRIBRecord(subtype uint16, data []byte) (*RIBRecord, error) {
 // DecodeRIBGenericRecord parses a TABLE_DUMP_V2 RIB_GENERIC record (subtypes 6 and 12).
 func DecodeRIBGenericRecord(subtype uint16, data []byte) (*RIBGenericRecord, error) {
 	if len(data) < 7 {
-		return nil, fmt.Errorf("rib generic: %w (have %d, need >=7)", errShortData, len(data))
+		return nil, fmt.Errorf("rib generic: %w (have %d, need >=7)", ErrShortData, len(data))
 	}
 
 	rec := &RIBGenericRecord{
@@ -234,25 +241,25 @@ func DecodeRIBGenericRecord(subtype uint16, data []byte) (*RIBGenericRecord, err
 	nlriStart := off
 	if subtype == TDV2RIBGenericAP {
 		if off+4 >= len(data) {
-			return nil, fmt.Errorf("rib generic addpath nlri: %w", errShortData)
+			return nil, fmt.Errorf("rib generic addpath nlri: %w", ErrShortData)
 		}
 		off += 4 // skip Path ID to reach prefix length
 	}
 	if off >= len(data) {
-		return nil, fmt.Errorf("rib generic nlri: %w", errShortData)
+		return nil, fmt.Errorf("rib generic nlri: %w", ErrShortData)
 	}
 	nlriPrefixLen := data[off]
 	nlriBytes := (off - nlriStart) + 1 + int((nlriPrefixLen+7)/8)
 
 	if nlriStart+nlriBytes > len(data) {
-		return nil, fmt.Errorf("rib generic nlri data: %w", errShortData)
+		return nil, fmt.Errorf("rib generic nlri data: %w", ErrShortData)
 	}
 	rec.NLRI = make([]byte, nlriBytes)
 	copy(rec.NLRI, data[nlriStart:nlriStart+nlriBytes])
 	off = nlriStart + nlriBytes
 
 	if off+2 > len(data) {
-		return nil, fmt.Errorf("rib generic entry count: %w", errShortData)
+		return nil, fmt.Errorf("rib generic entry count: %w", ErrShortData)
 	}
 	entryCount := binary.BigEndian.Uint16(data[off : off+2])
 	off += 2
@@ -282,7 +289,7 @@ func DecodeRIBEntries(data []byte, count uint16, addPath bool) ([]RIBEntry, erro
 		minLen += 2 // Attribute Length
 
 		if off+minLen > len(data) {
-			return nil, fmt.Errorf("rib entry %d: %w (have %d, need >=%d)", i, errShortData, len(data)-off, minLen)
+			return nil, fmt.Errorf("rib entry %d: %w (have %d, need >=%d)", i, ErrShortData, len(data)-off, minLen)
 		}
 
 		e := RIBEntry{
@@ -300,7 +307,7 @@ func DecodeRIBEntries(data []byte, count uint16, addPath bool) ([]RIBEntry, erro
 		off += 2
 
 		if off+attrLen > len(data) {
-			return nil, fmt.Errorf("rib entry %d attrs: %w (have %d, need %d)", i, errShortData, len(data)-off, attrLen)
+			return nil, fmt.Errorf("rib entry %d attrs: %w (have %d, need %d)", i, ErrShortData, len(data)-off, attrLen)
 		}
 		e.Attributes = make([]byte, attrLen)
 		copy(e.Attributes, data[off:off+attrLen])
@@ -337,7 +344,7 @@ func DecodeBGP4MPStateChange(subtype uint16, data []byte) (*StateChangeRecord, e
 	}
 
 	if off+4 > len(data) {
-		return nil, fmt.Errorf("bgp4mp state change states: %w", errShortData)
+		return nil, fmt.Errorf("bgp4mp state change states: %w", ErrShortData)
 	}
 
 	return &StateChangeRecord{
@@ -359,7 +366,7 @@ func decodeBGP4MPHeader(subtype uint16, data []byte) (BGP4MPHeader, int, error) 
 	// AS fields (2 or 4 each) + Interface Index (2) + Address Family (2)
 	minHdr := asLen*2 + 4
 	if len(data) < minHdr {
-		return BGP4MPHeader{}, 0, fmt.Errorf("bgp4mp header: %w (have %d, need >=%d)", errShortData, len(data), minHdr)
+		return BGP4MPHeader{}, 0, fmt.Errorf("bgp4mp header: %w (have %d, need >=%d)", ErrShortData, len(data), minHdr)
 	}
 
 	off := 0
@@ -388,7 +395,7 @@ func decodeBGP4MPHeader(subtype uint16, data []byte) (BGP4MPHeader, int, error) 
 	}
 
 	if off+ipLen*2 > len(data) {
-		return BGP4MPHeader{}, 0, fmt.Errorf("bgp4mp header ips: %w", errShortData)
+		return BGP4MPHeader{}, 0, fmt.Errorf("bgp4mp header ips: %w", ErrShortData)
 	}
 
 	hdr.PeerIP = make([]byte, ipLen)
@@ -414,7 +421,7 @@ func DecodeTableDump(subtype uint16, data []byte) (*TableDumpRecord, error) {
 	// OrigTime(4) + PeerIP(ipLen) + PeerAS(2) + AttrLength(2)
 	minLen := 2 + 2 + ipLen + 1 + 1 + 4 + ipLen + 2 + 2
 	if len(data) < minLen {
-		return nil, fmt.Errorf("table dump: %w (have %d, need >=%d)", errShortData, len(data), minLen)
+		return nil, fmt.Errorf("table dump: %w (have %d, need >=%d)", ErrShortData, len(data), minLen)
 	}
 
 	rec := &TableDumpRecord{}
@@ -448,7 +455,7 @@ func DecodeTableDump(subtype uint16, data []byte) (*TableDumpRecord, error) {
 	off += 2
 
 	if off+attrLen > len(data) {
-		return nil, fmt.Errorf("table dump attrs: %w (have %d, need %d)", errShortData, len(data)-off, attrLen)
+		return nil, fmt.Errorf("table dump attrs: %w (have %d, need %d)", ErrShortData, len(data)-off, attrLen)
 	}
 	rec.Attributes = make([]byte, attrLen)
 	copy(rec.Attributes, data[off:off+attrLen])
@@ -460,7 +467,7 @@ func DecodeTableDump(subtype uint16, data []byte) (*TableDumpRecord, error) {
 func DecodeGeoPeerTable(data []byte) (*GeoPeerTable, error) {
 	// CollectorBGPID(4) + Lat(4) + Lon(4) + PeerCount(2) = 14
 	if len(data) < 14 {
-		return nil, fmt.Errorf("geo peer table: %w (have %d, need >=14)", errShortData, len(data))
+		return nil, fmt.Errorf("geo peer table: %w (have %d, need >=14)", ErrShortData, len(data))
 	}
 
 	gpt := &GeoPeerTable{}
@@ -475,7 +482,7 @@ func DecodeGeoPeerTable(data []byte) (*GeoPeerTable, error) {
 	for i := range peerCount {
 		// Type(1) + BGPID(4) + Lat(4) + Lon(4) = 13
 		if off+13 > len(data) {
-			return nil, fmt.Errorf("geo peer entry %d: %w", i, errShortData)
+			return nil, fmt.Errorf("geo peer entry %d: %w", i, ErrShortData)
 		}
 
 		ge := GeoPeerEntry{
