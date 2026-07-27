@@ -264,3 +264,58 @@ is added. **CORRECTION (2026-07-20): `evidence-pipeline-dryrun` DOES NOT EXIST.*
 - Citation drift corrected vs the audit note: the depended-on spec is `in-progress` (not `ready`), and its `ze-release-evidence` target already EXISTS at `mk/test-release.mk:83`; what is missing is the scheduler, which this spec supplies.
 - Open question for Thomas: does the Woodpecker runner have QEMU + privileged Docker for a nightly heavy run, or should the first scheduled pipeline be limited to `ze-fuzz-test` + the non-QEMU `ze-integration-test` subset until a capable runner exists?
   → AUTONOMOUS DEFAULT (2026-07-17): Limit the FIRST scheduled pipeline to `ze-fuzz-test` (pure Go fuzz, no privileges) + the non-QEMU `ze-integration-test` subset (`mk/test-integration.mk:106`), advisory / non-blocking. Do NOT include `ze-qemu-integration-test` (`mk/test-integration.mk:321`) in the first cut. Add the heavy QEMU run as a FOLLOW-UP gated on a QEMU-capable runner being confirmed to exist -- either `ze-qemu-integration-test` directly, or switch the step to the full `ze-release-evidence` composite (`mk/test-release.mk:83`), which already self-skips QEMU/Docker/interop categories via its `has_qemu`/`has_docker` probes (`run_if_qemu`/`run_if_docker`) and `ZE_RELEASE_SKIP`. Rationale: the repo documents no runner capability today (zero cron and zero QEMU config anywhere under `.woodpecker/`); the conservative scope guarantees the pipeline can actually run and start catching heavy-suite regressions next-day immediately, while QEMU (nested virt / KVM) is the single hardest, least-portable requirement and therefore the right thing to defer. GROUNDING NOTE: even the non-QEMU `ze-integration-test` subset requires CAP_NET_ADMIN / CAP_NET_BIND_SERVICE (`mk/test-integration.mk:87-105` recipe comments), so the pipeline step must run with those capabilities granted (privileged container or `cap_add`; this is what A-1 tracks); if the runner cannot grant them either, fall back to `ze-fuzz-test` alone for the first cut. Thomas: override if the runner already has QEMU + privileged Docker and you want the full heavy matrix on night one.
+
+## Implementation Audit
+
+| Requirement | Status | Evidence |
+|-------------|--------|----------|
+| AC-1 nightly is scheduled; not on push/PR | Done | `.github/workflows/evidence-nightly.yml:32-35` -- `on: schedule: cron "17 3 * * *"` plus `workflow_dispatch`, no push/pull_request trigger |
+| AC-2 runs fuzz + non-QEMU integration BY TARGET NAME | Done | `evidence-nightly.yml:60` (`make ze-fuzz-test`), `:87` (`make ze-integration-test` under sudo). Both targets exist: `mk/test-fuzz-targets.mk:7`, `mk/test-integration.mk:106` |
+| AC-3 advisory: a red does not block main | Done | `evidence-nightly.yml:43` and `:64` -- `continue-on-error: true` on both jobs |
+| AC-4 the fast merge gate is unchanged | Done | `.github/workflows/verify.yml:17-19` (push + pull_request), `:70` (the verify target); no heavy suite added |
+| AC-5 discovery updated so the rail is findable | Done | `ai/rules/qemu-testing.md` "What actually RUNS these suites" -- suite / pipeline / blocking table |
+| AC-6 QEMU suites run in an automated pipeline | Deferred | Runner-gated, not code-gated: GitHub-hosted runners do not reliably provide nested virt/KVM. Homed as a live deferral row at `plan/deferrals/fixit-ci-schedule-evidence.md` pointing at `plan/spec-release-evidence-gate.md` |
+
+## Goal Validation
+
+| Goal | Evidence |
+|------|----------|
+| Heavy suites actually execute on a schedule, rather than existing as make targets nobody runs | The nightly invokes both targets by NAME (registration over hardcoding), so a renamed or deleted target fails `TestWorkflowMakeTargetsExist` rather than silently running nothing |
+| A nightly red is visible without blocking merges | Both jobs are `continue-on-error: true`; the failing category is reported in the run summary |
+| The claim "these suites run" is enforced, not asserted | Seven guards in `scripts/dev/github_workflows_test.go` pin the workflow shapes, and they RUN: the verify target's cached unit stage expands `ZE_PACKAGES` (`Makefile:106`) to `go list ./...`, which includes `scripts/dev` |
+| The QEMU gap is self-announcing rather than silently forgotten | `TestEvidenceNightlyRunsFuzzAndIntegration` FAILS if `ze-qemu-integration-test` is added to the nightly, so the follow-up cannot land without also updating the guard |
+
+## Review Gate
+
+| Round | Reviewer | Findings | Resolution |
+|-------|----------|----------|------------|
+| 1 | Independent audit subagent (2026-07-27) | AC-1..AC-5 VERIFIED against producing files; AC-6 bookkeeping gap (no deferral row, though `plan/learned/1253` required one); spec missing its closure sections; a stale `.woodpecker/verify.yml` citation in `docs/research/comparison/comparison-oss-nos.md` | Deferral row created (`plan/deferrals/fixit-ci-schedule-evidence.md`, homed at `spec-release-evidence-gate`); closure sections added by this edit; stale citation repointed to `.github/workflows/verify.yml:57-64` |
+
+Final status: 0 BLOCKER, 0 ISSUE. The feature was already complete and enforced; every
+finding was bookkeeping or a stale doc reference, and all are resolved.
+
+## Pre-Commit Verification
+
+### Files Exist
+| File | Verified |
+|------|----------|
+| `.github/workflows/evidence-nightly.yml` | present; `on:` block carries `schedule` + `workflow_dispatch` only |
+| `scripts/dev/github_workflows_test.go` | present; 7 guard tests, run under the cached unit stage |
+| `plan/deferrals/fixit-ci-schedule-evidence.md` | present; one live row for AC-6 |
+
+### AC Verified
+| AC | Re-verified independently of the audit table |
+|----|---------------------------------------------|
+| AC-1..AC-5 | Read from the workflow YAML and the guard test file directly, not inferred from Makefile target names |
+| AC-6 | Confirmed ABSENT from the nightly on purpose, and now homed |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | The guard tests are reached by the ordinary unit stage: `ZE_PACKAGES` is `go list ./...` (`Makefile:106`), which includes `scripts/dev`. That is what stops them being tests nobody executes -- the failure mode this spec exists to prevent, applied to its own guards |
+
+### Documentation Verified
+| Claim | Verified |
+|-------|----------|
+| `ai/rules/qemu-testing.md` "What actually RUNS these suites" | Table present and accurate: it states plainly that `ze-qemu-integration-test` is run by NOTHING automated, which is the honest version of AC-6 rather than a claim that it is covered |
+| `docs/research/comparison/comparison-oss-nos.md` lint-gate evidence | Repointed from the deleted `.woodpecker/verify.yml` to `.github/workflows/verify.yml:57-64`, which installs golangci-lint and agent-browser |
