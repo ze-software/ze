@@ -586,10 +586,19 @@ func (f *FSM) handleEstablished(event Event) error {
 		// management is handled externally.
 		//
 		// A second OPEN received on an established connection (EventBGPOpen) also
-		// lands here: RFC 4271 Section 8.2.2 treats it as a Finite State Machine
-		// Error. The reactor keys its NOTIFICATION (code 5) + close on the FSM
-		// state before firing the event; this sentinel lets logFSMEvent record
-		// the rejected transition as well.
+		// lands here, and the reactor DOES rely on that: handleOpen's state gate
+		// (reactor/session_handlers.go) fires this event so the session leaves
+		// Established, which is what drives the peer-closed cascade. Without it
+		// the socket would close while the FSM still read Established.
+		//
+		// The NOTIFICATION it sends is a Cease (code 6), NOT a Finite State
+		// Machine Error (code 5) as this comment previously said. RFC 4271
+		// Section 8.2.2 excludes Event 19 from the FSM-Error branch in both
+		// states that can see it -- Established scopes that branch to "Events 9,
+		// 12-13, 20-22", OpenConfirm to "Events 9, 12-13, 20, 27-28" -- and
+		// routes it through collision detection, whose termination action is
+		// "sends a NOTIFICATION with a Cease". Landing in this default arm is
+		// how the state reaches Idle; it is not a claim that the wire code is 5.
 		f.change(StateIdle)
 		return ErrFSMError
 	}

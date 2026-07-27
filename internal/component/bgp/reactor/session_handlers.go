@@ -39,6 +39,48 @@ func (s *Session) handleUnknownType(msgType msgtype.MessageType) error {
 
 // handleOpen processes a received OPEN message.
 func (s *Session) handleOpen(body []byte) error {
+	// An OPEN is only legitimate while we are WAITING for the peer's OPEN. Once
+	// we have one, a further OPEN on the SAME connection must not be processed:
+	// without this gate handleOpen runs the whole path again on a live session,
+	// overwriting s.peerOpen and calling negotiateWith, so a peer could silently
+	// change the negotiated capability set (families, AddPath, ASN4) mid-session
+	// on an already-established peering.
+	//
+	// RFC 4271 Section 8.2.2 never routes BGPOpen (Event 19) to the FSM-Error
+	// branch: in Established that branch is scoped to "Events 9, 12-13, 20-22"
+	// and in OpenConfirm to "Events 9, 12-13, 20, 27-28". Both states instead
+	// send Event 19 through collision detection, whose termination action is
+	// "sends a NOTIFICATION with a Cease". So Cease is the code, not FSM Error.
+	//
+	// Honest about the edge: Section 6.8 collision detection is written for two
+	// DIFFERENT connections, so a second OPEN on one connection is not literally
+	// a collision and RFC 4271 does not name an action for it. Cease is chosen
+	// because it is what Section 8.2.2 associates with terminating on Event 19
+	// in exactly these two states. What is NOT defensible either way is silently
+	// re-negotiating, which is what happened before this gate.
+	if state := s.fsm.State(); state == fsm.StateEstablished || state == fsm.StateOpenConfirm {
+		s.mu.RLock()
+		conn := s.conn
+		s.mu.RUnlock()
+		s.logNotifyErr(conn, message.NotifyCease, 0, nil)
+		// MUST fire the FSM event, not just close the socket. Section 8.2.2's
+		// action list for terminating on Event 19 is not only the NOTIFICATION:
+		// it also "deletes all routes associated with this connection",
+		// "releases all BGP resources" and "changes its state to Idle". In this
+		// reactor all three hang off the FSM transition, not off closeConn:
+		// peer_run.go's `from == fsm.StateEstablished` branch is what calls
+		// stopBFDClient, raiseSessionDropped and notifyPeerClosed, and
+		// notifyPeerClosed is the sole producer of the SessionStateDown that
+		// makes adj_rib_in drop the peer's stored routes and clear peerUp.
+		// Returning here without it would leave a dead peer marked up with its
+		// routes retained, and replay them on reconnect. EventBGPOpen lands in
+		// the Established/OpenConfirm default arm, which changes state to Idle
+		// and returns the ErrFSMError sentinel that logFSMEvent records.
+		s.logFSMEvent(fsm.EventBGPOpen)
+		s.closeConn()
+		return fmt.Errorf("%w: OPEN received in %s", ErrInvalidState, state)
+	}
+
 	if s.onOpenRecv != nil {
 		s.onOpenRecv()
 	}

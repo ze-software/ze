@@ -501,6 +501,142 @@ func TestHandleRouteRefresh_NonNegotiatedFamily(t *testing.T) {
 	assert.NoError(t, err) // Silently ignored
 }
 
+// VALIDATES: a second OPEN arriving on an ALREADY-ESTABLISHED connection is
+// refused with NOTIFICATION Cease and the connection closed, instead of being
+// processed as if the session were still negotiating.
+// PREVENTS: silent mid-session re-negotiation. handleOpen had no state gate, so
+// an OPEN on a live session re-ran the whole path: it overwrote s.peerOpen and
+// called negotiateWith, letting a peer change the agreed capability set (here
+// AddPath, but equally families or ASN4) on an established peering. The second
+// assertion is the load-bearing one -- checking only that a NOTIFICATION was
+// sent would still pass if the capabilities had been swapped first.
+//
+// RFC 4271 Section 8.2.2 excludes BGPOpen (Event 19) from the FSM-Error branch
+// in both Established ("Events 9, 12-13, 20-22") and OpenConfirm ("Events 9,
+// 12-13, 20, 27-28"), routing it through collision detection, whose termination
+// action is a NOTIFICATION with a Cease. Hence Cease (6), not FSM Error (5).
+func TestSecondOpenOnEstablishedSessionIsRefused(t *testing.T) {
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
+	settings.Connection = ConnectionPassive
+	settings.ReceiveHoldTime = 90 * time.Second
+	settings.Capabilities = []capability.Capability{
+		&capability.ASN4{ASN: 65001},
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+	}
+
+	session := NewSession(settings)
+	require.NoError(t, session.Start())
+
+	client, server := net.Pipe()
+	_ = acceptWithReader(t, session, server, client)
+
+	peerOpen := &message.Open{
+		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
+		OptionalParams: []byte{
+			0x02, 0x06, 0x41, 0x04, 0x00, 0x00, 0xFD, 0xEA, // ASN4
+			0x02, 0x06, 0x01, 0x04, 0x00, 0x01, 0x00, 0x01, // IPv4/Unicast
+		},
+	}
+	// Everything ze writes is captured rather than discarded: the NOTIFICATION
+	// code is part of what this test proves, and a plain drain would swallow it.
+	fromZe := make(chan []byte, 16)
+	go func() {
+		defer close(fromZe)
+		buf := make([]byte, 65536)
+		for {
+			n, readErr := client.Read(buf)
+			if readErr != nil {
+				return
+			}
+			msg := make([]byte, n)
+			copy(msg, buf[:n])
+			fromZe <- msg
+		}
+	}()
+	go func() {
+		if _, writeErr := client.Write(message.PackTo(peerOpen, nil)); writeErr != nil {
+			return
+		}
+	}()
+	require.NoError(t, session.ReadAndProcess())
+
+	go func() {
+		if _, writeErr := client.Write(message.PackTo(message.NewKeepalive(), nil)); writeErr != nil {
+			return
+		}
+	}()
+	require.NoError(t, session.ReadAndProcess())
+	require.Equal(t, fsm.StateEstablished, session.State())
+
+	session.mu.RLock()
+	negotiatedBefore := session.negotiated
+	session.mu.RUnlock()
+	require.NotNil(t, negotiatedBefore, "precondition: capabilities negotiated at establishment")
+
+	// A second OPEN on the SAME connection, now advertising AddPath, which the
+	// first OPEN did not carry. If handleOpen re-processes it, the negotiated
+	// set silently changes underneath an established session.
+	secondOpen := &message.Open{
+		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
+		OptionalParams: []byte{
+			0x02, 0x06, 0x41, 0x04, 0x00, 0x00, 0xFD, 0xEA, // ASN4
+			0x02, 0x06, 0x01, 0x04, 0x00, 0x01, 0x00, 0x01, // IPv4/Unicast
+			0x02, 0x06, 0x45, 0x04, 0x00, 0x01, 0x01, 0x03, // AddPath IPv4/Unicast send+recv
+		},
+	}
+	go func() {
+		if _, writeErr := client.Write(message.PackTo(secondOpen, nil)); writeErr != nil {
+			return
+		}
+	}()
+	err := session.ReadAndProcess()
+
+	// Checked BEFORE the error assertions on purpose. The FSM does eventually
+	// reject the event either way, so asserting the error first would abort the
+	// test on a fatal and hide whether the capability set had already been
+	// rebuilt by then -- which is the actual defect, and the thing that stayed
+	// invisible before this gate existed.
+	session.mu.RLock()
+	negotiatedAfter := session.negotiated
+	session.mu.RUnlock()
+	assert.Same(t, negotiatedBefore, negotiatedAfter,
+		"negotiated capabilities must not be rebuilt by an OPEN on an established session")
+
+	// The FSM MUST leave Established. Section 8.2.2's action list for
+	// terminating on Event 19 says "changes its state to Idle", and in this
+	// reactor that transition is what drives the whole peer-closed cascade:
+	// peer_run.go's `from == fsm.StateEstablished` branch owns stopBFDClient,
+	// raiseSessionDropped and notifyPeerClosed, and notifyPeerClosed is the only
+	// producer of the SessionStateDown that makes adj_rib_in clear peerUp and
+	// drop the peer's stored routes. Closing the socket without the transition
+	// leaves a dead peer marked up whose routes are replayed on reconnect --
+	// which is exactly what the first version of this fix did.
+	assert.NotEqual(t, fsm.StateEstablished, session.State(),
+		"session must leave Established so the peer-closed cascade runs")
+
+	require.Error(t, err, "a second OPEN on an established session must be refused")
+	require.ErrorIs(t, err, ErrInvalidState)
+
+	// Cease (6), per Section 8.2.2's Event 19 termination action. Asserted on
+	// the WIRE: without this the comment argues for Cease over FSM Error while
+	// nothing stops the code sending either.
+	var notification []byte
+	for msg := range fromZe {
+		if len(msg) >= message.HeaderLen+2 && msg[message.HeaderLen-1] == byte(msgtype.TypeNOTIFICATION) {
+			notification = msg
+			break
+		}
+	}
+	require.NotNil(t, notification, "expected a NOTIFICATION on the wire")
+	assert.Equal(t, uint8(message.NotifyCease), notification[message.HeaderLen],
+		"RFC 4271 Section 8.2.2 terminates Event 19 with a Cease, not an FSM Error")
+
+	t.Cleanup(func() {
+		client.Close() //nolint:errcheck // test cleanup
+		server.Close() //nolint:errcheck // test cleanup
+	})
+}
+
 // TestHandleUpdate_FamilyMismatchIgnoreMode verifies IgnoreFamilyMismatch mode.
 // RFC 4760 Section 6: lenient mode logs but doesn't reject.
 func TestHandleUpdate_FamilyMismatchIgnoreMode(t *testing.T) {
