@@ -13,3 +13,8 @@
 -11
 -12
 -1
+# test/policy/006-reload.ci: the 0.5s post-boot "settle" and the 1.5s post-SIGHUP
+# "hold" became wait_rules(), a bounded poll on the nft ruleset. Net -1, not -2:
+# the helper keeps one poll-interval sleep, which is a granularity knob on a real
+# condition wait rather than a guessed duration.
+-1

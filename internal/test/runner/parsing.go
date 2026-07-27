@@ -76,6 +76,12 @@ type parsingTest struct {
 	// when the current GOOS is in the list.
 	SkipReason string
 
+	// ParseError marks a .ci file that could not be parsed at discovery time.
+	// Discover records the file as a permanent failure and continues, so one
+	// unparseable file fails loudly without aborting discovery of the rest of
+	// the suite. The runner short-circuits such tests without executing them.
+	ParseError error
+
 	// Results
 	Output string
 }
@@ -107,9 +113,27 @@ func (pt *ParsingTests) Discover(dir string) error {
 	sort.Strings(ciFiles)
 
 	for _, ciFile := range ciFiles {
+		// Skip-and-warn on a parse error rather than aborting discovery: one
+		// unparseable .ci file must not hide every other test in the directory.
+		// Aborting here is exactly what hid the whole test/ui suite -- discovery
+		// returned an error, zero tests ran, and the suite read as green. The bad
+		// file is still added as a permanent failure so it fails the suite loudly
+		// instead of silently taking its siblings with it
+		// (ai/rules/fail-closed-guards.md). Mirrors EncodingTests.Discover.
 		test, err := pt.parseCIFile(ciFile)
 		if err != nil {
-			return fmt.Errorf("parse %s: %w", ciFile, err)
+			recordLogger().Warn("unparseable .ci file recorded as failure; continuing discovery",
+				"file", filepath.Base(ciFile), "error", err)
+			if test == nil {
+				// parseCIFile failed before a test existed (tmpfs read error), so
+				// build a placeholder to keep the file visible in the suite.
+				name := strings.TrimSuffix(filepath.Base(ciFile), ".ci")
+				test = &parsingTest{
+					BaseTest: BaseTest{Name: name, Nick: GenerateNick(name)},
+					File:     ciFile,
+				}
+			}
+			test.ParseError = fmt.Errorf("parse %s: %w", ciFile, err)
 		}
 		pt.Add(test)
 	}
@@ -160,43 +184,16 @@ func (pt *ParsingTests) Discover(dir string) error {
 		sort.Strings(invalidFiles)
 
 		for _, confFile := range invalidFiles {
-			name := filepath.Base(confFile)
-			var tbE textbuf.Buffer
-			expectFile := tbE.Str(confFile[:len(confFile)-5]).Str(".expect").String() // .conf -> .expect
-
-			// Read expected error from .expect file
-			expectBytes, err := os.ReadFile(expectFile) //nolint:gosec // Test runner, path from glob
+			// Same skip-and-warn-and-record contract as the .ci loop above. A
+			// missing, empty, or bad-regex .expect file used to abort discovery of
+			// the whole directory, so one broken negative fixture would hide every
+			// other legacy test exactly as one bad .ci hid the test/ui suite.
+			test, err := parseLegacyInvalidTest(confFile)
 			if err != nil {
-				return fmt.Errorf("negative test %s requires .expect file: %w", name, err)
+				recordLogger().Warn("unparseable legacy .conf test recorded as failure; continuing discovery",
+					"file", filepath.Base(confFile), "error", err)
+				test.ParseError = fmt.Errorf("parse %s: %w", confFile, err)
 			}
-			expectError := strings.TrimSpace(string(expectBytes))
-			if expectError == "" {
-				return fmt.Errorf("negative test %s has empty .expect file", name)
-			}
-
-			nick := GenerateNick(name)
-
-			test := &parsingTest{
-				BaseTest: BaseTest{
-					Name: tbE.Reset().Str("invalid/").Str(name).String(),
-					Nick: nick,
-				},
-				File:         confFile,
-				ExpectErrors: []string{expectError},
-			}
-
-			// Check for regex prefix
-			const regexPrefix = "regex:"
-			if strings.HasPrefix(expectError, regexPrefix) {
-				pattern := strings.TrimSpace(expectError[len(regexPrefix):])
-				re, err := regexp.Compile(pattern)
-				if err != nil {
-					return fmt.Errorf("negative test %s has invalid regex pattern: %w", name, err)
-				}
-				test.ExpectRegex = re
-				test.IsRegexMatch = true
-			}
-
 			pt.Add(test)
 		}
 	}
@@ -209,9 +206,61 @@ func (pt *ParsingTests) Discover(dir string) error {
 	return nil
 }
 
+// parseLegacyInvalidTest builds the negative-test record for one legacy
+// invalid/*.conf fixture and its companion .expect file.
+//
+// Like parseCIFile it returns the partially-built test alongside any error, so
+// the caller records the file as a failure instead of dropping it. The test is
+// never nil: the record exists before the first thing that can fail, which is
+// what lets a broken fixture still appear in the suite and fail loudly.
+func parseLegacyInvalidTest(confFile string) (*parsingTest, error) {
+	name := filepath.Base(confFile)
+
+	var tb textbuf.Buffer
+	test := &parsingTest{
+		BaseTest: BaseTest{
+			Name: tb.Str("invalid/").Str(name).String(),
+			Nick: GenerateNick(name),
+		},
+		File: confFile,
+	}
+
+	var tbE textbuf.Buffer
+	expectFile := tbE.Str(confFile[:len(confFile)-len(".conf")]).Str(".expect").String()
+
+	expectBytes, err := os.ReadFile(expectFile) //nolint:gosec // Test runner, path from glob
+	if err != nil {
+		return test, fmt.Errorf("negative test %s requires .expect file: %w", name, err)
+	}
+	expectError := strings.TrimSpace(string(expectBytes))
+	if expectError == "" {
+		return test, fmt.Errorf("negative test %s has empty .expect file", name)
+	}
+	test.ExpectErrors = []string{expectError}
+
+	// Check for regex prefix
+	const regexPrefix = "regex:"
+	if strings.HasPrefix(expectError, regexPrefix) {
+		pattern := strings.TrimSpace(expectError[len(regexPrefix):])
+		re, compErr := regexp.Compile(pattern)
+		if compErr != nil {
+			return test, fmt.Errorf("negative test %s has invalid regex pattern: %w", name, compErr)
+		}
+		test.ExpectRegex = re
+		test.IsRegexMatch = true
+	}
+
+	return test, nil
+}
+
 // parseCIFile parses a .ci file for parsing tests.
 // Uses tmpfs.ReadFrom to handle stdin= and tmpfs= blocks, then parses
 // cmd=, expect=, reject=, and option= directives from remaining lines.
+//
+// On error it returns the partially-built test alongside the error so the
+// caller can mark it failed without generating a second nick (nicks are a
+// monotone counter, so discarding one shifts every later test's id). The test
+// is nil only when parsing failed before it was created.
 func (pt *ParsingTests) parseCIFile(filePath string) (*parsingTest, error) {
 	v, err := tmpfs.ReadFrom(filePath)
 	if err != nil {
@@ -253,7 +302,7 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*parsingTest, error) {
 		if after, ok := strings.CutPrefix(trimmed, "cmd="); ok {
 			rc, parseErr := parseCmdExec("foreground", after)
 			if parseErr != nil {
-				return nil, fmt.Errorf("%s: %w", filepath.Base(filePath), parseErr)
+				return test, fmt.Errorf("%s: %w", filepath.Base(filePath), parseErr)
 			}
 			cur = &ciCommand{Seq: rc.Seq, Exec: rc.Exec, StdinName: rc.Stdin}
 			test.Commands = append(test.Commands, cur)
@@ -266,7 +315,7 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*parsingTest, error) {
 			}
 			code, parseErr := strconv.Atoi(after)
 			if parseErr != nil {
-				return nil, fmt.Errorf("%s: invalid exit code %q", filepath.Base(filePath), after)
+				return test, fmt.Errorf("%s: invalid exit code %q", filepath.Base(filePath), after)
 			}
 			cur.ExpectExitCode = code
 			cur.HasExitCode = true
@@ -298,7 +347,7 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*parsingTest, error) {
 		if after, ok := strings.CutPrefix(trimmed, "expect=stdout:regex="); ok {
 			re, compErr := regexp.Compile(after)
 			if compErr != nil {
-				return nil, fmt.Errorf("%s: invalid stdout regex %q: %w", filepath.Base(filePath), after, compErr)
+				return test, fmt.Errorf("%s: invalid stdout regex %q: %w", filepath.Base(filePath), after, compErr)
 			}
 			if cur != nil {
 				cur.ExpectStdoutRe = append(cur.ExpectStdoutRe, re)
@@ -316,7 +365,7 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*parsingTest, error) {
 		if after, ok := strings.CutPrefix(trimmed, "reject=stdout:pattern="); ok {
 			re, compErr := regexp.Compile(after)
 			if compErr != nil {
-				return nil, fmt.Errorf("%s: invalid reject stdout pattern %q: %w", filepath.Base(filePath), after, compErr)
+				return test, fmt.Errorf("%s: invalid reject stdout pattern %q: %w", filepath.Base(filePath), after, compErr)
 			}
 			if cur != nil {
 				cur.RejectStdoutRe = append(cur.RejectStdoutRe, re)
@@ -327,7 +376,7 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*parsingTest, error) {
 		if after, ok := strings.CutPrefix(trimmed, "reject=stderr:pattern="); ok {
 			re, compErr := regexp.Compile(after)
 			if compErr != nil {
-				return nil, fmt.Errorf("%s: invalid reject stderr pattern %q: %w", filepath.Base(filePath), after, compErr)
+				return test, fmt.Errorf("%s: invalid reject stderr pattern %q: %w", filepath.Base(filePath), after, compErr)
 			}
 			if cur != nil {
 				cur.RejectStderrRe = append(cur.RejectStderrRe, re)
@@ -364,7 +413,7 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*parsingTest, error) {
 	}
 
 	if test.InlineConfig == nil && len(test.TmpfsFiles) == 0 && len(test.Commands) == 0 {
-		return nil, errNoConfigContentOrCommandsFound
+		return test, errNoConfigContentOrCommandsFound
 	}
 
 	return test, nil
@@ -430,6 +479,18 @@ func (r *parsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 			}
 			return true, nil
 		})
+		// Feed the Record the two fields ParallelRunner.Run short-circuits on.
+		//
+		// A file that failed to parse marks the Record ParseFailed and does NOT
+		// propagate its SkipReason: that marker was parsed from the same broken
+		// file, so honoring it would let a malformed skip-marked test report SKIP
+		// (and pass) instead of failing. See the argument in parallel.go.
+		if test.ParseError != nil {
+			rec.ParseFailed = true
+			rec.State = StateFail
+			rec.Error = test.ParseError
+			continue
+		}
 		// Propagate per-test SkipReason (from option=skip-os) onto the
 		// Record so ParallelRunner.Run honors it without running the test.
 		rec.SkipReason = test.SkipReason
@@ -449,6 +510,14 @@ func (r *parsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 // For .ci files with cmd= lines: executes each command in sequence with full
 // expectation checking. For legacy .conf files: runs ze config validate.
 func (r *parsingRunner) runTest(ctx context.Context, test *parsingTest) bool {
+	// A .ci file that failed to parse at discovery has no runnable commands.
+	// Report the parse error as a hard failure without attempting execution, so
+	// one bad file fails the suite loudly rather than aborting discovery of every
+	// other test (see ParsingTests.Discover).
+	if test.ParseError != nil {
+		test.Error = test.ParseError
+		return false
+	}
 	if len(test.Commands) > 0 {
 		return r.runCITest(ctx, test)
 	}

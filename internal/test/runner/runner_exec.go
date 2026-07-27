@@ -30,6 +30,21 @@ import (
 
 // runTest executes a single test.
 func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) bool {
+	// A .ci file that failed to parse at discovery (see EncodingTests.Discover)
+	// has no runnable commands. Report the parse error as a hard failure without
+	// attempting execution, so one bad file fails the suite loudly rather than
+	// aborting discovery of every other test.
+	//
+	// Checked BEFORE SkipReason on purpose: a malformed file's skip marker was
+	// parsed from the same broken file, so it is not trustworthy evidence that
+	// the file need not run. See the fuller argument at the real entry point,
+	// parallel.go's per-test goroutine, which short-circuits before this function
+	// is ever reached. This ordering governs only direct callers.
+	if rec.ParseFailed {
+		rec.State = StateFail
+		return false
+	}
+
 	// option=skip-os matched the current GOOS at parse time: report SKIP
 	// without touching any subprocess or port. The feature under test is
 	// stubbed on this platform (see rules/os-specific-tests.md); running
@@ -37,15 +52,6 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	if rec.SkipReason != "" {
 		rec.State = StateSkip
 		return true
-	}
-
-	// A .ci file that failed to parse at discovery (see EncodingTests.Discover)
-	// has no runnable commands. Report the parse error as a hard failure without
-	// attempting execution, so one bad file fails the suite loudly rather than
-	// aborting discovery of every other test.
-	if rec.ParseFailed {
-		rec.State = StateFail
-		return false
 	}
 
 	rec.State = StateStarting
@@ -97,6 +103,11 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 			timeout = d
 		}
 	}
+	// testBudget is the AUTHORED budget, before parallel headroom. The plugin
+	// stall watchdog derives its window from it and applies the same headroom
+	// itself, so handing it the already-scaled value would square it (the same
+	// split runOrchestrated makes for the await fence).
+	testBudget := timeout
 	timeout = r.withParallelHeadroom(timeout)
 
 	// Create test context with timeout
@@ -191,8 +202,10 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		// NOTE: ze_bgp_tcp_bind removed - listeners now derived from peer LocalAddress
 		r.childPathEnv(),
 		"ze.storage.blob=false",
-		"SLOG_LEVEL=DEBUG",            // Enable debug logging for tracing
-		"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load
+		"SLOG_LEVEL=DEBUG", // Enable debug logging for tracing
+		// Plugin startup stall watchdog. Derived from this test's own budget, not
+		// a constant: see pluginStageStall (plugin_stage_stall.go).
+		r.pluginStageStallEnv(testBudget),
 	)
 
 	// Add test-specific environment variables ($PORT/$PORT2 expand like exec
@@ -760,7 +773,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// CWD). Deriving the root from the ze binary's location is wrong
 			// here: the runner builds ze into a temp dir, not <repo>/bin.
 			zeRepoRootEnv(r.baseDir),
-			"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load
+			// Plugin startup stall watchdog. Derived from this test's own budget,
+			// not a constant: see pluginStageStall (plugin_stage_stall.go).
+			r.pluginStageStallEnv(testBudget),
 			// Cap doctor reachability probes so they fail fast against
 			// deliberately-unreachable fixtures instead of waiting out their full
 			// multi-second timeout (which dominates wall-clock and flakes under

@@ -36,7 +36,6 @@ var (
 	errOptionEnvMissingVar              = errors.New("option:env missing var=")
 	errOptionSkipOsMissingValue         = errors.New("option:skip-os missing value=")
 	errOptionSkipEnvMissingVar          = errors.New("option:skip-env missing var=")
-	errOptionRequireTagMissingValue     = errors.New("option:require-tag missing value=")
 	errOptionNetnsLinkMissingName       = errors.New("option:netns-link missing name=")
 	errOptionExclusiveMissingGroup      = errors.New("option:exclusive missing group=")
 	errExpectBgpMissingHex              = errors.New("expect:bgp missing hex=")
@@ -544,25 +543,6 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 			}
 		} else if actual == expected {
 			r.SkipReason = tb.Reset().Str("skip-env=").Str(varName).Byte('=').Str(expected).String()
-			return nil
-		}
-
-	case "require-tag":
-		value := kv["value"]
-		if value == "" {
-			return errOptionRequireTagMissingValue
-		}
-		active := TestBuildTags()
-		found := false
-		for tag := range strings.SplitSeq(active, ",") {
-			if strings.TrimSpace(tag) == value {
-				found = true
-				break
-			}
-		}
-		if !found {
-			var tb textbuf.Buffer
-			r.SkipReason = tb.Str("require-tag=").Str(value).Str(" (not in build tags: ").Str(active).Byte(')').String()
 			return nil
 		}
 

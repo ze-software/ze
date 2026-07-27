@@ -1,4 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md -- await=stderr deterministic fence
+// Related: plugin_stage_stall.go -- the same derive-from-test-budget shape for the plugin stall watchdog
 
 package runner
 

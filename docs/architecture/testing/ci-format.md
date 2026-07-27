@@ -28,6 +28,61 @@ action=type:key=value:key=value:...
 
 ## Key Concepts
 
+### An unparseable test file fails; it never hides or vanishes
+
+A file that does not parse is recorded as a **permanent failure** and discovery
+continues. It is never dropped, and it never aborts the rest of the directory.
+All three discoverers behave identically.
+
+| Discoverer | Format | Marker |
+|------------|--------|--------|
+| `EncodingTests.Discover` | `.ci`, suites rooted by `registerCIRoot` (encode, plugin, ui, ...) | `Record.ParseFailed` + `State=StateFail` + `FailureType=parse_error` |
+| `ParsingTests.Discover` | `.ci` (parse suite) | `parsingTest.ParseError` |
+| `ParsingTests.Discover` | legacy `valid/*.conf` + `invalid/*.conf` with a companion `.expect` | `parsingTest.ParseError` |
+| `DecodingTests.Discover` | `.ci` and `.test` (decode suite) | `decodingTest.ParseError` |
+
+The legacy `.conf` layout has no instances in the tree today, and it is held to
+the same contract anyway: a missing, empty, or bad-regex `.expect` file records
+that one fixture as a failure rather than abandoning the directory. An
+unreachable abort becomes reachable the moment someone adds the directory, and
+the shape is the bug.
+
+Both alternatives are silent-coverage-loss bugs this project has already paid
+for, which is why neither is permitted:
+
+| Anti-pattern | What it costs |
+|--------------|---------------|
+| Return the parse error out of `Discover` | The whole directory is abandoned. One bad `.ci` made the `test/ui` suite discover and run ZERO tests, and a suite that runs nothing reads as green. |
+| `continue` past the bad file | The file leaves the suite with no warning and no failure record. Its coverage disappears and nothing says so. |
+
+A guard that neither denies nor speaks does not exist
+(`ai/rules/fail-closed-guards.md`). The runner short-circuits a parse-failed
+test before executing anything, so the reported error is the parse error rather
+than a confusing downstream symptom.
+
+**Unparseable outranks skipped.** A file that both fails to parse and carries
+`option=needs-linux` / `option=skip-os` is reported FAIL, not SKIP. Its skip
+marker was parsed from the same broken file, so it is not trustworthy evidence
+that the file need not run: a contradicting directive may sit past the break, or
+the marker itself may be what was mis-parsed. Honoring it would mean trusting a
+broken file's own claim that it can be ignored.
+
+The consequences are asymmetric, which is what settles the ordering. 158 `.ci`
+files carry one of those markers (12 in `test/ui`), and on a non-Linux host they
+never run — so a wrongly-SKIPPED malformed file is invisible indefinitely, which
+is exactly how `test/ui` rotted. A wrongly-FAILED one is loud and costs a single
+commit. The check therefore lives in `parallel.go`'s per-test goroutine, ahead of
+the skip short-circuit: that is the real entry point, and both
+`Runner.runTest` and `parsingRunner.runTest` are reached through it.
+<!-- source: internal/test/runner/parallel.go -- per-test goroutine, ParseFailed ahead of SkipReason -->
+<!-- source: internal/test/runner/parsing.go -- parsingRunner.Run, ParseError suppresses the SkipReason copy -->
+<!-- test: internal/test/runner/discover_malformed_test.go TestSkipMarkedMalformedCIStillFailsThroughParallelRunner, TestSkipMarkedMalformedParseTestFailsThroughParallelRunner -->
+<!-- source: internal/test/runner/record_parse.go -- EncodingTests.Discover, the reference shape -->
+<!-- source: internal/test/runner/parsing.go -- ParsingTests.Discover, parsingRunner.runTest -->
+<!-- source: internal/test/runner/decoding.go -- DecodingTests.Discover, decodingRunner.runTest -->
+<!-- test: internal/test/runner/discover_malformed_test.go -- parse and decode discoverers -->
+<!-- test: internal/test/runner/record_parse_test.go TestDiscoverSkipsUnparseableFile -->
+
 ### Suite label, test id, and failure identity
 
 The verify debugging protocol identifies a functional failure with:

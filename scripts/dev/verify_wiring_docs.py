@@ -170,13 +170,15 @@ def main() -> int:
     ratchet_rc = check_ci_sleep_ratchet(root, changed)
     justif_rc = check_ci_sleep_justification(root, changed)
     excuse_rc = check_known_failure_load_excuses(root, changed)
+    logkey_rc = check_ci_log_subsystem_keys(root, changed)
     design_rc = check_design_refs(root)
+    gate_rc = ratchet_rc or justif_rc or excuse_rc or logkey_rc or design_rc
 
     if not targets:
         print("No wiring/doc/inventory checks needed")
         if advisory:
             print(advisory)
-        return ratchet_rc or justif_rc or excuse_rc or design_rc
+        return gate_rc
 
     if "wiring" in targets:
         issues = check_wiring(root, changed)
@@ -194,8 +196,8 @@ def main() -> int:
 
     if advisory:
         print(advisory)
-    if ratchet_rc or justif_rc or excuse_rc or design_rc:
-        return ratchet_rc or justif_rc or excuse_rc or design_rc
+    if gate_rc:
+        return gate_rc
     print("Wiring/doc/inventory gates passed")
     return 0
 
@@ -398,6 +400,102 @@ def check_known_failure_load_excuses(root: Path, changed: Iterable[str]) -> int:
         print("  timeout is not a fix. See ai/rules/fix-dont-record.md.")
         return 1
     print(f"known-failure load excuse OK ({len(shards)} shard(s) checked)")
+    return 0
+
+
+CI_LOG_KEY_RE = re.compile(r"ze\.log\.([A-Za-z0-9._-]+)")
+GO_SOURCE_ROOTS = ("internal", "pkg", "cmd")
+
+
+def _hyphenated_subsystems_in_go(root: Path) -> set[str]:
+    """Every hyphen-bearing double-quoted Go string literal under the source roots.
+
+    A `ze.log.<subsystem>` key is only honoured if <subsystem> is a real slog
+    subsystem name, and a subsystem name reaches the code as a literal in exactly
+    two forms: `slogutil.Logger("bgp.filter.aspath-length")` / `LazyLogger(...)`
+    for an engine logger, or a plugin `Name: "bgp-adj-rib-in"` that
+    PluginLogger uses verbatim on the forked path. Collecting quoted literals
+    covers both without parsing call shapes; anything not present in source
+    cannot be a subsystem name at all.
+    """
+    found: set[str] = set()
+    literal = re.compile(r'"([a-z0-9]+(?:[.-][a-z0-9]+)*-[a-z0-9]+(?:[.-][a-z0-9]+)*)"')
+    for sub in GO_SOURCE_ROOTS:
+        base = root / sub
+        if not base.is_dir():
+            continue
+        for path in base.rglob("*.go"):
+            try:
+                text = path.read_text(encoding="utf-8", errors="ignore")
+            except OSError:
+                continue
+            found.update(literal.findall(text))
+    return found
+
+
+def check_ci_log_subsystem_keys(root: Path, changed: Iterable[str]) -> int:
+    """A `ze.log.<subsystem>` key in a .ci test must name a real slog subsystem.
+
+    getLogEnv (internal/core/slogutil/slogutil.go) splits the subsystem on "."
+    only, and an internal plugin's logger name is CanonicalSubsystemName of its
+    registry name (internal/component/plugin/inprocess.go), which turns every
+    hyphen into a dot. So `ze.log.bgp.adj-rib-in` matches no lookup for a plugin
+    registered as "bgp-adj-rib-in": the real key is `ze.log.bgp.adj.rib.in`. The
+    key sets nothing, the level silently stays at the WARN default, and the test
+    quietly loses the log lines it was written to observe -- there is no error,
+    which is why this has now recurred three times.
+
+    Only hyphen-bearing subsystems are checked, because that is the whole failure
+    mode and it keeps the check free of false positives: a hyphenated subsystem is
+    legitimate only when it is declared literally in Go source (e.g.
+    `slogutil.LazyLogger("bgp.filter.aspath-length")`), so an absent literal is
+    proof the key is inert. Comment lines are skipped: 001-boot-apply.ci documents
+    the wrong form on purpose.
+
+    Scoped to changed .ci files like the sleep gates, but the scan is tree-wide so
+    an inert key elsewhere is not laundered by an unrelated edit.
+    Returns the process exit contribution (0 ok, 1 failed).
+    """
+    if not any(p.startswith("test/") and p.endswith(".ci") for p in changed):
+        return 0
+    test_dir = root / "test"
+    if not test_dir.is_dir():
+        return 0
+
+    suspects: list[tuple[str, int, str, str]] = []
+    for path in sorted(test_dir.rglob("*.ci")):
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        rel = path.relative_to(root).as_posix()
+        for i, line in enumerate(lines):
+            if line.lstrip().startswith("#"):
+                continue
+            for match in CI_LOG_KEY_RE.finditer(line):
+                subsystem = match.group(1).strip(".")
+                if "-" not in subsystem:
+                    continue
+                suspects.append((rel, i + 1, subsystem, line.strip()))
+
+    if not suspects:
+        return 0
+
+    declared = _hyphenated_subsystems_in_go(root)
+    violations = [s for s in suspects if s[2] not in declared]
+    if violations:
+        print("ci log-subsystem key FAILED:")
+        print("  A hyphenated ze.log.<subsystem> key only works when that exact")
+        print("  subsystem is declared literally in Go. These match nothing, so the")
+        print("  level silently stays at the WARN default:")
+        for rel, lineno, subsystem, text in violations:
+            dotted = subsystem.replace("-", ".")
+            print(f"    {rel}:{lineno}: ze.log.{subsystem}  (did you mean {dotted}?)")
+            print(f"      {text}")
+        print("  An internal plugin's logger name is CanonicalSubsystemName of its")
+        print("  registry name (plugin/inprocess.go): every hyphen becomes a dot.")
+        return 1
+    print(f"ci log-subsystem key OK ({len(suspects)} hyphenated key(s) declared)")
     return 0
 
 

@@ -46,6 +46,12 @@ type decodingTest struct {
 	ExpectedJSON string
 	OutputJSON   bool // true if --json flag specified in test
 
+	// ParseError marks a test file that could not be parsed at discovery time.
+	// Discover records the file as a permanent failure and continues, so a
+	// malformed file fails loudly instead of vanishing from the suite. The
+	// runner short-circuits such tests without executing them.
+	ParseError error
+
 	// Results
 	ActualJSON string
 }
@@ -90,8 +96,20 @@ func (dt *DecodingTests) Discover(dir string) error {
 			test, err = dt.parseTestFile(testFile)
 		}
 		if err != nil {
-			// Skip malformed test files
-			continue
+			// A malformed file used to `continue` here: it disappeared from the
+			// suite with no warning and no failure, so its coverage was silently
+			// lost. Warn and record it as a permanent failure instead -- a guard
+			// that neither denies nor speaks does not exist
+			// (ai/rules/fail-closed-guards.md). Mirrors EncodingTests.Discover.
+			recordLogger().Warn("unparseable test file recorded as failure; continuing discovery",
+				"file", filepath.Base(testFile), "error", err)
+			base := filepath.Base(testFile)
+			name := strings.TrimSuffix(base, filepath.Ext(base))
+			test = &decodingTest{
+				BaseTest:   BaseTest{Name: name, Nick: GenerateNick(name)},
+				File:       testFile,
+				ParseError: fmt.Errorf("parse %s: %w", testFile, err),
+			}
 		}
 		dt.Add(test)
 	}
@@ -436,6 +454,14 @@ func (r *decodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 
 // runTest executes a single decoding test.
 func (r *decodingRunner) runTest(ctx context.Context, test *decodingTest) bool {
+	// A test file that failed to parse at discovery has no payload to decode.
+	// Report the parse error as a hard failure without attempting execution
+	// (see DecodingTests.Discover).
+	if test.ParseError != nil {
+		test.Error = test.ParseError
+		return false
+	}
+
 	// Build command args
 	args := []string{"bgp", "decode"}
 

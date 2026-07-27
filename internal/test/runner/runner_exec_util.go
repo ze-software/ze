@@ -1,5 +1,6 @@
 // Design: docs/architecture/testing/ci-format.md -- test execution utilities
 // Overview: runner_exec.go -- test execution and process orchestration
+// Related: plugin_stage_stall.go -- derives the plugin stall window, then takes withParallelHeadroom
 
 package runner
 

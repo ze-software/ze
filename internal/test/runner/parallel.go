@@ -277,6 +277,34 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 			sem <- struct{}{}        // Acquire
 			defer func() { <-sem }() // Release
 
+			// UNPARSEABLE OUTRANKS SKIPPED, and the reason is not that failing is
+			// more important -- it is that a broken file's skip marker is not
+			// trustworthy evidence.
+			//
+			// SkipReason is produced by parsing the very file that failed to
+			// parse: `option=needs-linux` may have been read from line 2 while
+			// line 7 was garbage. We cannot know the marker set is complete or
+			// correct -- a contradicting directive may sit after the break, or the
+			// marker itself may be what was mis-parsed. Honoring it means
+			// trusting the broken file's own claim that it need not run, which is
+			// the fail-open shape (ai/rules/fail-closed-guards.md).
+			//
+			// The consequences are asymmetric too. A wrongly-SKIPPED malformed
+			// file is invisible forever -- that is exactly how the test/ui suite
+			// rotted, and 158 .ci files carry needs-linux/skip-os (12 of them in
+			// test/ui), so they never run on a darwin host and nothing would ever
+			// say so. A wrongly-FAILED skip-marked file is loud and costs one
+			// commit to fix. Fail toward the loud outcome.
+			//
+			// This is the guard's real entry point: Runner.runTest and
+			// parsingRunner.runTest are reached through t.Run below, so a
+			// short-circuit here bypasses their own ParseFailed checks entirely.
+			if t.Record.ParseFailed {
+				t.Record.State = StateFail
+				results <- result{test: t, passed: false, err: t.Record.Error}
+				return
+			}
+
 			// option=skip-os matches the current GOOS: mark skip without
 			// running. Keeps the signal meaningful (feature is stubbed on
 			// this OS, not "it regressed") -- see rules/os-specific-tests.md.
