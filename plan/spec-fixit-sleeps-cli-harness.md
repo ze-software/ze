@@ -18,6 +18,28 @@ Resolutions, Future); (b) the sleep ratchet baseline is now **125**
 originally cited; every in-body occurrence is annotated with the current
 value (forward-looking arithmetic: 3 conversions take 125 -> 122).
 
+## STALE -- verified against the tree 2026-07-27
+
+**Every premise below is now false. This spec has no remaining work.** Verified
+by reading the files, not by reading the spec (`ai/rules/planning.md`, "Verify
+Specs Against Code"):
+
+| Claim in Task | Reality on 2026-07-27 |
+|---|---|
+| `test/static/004-show.ci` queries `ze cli -c "show static"` with no SSH server, so it cannot connect | 004 no longer uses `ze cli` at all. It dispatches `show static` through an external plugin (`static-show.run`) and waits with `api.wait_for_post_startup(timeout=5.0)`. Its header states the reason explicitly: "`ze cli` speaks SSH ... and this config declares no SSH server, so the CLI path could never reach the daemon" |
+| `test/static/005-table-interface.ci` likewise | same: no `ze cli`, no blind sleep |
+| 3 blind sleeps remain (`static/004:22`, `static/005:24`, `vpp/007:51`) | `grep -c 'time.sleep('` gives **0** for both static files. `vpp/007-fib-route-lookup.ci` has 2, and BOTH are annotated bounded polls ("poll interval; the loop above ... bounded wait not a blind sleep") of the kind the spec's own scope correction says must NOT be converted |
+
+So Problem A was solved by giving the tests an external-plugin dispatch path
+rather than the SSH harness this spec proposed, and Problem B's convertible
+sleep no longer exists. The remaining `time.sleep` calls in these files are
+deterministic poll intervals, which `ai/rules/ci-sleep-justification.md`
+explicitly classifies as already-correct waits.
+
+**Disposition:** close and delete. Nothing here needs implementing. Kept in this
+edit rather than removed in the same commit so the verification survives in
+history (`ai/rules/spec-preservation.md`, two-commit closure).
+
 ## Task
 
 Two buckets of `.ci` sleeps are blocked on missing test harness or support, not on
