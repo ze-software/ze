@@ -37,9 +37,31 @@ Do **not** read that as "egress always sees ingress metadata". Egress is reachab
 
 ## Coupling
 
-Self-contained within the role plugin. No other plugins read or set `otc`.
+Self-contained within the role plugin. No other plugin reads or sets `src-role`, the only key in the tables above.
 
 ## Performance
 
-Ingress: one `findOTC()` wire scan per UPDATE (unchanged from before -- was already done).
-Egress: one map lookup per destination peer (replaces `extractAttrsFromPayload` + `findOTC` wire scan per peer). Net saving: N-1 wire scans for N destination peers.
+Ingress: one `findOTC()` wire scan per UPDATE.
+
+Egress is **not** a single map lookup. `OTCEgressFilter` scans the payload up to three times per destination peer: `isPayloadUnicast`, then `findOTC` inside `checkOTCEgress`, then `findOTC` again in the stamping block when the first two did not return. The `src-role` lookup replaces a role *derivation*, not the wire scans.
+
+<!-- source: internal/component/bgp/plugins/role/otc.go -- OTCEgressFilter, checkOTCEgress, isPayloadUnicast -->
+
+## Role resolution
+
+Both directions resolve "what is this peer to us" through `resolvePeerRole`: the OPEN Role capability when the peer sent one, otherwise the complement of our configured role toward it (`peerRoleComplement`, the value form of RFC 9234 Table 2). RFC 9234 Section 4.2 makes the configured role the prescribed input for the Section 5 procedures, so a peer that sends no capability is still fully filtered.
+
+One consequence operators should know: that recovery feeds the RFC gates only. Export-set matching still sees such a peer as `unknown`, so a peer can hold two roles at once -- its real role for conformance, `unknown` for policy. Reaching a capability-less customer with `export default` therefore also needs `unknown` in the export set.
+
+<!-- source: internal/component/bgp/plugins/role/otc.go -- resolvePeerRole, peerRoleComplement -->
+<!-- source: internal/component/bgp/plugins/role/config.go -- resolveExport -->
+
+## Known limits
+
+`extractPeerRoleConfigs` falls back to keying by peer **name** when the peer has no resolvable remote IP, while all three readers look up by address, so such a peer gets no config and the RFC gates revert to permissive.
+
+Remote roles learned from a capability are never cleared on session down, so a peer that once advertised a role and reconnects without one keeps the stale value, which `resolvePeerRole` prefers over the config complement.
+
+<!-- source: internal/component/bgp/plugins/role/config.go -- extractPeerRoleConfigs -->
+<!-- source: internal/component/bgp/plugins/role/role.go -- setFilterState, setFilterRemoteRole -->
+
