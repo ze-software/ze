@@ -343,7 +343,7 @@ func (p *Peer) resolveDynamicPeerSettings(session *Session) {
 	}
 
 	// Publish the three mutable settings fields under p.mu so cross-goroutine readers
-	// (checkRouterIDConflict, PeerInfo builders, API/plugin Settings snapshots, filter
+	// (the routerid_unique.go identifier claim, PeerInfo builders, API/plugin Settings snapshots, filter
 	// getters) observe consistent values via the PeerAS()/ImportFilters()/ExportFilters()
 	// accessors — never a torn slice header or an unsynchronized PeerAS. refreshForwardFacts
 	// is called AFTER releasing p.mu because it re-acquires p.mu.RLock (peer_forward_facts.go)

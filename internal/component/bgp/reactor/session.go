@@ -667,15 +667,26 @@ func (s *Session) DetectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 			// connection collision are identical, then the connection initiated by
 			// the BGP speaker with the larger AS number is preserved."
 			//
-			// Only reachable for an EXTERNAL peer: §2.2 (validateOpenIdentifier)
-			// already rejects an internal peer that presents this speaker's own
-			// identifier, which is the same restriction §2.3 states. The pending
-			// connection is the one the remote initiated (it arrived on our
-			// listener); the existing session is the one we initiated. So the
-			// remote's connection is preserved exactly when its AS is larger.
+			// The pending connection is the one the remote initiated (it arrived
+			// on our listener); the existing session is the one we initiated. So
+			// the remote's connection is preserved exactly when its AS is larger.
 			//
-			// Equal AS numbers cannot reach here (that is an internal peer), and
-			// keeping the existing connection is the safe residue either way.
+			// Do NOT assume an internal peer cannot reach this branch. An earlier
+			// version of this comment claimed §2.2 (validateOpenIdentifier) had
+			// already rejected one, and that equal AS numbers were therefore
+			// impossible here. The ORDER is the other way round: DetectCollision
+			// is called from ResolvePendingCollision (peer_connection.go) on the
+			// pending OPEN, and §2.2 runs later, only on the connection that WINS
+			// (session_connection.go). An internal peer's colliding connection
+			// does arrive here with PeerAS == LocalAS.
+			//
+			// The outcome is still correct, which is why this was a wrong
+			// justification rather than a wrong result: PeerAS > LocalAS is false
+			// for equal AS numbers, so we keep the existing connection and reject
+			// the pending one, and the §2.2 check still rejects the internal
+			// peer's identifier afterwards on the winning connection. Keep that
+			// reasoning intact if you touch this: it is the comparison, not an
+			// upstream guarantee, that makes the equal-AS case safe.
 			return s.settings.PeerAS > s.settings.LocalAS, s.settings.PeerAS > s.settings.LocalAS
 		}
 		// RFC 4271 §6.8: "Otherwise, the local system closes the newly created
