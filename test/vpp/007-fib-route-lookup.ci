@@ -47,11 +47,13 @@ def main():
     api.ready()
     api.wait_for_post_startup(timeout=10.0)
 
-    # Give the VPP backend a moment to acquire its channel.
-    time.sleep(2.0)
-
     try:
-        result = dispatch(api, 'show route lookup 10.20.0.1')
+        # Wait for the VPP backend to answer, rather than holding a blind 2s and
+        # hoping its channel is up. The backend reports a non-"done" status
+        # until it has acquired the channel, so re-dispatching until "done" IS
+        # the readiness signal -- and on a slow host it waits longer, where the
+        # fixed sleep simply failed.
+        result = api.dispatch_until_done('show route lookup 10.20.0.1', attempts=40)
         status = result.get('status')
         data = result.get('data')
 
