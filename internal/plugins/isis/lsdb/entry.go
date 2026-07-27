@@ -33,8 +33,36 @@ type CircuitID uint16
 
 // Entry is one LSP in the database: the verbatim PDU bytes plus the parsed
 // freshness metadata and the per-circuit flooding flags. It is owned by the
-// LSDB (guarded by the LSDB mutex); callers receive copies of the metadata via
-// Snapshot and never a live pointer.
+// LSDB (guarded by the LSDB mutex). Snapshot hands out copies, but Lookup
+// returns the LIVE pointer, which is what makes the field discipline below
+// load-bearing rather than advisory.
+//
+// FIELD DISCIPLINE (read before adding a field or an accessor).
+//
+// A field needs an atomic when BOTH of these are true. Neither alone is
+// enough, and conflating them is what produced the DATA RACE this discipline
+// was written for (TestISISDISElection, lifetime read off-lock by SNP
+// generation while the aging tick decremented it):
+//
+//  1. It is mutated AFTER the entry is published into store.entries. Most
+//     fields are not: replaceLocked (lsdb.go) builds a FRESH Entry and swaps
+//     it in, so sequence, checksum, typeBlock, own, raw and receivedPurge are
+//     written once before the entry is reachable and never again.
+//  2. It is read WITHOUT the LSDB lock. Today that means an exported accessor
+//     on *Entry reaches it, since Lookup hands out a live pointer and a caller
+//     holding one can call any method after the lock is released. But the
+//     condition is the UNLOCKED READ, not the accessor: an in-package read
+//     outside d.mu would race just as well. The accessor set is the current
+//     evidence for this condition, not the definition of it.
+//
+// Mutated post-publication, so condition 1 holds for: lifetime (aging tick,
+// and the clause 7.3.16 duplicate refresh), purged (markPurgedLocked),
+// recvPurgeReflooded (the one-shot re-flood guard) and deleteAt (the grace
+// timer). Of those, only lifetime and purged also satisfy condition 2, so
+// only those two are atomic. recvPurgeReflooded and deleteAt stay plain
+// PRECISELY BECAUSE no accessor exposes them -- adding one would be a race,
+// not a convenience. The srm/ssn/srmSent maps are likewise reachable only
+// through LSDB methods that take the lock themselves.
 type Entry struct {
 	// id is the LSP ID (the database key, duplicated here for convenience).
 	id types.LSPID
@@ -50,13 +78,20 @@ type Entry struct {
 	// lifetime is the Remaining Lifetime in seconds, decremented once per second
 	// by the aging tick. 0 marks a purge (clause 7.3.16/17).
 	//
-	// ATOMIC because it is one of only two fields mutated AFTER the entry is
-	// published in the database: the aging tick decrements it (aging.go) and a
-	// duplicate LSP refreshes it (lsdb.go, clause 7.3.16), both under the LSDB
-	// write lock, while Lifetime() is called with NO lock from SNP generation on
-	// the flooding goroutine. Every other metadata field is written once by
-	// replaceLocked before the entry is reachable, so a plain field is safe
-	// there; these two are not. Holds a uint16 value.
+	// ATOMIC because it is one of only two fields that are BOTH mutated after
+	// the entry is published in the database AND read without the lock: the
+	// aging tick decrements it (aging.go) and a duplicate LSP refreshes it
+	// (lsdb.go, clause 7.3.16), both under the LSDB write lock, while
+	// Lifetime() is called with NO lock from SNP generation on the flooding
+	// goroutine. Holds a uint16 value.
+	//
+	// The two conditions are separate and BOTH are required -- see the field
+	// discipline note above the struct. Post-publication mutation alone does
+	// not need an atomic (recvPurgeReflooded and deleteAt are mutated after
+	// publication and stay plain, because nothing reads them off-lock), and an
+	// off-lock read alone does not either (sequence, checksum, typeBlock, own
+	// and raw are read off-lock and stay plain, because replaceLocked writes
+	// them once before the entry is reachable).
 	lifetime atomic.Uint32
 	// checksum is the LSP's stored Fletcher checksum (clause 7.3.11), the value
 	// CSNP/PSNP (isis-7) compare and the freshness compare uses as a tiebreak.
@@ -89,9 +124,17 @@ type Entry struct {
 	// missed the first flood still converges within the grace window, without a
 	// per-second re-flood storm (ISO/IEC 10589 clause 7.3.16, spec R-2/R-4). Set
 	// when the tick first surfaces the received purge.
+	//
+	// LOCK-ONLY: mutated after publication (aging.go, the tick) but touched
+	// nowhere else, so it stays plain. Do NOT add an accessor -- that would
+	// give it an off-lock reader and make it a race (see the discipline note).
 	recvPurgeReflooded bool
 	// deleteAt is when a purged entry is garbage-collected (set when lifetime
 	// hits 0; zero while the entry is live).
+	//
+	// LOCK-ONLY, same as recvPurgeReflooded: written post-publication by
+	// markPurgedLocked and read by the aging tick, both under the write lock.
+	// Do NOT add an accessor.
 	deleteAt time.Time
 
 	// srm / ssn are the per-circuit Send-Routeing-Message and Send-Sequence-
@@ -143,13 +186,6 @@ func (e *Entry) IsOwn() bool { return e.own }
 // IsPurged reports whether the entry is in the zero-age purge state (Remaining
 // Lifetime 0, retained for the grace period).
 func (e *Entry) IsPurged() bool { return e.purged.Load() }
-
-// IsReceivedPurge reports whether the entry's purge arrived on the wire (a
-// received purge, ISO/IEC 10589 clause 7.3.16) rather than from local expiry. A
-// received purge is re-flooded and retained for the grace period; a local expiry
-// is only garbage-collected. The engine reads this to decide the distinct
-// flooding behavior (spec AC-9, R-4).
-func (e *Entry) IsReceivedPurge() bool { return e.receivedPurge }
 
 // Raw returns the verbatim PDU bytes for re-flood (isis-7). The slice is the
 // entry's owned copy; callers MUST NOT mutate it (the flooding path only reads

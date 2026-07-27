@@ -149,15 +149,15 @@ func TestISISReceivedPurgeRefloodSurfaced(t *testing.T) {
 	if r := d.Receive(Level2, rpurge, rraw, false); !r.Stored {
 		t.Fatal("received purge not stored")
 	}
-	if !d.Lookup(Level2, rid).IsReceivedPurge() {
-		t.Fatal("IsReceivedPurge() false for a wire-received purge")
+	if !d.Lookup(Level2, rid).receivedPurge {
+		t.Fatal("receivedPurge false for a wire-received purge")
 	}
 
 	lid := lspID(8, 0)
 	llsp, lraw := buildLSP(t, packet.PDUTypeL2LSP, lid, 5, 1, nil)
 	d.Insert(Level2, llsp, lraw)
-	if d.Lookup(Level2, lid).IsReceivedPurge() {
-		t.Fatal("IsReceivedPurge() true for a locally-originated LSP")
+	if d.Lookup(Level2, lid).receivedPurge {
+		t.Fatal("receivedPurge true for a locally-originated LSP")
 	}
 
 	// First tick: the received purge is surfaced for re-flood (ReceivedPurge=true)
