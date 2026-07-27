@@ -48,6 +48,54 @@ loses Route Monitoring messages -- worse for a monitoring protocol than a
 bounded stall. The drop-vs-stall-vs-queue-depth choice is the design decision
 this spec owes.
 
+**DECIDED 2026-07-27 (Thomas): "do what bird does".** Researched against BIRD's
+own source (`gitlab.nic.cz/labs/bird`, master `02d082a7`, `proto/bmp/`), not
+documentation. BIRD's policy, with citations:
+
+| Question | BIRD's answer | Where |
+|---|---|---|
+| Sync write on the announce path? | No. `bmp_rt_notify` serialises the message and `bmp_schedule_tx_packet` only memcpys into pages + `ev_schedule`; the socket write happens later in `bmp_fire_tx` from the event loop | `bmp.c:1016`, `:300-347`, `:362-399` |
+| Queue structure | Linked list of page-sized `struct bmp_tx_buffer`, messages packed contiguously and split across page boundaries | `bmp.c:222-226`, `bmp.h:79-80` |
+| Bounded? | Yes, **by BYTES** (pages), not message count. `tx_pending_count` vs `tx_pending_limit`, default 1 GiB, configurable `tx buffer limit <N>` in MB | `bmp.h:81-82`, `config.Y:30,75-78` |
+| On overflow | **Resets the session.** Producer does `ev_schedule(tx_overflow_event)` and returns; the handler calls `bmp_down()` + `bmp_close_socket()` (freeing the whole queue) and arms the retry timer | `bmp.c:311-312`, `:1197-1215`, `:1236-1249` |
+| Drop individual messages? | No | `bmp.c:1236-1249` |
+| Block the producer? | No -- sockets are `O_NONBLOCK`, `sk_send` defers to the TX hook | `sysdep/unix/io.c:1137`, `:2003-2015` |
+| Log / state | `log(L_ERR "%s: Connection stalled")`; protocol drops to `PS_START`; `sock_err` deliberately 0 so `show protocols all` distinguishes stalled from a socket error | `bmp.c:1206`, `:1204`, `:1214` |
+| Reconnect | 10 s (`CONNECT_RETRY_TIME`), then Initiation + Peer Up for every established peer + a **full fresh RIB dump** ending in END-OF-RIB | `bmp.c:168`, `:1106-1123`, `:1040-1065` |
+| Termination message on overflow? | No -- bare TCP close. `BMP_TERM_REASON_OOR` is defined but never used | `bmp.c:159`, `:981` |
+
+So: **bounded byte queue; on overflow reset the session; never drop, never
+block.** History matters -- BIRD had exactly this bug (unbounded `mb_alloc` list,
+no limit check) and fixed it deliberately in `e6a100b3` (2024-09-17), whose
+message states the intent: "there is a documented and configurable limit on the
+TX queue size". The bounded design ships in v2.16 and v3.0.0+; 2.0.9-2.15.x
+still have the unbounded version, so do not test against those and conclude
+otherwise.
+
+-> Constraint: bound by BYTES, not message count. BMP Route Monitoring messages
+vary enormously in size, so a message-count cap silently diverges from BIRD.
+
+-> Constraint: Ze must add an explicit goroutine + queue handoff to get the
+property BIRD gets structurally. BIRD's producer *cannot* block (every fd is
+`O_NONBLOCK`, `sk_send` returns 0 rather than blocking); ze's `writeRaw`
+(`sender.go:231-237`) does `SetWriteDeadline(10s)` then a blocking `conn.Write`.
+That is the substantive porting cost.
+
+-> Constraint: enqueue WHOLE messages only. BIRD's copy loop can `return`
+mid-message on hitting the limit (`bmp.c:307-312`), leaving a partially copied
+message in a queue it is about to free wholesale. Ze should not construct that
+hazard. (Whether a truncated buffer can reach the wire before the overflow event
+runs was NOT established -- `tx_ev` and `tx_overflow_event` are on the same event
+list and the ordering was not traced.)
+
+-> Constraint: do NOT copy `bmp_fire_tx`'s yield-after-1024-buffers
+(`bmp.c:392-397`). That is cooperative fairness for a single-threaded event loop;
+the Go runtime preempts.
+
+-> Constraint: `struct bmp_proto`'s `event *update_ev` (`bmp.h:70`) has zero
+usages anywhere in BIRD's tree. There is no second decoupling layer to mirror;
+the page queue is the whole mechanism.
+
 **2. `startSender` is not idempotent across config reloads.**
 
 `BMPPlugin.startSender` (`internal/component/bgp/plugins/bmp/bmp.go`) appends to
@@ -58,11 +106,24 @@ reads as unintentional. If `OnConfigure` is re-delivered on reload the sender
 set doubles: duplicate BMP streams to every collector, leaked sockets and
 goroutines.
 
-UNVERIFIED and to be settled FIRST: whether a config reload re-delivers the
-Stage-2 configure callback at all. `deliverConfig` is called from the 5-stage
-startup driver (`internal/component/plugin/server/startup_driver.go`); no reload
-re-delivery path was traced. If reload restarts the plugin instead, this is
-latent rather than live and the fix is a cheap guard plus a regression test.
+~~UNVERIFIED and to be settled FIRST: whether a config reload re-delivers the
+Stage-2 configure callback at all.~~ **SETTLED 2026-07-27: it does NOT, so this
+is LATENT, not live.** `deliverConfigRPC`
+(`internal/component/plugin/server/startup.go:736`) has exactly one caller,
+`engineStartupSink.deliverConfig` (`:623`), reached only from
+`runStartupHandshake` (`startup_driver.go:153`), reached only from
+`handleProcessStartupRPC` (`startup.go:537`) and `subsystem.go:141`. That is
+once per plugin PROCESS startup; nothing re-delivers Stage-2 configure to a
+running plugin on reload.
+
+**FIXED 2026-07-27** on the spec's own second branch ("the fix is a cheap guard
+plus a regression test"): `startSender` now calls `stopSenders()` first, so it is
+idempotent, matching its call-site neighbor `startLocRIB`. Regression test
+`TestStartSenderIsIdempotent` (`sender_test.go`), mutation-verified -- removing
+the guard makes it report 4 senders for 2 collectors. The guard is kept despite
+being latent so that a future reload path cannot silently double every
+collector's stream, sockets and goroutines; the test comment records why it is
+not dead weight.
 
 ## Required Reading
 

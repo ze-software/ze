@@ -354,7 +354,23 @@ func (bp *BMPPlugin) stopListeners() {
 }
 
 // startSender starts outbound TCP connections to BMP collectors.
+//
+// Idempotent: any senders from a previous call are stopped first, so calling it
+// twice yields one session per collector rather than two. This matches
+// startLocRIB, whose call site in OnConfigure documents itself as idempotent
+// across reloads; the asymmetry here was unintentional.
+//
+// Latent rather than live today, and the distinction is worth recording so the
+// guard is not later removed as dead weight. Stage-2 configure is delivered by
+// deliverConfigRPC (internal/component/plugin/server/startup.go:736), whose only
+// caller is engineStartupSink.deliverConfig -> runStartupHandshake ->
+// handleProcessStartupRPC, i.e. once per plugin PROCESS startup. A config
+// reload does not re-deliver it to a running plugin, so nothing calls this
+// twice at present. It would double every collector's BMP stream, sockets and
+// goroutines the moment anything did.
 func (bp *BMPPlugin) startSender(cfg *senderConfig) {
+	bp.stopSenders()
+
 	bp.mu.Lock()
 	defer bp.mu.Unlock()
 

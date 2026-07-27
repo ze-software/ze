@@ -387,3 +387,50 @@ func TestBMPSenderTermination(t *testing.T) {
 		t.Fatalf("expected *Termination, got %T", r.msg)
 	}
 }
+
+// VALIDATES: startSender is idempotent -- calling it twice leaves ONE sender
+// session per collector, not two.
+// PREVENTS: doubling every collector's BMP stream, socket and goroutine. The
+// old startSender appended to bp.senders with no preceding stopSenders, while
+// its call-site neighbor startLocRIB documents itself as idempotent across
+// reloads; the asymmetry read as unintentional and this pins the fix.
+//
+// LATENT, not live, and deliberately tested anyway. Stage-2 configure is sent
+// by deliverConfigRPC (internal/component/plugin/server/startup.go:736), whose
+// only caller chain is engineStartupSink.deliverConfig -> runStartupHandshake
+// -> handleProcessStartupRPC, i.e. once per plugin PROCESS startup, so a config
+// reload does not re-deliver it today. The guard exists so that if a reload
+// path ever does, it cannot silently double the sender set.
+func TestStartSenderIsIdempotent(t *testing.T) {
+	// Port 1 on a loopback address: newSenderSession only records the address,
+	// and run() dials in its own goroutine, so nothing here depends on a
+	// connection being established. stopSenders cancels those goroutines.
+	cfg := &senderConfig{
+		Collectors: map[string]collectorConfig{
+			"one": {Address: "127.0.0.1", Port: "1"},
+			"two": {Address: "127.0.0.1", Port: "1"},
+		},
+	}
+
+	bp := &BMPPlugin{}
+	t.Cleanup(func() {
+		bp.stopSenders()
+		bp.sessions.Wait()
+	})
+
+	bp.startSender(cfg)
+	bp.mu.RLock()
+	afterFirst := len(bp.senders)
+	bp.mu.RUnlock()
+	if afterFirst != len(cfg.Collectors) {
+		t.Fatalf("first startSender: got %d senders, want %d", afterFirst, len(cfg.Collectors))
+	}
+
+	bp.startSender(cfg)
+	bp.mu.RLock()
+	afterSecond := len(bp.senders)
+	bp.mu.RUnlock()
+	if afterSecond != len(cfg.Collectors) {
+		t.Fatalf("second startSender: got %d senders, want %d (sender set doubled)", afterSecond, len(cfg.Collectors))
+	}
+}
