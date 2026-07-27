@@ -204,3 +204,63 @@ func TestTxQueueSteadyStateIsAllocationFree(t *testing.T) {
 		t.Errorf("push+drain allocates %.2f objects per message, want 0", allocs)
 	}
 }
+
+func TestTxQueueAdvanceAfterResetKeepsTheNextSessionsBytes(t *testing.T) {
+	// VALIDATES: an advance() whose matching peek() was invalidated by a reset()
+	// consumes nothing, so bytes pushed after the reset survive intact.
+	// PREVENTS: silent message loss on the reconnect path, and the fact that
+	// NOTHING tested this guard. The drain writes peek's slice WITHOUT holding
+	// q.mu, so run()'s resetQueue (sender.go, after holdConnection returns) can
+	// land between the peek and the advance. Unguarded, that advance then
+	// consumes N bytes of whatever the NEXT session has already pushed -- the
+	// primed Peer Ups for every established peer -- and the collector receives
+	// Route Monitoring for peers it was never told about (RFC 7854 Section
+	// 4.10), with nothing logged and no way to recover. inFlight is the marker
+	// that makes the stale advance a no-op; removing it left the whole package
+	// green at -count=10.
+	q := newTxQueue(4096)
+
+	inFlight := bytes.Repeat([]byte{0xAA}, 100)
+	if !q.push(inFlight) {
+		t.Fatal("push of the first message was refused")
+	}
+	buf := q.peek() // the drain takes it and starts writing, holding no lock
+	if len(buf) != len(inFlight) {
+		t.Fatalf("peek returned %d bytes, want %d", len(buf), len(inFlight))
+	}
+
+	// The session ends while that write is in flight: run() clears the conn and
+	// drops the queue, then the next connection is primed.
+	q.reset()
+	primed := bytes.Repeat([]byte{0xBB}, 60)
+	if !q.push(primed) {
+		t.Fatal("push of the next session's primed message was refused")
+	}
+
+	// Only now does the in-flight write complete and the drain advance.
+	q.advance(len(buf))
+
+	if got := q.bytesPending(); got != len(primed) {
+		t.Errorf("queue holds %d bytes after a stale advance, want %d: the next session's messages were consumed",
+			got, len(primed))
+	}
+	if got := drainAll(q); !bytes.Equal(got, primed) {
+		t.Errorf("queue drained %x, want the next session's message %x", got, primed)
+	}
+}
+
+func TestTxQueueAdvanceStillConsumesInTheNormalCase(t *testing.T) {
+	// VALIDATES: the guard does not break the ordinary peek/advance cycle.
+	// PREVENTS: "fixing" the stale-advance case by making advance a no-op
+	// always, which would wedge the queue instead of losing messages.
+	q := newTxQueue(4096)
+	msg := bytes.Repeat([]byte{0xCC}, 40)
+	if !q.push(msg) {
+		t.Fatal("push refused")
+	}
+	buf := q.peek()
+	q.advance(len(buf))
+	if got := q.bytesPending(); got != 0 {
+		t.Errorf("queue holds %d bytes after a matched peek/advance, want 0", got)
+	}
+}

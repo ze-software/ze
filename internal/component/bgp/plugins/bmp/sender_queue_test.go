@@ -360,6 +360,23 @@ func TestSenderQueueOverflowResetsSessionWithoutTermination(t *testing.T) {
 		}
 	}
 
+	// The byte-stream check above CANNOT fail on its own, and that is the point
+	// of this one. Swapping the overflow's closeLog for terminateAndClose leaves
+	// the stream identical: sendTermination gives up after terminationWait
+	// because it cannot take flushMu, which the drain is holding across the
+	// wedged 10s write. So the absence of a Termination on the wire proves
+	// nothing about the code path -- it is guaranteed by the wedge.
+	//
+	// termOnce is the discriminating signal: terminateAndClose consumes it
+	// whether or not the write lands. If the overflow path engaged the
+	// termination machinery at all, this Do body does not run.
+	fired := false
+	ss.termOnce.Do(func() { fired = true })
+	if !fired {
+		t.Error("overflow consumed the session's termination guard: it must be a bare TCP close, " +
+			"not a Termination attempt that merely failed to acquire the write lock")
+	}
+
 	// The producer must keep working (returning errNotConnected, not blocking)
 	// after the reset, so a stalled collector cannot wedge the RIB publisher.
 	if err := ss.writeRouteMonitoring(peer, msgtype.TypeUPDATE, body); !errors.Is(err, errNotConnected) {

@@ -149,14 +149,16 @@ connects (or reconnects after a drop) is told everything again, in this order:
 1. Initiation
 2. Peer Up for every BGP peer that is currently established
 3. With `loc-rib true`: the Loc-RIB Peer Up, a full fresh table dump, and an
-   End-of-RIB marker per family closing that dump (RFC 4724 Section 2 form)
+   End-of-RIB marker closing each family the dump carried (RFC 4724 Section 2
+   form). A Loc-RIB with no best paths at all still gets its markers, so a
+   collector can tell an empty table from a dump still in flight.
 
 Reconnection is not immediate: after a connection ends, ze waits out its
 reconnect interval before redialing, so a flapping collector cannot drive a
 dump loop.
 
-<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- resyncSender -->
-<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- requestLocRIBDump, sendLocRIBEndOfRIB -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp_events.go -- primeSender -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp_locrib.go -- requestLocRIBDump, sendLocRIBEndOfRIB, closeEmptyDump -->
 <!-- source: internal/component/bgp/plugins/bmp/sender.go -- run, onConnected -->
 
 #### A Slow Collector Cannot Stall BGP
@@ -167,10 +169,14 @@ session's own goroutine, so an unresponsive collector costs the BGP RIB a
 memory copy rather than a blocking write.
 
 The queue is bounded in bytes (256 MiB per collector, sized to absorb a full
-Loc-RIB dump). If a collector stops reading for long enough to fill it, ze
-logs `bmp: collector connection stalled, resetting session` and resets the
-session with a plain TCP close -- no Termination message, because the session
-is being abandoned rather than shut down. The collector's next connection gets
+Loc-RIB dump). The bound is not what catches a collector that stops reading
+outright: that one is caught in seconds by the drain's per-write deadline,
+long before 256 MiB accumulates. The bound bites for the other shape -- a
+collector that keeps reading, but steadily slower than ze produces -- where
+every individual write succeeds and it is the backlog that grows. In either
+case ze logs `bmp: collector connection stalled, resetting session` and resets
+the session with a plain TCP close -- no Termination message, because the
+session is being abandoned rather than shut down. The collector's next connection gets
 a complete fresh session as described above. Messages are never silently
 dropped: either they are delivered, or the session that owed them is reset.
 

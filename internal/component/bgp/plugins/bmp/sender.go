@@ -211,13 +211,13 @@ func (ss *senderSession) run() {
 		// is on the wire -- otherwise a Peer Up or a Loc-RIB Route Monitoring
 		// racing in from another goroutine reaches the collector first.
 		//
-		// A producer that arrives while Initiation is in flight BLOCKS on writeMu
-		// (sendInitiation holds it) rather than seeing the nil conn: the nil-conn
-		// drop window is only the few instructions between sendInitiation's
-		// deferred unlock and the publish below. It is bounded by writeTimeout,
-		// and it is the same wait such a producer already had before ss.conn was
-		// moved -- concurrent conn.Write calls serialize on the socket's own write
-		// lock (internal/poll.FD.Write holds it across the whole call).
+		// A producer arriving while Initiation is in flight sees the nil conn and
+		// returns errNotConnected immediately; it does NOT wait. sendInitiation
+		// deliberately does not hold writeMu (see its doc comment) -- holding the
+		// producers' lock across a socket write bounded only by writeTimeout is
+		// exactly the stall the transmit queue exists to remove. Nothing is lost
+		// by the drop: the publish below is immediately followed by priming the
+		// session with a Peer Up for every established peer.
 		//
 		// Also note stop() cannot abort an in-flight Initiation: it closes
 		// ss.conn, which is still nil for this window.
@@ -295,25 +295,33 @@ func (ss *senderSession) clearConn() {
 	ss.connMu.Unlock()
 }
 
-// clearConnIf clears the conn field only when it is still c, and reports
-// whether it did. Used by the paths that give up on a connection
-// asynchronously (the drain's failed write, the transmit-queue overflow): by
-// the time they run, run() may have already replaced c with a live connection,
-// and clearing that one would leave the session connected but unreachable to
-// every producer.
+// clearConnAndResetIf clears the conn field and drops the transmit queue, both
+// only when the conn is still c.
 //
-// The return value answers "was I still the current connection?", which is also
-// the only safe basis for dropping the transmit queue: a caller that was NOT
-// current is looking at a queue that now belongs to a newer session.
-func (ss *senderSession) clearConnIf(c net.Conn) bool {
+// The two steps are ONE connMu critical section on purpose. Done separately --
+// clearConnIf returning true, then q.reset() -- the window between them is a
+// check-then-act: run() can publish the next connection and prime it with a
+// Peer Up for every established peer in that gap, and the reset then silently
+// discards those primed Peer Ups. The collector afterwards receives Route
+// Monitoring for peers it was never told about (RFC 7854 Section 4.10) with
+// nothing logged and nothing to recover it. The window is small enough that it
+// has never been observed, which is exactly why it must be closed structurally
+// rather than left to timing.
+//
+// Lock order is connMu then q.mu, matching every other two-lock path in this
+// package (writeMu -> {connMu, drainMu, flushMu} -> q.mu); it never runs with
+// writeMu held from the drain side, and the producer side takes writeMu first.
+func (ss *senderSession) clearConnAndResetIf(c net.Conn, q *txQueue) {
 	ss.connMu.Lock()
 	defer ss.connMu.Unlock()
 
 	if ss.conn != c {
-		return false
+		return
 	}
 	ss.conn = nil
-	return true
+	if q != nil {
+		q.reset()
+	}
 }
 
 // sendInitiation sends a BMP Initiation message to the collector.
@@ -514,6 +522,13 @@ func (ss *senderSession) stop() {
 			// Termination, then the close that unblocks holdConnection's Read.
 			ss.terminateAndClose(c, "sender-stop")
 		}
+
+		// Publish the disconnect LAST. Without it ss.conn kept pointing at the
+		// closed socket, so enqueueLocked's nil check passed and a producer that
+		// arrived after stop() was told its message was queued -- onto a queue
+		// whose drain has already exited and will never write it. Nilling here
+		// makes those producers get errNotConnected, which is the truth.
+		ss.clearConn()
 	})
 }
 

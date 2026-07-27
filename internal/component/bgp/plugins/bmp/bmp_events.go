@@ -79,14 +79,14 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 		// Filter by route-monitoring-policy:
 		// "pre-policy" = received only, "post-policy" = sent only, "all" = both.
 		if policy == "" {
-			policy = "all"
+			policy = policyAll
 		}
 		switch {
-		case policy == "all":
+		case policy == policyAll:
 			bp.handleSenderUpdate(se, senders)
-		case policy == "pre-policy" && se.Direction == rpc.DirectionReceived:
+		case policy == policyPrePolicy && se.Direction == rpc.DirectionReceived:
 			bp.handleSenderUpdate(se, senders)
-		case policy == "post-policy" && se.Direction == rpc.DirectionSent:
+		case policy == policyPostPolicy && se.Direction == rpc.DirectionSent:
 			bp.handleSenderUpdate(se, senders)
 		}
 		if mirroring {

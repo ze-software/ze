@@ -2,6 +2,8 @@ package bmp
 
 import (
 	"bytes"
+	"encoding/binary"
+	"errors"
 	"net"
 	"net/netip"
 	"strconv"
@@ -17,15 +19,41 @@ import (
 	"github.com/ze-software/ze/internal/core/replay"
 )
 
-// isEndOfRIB reports whether a Route Monitoring carries the RFC 4724 Section 2
-// End-of-RIB marker for IPv4 unicast: an UPDATE with no withdrawn routes, no
-// path attributes and no NLRI (a body of four zero bytes).
+// isEndOfRIB reports whether a Route Monitoring carries an RFC 4724 Section 2
+// End-of-RIB marker, in EITHER of the two forms the RFC defines:
+//
+//   - IPv4 unicast: an UPDATE with no withdrawn routes, no path attributes and
+//     no NLRI (a body of four zero bytes).
+//   - any other <AFI, SAFI>: an UPDATE carrying ONLY an MP_UNREACH_NLRI
+//     attribute with no withdrawn routes.
+//
+// Recognizing only the IPv4 form made this helper report an IPv6 End-of-RIB as
+// an ordinary route, so every count of "routes" in these tests silently
+// included it.
 func isEndOfRIB(rm *RouteMonitoring) bool {
 	body := rm.BGPUpdate
-	if len(body) != message.HeaderLen+4 {
+	if len(body) < message.HeaderLen+4 {
 		return false
 	}
-	return bytes.Equal(body[message.HeaderLen:], []byte{0, 0, 0, 0})
+	update := body[message.HeaderLen:]
+
+	// IPv4 unicast form: withdrawn-len 0, attribute-len 0, no NLRI.
+	if len(update) == 4 && bytes.Equal(update, []byte{0, 0, 0, 0}) {
+		return true
+	}
+
+	// Non-IPv4 form: withdrawn-len 0, one MP_UNREACH_NLRI (type 15) attribute
+	// whose value is just AFI(2)+SAFI(1), and no NLRI after it.
+	if binary.BigEndian.Uint16(update[0:2]) != 0 {
+		return false
+	}
+	attrLen := int(binary.BigEndian.Uint16(update[2:4]))
+	attrs := update[4:]
+	if attrLen != len(attrs) || attrLen != 6 {
+		return false
+	}
+	// flags(1) + type(1) + length(1) + AFI(2) + SAFI(1)
+	return attrs[1] == 15 && attrs[2] == 3
 }
 
 // dumpBus installs a test EventBus whose stand-in RIB answers every
@@ -688,5 +716,89 @@ func readSessionOpening(t *testing.T, conn net.Conn, dumped netip.Prefix, what s
 	}
 	if !sawEOR {
 		t.Errorf("%s: the dump was not closed with an End-of-RIB marker", what)
+	}
+}
+
+func TestEmptyLocRIBDumpStillEndsWithEndOfRIB(t *testing.T) {
+	// VALIDATES: a dump the RIB answers with NO batches at all is still closed
+	// with End-of-RIB markers, preceded by the Loc-RIB Peer Up.
+	// PREVENTS: the collector waiting forever for a dump that already finished.
+	// replayBestPaths publishes a family only when its change list is non-empty
+	// (internal/component/bgp/plugins/rib/rib_bestchange.go), so an empty
+	// Loc-RIB produces no batch, handleBestChange never runs, and the marker
+	// that exists to say "the table is empty" was the one thing never sent.
+	conn := newRecordingConn()
+	ss := newTestSession(t, "empty-table", conn)
+	bp := &BMPPlugin{
+		senders:   []*senderSession{ss},
+		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+	}
+
+	// A stand-in RIB with an empty table: it receives the replay-request and
+	// emits nothing, exactly as replayBestPaths does with no best paths.
+	bus := newLocRIBTestBus()
+	setEventBus(bus)
+	t.Cleanup(func() { eventBusPtr.Store(nil) })
+	unsub := ribevents.ReplayRequest.Subscribe(bus, func(*replay.Request) {})
+	t.Cleanup(unsub)
+
+	bp.startLocRIB()
+	t.Cleanup(bp.stopLocRIB)
+	waitQueueDrained(t, ss)
+
+	var peerUps, routes, eors int
+	for _, m := range decodeBMPStream(t, conn.written()) {
+		switch v := m.(type) {
+		case *PeerUp:
+			peerUps++
+		case *RouteMonitoring:
+			if isEndOfRIB(v) {
+				eors++
+			} else {
+				routes++
+			}
+		default:
+			t.Errorf("unexpected message type %T on an empty dump", m)
+		}
+	}
+
+	if eors == 0 {
+		t.Error("an empty Loc-RIB dump sent no End-of-RIB marker: the collector cannot tell " +
+			"'the table is empty' from 'the dump is still arriving'")
+	}
+	if routes != 0 {
+		t.Errorf("an empty dump produced %d Route Monitoring messages, want 0", routes)
+	}
+	if peerUps != 1 {
+		t.Errorf("Loc-RIB Peer Up count = %d, want exactly 1: RFC 9069 requires it to precede "+
+			"Route Monitoring, and an End-of-RIB marker is a Route Monitoring message", peerUps)
+	}
+}
+
+func TestStopPublishesTheDisconnect(t *testing.T) {
+	// VALIDATES: stop() clears the session's conn, so a producer that arrives
+	// afterwards is told the truth.
+	// PREVENTS: enqueueLocked's nil check passing on a socket stop() has already
+	// closed. The producer was told its message was queued, onto a queue whose
+	// drain has exited and will never write it -- a silent drop reported as
+	// success (ai/rules/fail-closed-guards.md).
+	conn := newRecordingConn()
+	ss := newTestSession(t, "stopped", conn)
+
+	peer := testPeerHeader()
+	if err := ss.writeRouteMonitoring(peer, msgtype.TypeUPDATE, []byte{0, 0, 0, 0}); err != nil {
+		t.Fatalf("pre-stop write: %v", err)
+	}
+
+	ss.stop()
+
+	ss.connMu.Lock()
+	c := ss.conn
+	ss.connMu.Unlock()
+	if c != nil {
+		t.Error("stop() left the session pointing at a closed connection")
+	}
+	if err := ss.writeRouteMonitoring(peer, msgtype.TypeUPDATE, []byte{0, 0, 0, 0}); !errors.Is(err, errNotConnected) {
+		t.Errorf("a producer after stop() got %v, want errNotConnected", err)
 	}
 }

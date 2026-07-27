@@ -54,9 +54,7 @@ func (ss *senderSession) enqueueLocked(data []byte) error {
 	// BMP_TERM_REASON_OOR but never sends it (proto/bmp/bmp.c:159,981). Writing
 	// one here would also mean queueing on a queue that just proved it is full.
 	closeLog(c, "sender-queue-overflow")
-	if ss.clearConnIf(c) {
-		q.reset()
-	}
+	ss.clearConnAndResetIf(c, q)
 	return errQueueOverflow
 }
 
@@ -149,9 +147,11 @@ func (ss *senderSession) drainLoop(q *txQueue) {
 			// never told about (RFC 7854 Section 4.10) with nothing logged and
 			// nothing to recover it. advance() is guarded the same way, by the
 			// queue's own inFlight marker (txqueue.go).
-			if ss.clearConnIf(c) {
-				q.reset()
-			}
+			//
+			// Clear-and-reset under ONE connMu hold: done as two steps, run()
+			// could publish and prime the next connection in between and the
+			// reset would throw those primed Peer Ups away.
+			ss.clearConnAndResetIf(c, q)
 			continue
 		}
 		q.advance(len(buf))

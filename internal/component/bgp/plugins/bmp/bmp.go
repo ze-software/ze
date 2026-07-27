@@ -23,12 +23,22 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
 var errPluginNotInitialized = errors.New("plugin not initialized")
+
+// Route-monitoring policy values (the YANG leaf's enum). Named constants rather
+// than repeated literals so a typo in one arm of the dispatch cannot silently
+// disable a direction.
+const (
+	policyPrePolicy  = "pre-policy"  // Route Monitoring for received UPDATEs only
+	policyPostPolicy = "post-policy" // Route Monitoring for sent UPDATEs only
+	policyAll        = "all"         // both directions
+)
 
 // maxBMPMsgSize is the upper bound on a single BMP message.
 // BGP max (4096) + BMP framing (48) with generous headroom for TLVs.
@@ -126,6 +136,33 @@ type openPair struct {
 // is addressed to whoever is already connected).
 type dumpScope struct {
 	session *senderSession
+
+	// closed records the families whose batch this dump closed with an
+	// End-of-RIB marker, so emitReplayRequest can tell whether the RIB answered
+	// with anything at all. Guarded by mu: the dump is delivered synchronously
+	// on the emitting goroutine, but a replay from another producer can be
+	// mis-claimed onto this scope from ITS goroutine (see the known gap in
+	// handleBestChange), so the map must not be written unsynchronized.
+	mu     sync.Mutex
+	closed map[family.Family]bool
+}
+
+// noteClosed records that fam's dump was closed with an End-of-RIB marker.
+func (d *dumpScope) noteClosed(fam family.Family) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	if d.closed == nil {
+		d.closed = make(map[family.Family]bool, 2)
+	}
+	d.closed[fam] = true
+}
+
+// anyClosed reports whether this dump closed at least one family, i.e. whether
+// the RIB answered the replay-request with anything at all.
+func (d *dumpScope) anyClosed() bool {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return len(d.closed) > 0
 }
 
 // peerUpState is everything the Peer Up message for one established BGP peer
@@ -165,7 +202,7 @@ type BMPPlugin struct {
 	// event-delivery goroutine, which snapshots them together (see
 	// handleStructuredEvent).
 	senders            []*senderSession
-	routeMonitorPolicy string // "pre-policy", "post-policy", "all"
+	routeMonitorPolicy string // one of policyPrePolicy, policyPostPolicy, policyAll
 	routeMirroring     bool
 
 	// Loc-RIB monitoring state (RFC 9069, PeerType=3). locRIBUnsub is the
