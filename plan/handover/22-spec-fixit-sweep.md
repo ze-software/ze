@@ -1,0 +1,129 @@
+# 22 -- spec-fixit sweep: state, decisions banked, next moves
+
+Written 2026-07-27 at the end of a session whose goal was "implement all the
+spec-fixit we have in the plan folder". That goal is NOT met and this records
+exactly where it stands, so the next session starts from evidence rather than
+re-deriving it.
+
+## Rationale (what was agreed, and why)
+
+- Thomas answered three blocking questions this session (see "Decisions banked").
+  Two are acted on; one (BMP queue) is specified but not implemented.
+- Defects were fixed at the source rather than recorded, per
+  `ai/rules/no-parking.md`. Every fix is mutation-verified: disable the code
+  under test, confirm the test goes red, revert.
+- **A fixed defect is not a closed spec.** Closure additionally needs the
+  Implementation Audit, Goal Validation, Review Gate artifact
+  (`scripts/dev/review_gate.py`, enforced by `commit_helper.py`) and Pre-Commit
+  Verification sections filled, then the two-commit sequence. None of the specs
+  touched below have had that done.
+- The BMP queue was deliberately NOT started: it is a memory-architecture change
+  to a hot path, not a small edit. Reason is recorded in its spec and summarised
+  below.
+
+## Decisions banked from Thomas (2026-07-27)
+
+| # | Question | Answer | Status |
+|---|----------|--------|--------|
+| 1 | May the RFC-tagged `TestOTCEgressNoStampProvider` be changed? | **Approved**, fix test + code | DONE (`c398e97f0`) |
+| 2 | BMP policy when a collector wedges | **"do what bird does"** | RESEARCHED + SPECIFIED, not implemented |
+| 3 | `bgp-session-fsm-lifecycle` AC-4 (FSM Error on second OPEN) | **Drop AC-4** | DONE, but see the correction below (`e929099ed`) |
+
+**Correction that matters for trust in #3.** The option text put to Thomas said
+"the current code already matches Section 8.2.2 here". That was asserted without
+reading the producer and was FALSE: `handleOpen` had no state gate at all. AC-4's
+prescribed remedy (FSM Error, code 5) was still wrong per RFC 4271 Section 8.2.2,
+so dropping it was right, but the AC was pointing at a real defect.
+
+## Commits from this session (all on `main`, unpushed)
+
+| SHA | What |
+|-----|------|
+| `71f91c170` | IS-IS LSDB field-discipline comment corrected (it claimed 2 fields mutate post-publication; 4 do -- what forces an atomic is the CONJUNCTION of post-publication mutation AND off-lock read). Deleted `IsReceivedPurge`, an exported accessor with only test callers whose doc claimed "the engine reads this" |
+| `c398e97f0` | `resolveSrcRole` recovers OTC src-role from config when meta lacks it, closing a leak guard that any caller without ingress metadata skipped |
+| `e929099ed` | `handleOpen` state gate: refuses a second OPEN on an Established/OpenConfirm session with Cease + FSM transition |
+| `f091c69f1` | `startSender` made idempotent (latent, not live -- see below) |
+| `5381a1bb1` | BMP queue storage-shape constraint recorded in its spec |
+
+## The near-miss worth knowing about
+
+`e929099ed`'s FIRST version sent the NOTIFICATION and closed the socket but did
+NOT fire the FSM event. It passed its own tests. Independent review caught that
+this skipped the entire peer-closed cascade: `peer_run.go`'s
+`from == fsm.StateEstablished` branch owns `stopBFDClient`, `raiseSessionDropped`
+and `notifyPeerClosed`, and `notifyPeerClosed` is the sole producer of the
+`SessionStateDown` that makes `adj_rib_in` clear `peerUp` and drop stored routes.
+The "fix" would have left a dead peer marked UP with its routes retained and
+replayed on reconnect -- arguably worse than the bug being fixed.
+
+RFC 4271 Section 8.2.2 said so too, and the first version had quoted it
+selectively: the Event 19 termination action list also mandates "deletes all
+routes associated with this connection" and "changes its state to Idle".
+
+Lesson for the next session: **run the independent review pass on every one of
+these before closing.** Two of this session's own fixes were wrong in a way the
+author could not see.
+
+## Next moves, in priority order
+
+### 1. BMP send queue (`plan/spec-fixit-bmp-sender-blocking-and-reload.md`)
+
+Fully specified, decision banked, NOT implemented. Read the spec's Task section:
+BIRD's design is recorded there with `proto/bmp/` citations (master `02d082a7`).
+
+Summary: bounded queue counted in **BYTES** not messages; on overflow **reset the
+session** (never drop, never block); full RIB re-dump on reconnect.
+
+**The constraint that shapes the work** (`5381a1bb1`): the queue must be a
+POOLED BYTE RING, not a `[][]byte`. `senderSession.scratch` is allocated once per
+collector and its comment records that it "keeps the BGP-UPDATE -> BMP Route
+Monitoring hot path allocation-free". A queue of `[]byte` elements must copy each
+message out of `scratch` before the producer returns, which is a heap allocation
+per Route Monitoring message on that path -- banned by
+`ai/rules/buffer-first.md` and `ai/rules/memory-architecture.md`. BIRD avoids it
+by packing into pooled pages rather than queueing message objects.
+
+Needs: a design pass against `memory-architecture.md` (pool strategy by goroutine
+shape: producer set + one drain goroutine per session) and an allocation
+assertion in its tests.
+
+Defect 2 of that spec (`startSender` idempotency) is DONE and the spec records
+that Stage-2 configure is delivered once per plugin PROCESS startup, so the
+doubling was latent.
+
+### 2. Closure work on specs whose defects are already fixed
+
+`spec-fixit-otc-src-role-meta-fallback` and `spec-fixit-bgp-session-fsm-lifecycle`
+have their code landed. They need audit + goal validation + review gate +
+pre-commit verification, then the two-commit closure.
+`spec-fixit-isis-lsdb-entry-race` is a skeleton (unfilled ACs) whose fix landed in
+`7f3bfd338` plus `71f91c170`; closing it means filling the ACs retroactively.
+
+### 3. Known test gaps left open (do not let these go quiet)
+
+- No `.ci` functional test for the second-OPEN behaviour. `functional-test-gate.md`
+  wants one; the spec's own user story names `test/parse/open-in-established.ci`.
+- The OpenConfirm branch of the new gate is implemented and named in AC-4a but
+  only the Established path is tested.
+
+## Environment warnings for whoever picks this up
+
+- **This working tree is shared with another active session.** At handover it had
+  uncommitted work in `internal/component/doctor/`, `internal/core/diagnostic/`,
+  `internal/test/{cli,peer,runner}/` and several `.ci` files, plus new untracked
+  files. Check `git status` before assuming a red is yours.
+- `ai/DOCS-TO-CODE.md` is left MODIFIED in the tree. Its only content change is
+  two files belonging to that other session (`internal/test/peer/listen_ttl.go`,
+  `internal/test/runner/needs_path.go`); their commit should carry it. Do not
+  fold it into an unrelated commit.
+- **Not mine, currently red:** the other session's new `doctor-config-bgp-peer`
+  check fails `ze-test ui 104` (`doctor-bgp-listen`) and `105` (`doctor-bgp-md5`)
+  -- two `.ci` files they have not updated.
+- `make ze-verify` cannot go green while that session is mid-edit. The commits
+  above used the Known-Red scope-to-changed path with attribution.
+
+## Verification command
+
+    make ze-verify
+
+Delete this file in the commit that completes its last item.
