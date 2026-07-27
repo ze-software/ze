@@ -544,11 +544,19 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 					// claim. routerIDClaims.claim refuses it (routerid_unique.go),
 					// so ze answers a legitimate peer with OPEN Message Error / Bad
 					// BGP Identifier and that session never establishes; whether it
-					// happens is pure scheduling luck. Release synchronously here so
-					// every claim of the outgoing generation is gone before any add
-					// runs. The registry is a leaf lock, and the peer's own later
-					// release is then a no-op that cannot touch the new holder's
-					// entry (routerIDClaims.release checks holder.peer == p).
+					// happens is pure scheduling luck. Releasing synchronously here
+					// removes the claim before the add loop runs, which closes the
+					// ordinary window. The registry is a leaf lock, and the peer's
+					// own later release is then a no-op that cannot touch the new
+					// holder's entry (routerIDClaims.release checks holder.peer == p).
+					//
+					// It NARROWS the race rather than closing it, and the difference
+					// matters: Stop only cancels a context and does not wait, so an
+					// outgoing peer whose session goroutine is already inside
+					// validateOpen can re-claim after this line. Nothing tombstones
+					// it. Closing that fully needs the peer marked as removed so a
+					// late claim is refused -- not done here, and it is the residual
+					// this comment must not paper over.
 					peer.releaseRouterIDClaim()
 					// Clear any prefix-stale warning for this peer from the
 					// report bus. Threshold warnings are cleared by the session

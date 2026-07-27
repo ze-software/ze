@@ -182,6 +182,11 @@ func (r *Reactor) removeDynamicPeer(peer *Peer) {
 	key := settings.PeerKey()
 
 	peer.Stop()
+	// Same synchronous release as removePeer and the reload-remove path: Stop
+	// only cancels a context, so a dynamic peer removed and recreated (the
+	// remove/recreate path this function serves) would otherwise race its own
+	// stale claim and refuse the new session with Bad BGP Identifier.
+	peer.releaseRouterIDClaim()
 	ClearPrefixStale(settings.Address.String())
 	if peer.health != nil {
 		peer.health.stop()

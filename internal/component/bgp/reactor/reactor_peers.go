@@ -236,6 +236,16 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 	// Stop peer if running
 	peer.Stop()
 
+	// Release the AS-wide BGP Identifier claim synchronously, for the same
+	// reason the reload-remove path does (reactor_api.go): Stop only cancels a
+	// context, so without this the outgoing peer's claim outlives its removal
+	// until its goroutine happens to be scheduled. A RemovePeer+AddPeer pair
+	// (re-address, or a router-id move) would then meet its own stale claim and
+	// answer the legitimate new session with Bad BGP Identifier, decided purely
+	// by scheduling. The peer's own later release is a no-op that cannot touch a
+	// new holder's entry (routerIDClaims.release checks holder.peer == p).
+	peer.releaseRouterIDClaim()
+
 	// Clear any prefix-stale warning for this peer from the report bus.
 	// Threshold warnings are cleared by Session.ClearReportedWarnings
 	// during the session teardown defer in peer_run.go.

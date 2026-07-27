@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 )
 
 // TestRouterIDConflictError verifies the error type used for NOTIFICATION dispatch.
@@ -524,10 +525,14 @@ func TestRouterIDClaimReleasedOnTeardown(t *testing.T) {
 	var conflictErr *routerIDConflictError
 	require.ErrorAs(t, err, &conflictErr, "the identifier is held")
 
-	// Teardown releases it.
-	holderPeer.releaseRouterIDClaim()
+	// Drive the PRODUCTION teardown, not the release helper. cleanup() is what
+	// the session-goroutine defer and the peer-removal paths actually run
+	// (peer_run.go); calling releaseRouterIDClaim() directly here would pass
+	// even if every production release site were deleted, which is exactly the
+	// leak this test exists to prevent.
+	holderPeer.cleanup()
 	_, held := r.routerIDs.holder(65001, 0x01020304)
-	assert.False(t, held, "release must remove the registry entry")
+	assert.False(t, held, "teardown must remove the registry entry")
 
 	// A different peer may now claim it.
 	_, err = claimPeer(t, r, "192.0.2.98", 65001, 0x01020304)
@@ -555,4 +560,145 @@ func TestRouterIDClaimKeyedByPeerNotSettings(t *testing.T) {
 	peer.releaseRouterIDClaim()
 	_, held := r.routerIDs.holder(65001, 0x01020304)
 	assert.False(t, held, "release must find the claim even after settings changed")
+}
+
+// TestRouterIDClaimReleasedOnPeerRemoval drives the PEER-REMOVAL paths, which
+// are the ones a claim can leak through without any session teardown running.
+//
+// VALIDATES: RemovePeer and removeDynamicPeer release the AS-wide BGP
+// Identifier claim synchronously, so a peer removed and immediately re-added
+// (re-address, router-id move, dynamic remove/recreate) does not meet its own
+// stale claim.
+//
+// PREVENTS: the sibling-call-site gap. The reload-remove path
+// (reactor_api.go) was given a synchronous releaseRouterIDClaim(); these two
+// were not. Peer.Stop() only cancels a context, so the outgoing peer's claim
+// outlived its removal until its goroutine was scheduled, and the legitimate
+// new session was answered with OPEN Message Error / Bad BGP Identifier --
+// decided purely by scheduling, which is why no existing test caught it.
+// Driving removal rather than releaseRouterIDClaim() is the whole point: the
+// helper-level test passes with every production release site deleted.
+func TestRouterIDClaimReleasedOnPeerRemoval(t *testing.T) {
+	const (
+		peerAS uint32 = 65001
+		bgpID  uint32 = 0x01020304
+	)
+
+	t.Run("RemovePeer frees the identifier for a re-add", func(t *testing.T) {
+		r := newClaimReactor(t, false)
+
+		holder, err := claimPeer(t, r, "192.0.2.1", peerAS, bgpID)
+		require.NoError(t, err, "first peer claims the identifier")
+		require.NotNil(t, holder)
+
+		require.NoError(t, r.RemovePeer(netip.MustParseAddr("192.0.2.1")))
+
+		if _, held := r.routerIDs.holder(peerAS, bgpID); held {
+			t.Fatal("RemovePeer left the claim held; a re-added peer would be refused")
+		}
+		_, err = claimPeer(t, r, "192.0.2.2", peerAS, bgpID)
+		assert.NoError(t, err, "the identifier must be claimable after removal")
+	})
+
+	t.Run("removeDynamicPeer frees the identifier", func(t *testing.T) {
+		r := newClaimReactor(t, false)
+
+		holder, err := claimPeer(t, r, "192.0.2.10", peerAS, bgpID)
+		require.NoError(t, err)
+
+		r.mu.Lock()
+		r.removeDynamicPeer(holder)
+		r.mu.Unlock()
+
+		if _, held := r.routerIDs.holder(peerAS, bgpID); held {
+			t.Fatal("removeDynamicPeer left the claim held; the recreated peer would be refused")
+		}
+	})
+}
+
+// TestRouterIDClaimConcurrentWithRelease races claim against release, which is
+// the interleaving production actually runs.
+//
+// VALIDATES: the registry stays consistent when a claim on one goroutine
+// overlaps a release on another -- an identifier is either held by exactly one
+// peer or by none, never recorded as held by a peer that released.
+//
+// PREVENTS: the gap the existing concurrency test left. claim-vs-claim was
+// never in doubt; the production shape is claim on the SESSION goroutine while
+// release runs from teardown, peer removal or reload. That is the interleaving
+// the peer-removal fix lives in, and nothing exercised it. Run under -race.
+func TestRouterIDClaimConcurrentWithRelease(t *testing.T) {
+	const (
+		peerAS uint32 = 65001
+		bgpID  uint32 = 0x0A0B0C0D
+	)
+
+	for range 50 {
+		r := newClaimReactor(t, false)
+
+		holder, err := claimPeer(t, r, "192.0.2.1", peerAS, bgpID)
+		require.NoError(t, err)
+
+		settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), peerAS, peerAS, 0x01020301)
+		challenger := NewPeer(settings)
+		challenger.SetReactor(r)
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			holder.releaseRouterIDClaim()
+		}()
+		go func() {
+			defer wg.Done()
+			// Ignore the result: whether the challenger wins depends on the
+			// interleaving, and both outcomes are legal. What must hold is the
+			// invariant checked below.
+			_, _ = r.routerIDs.claim(challenger, settings.Address, peerAS, bgpID)
+		}()
+		wg.Wait()
+
+		// Invariant: whoever the registry says holds the identifier must be a
+		// peer that did not release it. The holder released unconditionally, so
+		// the only legal states are "challenger holds it" or "nobody does".
+		if owner, held := r.routerIDs.holder(peerAS, bgpID); held && owner == holder {
+			t.Fatal("registry reports the identifier held by the peer that released it")
+		}
+	}
+}
+
+// TestOpenAdvertisedASReadsAS4Capability pins the AS a peer is judged by when
+// its settings carry none.
+//
+// VALIDATES: RFC 6793 -- a 4-byte-AS peer is identified by the ASN in its AS4
+// capability, not by the AS_TRANS placeholder in the two-octet My AS field.
+//
+// PREVENTS: two defects that shared one cause. message.Open.ASN4 is NEVER set on
+// a RECEIVED open (UnpackOpen does not populate it and nothing else assigns it),
+// so the previous `remote.ASN4 > 0` test was dead and every such peer fell back
+// to My AS = AS_TRANS (23456). That put every 4-byte-AS peer's BGP Identifier
+// claim in one shared 23456 bucket, so two peers in genuinely different ASes
+// that legitimately share an identifier collided and the second was refused --
+// a rejection RFC 6286 Section 2.1 does not license, since it scopes uniqueness
+// per-AS. The same value decides "is this an internal peer" for Section 2.2.
+func TestOpenAdvertisedASReadsAS4Capability(t *testing.T) {
+	const as4 uint32 = 4200000001 // > 65535, so My AS must carry AS_TRANS
+
+	withAS4 := &message.Open{Version: 4, MyAS: message.AS_TRANS, HoldTime: 90, BGPIdentifier: 0x01020304}
+	withAS4.OptionalParams = buildOptionalParams([]capability.Capability{&capability.ASN4{ASN: as4}})
+
+	assert.Equal(t, as4, openAdvertisedAS(withAS4),
+		"a 4-byte-AS peer must be identified by its AS4 capability, not AS_TRANS")
+
+	// A two-octet speaker advertises no AS4 capability; My AS is the answer.
+	plain := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020304}
+	assert.Equal(t, uint32(65001), openAdvertisedAS(plain),
+		"a two-octet peer is identified by My AS")
+
+	// Malformed optional params must not panic or fabricate an AS: fall back to
+	// My AS and let capability negotiation report the error with its own subcode.
+	malformed := &message.Open{Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020304}
+	malformed.OptionalParams = []byte{0xff, 0xff, 0xff}
+	assert.Equal(t, uint32(65002), openAdvertisedAS(malformed),
+		"a capability parse error must fall back to My AS, not fabricate one")
 }

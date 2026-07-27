@@ -569,6 +569,18 @@ registry; Section 2.3 above the collision branch.
 ### Assumptions Resolved
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| A-1 | broken | Three fixtures (223, 254, 351) DID share a BGP Identifier between two peers of one AS. They passed before only because collision detection waited for Established; §2.2 validation now rejects at OPEN. Found by the full plugin suite, not by reading. Resolved by giving the fixtures distinct identifiers via the new `.ci` option. Verified: `make ze-plugin-test` 495/495 |
+| A-2 | confirmed | The runOnce defer is installed before `session.Start()` (`peer_run.go:227`) and cleanup releases at `:517-521`; a third release site covers the reload-remove path (`reactor_api.go:552`). `routerIDClaims.release` (`routerid_unique.go:126-138`) is a no-op for a peer holding nothing, so the extra sites cannot double-release. Proven by `TestRouterIDClaimReleasedOnTeardown` (`routerid_unique_test.go:516`, `:542`) |
+| A-3 | broken | A dynamic peer's `PeerAS` is published at establishment, i.e. AFTER `validateOpen`, so keying on `p.settings.PeerAS` would have keyed the claim under AS 0. Caught by reading the producer during implementation, before the code shipped. Resolved by `claimPeerAS` (`peer.go:841-849`), which falls back to the OPEN's advertised AS -- `ASN4` when present, else `MyAS` |
+| A-4 | confirmed | `option=open:value=...` inside a `stdin=<name>` block reaches ze-peer verbatim: `internal/test/runner/record_parse.go:353` reconstructs only top-level options and passes block bodies through. Proven end to end by `test/plugin/rfc6286-zero-bgp-identifier.ci:15`, which asserts the wire NOTIFICATION hex `...0015030203` |
+
+Neither broken assumption survived into shipped behavior, but they broke in
+different ways and only one of them was caught by thinking. A-3 was caught by
+reading the producer while writing the claim key. A-1 was caught only by running
+the full suite: the three fixtures were not wrong, they were relying on
+detection happening later than it now does, and no amount of reading the new
+code would have surfaced that. That is the argument for running the suite rather
+than reasoning about which tests a change can touch.
 
 ### Documentation Verified
 | Documentation claim or category | Source evidence | Verified |

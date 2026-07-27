@@ -842,8 +842,35 @@ func (p *Peer) claimPeerAS(remote *message.Open) uint32 {
 	if as := p.PeerAS(); as != 0 {
 		return as
 	}
-	if remote.ASN4 > 0 {
-		return remote.ASN4
+	return openAdvertisedAS(remote)
+}
+
+// openAdvertisedAS returns the AS a peer advertises in its OPEN, per RFC 6793:
+// the 4-byte ASN from the AS4 capability when present, else the two-octet My AS.
+//
+// It parses the capability out of OptionalParams rather than reading
+// message.Open.ASN4, which is NEVER set on a received OPEN -- UnpackOpen does not
+// populate it and no other code assigns it, so a `remote.ASN4 > 0` test is dead.
+// The consequence of that dead branch was not cosmetic: every 4-byte-AS peer
+// whose settings carry no AS fell through to My AS, which RFC 6793 requires such
+// a speaker to send as AS_TRANS (23456). All of them then claimed their BGP
+// Identifier in one shared 23456 bucket, so two peers in genuinely DIFFERENT
+// 4-byte ASes that legitimately share an identifier collided and the second was
+// refused with Bad BGP Identifier -- a rejection RFC 6286 Section 2.1 does not
+// license, since its uniqueness requirement is scoped per-AS.
+//
+// Capability parse errors are swallowed deliberately: this runs before
+// negotiation, where a malformed capability gets its own OPEN error with the
+// right subcode (rejectOpenCapabilityError). Falling back to My AS here keeps
+// that the single place a capability problem is reported.
+func openAdvertisedAS(remote *message.Open) uint32 {
+	caps, err := capability.ParseFromOptionalParams(remote.OptionalParams)
+	if err == nil {
+		for _, c := range caps {
+			if as4, ok := c.(*capability.ASN4); ok && as4.ASN > 0 {
+				return as4.ASN
+			}
+		}
 	}
 	return uint32(remote.MyAS)
 }

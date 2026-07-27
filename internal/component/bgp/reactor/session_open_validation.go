@@ -21,15 +21,27 @@ import (
 // same as the BGP Identifier of the local BGP speaker and the message is from an internal peer,
 // then the Error Subcode is set to 'Bad BGP Identifier'."
 //
-// "Internal peer" is the same test the RFC 7606 path uses for iBGP (LocalAS == PeerAS), taken from
-// the configured session rather than from the OPEN's My AS field, because the two-octet My AS
-// carries AS_TRANS for a 4-byte AS (RFC 6793) and would misjudge exactly the speakers most likely
-// to be renumbering.
+// "Internal peer" is the same test the RFC 7606 path uses for iBGP (LocalAS == PeerAS), preferring
+// the CONFIGURED peer AS because the two-octet My AS carries AS_TRANS for a 4-byte AS (RFC 6793)
+// and would misjudge exactly the speakers most likely to be renumbering.
+//
+// A DYNAMIC peer has no configured AS here: buildDynamicPeerSettings sets PeerAS to 0 and
+// resolveDynamicPeerSettings only fills it at establishment, long after this runs. Reading that 0
+// as the peer's AS made `internal` false for every dynamic peer against any real LocalAS, so the
+// second MUST of Section 2.2 -- reject this speaker's OWN identifier from an internal peer -- was
+// never enforced on that rail: a genuine iBGP dynamic peer presenting our identifier was ACCEPTED.
+// The zero value silently selected the permissive branch (ai/rules/fail-closed-guards.md). So when
+// the configured AS is absent, fall back to the AS the peer advertises, read through the AS4
+// capability rather than My AS so a 4-byte-AS peer is judged on its real ASN and not on AS_TRANS.
 //
 // Both OPEN rails (handleOpen and processOpen) call this; on rejection it sends the NOTIFICATION,
 // logs the FSM error event, and closes the connection, so no caller can skip the mandated report.
 func (s *Session) validateOpenIdentifier(open *message.Open) error {
-	internal := s.settings.LocalAS == s.settings.PeerAS
+	peerAS := s.settings.PeerAS
+	if peerAS == 0 {
+		peerAS = openAdvertisedAS(open)
+	}
+	internal := s.settings.LocalAS == peerAS
 	err := open.ValidateBGPIdentifier(s.settings.RouterID, internal)
 	if err == nil {
 		return nil

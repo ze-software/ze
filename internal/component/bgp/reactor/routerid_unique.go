@@ -111,8 +111,18 @@ func (c *routerIDClaims) claim(p *Peer, addr netip.Addr, peerAS, bgpID uint32) (
 	}
 
 	// The peer may have held a different identifier on a previous session.
+	//
+	// The holder check mirrors release: it is only safe to drop byID[previous]
+	// if p is still the recorded holder there. Today that is implied, because
+	// byID and byOwner are only ever written together under this lock, so
+	// byID[K].peer == p iff byOwner[p] == K. The guard defends the invariant
+	// rather than relying on it -- a single future write to byID that skips
+	// byOwner would otherwise turn this into a wrong-peer free, handing one
+	// peer's identifier to another.
 	if previous, held := c.byOwner[p]; held && previous != key {
-		delete(c.byID, previous)
+		if holder, taken := c.byID[previous]; taken && holder.peer == p {
+			delete(c.byID, previous)
+		}
 	}
 
 	c.byID[key] = routerIDHolder{peer: p, addr: addr}

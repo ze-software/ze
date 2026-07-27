@@ -103,9 +103,12 @@ module ze-bgp-conf {
                              uniqueness only a SHOULD, so accepting a shared identifier is
                              conformant; set true when the duplication is intentional,
                              e.g. one anycast speaker (AS112) peering over both IPv4 and
-                             IPv6 with the same router-id. When true, ze performs no
-                             router-id uniqueness check at all (it does not implement
-                             RFC 6286 Section 2.3 collision detection).";
+                             IPv6 with the same router-id. When true, only the AS-wide
+                             uniqueness claim is skipped. RFC 6286 Section 2.2 validation
+                             (a zero identifier, or this speaker's own identifier from an
+                             internal peer) still applies, and Section 2.3 connection
+                             collision resolution is implemented and likewise not gated
+                             by this leaf.";
             }
         }
 
