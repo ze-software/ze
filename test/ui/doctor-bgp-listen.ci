@@ -1,5 +1,14 @@
 # Test: ze doctor --json reports unavailable BGP listener
 # VALIDATES: AC-5 BGP local address that cannot bind emits doctor-bgp-listen.
+#
+# The family carries `prefix { maximum }` because the BGP engine requires it
+# ("family ipv4/unicast: prefix maximum is mandatory and must be > 0",
+# PeersFromConfigTree). Without it this fixture was a config the daemon refuses
+# to start on, and the test still asserted exit 0 -- which passed only because
+# `ze doctor` never ran the engine's peer resolution. It does now
+# (checkBGPPeerConfig, internal/component/doctor/checks_config.go), so an
+# engine-invalid fixture is an error diagnostic and a non-zero exit. Fixing the
+# config keeps this test about what it is named for: the listener probe.
 
 tmpfs=bgp-listen.conf:terminator=EOF_CONF
 bgp {
@@ -24,6 +33,9 @@ bgp {
             }
             family {
                 ipv4/unicast {
+                    prefix {
+                        maximum 10000
+                    }
                 }
             }
         }

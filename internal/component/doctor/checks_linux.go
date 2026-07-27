@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -284,11 +285,18 @@ func checkVPPVersion(tree *config.Tree) []diagnostic.Diagnostic {
 	return nil
 }
 
-func readLoadedModules() map[string]bool {
-	path := env.Get(doctorModulesEnv)
-	if path == "" {
-		path = procPath("modules")
+// loadedModulesPath is the file the module list is read from: the test stub when
+// ze.test.doctor.modules-file names one, else procfs. Shared with the diagnostic
+// so an "unreadable" message names the path the reader actually tried.
+func loadedModulesPath() string {
+	if path := env.Get(doctorModulesEnv); path != "" {
+		return path
 	}
+	return procPath("modules")
+}
+
+func readLoadedModules() map[string]bool {
+	path := loadedModulesPath()
 	data, err := readFilePath(path)
 	if err != nil {
 		return nil
@@ -332,9 +340,23 @@ func checkMPLSSupport(tree *config.Tree) []diagnostic.Diagnostic {
 		return nil
 	}
 
+	// A nil map means the module list could not be READ, which is not the same
+	// as "the modules are absent" -- and staying silent about it made this check
+	// invisible rather than reassuring. checkMPLSSupport was the only reader
+	// that bailed on nil (checkKernelModules just indexes the nil map and
+	// reports every module missing), so an unreadable /proc/modules produced no
+	// output at all and there was no way to tell a passing check from one that
+	// never ran. Say so instead (ai/rules/fail-closed-guards.md: a guard that
+	// cannot be evaluated must speak).
 	loaded := loadedKernelModules()
 	if loaded == nil {
-		return nil
+		var tb textbuf.Buffer
+		return []diagnostic.Diagnostic{{
+			Code:     "doctor-mpls-unknown",
+			Severity: diagnostic.SeverityWarning,
+			Message: tb.Str("cannot determine MPLS kernel module state: ").Str(loadedModulesPath()).
+				Str(" is unreadable; labeled routes may or may not be programmable").String(),
+		}}
 	}
 	if loaded["mpls_router"] && loaded["mpls_iptunnel"] {
 		return nil
@@ -377,29 +399,58 @@ func mplsInUse(tree *config.Tree) bool {
 		return true
 	}
 	for _, g := range bgp.GetListOrdered("group") {
-		if containerPeersLabeled(g.Value) {
+		// A group carries the full peer-fields grouping
+		// (internal/component/bgp/yang/ze-bgp-conf.yang `list group { uses
+		// peer-fields; }`), so the family may be declared ONCE on the group and
+		// on none of its peers; ResolveBGPTree deep-merges it into every member
+		// (internal/component/bgp/config/resolve.go). Checking only the group's
+		// peers missed that shape entirely -- and it is the idiomatic one, used
+		// by 26 configs in this repo (test/encode/group-inheritance.ci is the
+		// canonical example).
+		if sessionLabeled(g.Value) || containerPeersLabeled(g.Value) {
 			return true
 		}
 	}
 	return false
 }
 
+// sessionLabeled reports whether c's OWN session negotiates a labeled family.
+// Used for a group, whose session is inherited by each member peer.
+func sessionLabeled(c *config.Tree) bool {
+	session := c.GetContainer("session")
+	if session == nil {
+		return false
+	}
+	for _, fam := range session.GetListOrdered("family") {
+		if slices.Contains(labeledFamilies, fam.Key) {
+			return true
+		}
+	}
+	return false
+}
+
+// labeledFamilies are the family names that mean MPLS forwarding, and therefore
+// that the kernel needs mpls_router / mpls_iptunnel. Package-level so the test
+// that pins them against a parsed config reads the same list the check does.
+var labeledFamilies = []string{"ipv4/mpls-label", "ipv6/mpls-label", "ipv4/mpls-vpn", "ipv6/mpls-vpn"}
+
 // containerPeersLabeled reports whether any peer directly under c negotiates a
 // labeled-unicast or MPLS-VPN family.
+//
+// `family` is a LIST keyed by the family name, not a container -- `family
+// ipv4/mpls-label { ... }` parses to a list ENTRY whose key is the family. This
+// read used session.GetContainer("family"), which is nil for a list, so the loop
+// below was unreachable and checkMPLSSupport could never fire on a real config;
+// it was the only reader in the tree doing so (web/page_bgp_peers.go,
+// page_bgp_families.go, page_bgp_groups.go and exabgp/migration all use
+// GetListOrdered). test/plugin/mpls-doctor.ci existed to catch this and could
+// not: it is skip-os everywhere but Linux, so it had never run until CI, and it
+// ALSO named a family (`ipv4/mpls-unicast`) that does not exist -- two
+// independent faults, either of which alone produced the same silent pass.
 func containerPeersLabeled(c *config.Tree) bool {
 	for _, p := range c.GetListOrdered("peer") {
-		session := p.Value.GetContainer("session")
-		if session == nil {
-			continue
-		}
-		fam := session.GetContainer("family")
-		if fam == nil {
-			continue
-		}
-		for _, name := range []string{"ipv4/mpls-label", "ipv6/mpls-label", "ipv4/mpls-vpn", "ipv6/mpls-vpn"} {
-			if fam.GetContainer(name) != nil {
-				return true
-			}
+		if sessionLabeled(p.Value) {
+			return true
 		}
 	}
 	return false

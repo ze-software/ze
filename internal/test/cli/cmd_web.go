@@ -36,7 +36,8 @@ const (
 const webUsageHeader = `Usage: ze-test web [options] [test-ids...]
 
 Run web browser functional tests (.wb files) in parallel.
-Requires: agent-browser CLI, ze binary in bin/.
+Requires: agent-browser CLI. The ze binary is resolved like every other suite
+(ZE_BIN, else this session's bin/, else built here).
 
 Options:
 `
@@ -177,7 +178,18 @@ func cmdWebMain(args []string) error {
 		cancel()
 	}()
 
-	zeBin := filepath.Join(baseDir, "bin", "ze")
+	// Resolve (and, off ZE_TEST_NO_BUILD, build) the DUT through the same helper
+	// every other suite uses, so ZE_BIN is honored. Hardcoding <baseDir>/bin/ze
+	// was wrong in BOTH directions: the functional flow builds its isolated set
+	// into tmp/testbin-*/bin and exports ZE_BIN there, never populating
+	// <baseDir>/bin, so on a fresh checkout all 87 tests died instantly on
+	// "fork/exec bin/ze: no such file or directory" (every CI run), while on a
+	// developer host a leftover bin/ze made the suite silently test a stale
+	// binary that was not the one under test.
+	zeBin, err := buildZe(ctx, baseDir)
+	if err != nil {
+		return err
+	}
 	defer zeTestCloseAllBrowserSessions()
 
 	colors := runner.NewColors()

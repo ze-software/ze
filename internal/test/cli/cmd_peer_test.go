@@ -82,6 +82,7 @@ func TestPeerFileConfigMergeIsComplete(t *testing.T) {
 		"Decode": "--decode flag",
 		"Dial":   "--dial flag",
 		"Inject": "--inject-* flags",
+		"TTL":    "--ttl flag (GTSM peers: `ze-peer --port $PORT --ttl 255`)",
 		"Output": "set by the peer runtime, not by config",
 		"Expect": "assigned directly from LoadExpectFile's first return value",
 	}

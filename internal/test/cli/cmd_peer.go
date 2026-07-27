@@ -97,6 +97,7 @@ func zeTestParsePeerFlags(args []string) (*peer.Config, bool) {
 
 	var view bool
 	var mode string
+	var ttl uint
 	var injectPrefix, injectNextHop string
 	var injectCount int
 	var injectASN uint
@@ -109,6 +110,7 @@ func zeTestParsePeerFlags(args []string) (*peer.Config, bool) {
 	fs.IntVar(&config.ASN, "asn", 0, "ASN to use (0 = extract from peer OPEN)")
 	fs.StringVar(&mode, "mode", "check", "operation mode: check, sink, echo, inject")
 	fs.BoolVar(&config.IPv6, "ipv6", false, "bind using IPv6")
+	fs.UintVar(&ttl, "ttl", 0, "outgoing TTL / hop limit on the listen socket (255 = RFC 5082 GTSM peer)")
 	fs.BoolVar(&config.Decode, "decode", false, "decode messages to human-readable format")
 	fs.BoolVar(&view, "view", false, "show expected packets and exit")
 	fs.StringVar(&injectPrefix, "inject-prefix", "", "inject: base prefix (e.g. 10.0.0.0/24 or 2001:db8::/48)")
@@ -122,6 +124,15 @@ func zeTestParsePeerFlags(args []string) (*peer.Config, bool) {
 	if err := fs.Parse(args); err != nil {
 		return nil, false
 	}
+
+	// Reject out of range rather than truncating: --ttl 256 silently becoming 0
+	// would leave a test that asked to be a GTSM peer running without the option
+	// and failing far from its cause.
+	if ttl > 255 {
+		fmt.Fprintf(os.Stderr, "error: --ttl %d out of range 0..255\n", ttl)
+		return nil, false
+	}
+	config.TTL = uint8(ttl)
 
 	var valid bool
 	config.Mode, valid = peer.ParseMode(mode)

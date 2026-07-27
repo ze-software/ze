@@ -455,6 +455,44 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 			return nil
 		}
 
+	case "needs-path":
+		// Declares a repo-relative path the test cannot run without, where the
+		// path is an OPTIONAL heavyweight artifact rather than something a
+		// checkout carries. The only such artifact today is the appliance module
+		// cache: gokrazy/modcache/.gitignore ignores everything except the
+		// vendored gokrazy init source, so the pinned rtr7/kernel module (with
+		// its 15 MB vmlinuz) exists only after `make ze-gokrazy-deps`.
+		//
+		// Absent the path the test SKIPS with a reason naming the path and the
+		// command that materializes it. That is deliberately not a silent pass:
+		// test/install/ze-kernel-overlay.ci read the pinned vmlinuz with no guard
+		// and failed `shasum: ... No such file or directory` on every CI run,
+		// and hiding that behind an `exit 0` would have swapped a red for a
+		// green bar over a test that ran nothing.
+		//
+		// The path is resolved against the repo root, not the working directory:
+		// each test runs in its own temp dir.
+		value := kv["value"]
+		if value == "" {
+			return errOptionNeedsPathMissingValue
+		}
+		if strings.HasPrefix(value, "/") || strings.Contains(value, "..") {
+			return fmt.Errorf("option=needs-path: value %q must be repo-relative and contain no %q", value, "..")
+		}
+		root, rootErr := repoRootFrom(ciFile)
+		if rootErr != nil {
+			return fmt.Errorf("option=needs-path: locate repo root from %s: %w", ciFile, rootErr)
+		}
+		if !needsPathSatisfied(root, value) {
+			var tb textbuf.Buffer
+			reason := tb.Str("needs-path=").Str(value).Str(" (absent")
+			if hint := kv["hint"]; hint != "" {
+				reason = reason.Str("; run: ").Str(hint)
+			}
+			r.SkipReason = reason.Byte(')').String()
+			return nil
+		}
+
 	case "netns-link":
 		// Provision an interface inside the per-test network namespace before ze
 		// launches. name= is the link (created as a dummy); address= is an

@@ -63,7 +63,17 @@ Decision rule:
 | Only validates config (`ze config validate -`), parses, or runs offline `ze show`/`ze env` | nothing (runs natively on every OS) |
 | Boots a daemon that **applies** Linux-only config (interface/VLAN, firewall, L2TP kernel) | `option=needs-linux` |
 | Same, AND needs privileged network configuration (creates interfaces, brings links up, netlink) | `option=needs-linux:caps=net-admin` |
+| Same, AND opens a raw/packet socket (`resolve ping`, traceroute: `net.ListenPacket("ip4:icmp", ...)`) | `option=needs-linux:caps=net-raw` |
+| Same, AND loads eBPF | `option=needs-linux:caps=bpf` |
 | Needs to skip only on a specific non-Linux OS for an unrelated reason | `option=skip-os:value=darwin` |
+| Needs an OPTIONAL heavyweight artifact a checkout does not carry (the appliance module cache: `make ze-gokrazy-deps`) | `option=needs-path:value=<repo-rel>:hint=<cmd>` |
+
+**`skip-os:value=darwin` is NOT a substitute for `caps=`.** It hides a test from
+macOS and therefore RUNS it, unprivileged, on the Linux CI runner -- which is
+exactly where it cannot pass. `test/plugin/resolve-ping.ci` carried a bare
+`skip-os` and failed every CI run with `resolve ping status=error`, because
+`doPingCtx` (`internal/component/ping/cmd/ping.go`) needs CAP_NET_RAW. If the
+reason a test cannot run on macOS is a capability, declare the capability.
 
 **`caps=net-admin` exists because Linux alone is not the requirement.** On an
 unprivileged Linux host (CI runners, most dev boxes, any rootless container) a

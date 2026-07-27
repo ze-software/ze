@@ -19,6 +19,7 @@ const goosLinux = "linux"
 // feedback until someone runs on Linux.
 const (
 	capNetAdmin    = 12 // CAP_NET_ADMIN: interfaces, netlink, nftables
+	capNetRaw      = 13 // CAP_NET_RAW: raw and packet sockets (ICMP ping, traceroute)
 	capSysResource = 24 // CAP_SYS_RESOURCE: raise rlimits (RLIMIT_MEMLOCK for eBPF)
 	capBPF         = 39 // CAP_BPF: load eBPF programs and create maps (>= 5.8)
 )
@@ -45,8 +46,18 @@ const (
 //     Requiring the second bit would make the gate over-strict, and an
 //     over-strict gate SKIPS a test the host could actually run -- the coverage
 //     deletion this whole mechanism exists to prevent.
+//
+//   - net-raw: opening a raw or packet socket. `resolve ping` / `show ping` and
+//     traceroute build ICMP themselves through net.ListenPacket("ip4:icmp", ...)
+//     (internal/component/ping/cmd/ping.go doPingCtx), which the kernel refuses
+//     without CAP_NET_RAW. Unprivileged, that surfaces as a StatusError response
+//     whose text already names the capability -- so the test does not hang, it
+//     fails with a readable reason that is nonetheless about the HOST and not
+//     about ze. CAP_NET_RAW alone: nothing on this path needs NET_ADMIN, and
+//     requiring both would skip a host that can genuinely run the test.
 const (
 	capsNetAdmin = "net-admin"
+	capsNetRaw   = "net-raw"
 	capsBPF      = "bpf"
 )
 
@@ -58,6 +69,7 @@ const (
 // (ai/rules/fail-closed-guards.md).
 var capsRequired = map[string][]int{
 	capsNetAdmin: {capNetAdmin},
+	capsNetRaw:   {capNetRaw},
 	capsBPF:      {capBPF},
 }
 

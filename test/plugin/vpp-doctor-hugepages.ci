@@ -22,7 +22,17 @@ vpp {
 }
 EOF_OFF
 
-cmd=foreground:seq=1:exec=ze doctor --json vpp-on.conf:exit=0
+# // test-relax: the per-command assertion changes 0 -> 1. No coverage is lost;
+# the expectation was self-contradictory. "VPP enabled and no hugepages
+# reserved" is emitted at severity ERROR (evaluateVPPHugepages,
+# internal/component/vpp/doctor_linux.go), an error diagnostic makes the report
+# not-ready, and `ze doctor` exits 1 when it is not ready. So the old exit=0
+# asserted that the check does NOT fire, contradicting the stdout assertion on
+# the next line: the test could not pass whatever the code did. It went
+# unnoticed because the file is skip-os everywhere but Linux and had therefore
+# never run until CI existed. Asserting exit=1 pins the real contract -- a
+# missing reservation is a readiness FAILURE, not a note.
+cmd=foreground:seq=1:exec=ze doctor --json vpp-on.conf:exit=1
 expect=exit:code=0
 expect=stdout:contains=doctor-vpp-hugepages
 

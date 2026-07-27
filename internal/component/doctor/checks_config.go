@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/infra"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/network"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -140,6 +141,60 @@ func checkFilterRefs(filter *config.Tree, defined map[string]bool, path string) 
 
 func checkSemanticValidation(tree *config.Tree) []diagnostic.Diagnostic {
 	return config.ValidateSemantics(tree)
+}
+
+// checkBGPPeerConfig runs the engine's own peer resolution over the tree, the
+// same gate `ze config validate` applies (cmd_validate.go runValidation), and
+// reports a failure as an error diagnostic.
+//
+// Without it `ze doctor` answered "ready": true for a config the daemon refuses
+// to start on. test/plugin/mpls-doctor.ci declared a peer family
+// `ipv4/mpls-unicast`, which does not exist -- the registered names are
+// `ipv4/mpls-label` and `ipv4/mpls-vpn` -- and `ze config validate` rejects it
+// with "peer peer1: unknown address family". Doctor loaded the same file, found
+// no labeled family (so its MPLS-module warning correctly stayed silent),
+// reported ready, and exited 0. The test then failed on the missing warning
+// while the ACTUAL defect -- a config error doctor cannot see -- went unreported
+// on the operator-facing path too.
+//
+// config.ValidateSemantics cannot host this: the peer validator lives behind the
+// infra seam (infra.SetBGPPeerValidator, filled by internal/component/bgp/config
+// so ze_bgp can compile out), and infra imports config, so config importing
+// infra would be a cycle. The seam is nil with the BGP engine compiled out, and
+// ValidateBGPPeers then returns nil -- no BGP, no peers to reject.
+// The tree is CLONED before it is handed over, and that is load-bearing rather
+// than defensive. ValidateBGPPeers reaches PeersFromConfigTree, which calls
+// config.PruneInactive -- documented at internal/component/config/prune.go:168
+// as "modified in place. Call on a clone if the original must be preserved."
+// Doctor's tree is shared by ~30 later checks in runChecks, so validating in
+// place silently deleted every `inactive:` peer from underneath them: a config
+// whose inactive peer names an unbindable local ip stopped producing
+// doctor-bgp-listen for it, but ONLY when a bgp{} block was present (this
+// function returns early otherwise), making the whole report order- and
+// content-dependent. Whether doctor should skip inactive nodes is a real
+// question; it must not be answered as a side effect of a function named
+// "validate".
+func checkBGPPeerConfig(tree *config.Tree) []diagnostic.Diagnostic {
+	if tree == nil || tree.GetContainer("bgp") == nil {
+		return nil
+	}
+	err := infra.ValidateBGPPeers(tree.Clone())
+	if err == nil {
+		return nil
+	}
+	// ERROR, so the report is not ready and `ze doctor` exits 1 (owner decision,
+	// 2026-07-27). The daemon will not start on this config, and a readiness
+	// check that answers "ready" for a config the engine refuses is the operator
+	// trap this check exists to close. Two test/ui fixtures asserted exit 0 while
+	// carrying engine-invalid configs (doctor-bgp-listen omitted `prefix
+	// maximum`, doctor-bgp-md5 omitted `connection local ip`); both were the
+	// defect, and both are fixed rather than accommodated.
+	var tb textbuf.Buffer
+	return []diagnostic.Diagnostic{{
+		Code:     "doctor-config-bgp-peer",
+		Severity: diagnostic.SeverityError,
+		Message:  tb.Str("bgp peer configuration rejected (the daemon will not start on it): ").Err(err).String(),
+	}}
 }
 
 func checkBGPMD5(tree *config.Tree) []diagnostic.Diagnostic {

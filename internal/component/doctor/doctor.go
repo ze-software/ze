@@ -121,6 +121,7 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	}
 
 	diags = append(diags, checkSemanticValidation(tree)...)
+	diags = append(diags, checkBGPPeerConfig(tree)...)
 	diags = append(diags, checkIfaceBackend(tree)...)
 	diags = append(diags, checkInterfaces(tree)...)
 	diags = append(diags, checkDHCPInterfaces(tree)...)

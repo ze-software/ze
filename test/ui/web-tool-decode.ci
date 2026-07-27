@@ -9,18 +9,38 @@ tmpfs=decode-hex.form:encoding=base64:terminator=EOF_HEX
 aGV4PUZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGRkZGMDAyRjAyMDAwMDAwMTg0MDAxMDEwMDQwMDIwMDQwMDMwNDY1MDE2NTAxNDAwNTA0MDAwMDAwNjQwMDE4YWMxMDAxMDA=
 EOF_HEX
 
-tmpfs=web-only-start.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
 # Web-only mode requires blob storage: the silent bare-`--web` web-only fallback
 # was removed in 7323da866 (add --web-only flag), so seed storage with `ze init`,
 # then start the standalone web UI. This still exercises the in-process BGP
 # decode path with no daemon, exactly as AC-8 intends.
-set -e
-printf 'admin\nsecret123\n127.0.0.1\n2222\n\n' | ze init >/dev/null 2>&1
-exec ze start --web $PORT2 --web-only --insecure-web
-EOF_SH
+#
+# TWO commands, not one wrapper script, and that is the fix for this test's CI
+# failure. As a single `sh` wrapper the runner could not tell `ze init` from the
+# daemon, so the 15s http=wait budget had to cover BOTH -- an interactive `ze
+# init` that bcrypt-hashes a password, then a second multi-megabyte process
+# start. On the maintainer's machine that fits easily; on the 4-vCPU CI runner it
+# did not, and every run reported "connection refused (timeout 15s)" as though
+# the server were misconfigured. Split, `ze init` is a quick-exit ze subcommand
+# (isQuickExitZeCommand, internal/test/runner/runner_exec_util.go) which the
+# runner AWAITS to completion -- a real condition, not a share of a polling
+# budget -- so the http wait now covers only the daemon start.
+#
+# The wrapper also ran `ze init >/dev/null 2>&1` under `set -e`: a failing init
+# exited the script silently and surfaced only as the refused connection above.
+# Run directly with `:exit=0`, its exit code is asserted per command
+# (RunCommand.ExitCode, internal/test/runner/record.go) -- the file-level
+# `expect=exit:code=` would NOT cover it, since that only ever reaches the last
+# quick-exit ze command.
+stdin=init-answers:terminator=EOF_INIT
+admin
+secret123
+127.0.0.1
+2222
 
-cmd=foreground:seq=1:exec=./web-only-start.sh:timeout=20s
+EOF_INIT
+
+cmd=foreground:seq=1:exec=ze init:stdin=init-answers:exit=0
+cmd=foreground:seq=2:exec=ze start --web $PORT2 --web-only --insecure-web:timeout=20s
 
 http=wait:seq=1:url=https://127.0.0.1:$PORT2/show/:status=200:insecure-tls=true:timeout=15s
 http=post:seq=2:url=https://127.0.0.1:$PORT2/show/tools/bgp-decode/:status=200:sendfile=decode-hex.form:content-type=application/x-www-form-urlencoded:insecure-tls=true:contains=origin

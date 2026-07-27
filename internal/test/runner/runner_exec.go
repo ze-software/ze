@@ -375,12 +375,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// reaching it). Any test declaring `option=timeout:` alongside a `cmd=`
 	// directive therefore had its declaration silently ignored and ran on the
 	// global default instead -- a stated timeout that did nothing.
-	timeout := resolveOrchestratedTimeout(
+	// testBudget is the AUTHORED budget, before parallel headroom. The
+	// await=stderr fence derives its own default from it and then applies the
+	// same headroom itself, so passing the already-scaled value would square it.
+	testBudget := resolveOrchestratedTimeout(
 		r.timings.SuggestedTimeout(r.display.label, rec.Name, opts.Timeout),
 		rec.Extra["timeout"],
 		cmds,
 	)
-	timeout = r.withParallelHeadroom(timeout)
+	timeout := r.withParallelHeadroom(testBudget)
 
 	testCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -1077,7 +1080,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// the synchronization point for the reject-fence bucket, where the plugin
 		// under test aborts startup and no in-daemon observer can run. On timeout
 		// the helper tears the daemon down and records the failure.
-		if !r.awaitDaemonStderr(testCtx, rec, awaitStderrSW, bgProcs, peerProcs) {
+		if !r.awaitDaemonStderr(testCtx, rec, awaitStderrSW, bgProcs, peerProcs, testBudget) {
 			return false
 		}
 	case rec.ExpectExitCode != nil && fgProc != nil:

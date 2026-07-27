@@ -1,0 +1,55 @@
+# Test: ze doctor refuses to call a config ready when the BGP engine rejects it
+# VALIDATES: checkBGPPeerConfig (internal/component/doctor/checks_config.go) is
+#            WIRED into runChecks -- an engine-invalid peer config produces the
+#            doctor-config-bgp-peer diagnostic, ready=false, and exit 1.
+# PREVENTS:  the operator trap this check exists to close. Before it, `ze doctor`
+#            reported "ready": true and exited 0 for a config `ze config
+#            validate` rejects and the daemon refuses to start on.
+#
+# This is the WIRING test. The unit tests
+# (internal/component/doctor/checks_config_bgp_peer_test.go) call
+# checkBGPPeerConfig directly, so deleting its one call site in doctor.go left
+# every one of them green -- exactly the gap ai/rules/integration-completeness.md
+# calls BLOCKING and never deferrable. Only this file fails if the append at
+# doctor.go goes away.
+#
+# The fault is a missing `prefix { maximum }`, which PeersFromConfigTree reports
+# as "prefix maximum is mandatory and must be > 0". Any engine rejection works;
+# this one is the cheapest to express and is the same defect two shipped test
+# fixtures (test/ui/doctor-bgp-listen.ci, doctor-bgp-md5.ci) were carrying
+# unnoticed.
+
+tmpfs=bad-peer.conf:terminator=EOF_CONF
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+    peer peer1 {
+        connection {
+            local {
+                ip 127.0.0.1
+            }
+            remote {
+                ip 192.0.2.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+            family {
+                ipv4/unicast {
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json bad-peer.conf:exit=1
+expect=stdout:contains=doctor-config-bgp-peer
+expect=stdout:contains=prefix maximum is mandatory
+expect=stdout:contains="ready": false

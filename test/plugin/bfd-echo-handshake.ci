@@ -182,20 +182,40 @@ def main():
     dispatch(api, 'show bfd sessions')
 
     # // test-relax: blind 0.25s retry loop -> wait_until poll for echo tx>0
+    #
+    # The poll waits for BOTH signals this test asserts on, not just TX. Waiting
+    # on ze_bfd_echo_tx_packets_total alone and then asserting on
+    # ze_bfd_echo_rtt_us_bucket in the same scrape is a race: TX counts echoes
+    # SENT, the histogram only gets a sample once a reflection comes BACK, so the
+    # scrape that first sees tx>0 legitimately precedes the first RTT sample. On
+    # a quiet host the reflection lands inside one 250ms tick and it passes; on
+    # the 4-vCPU CI runner it did not, and the test failed every run with
+    # "ze_bfd_echo_rtt_us histogram has no buckets" -- an assertion about the
+    # daemon that was really a statement about the host's scheduler
+    # (ai/rules/fix-dont-record.md: wait for the condition, not for a proxy).
+    #
+    # The assertions below are kept, not replaced: after a bounded wait they are
+    # what turns "the effect never arrived" into a named failure.
     scrape = {'body': ''}
-    def echo_tx_positive():
+    def echo_metrics_ready():
         try:
             with urllib.request.urlopen('http://127.0.0.1:19274/metrics', timeout=1.0) as resp:
                 scrape['body'] = resp.read().decode('utf-8', 'replace')
         except (OSError, ValueError):
             return False
+        seen_tx = False
+        seen_rtt = False
         for line in scrape['body'].splitlines():
-            if line.startswith('ze_bfd_echo_tx_packets_total') and not line.startswith('#'):
+            if line.startswith('#'):
+                continue
+            if line.startswith('ze_bfd_echo_tx_packets_total'):
                 parts = line.split()
                 if len(parts) >= 2 and float(parts[1]) > 0:
-                    return True
-        return False
-    api.wait_until(echo_tx_positive, attempts=40, delay=0.25)
+                    seen_tx = True
+            if line.startswith('ze_bfd_echo_rtt_us_bucket'):
+                seen_rtt = True
+        return seen_tx and seen_rtt
+    api.wait_until(echo_metrics_ready, attempts=40, delay=0.25)
     body = scrape['body']
 
     if 'ze_bfd_echo_tx_packets_total' not in body:

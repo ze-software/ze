@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3112 files
+Total: 298 design docs, 3114 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1528,6 +1528,7 @@ Total: 298 design docs, 3112 files
 | `internal/test/peer/checker.go` | message validation against expectations |
 | `internal/test/peer/expect.go` | .ci file loading and option parsing |
 | `internal/test/peer/inject.go` | stress injection from ze-test peer |
+| `internal/test/peer/listen_ttl.go` | ze-peer GTSM (RFC 5082) listen TTL |
 | `internal/test/peer/message.go` | BGP message types and wire helpers |
 | `internal/test/peer/peer.go` | test BGP peer |
 | `internal/test/peer/peer_connmap.go` | connection mapping |
@@ -1549,6 +1550,7 @@ Total: 298 design docs, 3112 files
 | `internal/test/runner/loopback_darwin.go` | multi-peer loopback alias setup |
 | `internal/test/runner/loopback_linux.go` | multi-peer loopback alias setup |
 | `internal/test/runner/loopback_test.go` | multi-peer loopback alias tests |
+| `internal/test/runner/needs_path.go` | option=needs-path prerequisite gating |
 | `internal/test/runner/netns_linux.go` | per-test netns launch mode (Fix B) |
 | `internal/test/runner/netns_linux_test.go` | per-test netns launch mode (Fix B) |
 | `internal/test/runner/netns_other.go` | per-test netns launch mode (Fix B) |

@@ -8,7 +8,15 @@
 # The raw-ICMP resolve ping path currently has no unprivileged darwin
 # equivalent in the test runner environment, so skip there like other
 # raw-socket suites.
-option=skip-os:value=darwin
+#
+# caps=net-raw, not a bare skip-os: doPingCtx builds ICMP itself through
+# net.ListenPacket("ip4:icmp", ...) (internal/component/ping/cmd/ping.go), which
+# the kernel refuses without CAP_NET_RAW. skip-os hid the test from macOS and
+# therefore ran it, unprivileged, on the Linux CI runner -- where it failed every
+# time with `resolve ping status=error`. Declaring the capability relocates it to
+# `make ze-qemu-needs-linux-test`, which has it, instead of failing where it
+# cannot pass.
+option=needs-linux:caps=net-raw
 
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
@@ -65,21 +73,33 @@ def main():
         if isinstance(data, str):
             data = json.loads(data)
 
-        target = data.get('target', '')
-        if target != '127.0.0.1':
-            runtime_fail(f'expected target 127.0.0.1, got: {target}')
+        # Assert the contract the handler actually emits (runPingBatch,
+        # internal/component/ping/cmd/ping.go: destination / sent / received /
+        # loss-percent / replies). The previous assertions read 'target' and
+        # 'output' and scanned that output for "bytes from" -- the shape of a
+        # shell-out to /sbin/ping, which ze has not used since the in-process
+        # ICMP engine landed. Neither key has ever existed in the response, so
+        # `target != '127.0.0.1'` compared '' against '127.0.0.1' and failed by
+        # construction. Nothing caught it: the test is Linux-only and CI had
+        # never gone green.
+        dest = data.get('destination', '')
+        if dest != '127.0.0.1':
+            runtime_fail(f'expected destination 127.0.0.1, got: {dest!r} (keys: {sorted(data)})')
 
-        output = data.get('output', '')
-        if not output:
-            runtime_fail('ping output is empty')
+        sent = data.get('sent', 0)
+        received = data.get('received', 0)
+        if sent <= 0:
+            runtime_fail(f'ping sent nothing: {data}')
+        if received <= 0:
+            runtime_fail(f'ping received no replies from loopback: {data}')
+        if data.get('loss-percent', 100.0) != 0.0:
+            runtime_fail(f'loopback ping lost packets: {data}')
+        if not isinstance(data.get('replies'), list) or not data['replies']:
+            runtime_fail(f'ping reported no per-reply detail: {data}')
+        if 'avg-rtt-ms' not in data:
+            runtime_fail(f'ping recorded replies but no RTT summary: {data}')
 
-        # On macOS and Linux, successful ping output contains "bytes from"
-        if 'bytes from' not in output.lower() and '0% packet loss' not in output.lower() and '0.0% packet loss' not in output.lower():
-            # Some systems format differently; just check no error key
-            if 'error' in data:
-                runtime_fail(f'ping failed: {data["error"]}')
-
-        print(f'OK: resolve ping 127.0.0.1 succeeded', file=sys.stderr)
+        print(f'OK: resolve ping 127.0.0.1 sent={sent} received={received}', file=sys.stderr)
     finally:
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()

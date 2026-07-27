@@ -299,11 +299,24 @@ ze-qemu-needs-linux-test:
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
 	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
 	@echo "Running ONLY option=needs-linux tests in QEMU Linux VM (ZE_QEMU_LINUX_ONLY=1)..."
-	# 3600s, matching ze-qemu-all-test. 1800s was sized when the unit phase died
-	# on startup (GOCACHE pointed through a host-only symlink, see
-	# qemu-all-tests.sh) and so cost seconds. With that repaired the phase compiles
-	# and runs the whole tree in the VM, which alone exceeded the old budget: the
-	# run was killed mid-unit-phase and the integration phase never executed.
+	# 5400s. 1800s was sized when the unit phase died on startup (GOCACHE pointed
+	# through a host-only symlink, see qemu-all-tests.sh) and so cost seconds.
+	# With that repaired the phase compiles and runs the whole tree in the VM,
+	# which alone exceeded the old budget: the run was killed mid-unit-phase and
+	# the integration phase never executed. It was then raised to 3600s -- and
+	# the first real scheduled execution (GitHub run 30249183064, 2026-07-27)
+	# MEASURED 3269s end to end on an ubuntu-latest runner WITH working KVM:
+	#
+	#   08:17:12 qemu-run.py starts    08:17:24 VM bootstrapped (9.8s boot)
+	#   08:17:44 functional suites     08:31:03 in-VM unit phase (GOMAXPROCS=2)
+	#   09:11:41 done
+	#
+	# 91% of the budget, with the ~40-minute in-VM unit phase dominating. A margin
+	# that thin means any growth in the tree -- or one run without KVM, where TCG
+	# costs several times more -- trips the cap, and a wall-clock kill presents as
+	# an opaque QEMU timeout rather than as a test result. The cap exists to catch
+	# a HANG, so it must sit well clear of a healthy run: 5400s is ~1.65x the
+	# measured time and still inside the workflow's own 120-minute job timeout.
 	#
 	# e2fsprogs + e2fsprogs-extra supply mkfs.ext4/e2fsck and debugfs. Alpine splits
 	# debugfs into the -extra package, and resolveE2FSDir (internal/appliance/
@@ -313,7 +326,7 @@ ze-qemu-needs-linux-test:
 	# demonstrably installed, and four tests failed on that rather than on ze.
 	python3 scripts/evidence/qemu-run.py \
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables e2fsprogs e2fsprogs-extra" \
-		--timeout 3600 \
+		--timeout 5400 \
 		--run 'ZE_QEMU_LINUX_ONLY=1 ZE_BIN="$(ZE_QEMU_BIN)" ZE_STRIPPED_BIN="$(ZE_QEMU_STRIPPED_BIN)" ZE_TEST_BIN="$(ZE_QEMU_TEST_BIN)" ZE_QEMU_SKIP_SUITES="web" ZE_QEMU_PARALLEL="$(ZE_QEMU_PARALLEL)" bash scripts/evidence/qemu-all-tests.sh'
 
 # Debug specific functional tests in the QEMU VM with verbose output.

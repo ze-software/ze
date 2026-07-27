@@ -27,8 +27,25 @@ name: qemu-nightly
 #
 # NOT A MERGE GATE. `ze-qemu-needs-linux-test` boots a VM, cross-compiles three
 # binaries and runs every functional suite inside it; the make target alone
-# budgets 3600s. Putting that in front of a merge is exactly what
+# budgets 5400s. Putting that in front of a merge is exactly what
 # scripts/dev/github_workflows_test.go's fast-gate pin exists to prevent.
+#
+# MEASURED, not assumed. Everything below was sized before this workflow had ever
+# run; its first scheduled execution (run 30249183064, 2026-07-27) settled it:
+#
+#   * /dev/kvm IS usable on a hosted ubuntu-latest runner once the udev rule
+#     below runs -- `crw-rw-rw- 1 root kvm 10, 232`. The TCG fallback was not
+#     exercised, so the raised boot budget remains untested and stays as insurance.
+#   * The guest sizing holds: 8192 MB / 3 vCPU booted and ran to completion with
+#     no OOM kill.
+#   * The 300s boot budget was never approached -- boot to login took 9.8s with
+#     KVM. It exists for the TCG path, which has still not happened.
+#   * The inner budget did NOT survive comfortably: the run took 3269s of the
+#     then-3600s cap, 91%. Raised to 5400s in mk/test-integration.mk with the
+#     per-phase measurements recorded there.
+#
+# The step failed (exit 2) on real test failures, not on infrastructure, which is
+# the outcome this workflow exists to produce.
 #
 # scripts/dev/github_workflows_test.go pins this shape (scheduled-only, runs the
 # QEMU needs-linux target, every job advisory).
@@ -45,7 +62,7 @@ jobs:
   needs-linux:
     runs-on: ubuntu-latest
     continue-on-error: true
-    # The make target's own qemu-run budget is 3600s; this adds room for the
+    # The make target's own qemu-run budget is 5400s; this adds room for the
     # Alpine ISO fetch, the in-VM Go toolchain, and three cross-compiles.
     timeout-minutes: 120
     steps:

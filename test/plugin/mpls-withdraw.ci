@@ -15,14 +15,90 @@ option=skip-os:value=darwin
 stdin=peer:terminator=EOF_PEER
 option=asn:value=65002
 option=open:value=add-capability:code=1:hex=00010004
-cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.2 nlri ipv4/mpls-label label 1000 add 10.1.0.0/24
+# `cmd=api:...:text=` is a REPORT LABEL, not an executed command: parseCmd stores
+# it on the message as msg.Cmd and report.go is its only other reader
+# (record_parse.go:825). Both lines here read like real API calls -- and they are
+# exactly the strings ze_api.API.send() would route to
+# ze-plugin-engine:update-route -- but nothing ever sent them, so ze announced
+# nothing, withdrew nothing, and the test timed out waiting for message 1. The
+# route-driver plugin below now issues them for real, in order.
+#
+# The announce is driven from the plugin rather than declared in the peer's
+# `update` block (the form mpls-push.ci uses) precisely BECAUSE this test also
+# withdraws: a config-declared announce races the plugin's withdraw, and the
+# withdrawal of a route that has not reached the wire yet proves nothing.
+cmd=api:conn=1:seq=1:text=route-driver announces the labeled prefix
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000274001010040020602010000FDE940050400000064800E10000104040A0000020030003E810A0100
-cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/mpls-label label 1000 del 10.1.0.0/24
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0024020000000D800F0A00010430003E810A0100
+cmd=api:conn=1:seq=2:text=route-driver withdraws it
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0024020000000D800F0A00010430003E810A0100
 EOF_PEER
+
+tmpfs=route-driver.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Announce a labeled prefix, wait for it to reach the wire, then withdraw it."""
+import json
+import sys
+from ze_api import API, runtime_fail
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # The peer must be established before update-route has anywhere to send:
+    # the engine rejects an update with "no established peers to send to".
+    if not api.wait_peer_eor_sent('peer1', attempts=60):
+        runtime_fail('peer1 initial-sync EOR never reached the wire')
+
+    api.send('peer * update text origin igp local-preference 100 nhop 10.0.0.2 '
+             'nlri ipv4/mpls-label label 1000 add 10.1.0.0/24')
+
+    # Withdraw only once the announce is on the wire. Sending both back to back
+    # lets the engine coalesce them into a single no-op, which would leave the
+    # peer waiting for two messages that never separately exist.
+    #
+    # The signal is the peer's own updates-sent counter
+    # (internal/component/bgp/plugins/cmd/peer/peer.go:213), which counts UPDATEs
+    # written to the session. The EOR above already accounts for one, so the
+    # announce is the second.
+    def announce_on_wire(result):
+        if result.get('status') != 'done':
+            return False
+        payload = result.get('data', {})
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+        rows = payload.get('peers', {}) if isinstance(payload, dict) else {}
+        for row in rows.values():
+            if isinstance(row, dict) and int(row.get('updates-sent', 0) or 0) >= 2:
+                return True
+        return False
+
+    if not announce_on_wire(api.dispatch_until('show bgp peer peer1 detail',
+                                               announce_on_wire, attempts=60)):
+        runtime_fail('labeled announce never reached the wire')
+
+    api.send('peer * update text nlri ipv4/mpls-label label 1000 del 10.1.0.0/24')
+    print('OK: announce + withdraw dispatched', file=sys.stderr)
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external route-driver {
+		run ./route-driver.run
+		encoder json
+	}
+}
+
 bgp {
 	peer peer1 {
 		connection {
@@ -44,10 +120,16 @@ bgp {
 				ipv4/mpls-label { prefix { maximum 10000; } }
 			}
 		}
+		behavior {
+			group-updates disable
+		}
+
+		process route-driver {
+		}
 	}
 }
 EOF_CONF
 
 # Process orchestration
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=60s

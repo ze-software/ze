@@ -173,6 +173,20 @@ type Config struct {
 	// given "host:port" instead of listening. Currently only supported with
 	// Mode == ModeInject; handshake is driven by inject.go.
 	Dial string
+	// TTL, when non-zero, is the outgoing IPv4 TTL / IPv6 hop limit set on the
+	// listen socket, so every packet this peer emits -- including the kernel's
+	// SYN-ACK, which is sent before the application ever sees the connection --
+	// carries it. 255 makes this peer a conforming RFC 5082 GTSM speaker.
+	//
+	// Needed because GTSM is real only on Linux: ze sets IP_MINTTL on its side
+	// (internal/core/network/ttl_linux.go setIPMinTTL) and the kernel then drops
+	// anything arriving below that, while the non-Linux stub returns
+	// "unsupported" and the option is silently absent
+	// (internal/core/network/ttl_other.go). A test peer left at the default TTL
+	// therefore handshakes fine on macOS and is dropped on Linux, which is
+	// exactly how test/plugin/bgp-gtsm.ci passed for the maintainer and hung to
+	// its timeout on every CI run.
+	TTL uint8
 	// Output: writer for logging (defaults to os.Stdout)
 	Output io.Writer
 }
@@ -243,8 +257,7 @@ func (p *Peer) Run(ctx context.Context) Result {
 	}
 	addr := net.JoinHostPort(host, strconv.Itoa(p.config.Port))
 
-	var lc net.ListenConfig
-	ln, err := lc.Listen(ctx, "tcp", addr)
+	ln, err := p.listen(ctx, addr)
 	if err != nil {
 		return Result{Success: false, Error: fmt.Errorf("listen: %w", err)}
 	}

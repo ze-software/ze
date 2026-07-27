@@ -45,17 +45,31 @@ option=tcp_connections:value=2
 # reach the same listener.
 option=bind:value=0.0.0.0
 option=timeout:value=15s
-# conn=1 is whichever peer wins the accept race and connects BEFORE the
-# probe fires: it gets EOR (watchdog withdraw=true) then the broadcast
-# announce once the probe reaches UP (rise=1).
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# conn=1 is whichever peer wins the accept race: it receives BOTH the EOR
+# (watchdog withdraw=true, so no route at startup) and the broadcast announce
+# once the probe reaches UP (rise=1).
+#
+# ONE unordered group (both expectations at seq=1), deliberately, and for the
+# reason the sibling as112-healthcheck-announce.ci spells out at length: RFC 4724
+# Section 2 defines the EOR as signalling "the completion of the initial routing
+# update", so routes may legitimately precede it, and which side of the EOR the
+# announce lands on depends only on whether the 1-second probe completes before
+# or after session establishment. Asserting EOR-first was asserting on the host's
+# scheduler: it held on the maintainer's machine and failed on the 4-vCPU CI
+# runner, where the probe reached UP before the first session did and conn=1 saw
+# the announce first (ai/rules/fix-dont-record.md).
+#
+# Both assertions are KEPT -- only the ordering between them is dropped, which
+# was never an invariant.
+#
 # "request bgp watchdog announce as112-shared med 100" (peer="*",
 # broadcast) reaches every peer whose pool carries "as112-shared".
 # C00804FFFFFF01 is the COMMUNITY attribute (type 8, 4-byte value
 # 0xFFFFFF01 = NO_EXPORT, RFC 1997) both peers' update blocks configure;
 # its presence is exactly AC-8's claim, regardless of which peer/prefix it is.
-cmd=api:conn=1:seq=2:text=healthcheck probe UP triggers watchdog announce as112-shared med 100
-expect=bgp:conn=1:seq=2:contains=C00804FFFFFF01
+cmd=api:conn=1:seq=1:text=EOR + healthcheck probe UP triggers watchdog announce as112-shared med 100
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=1:contains=C00804FFFFFF01
 # conn=2 is the OTHER peer: ze-peer only accepts it once conn=1's sequence
 # above fully completes (peer.go:234-285), by which time the shared probe
 # is already UP, so its session establishes straight into the watchdog's

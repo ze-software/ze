@@ -426,6 +426,18 @@ func likelyCause(rec *Record) string {
 
 // likelyCauseTimeout returns a diagnostic hint for timeout failures.
 func likelyCauseTimeout(rec *Record) string {
+	// A recorded error beats every guess below. awaitDaemonStderr sets
+	// rec.Error to the exact needle and budget that expired
+	// (await_stderr.go), and the heuristics that followed replaced it with
+	// "server likely failed to start or crashed" -- which for an await fence
+	// is simply wrong: the daemon started fine and never printed the awaited
+	// line. Diagnosing test/plugin/as112-external-refuses.ci cost several
+	// reproduction rounds for exactly that reason (ai/rules/error-messages.md:
+	// a failure must say what failed, not guess).
+	if rec.Error != nil {
+		return rec.Error.Error()
+	}
+
 	received := len(rec.ReceivedRaw)
 	expected := len(rec.Messages)
 	if expected == 0 {

@@ -17,6 +17,32 @@
 
 option=timeout:value=40s
 
+# The pinned rtr7/kernel module is an OPTIONAL heavyweight artifact, not part of
+# a checkout: gokrazy/modcache/.gitignore ignores everything except the vendored
+# gokrazy init source, so the module (and its 15 MB vmlinuz) exists only after
+# `make ze-gokrazy-deps`. This test drives a REAL `make ze-kernel`, which reads
+# that module (mk/gokrazy.mk:280 refuses to assemble the package without it) and
+# checksums its vmlinuz before and after to prove it is not mutated. Without the
+# declaration the shasum on line 1 of the script failed
+# "No such file or directory" on every CI run.
+#
+# The glob names the FILE the script reads, not the parent directory: the parent
+# also holds unrelated rtr7/dhcp4@... entries, so a directory check passed on a
+# checkout that had no kernel module and the test then died on the very shasum
+# the gate exists to prevent.
+#
+# Declaring it skips VISIBLY here. Coverage is PARTLY, not fully, preserved
+# elsewhere -- state that precisely rather than wave at the sibling: the sibling
+# ze-kernel-no-modcache-mutation.ci greps `make -n` RECIPE TEXT for a literal
+# `cp ... modcache/.../vmlinuz`, so it runs everywhere including CI, but it
+# cannot cover this test's real-execution assertions (the before/after shasum of
+# the pinned vmlinuz, go.mod byte-identity after a real build, the assembled
+# package contents). A mutation performed inside run.py or ze-gok rather than by
+# a literal cp in the recipe passes the sibling and is caught by nothing in CI.
+# That gap is accepted because CI cannot materialize the module; it is not
+# closed by the sibling.
+option=needs-path:value=gokrazy/modcache/github.com/rtr7/kernel@*/vmlinuz:hint=make ze-gokrazy-deps
+
 tmpfs=run.sh:terminator=EOF_SH
 #!/bin/sh
 set -eu

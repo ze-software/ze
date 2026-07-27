@@ -6,6 +6,21 @@
 # Linux-only: the MPLS module check lives in checks_linux.go (checks_other.go is
 # a no-op elsewhere). The loaded-module set is read from a stubbed /proc/modules
 # via ze.test.doctor.modules-file so the test is hermetic.
+#
+# This config carried TWO defects that `ze doctor` accepted in silence, and
+# checkBGPPeerConfig found the second one the moment the first was fixed: the
+# labeled family also needs `prefix { maximum }`, which PeersFromConfigTree
+# requires ("prefix maximum is mandatory and must be > 0").
+#
+# The peer family must be a REGISTERED labeled family: checkMPLSSupport only
+# warns when mplsInUse(tree) is true, and containerPeersLabeled matches
+# ipv4/ipv6 mpls-label and mpls-vpn. This test asserted against
+# `ipv4/mpls-unicast`, which exists nowhere in the tree, so mplsInUse was false
+# and the warning never fired. The test is skip-os everywhere but Linux, so its
+# first real execution was on CI, where it failed. The invalid family also went
+# unreported by `ze doctor` itself -- fixed by checkBGPPeerConfig
+# (internal/component/doctor/checks_config.go), which now runs the engine's peer
+# resolution and emits doctor-config-bgp-peer.
 
 option=skip-os:value=aix,android,darwin,dragonfly,freebsd,illumos,ios,js,netbsd,openbsd,plan9,solaris,wasip1,windows
 option=env:var=ze.test.doctor.modules-file:value=modules.empty
@@ -23,7 +38,7 @@ bgp {
 		session {
 			asn { local 65001; remote 65002; }
 			router-id 1.2.3.4
-			family { ipv4/mpls-unicast { } }
+			family { ipv4/mpls-label { prefix { maximum 10000; } } }
 		}
 	}
 }

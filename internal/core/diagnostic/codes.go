@@ -322,6 +322,20 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json"},
 	},
 	{
+		Code:         "doctor-config-bgp-peer",
+		Title:        "BGP peer configuration rejected",
+		Description:  "The BGP engine's own peer resolution refuses this configuration, so the daemon will fail to start on it -- an unknown address family, a missing mandatory setting (prefix maximum, connection local ip), or an unresolvable cross-reference. Doctor runs the same gate `ze config validate` applies; before this check existed it reported such a config as ready and exited 0, which is the operator trap it closes. Severity is error: the report is not ready and `ze doctor` exits 1. Remedy: run `ze config validate <file>` for the full error list and correct the named peer.",
+		Examples:     []string{"ze doctor --json", "ze config validate ze.conf", "ze explain doctor-config-bgp-peer"},
+		RelatedCodes: []string{"config-bgp-peer", "config-bgp-resolve"},
+	},
+	{
+		Code:         "doctor-mpls-unknown",
+		Title:        "MPLS kernel module state unknown",
+		Description:  "The loaded-module list (/proc/modules, or the file named by ze.test.doctor.modules-file) could not be read, so ze cannot tell whether mpls_router and mpls_iptunnel are present. This is reported rather than passed over in silence: a check that cannot be evaluated is not a check that succeeded. Remedy: confirm /proc is mounted and readable by the ze user.",
+		Examples:     []string{"ze doctor --json", "ze explain doctor-mpls-unknown"},
+		RelatedCodes: []string{"doctor-mpls-unavailable"},
+	},
+	{
 		Code:        "doctor-mpls-unavailable",
 		Title:       "MPLS kernel support unavailable",
 		Description: "MPLS kernel modules (mpls_router, mpls_iptunnel) are not loaded. BGP labeled routes cannot be installed in the kernel FIB.",

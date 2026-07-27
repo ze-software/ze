@@ -4,11 +4,19 @@
 # PREVENTS: ttl config parsed but never reaching PeerSettings / peer detail
 #
 # The peer configures `connection { ttl { max 1 } }`. The parser derives
-# OutTTL=255 and MinTTL=255 (single-hop GTSM, RFC 5082 255-N+1). The socket
-# enforcement (IP_TTL / IP_MINTTL) is linux-only and covered by the
-# integration readback tests; this functional test proves the config→settings
-# →peer-detail wiring and that the session still forms with GTSM enabled
-# (the setsockopt path is non-fatal on platforms without IP_MINTTL).
+# OutTTL=255 and MinTTL=255 (single-hop GTSM, RFC 5082 255-N+1). This functional
+# test proves the config→settings→peer-detail wiring AND that the session forms
+# between two conforming GTSM speakers.
+#
+# ze-peer must therefore run with `--ttl 255`. The socket enforcement is
+# linux-only: setIPMinTTL (internal/core/network/ttl_linux.go) really sets
+# IP_MINTTL=255, and the kernel then drops every inbound packet below it, while
+# the non-Linux stub (ttl_other.go) reports "unsupported" and the option is
+# absent. A default-TTL test peer therefore handshakes on macOS and is dropped
+# on Linux -- this test passed for the maintainer and hung to its 15s timeout on
+# every CI run, with the peer showing OPEN sent and nothing after it. Leaving the
+# peer at TTL 64 would also have made the assertion a lie: it would prove GTSM
+# lets a NON-conforming peer through, which is the opposite of RFC 5082.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -121,7 +129,7 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=1:exec=ze-peer --port $PORT --ttl 255:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
 expect=stderr:pattern=GTSM active out=255 min=255

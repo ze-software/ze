@@ -1,5 +1,13 @@
 # Test: ze doctor --json warns about BGP MD5 on non-supporting platforms
 # VALIDATES: AC-4 BGP MD5 platform detection emits doctor-bgp-md5.
+#
+# The peer carries `connection local ip` and `prefix { maximum }` because the
+# BGP engine requires both ("local ip is required (use IP address or \"auto\")",
+# PeersFromConfigTree). Without them this fixture was a config the daemon
+# refuses to start on, and the test still asserted exit 0 -- which passed only
+# because `ze doctor` never ran the engine's peer resolution. It does now
+# (checkBGPPeerConfig, internal/component/doctor/checks_config.go). Fixing the
+# config keeps this test about what it is named for: MD5 platform detection.
 
 option=skip-os:value=linux,freebsd
 
@@ -16,6 +24,9 @@ bgp {
             md5 {
                 password testing123
             }
+            local {
+                ip 192.0.2.254
+            }
             remote {
                 ip 192.0.2.1
             }
@@ -26,6 +37,9 @@ bgp {
             }
             family {
                 ipv4/unicast {
+                    prefix {
+                        maximum 10000
+                    }
                 }
             }
         }

@@ -44,8 +44,7 @@ func (p *Peer) runConnMap(ctx context.Context) Result {
 	}
 	addr := net.JoinHostPort(host, strconv.Itoa(p.config.Port))
 
-	var lc net.ListenConfig
-	ln, err := lc.Listen(ctx, "tcp", addr)
+	ln, err := p.listen(ctx, addr)
 	if err != nil {
 		return Result{Success: false, Error: fmt.Errorf("listen: %w", err)}
 	}

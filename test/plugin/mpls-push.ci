@@ -16,12 +16,62 @@ option=skip-os:value=darwin
 stdin=peer:terminator=EOF_PEER
 option=asn:value=65002
 option=open:value=add-capability:code=1:hex=00010004
-cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.2 nlri ipv4/mpls-label label 1000 add 10.1.0.0/24
+# `cmd=api:...:text=` is a REPORT LABEL, not an executed command: parseCmd stores
+# it on the message as msg.Cmd and report.go is its only other reader
+# (record_parse.go:825). This line reads like a real API call -- and it is exactly
+# the string ze_api.API.send() routes to ze-plugin-engine:update-route -- but
+# nothing ever sent it, so ze announced nothing and the test timed out waiting for
+# message 1. The route-driver plugin below issues it for real.
+#
+# Driven from the plugin rather than declared in the peer's `update` block on
+# purpose: the two paths encode differently, and the expected bytes below are the
+# API path's. The config-declared path (reactor_wire.go) omits LOCAL_PREF on an
+# eBGP session and emits a top-level NEXT_HOP, so it produces a DIFFERENT
+# 62-byte UPDATE. Keeping the mechanism the expectation was written against keeps
+# this test and its sibling mpls-withdraw.ci on one path.
+cmd=api:conn=1:seq=1:text=route-driver announces the labeled prefix
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000274001010040020602010000FDE940050400000064800E10000104040A0000020030003E810A0100
 EOF_PEER
 
+tmpfs=route-driver.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Announce a labeled prefix once the session can carry it."""
+import sys
+from ze_api import API, runtime_fail
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # The peer must be established before update-route has anywhere to send:
+    # the engine rejects an update with "no established peers to send to".
+    if not api.wait_peer_eor_sent('peer1', attempts=60):
+        runtime_fail('peer1 initial-sync EOR never reached the wire')
+
+    api.send('peer * update text origin igp local-preference 100 nhop 10.0.0.2 '
+             'nlri ipv4/mpls-label label 1000 add 10.1.0.0/24')
+    print('OK: announce dispatched', file=sys.stderr)
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external route-driver {
+		run ./route-driver.run
+		encoder json
+	}
+}
+
 bgp {
 	peer peer1 {
 		connection {
@@ -43,10 +93,23 @@ bgp {
 				ipv4/mpls-label { prefix { maximum 10000; } }
 			}
 		}
+		behavior {
+			group-updates disable
+		}
+
+		# // test-relax: the config-declared `update` block that briefly stood here
+		# is replaced by the route-driver plugin above, not dropped. It was added
+		# during this fix and never shipped: it made ze announce, but through the
+		# OTHER encoder, which on an eBGP session omits LOCAL_PREF and emits a
+		# top-level NEXT_HOP -- a different 62-byte UPDATE than the expect=bgp
+		# line asserts. The assertion is unchanged and now runs against the path
+		# it was written for. Zero assertions removed.
+		process route-driver {
+		}
 	}
 }
 EOF_CONF
 
 # Process orchestration
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=30s
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=45s
