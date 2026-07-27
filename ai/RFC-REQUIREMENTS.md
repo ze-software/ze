@@ -4719,7 +4719,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC9234-3.1-1` | MUST NOT | 3.1 | `internal/component/bgp/plugins/role/otc_test.go:664`, `internal/component/bgp/plugins/role/otc_test.go:1064` | `internal/component/bgp/plugins/role/otc_test.go:674` |  |
+| `RFC9234-3.1-1` | MUST NOT | 3.1 | `internal/component/bgp/plugins/role/otc_test.go:664`, `internal/component/bgp/plugins/role/otc_test.go:1080` | `internal/component/bgp/plugins/role/otc_test.go:674` |  |
 | `RFC9234-4-1` | SHOULD | 4 | -- | -- |  |
 | `RFC9234-4.1-1` | MUST | 4.1 | `internal/component/bgp/plugins/role/config_test.go:288` | `internal/component/bgp/plugins/role/config_test.go:289` |  |
 | `RFC9234-4.1-2` | MUST NOT | 4.1 | `internal/component/bgp/plugins/role/config_test.go:290` | -- | {single-polarity} parseRoleContainer (internal/component/bgp/plugins/role/config.go:66) reads a single import role per peer and extractRoleCapabilities (config.go:213) emits exactly one CapabilityDecl per peer, so no code path can advertise multiple Role capabilities and only the exactly-one assertion is constructible |
@@ -4729,18 +4729,18 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC9234-4.2-4` | SHOULD | 4.2 | -- | -- |  |
 | `RFC9234-4.2-5` | MAY | 4.2 | -- | -- |  |
 | `RFC9234-5-1` | MUST | 5 | `internal/component/bgp/plugins/role/otc_test.go:335` | `internal/component/bgp/plugins/role/otc_test.go:345` |  |
-| `RFC9234-5-10` | MUST NOT | 5 | `internal/component/bgp/plugins/role/otc_test.go:1151` | `internal/component/bgp/plugins/role/otc_test.go:967` |  |
-| `RFC9234-5-11` | MUST NOT | 5 | `internal/component/bgp/plugins/role/otc_test.go:1446` | -- | {single-polarity} checkOTCIngress (internal/component/bgp/plugins/role/otc.go:164) and OTCEgressFilter (otc.go:384) take no operator override, peerRoleConfig (config.go:17) exposes no disable flag, and the wire-bytes OTC suppression at otc.go:384 runs before and independent of the export policy, so the procedures cannot be switched off by configuration and a modifiable negative is not constructible |
-| `RFC9234-5-12` | SHALL | 5 | `internal/component/bgp/plugins/role/otc_test.go:1494` | `internal/component/bgp/plugins/role/otc_test.go:346` |  |
+| `RFC9234-5-10` | MUST NOT | 5 | `internal/component/bgp/plugins/role/otc_test.go:1269` | `internal/component/bgp/plugins/role/otc_test.go:967` |  |
+| `RFC9234-5-11` | MUST NOT | 5 | `internal/component/bgp/plugins/role/otc_test.go:1564` | -- | {single-polarity} checkOTCIngress (internal/component/bgp/plugins/role/otc.go:164) and OTCEgressFilter (otc.go:384) take no operator override, peerRoleConfig (config.go:17) exposes no disable flag, and the wire-bytes OTC suppression at otc.go:384 runs before and independent of the export policy, so the procedures cannot be switched off by configuration and a modifiable negative is not constructible |
+| `RFC9234-5-12` | SHALL | 5 | `internal/component/bgp/plugins/role/otc_test.go:1612` | `internal/component/bgp/plugins/role/otc_test.go:346` |  |
 | `RFC9234-5-13` | NOT RECOMMENDED | 5 | -- | -- |  |
 | `RFC9234-5-2` | MUST | 5 | `internal/component/bgp/plugins/role/otc_test.go:504` | `internal/component/bgp/plugins/role/otc_test.go:496` |  |
 | `RFC9234-5-3` | MUST | 5 | `internal/component/bgp/plugins/role/otc_test.go:480` | `internal/component/bgp/plugins/role/otc_test.go:330` |  |
 | `RFC9234-5-4` | MUST | 5 | `internal/component/bgp/plugins/role/otc_test.go:966` | `internal/component/bgp/plugins/role/otc_test.go:1005` |  |
-| `RFC9234-5-5` | MUST NOT | 5 | `internal/component/bgp/plugins/role/otc_test.go:1444` | `internal/component/bgp/plugins/role/otc_test.go:1445` |  |
-| `RFC9234-5-6` | MUST | 5 | `internal/component/bgp/plugins/role/otc_test.go:1244` | `internal/component/bgp/plugins/role/otc_test.go:1224` |  |
+| `RFC9234-5-5` | MUST NOT | 5 | `internal/component/bgp/plugins/role/otc_test.go:1562` | `internal/component/bgp/plugins/role/otc_test.go:1563` |  |
+| `RFC9234-5-6` | MUST | 5 | `internal/component/bgp/plugins/role/otc_test.go:1362` | `internal/component/bgp/plugins/role/otc_test.go:1342` |  |
 | `RFC9234-5-7` | MUST | 5 | -- | -- | {not-applicable} ze does not operate as an AS Confederation (no confederation-identifier or member-AS config exists anywhere in config or the role plugin); the egress OTC stamp at internal/component/bgp/plugins/role/otc.go:432 uses only dest.LocalAS, so there is no confederation egress boundary at which a confederation identifier could be stamped |
 | `RFC9234-5-8` | MUST NOT | 5 | -- | -- | {not-applicable} ze has no AS Confederation membership (no member-AS or confederation-identifier config); the egress OTC stamp at internal/component/bgp/plugins/role/otc.go:432 uses only dest.LocalAS, so an UPDATE never carries a member-AS OTC value at a confederation boundary |
-| `RFC9234-5-9` | MUST NOT | 5 | `internal/component/bgp/plugins/role/otc_test.go:1118` | -- | {single-polarity} the egress OTC stamp at internal/component/bgp/plugins/role/otc.go:432 uses dest.LocalAS, the effective per-peer internet-facing local AS supplied by the reactor at internal/component/bgp/reactor/peer_forward_facts.go:133, and no code path stamps any other value, so a wrong-ASN negative is not constructible |
+| `RFC9234-5-9` | MUST NOT | 5 | `internal/component/bgp/plugins/role/otc_test.go:1236` | -- | {single-polarity} the egress OTC stamp at internal/component/bgp/plugins/role/otc.go:432 uses dest.LocalAS, the effective per-peer internet-facing local AS supplied by the reactor at internal/component/bgp/reactor/peer_forward_facts.go:133, and no code path stamps any other value, so a wrong-ASN negative is not constructible |
 | `RFC9234-6-1` | MUST NOT | 6 | -- | -- | {not-applicable} ze has no representation of a Complex peering relationship; parseRoleContainer (internal/component/bgp/plugins/role/config.go:66) parses one role per peer with no relationship-complexity classification, so there is no ze code path that could place a role on a complex session to guard against |
 | `RFC9234-6-2` | SHOULD | 6 | -- | -- |  |
 

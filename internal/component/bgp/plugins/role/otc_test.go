@@ -1026,6 +1026,13 @@ func TestOTCEgressStampMod(t *testing.T) {
 //
 // The suppression case this fixture used to hold is now proven, with the
 // correct expectation, by TestOTCEgressSuppressProviderLearnedWithoutMeta.
+//
+// SECOND CHANGE, same approval, found by independent review. The fixture above
+// still proved nothing: dest carried no LocalAS, so the stamp was blocked by
+// the inner `localASN > 0` guard (otc.go) and not by the destination-role gate
+// this tag names. Deleting that gate entirely left the whole role package
+// green. dest.LocalAS is now set, so the destination-role gate is the ONLY
+// thing preventing the stamp and widening it turns this red.
 func TestOTCEgressNoStampProvider(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
@@ -1041,7 +1048,16 @@ func TestOTCEgressNoStampProvider(t *testing.T) {
 
 	noOTC := buildTestPayload(buildTestAttrs(0), nil)
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
-	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+	// rfc-test-change-approved: 2026-07-27 Thomas approved "fix test + code" for
+	// this RFC-tagged test (spec-fixit-otc-src-role-meta-fallback). This is the
+	// second change under that approval: LocalAS is load-bearing, because
+	// without it the stamp is refused by the `localASN > 0` guard and the test
+	// passes with the destination-role gate deleted. It only ADDS failure modes
+	// to the tag -- no assertion is weakened. See SECOND CHANGE above.
+	dest := filterapi.PeerFilterInfo{
+		Address: netip.MustParseAddr("10.0.0.5"),
+		LocalAS: 65000,
+	}
 
 	var mods filterapi.ModAccumulator
 	accept := OTCEgressFilter(src, dest, noOTC, nil, &mods)
@@ -1084,6 +1100,108 @@ func TestOTCEgressSuppressProviderLearnedWithoutMeta(t *testing.T) {
 	accept := OTCEgressFilter(src, dest, noOTC, nil, &mods)
 	assert.False(t, accept,
 		"Provider-learned route to a Provider must be suppressed even with no ingress metadata (RFC 9234 Section 5)")
+}
+
+// VALIDATES: resolveSrcRole -- a src-role that is PRESENT but unusable takes the
+// config fallback, so a malformed input is never more permissive than a missing
+// one.
+// PREVENTS: a refactor that falls back only when the key is ABSENT. The
+// distinction is invisible without this test: meta_wrong_type_not_suppressed
+// uses a source with no config at all, so resolveSrcRole returns "" there for
+// any implementation of the type check. Rewriting resolveSrcRole to return ""
+// on a malformed value left the whole package green before this test existed.
+func TestOTCEgressMalformedMetaTakesConfigFallback(t *testing.T) {
+	setFilterState(map[string]*peerRoleConfig{
+		"10.0.0.1": {role: roleCustomer}, // our role customer => 10.0.0.1 IS our Provider
+	}, nil)
+	setFilterRemoteRole("10.0.0.1", roleProvider)
+	setFilterRemoteRole("10.0.0.5", roleProvider)
+	defer func() {
+		setFilterState(nil, nil)
+		filterMu.Lock()
+		filterRemoteRoles = nil
+		filterMu.Unlock()
+	}()
+
+	noOTC := buildTestPayload(buildTestAttrs(0), nil)
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+
+	// Present, non-string: a producer bug, not an absent key.
+	meta := map[string]any{"src-role": 42}
+
+	var mods filterapi.ModAccumulator
+	accept := OTCEgressFilter(src, dest, noOTC, meta, &mods)
+	assert.False(t, accept,
+		"a malformed src-role must fall back to config and still suppress, never fail open")
+}
+
+// VALIDATES: resolveSrcRole precedence -- meta wins over config when both are
+// present and usable.
+// PREVENTS: swapping the two branches. Every other fixture either agrees on both
+// sources or supplies only one, so the order was unpinned: exchanging the meta
+// and config branches left the suite green.
+func TestOTCEgressMetaTakesPrecedenceOverConfig(t *testing.T) {
+	setFilterState(map[string]*peerRoleConfig{
+		// Config says our role is customer => source IS our Provider => suppress.
+		"10.0.0.1": {role: roleCustomer},
+	}, nil)
+	setFilterRemoteRole("10.0.0.1", roleProvider)
+	setFilterRemoteRole("10.0.0.5", roleProvider)
+	defer func() {
+		setFilterState(nil, nil)
+		filterMu.Lock()
+		filterRemoteRoles = nil
+		filterMu.Unlock()
+	}()
+
+	noOTC := buildTestPayload(buildTestAttrs(0), nil)
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+
+	// meta disagrees: our role is provider => source IS our Customer => transit
+	// to a Provider is legitimate. If meta wins, the route is accepted.
+	meta := map[string]any{"src-role": roleProvider}
+
+	var mods filterapi.ModAccumulator
+	accept := OTCEgressFilter(src, dest, noOTC, meta, &mods)
+	assert.True(t, accept,
+		"meta src-role must take precedence over the config fallback")
+}
+
+// VALIDATES: resolveDestRole -- the RFC 9234 Section 5 leak guard still fires
+// when the destination peer sent NO Role capability, by recovering what the peer
+// IS from the complement of our configured role toward it.
+// PREVENTS: the destination-side twin of the src-role fail-open. filterRemoteRoles
+// is written only from the OPEN Role capability (role.go, OnValidateOpen), and
+// validateOpenRolePair deliberately ACCEPTS a peer that sent none when strict is
+// unset. destRemoteRole was then "", which selected the permissive branch of
+// every Section 5 gate, so a route carrying OTC was forwarded to a peer we have
+// configured as our Provider. Deleting the destCfg fallback in resolveDestRole
+// turns this red.
+func TestOTCEgressSuppressToProviderWithoutRoleCapability(t *testing.T) {
+	setFilterState(map[string]*peerRoleConfig{
+		"10.0.0.1": {role: roleProvider}, // source IS our Customer: may transit
+		"10.0.0.5": {role: roleCustomer}, // our role customer => 10.0.0.5 IS our Provider
+	}, nil)
+	setFilterRemoteRole("10.0.0.1", roleCustomer)
+	// 10.0.0.5 deliberately gets NO setFilterRemoteRole: it sent no Role
+	// capability, which is an accepted session when strict is unset.
+	defer func() {
+		setFilterState(nil, nil)
+		filterMu.Lock()
+		filterRemoteRoles = nil
+		filterMu.Unlock()
+	}()
+
+	withOTC := buildTestPayload(buildTestAttrs(65001), nil)
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
+
+	var mods filterapi.ModAccumulator
+	accept := OTCEgressFilter(src, dest, withOTC, nil, &mods)
+	assert.False(t, accept,
+		"a route carrying OTC must not be propagated to a Provider that announced no Role capability (RFC 9234 Section 5)")
 }
 
 // VALIDATES: AC-5 — Route with existing OTC preserved unchanged (no mod written).

@@ -390,11 +390,63 @@ func OTCIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[str
 // source has no role config at all there is genuinely nothing to recover, and
 // "" correctly means the peer is unconfigured rather than unrestricted.
 func resolveSrcRole(meta map[string]any, srcCfg *peerRoleConfig) string {
-	if role, ok := meta["src-role"].(string); ok && role != "" {
-		return role
+	if raw, present := meta["src-role"]; present {
+		if role, ok := raw.(string); ok && role != "" {
+			return role
+		}
+		// Fail closed AND say so (ai/rules/fail-closed-guards.md). The fallback
+		// below already denies correctly; without this line a producer bug is
+		// unobservable. The risk is real, not theoretical: ingressMeta is one
+		// map shared by every in-process ingress filter
+		// (reactor_notify.go:450-453), so any filter can clobber the key.
+		logger().Warn("OTC src-role present but unusable, falling back to config",
+			"value", raw)
 	}
 	if srcCfg != nil {
 		return srcCfg.role
+	}
+	return ""
+}
+
+// peerRoleComplement maps OUR configured local role toward a peer to what that
+// peer IS to us. It is the value form of the RFC 9234 Section 4.2 Table 2 pair
+// table in validate.go (validRolePairs), which is keyed by wire code.
+var peerRoleComplement = map[string]string{
+	roleCustomer: roleProvider,
+	roleProvider: roleCustomer,
+	roleRSClient: roleRS,
+	roleRS:       roleRSClient,
+	rolePeer:     rolePeer,
+}
+
+// resolveDestRole returns what the destination peer IS to us, for the RFC 9234
+// Section 5 gates only.
+//
+// capRole is the role the peer announced in its OPEN Role capability. It is the
+// ONLY writer of filterRemoteRoles (role.go:77, from the OnValidateOpen handler
+// at role.go:167-174), so it is empty for any peer that did not send the
+// capability -- a case validateOpenRolePair deliberately ACCEPTS when strict is
+// unset, quoting RFC 9234 Section 4.2's SHOULD-ignore (validate.go:88-94).
+//
+// Empty then selected the permissive branch of every Section 5 gate: a route
+// carrying OTC was forwarded to a peer we have configured as our Provider,
+// violating "a route already containing the OTC Attribute MUST NOT be
+// propagated to Providers, Peers, or RSes". That is the zero-value trap of
+// ai/rules/fail-closed-guards.md, and it is the sibling of the source-side hole
+// resolveSrcRole closes -- same helper, same call, two lines apart.
+//
+// Scope, deliberately narrow: this feeds the RFC MUST gates (leak suppression
+// and OTC stamping), NOT the export-set match below them. Export filtering
+// treats a capability-less peer as roleUnknown, and "unknown" is a documented
+// operator token meaning "also send to peers with no role configured"
+// (config.go:36). Reclassifying it here would silently retarget that knob,
+// which is policy, not conformance.
+func resolveDestRole(capRole string, destCfg *peerRoleConfig) string {
+	if capRole != "" {
+		return capRole
+	}
+	if destCfg != nil {
+		return peerRoleComplement[destCfg.role]
 	}
 	return ""
 }
@@ -413,7 +465,13 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 	}
 
 	srcCfg, _ := getFilterConfig(src.Address.String())
-	_, destRemoteRole := getFilterConfig(dest.Address.String())
+	destCfg, destCapRole := getFilterConfig(dest.Address.String())
+
+	// destRemoteRole gates the RFC 9234 Section 5 MUSTs and falls back to the
+	// config complement when the peer sent no Role capability (resolveDestRole).
+	// destCapRole stays capability-only for the operator export set below, where
+	// "unknown" is a documented target rather than a missing answer.
+	destRemoteRole := resolveDestRole(destCapRole, destCfg)
 
 	// RFC 9234 Section 5 egress rule 2 (unconditional, wire-bytes):
 	// "If a route already contains the OTC Attribute, it MUST NOT be
@@ -448,7 +506,10 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 	// Export role filtering: check if destination role is in the allowed set.
 	// Uses pre-computed resolvedExport (resolved at config time, not per-UPDATE).
 	if len(srcCfg.resolvedExport) > 0 {
-		destRole := destRemoteRole
+		// Capability-only on purpose: "unknown" is an operator-selected export
+		// target for peers that announced no role (config.go:36), not an
+		// unanswered question. See resolveDestRole's scope note.
+		destRole := destCapRole
 		if destRole == "" {
 			destRole = roleUnknown
 		}
