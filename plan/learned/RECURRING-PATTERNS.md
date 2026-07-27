@@ -305,6 +305,54 @@ unsigned form; add the boundary test case.
 
 ---
 
+### The zero value as a valid-looking answer
+
+**Symptom.** A guard passes, a loop exits, or a branch is skipped, and the
+outcome looks like a decision rather than a miss. Nothing is logged. The failure
+surfaces later as a lost route, an unauthenticated bind, or a peer refused for a
+reason nobody can trace back.
+
+**Cause.** An identity-bearing value whose zero is also a legitimate answer is
+tested with `== 0`, `len(...) == 0`, or an untyped presence check, and the zero
+selects the permissive branch. The variable carries two meanings -- "nothing was
+asked for" and "the answer happens to be zero" -- and the code collapses them.
+
+**Six instances found in one session (2026-07-27), all real defects, three of
+them shipping:**
+
+| Where | The zero | What it silently did |
+|-------|----------|----------------------|
+| `cmd/ze/hub/mgmt_guard.go` | empty `addrs` slice | Per-address loop ran zero times, refused nothing, and the builder then bound `0.0.0.0:3443` unauthenticated |
+| `adj_rib_in` replay cut | `maxMsgID == 0` read as "no cut" | 0 is the ORDINARY value (measured 39/40 runs); replay ran unbounded and a peer received the same UPDATE twice |
+| `rs/server_handlers.go` | `lastIndex == 0` read as "converged" | It means ZERO ROUTES REPLAYED; the delta loop broke on iteration zero and a prefix reached neither rail |
+| `reactor/session_open_validation.go` | `settings.PeerAS == 0` | Dynamic peers have no configured AS at OPEN time, so `internal` was always false and RFC 6286 Section 2.2's self-identifier rejection never fired for them |
+| `reactor/peer.go` `claimPeerAS` | `remote.ASN4 > 0` on a RECEIVED open | Never set by `UnpackOpen`; dead branch, so every 4-byte-AS peer claimed under AS_TRANS and legitimate peers in different ASes refused each other |
+| `ike/engine/doctor.go` | `ParseIPsecConfig` error returning nil | `ze doctor` reported `"ready": true`, exit 0, on a config with an unparseable esp-group AND a missing interface |
+
+**Fix.** Carry PRESENCE separately from VALUE. A pointer (`*uint64`), a
+`(value, ok)` pair, or an explicit `tracked bool` beside the field. Where the
+producer cannot answer at all, say so -- `ai/rules/fail-closed-guards.md`: a
+guard that neither denies nor speaks does not exist.
+
+**Why it recurs.** Each instance looked locally reasonable, and several carried
+a COMMENT asserting the safety property they did not provide ("the config
+system's error to report", "RFC 6793 handling"). A comment is its author's
+belief, not a decision record (`ai/rules/no-fabrication.md`). Reading the
+comment is not reading the producer.
+
+**Detection gap, unfilled.** `fail-closed-guards.md` names the pattern but
+nothing greps for it. A mechanical check over `== 0` / `len(x) == 0` guards on
+identity-bearing fields would have caught most of the six. That check does not
+exist yet and is smaller than the defects it prevents.
+
+**Corollary: independent review is what actually found these.** Four specs went
+through review in that session and all four were blocked by it; three concealed
+live defects behind green artifacts, passing tests and clean-looking audits. In
+one case the author had written the comment explaining why a synchronous release
+was necessary and still missed the two sibling call sites needing the same fix.
+`ai/rules/critical-review.md`'s claim that self-review is not review is not
+theoretical.
+
 ## Testing traps
 
 ### Test passes against broken production path
