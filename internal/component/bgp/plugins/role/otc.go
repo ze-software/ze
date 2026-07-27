@@ -89,59 +89,184 @@ func appendOTCToAttrs(attrs []byte, asn uint32) []byte {
 	return result
 }
 
-// MP_REACH_NLRI attribute type code.
-const mpReachAttrCode = byte(14)
+// Multiprotocol NLRI attribute type codes (RFC 4760 Sections 3 and 4).
+const (
+	mpReachAttrCode   = byte(14)
+	mpUnreachAttrCode = byte(15)
+)
 
-// isPayloadUnicast checks if an UPDATE payload carries IPv4 or IPv6 unicast.
-// RFC 9234 Section 5: OTC processing is scoped to AFI 1/2 (IPv4/IPv6), SAFI 1 (Unicast).
+// hasAttr reports whether the raw path attributes contain the given type code.
+// Stops at the first malformed header, matching the other walkers in this file.
+func hasAttr(attrs []byte, want byte) bool {
+	off := 0
+	for off < len(attrs) {
+		code, _, hdrLen, attrLen, ok := attrHeaderAt(attrs, off)
+		if !ok {
+			return false
+		}
+		if code == want {
+			return true
+		}
+		off += hdrLen + attrLen
+	}
+	return false
+}
+
+// attrHeaderAt decodes one attribute header at off. Returns ok=false when the
+// header (or the value it declares) does not fit inside attrs.
+func attrHeaderAt(attrs []byte, off int) (code byte, valStart, hdrLen, attrLen int, ok bool) {
+	if off+3 > len(attrs) {
+		return 0, 0, 0, 0, false
+	}
+	flags := attribute.AttributeFlags(attrs[off])
+	code = attrs[off+1]
+	if flags.IsExtLength() {
+		if off+4 > len(attrs) {
+			return 0, 0, 0, 0, false
+		}
+		attrLen = int(binary.BigEndian.Uint16(attrs[off+2 : off+4]))
+		hdrLen = 4
+	} else {
+		attrLen = int(attrs[off+2])
+		hdrLen = 3
+	}
+	if off+hdrLen+attrLen > len(attrs) {
+		return 0, 0, 0, 0, false
+	}
+	return code, off + hdrLen, hdrLen, attrLen, true
+}
+
+// isPayloadUnicast reports whether an UPDATE payload is in scope for the OTC
+// procedures.
 //
-// If no MP_REACH_NLRI attribute is found, the UPDATE is IPv4 unicast (RFC 4271 implicit).
-// If MP_REACH_NLRI is found, reads AFI (2 bytes) and SAFI (1 byte) from the attribute value.
+// RFC 9234 Section 5: the procedures "are applicable only for the address
+// families AFI 1 (IPv4) and AFI 2 (IPv6) with SAFI 1 (unicast) in both cases
+// and MUST NOT be applied to other address families by default."
+//
+// The family is read from MP_REACH_NLRI (RFC 4760 Section 3) when the UPDATE
+// advertises, and from MP_UNREACH_NLRI (Section 4) when it only withdraws.
+// MP_REACH wins when both are present: it carries the routes being advertised,
+// which is what the procedures act on.
+//
+// Reading MP_UNREACH is not cosmetic. Inspecting only code 14 meant EVERY
+// MP_UNREACH-only UPDATE -- a VPNv4, EVPN, flowspec or multicast withdrawal --
+// fell through to the "no MP_REACH" branch and was classified IPv4 unicast, so
+// the RFC 9234 Section 5 procedures ran on address families the same sentence
+// forbids them for. That is the MUST NOT above, not merely a scoping nicety.
+//
+// An UPDATE carrying neither attribute is the RFC 4271 native encoding, whose
+// NLRI and Withdrawn Routes fields are IPv4 unicast by definition. Returning
+// true there is a positive family determination, not an absence-of-evidence
+// default (ai/rules/fail-closed-guards.md).
 func isPayloadUnicast(payload []byte) bool {
 	attrs := extractAttrsFromPayload(payload)
 	if attrs == nil {
 		return true // Malformed or empty: treat as unicast (fail-open for OTC)
 	}
 
+	var unreachAFI uint16
+	var unreachSAFI byte
+	haveUnreach := false
+
 	off := 0
 	for off < len(attrs) {
-		if off+3 > len(attrs) {
-			break
-		}
-		flags := attribute.AttributeFlags(attrs[off])
-		code := attrs[off+1]
-		var attrLen uint16
-		var hdrLen int
-		if flags.IsExtLength() {
-			if off+4 > len(attrs) {
-				break
-			}
-			attrLen = binary.BigEndian.Uint16(attrs[off+2 : off+4])
-			hdrLen = 4
-		} else {
-			attrLen = uint16(attrs[off+2])
-			hdrLen = 3
-		}
-		if off+hdrLen+int(attrLen) > len(attrs) {
+		code, valStart, hdrLen, attrLen, ok := attrHeaderAt(attrs, off)
+		if !ok {
 			break
 		}
 
-		if code == mpReachAttrCode {
+		switch code {
+		case mpReachAttrCode:
 			// MP_REACH_NLRI: AFI (2 bytes) + SAFI (1 byte) at start of value.
 			if attrLen < 3 {
 				return true // Malformed MP_REACH: treat as unicast
 			}
-			valStart := off + hdrLen
 			afi := binary.BigEndian.Uint16(attrs[valStart : valStart+2])
 			safi := attrs[valStart+2]
 			return (afi == 1 || afi == 2) && safi == 1
+		case mpUnreachAttrCode:
+			// Recorded, not returned: attribute order is not guaranteed, so an
+			// MP_REACH later in the same UPDATE must still win.
+			if attrLen >= 3 && !haveUnreach {
+				unreachAFI = binary.BigEndian.Uint16(attrs[valStart : valStart+2])
+				unreachSAFI = attrs[valStart+2]
+				haveUnreach = true
+			}
 		}
 
-		off += hdrLen + int(attrLen)
+		off += hdrLen + attrLen
 	}
 
-	// No MP_REACH_NLRI found: IPv4 unicast (RFC 4271).
+	if haveUnreach {
+		return (unreachAFI == 1 || unreachAFI == 2) && unreachSAFI == 1
+	}
+
+	// Neither MP attribute: RFC 4271 native encoding, IPv4 unicast.
 	return true
+}
+
+// payloadAdvertisesNLRI reports whether an UPDATE advertises reachable NLRI:
+// a non-empty Network Layer Reachability Information field (RFC 4271
+// Section 4.3, IPv4 unicast) or an MP_REACH_NLRI attribute (RFC 4760
+// Section 3). It is the gate on BOTH OTC stamping rules.
+//
+// DO NOT LOOSEN THIS. Both RFC 9234 Section 5 stamping rules are conditioned on
+// a route being carried. The egress rule says "If a route is to be advertised
+// ... then when advertising the route, an OTC Attribute MUST be added"; the
+// ingress rule says "If a route is received ... then it MUST be added". "Is to
+// be advertised" is the rule's first clause and it is a CONDITION, not
+// scene-setting. An UPDATE that advertises nothing carries no route for either
+// rule to act on, so the obligation never arises.
+//
+// Stamping one anyway is not inert, it is wire-visible damage, in three ways:
+//
+//  1. RFC 4271 Section 4.3: an UPDATE that only withdraws "will not include
+//     path attributes or Network Layer Reachability Information". A stamped
+//     withdrawal is a message the base spec says cannot exist.
+//
+//  2. RFC 7606 Section 5.2: an UPDATE that "does contain path attributes other
+//     than MP_UNREACH_NLRI and doesn't encode any reachable NLRI" leaves a
+//     conforming receiver unable to trust that the NLRI parsed, so any later
+//     attribute error in it escalates from its own handling to "session
+//     reset". A peer withdrawing prefixes could therefore drop the session.
+//
+//  3. THE END-OF-RIB MARKER. RFC 7606 Section 5.2 names the two RFC 4724 EoR
+//     encodings explicitly: an UPDATE carrying only MP_UNREACH_NLRI with no
+//     NLRI, and "a completely empty UPDATE message in the case of the legacy
+//     encoding". Adding any attribute to either one stops it being an
+//     End-of-RIB marker at all, breaking graceful-restart convergence for the
+//     receiving peer. This is reachable, not theoretical: the route-server
+//     fast path (internal/component/bgp/reactor/reactor_notify.go:576) admits
+//     a received UPDATE to the forward rails on `msgType == TypeUPDATE` alone,
+//     and an EoR is an UPDATE. (Locally ORIGINATED EoRs are safe by a
+//     different route -- AnnounceEOR calls peer.SendUpdate directly at
+//     reactor_api_forward.go:137, bypassing egress filters -- so this gate is
+//     the only thing protecting a RELAYED one.)
+//
+// Both shapes therefore return false here and are forwarded untouched. The
+// guard fires on positive evidence that a route IS carried, so an unreadable
+// or unrecognized payload is never stamped by default
+// (ai/rules/fail-closed-guards.md).
+func payloadAdvertisesNLRI(payload []byte) bool {
+	if len(payload) < 4 {
+		return false
+	}
+	withdrawnLen := int(binary.BigEndian.Uint16(payload[0:2]))
+	attrOffset := 2 + withdrawnLen
+	if len(payload) < attrOffset+2 {
+		return false
+	}
+	attrLen := int(binary.BigEndian.Uint16(payload[attrOffset : attrOffset+2]))
+	attrStart := attrOffset + 2
+	if len(payload) < attrStart+attrLen {
+		return false
+	}
+	// RFC 4271 Section 4.3: the NLRI field is whatever trails the attributes.
+	if len(payload) > attrStart+attrLen {
+		return true
+	}
+	// No native NLRI, but an advertisement can still ride in MP_REACH_NLRI.
+	return hasAttr(payload[attrStart:attrStart+attrLen], mpReachAttrCode)
 }
 
 // OTC ingress filter result.
@@ -360,7 +485,13 @@ func OTCIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[str
 	}
 
 	// Stamp OTC if needed. insertOTCInPayload returns nil on overflow.
-	if stampASN > 0 {
+	//
+	// RFC 9234 Section 5 ingress rule 3 acts on "a route ... received". A
+	// payload that advertises nothing carries none, and insertOTCInPayload
+	// would rewrite a withdraw-only UPDATE (or an End-of-RIB marker) into one
+	// with a path attribute and no NLRI -- the shape RFC 4271 Section 4.3 says
+	// such a message must not have (see payloadAdvertisesNLRI).
+	if stampASN > 0 && payloadAdvertisesNLRI(payload) {
 		modified := insertOTCInPayload(payload, stampASN)
 		if modified != nil {
 			logger().Debug("OTC ingress stamp",
@@ -559,7 +690,17 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 	// RFC 9234 Section 5: "If a route is to be advertised to a Customer, a Peer,
 	// or an RS-Client [...] and the OTC Attribute is not present, then [...]
 	// an OTC Attribute MUST be added with a value equal to the AS number of the local AS."
-	if mods != nil && (destRemoteRole == roleCustomer || destRemoteRole == rolePeer || destRemoteRole == roleRSClient) {
+	//
+	// "is to be advertised" is the first clause of the rule, and it is a
+	// condition, not scene-setting. Without payloadAdvertisesNLRI this block
+	// queued an OTC mod for a pure withdrawal, for an MP_UNREACH-only UPDATE
+	// and for an End-of-RIB marker, and the reactor's unconsumed-ops pass wrote
+	// the 7 bytes onto the wire (forward_build.go:242-259 calls the handler
+	// with src=nil, so nothing downstream declines to fabricate the attribute).
+	// See payloadAdvertisesNLRI for why that output is interop-fatal rather
+	// than merely useless.
+	if mods != nil && payloadAdvertisesNLRI(payload) &&
+		(destRemoteRole == roleCustomer || destRemoteRole == rolePeer || destRemoteRole == roleRSClient) {
 		attrs := extractAttrsFromPayload(payload)
 		_, hasOTC, _ := findOTC(attrs)
 		if !hasOTC {

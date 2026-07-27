@@ -477,11 +477,12 @@ func TestOTCIngressFilter(t *testing.T) {
 		assert.False(t, accept)
 	})
 
+	// rfc-test-change-approved: 2026-07-27 Thomas approved correcting the fixture to carry NLRI. The test asserted a stamp on a payload with attributes and no NLRI, which is the shape RFC 9234 S5 conditions the stamp against. Assertions unchanged.
 	// RFC requirement: RFC9234-5-3 positive -- a route without OTC received from a Provider is stamped on ingress with the remote AS number.
 	t.Run("stamp_from_provider", func(t *testing.T) {
 		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002}
 		meta := make(map[string]any)
-		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), nil), meta)
+		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), []byte{24, 10, 2, 2}), meta)
 		assert.True(t, accept)
 		require.NotNil(t, modified)
 		// Meta set after stamping.
@@ -963,6 +964,7 @@ func TestMixedTopology_RoleAndNoRolePeers(t *testing.T) {
 // VALIDATES: AC-1, AC-11 — Route without OTC to Customer gets mods.Op(35, AttrModSet, ...).
 // PREVENTS: Missing OTC egress stamping per RFC 9234 Section 5.
 //
+// rfc-test-change-approved: 2026-07-27 Thomas approved correcting the fixture to carry NLRI. The test asserted a stamp on a payload with attributes and no NLRI, which is the shape RFC 9234 S5 conditions the stamp against. Assertions unchanged.
 // RFC requirement: RFC9234-5-4 positive -- a route without OTC advertised to a Customer is stamped with the local AS number.
 // RFC requirement: RFC9234-5-10 negative -- OTC egress processing DOES run for an IPv4 unicast route (the family gate admits AFI 1/2 SAFI 1), so a unicast route to a Customer is stamped.
 func TestOTCEgressStampMod(t *testing.T) {
@@ -980,7 +982,7 @@ func TestOTCEgressStampMod(t *testing.T) {
 		filterMu.Unlock()
 	}()
 
-	noOTC := buildTestPayload(buildTestAttrs(0), nil)
+	noOTC := buildTestPayload(buildTestAttrs(0), []byte{24, 10, 2, 2})
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
 	// dest.LocalAS is the reactor-supplied effective per-peer local AS used to stamp OTC.
 	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5"), LocalAS: 65000}
@@ -1117,6 +1119,14 @@ func TestOTCEgressSuppressProviderLearnedWithoutMeta(t *testing.T) {
 // This had zero coverage before: making the stamp source-independent left the
 // whole package green, while ai/RFC-REQUIREMENTS.md still reported
 // RFC9234-5-4 proven -- by a test whose source DOES have role config.
+//
+// rfc-test-change-approved: 2026-07-27 Thomas approved correcting the fixture to carry NLRI. The test asserted a stamp on a payload with attributes and no NLRI, which is the shape RFC 9234 S5 conditions the stamp against. Assertions unchanged.
+// RFC requirement: RFC9234-5-4 positive -- a route advertised to a Customer is
+// stamped with the local AS number, and the rule is conditioned on the
+// DESTINATION alone, so it holds when the source has no role configuration.
+// Tagged because the ledger previously credited this MUST solely to
+// TestOTCEgressStampMod, whose source IS configured: the requirement now turns
+// on the config-less case, and no tagged test exercised it.
 func TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
 		// Only the destination is configured. 10.0.0.70 (the source) has no
@@ -1131,7 +1141,7 @@ func TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig(t *testing.T) {
 		filterMu.Unlock()
 	}()
 
-	noOTC := buildTestPayload(buildTestAttrs(0), nil)
+	noOTC := buildTestPayload(buildTestAttrs(0), []byte{24, 10, 2, 2})
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.70")}
 	dest := filterapi.PeerFilterInfo{
 		Address: netip.MustParseAddr("10.0.0.71"),
@@ -1181,7 +1191,7 @@ func TestOTCIngressStampsWhenPeerSentNoRoleCapability(t *testing.T) {
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.60"), PeerAS: 65060}
 	meta := make(map[string]any)
 
-	accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), nil), meta)
+	accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), []byte{24, 10, 2, 2}), meta)
 	assert.True(t, accept, "a route without OTC from a Provider is accepted")
 	require.NotNil(t, modified, "it must be stamped on ingress (RFC 9234 Section 5)")
 
@@ -1321,6 +1331,7 @@ func TestOTCEgressPreserveExisting(t *testing.T) {
 // VALIDATES: AC-1, AC-11 — OTC stamp value is local ASN, not source or dest peer ASN.
 // PREVENTS: Stamping with wrong ASN.
 //
+// rfc-test-change-approved: 2026-07-27 Thomas approved correcting the fixture to carry NLRI. The test asserted a stamp on a payload with attributes and no NLRI, which is the shape RFC 9234 S5 conditions the stamp against. Assertions unchanged.
 // RFC requirement: RFC9234-5-9 positive -- the egress OTC stamp uses dest.LocalAS (the effective per-peer internet-facing local AS), not the source or destination peer AS.
 func TestOTCEgressStampLocalASN(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
@@ -1335,7 +1346,7 @@ func TestOTCEgressStampLocalASN(t *testing.T) {
 		filterMu.Unlock()
 	}()
 
-	noOTC := buildTestPayload(buildTestAttrs(0), nil)
+	noOTC := buildTestPayload(buildTestAttrs(0), []byte{24, 10, 2, 2})
 	// dest.LocalAS 64999 is the reactor-supplied local AS; it must be stamped,
 	// not the src peer AS (65001) or the dest peer AS (65002).
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
@@ -1517,7 +1528,7 @@ func TestOTCEgressStampRSClient(t *testing.T) {
 		filterMu.Unlock()
 	}()
 
-	noOTC := buildTestPayload(buildTestAttrs(0), nil)
+	noOTC := buildTestPayload(buildTestAttrs(0), []byte{24, 10, 2, 2})
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
 	// dest.LocalAS is the reactor-supplied effective per-peer local AS used to stamp OTC.
 	dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5"), LocalAS: 65000}
@@ -1585,7 +1596,9 @@ func TestOTCEgressStampFailClosedObservability(t *testing.T) {
 		filterMu.Unlock()
 	}()
 
-	noOTC := buildTestPayload(buildTestAttrs(0), nil)
+	// Carries an NLRI: the fail-closed WARN under test lives in the stamping
+	// block, which RFC 9234 Section 5 only reaches for an advertised route.
+	noOTC := buildTestPayload(buildTestAttrs(0), []byte{24, 10, 2, 2})
 	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
 	// dest.LocalAS deliberately 0: a peer with no local AS cannot be established
 	// (config parsing rejects it), so a zero here is a wiring failure, not "AS 0".
@@ -1730,4 +1743,424 @@ func TestOTCIngressMalformedTreatAsWithdraw(t *testing.T) {
 
 	_, found, _ := findOTC(extractAttrsFromPayload(modified))
 	assert.False(t, found, "the malformed OTC must not survive in the withdrawal")
+}
+
+// --- AC-11: OTC is never stamped onto an UPDATE that advertises no route ---
+//
+// RFC 9234 Section 5 conditions BOTH stamping rules on a route being carried:
+// egress "If a route is to be advertised ... then when advertising the route",
+// ingress "If a route is received ... then it MUST be added". A withdrawal
+// carries no route. Stamping one produced, on the wire, an UPDATE with a path
+// attribute and no reachable NLRI -- the shape RFC 4271 Section 4.3 forbids and
+// RFC 7606 Section 5.2 makes a receiver distrust (any later attribute error in
+// such a message escalates to "session reset"), and which for an MP_UNREACH-only
+// message destroys an RFC 4724 End-of-RIB marker.
+
+// buildWithdrawOnlyPayload builds an UPDATE that only withdraws IPv4 prefixes:
+// withdrawnLen(2) + withdrawn + attrLen(2)=0, and no NLRI.
+func buildWithdrawOnlyPayload(withdrawn []byte) []byte {
+	payload := make([]byte, 2+len(withdrawn)+2)
+	binary.BigEndian.PutUint16(payload[0:2], uint16(len(withdrawn)))
+	copy(payload[2:], withdrawn)
+	binary.BigEndian.PutUint16(payload[2+len(withdrawn):], 0)
+	return payload
+}
+
+// buildMPUnreachAttr builds an MP_UNREACH_NLRI (type 15) attribute carrying
+// AFI(2) + SAFI(1) and no withdrawn NLRI (the RFC 4724 End-of-RIB shape).
+func buildMPUnreachAttr(afi uint16, safi byte) []byte {
+	attr := make([]byte, 6)
+	attr[0] = 0x80 // Optional
+	attr[1] = mpUnreachAttrCode
+	attr[2] = 3 // length: AFI(2) + SAFI(1)
+	binary.BigEndian.PutUint16(attr[3:5], afi)
+	attr[5] = safi
+	return attr
+}
+
+// customerEgressPeers configures 10.0.0.1 as our Provider role (so the source is
+// our Customer) and 10.0.0.5 as a Customer destination -- the role pair under
+// which RFC 9234 Section 5 egress rule 1 demands a stamp for a real route.
+func customerEgressPeers(t *testing.T) (src, dest filterapi.PeerFilterInfo) {
+	t.Helper()
+	setFilterState(map[string]*peerRoleConfig{
+		"10.0.0.1": {role: roleProvider},
+	}, nil)
+	setFilterRemoteRole("10.0.0.1", roleCustomer)
+	setFilterRemoteRole("10.0.0.5", roleCustomer)
+	t.Cleanup(func() {
+		setFilterState(nil, nil)
+		filterMu.Lock()
+		filterRemoteRoles = nil
+		filterMu.Unlock()
+	})
+	src = filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	dest = filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5"), LocalAS: 65000}
+	return src, dest
+}
+
+// VALIDATES: AC-11 -- a pure IPv4 withdrawal toward a Customer queues no OTC.
+// PREVENTS: a withdraw-only UPDATE reaching the wire with a 7-byte OTC
+// attribute and no NLRI (RFC 4271 Section 4.3; RFC 7606 Section 5.2).
+//
+// RFC requirement: RFC9234-5-4 negative -- the egress stamping rule does not
+// fire for an UPDATE that advertises no route, because "is to be advertised" is
+// a condition of the rule and a withdrawal satisfies no part of it.
+func TestOTCEgressNoStampOnPureWithdrawal(t *testing.T) {
+	src, dest := customerEgressPeers(t)
+
+	// Withdraw 10.1.1.0/24. No path attributes, no NLRI.
+	payload := buildWithdrawOnlyPayload([]byte{24, 10, 1, 1})
+	meta := map[string]any{"src-role": roleCustomer}
+
+	var mods filterapi.ModAccumulator
+	accept := OTCEgressFilter(src, dest, payload, meta, &mods)
+	assert.True(t, accept, "a withdrawal is forwarded, it is only not stamped")
+	assert.Equal(t, 0, mods.Len(),
+		"RFC 9234 Section 5: a withdrawal advertises no route, so no OTC may be added")
+}
+
+// VALIDATES: AC-11 -- an MP_UNREACH-only UPDATE toward a Customer queues no OTC.
+// PREVENTS: corrupting an RFC 4724 End-of-RIB marker, and putting a
+// non-MP_UNREACH attribute on a withdraw-only UPDATE (RFC 7606 Section 5.2).
+//
+// RFC requirement: RFC9234-5-4 negative -- an MP_UNREACH-only UPDATE carries no
+// advertised route, so the egress stamping rule does not fire.
+func TestOTCEgressNoStampOnMPUnreachOnly(t *testing.T) {
+	src, dest := customerEgressPeers(t)
+
+	// IPv6 unicast withdrawal: in scope by family, but nothing is advertised.
+	payload := buildTestPayload(buildMPUnreachAttr(2, 1), nil)
+	meta := map[string]any{"src-role": roleCustomer}
+
+	var mods filterapi.ModAccumulator
+	accept := OTCEgressFilter(src, dest, payload, meta, &mods)
+	assert.True(t, accept, "the withdrawal is forwarded")
+	assert.Equal(t, 0, mods.Len(),
+		"RFC 9234 Section 5: an MP_UNREACH-only UPDATE advertises no route, so no OTC may be added")
+}
+
+// VALIDATES: AC-11 -- the legacy (completely empty) End-of-RIB marker is not
+// stamped. RFC 7606 Section 5.2 names this encoding explicitly.
+// PREVENTS: an EoR relayed through the route-server rail
+// (reactor_notify.go:576 gates only on message type) acquiring an OTC
+// attribute, which would stop it being an End-of-RIB marker at all.
+func TestOTCEgressNoStampOnLegacyEndOfRIB(t *testing.T) {
+	src, dest := customerEgressPeers(t)
+
+	// RFC 4724 legacy EoR: withdrawnLen=0, attrLen=0, no NLRI.
+	payload := []byte{0x00, 0x00, 0x00, 0x00}
+	meta := map[string]any{"src-role": roleCustomer}
+
+	var mods filterapi.ModAccumulator
+	accept := OTCEgressFilter(src, dest, payload, meta, &mods)
+	assert.True(t, accept, "the marker is forwarded")
+	assert.Equal(t, 0, mods.Len(),
+		"an End-of-RIB marker advertises no route and must not gain an attribute")
+}
+
+// VALIDATES: AC-11 -- the gate is scoped to withdrawals: an UPDATE that both
+// withdraws and announces IS an advertisement and MUST still be stamped.
+// PREVENTS: the advertisement gate over-reaching into a mixed UPDATE and
+// silently dropping a mandatory stamp (the false-negative direction, which
+// would let a route reach a Customer with no OTC to catch a later leak).
+//
+// RFC requirement: RFC9234-5-4 positive -- an UPDATE carrying reachable NLRI
+// toward a Customer is stamped with the local AS even when it also withdraws.
+func TestOTCEgressStampsMixedWithdrawAndAnnounce(t *testing.T) {
+	src, dest := customerEgressPeers(t)
+
+	// withdrawnLen=4 (10.1.1.0/24) + attrs(ORIGIN) + NLRI 10.2.2.0/24.
+	withdrawn := []byte{24, 10, 1, 1}
+	attrs := buildTestAttrs(0)
+	nlri := []byte{24, 10, 2, 2}
+	payload := make([]byte, 0, 2+len(withdrawn)+2+len(attrs)+len(nlri))
+	payload = binary.BigEndian.AppendUint16(payload, uint16(len(withdrawn)))
+	payload = append(payload, withdrawn...)
+	payload = binary.BigEndian.AppendUint16(payload, uint16(len(attrs)))
+	payload = append(payload, attrs...)
+	payload = append(payload, nlri...)
+
+	meta := map[string]any{"src-role": roleCustomer}
+
+	var mods filterapi.ModAccumulator
+	accept := OTCEgressFilter(src, dest, payload, meta, &mods)
+	assert.True(t, accept, "the route is advertised to the Customer")
+	ops := mods.Ops()
+	require.Len(t, ops, 1, "a mixed UPDATE still advertises a route, so it MUST be stamped")
+	assert.Equal(t, otcAttrCode, ops[0].Code)
+	assert.Equal(t, uint32(65000), binary.BigEndian.Uint32(ops[0].Buf),
+		"stamped with the local AS")
+}
+
+// VALIDATES: AC-11 (ingress half) -- a pure withdrawal from a Provider is not
+// rewritten to carry OTC.
+// PREVENTS: OTCIngressFilter's insertOTCInPayload turning a withdraw-only
+// UPDATE into one with attrLen=7 and no NLRI before it ever reaches the RIB.
+//
+// RFC requirement: RFC9234-5-3 negative -- the ingress stamping rule acts on "a
+// route ... received"; a withdrawal carries none, so nothing is stamped.
+func TestOTCIngressNoStampOnPureWithdrawal(t *testing.T) {
+	setFilterState(map[string]*peerRoleConfig{
+		// our role customer => 10.0.0.1 IS our Provider, the role that stamps.
+		"10.0.0.1": {role: roleCustomer},
+	}, nil)
+	setFilterRemoteRole("10.0.0.1", roleProvider)
+	defer func() {
+		setFilterState(nil, nil)
+		filterMu.Lock()
+		filterRemoteRoles = nil
+		filterMu.Unlock()
+	}()
+
+	payload := buildWithdrawOnlyPayload([]byte{24, 10, 1, 1})
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
+
+	accept, modified := OTCIngressFilter(src, payload, make(map[string]any))
+	assert.True(t, accept, "the withdrawal is accepted")
+	assert.Nil(t, modified,
+		"RFC 9234 Section 5: a withdrawal carries no received route, so no OTC is added")
+}
+
+// VALIDATES: AC-11 (ingress half) -- an MP_UNREACH-only UPDATE from a Provider
+// is not rewritten to carry OTC.
+// PREVENTS: the same ingress rewrite for the multiprotocol withdrawal shape.
+//
+// RFC requirement: RFC9234-5-3 negative -- an MP_UNREACH-only UPDATE carries no
+// received route, so the ingress stamping rule does not fire.
+func TestOTCIngressNoStampOnMPUnreachOnly(t *testing.T) {
+	setFilterState(map[string]*peerRoleConfig{
+		"10.0.0.1": {role: roleCustomer},
+	}, nil)
+	setFilterRemoteRole("10.0.0.1", roleProvider)
+	defer func() {
+		setFilterState(nil, nil)
+		filterMu.Lock()
+		filterRemoteRoles = nil
+		filterMu.Unlock()
+	}()
+
+	payload := buildTestPayload(buildMPUnreachAttr(2, 1), nil)
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
+
+	accept, modified := OTCIngressFilter(src, payload, make(map[string]any))
+	assert.True(t, accept, "the withdrawal is accepted")
+	assert.Nil(t, modified,
+		"RFC 9234 Section 5: an MP_UNREACH-only UPDATE carries no received route")
+}
+
+// --- Family scoping for the withdrawal shape (MP_UNREACH_NLRI) ---
+
+// VALIDATES: isPayloadUnicast reads the family from MP_UNREACH_NLRI when the
+// UPDATE only withdraws, so the AFI 1/2 + SAFI 1 scoping holds for withdrawals.
+// PREVENTS: the previous behavior, where inspecting only MP_REACH (type 14)
+// made EVERY MP_UNREACH-only UPDATE fall through to "no MP_REACH found: IPv4
+// unicast" -- so a VPNv4, EVPN or flowspec withdrawal was processed as unicast.
+//
+// RFC requirement: RFC9234-5-10 positive -- the OTC procedures are not applied
+// to address families outside AFI 1/2 SAFI 1 when the family is carried by
+// MP_UNREACH_NLRI rather than MP_REACH_NLRI.
+func TestIsPayloadUnicastMPUnreachFamily(t *testing.T) {
+	tests := []struct {
+		name string
+		afi  uint16
+		safi byte
+		want bool
+	}{
+		{"ipv4_unicast_withdrawal", 1, 1, true},
+		{"ipv6_unicast_withdrawal", 2, 1, true},
+		{"ipv4_multicast_withdrawal", 1, 2, false},
+		{"ipv4_vpn_withdrawal", 1, 128, false},
+		{"ipv6_vpn_withdrawal", 2, 128, false},
+		{"ipv4_flow_withdrawal", 1, 133, false},
+		{"l2vpn_evpn_withdrawal", 25, 70, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payload := buildTestPayload(buildMPUnreachAttr(tt.afi, tt.safi), nil)
+			assert.Equal(t, tt.want, isPayloadUnicast(payload))
+		})
+	}
+
+	t.Run("mp_reach_wins_over_mp_unreach", func(t *testing.T) {
+		// Attribute order must not decide: MP_REACH carries the advertised
+		// routes the procedures act on, so it wins wherever it appears.
+		unreachFirst := append(buildMPUnreachAttr(1, 128), buildMPReachAttr(1, 1)...)
+		assert.True(t, isPayloadUnicast(buildTestPayload(unreachFirst, nil)),
+			"MP_REACH (unicast) must win over an MP_UNREACH for another family")
+
+		reachFirst := append(buildMPReachAttr(1, 128), buildMPUnreachAttr(1, 1)...)
+		assert.False(t, isPayloadUnicast(buildTestPayload(reachFirst, nil)),
+			"MP_REACH (vpn) must win over an MP_UNREACH for unicast")
+	})
+}
+
+// VALIDATES: RFC 9234 Section 5's family scoping applied end-to-end to a
+// non-unicast withdrawal through the egress filter.
+// PREVENTS: a VPNv4 withdrawal being processed by the OTC procedures at all --
+// the MUST NOT in "MUST NOT be applied to other address families by default".
+//
+// RFC requirement: RFC9234-5-10 positive -- OTC egress processing is skipped
+// for a non-unicast MP_UNREACH-only UPDATE.
+func TestOTCEgressNonUnicastWithdrawalNotProcessed(t *testing.T) {
+	src, dest := customerEgressPeers(t)
+
+	// VPNv4 (AFI 1, SAFI 128) withdrawal.
+	payload := buildTestPayload(buildMPUnreachAttr(1, 128), nil)
+	meta := map[string]any{"src-role": roleCustomer}
+
+	var mods filterapi.ModAccumulator
+	accept := OTCEgressFilter(src, dest, payload, meta, &mods)
+	assert.True(t, accept, "non-unicast is always accepted")
+	assert.Equal(t, 0, mods.Len(),
+		"RFC 9234 Section 5: the OTC procedures MUST NOT be applied to other address families")
+}
+
+// TestOTCNonUnicastWithdrawalSkipsOTCProcedures is the DISCRIMINATING proof for
+// the MP_UNREACH family gate, and exists because the obvious assertion is
+// vacuous.
+//
+// Asserting "no OTC stamped" on a non-unicast withdrawal proves nothing about
+// the family gate: the advertisement gate already suppresses the stamp for
+// every withdrawal of every family, so that assertion stays green with the
+// family fix reverted. Verified, not assumed -- replacing `mpUnreachAttrCode`
+// with an unused code in isPayloadUnicast leaves such a test passing while
+// TestIsPayloadUnicastMPUnreachFamily goes red.
+//
+// The two outcomes below are reachable ONLY through the family gate, because
+// each is produced by an OTC procedure that a withdrawal can still trigger:
+//   - egress rule 2 suppression (RFC 9234 Section 5): would drop the withdrawal
+//   - ingress leak detection (rule 1): would reject it
+//
+// Both are real harm, not bookkeeping: a suppressed or rejected withdrawal
+// leaves the peer holding a route we meant to remove.
+//
+// VALIDATES: RFC 9234 Section 5 family scoping for the withdrawal shape.
+// PREVENTS: OTC procedures running on VPNv4/EVPN/flowspec withdrawals, which
+// inspecting only MP_REACH (type 14) allowed -- every MP_UNREACH-only UPDATE
+// fell through to "no MP_REACH found: IPv4 unicast".
+//
+// RFC requirement: RFC9234-5-10 positive -- the OTC procedures are not applied
+// to address families outside AFI 1/2 SAFI 1 when the family is carried by
+// MP_UNREACH_NLRI.
+func TestOTCNonUnicastWithdrawalSkipsOTCProcedures(t *testing.T) {
+	t.Run("egress_rule_2_does_not_suppress", func(t *testing.T) {
+		setFilterState(map[string]*peerRoleConfig{
+			"10.0.0.1": {role: roleProvider},
+			// our role customer => 10.0.0.5 IS our Provider, the role that
+			// egress rule 2 suppresses an OTC-carrying route towards.
+			"10.0.0.5": {role: roleCustomer},
+		}, nil)
+		setFilterRemoteRole("10.0.0.1", roleCustomer)
+		setFilterRemoteRole("10.0.0.5", roleProvider)
+		t.Cleanup(func() {
+			setFilterState(nil, nil)
+			filterMu.Lock()
+			filterRemoteRoles = nil
+			filterMu.Unlock()
+		})
+
+		// VPNv4 (AFI 1, SAFI 128) withdrawal that also carries OTC.
+		otc := buildOTCAttr(65001)
+		attrs := append(buildMPUnreachAttr(1, 128), otc[:]...)
+		payload := buildTestPayload(attrs, nil)
+
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
+		dest := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5"), LocalAS: 65000}
+
+		var mods filterapi.ModAccumulator
+		accept := OTCEgressFilter(src, dest, payload, nil, &mods)
+		assert.True(t, accept,
+			"RFC 9234 Section 5: the procedures MUST NOT be applied to other address "+
+				"families, so a VPNv4 withdrawal is not suppressed by the OTC-present rule")
+	})
+
+	t.Run("ingress_rule_1_does_not_reject", func(t *testing.T) {
+		setFilterState(map[string]*peerRoleConfig{
+			// our role provider => 10.0.0.1 IS our Customer, and OTC received
+			// from a Customer is a leak -- for unicast only.
+			"10.0.0.1": {role: roleProvider},
+		}, nil)
+		setFilterRemoteRole("10.0.0.1", roleCustomer)
+		t.Cleanup(func() {
+			setFilterState(nil, nil)
+			filterMu.Lock()
+			filterRemoteRoles = nil
+			filterMu.Unlock()
+		})
+
+		otc := buildOTCAttr(65002)
+		attrs := append(buildMPUnreachAttr(25, 70), otc[:]...) // l2vpn/evpn
+		payload := buildTestPayload(attrs, nil)
+
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
+		accept, modified := OTCIngressFilter(src, payload, make(map[string]any))
+		assert.True(t, accept,
+			"an EVPN withdrawal carrying OTC is outside the OTC procedures and "+
+				"must not be rejected as a route leak")
+		assert.Nil(t, modified, "and it is not rewritten")
+	})
+}
+
+// TestOTCNotStampedWithoutReachableNLRI is the proof for the STRICT form of the
+// gate, and the reason the three RFC-tagged fixtures were corrected to carry
+// NLRI (rfc-test-change-approved, 2026-07-27).
+//
+// The payload here is the shape those fixtures used to have: path attributes
+// present, no NLRI field, no MP_REACH, nothing withdrawn. It advertises no
+// route, so RFC 9234 Section 5 raises no stamping obligation for it -- "if a
+// route is to be advertised" and "if a route is received" are both unsatisfied.
+// While the fixtures asserted a stamp on this shape, the gate could not be
+// tightened past "would adding an attribute newly break this message", and the
+// shape stayed stamped.
+//
+// This test is what keeps the strict form: loosening the gate to admit an
+// UPDATE that merely carries some non-MP_UNREACH attribute turns both subtests
+// red.
+//
+// VALIDATES: OTC is stamped only onto an UPDATE that advertises reachable NLRI.
+// PREVENTS: reintroducing a stamp on an UPDATE with attributes and no route,
+// which RFC 7606 Section 5.2 already classes as one whose NLRI a receiver
+// cannot trust.
+func TestOTCNotStampedWithoutReachableNLRI(t *testing.T) {
+	// Sanity: the predicate itself, so a failure below is unambiguous.
+	t.Run("predicate", func(t *testing.T) {
+		assert.False(t, payloadAdvertisesNLRI(buildTestPayload(buildTestAttrs(0), nil)),
+			"attributes with no NLRI advertise no route")
+		assert.True(t, payloadAdvertisesNLRI(buildTestPayload(buildTestAttrs(0), []byte{24, 10, 2, 2})),
+			"the same attributes plus an NLRI field DO advertise a route")
+	})
+
+	t.Run("egress_to_customer", func(t *testing.T) {
+		src, dest := customerEgressPeers(t)
+		payload := buildTestPayload(buildTestAttrs(0), nil)
+
+		var mods filterapi.ModAccumulator
+		accept := OTCEgressFilter(src, dest, payload, map[string]any{"src-role": roleCustomer}, &mods)
+		assert.True(t, accept, "the UPDATE is still forwarded")
+		assert.Equal(t, 0, mods.Len(),
+			"RFC 9234 Section 5: no route is advertised, so no OTC may be added")
+	})
+
+	t.Run("ingress_from_provider", func(t *testing.T) {
+		setFilterState(map[string]*peerRoleConfig{
+			// our role customer => 10.0.0.1 IS our Provider, the role that stamps.
+			"10.0.0.1": {role: roleCustomer},
+		}, nil)
+		setFilterRemoteRole("10.0.0.1", roleProvider)
+		t.Cleanup(func() {
+			setFilterState(nil, nil)
+			filterMu.Lock()
+			filterRemoteRoles = nil
+			filterMu.Unlock()
+		})
+
+		payload := buildTestPayload(buildTestAttrs(0), nil)
+		src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
+
+		accept, modified := OTCIngressFilter(src, payload, make(map[string]any))
+		assert.True(t, accept, "the UPDATE is still accepted")
+		assert.Nil(t, modified,
+			"RFC 9234 Section 5: no route is received, so the payload is not rewritten")
+	})
 }
