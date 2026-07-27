@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1246 summaries
+Total: 1247 summaries
 
 ## 000-099
 
@@ -1320,3 +1320,4 @@ Total: 1246 summaries
 | 1272 | Renaming the module path (codeberg.org -> github.com) | `plan/learned/1272-module-path-rename.md` |
 | 1273 | plan template lifecycle split | `plan/learned/1273-plan-template-lifecycle-split.md` |
 | 1274 | netlink int fields truncate uint32 config on a 32-bit build | `plan/learned/1274-netlink-int-field-truncation.md` |
+| 1275 | fixit: the six independent reasons GitHub Actions was red | `plan/learned/1275-fixit-ci-green.md` |
