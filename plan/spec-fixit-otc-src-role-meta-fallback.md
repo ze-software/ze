@@ -15,6 +15,63 @@
 3. [List key architecture docs from Required Reading]
 4. [List key source files from Files to Modify]
 
+## OPEN BLOCKER -- OTC is stamped onto WITHDRAWALS (round-4 review, 2026-07-27)
+
+**This spec must NOT be closed until this is fixed.** Found by the fourth independent
+review. Rounds 1, 2 and 3 each found a defect too; this is the most severe.
+
+**Defect.** The egress stamping block (`otc.go`, the `mods != nil && destRemoteRole ∈
+{customer, peer, rs-client}` branch) has no "is this an advertisement?" gate. RFC 9234 §5
+egress rule 1 says "If a route **is to be advertised**"; a withdrawal is not a route. The
+family gate cannot catch it either: `isPayloadUnicast` scans only for `mpReachAttrCode`
+(type 14) and never inspects MP_UNREACH_NLRI (type 15), and its terminal `return true`
+reads "no MP_REACH found, therefore IPv4 unicast". `extractAttrsFromPayload` returns a
+non-nil empty slice when `attrLen == 0`, so the `attrs == nil` guard never fires. There is
+zero MP_UNREACH awareness anywhere in the role plugin.
+
+**Reproduced, not inferred.** Feeding the payload of
+`TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig`:
+
+| Input | Result |
+|-------|--------|
+| pure IPv4 withdrawal `00 04 18 0a 00 00 00 00` | `accept=true`, `mods.Len()==1` |
+| VPNv4 MP_UNREACH `00 00 00 06 80 0f 03 00 01 80` (AFI 1 / SAFI 128) | `accept=true`, `mods.Len()==1` |
+
+**It reaches the wire.** `buildModifiedPayload` step 6
+(`internal/component/bgp/reactor/forward_build.go:241-259`) writes unconsumed ops as new
+attributes, and `otcAttrModHandler` emits the 7-byte attribute. Neither egress caller
+(`reactor_api_forward.go:605`, `forward_rs.go:349`) has a withdrawal guard.
+
+**Four violations**, the last one interop-fatal: RFC 4271 §4.3 (no path attributes on a
+withdraw-only UPDATE); RFC 7606 §3(d) (treat-as-withdraw); **RFC 7606 §5.2 -- a peer
+receiving attributes other than MP_UNREACH with no reachable NLRI MUST use "session
+reset"**; and RFC 9234 §5 / `RFC9234-5-10` (MUST NOT apply to other address families).
+
+**Symmetric on ingress** (producer-read, not executed): `OTCIngressFilter` →
+`isPayloadUnicast` → `checkOTCIngress` returns a stamp ASN for a withdrawal from a
+Provider/Peer/RS → `insertOTCInPayload` rewrites it, and per the `IngressFilterFunc`
+contract that modified payload replaces the original **for caching and dispatch**, so the
+corrupted bytes are stored and later relayed.
+
+**Pre-existing in shape, widened by `e0607d0f4`.** Removing the `srcCfg == nil` early
+return (correct in itself: it was gating an RFC MUST) means the stamp now fires for iBGP
+peers, RR clients and locally originated routes -- in a typical deployment, essentially
+every withdrawal forwarded to any Customer/Peer/RS-Client.
+
+**Also open from round 4:** `TestOTCEgressUnicastOnly` proves `RFC9234-5-10` only through
+the MP_REACH branch, so the "unicast-only scoping" claim at `docs/features/rfc-status.md:25`
+("No tracked gap") is not backed for the withdrawal shape; and
+`TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig` carries no `RFC requirement:` tag,
+so `ai/RFC-REQUIREMENTS.md` still credits `RFC9234-5-4` to the weaker test.
+
+**Why it is not fixed in this session.** A CONCURRENT session holds uncommitted edits to
+`otc.go`, `config.go`, `role.go` and `register.go` plus four untracked files, and `otc.go`
+now references `recordDrop`/`dropLeak` defined in their untracked `metrics.go`. Committing
+`otc.go` would either cross-commit their work or land a tree that does not build. This is
+a tree-contention block, verifiable with `git status`, not a scope decision. The fix is
+small and known: gate the stamp on the payload actually advertising reachable NLRI, and
+teach `isPayloadUnicast` about MP_UNREACH.
+
 ## Task
 
 Close the missing-metadata gap in `OTCEgressFilter`'s Gao-Rexford safety net.
