@@ -32,11 +32,32 @@ import (
 // name: those assert only the AS4_PATH attribute, and every case passes
 // localAS == asns[0], so they cannot tell a verbatim emission from a conditional
 // prepend. Anyone changing this arm needs a new test that inspects AS_PATH.
+//
+// Returns nil when the route does not fit attrBuf. Every write below goes into ONE
+// pooled 4096-byte slot -- attributes growing up from 0, the NLRI parked at the
+// tail -- and attrBuf is backing[off:off+4096] out of a 128-slot slab (session.go),
+// so its CAP runs into the next peer's buffer. Until this guard, none of the
+// eleven writes was bounded: a stored route carrying a long AS_PATH or a large
+// LARGE_COMMUNITIES could push `off` past len and return `attrBuf[:off]`, which
+// reslices into the neighboring session's memory rather than panicking, and the
+// attribute writes themselves could reach the NLRI region and corrupt the prefix
+// the UPDATE was announcing. The batch rail's insertAttrOrdered is the same guard
+// for the same slab; this is the queued rail's half (ai/rules/fail-closed-guards.md).
 func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBGP, asn4, addPath bool) *message.Update {
-	off := 0
-
 	// Create encoding context for ASPath encoding
 	dstCtx := bgpctx.EncodingContextForASN4(asn4)
+
+	// The NLRI is parked at the tail, so it is what bounds the attribute region:
+	// reserve it FIRST and let no attribute write reach it.
+	routeNLRI := route.NLRI()
+	fam := routeNLRI.Family()
+	nlriLen := nlri.LenWithContext(routeNLRI, addPath)
+	nlriOff := len(attrBuf) - nlriLen
+	if nlriLen < 0 || nlriOff < 0 {
+		logRIBRouteTooLarge(routeNLRI, len(attrBuf), "nlri")
+		return nil
+	}
+	w := attrWriter{buf: attrBuf, limit: nlriOff}
 
 	// 1. ORIGIN - use stored or default to IGP
 	origin := attribute.OriginIGP
@@ -46,7 +67,7 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 			break
 		}
 	}
-	off += attribute.WriteAttrTo(origin, attrBuf, off)
+	w.write(origin)
 
 	// 2. AS_PATH - use stored or build appropriate default
 	storedASPath := route.ASPath()
@@ -68,11 +89,9 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 			}},
 		}
 	}
-	off += attribute.WriteAttrToWithContext(asPath, attrBuf, off, nil, dstCtx)
+	w.writeWithContext(asPath, dstCtx)
 
 	// Determine NLRI handling based on address family
-	routeNLRI := route.NLRI()
-	fam := routeNLRI.Family()
 	var nlriBytes []byte
 	// Built in the MP branch below, written after the optional attributes so the
 	// emitted order stays ascending by type code (COMMUNITIES 8 < MP_REACH 14).
@@ -82,12 +101,12 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 	case fam.AFI == family.AFIIPv4 && fam.SAFI == family.SAFIUnicast:
 		// 3. NEXT_HOP for IPv4 unicast
 		nh := &attribute.NextHop{Addr: route.NextHop()}
-		off += attribute.WriteAttrTo(nh, attrBuf, off)
+		w.write(nh)
 
 		// 4. MED if present (before LOCAL_PREF per RFC order)
 		for _, attr := range route.Attributes() {
 			if med, ok := attr.(attribute.MED); ok {
-				off += attribute.WriteAttrTo(med, attrBuf, off)
+				w.write(med)
 				break
 			}
 		}
@@ -101,21 +120,17 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 					break
 				}
 			}
-			off += attribute.WriteAttrTo(localPref, attrBuf, off)
+			w.write(localPref)
 		}
 
 		// IPv4 unicast: use inline NLRI field
 		// RFC 7911: WriteNLRI uses ADD-PATH encoding when negotiated
 		// Write NLRI into tail of attrBuf (no overlap with attrs growing from offset 0)
-		nlriLen := nlri.LenWithContext(routeNLRI, addPath)
-		nlriOff := len(attrBuf) - nlriLen
 		nlri.WriteNLRI(routeNLRI, attrBuf, nlriOff, addPath)
 		nlriBytes = attrBuf[nlriOff : nlriOff+nlriLen]
 	default: // non-IPv4-unicast families
 		// Other families: MP_REACH_NLRI goes at end (after all other attributes)
 		// Write NLRI into tail of attrBuf; WriteAttrTo copies it into attrs region
-		nlriLen := nlri.LenWithContext(routeNLRI, addPath)
-		nlriOff := len(attrBuf) - nlriLen
 		nlri.WriteNLRI(routeNLRI, attrBuf, nlriOff, addPath)
 		nlriData := attrBuf[nlriOff : nlriOff+nlriLen]
 
@@ -124,7 +139,7 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 		// MED if present (before LOCAL_PREF per RFC order)
 		for _, attr := range route.Attributes() {
 			if med, ok := attr.(attribute.MED); ok {
-				off += attribute.WriteAttrTo(med, attrBuf, off)
+				w.write(med)
 				break
 			}
 		}
@@ -138,7 +153,7 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 					break
 				}
 			}
-			off += attribute.WriteAttrTo(localPref, attrBuf, off)
+			w.write(localPref)
 		}
 		// MP_REACH_NLRI (type 14) is NOT written here: it must sit between the
 		// lower-coded optional attributes (COMMUNITIES 8) and the higher-coded
@@ -170,29 +185,44 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 	// writeOptionalAttrs writes the stored optional attributes whose type code lies
 	// in [lo, hi), so the injected attributes can be slotted between the ranges
 	// instead of appended after all of them.
+	// The type switch below used to be an ALLOW-LIST of eight attribute types, and
+	// anything else was dropped. Two shapes matched neither case: *attribute.AIGP
+	// (code 26, produced by Builder.SetAIGP and parsed back by AttributesWire.All)
+	// and OpaqueAttribute, which is what every unknown TRANSITIVE attribute decodes
+	// to (attribute/wire.go). The batch rail copies the caller's block verbatim and
+	// keeps both, so the same route lost attributes on one rail and kept them on the
+	// other -- selected by Peer.ShouldQueue(), i.e. by scheduling. That is the exact
+	// divergence this ordering scheme exists to eliminate, and silently discarding a
+	// transitive attribute also violates RFC 4271 Section 5's requirement to pass
+	// unrecognized transitive attributes on.
+	//
+	// So the named cases now only EXCLUDE the attributes written above; everything
+	// else is written at its type-code position. Fail-open on an unknown code is
+	// correct here in a way it would not be for a guard: the alternative is dropping
+	// data the peer is entitled to receive.
 	writeOptionalAttrs := func(lo, hi attribute.AttributeCode) {
 		for _, attr := range route.Attributes() {
 			switch attr.(type) {
 			case attribute.Origin, *attribute.ASPath, *attribute.NextHop, attribute.LocalPref, attribute.MED:
 				// Already handled above
 				continue
-			case attribute.Communities,
-				attribute.ExtendedCommunities, attribute.LargeCommunities,
-				attribute.IPv6ExtendedCommunities,
-				attribute.AtomicAggregate, *attribute.Aggregator,
-				attribute.OriginatorID, attribute.ClusterList:
-				if attr.Code() < lo || attr.Code() >= hi {
-					continue
-				}
-				off += attribute.WriteAttrTo(attr, attrBuf, off)
+			case *attribute.MPReachNLRI, *attribute.MPUnreachNLRI, *attribute.AS4Path:
+				// Injected by this builder at a fixed code (14, 17) or, for
+				// MP_UNREACH, meaningless on an announce. A stored copy would
+				// duplicate the authoritative one (RFC 7606 Section 3(g)).
+				continue
 			}
+			if attr.Code() < lo || attr.Code() >= hi {
+				continue
+			}
+			w.write(attr)
 		}
 	}
 
 	// ATOMIC_AGGREGATE 6, AGGREGATOR 7, COMMUNITIES 8, ORIGINATOR_ID 9, CLUSTER_LIST 10.
 	writeOptionalAttrs(0, attribute.AttrMPReachNLRI)
 	if mpReach != nil {
-		off += attribute.WriteAttrTo(mpReach, attrBuf, off)
+		w.write(mpReach)
 	}
 	// EXT_COMMUNITIES 16 -- everything between MP_REACH (14) and AS4_PATH (17).
 	writeOptionalAttrs(attribute.AttrMPReachNLRI, attribute.AttrAS4Path)
@@ -211,16 +241,92 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 	// [.. 17 32] -- the two-rail divergence this builder exists to avoid.
 	if !asn4 && asPathHasNonMappableAS(asPath) {
 		as4 := &attribute.AS4Path{Segments: asPath.Segments}
-		off += attribute.WriteAttrTo(as4, attrBuf, off)
+		w.write(as4)
 	}
 
 	// IPV6_EXT_COMMUNITIES 25, LARGE_COMMUNITIES 32.
 	writeOptionalAttrs(attribute.AttrAS4Path, 255)
 
+	// One check for all eleven writes: attrWriter latches the first overflow and
+	// no-ops afterwards, so a partially-written block is never emitted.
+	if !w.ok() {
+		logRIBRouteTooLarge(routeNLRI, len(attrBuf), "attributes")
+		return nil
+	}
+
 	return &message.Update{
-		PathAttributes: attrBuf[:off],
+		PathAttributes: attrBuf[:w.off],
 		NLRI:           nlriBytes,
 	}
+}
+
+// attrWriter appends attributes into buf[:limit], latching a failure the first
+// time one does not fit and no-opping every write after it.
+//
+// The latch is the point. buildRIBRouteUpdate has eleven write sites spread over
+// four conditional branches, and checking each one at its call site would be
+// eleven early returns through code that also has to place the NLRI and keep the
+// type-code ordering intact. Latching lets every site stay a single statement and
+// puts one honest check at the end, and because a latched writer writes nothing,
+// the buffer never holds a half-written attribute that a later reslice could
+// expose.
+//
+// limit, not len(buf): the NLRI is parked at the tail of the SAME buffer, so the
+// attribute region ends where the NLRI begins. Bounding on len(buf) would stop the
+// out-of-slot write but still let the attributes overwrite the prefix being
+// announced.
+type attrWriter struct {
+	buf   []byte
+	limit int
+	off   int
+	full  bool
+}
+
+// write appends attr, or latches full when it does not fit.
+func (w *attrWriter) write(attr attribute.Attribute) {
+	if w.full {
+		return
+	}
+	n := attrWireLen(attr)
+	if n < 0 || w.off+n > w.limit {
+		w.full = true
+		return
+	}
+	w.off += attribute.WriteAttrTo(attr, w.buf, w.off)
+}
+
+// writeWithContext appends attr under dstCtx (RFC 6793 two- vs four-octet ASN
+// encoding), or latches full when it does not fit. The size is taken from the
+// same LenWithContext that WriteAttrToWithContext uses to write the header, so the
+// bound and the write cannot disagree.
+func (w *attrWriter) writeWithContext(attr *attribute.ASPath, dstCtx *bgpctx.EncodingContext) {
+	if w.full {
+		return
+	}
+	valueLen := attr.LenWithContext(nil, dstCtx)
+	hdrLen := 3
+	if valueLen > 255 || attr.Flags().IsExtLength() {
+		hdrLen = 4
+	}
+	if valueLen < 0 || w.off+hdrLen+valueLen > w.limit {
+		w.full = true
+		return
+	}
+	w.off += attribute.WriteAttrToWithContext(attr, w.buf, w.off, nil, dstCtx)
+}
+
+// ok reports whether every write so far fitted.
+func (w *attrWriter) ok() bool { return !w.full }
+
+// logRIBRouteTooLarge records a queued-rail build this buffer could not hold. The
+// caller drops the route rather than sending a truncated or out-of-slot UPDATE, so
+// without this line the route would simply never arrive
+// (ai/rules/fail-closed-guards.md, ai/rules/error-messages.md).
+func logRIBRouteTooLarge(n nlri.NLRI, bufLen int, stage string) {
+	routesLogger().Warn("queued route rejected: does not fit the build buffer",
+		"family", n.Family(), "nlri", n.String(),
+		"buffer-bytes", bufLen, "stage", stage,
+		"action", "route not sent to this peer; reduce the route's attributes")
 }
 
 // buildWithdrawNLRI builds an UPDATE message to withdraw an NLRI.
@@ -229,12 +335,27 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 // written at a high offset to avoid overlap with the MP_UNREACH_NLRI header.
 // RFC 4760: IPv4 unicast uses WithdrawnRoutes, others use MP_UNREACH_NLRI.
 // RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
+//
+// Returns nil when the NLRI does not fit, for the same reason
+// buildRIBRouteUpdate does. The two regions here share one pooled slot and BOTH
+// bounds matter: an NLRI longer than the tail region walks past len(buf) (a panic,
+// via WriteNLRI's index writes), and an attribute block longer than nlriRegion
+// overwrites the NLRI bytes it is still copying FROM -- an overlapping copy that
+// corrupts the withdrawal rather than failing it.
 func buildWithdrawNLRI(buf []byte, n nlri.NLRI, addPath bool) *message.Update {
 	fam := n.Family()
 	nlriLen := nlri.LenWithContext(n, addPath)
+	if nlriLen < 0 {
+		logRIBRouteTooLarge(n, len(buf), "withdraw-nlri")
+		return nil
+	}
 
 	if fam.AFI == family.AFIIPv4 && fam.SAFI == family.SAFIUnicast {
 		// IPv4 unicast: write NLRI at start, use WithdrawnRoutes field
+		if nlriLen > len(buf) {
+			logRIBRouteTooLarge(n, len(buf), "withdraw-nlri")
+			return nil
+		}
 		nlri.WriteNLRI(n, buf, 0, addPath)
 		return &message.Update{
 			WithdrawnRoutes: buf[:nlriLen],
@@ -244,6 +365,13 @@ func buildWithdrawNLRI(buf []byte, n nlri.NLRI, addPath bool) *message.Update {
 	// MP families: write NLRI at high offset so WriteAttrTo can build
 	// the MP_UNREACH_NLRI attribute from buf[0:] without overlapping.
 	const nlriRegion = 2048
+	// MP_UNREACH_NLRI is 4 header + AFI(2) + SAFI(1) + the NLRI, all written from
+	// offset 0, so it must stop before nlriRegion or it clobbers its own source.
+	const mpUnreachOverhead = 4 + 3
+	if nlriRegion+nlriLen > len(buf) || mpUnreachOverhead+nlriLen > nlriRegion {
+		logRIBRouteTooLarge(n, len(buf), "withdraw-mp-unreach")
+		return nil
+	}
 	nlri.WriteNLRI(n, buf, nlriRegion, addPath)
 	nlriData := buf[nlriRegion : nlriRegion+nlriLen]
 

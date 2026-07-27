@@ -126,6 +126,75 @@ func TestSplitMP_ChunkMatchesUnsplitEncoding(t *testing.T) {
 	require.Greater(t, seen, 1, "fixture must actually split")
 }
 
+// TestSplitMP_ExtendedMessageStashFitsScratch is the test the highLen double
+// charge never had.
+//
+// splitUpdateWithMP subtracts highLen from the chunk budget even though it is
+// already inside baseLen, charging the higher-coded attributes twice: once as the
+// originals in the base block, once as the stash copy parked above the chunk
+// region. The comment at that line says dropping the second charge makes scratch
+// peak at maxSize - overhead + highLen, which for an EXTENDED-MESSAGE peer
+// (RFC 8654, maxSize 65535) is past ExtendedMaxSize -- and Splitter.alloc panics
+// there rather than growing.
+//
+// Nothing exercised it. Every other split test in this package uses maxSize 4096,
+// where the peak lands ~61 KB below the limit and the term is free; a reviewer
+// removed it and the whole message package stayed green. overhead is 23, so the
+// fixture needs more than 23 octets of attributes coded above MP_REACH_NLRI: the
+// EXTENDED_COMMUNITIES below is 27 on the wire.
+//
+// VALIDATES: an extended-message split with high-coded attributes completes,
+// emits multiple chunks, and carries the high attribute in each.
+// PREVENTS: "panic: BUG: UPDATE split chunk exceeds RFC 8654 ExtendedMaxSize"
+// against any peer that negotiated RFC 8654 and any route carrying large or IPv6
+// extended communities.
+func TestSplitMP_ExtendedMessageStashFitsScratch(t *testing.T) {
+	// Three extended communities: 24 octets of value, 27 on the wire -- above the
+	// 23-octet overhead, which is where the missing charge starts overflowing.
+	buf := make([]byte, 2*wireExtendedMax)
+	off := 0
+	off += attribute.WriteAttrTo(attribute.Origin(0), buf, off)
+	off += attribute.WriteAttrTo(&attribute.ASPath{}, buf, off)
+	off += attribute.WriteAttrTo(attribute.LocalPref(100), buf, off)
+
+	// Enough NLRI that the UPDATE must split even at 65535, while the MP_REACH
+	// attribute VALUE stays inside its own 65535 limit: the total is
+	// 23 overhead + ~41 base + 25 MP overhead + len(routes), and the attribute
+	// value is 21 + len(routes).
+	const extendedSplitNLRI = 65500
+	routes := make([]byte, 0, extendedSplitNLRI)
+	for i := 0; len(routes)+5 <= extendedSplitNLRI; i++ {
+		routes = append(routes, 32, 0x20, 0x01, byte(i>>8), byte(i)) //nolint:gosec // G115: test fixture
+	}
+	mp := attribute.NewMPReachNLRI(2, 1, []netip.Addr{netip.MustParseAddr("2001:db8::1")}, routes)
+	off += attribute.WriteAttrTo(mp, buf, off)
+
+	ecs := make(attribute.ExtendedCommunities, 3)
+	for i := range ecs {
+		copy(ecs[i][:], []byte{0x80, 0x06, 0x00, 0x00, 0x46, 0x16, 0x00, byte(i)}) //nolint:gosec // G115: bounded by loop
+	}
+	require.Greater(t, 3+ecs.Len(), 23, "fixture must exceed the 23-octet overhead, or the term is not exercised")
+	off += attribute.WriteAttrTo(ecs, buf, off)
+
+	u := &Update{PathAttributes: buf[:off]}
+	require.Equal(t, []int{1, 2, 5, 14, 16}, splitAttrCodes(t, u.PathAttributes))
+
+	s := GetSplitter()
+	defer PutSplitter(s)
+
+	chunks := 0
+	err := s.Split(u, wireExtendedMax, false, func(c *Update) error {
+		chunks++
+		assert.Equal(t, []int{1, 2, 5, 14, 16}, splitAttrCodes(t, c.PathAttributes),
+			"chunk %d attribute order", chunks)
+		assert.LessOrEqual(t, HeaderLen+4+len(c.PathAttributes), wireExtendedMax,
+			"chunk %d exceeds the negotiated maximum", chunks)
+		return nil
+	})
+	require.NoError(t, err)
+	require.Greater(t, chunks, 1, "fixture must actually split at 65535")
+}
+
 // TestSplitMP_HighAttrsIdenticalInEveryChunk guards the stash: the higher-coded
 // base attributes are copied into every chunk from one parked copy, so a chunk
 // that clobbered the stash would show up as a corrupted or missing attribute in a

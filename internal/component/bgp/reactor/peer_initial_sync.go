@@ -4,7 +4,6 @@
 package reactor
 
 import (
-	"errors"
 	"net/netip"
 	"runtime"
 	"sort"
@@ -235,7 +234,7 @@ func (p *Peer) sendInitialRoutes() {
 				p.mu.Lock()
 				processed++
 				// Split errors: skip route. Connection errors: stop processing.
-				if !errors.Is(sendErr, message.ErrAttributesTooLarge) && !errors.Is(sendErr, message.ErrNLRITooLarge) {
+				if !isRouteScopedSendError(sendErr) {
 					connError = true
 				}
 				continue
@@ -257,7 +256,7 @@ func (p *Peer) sendInitialRoutes() {
 				routesLogger().Debug("send error for withdrawal", "peer", addr, "nlri", op.NLRI, "error", sendErr)
 				p.mu.Lock()
 				processed++
-				if !errors.Is(sendErr, message.ErrAttributesTooLarge) && !errors.Is(sendErr, message.ErrNLRITooLarge) {
+				if !isRouteScopedSendError(sendErr) {
 					connError = true
 				}
 				continue
@@ -429,7 +428,7 @@ func (p *Peer) sendInitialRoutes() {
 				routesLogger().Debug("send error for late-queued route", "peer", addr, "error", sendErr)
 				p.mu.Lock()
 				finalProcessed++
-				if !errors.Is(sendErr, message.ErrAttributesTooLarge) && !errors.Is(sendErr, message.ErrNLRITooLarge) {
+				if !isRouteScopedSendError(sendErr) {
 					break // Connection error — stop processing
 				}
 				continue
@@ -449,7 +448,7 @@ func (p *Peer) sendInitialRoutes() {
 				routesLogger().Debug("send error for late-queued withdrawal", "peer", addr, "error", sendErr)
 				p.mu.Lock()
 				finalProcessed++
-				if !errors.Is(sendErr, message.ErrAttributesTooLarge) && !errors.Is(sendErr, message.ErrNLRITooLarge) {
+				if !isRouteScopedSendError(sendErr) {
 					break
 				}
 				continue

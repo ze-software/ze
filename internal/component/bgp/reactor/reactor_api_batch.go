@@ -41,7 +41,15 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 	// Build attributes for RIB route (used for queueing non-established peers)
 	// Prefer Wire (forwarding) over Attrs (builder) when available
 	var attrs []attribute.Attribute
-	var userASPath []uint32
+	// The caller's AS_PATH is kept as the whole attribute, every segment intact.
+	// It used to be flattened to Segments[0].ASNs, which the queue path then
+	// re-encoded as ONE AS_SEQUENCE: an AS_SET (RFC 4271 Section 5.1.2, produced by
+	// aggregation) silently became a sequence, and any segment after the first was
+	// dropped. The established path copies the block verbatim, so the same route
+	// carried a different AS_PATH depending only on whether the destination peer
+	// had finished its initial sync -- and a flattened AS_SET misstates path length
+	// for best-path selection (Section 9.1.2.2) and loop detection.
+	var userASPath *attribute.ASPath
 
 	switch {
 	case batch.Wire != nil:
@@ -54,13 +62,19 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 		// Extract AS_PATH if present
 		if asPathAttr, err := batch.Wire.Get(attribute.AttrASPath); err == nil {
 			if asp, ok := asPathAttr.(*attribute.ASPath); ok && len(asp.Segments) > 0 {
-				userASPath = asp.Segments[0].ASNs
+				userASPath = asp
 			}
 		}
 	case batch.Attrs != nil:
 		// Use Builder for new routes
 		attrs = batch.Attrs.ToAttributes()
-		userASPath = batch.Attrs.ASPathSlice()
+		if asns := batch.Attrs.ASPathSlice(); len(asns) > 0 {
+			// The Builder models an AS_PATH as one flat AS_SEQUENCE, so there is
+			// nothing to lose here; wrapping it keeps one shape for both sources.
+			userASPath = &attribute.ASPath{
+				Segments: []attribute.ASPathSegment{{Type: attribute.ASSequence, ASNs: asns}},
+			}
+		}
 	default: // no attributes provided — use defaults
 		attrs = append(attrs, attribute.OriginIGP)
 	}
@@ -171,7 +185,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 			// Session not established or queue draining: queue to preserve order
 			// Build AS_PATH only for queue path (iBGP vs eBGP); the established
 			// path builds AS_PATH inside the UPDATE wire bytes directly.
-			asPath := a.buildBatchASPath(userASPath, batch.OriginAS, isIBGP, peer.Settings().RSClient, peer.Settings().LocalAS)
+			asPath := a.buildBatchASPathAttr(userASPath, batch.OriginAS, isIBGP, peer.Settings().RSClient, peer.Settings().LocalAS)
 			for _, n := range batch.NLRIs {
 				ribRoute := rib.NewRouteWithASPath(n, nextHop, attrs, asPath)
 				peer.QueueAnnounce(ribRoute)
@@ -294,7 +308,11 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 				nlriHandle := getBuildBuf()
 				update := a.buildBatchWithdrawUpdate(attrHandle.Buf, nlriHandle.Buf, batch, addPath)
 
-				if err := peer.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
+				// Build rejected (already logged): not sent, and not counted as
+				// accepted, so the caller gets an error instead of a silent drop.
+				if update == nil {
+					lastErr = errWithdrawTooLarge
+				} else if err := peer.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
 					lastErr = err
 				} else {
 					acceptedCount++
@@ -322,6 +340,15 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 		nlriHandle := getBuildBuf()
 		update := a.buildBatchWithdrawUpdate(attrHandle.Buf, nlriHandle.Buf, batch, wg.key.addPath)
 
+		// Build rejected (already logged): every peer in this group shares the
+		// build parameters, so none of them can be sent this batch.
+		if update == nil {
+			lastErr = errWithdrawTooLarge
+			putBuildBuf(attrHandle)
+			putBuildBuf(nlriHandle)
+			continue
+		}
+
 		for _, peer := range wg.peers {
 			if err := peer.sendUpdateWithSplit(update, maxMsgSize, wg.key.addPath); err != nil {
 				lastErr = err
@@ -333,11 +360,52 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 		putBuildBuf(nlriHandle)
 	}
 
-	// Return warning-level error if no peers accepted (all skipped due to family)
+	// Return warning-level error if no peers accepted (all skipped due to family).
+	// A rejected BUILD is reported as itself rather than downgraded to the
+	// "no peer carries this family" warning, for the reason spelled out in
+	// AnnounceNLRIBatch: that cause would not be true, and the downgrade would hide
+	// a withdrawal that never went out.
 	if acceptedCount == 0 {
+		if errors.Is(lastErr, errWithdrawTooLarge) {
+			return lastErr
+		}
 		return route.ErrNoPeersAcceptedFamily
 	}
 	return lastErr
+}
+
+// buildBatchASPathAttr builds the AS_PATH stored on a QUEUED route, preserving
+// every segment of a caller-supplied path instead of flattening it.
+//
+// It is the queue-side twin of packedWithLocalASPrepended, which does the same job
+// on the established rail, and it deliberately reuses that function's two
+// decisions: aspathLeadsWith for "our AS is already there" (which requires the
+// LEADING segment to be an AS_SEQUENCE -- RFC 4271 Section 5.1.2 case 2 prepends a
+// NEW sequence in front of an AS_SET, so an AS buried in a leading AS_SET does not
+// count), and ASPath.Prepend for the insert itself. The two rails therefore reach
+// the same AS_PATH by construction rather than by coincidence.
+//
+// With no caller-supplied path it delegates to buildBatchASPath, which owns the
+// synthesized shapes (origin-as, plain iBGP/eBGP export).
+func (a *reactorAPIAdapter) buildBatchASPathAttr(userASPath *attribute.ASPath, originAS uint32, isIBGP, rsClient bool, localAS uint32) *attribute.ASPath {
+	if userASPath == nil || len(userASPath.Segments) == 0 {
+		return a.buildBatchASPath(nil, originAS, isIBGP, rsClient, localAS)
+	}
+	// RFC 7947 Section 2.2.2.1 exempts RS-clients; Section 5.1.2 forbids touching
+	// the path toward an internal peer; with no local AS there is nothing to add.
+	if isIBGP || rsClient || localAS == 0 || aspathLeadsWith(userASPath, localAS) {
+		return userASPath
+	}
+	// Deep copy: userASPath belongs to the caller's decoded attributes and is
+	// shared with every other peer in this batch, so the prepend must not mutate it.
+	prepended := &attribute.ASPath{Segments: make([]attribute.ASPathSegment, len(userASPath.Segments))}
+	for k, seg := range userASPath.Segments {
+		asns := make([]uint32, len(seg.ASNs))
+		copy(asns, seg.ASNs)
+		prepended.Segments[k] = attribute.ASPathSegment{Type: seg.Type, ASNs: asns}
+	}
+	prepended.Prepend(localAS)
+	return prepended
 }
 
 // buildBatchASPath builds AS_PATH for batch operations.
@@ -422,6 +490,14 @@ func aspathLeadsWith(p *attribute.ASPath, asn uint32) bool {
 // logs: shipping a path without our AS to an external peer is a conformance
 // defect, and a guard that cannot act must at least say so
 // (ai/rules/fail-closed-guards.md).
+//
+// ok=true with n == -1 is the third answer, and it is NOT the same as ok=false:
+// the rewrite applies but does not fit in dst. Falling back to "copy packed
+// verbatim" there would ship the RFC 4271 Section 5.1.2 violation this function
+// exists to remove, so it is reported as a rejected build instead. The rewrite
+// GROWS the block (a prepend adds an ASN, or a whole AS_SEQUENCE when the leading
+// segment is an AS_SET), so `len(packed) <= len(dst)` does not imply the result
+// fits and every write below is bounded on its own.
 func (a *reactorAPIAdapter) packedWithLocalASPrepended(dst, packed []byte, isIBGP, rsClient, srcKnown, srcASN4, dstASN4 bool, localAS uint32) (int, bool) {
 	if isIBGP || rsClient || localAS == 0 {
 		return 0, false
@@ -473,8 +549,23 @@ func (a *reactorAPIAdapter) packedWithLocalASPrepended(dst, packed []byte, isIBG
 				prepended.Segments[k] = attribute.ASPathSegment{Type: seg.Type, ASNs: asns}
 			}
 			prepended.Prepend(localAS)
+			// WriteAttrToWithContext writes through index expressions
+			// (WriteHeaderTo), so it panics rather than clamps past len(dst).
+			// LenWithContext is the same value it uses internally to size the
+			// header and the value.
+			valueLen := prepended.LenWithContext(nil, dstCtx)
+			hdrLen := 3
+			if valueLen > 255 || prepended.Flags().IsExtLength() {
+				hdrLen = 4
+			}
+			if off+hdrLen+valueLen > len(dst) {
+				return -1, true
+			}
 			off += attribute.WriteAttrToWithContext(prepended, dst, off, nil, dstCtx)
 		} else {
+			if off+(end-i) > len(dst) {
+				return -1, true
+			}
 			off += copy(dst[off:], packed[i:end])
 		}
 		i = end
@@ -488,9 +579,10 @@ func (a *reactorAPIAdapter) packedWithLocalASPrepended(dst, packed []byte, isIBG
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
 func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP, rsClient, asn4, addPath bool, localAS uint32) *message.Update {
 	// Write NLRIs into caller-provided buffer
-	nlriOff := 0
-	for _, n := range batch.NLRIs {
-		nlriOff += nlri.WriteNLRI(n, nlriBuf, nlriOff, addPath)
+	nlriOff := writeBatchNLRI(nlriBuf, batch.NLRIs, addPath)
+	if nlriOff < 0 {
+		logAnnounceTooLarge(batch, len(nlriBuf), "nlri")
+		return nil
 	}
 	nlriBytes := nlriBuf[:nlriOff]
 
@@ -502,6 +594,10 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 			srcASN4, srcKnown = ctx.ASN4(), true
 		}
 		attrOff := a.writeMandatoryAttrs(attrBuf, batch.Wire, isIBGP, rsClient, srcKnown, srcASN4, asn4, localAS, batch.OriginAS)
+		if attrOff < 0 {
+			logAnnounceTooLarge(batch, len(attrBuf), "wire-mandatory")
+			return nil
+		}
 		update := a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
 		if update == nil {
 			logAnnounceTooLarge(batch, len(attrBuf), "wire")
@@ -529,6 +625,10 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 	wire := attribute.NewAttributesWire(builtBytes, 0)
 	hadASPath, _ := wire.Has(attribute.AttrASPath)
 	attrOff := a.writeMandatoryAttrs(attrBuf, wire, isIBGP, rsClient, true /*srcKnown*/, true /*Builder writes 4-octet ASNs*/, asn4, localAS, batch.OriginAS)
+	if attrOff < 0 {
+		logAnnounceTooLarge(batch, len(attrBuf), "builder-mandatory")
+		return nil
+	}
 
 	// Add NEXT_HOP or MP_REACH_NLRI
 	update := a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
@@ -543,9 +643,46 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 	return update
 }
 
+// writeBatchNLRI writes every NLRI of a batch into nlriBuf, in order, and returns
+// the bytes written -- or -1, having written nothing past the last whole NLRI,
+// when they do not all fit.
+//
+// The bound is the other half of insertAttrOrdered's. Both build buffers come
+// from getBuildBuf, so both are backing[off:off+4096] out of a 128-slot slab whose
+// CAP runs into the next peer's buffer (session.go); but where an oversize
+// ATTRIBUTE block silently walked into the neighbor, an oversize NLRI block took
+// the daemon down: nlri.WriteNLRI ends in an index expression (INET.WriteTo writes
+// buf[pos] directly, and WriteNLRI's ADD-PATH path-id is a PutUint32), so it
+// panics at len rather than clamping at cap. 250 IPv6 /128s or 820 IPv4 /32s in
+// one `update ... nlri add` is enough, and nothing upstream caps the count --
+// parseWireAttrSection (plugins/cmd/update/update_wire.go) bounds neither the
+// token count nor the hex length.
+//
+// LenWithContext is the size WriteNLRI writes: for INET it is the same
+// 1+PrefixBytes(bits) (+4 with ADD-PATH), and for WireNLRI it is len(data) either
+// way. TestNLRILenMatchesWriteNLRI pins that identity, because a Len() that
+// under-reports what WriteTo writes would re-open the panic through this guard.
+func writeBatchNLRI(nlriBuf []byte, nlris []nlri.NLRI, addPath bool) int {
+	off := 0
+	for _, n := range nlris {
+		need := nlri.LenWithContext(n, addPath)
+		if need < 0 || off+need > len(nlriBuf) {
+			return -1
+		}
+		off += nlri.WriteNLRI(n, nlriBuf, off, addPath)
+	}
+	return off
+}
+
 // errAnnounceTooLarge is what a caller reports when buildBatchAnnounceUpdate could
 // not encode the batch into its pooled build buffer.
 var errAnnounceTooLarge = errors.New("announce attributes exceed the build buffer; split the batch into smaller announcements")
+
+// errWithdrawTooLarge is the withdraw-rail sibling: buildBatchWithdrawUpdate could
+// not encode the batch's NLRIs (or the MP_UNREACH_NLRI carrying them) into its
+// pooled build buffer. Separate from errAnnounceTooLarge so the operator-facing
+// cause names the operation that actually failed (ai/rules/error-messages.md).
+var errWithdrawTooLarge = errors.New("withdraw NLRIs exceed the build buffer; split the batch into smaller withdrawals")
 
 // logAnnounceTooLarge records a rejected announce. This is the "or say something"
 // half of the fail-closed guard in insertAttrOrdered: the build is abandoned
@@ -742,12 +879,30 @@ func (a *reactorAPIAdapter) hasAttribute(wireAttrs []byte, typeCode attribute.At
 }
 
 // writeMandatoryAttrs ensures ORIGIN and AS_PATH are present in wire attributes,
-// writing the result into buf. Returns bytes written.
+// writing the result into buf. Returns bytes written, or -1 when the result does
+// not fit in buf.
 // RFC 4271 Section 5.1.1: ORIGIN is a well-known mandatory attribute.
 // RFC 4271 Section 5.1.2: AS_PATH is a well-known mandatory attribute.
 // RFC 4271 Section 5.1: Attributes must appear in type code order.
 // If missing, adds defaults: ORIGIN=IGP, AS_PATH per iBGP/eBGP rules.
 // localAS is the peer-specific local AS (used for AS_PATH prepend when missing).
+//
+// The -1 is the third capacity guard on this rail, and the one that closes the
+// disclosure insertAttrOrdered's guard left open. Every arm below ends in
+// `copy(buf, packed)` -- a CLAMPED copy -- but returned an offset derived from
+// len(packed), which is not clamped. So an oversize caller block yielded
+// attrOff > len(buf) while writing only len(buf) bytes, and buildWireModeUpdate
+// then handed `attrBuf[:attrOff]` to the peer. That reslice does not panic: attrBuf
+// is backing[off:off+4096] out of a 128-slot slab (session.go) and its CAP runs
+// into the next peer's buffer, so the UPDATE carried the neighboring session's
+// bytes. insertAttrOrdered rejects a bad attrOff, which covers the paths that
+// insert something -- but the IPv4 branch inserts NEXT_HOP only when the next-hop
+// is VALID (resolveNextHop deliberately passes an invalid explicit next-hop
+// through) and LOCAL_PREF only for iBGP, so an eBGP announce with an invalid
+// next-hop reached the reslice with nothing having checked attrOff.
+// Failing here, at the producer of attrOff, is what makes every consumer below
+// safe by construction (ai/rules/fail-closed-guards.md: make the miss explicit at
+// the producer).
 func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.AttributesWire, isIBGP, rsClient, srcKnown, srcASN4, asn4 bool, localAS, originAS uint32) int {
 	hasOrigin, _ := wire.Has(attribute.AttrOrigin)
 	hasASPath, _ := wire.Has(attribute.AttrASPath)
@@ -761,10 +916,24 @@ func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.Attr
 		// itself behind us. RFC 7947 Section 2.2.2.1 excuses RS-clients, and
 		// Section 5.1.2 forbids touching the path toward an internal peer.
 		if n, ok := a.packedWithLocalASPrepended(buf, packed, isIBGP, rsClient, srcKnown, srcASN4, asn4, localAS); ok {
-			return n
+			return n // may be -1: the rewrite applied but did not fit
+		}
+		if len(packed) > len(buf) {
+			return -1
 		}
 		copy(buf, packed)
 		return len(packed)
+	}
+
+	// The synthesized ORIGIN (4 bytes) plus the synthesized AS_PATH this builder
+	// may prepend. announceASPathASNs yields at most two ASNs, so the AS_PATH is at
+	// most 3 header + 2 segment + 2*4 = 13 octets; 32 leaves room and keeps the
+	// bound a constant rather than a second copy of writeASPathAttr's arithmetic.
+	// Checked once, up front, so the fixed-position header writes below cannot
+	// index past a short buffer either.
+	const synthesizedMandatoryMax = 4 + 32
+	if len(buf) < synthesizedMandatoryMax {
+		return -1
 	}
 
 	off := 0
@@ -781,12 +950,18 @@ func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.Attr
 		// AS_PATH
 		off += a.writeASPath(buf[off:], isIBGP, asn4, localAS, originAS)
 
+		if off+len(packed) > len(buf) {
+			return -1
+		}
 		copy(buf[off:], packed)
 		return off + len(packed)
 	}
 
 	// Case 2: Only ORIGIN missing - prepend ORIGIN, copy rest
 	if !hasOrigin {
+		if 4+len(packed) > len(buf) {
+			return -1
+		}
 		buf[0] = 0x40 // Transitive
 		buf[1] = 1    // ORIGIN
 		buf[2] = 1    // Length
@@ -798,6 +973,11 @@ func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.Attr
 	// Case 3: Only AS_PATH missing - insert after ORIGIN
 	// RFC 4271: attributes must be in type code order (ORIGIN=1, AS_PATH=2)
 	originEnd := 4 // ORIGIN is always 4 bytes
+	if len(packed) < originEnd {
+		// hasOrigin said an ORIGIN is present, so a block shorter than one is
+		// malformed. Reject rather than slice past it.
+		return -1
+	}
 	copy(buf, packed[:originEnd])
 	off = originEnd
 
@@ -805,6 +985,9 @@ func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.Attr
 	off += a.writeASPath(buf[off:], isIBGP, asn4, localAS, originAS)
 
 	// Copy remaining attributes
+	if off+len(packed)-originEnd > len(buf) {
+		return -1
+	}
 	copy(buf[off:], packed[originEnd:])
 	return off + len(packed) - originEnd
 }
@@ -987,11 +1170,21 @@ func writeAnnounceAS4Path(buf []byte, off int, isIBGP, asn4 bool, localAS, origi
 // attrBuf and nlriBuf are caller-provided buffers (from buildBufPool).
 // RFC 4271 Section 4.3: Withdrawn Routes field.
 // RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
+//
+// Returns nil when the batch does not fit its pooled build buffers, exactly as
+// buildBatchAnnounceUpdate does. The withdraw rail carried the SAME two unbounded
+// writes the announce rail did: an NLRI loop that panics past len (WriteNLRI ends
+// in an index expression), and an MP_UNREACH_NLRI whose declared length comes from
+// Len() while its value copy clamps, so an oversize batch produced an attribute
+// claiming more octets than it contained. A short withdraw is not a lesser failure
+// than a short announce -- the peer keeps forwarding to prefixes it was never told
+// about.
 func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, addPath bool) *message.Update {
 	// Write NLRIs into caller-provided buffer
-	nlriOff := 0
-	for _, n := range batch.NLRIs {
-		nlriOff += nlri.WriteNLRI(n, nlriBuf, nlriOff, addPath)
+	nlriOff := writeBatchNLRI(nlriBuf, batch.NLRIs, addPath)
+	if nlriOff < 0 {
+		logWithdrawTooLarge(batch, len(nlriBuf), "nlri")
+		return nil
 	}
 	nlriBytes := nlriBuf[:nlriOff]
 
@@ -1008,10 +1201,25 @@ func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, ba
 		SAFI: attribute.SAFI(batch.Family.SAFI),
 		NLRI: nlriBytes,
 	}
+	if attrWireLen(mpUnreach) > len(attrBuf) {
+		logWithdrawTooLarge(batch, len(attrBuf), "mp-unreach")
+		return nil
+	}
 	attrLen := attribute.WriteAttrTo(mpUnreach, attrBuf, 0)
 	return &message.Update{
 		PathAttributes: attrBuf[:attrLen],
 	}
+}
+
+// logWithdrawTooLarge records a rejected withdraw: the "or say something" half of
+// buildBatchWithdrawUpdate's guard. WithdrawNLRIBatch also returns
+// errWithdrawTooLarge to the issuing plugin, so a withdrawal that never reached
+// the wire is visible from both ends (ai/rules/fail-closed-guards.md).
+func logWithdrawTooLarge(batch bgptypes.NLRIBatch, bufLen int, stage string) {
+	routesLogger().Warn("withdraw rejected: NLRIs do not fit the build buffer",
+		"family", batch.Family, "nlri-count", len(batch.NLRIs),
+		"buffer-bytes", bufLen, "stage", stage,
+		"action", "routes not withdrawn from this peer; send fewer prefixes per withdrawal")
 }
 
 // SendRoutes sends routes directly to matching peers using CommitService.
@@ -1113,11 +1321,18 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 		addPath := peer.addPathFor(fam)
 		var update *message.Update
 
-		// Write NLRIs into pooled buffer
+		// Write NLRIs into pooled buffer. Bounded for the same reason the batch
+		// rails are: WriteNLRI panics past len(buf), and this loop is driven by a
+		// caller-supplied withdrawal list of unbounded length.
 		nlriHandle := getBuildBuf()
-		off := 0
-		for _, n := range nlris {
-			off += nlri.WriteNLRI(n, nlriHandle.Buf, off, addPath)
+		off := writeBatchNLRI(nlriHandle.Buf, nlris, addPath)
+		if off < 0 {
+			routesLogger().Warn("withdraw rejected: NLRIs do not fit the build buffer",
+				"family", fam, "nlri-count", len(nlris), "buffer-bytes", len(nlriHandle.Buf),
+				"stage", "send-routes",
+				"action", "routes not withdrawn from this peer; send fewer prefixes per commit")
+			putBuildBuf(nlriHandle)
+			continue
 		}
 		nlriBytes := nlriHandle.Buf[:off]
 
@@ -1134,6 +1349,18 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 				NLRI: nlriBytes,
 			}
 			attrHandle := getBuildBuf()
+			if attrWireLen(mpUnreach) > len(attrHandle.Buf) {
+				// The NLRI fitted its own slot but the attribute wrapping it does
+				// not fit this one: WriteAttrTo would write a header declaring
+				// more octets than the clamped value copy carries.
+				routesLogger().Warn("withdraw rejected: MP_UNREACH_NLRI does not fit the build buffer",
+					"family", fam, "nlri-count", len(nlris), "buffer-bytes", len(attrHandle.Buf),
+					"stage", "send-routes",
+					"action", "routes not withdrawn from this peer; send fewer prefixes per commit")
+				putBuildBuf(attrHandle)
+				putBuildBuf(nlriHandle)
+				continue
+			}
 			attrLen := attribute.WriteAttrTo(mpUnreach, attrHandle.Buf, 0)
 			update = &message.Update{
 				PathAttributes: attrHandle.Buf[:attrLen],
@@ -1216,6 +1443,9 @@ func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRI
 		defer putBuildBuf(wdAttr)
 		defer putBuildBuf(wdNlri)
 		wd := a.buildBatchWithdrawUpdate(wdAttr.Buf, wdNlri.Buf, batch, addPath)
+		if wd == nil {
+			return false // build rejected (already logged); nothing was sent
+		}
 		return peer.sendUpdateWithSplit(wd, maxMsgSize, addPath) == nil
 	case staleModify:
 		// Non-LLGR iBGP peer: apply the depreference mods (NO_EXPORT + LOCAL_PREF=0).

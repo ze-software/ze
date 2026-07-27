@@ -219,6 +219,12 @@ type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawB
 // create/close pair (see session_flow.go) and is never nested with s.mu,
 // s.writeMu, or s.sendHoldMu.
 //
+// One lock OUTSIDE this Session is ordered against it: Peer.mu comes BEFORE s.mu.
+// Peer.ResolvePendingCollision (peer_connection.go) holds p.mu.Lock() across
+// DetectCollision, which reads peerOpen under s.mu (see collisionPeerAS). The
+// reverse must never appear: no Session code may acquire p.mu, and no callback a
+// Peer installs on a Session may be invoked with s.mu held.
+//
 // Atomics (no lock interaction needed):
 //
 //	tearingDown   — set by Teardown to block Accept races
@@ -725,6 +731,19 @@ func (s *Session) DetectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 // advertise too. openAdvertisedAS reads it through the AS4 capability rather
 // than My AS, so a 4-byte-AS peer is judged on its real ASN and not on AS_TRANS
 // (RFC 6793). peerOpen is guarded by s.mu (see the lock hierarchy above).
+//
+// LOCK ORDER: this takes s.mu while the caller holds p.mu -- the sole production
+// caller is Peer.ResolvePendingCollision (peer_connection.go), which holds
+// p.mu.Lock() across DetectCollision. That p.mu -> s.mu edge is outside the
+// hierarchy documented above, which orders only the Session's own three locks, so
+// it is recorded here (and in that block) rather than left to be re-derived.
+//
+// It cannot deadlock, because the reverse edge does not exist: no file under
+// session*.go acquires p.mu, and the two callbacks a Peer installs on a Session
+// (onMessageReceived, egressRouteFilter) are invoked from the write path inside
+// writeMu and from the read goroutine, never with s.mu held. A future edit that
+// takes p.mu from Session code -- or fires a peer callback under s.mu -- closes
+// the cycle and deadlocks connection collision resolution.
 func (s *Session) collisionPeerAS() uint32 {
 	if as := s.settings.PeerAS; as != 0 {
 		return as

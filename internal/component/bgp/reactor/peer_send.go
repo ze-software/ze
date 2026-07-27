@@ -5,6 +5,7 @@
 package reactor
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 
@@ -130,13 +131,39 @@ func (p *Peer) SendRawMessage(msgType uint8, payload []byte) error {
 // RFC 4271 Section 4.3: Each split UPDATE is self-contained with full attributes.
 // RFC 7911: Add-Path requires 4-byte path identifier before each NLRI.
 // RFC 8654: Respects peer's max message size (4096 or 65535).
+//
+// A nil update means the builder REJECTED the build: the message did not fit its
+// pooled 4096-byte slot and no bytes were produced (buildRIBRouteUpdate,
+// buildWithdrawNLRI, buildBatchAnnounceUpdate). Splitter.Split would dereference
+// it, so the nil is turned into errBuildRejected here, at the single choke point
+// every send passes through, rather than repeated at each builder's call site.
 func (p *Peer) sendUpdateWithSplit(update *message.Update, maxSize int, addPath bool) error {
+	if update == nil {
+		return errBuildRejected
+	}
 	s := message.GetSplitter()
 	defer message.PutSplitter(s)
 	if err := s.Split(update, maxSize, addPath, p.SendUpdate); err != nil {
 		return fmt.Errorf("splitting update: %w", err)
 	}
 	return nil
+}
+
+// errBuildRejected reports that a builder could not encode an UPDATE into its
+// pooled build buffer, so nothing was sent. The route is lost, the SESSION is not:
+// the failure belongs to this one message (see isRouteScopedSendError).
+var errBuildRejected = errors.New("update build rejected: message does not fit the build buffer")
+
+// isRouteScopedSendError reports whether err condemns only the message that was
+// being sent, as opposed to the connection carrying it. The queue drains skip the
+// offending route and keep going for these, and tear the session down for anything
+// else -- so mis-classifying a connection error as route-scoped spins the drain
+// loop against a dead socket, and the reverse drops a session over one unencodable
+// route.
+func isRouteScopedSendError(err error) bool {
+	return errors.Is(err, message.ErrAttributesTooLarge) ||
+		errors.Is(err, message.ErrNLRITooLarge) ||
+		errors.Is(err, errBuildRejected)
 }
 
 // sendBodyWithSplit reconstructs a *message.Update from a flat UPDATE body
