@@ -4,6 +4,7 @@ package runner
 
 import (
 	"context"
+	"runtime"
 	"sync"
 	"time"
 
@@ -27,6 +28,34 @@ const (
 	// real slowdowns still surface quickly.
 	ParallelTimeoutHeadroom = 3
 )
+
+// SuiteConcurrencyFloor is the smallest default concurrency DefaultSuiteConcurrency
+// will hand out. It is the value ZE_PLUGIN_PARALLEL has been running the 530-test
+// plugin suite at on GitHub's 4-vCPU hosted runner (mk/test-functional.mk), so it
+// is a measured survivable figure on the smallest host this project builds on,
+// not a guess.
+const SuiteConcurrencyFloor = 8
+
+// DefaultSuiteConcurrency is the per-suite default for `ze-test <suite>` when the
+// operator passes no -p.
+//
+// It exists because "unset" and "all at once" were the same value. Every suite in
+// internal/test/cli/register.go declared 0, Runner.Run turns a non-positive
+// Parallel into len(selected), and so `ze-test ospf --all` launched all 97 ze
+// daemons simultaneously. That is survivable on a development workstation and
+// fatal on a small CI runner: on 2026-07-26 the GitHub job died mid-ospf-suite
+// with the runner agent itself killed (exit 143, "the runner has received a
+// shutdown signal"), after a wave of tests timed out under the thrash.
+//
+// Scaling with the host rather than pinning a constant keeps a big machine fast:
+// at 2x CPUs a 16-core workstation still runs 32 concurrently, and any host with
+// 48+ cores exceeds every suite's size, which is the old "all at once" behavior.
+//
+// -p 0 still means all: this is the DEFAULT, not a ceiling, so an operator who
+// wants the old behavior asks for it explicitly.
+func DefaultSuiteConcurrency() int {
+	return max(SuiteConcurrencyFloor, 2*runtime.NumCPU())
+}
 
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.verify.mode", Type: "bool", Description: "Set by the verify runner; suites emit machine-readable failure groups"})
 

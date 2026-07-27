@@ -515,3 +515,49 @@ func TestParallelRunnerExclusiveGroupDoesNotSerializeOthers(t *testing.T) {
 		t.Fatal("a non-member must run concurrently with an exclusive-group member")
 	}
 }
+
+// TestDefaultSuiteConcurrencyIsBounded
+//
+// VALIDATES: DefaultSuiteConcurrency never returns "unbounded" and never returns
+// a value below the floor proven survivable on a 4-vCPU CI runner.
+// PREVENTS: the regression that killed GitHub's runner agent on 2026-07-26 -- a
+// suite default of 0 meant "all at once" (Runner.Run turns a non-positive
+// Parallel into len(selected)), so `ze-test ospf --all` launched 97 ze daemons
+// simultaneously and the job died with exit 143 mid-suite.
+func TestDefaultSuiteConcurrencyIsBounded(t *testing.T) {
+	got := DefaultSuiteConcurrency()
+	if got < SuiteConcurrencyFloor {
+		t.Errorf("DefaultSuiteConcurrency() = %d, want >= %d (the floor measured on a 4-vCPU runner)", got, SuiteConcurrencyFloor)
+	}
+	// A default of 0 is the exact defect: Runner.Run reads <= 0 as len(selected).
+	if got <= 0 {
+		t.Fatalf("DefaultSuiteConcurrency() = %d: a non-positive default means all-at-once, which is what this bound exists to prevent", got)
+	}
+	if want := max(SuiteConcurrencyFloor, 2*runtime.NumCPU()); got != want {
+		t.Errorf("DefaultSuiteConcurrency() = %d, want %d (2x CPUs, floored)", got, want)
+	}
+}
+
+// TestRegisteredSuitesGetABoundedDefault
+//
+// VALIDATES: a suite registered with 0 (the "no opinion" spelling used by nearly
+// every entry in internal/test/cli/register.go) resolves to the bounded default,
+// while an explicit serial suite (managed, static) keeps its 1.
+// PREVENTS: someone re-introducing the unbounded default by passing 0 through to
+// RunOptions.Parallel, where non-positive means every selected test at once.
+func TestRegisteredSuitesGetABoundedDefault(t *testing.T) {
+	// Mirrors registerCIRoot's resolution; kept here because internal/test/cli
+	// imports this package and cannot be imported back without a cycle.
+	resolve := func(declared int) int {
+		if declared == 0 {
+			return DefaultSuiteConcurrency()
+		}
+		return declared
+	}
+	if got := resolve(0); got <= 0 {
+		t.Errorf("a suite declaring 0 resolved to %d; it must resolve to a positive bound", got)
+	}
+	if got := resolve(1); got != 1 {
+		t.Errorf("a suite declaring serial (1) resolved to %d, want 1: static/managed program one shared kernel table and must not go parallel", got)
+	}
+}

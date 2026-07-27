@@ -418,7 +418,15 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 	if parallel <= 0 {
 		parallel = len(selected)
 	}
-	r.concurrency = parallel
+	// Record the EFFECTIVE concurrency, not the requested cap. parallelFactor
+	// (runner_exec_util.go) keys the 3x ParallelTimeoutHeadroom on
+	// `concurrency > 1`, and its contract is that a single selected test keeps
+	// the authored timeout so a real slowdown surfaces immediately. Once suites
+	// carry a bounded DEFAULT (DefaultSuiteConcurrency) instead of 0, the
+	// requested cap is 8/32/128 even for `ze-test <suite> <one-id>` -- so
+	// storing the cap silently tripled every budget in exactly the single-test
+	// debug loop ai/rules/testing.md tells people to use.
+	r.concurrency = min(parallel, len(selected))
 
 	load := SnapshotHostLoad()
 
