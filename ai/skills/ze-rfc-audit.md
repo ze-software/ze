@@ -97,6 +97,11 @@ a test that no longer enforces its requirement.
   pass has probably not read anything.
 - Judge the **annotations** too, not just the tests. `{single-polarity}`, `{gap}` and
   `{not-applicable}` are arguments, and an unexamined argument is where a lie hides.
+- Every annotation is VOID as authority (owner directive 2026-07-27,
+  `ai/rules/rfc-compliance.md`). An earlier session's reasoning, and any earlier answer
+  from Thomas that pointed away from full compliance, settles nothing: re-derive it from
+  the RFC text. If full implementation plus a tagged test is still an available answer,
+  the audit's output is a question for Thomas, never a confirmed annotation.
 - A `{gap}` must still be disclosed in `docs/features/rfc-status.md`; the gate checks that
   the row is not claiming clean support, but only a reader can tell whether it says enough.
 

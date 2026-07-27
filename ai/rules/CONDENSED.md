@@ -2723,6 +2723,9 @@ If a file should be deleted but this rule requires permission, ask the user dire
 
 ## Directives
 Never use phrases like "would you like me to", "want me to", "shall I", or "I can" before completing work.
+- **RFC compliance.** When full RFC compliance and full testing of that compliance is one of the answers on the table, stop and ask Thomas rather than choosing anything narrower (`ai/rules/rfc-compliance.md`, "Ask Thomas Whenever Full Compliance Is On The Table"). Asking is required only when you are about to do LESS; doing more never needs permission.
+- **Deleting or overwriting user-visible or uncommitted work** (`ai/rules/never-destroy-work.md`).
+- **Reducing the scope of a spec or dropping an acceptance criterion** (`ai/rules/no-partial-completion.md`).
 
 ---
 
@@ -4030,16 +4033,37 @@ Learned: `plan/learned/363-file-modularity.md`.
 ## Directives
 **Ze aims to be a model of RFC compliance, for EVERY RFC it implements.** Not
 just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RADIUS, TACACS+, gNMI, BMP, RPKI, VRRP -- every protocol surface is held to its own RFCs, and so is anything Ze speaks that has a standard...
-**Conformance is not negotiable and nothing in the repo overrides the RFC: only an explicit instruction from Thomas authorises a deviation.**
+**Conformance is not negotiable and nothing in the repo overrides the RFC: only an explicit instruction from Thomas authorises a deviation, and only one he gives in answer to the question that "Ask Thomas Whenever Full Compliance Is On The Table" (below) requires you to put to him.**
 | Situation | What you MUST do |
 |-----------|------------------|
+| Anything short of full conformance or full proof of conformance looks like the answer | You are not authorized to pick it. STOP and ask Thomas -- see "Ask Thomas Whenever Full Compliance Is On The Table" below |
 | You find code that does not do what the RFC requires | Fix the code. Not later, not in a follow-up spec: a known wire-visible violation is a defect you are now the entry point for (`ai/rules/no-parking.md`) |
 | A test pins the non-conformant behaviour | The TEST is wrong. A fixture, golden file, or assertion encoding a violation is not evidence the violation is intended -- it is the violation with a green bar on top. Fix the code, then correct the test and say so |
 | A code comment calls the deviation deliberate | A comment is its author's belief, not a decision record (`ai/rules/no-fabrication.md`). Check the RFC text, then `plan/learned/` for a real ruling. Absent one, the RFC wins |
 | The RFC requirement is not in `rfc/short/<stem>.md` | An unextracted obligation is still an obligation. Add the checklist row (see Extraction Completeness) -- the gate's silence is not conformance |
 | Conforming would change behaviour operators rely on | Say so plainly and ask which way to fix it. Never silently keep the violation, and never present "leave it non-conformant" as an option |
 | An exemption genuinely applies (e.g. RFC 7947 route-server transparency) | Gate it on the exact condition the exempting RFC names. An exemption applied unconditionally is a violation for every case it was not written for |
-**Before claiming a protocol behaviour is correct, read the RFC text**, not only
+**Before claiming a protocol behaviour is correct, read the RFC text**, not only the summary and not only the surrounding code. Cite the section you relied on.
+## Ask Thomas Whenever Full Compliance Is On The Table (owner directive, 2026-07-27)
+**When "implement the RFC fully and prove it fully with tests" is one of the answers on the table, that is the answer -- and you are NOT authorized to choose anything narrower on your own. STOP and ask Thomas.**
+**Asking is required only when you are about to do LESS.** Making Ze more conformant, or better proven, never needs permission: do it, then report (`ai/rules/no-asking.md` still governs everything else). The gate exists in one direction only.
+| You are about to ... | Do instead |
+|----------------------|------------|
+| Classify a requirement `{gap}`, `{not-applicable}`, `partial`, or "does not apply to ze" | Ask. A classification that lowers what Ze owes is a decision about compliance, not bookkeeping |
+| Leave a MUST implemented but unproven (no `RFC requirement:` tagged test) | Ask. "Implemented" is a claim; the tagged test is the evidence (`ai/rules/testing.md`, `ai/rules/tdd.md`) |
+| Leave a MUST unextracted, or scope a spec so an RFC obligation falls outside it | Ask. See Extraction Completeness -- the gate cannot see an obligation nobody wrote down |
+| Defer an RFC requirement to a follow-up spec, a deferral row, or a known-failure shard | Ask. Recording is not fixing (`ai/rules/no-parking.md`), and the deferral machinery is not a compliance decision procedure |
+| Close a spec, review, or audit whose RFC rows are anything other than implemented-and-proven | Ask before closing, not after |
+| Answer "is this conformant enough" with anything but yes | Ask. "Enough" is Thomas's word to say, never yours |
+**How to ask (never "may I skip it").** Quote the requirement id and the RFC section text verbatim, cite the producing code as `file:line` (`ai/rules/no-fabrication.md`), state what full implementation plus a tagged test would actually cost, then ask which way he wants it fixed. Offering "leave it non-conformant" as an option is banned (`ai/rules/no-parking.md`).
+**Every earlier answer that pointed away from full compliance or full proof is VOID.** Thomas voided them on 2026-07-27. A prior decision to skip, defer, partially implement, or leave a requirement untested is not authority, cannot be cited as one, and does not survive being rediscovered.
+| Where a void answer hides | What to do when you meet one |
+|---------------------------|------------------------------|
+| A `plan/learned/` deviation record, or a spec `Deviations` row | Do not rely on it. Raise the requirement with Thomas again, then correct the record with the new answer |
+| A `{gap}` / `{not-applicable}` / `partial` in `rfc/short/*.md` or `docs/features/rfc-status.md` | Re-derive it from the RFC text. If it still reads as less than full compliance, ask |
+| A deferral row marked `user-approved-drop`, or a `cancelled` status, covering an RFC obligation | Void. Re-raise it; the row is not a close |
+| A code comment or `rfc/audit/*.json` verdict calling the deviation deliberate | A comment is a belief, not a ruling (`ai/rules/no-fabrication.md`). Void by default; ask |
+**Finding a void answer while doing something else is not permission to move on.** Raise it, and record the fresh answer where the stale one lived, so the next reader inherits a decision rather than a rationalization.
 ## RFC Summaries (`rfc/short/`)
 RFC summaries are protocol-only reference documents.
 ## Extraction Completeness (BLOCKING when enrolling a summary)

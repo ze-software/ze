@@ -208,6 +208,14 @@ yet, that is not `not-applicable` — write the test, or leave the RFC un-enroll
 `{not-applicable}` and `{gap}` FAIL the gate the moment a test tags the requirement
 (a stale annotation is a lie the ratchet catches).
 
+**Writing any of the three is Thomas's call, not yours** (owner directive 2026-07-27,
+`ai/rules/rfc-compliance.md` "Ask Thomas Whenever Full Compliance Is On The Table").
+Implementing the requirement fully and proving it with a tagged test is always an
+available answer, so choosing an annotation instead is choosing less: stop, quote the
+requirement text and the producing code `file:line`, and ask which way he wants it.
+An annotation you find already in place from an earlier session is VOID as authority —
+re-derive it from the RFC text, and ask again if it still reads as less than full.
+
 ## Linking Requirements to Tests
 
 The link is two-way, but only ONE side is authored: the test tags itself.
