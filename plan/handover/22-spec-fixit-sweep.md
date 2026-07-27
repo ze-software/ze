@@ -201,6 +201,13 @@ session and are genuinely LIVE:
 |------|----------------|-------------|
 | `forward-rail-initial-sync-ordering` | forwarding rail never consults `ShouldQueue` | 3 non-test callers, all injection-rail: `reactor_api_batch.go:111`, `:241`, `reactor_api_forward.go:103`. None in `forward_rs.go` / `forwardUpdateCore` |
 | `stored-route-relay-hardening` | ADD-PATH replay still refused | `reactor_api_relay.go:328` returns `errRelayAddPath`, pinned by `reactor_api_relay_test.go:432` |
+| `migrate-sleeps-infra`, `sleeps-qemu-bulk` | sleeps remain to convert | 101 `time.sleep(` across `test/**/*.ci`, against a ratchet ceiling of 101 (`test/.ci-sleep-baseline`, sum of `125 -11 -12 -1`) |
+
+The sleeps number is worth pausing on: the count sits EXACTLY on the ceiling, so
+there is zero headroom. Any new `.ci` sleep fails `check_ci_sleep_ratchet`
+immediately, and every conversion must append its own signed delta line rather
+than edit the integer. Whoever works those two specs should expect the gate to
+bite on unrelated test work in the meantime.
 
 **The remaining set is not homogeneous, and sizing it by file length misleads.**
 `forward-rail-initial-sync-ordering` is the smallest file (6.7K) but is a
