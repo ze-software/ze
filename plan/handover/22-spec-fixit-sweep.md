@@ -91,6 +91,41 @@ Defect 2 of that spec (`startSender` idempotency) is DONE and the spec records
 that Stage-2 configure is delivered once per plugin PROCESS startup, so the
 doubling was latent.
 
+### 2a. OTC closure: review came back FINDINGS, fixes landed, RE-REVIEW PENDING
+
+The independent review required for closure of
+`spec-fixit-otc-src-role-meta-fallback` returned **FINDINGS**, not clean, so the
+spec is NOT closed and `review_gate.py record` was NOT run. What it found, all
+of it now fixed in `276096afb`:
+
+- **BLOCKER: the RFC9234-5-4 tag was vacuous.** `TestOTCEgressNoStampProvider`
+  had a `dest` with no `LocalAS`, so the stamp was refused by the inner
+  `localASN > 0` guard rather than by the destination-role gate the tag names.
+  Deleting that gate entirely left the whole `role` package green while
+  `ze-rfc-check` still reported the requirement proven in both polarities.
+- **The sibling call site was never swept.** `getFilterConfig` is called twice,
+  two lines apart; `c398e97f0` fixed the source read and left the destination
+  read with the identical zero-value trap. `filterRemoteRoles` is written only
+  from the OPEN Role capability, and `validateOpenRolePair` accepts a peer that
+  sent none when `strict` is unset, so `destRemoteRole` was `""` and a route
+  carrying OTC was forwarded to a configured Provider -- an RFC 9234 Section 5
+  MUST NOT. `resolveDestRole` closes it.
+- Two properties the code asserted only in comments (malformed value takes the
+  fallback; meta beats config) had no gating test. Both do now.
+
+**The judgement call to re-examine if you disagree:** `resolveDestRole` feeds
+the RFC gates ONLY. Export-set matching still uses the capability value, because
+`unknown` there is an operator-selected export target, not a missing answer.
+Resolving it there too would silently retarget a documented knob.
+
+A fresh reviewer is running against `276096afb`. Closure needs its verdict
+CLEAN, then `review_gate.py record`, then commit B.
+
+**One thing needs you:** `tmp/delete-d3c58d3d.sh` removes
+`internal/component/bgp/plugins/role/zz_reviewscratch_test.go`, untracked
+scratch the first reviewer left behind. Deleting a `_test.go` is hook-gated, so
+an agent cannot do it.
+
 ### 2. Closure work on specs whose defects are already fixed
 
 `spec-fixit-otc-src-role-meta-fallback` and `spec-fixit-bgp-session-fsm-lifecycle`
