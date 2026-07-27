@@ -185,3 +185,67 @@ func TestIPsecInterfaceDoctorCheckRegistered(t *testing.T) {
 	}
 	t.Fatal("ike plugin declares no ipsec-interface doctor check")
 }
+
+// TestIPsecInterfaceDoctorCheckSpeaksWhenItCannotEvaluate covers the guard's own
+// error path, which used to be silent.
+//
+// VALIDATES: an unparseable vpn/ipsec block produces a diagnostic instead of a
+// pass, and an EMPTY interface name is distinguished from an absent one.
+//
+// PREVENTS: the measured fail-open. With `vpn { ipsec { interface ze-missing0;
+// esp-group ESP-1 { } } }`, ze doctor reported "ready": true and exit 0 while
+// BOTH the unparseable esp-group and the missing interface vanished, and
+// ze config validate agreed. The check returned nil on a parse error, justified
+// by a comment saying it was "the config system's error to report" -- and no
+// layer reported it: ike's ipsec validation hangs off the SDK OnConfigVerify,
+// which VerifyPluginConfig deliberately does not run for a live plugin, and the
+// Registration declares no InProcessConfigVerifier. A guard that can neither
+// evaluate nor speak does not exist (ai/rules/fail-closed-guards.md).
+func TestIPsecInterfaceDoctorCheckSpeaksWhenItCannotEvaluate(t *testing.T) {
+	withInterfaceOracle(t, map[string]bool{"eth0": true})
+
+	t.Run("unparseable ipsec config is reported, not skipped", func(t *testing.T) {
+		// An esp-group whose proposal cannot be parsed is the one class of cause
+		// that makes ParseIPsecConfig error (ipsec/config.go), so it is a real
+		// config defect rather than a benign partial config -- hence "error".
+		ipsecRoot := config.NewTree()
+		ipsecRoot.Set("interface", "eth0")
+		esp := config.NewTree()
+		proposal := config.NewTree()
+		proposal.Set("encryption", "not-a-cipher")
+		esp.AddListEntry("proposal", "1", proposal)
+		ipsecRoot.AddListEntry("esp-group", "ESP-1", esp)
+		vpnRoot := config.NewTree()
+		vpnRoot.SetContainer("ipsec", ipsecRoot)
+		root := config.NewTree()
+		root.SetContainer("vpn", vpnRoot)
+
+		diags := checkIPsecInterface(registry.DoctorCheckContext{Tree: root})
+		if len(diags) == 0 {
+			t.Fatal("a config the check cannot parse must not read as a pass")
+		}
+		if diags[0].Severity != "error" {
+			t.Fatalf("severity = %q, want error: a warning still leaves doctor reporting ready", diags[0].Severity)
+		}
+	})
+
+	t.Run("empty interface name is an error, absent is silence", func(t *testing.T) {
+		ipsecRoot := config.NewTree()
+		ipsecRoot.Set("interface", "")
+		vpnRoot := config.NewTree()
+		vpnRoot.SetContainer("ipsec", ipsecRoot)
+		root := config.NewTree()
+		root.SetContainer("vpn", vpnRoot)
+
+		diags := checkIPsecInterface(registry.DoctorCheckContext{Tree: root})
+		if len(diags) != 1 {
+			t.Fatalf("got %d diagnostics, want 1: an explicitly empty interface resolves to \"\" at runtime and never binds", len(diags))
+		}
+
+		// The absent case must stay silent, or every config without a vpn
+		// section would start failing doctor.
+		if d := checkIPsecInterface(registry.DoctorCheckContext{Tree: ipsecTree("")}); len(d) != 0 {
+			t.Fatalf("an ABSENT interface leaf must stay silent, got %+v", d)
+		}
+	})
+}

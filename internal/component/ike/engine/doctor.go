@@ -44,10 +44,57 @@ func checkIPsecInterface(ctx registry.DoctorCheckContext) []rpc.DoctorCheckDiagn
 		return nil
 	}
 	cfg, err := ipsec.ParseIPsecConfig(tree)
-	if err != nil || cfg == nil || cfg.Interface == "" {
-		// A config that does not parse is the config system's error to report,
-		// not this check's; an absent interface leaf is simply nothing to check.
+	if err != nil {
+		// Say it. The previous comment here claimed this was "the config
+		// system's error to report, not this check's" -- and NO layer reports
+		// it. ike's ipsec validation hangs off the SDK OnConfigVerify
+		// (register.go), which VerifyPluginConfig deliberately does not run for
+		// a live plugin (internal/component/config/plugin_verify.go), and this
+		// Registration declares no InProcessConfigVerifier. The measured result
+		// was that `vpn { ipsec { interface ze-missing0; esp-group ESP-1 { } } }`
+		// reported "ready": true and exit 0 from `ze doctor`, with both the
+		// unparseable esp-group AND the missing interface silently gone.
+		//
+		// A guard that can neither evaluate nor speak does not exist
+		// (ai/rules/fail-closed-guards.md). Where the validation ultimately
+		// belongs is a separate, larger question; being unable to answer it is
+		// not a license to stay quiet here.
+		// Error, not warning. ParseIPsecConfig returns an error from exactly one
+		// class of cause -- a malformed esp-group or ike-group (ipsec/config.go)
+		// -- which is a real config defect, not a benign partial config. A
+		// warning would leave `ze doctor` reporting "ready": true over a vpn
+		// section that cannot be used, which is the reading this fix exists to
+		// remove.
+		var tb textbuf.Buffer
+		return []rpc.DoctorCheckDiagnostic{{
+			Code:     "doctor-ipsec-iface",
+			Severity: "error",
+			Message:  tb.Str("vpn ipsec config could not be parsed, so its interface reference was not checked: ").Err(err).String(),
+		}}
+	}
+	if cfg == nil {
 		return nil
+	}
+	if cfg.Interface == "" {
+		// An ABSENT interface leaf is nothing to check; an EMPTY one is not the
+		// same thing. `interface ""` passes `ze config validate` and resolves to
+		// "" at runtime, which is the silent no-establish failure this check
+		// exists to catch -- and the kernel's own dev_valid_name rejects the
+		// empty name explicitly. Distinguishing them is the whole point: a zero
+		// value must not read as "nothing was asked for".
+		ipsecRoot := tree.GetContainerPath("vpn/ipsec")
+		if ipsecRoot == nil {
+			return nil
+		}
+		if _, present := ipsecRoot.Get("interface"); !present {
+			return nil
+		}
+		var tb textbuf.Buffer
+		return []rpc.DoctorCheckDiagnostic{{
+			Code:     "doctor-ipsec-iface",
+			Severity: "error",
+			Message:  tb.Str("vpn ipsec interface is set to the empty name; IPsec SAs will not bind to any interface").String(),
+		}}
 	}
 
 	var tb textbuf.Buffer
