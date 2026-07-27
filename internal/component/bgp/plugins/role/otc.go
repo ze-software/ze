@@ -309,14 +309,24 @@ func payloadToWithdrawal(payload []byte) []byte {
 // peer relationship, independent of whether OTC is in the wire bytes.
 // If we don't configure a role for a peer, we don't filter its routes.
 func OTCIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[string]any) (bool, []byte) {
-	cfg, remoteRole := getFilterConfig(src.Address.String())
+	cfg, capRole := getFilterConfig(src.Address.String())
 
 	// Always record source peer's role in metadata from our configuration.
 	if cfg != nil && cfg.role != "" {
 		meta["src-role"] = cfg.role
 	}
 
-	// No role config or no remote role: no OTC filtering.
+	// What the source peer IS to us. Falls back to the config complement when
+	// the peer sent no Role capability: RFC 9234 Section 4.2 says "The locally
+	// configured BGP Role is used for the procedures described in Section 5",
+	// and Section 8 names the non-compliant remote as the case the local AS
+	// must still stamp for. Taking capRole alone here skipped ALL THREE ingress
+	// MUSTs for such a peer -- leak detection from a Customer/RS-Client, the
+	// Peer ASN mismatch check, and the stamp that lets a leak be caught hops
+	// away -- because remoteRole was "" and the guard below returned early.
+	remoteRole := resolvePeerRole(capRole, cfg)
+
+	// No role config or no resolvable peer role: no OTC filtering.
 	if cfg == nil || remoteRole == "" {
 		return true, nil
 	}
@@ -419,36 +429,48 @@ var peerRoleComplement = map[string]string{
 	rolePeer:     rolePeer,
 }
 
-// resolveDestRole returns what the destination peer IS to us, for the RFC 9234
-// Section 5 gates only.
+// resolvePeerRole returns what a peer IS to us, for the RFC 9234 Section 5
+// procedures. It serves BOTH directions: the source peer on ingress and the
+// destination peer on egress.
 //
-// capRole is the role the peer announced in its OPEN Role capability. It is the
-// ONLY writer of filterRemoteRoles (role.go:77, from the OnValidateOpen handler
-// at role.go:167-174), so it is empty for any peer that did not send the
-// capability -- a case validateOpenRolePair deliberately ACCEPTS when strict is
-// unset, quoting RFC 9234 Section 4.2's SHOULD-ignore (validate.go:88-94).
+// capRole is the role the peer announced in its OPEN Role capability.
+// setFilterRemoteRole is the ONLY writer of filterRemoteRoles (role.go:77) and
+// its only caller is guarded by len(remoteRoles) > 0 (role.go:169-174), so
+// capRole is empty for any peer that did not send the capability -- a case
+// validateOpenRolePair deliberately ACCEPTS when strict is unset, quoting RFC
+// 9234 Section 4.2's SHOULD-ignore (validate.go:88-94).
 //
-// Empty then selected the permissive branch of every Section 5 gate: a route
-// carrying OTC was forwarded to a peer we have configured as our Provider,
-// violating "a route already containing the OTC Attribute MUST NOT be
-// propagated to Providers, Peers, or RSes". That is the zero-value trap of
-// ai/rules/fail-closed-guards.md, and it is the sibling of the source-side hole
-// resolveSrcRole closes -- same helper, same call, two lines apart.
+// Empty then selected the permissive branch of every Section 5 gate. That is
+// the zero-value trap of ai/rules/fail-closed-guards.md, and it was present at
+// all THREE readers of getFilterConfig, not just the two that sit two lines
+// apart. RFC 9234 Section 4.2 settles which value the procedures take: "The
+// locally configured BGP Role is used for the procedures described in Section
+// 5." So config is the prescribed input, not a consolation prize -- the RFC
+// names the capability-less peer as the expected early-adopter case.
 //
-// Scope, deliberately narrow: this feeds the RFC MUST gates (leak suppression
-// and OTC stamping), NOT the export-set match below them. Export filtering
-// treats a capability-less peer as roleUnknown, and "unknown" is a documented
-// operator token meaning "also send to peers with no role configured"
-// (config.go:36). Reclassifying it here would silently retarget that knob,
-// which is policy, not conformance.
-func resolveDestRole(capRole string, destCfg *peerRoleConfig) string {
+// Scope, deliberately narrow: this feeds the RFC MUST gates (ingress leak and
+// stamp rules, egress leak suppression and stamping), NOT the export-set match.
+// Export filtering treats a capability-less peer as roleUnknown, and "unknown"
+// is a documented operator token meaning "also send to peers with no role
+// configured" (config.go:36). Reclassifying it there would silently retarget
+// that knob, which is policy, not conformance.
+func resolvePeerRole(capRole string, cfg *peerRoleConfig) string {
 	if capRole != "" {
 		return capRole
 	}
-	if destCfg != nil {
-		return peerRoleComplement[destCfg.role]
+	if cfg == nil {
+		return ""
 	}
-	return ""
+	role, ok := peerRoleComplement[cfg.role]
+	if !ok && cfg.role != "" {
+		// Fail closed AND say so (ai/rules/fail-closed-guards.md). Unreachable
+		// while parseRoleContainer rejects any name outside roleValues
+		// (config.go:72), so this fires only if that validation and this table
+		// drift apart -- exactly the case a silent "" would hide.
+		logger().Warn("role has no peer-role complement, RFC 9234 gates cannot resolve this peer",
+			"configured-role", cfg.role)
+	}
+	return role
 }
 
 // OTCEgressFilter is the egress filter function registered with the BGP filter pipeline (filterapi).
@@ -468,10 +490,10 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 	destCfg, destCapRole := getFilterConfig(dest.Address.String())
 
 	// destRemoteRole gates the RFC 9234 Section 5 MUSTs and falls back to the
-	// config complement when the peer sent no Role capability (resolveDestRole).
+	// config complement when the peer sent no Role capability (resolvePeerRole).
 	// destCapRole stays capability-only for the operator export set below, where
 	// "unknown" is a documented target rather than a missing answer.
-	destRemoteRole := resolveDestRole(destCapRole, destCfg)
+	destRemoteRole := resolvePeerRole(destCapRole, destCfg)
 
 	// RFC 9234 Section 5 egress rule 2 (unconditional, wire-bytes):
 	// "If a route already contains the OTC Attribute, it MUST NOT be

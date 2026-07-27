@@ -1102,6 +1102,51 @@ func TestOTCEgressSuppressProviderLearnedWithoutMeta(t *testing.T) {
 		"Provider-learned route to a Provider must be suppressed even with no ingress metadata (RFC 9234 Section 5)")
 }
 
+// VALIDATES: resolvePeerRole on INGRESS -- the RFC 9234 Section 5 ingress
+// procedures still run for a source peer that sent no Role capability, using
+// the locally configured role, so a route without OTC from a configured
+// Provider is stamped with the remote AS.
+// PREVENTS: the third instance of the same zero-value trap. Two earlier
+// commits swept the two getFilterConfig readers in OTCEgressFilter and left
+// this one, 155 lines above, still gated on the capability-only value: an empty
+// role returned early and skipped ALL THREE ingress MUSTs (leak from a
+// Customer/RS-Client, the Peer ASN mismatch, and this stamp). RFC 9234
+// Section 4.2 settles it -- "The locally configured BGP Role is used for the
+// procedures described in Section 5" -- and Section 8 names the non-compliant
+// remote as precisely the case the local AS must still stamp for. Without the
+// stamp the attribute never propagates, so a leak cannot be caught hops away.
+//
+// The existing subtest that covers this branch, TestOTCIngressFilter's
+// config_but_no_remote_role, pins the PERMISSIVE outcome and cannot detect
+// this: its fixture is {role: provider}, whose complement is Customer, and no
+// ingress rule bites a Customer sending a route without OTC. It reads as
+// coverage while proving nothing.
+func TestOTCIngressStampsWhenPeerSentNoRoleCapability(t *testing.T) {
+	setFilterState(map[string]*peerRoleConfig{
+		// our role customer => 10.0.0.60 IS our Provider
+		"10.0.0.60": {role: roleCustomer},
+	}, nil)
+	// Deliberately NO setFilterRemoteRole: the peer sent no Role capability,
+	// which validateOpenRolePair accepts when strict is unset.
+	defer func() {
+		setFilterState(nil, nil)
+		filterMu.Lock()
+		filterRemoteRoles = nil
+		filterMu.Unlock()
+	}()
+
+	src := filterapi.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.60"), PeerAS: 65060}
+	meta := make(map[string]any)
+
+	accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), nil), meta)
+	assert.True(t, accept, "a route without OTC from a Provider is accepted")
+	require.NotNil(t, modified, "it must be stamped on ingress (RFC 9234 Section 5)")
+
+	asn, found, _ := findOTC(extractAttrsFromPayload(modified))
+	assert.True(t, found, "OTC must be present after ingress stamping")
+	assert.Equal(t, uint32(65060), asn, "OTC must carry the remote peer's AS number")
+}
+
 // VALIDATES: resolveSrcRole -- a src-role that is PRESENT but unusable takes the
 // config fallback, so a malformed input is never more permissive than a missing
 // one.
