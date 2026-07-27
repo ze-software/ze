@@ -155,7 +155,7 @@ func TestCS6ClassifyNetns(t *testing.T) {
 			if !ok {
 				continue
 			}
-			if htb.Handle == makeHandle(1, 1) {
+			if htb.Handle == tcHandle(1) {
 				controlStats = htb.Statistics
 			}
 		}
@@ -165,7 +165,7 @@ func TestCS6ClassifyNetns(t *testing.T) {
 				got = append(got, fmt.Sprintf("%T(handle=%#x parent=%#x)", cls, cls.Attrs().Handle, cls.Attrs().Parent))
 			}
 			t.Fatalf("control class (1:1, handle %#x) not found in kernel under parent 1:0\n  returned %d class(es): %v",
-				makeHandle(1, 1), len(classes), got)
+				tcHandle(1), len(classes), got)
 		}
 		if controlStats.Basic.Packets == 0 {
 			// Two very different causes produce a zero count, and the bare message
@@ -194,7 +194,7 @@ func TestCS6ClassifyNetns(t *testing.T) {
 				if !ok || htb.Statistics == nil {
 					continue
 				}
-				if htb.Handle == makeHandle(1, 2) {
+				if htb.Handle == tcHandle(2) {
 					defaultPkts = uint64(htb.Statistics.Basic.Packets)
 				}
 			}

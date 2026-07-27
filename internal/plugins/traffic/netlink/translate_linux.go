@@ -78,16 +78,32 @@ func newFilterAttrs(linkIdx int, parentHandle uint32, protocol uint16) (netlink.
 	}, nil
 }
 
-// makeHandle builds a tc handle from major:minor parts.
-func makeHandle(major, minor uint32) uint32 {
-	return (major << 16) | minor
+// rootQdiscMajor is the major number of every tc handle this backend programs.
+// Ze attaches exactly one root qdisc per link, at 1:0, and hangs every class off
+// it as 1:<minor>, so the major is an invariant of the backend and not a
+// parameter: no caller passes anything else, and one that did would be
+// programming a qdisc tree this backend cannot reconcile.
+const rootQdiscMajor = 1
+
+// tcHandle builds the tc handle 1:<minor> under the root qdisc major.
+//
+// NOT named makeHandle or classHandle: the vendored
+// netlink.MakeHandle(major, minor)
+// (vendor/github.com/vishvananda/netlink/qdisc.go) is used in the same files
+// and carries the identical formula, so a one-argument local `makeHandle`
+// invites collapsing netlink.MakeHandle(1, 0) into makeHandle(1) -- which
+// compiles and silently changes 1:0 into 1:1. `classHandle` is taken too:
+// it is the parameter name in translateFilter/dscpFilters/protocolFilters/
+// u32FilterPair, so a function of that name is shadowed inside each of them.
+func tcHandle(minor uint32) uint32 {
+	return (rootQdiscMajor << 16) | minor
 }
 
 // translateQdisc converts a ze Qdisc to a netlink Qdisc.
 func translateQdisc(q traffic.Qdisc, linkIdx int) (netlink.Qdisc, error) {
 	attrs := netlink.QdiscAttrs{
 		LinkIndex: linkIdx,
-		Handle:    makeHandle(1, 0), // 1:0 root handle
+		Handle:    tcHandle(0), // 1:0 root handle
 		Parent:    netlink.HANDLE_ROOT,
 	}
 
@@ -147,7 +163,7 @@ func findDefaultClassMinor(q traffic.Qdisc) uint32 {
 func translateClass(qt traffic.QdiscType, tc traffic.TrafficClass, linkIdx int, parentHandle, minor uint32) (netlink.Class, error) {
 	attrs := netlink.ClassAttrs{
 		LinkIndex: linkIdx,
-		Handle:    makeHandle(1, minor),
+		Handle:    tcHandle(minor),
 		Parent:    parentHandle,
 	}
 

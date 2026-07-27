@@ -357,7 +357,7 @@ func TestApplyTwoFilteredClassesShareProtocolPriorities(t *testing.T) {
 		classIDs[u32.ClassId]++
 	}
 	// Each class must be the target of its own IPv4 and IPv6 filter.
-	for _, want := range []uint32{makeHandle(1, 1), makeHandle(1, 2)} {
+	for _, want := range []uint32{tcHandle(1), tcHandle(2)} {
 		if got := classIDs[want]; got != 2 {
 			t.Errorf("class %#x is the target of %d filters, want 2 (IPv4 + IPv6)", want, got)
 		}
