@@ -1,7 +1,10 @@
 // Design: (none -- research/analysis tool)
+// RFC: rfc/short/rfc6396.md -- MRT record layout; RFC 8050 add-path subtypes
 //
 // Shared MRT parsing helpers for ze-analyze subcommands.
 // Provides constants, file opening, record iteration, and wire format helpers.
+// Wire decoding itself is delegated to internal/mrt; this file only adapts it
+// to the callback shape the subcommands use.
 package analyze
 
 import (
@@ -15,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/cliio"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/mrt"
 )
 
@@ -237,70 +241,33 @@ func extractBGP4MPUpdate(subtype uint16, data []byte) (body []byte, peerASN uint
 	return data[offset : offset+bodyLen], peerASN
 }
 
-// extractUpdateAttrs returns the path attributes section from an UPDATE body.
+// extractUpdateAttrs returns the path attributes section from an UPDATE body,
+// or nil when the body is malformed.
+//
+// The field offsets live in internal/mrt so the offline tools and the MRT
+// decoder can never disagree about them.
 func extractUpdateAttrs(update []byte) []byte {
-	if len(update) < 4 {
+	attrs, err := mrt.UpdateAttributeBytes(update)
+	if err != nil {
 		return nil
 	}
-
-	wdLen := binary.BigEndian.Uint16(update[0:2])
-	offset := 2 + int(wdLen)
-	if offset+2 > len(update) {
-		return nil
-	}
-
-	attrLen := binary.BigEndian.Uint16(update[offset : offset+2])
-	offset += 2
-	if offset+int(attrLen) > len(update) {
-		return nil
-	}
-
-	return update[offset : offset+int(attrLen)]
+	return attrs
 }
 
 // iterateAttrs calls fn for each attribute in a packed attribute section.
 // fn receives flags, type code, and the attribute value bytes.
+//
+// Attribute decoding itself lives in internal/mrt (mrt.ParseAttributes); this
+// adapter only preserves the callback shape the analyze subcommands use.
 func iterateAttrs(attrs []byte, fn func(flags, typeCode uint8, value []byte)) {
-	off := 0
-	for off < len(attrs) {
-		if off+2 > len(attrs) {
-			break
-		}
-		flags := attrs[off]
-		typeCode := attrs[off+1]
-		off += 2
-
-		var attrLen int
-		if flags&0x10 != 0 { // extended length
-			if off+2 > len(attrs) {
-				break
-			}
-			attrLen = int(binary.BigEndian.Uint16(attrs[off : off+2]))
-			off += 2
-		} else {
-			if off >= len(attrs) {
-				break
-			}
-			attrLen = int(attrs[off])
-			off++
-		}
-
-		if off+attrLen > len(attrs) {
-			break
-		}
-
-		fn(flags, typeCode, attrs[off:off+attrLen])
-		off += attrLen
+	for _, a := range mrt.ParseAttributes(attrs) {
+		fn(a.Flags, a.Code, a.Value)
 	}
 }
 
 // countAttrs counts the number of attributes in a packed attribute section.
 func countAttrs(attrs []byte) int {
-	count := 0
-	iterateAttrs(attrs, func(_, _ uint8, _ []byte) {
-		count++
-	})
-	return count
+	return len(mrt.ParseAttributes(attrs))
 }
 
 // countPackedPrefixes counts prefix entries in a packed NLRI field.
@@ -406,53 +373,58 @@ func parsePeerIndexTable(data []byte) map[uint16]*mrtPeerInfo {
 
 // forEachRIBEntry calls fn for each RIB entry in a TABLE_DUMP_V2 RIB record.
 // fn receives peer_index and the packed attributes.
-func forEachRIBEntry(data []byte, subtype uint16, fn func(peerIndex uint16, attrs []byte)) {
-	if len(data) < 4 {
+//
+// Record walking lives in internal/mrt (DecodeRIBRecord / DecodeRIBGenericRecord),
+// which unlike the previous hand-rolled walk also honors the RFC 8050 add-path
+// subtypes' 4-octet Path Identifier. A malformed record yields no entries
+// rather than a partial prefix of them.
+// It returns the decode error for a malformed record so the caller can count
+// and report it. Silently yielding no entries would make a damaged record
+// indistinguishable from an empty one (ai/rules/fail-closed-guards.md).
+func forEachRIBEntry(data []byte, subtype uint16, fn func(peerIndex uint16, attrs []byte)) error {
+	var entries []mrt.RIBEntry
+
+	switch subtype {
+	case mrt.TDV2RIBGeneric, mrt.TDV2RIBGenericAP:
+		rec, err := mrt.DecodeRIBGenericRecord(subtype, data)
+		if err != nil {
+			return err
+		}
+		entries = rec.Entries
+	default:
+		rec, err := mrt.DecodeRIBRecord(subtype, data)
+		if err != nil {
+			return err
+		}
+		entries = rec.Entries
+	}
+
+	for i := range entries {
+		fn(entries[i].PeerIndex, entries[i].Attributes)
+	}
+	return nil
+}
+
+// malformedCounter tallies records that failed to decode, so a subcommand can
+// tell the operator the input is damaged instead of silently under-reporting.
+type malformedCounter struct {
+	records int
+}
+
+func (m *malformedCounter) note(err error) {
+	if err != nil {
+		m.records++
+	}
+}
+
+// report writes a warning to w when any record failed to decode.
+func (m *malformedCounter) report(w io.Writer) {
+	if m.records == 0 {
 		return
 	}
-
-	offset := 4 // skip sequence number
-
-	// RIB_GENERIC has AFI/SAFI before prefix.
-	if subtype == subtypeRIBGeneric {
-		if offset+3 > len(data) {
-			return
-		}
-		offset += 3 // AFI (2) + SAFI (1)
-	}
-
-	// Skip prefix.
-	if offset >= len(data) {
-		return
-	}
-	prefixLen := int(data[offset])
-	offset++
-	offset += (prefixLen + 7) / 8
-
-	// Entry count.
-	if offset+2 > len(data) {
-		return
-	}
-	entryCount := binary.BigEndian.Uint16(data[offset : offset+2])
-	offset += 2
-
-	for range entryCount {
-		if offset+8 > len(data) {
-			break
-		}
-
-		peerIndex := binary.BigEndian.Uint16(data[offset : offset+2])
-		// skip originated_time (4 bytes)
-		attrLen := int(binary.BigEndian.Uint16(data[offset+6 : offset+8]))
-		offset += 8
-
-		if offset+attrLen > len(data) {
-			break
-		}
-
-		fn(peerIndex, data[offset:offset+attrLen])
-		offset += attrLen
-	}
+	var tb textbuf.Buffer
+	tb.Str("warning: ").Int(int64(m.records)).Str(" malformed RIB record(s) skipped; results are incomplete\n")
+	wf(w, "%s", tb.Slice())
 }
 
 // getRIBPrefix extracts the prefix bytes and length from a RIB record.

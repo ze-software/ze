@@ -31,6 +31,9 @@ Examples:
 		return 1
 	}
 
+	var damaged malformedCounter
+	defer damaged.report(os.Stderr)
+
 	for _, fname := range args {
 		if err := processMRTFile(fname, mrtHandler{
 			OnRIB: func(data []byte, subtype uint16) {
@@ -38,10 +41,10 @@ Examples:
 				if nlri == nil {
 					return
 				}
-				forEachRIBEntry(data, subtype, func(_ uint16, attrs []byte) {
+				damaged.note(forEachRIBEntry(data, subtype, func(_ uint16, attrs []byte) {
 					update := buildUpdate(nil, attrs, nlri)
 					fmt.Println(hex.EncodeToString(update))
-				})
+				}))
 			},
 			OnBGP4MP: func(data []byte, subtype uint16, _ uint32) {
 				body, _ := extractBGP4MPUpdate(subtype, data)

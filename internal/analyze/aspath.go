@@ -73,15 +73,16 @@ Examples:
 	}
 
 	st := newASPathAnalysis()
+	var damaged malformedCounter
 
 	for _, fname := range args {
 		st.Files = append(st.Files, fname)
 		if err := processMRTFile(fname, mrtHandler{
 			OnPeerIndex: func(_ []byte) {},
 			OnRIB: func(data []byte, subtype uint16) {
-				forEachRIBEntry(data, subtype, func(_ uint16, attrs []byte) {
+				damaged.note(forEachRIBEntry(data, subtype, func(_ uint16, attrs []byte) {
 					aspathAnalyzeRoute(attrs, st)
-				})
+				}))
 			},
 			OnBGP4MP: func(data []byte, subtype uint16, _ uint32) {
 				body, _ := extractBGP4MPUpdate(subtype, data)
@@ -101,6 +102,7 @@ Examples:
 
 	aspathPrintJSON(os.Stdout, st)
 	aspathPrintSummary(os.Stderr, st)
+	damaged.report(os.Stderr)
 
 	return 0
 }

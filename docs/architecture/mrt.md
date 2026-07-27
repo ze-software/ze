@@ -34,6 +34,64 @@ Key encoder functions:
 Used by `internal/analyze` for offline parsing. Allocates freely (offline tool).
 Returns structured types from byte slices.
 
+#### BGP message decoding
+
+The BGP messages carried inside MRT records are decoded by standalone parsers in
+`internal/mrt/bgp.go` and `internal/mrt/bgp_attribute.go`, separate from the
+daemon's codec in `internal/component/bgp/message`. The separation is
+structural, not stylistic: `internal/component/bgp/message` is compiled out by
+the `ze_bgp` feature gate, while `internal/mrt` is always-on (the MRT recorder
+depends on it), so the offline parsers cannot import it.
+<!-- source: feature-gates.txt — ze_bgp gates internal/component/bgp/message -->
+<!-- source: internal/mrt/bgp.go — ParseBGPMessage, UpdateAttributeBytes, ParsePrefixesAFI -->
+
+| Entry point | Decodes |
+|-------------|---------|
+| `ParseBGPMessage` | A complete BGP message including the 19-byte header |
+| `UpdateAttributeBytes` | The raw path-attribute section of an UPDATE body |
+| `ParseAttributes` | A packed path-attribute section into typed attributes |
+| `ParseASPath` | AS_PATH at an explicitly supplied AS width |
+| `ParsePrefixesAFI` | Packed NLRI for a given address family |
+| `ParseMPReach` / `ParseMPUnreach` | Full RFC 4760 MP_REACH / MP_UNREACH |
+| `ParseMPReachRIBEntry` | The abbreviated MP_REACH inside a RIB entry |
+<!-- source: internal/mrt/bgp_attribute.go — MP_REACH, aggregator and community decoders -->
+
+Two RFC 6396 constraints shape this API and are easy to get wrong:
+
+**AS width is a property of the record, not of the bytes.** A 2-byte and a
+4-byte AS_PATH can occupy the same number of octets, so the width can never be
+inferred from the attribute. `ParseASPath` therefore takes it as a parameter and
+callers derive it with `ASPathIsFourByte(mrtType, subtype)`: TABLE_DUMP is
+2-byte (Section 4.2), TABLE_DUMP_V2 is 4-byte (Section 4.3.4), BGP4MP_MESSAGE is
+2-byte (Section 4.4.2) and BGP4MP_MESSAGE_AS4 is 4-byte (Section 4.4.3).
+<!-- source: internal/mrt/bgp_attribute.go — ASPathIsFourByte -->
+
+**MP_REACH_NLRI is truncated inside RIB entries.** RFC 6396 Section 4.3.4 keeps
+only the Next Hop Length and Next Hop Address; AFI, SAFI, Reserved and NLRI are
+omitted because they already appear in the RIB record header. Decoding that with
+the full-form parser reads the length from the wrong offset, so RIB entries use
+the dedicated `ParseMPReachRIBEntry` / `ExtractNextHopRIB` entry points and BGP
+UPDATE messages use `ParseMPReach` / `ExtractNextHop`.
+<!-- source: internal/mrt/bgp_attribute.go — ParseMPReachRIBEntry, ExtractNextHopRIB -->
+
+**Damage is reported, never silently swallowed.** An analysis tool that quietly
+returns fewer routes than the file contains makes "this record is damaged"
+indistinguishable from "this record is small", so malformed input always
+produces a signal:
+
+| Layer | Contract on malformed input |
+|-------|------------------------------|
+| `ParsePrefixesAFI` | Returns the prefixes decoded *before* the damage **and** an error naming the offset and offending value. The caller can salvage the good entries and still report the record as damaged. |
+| `ParseMPReach` / `ParseMPUnreach` | Propagate that error, wrapped with the AFI/SAFI. |
+| `ParseBGPMessage` | Propagates it; `ze-analyze show` renders the record as `[parse error]` so one damaged record is visible without aborting the file. |
+| `forEachRIBEntry` | Returns the decode error; the subcommands count damaged records and print a `warning: N malformed RIB record(s) skipped` line to stderr. |
+
+An out-of-range prefix length is never emitted as a prefix: `netip`'s zero
+`Prefix` reads downstream as a default route. An unrecognized AFI yields an
+error rather than an empty result, per RFC 6396 Section 4.3.3.
+<!-- source: internal/mrt/bgp.go — ParsePrefixesAFI length validation and error contract -->
+<!-- source: internal/analyze/mrt.go — forEachRIBEntry error return -->
+
 ## Daemon Component (`internal/plugins/mrt`)
 
 Registers as a Ze component. Subscribes to:
@@ -80,6 +138,17 @@ New subcommands:
 - `record bmp` -- accept incoming BMP connections, write as MRT BGP4MP
 - `show` -- human-readable record dump (like bgpdump)
 - `routes` -- extract prefix table as JSON (prefix, next-hop, AS path, communities)
+
+`show` and `routes` decode records through the shared parsers above, deriving the
+AS width from each record's type and using the RIB-entry MP_REACH decoder, so
+IPv6 RIB next-hops and 2-byte-AS BGP4MP paths are reported correctly.
+<!-- source: internal/analyze/routes.go — buildRouteRecord -->
+<!-- source: internal/analyze/show.go — formatASPathFromAttrs, showParsedMessage -->
+
+The record-walking helpers in `internal/analyze/mrt.go` (`forEachRIBEntry`,
+`iterateAttrs`, `countAttrs`, `extractUpdateAttrs`) are thin adapters over
+`internal/mrt`; the offline tools hold no second copy of the wire format.
+<!-- source: internal/analyze/mrt.go — forEachRIBEntry, iterateAttrs, countAttrs, extractUpdateAttrs -->
 - `serve` -- passive BGP server serving MRT file contents to connecting peers
 
 HTTP/HTTPS URL input is supported anywhere a file path is accepted.

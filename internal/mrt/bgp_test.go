@@ -249,7 +249,8 @@ func TestExtractCommunities(t *testing.T) {
 func TestParsePrefixes(t *testing.T) {
 	// 10.0.0.0/8, 192.168.0.0/16
 	data := []byte{8, 10, 16, 192, 168}
-	pfxs := mrt.ParsePrefixes(data, false)
+	pfxs, err := mrt.ParsePrefixes(data, false)
+	require.NoError(t, err)
 	require.Len(t, pfxs, 2)
 	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/8"), pfxs[0])
 	assert.Equal(t, netip.MustParsePrefix("192.168.0.0/16"), pfxs[1])

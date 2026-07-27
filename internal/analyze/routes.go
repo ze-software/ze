@@ -1,8 +1,11 @@
 // Design: docs/architecture/mrt.md -- prefix table extraction from MRT
+// RFC: rfc/short/rfc6396.md -- per-record-type AS width, RIB-entry MP_REACH truncation
+// Related: show.go -- human-readable dump of the same records
 
 package analyze
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"net"
 	"os"
@@ -21,15 +24,20 @@ Usage:
 `
 
 type routeRecord struct {
-	Prefix      string   `json:"prefix"`
-	NextHop     string   `json:"next-hop"`
-	ASPath      []uint32 `json:"as-path"`
-	Origin      string   `json:"origin"`
-	LocalPref   uint32   `json:"local-pref,omitempty"`
-	MED         uint32   `json:"med,omitempty"`
-	Communities []string `json:"communities,omitempty"`
-	PeerIP      string   `json:"peer-ip"`
-	PeerASN     uint32   `json:"peer-asn"`
+	Prefix              string   `json:"prefix"`
+	NextHop             string   `json:"next-hop"`
+	ASPath              []uint32 `json:"as-path"`
+	Origin              string   `json:"origin"`
+	LocalPref           uint32   `json:"local-pref,omitempty"`
+	MED                 uint32   `json:"med,omitempty"`
+	Communities         []string `json:"communities,omitempty"`
+	LargeCommunities    []string `json:"large-communities,omitempty"`
+	ExtendedCommunities []string `json:"extended-communities,omitempty"`
+	Aggregator          string   `json:"aggregator,omitempty"`
+	AtomicAggregate     bool     `json:"atomic-aggregate,omitempty"`
+	OnlyToCustomer      uint32   `json:"only-to-customer,omitempty"`
+	PeerIP              string   `json:"peer-ip"`
+	PeerASN             uint32   `json:"peer-asn"`
 }
 
 func runRoutes(args []string) int {
@@ -66,13 +74,14 @@ func runRoutes(args []string) int {
 		},
 		OnRIB: func(h mrt.Header, r *mrt.RIBRecord) error {
 			pfx := formatPrefix(h.Subtype, r.PrefixLength, r.Prefix)
+			fourByteAS := mrt.ASPathIsFourByte(h.Type, h.Subtype)
 			for _, e := range r.Entries {
 				if limit > 0 && count >= limit {
 					return nil
 				}
 				count++
 				attrs := mrt.ParseAttributes(e.Attributes)
-				rec := buildRouteRecord(pfx, attrs, peerIndex, e.PeerIndex)
+				rec := buildRouteRecord(pfx, attrs, peerIndex, e.PeerIndex, fourByteAS)
 				_ = enc.Encode(rec)
 			}
 			return nil
@@ -86,16 +95,20 @@ func runRoutes(args []string) int {
 	return 0
 }
 
-func buildRouteRecord(prefix string, attrs []mrt.PathAttribute, pit *mrt.PeerIndexTable, peerIdx uint16) routeRecord {
+// buildRouteRecord assembles one output row. fourByteAS MUST come from the
+// enclosing MRT record type via mrt.ASPathIsFourByte (RFC 6396 fixes the AS
+// width per record type; it is not inferable from the attribute bytes).
+func buildRouteRecord(prefix string, attrs []mrt.PathAttribute, pit *mrt.PeerIndexTable, peerIdx uint16, fourByteAS bool) routeRecord {
 	rec := routeRecord{Prefix: prefix}
 
-	nh := mrt.ExtractNextHop(attrs)
+	// RIB entries carry the abbreviated MP_REACH_NLRI (RFC 6396 Section 4.3.4).
+	nh := mrt.ExtractNextHopRIB(attrs)
 	if nh.IsValid() {
 		rec.NextHop = nh.String()
 	}
 
-	if a := mrt.FindAttribute(attrs, 2); a != nil {
-		segs, err := mrt.ParseASPath(a.Value, true)
+	if a := mrt.FindAttribute(attrs, mrt.AttrASPath); a != nil {
+		segs, err := mrt.ParseASPath(a.Value, fourByteAS)
 		if err == nil {
 			for _, seg := range segs {
 				rec.ASPath = append(rec.ASPath, seg.ASNs...)
@@ -127,6 +140,38 @@ func buildRouteRecord(prefix string, attrs []mrt.PathAttribute, pit *mrt.PeerInd
 		tb.Reset().Uint32(c >> 16).Byte(':').Uint32(c & 0xffff)
 		rec.Communities = append(rec.Communities, tb.String())
 		tb.Release()
+	}
+
+	// RFC 8092 large communities: "global:local1:local2".
+	for _, lc := range mrt.ExtractLargeCommunities(attrs) {
+		tb := textbuf.Get()
+		tb.Reset().Uint32(lc[0]).Byte(':').Uint32(lc[1]).Byte(':').Uint32(lc[2])
+		rec.LargeCommunities = append(rec.LargeCommunities, tb.String())
+		tb.Release()
+	}
+
+	// RFC 4360 extended communities, rendered as "type:subtype:hex-value".
+	for _, ec := range mrt.ExtractExtendedCommunities(attrs) {
+		tb := textbuf.Get()
+		tb.Reset().Uint8(ec.Type).Byte(':').Uint8(ec.Subtype).Byte(':').Hex(ec.Value[:])
+		rec.ExtendedCommunities = append(rec.ExtendedCommunities, tb.String())
+		tb.Release()
+	}
+
+	if agg, ok := mrt.ExtractAggregator(attrs); ok {
+		tb := textbuf.Get()
+		tb.Reset().Str("AS").Uint32(agg.ASN).Byte(':').Addr(agg.Address)
+		rec.Aggregator = tb.String()
+		tb.Release()
+	}
+
+	rec.AtomicAggregate = mrt.HasAtomicAggregate(attrs)
+
+	// RFC 9234 Only-to-Customer: the value is the AS that set it. Its presence
+	// marks a route that must not be re-advertised to a peer or provider, so a
+	// leak shows up as an OTC-carrying route arriving from the wrong direction.
+	if otc := mrt.FindAttribute(attrs, mrt.AttrOTC); otc != nil && len(otc.Value) == 4 {
+		rec.OnlyToCustomer = binary.BigEndian.Uint32(otc.Value)
 	}
 
 	if pit != nil && int(peerIdx) < len(pit.Peers) {

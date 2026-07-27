@@ -66,6 +66,10 @@ ze-fuzz-test:
 	$(GO_TEST) -fuzz=^FuzzParseLabelStack$$ -fuzztime=10s -timeout=60s ./internal/core/bgp/nlri
 	$(GO_TEST) -fuzz=^FuzzParseRDString$$ -fuzztime=10s -timeout=60s ./internal/core/bgp/nlri
 	$(GO_TEST) -fuzz=^FuzzParseRouteDistinguisher$$ -fuzztime=10s -timeout=60s ./internal/core/bgp/nlri
+	$(GO_TEST) -fuzz=^FuzzParseASPath$$ -fuzztime=10s -timeout=60s ./internal/mrt
+	$(GO_TEST) -fuzz=^FuzzParseAttributes$$ -fuzztime=10s -timeout=60s ./internal/mrt
+	$(GO_TEST) -fuzz=^FuzzParseBGPMessage$$ -fuzztime=10s -timeout=60s ./internal/mrt
+	$(GO_TEST) -fuzz=^FuzzParsePrefixes$$ -fuzztime=10s -timeout=60s ./internal/mrt
 	$(GO_TEST) -fuzz=^FuzzDHCPHandle$$ -fuzztime=10s -timeout=60s ./internal/plugins/dhcpserver
 	$(GO_TEST) -fuzz=^FuzzISISDecodePDU$$ -fuzztime=10s -timeout=60s ./internal/plugins/isis/packet
 	$(GO_TEST) -fuzz=^FuzzISISRoundTrip$$ -fuzztime=10s -timeout=60s ./internal/plugins/isis/packet

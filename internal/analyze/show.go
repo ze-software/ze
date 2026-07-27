@@ -1,4 +1,6 @@
 // Design: docs/architecture/mrt.md -- human-readable MRT dump (like bgpdump)
+// RFC: rfc/short/rfc6396.md -- per-record-type AS width, RIB-entry MP_REACH truncation
+// Related: routes.go -- prefix table extraction from the same records
 
 package analyze
 
@@ -66,12 +68,14 @@ func runShow(args []string) int {
 			for _, e := range r.Entries {
 				peerName := peerLabel(peerIndex, e.PeerIndex)
 				attrs := mrt.ParseAttributes(e.Attributes)
-				nh := mrt.ExtractNextHop(attrs)
+				// RIB entries carry the abbreviated MP_REACH_NLRI
+				// (RFC 6396 Section 4.3.4), not the full form.
+				nh := mrt.ExtractNextHopRIB(attrs)
 				nhStr := "-"
 				if nh.IsValid() {
 					nhStr = nh.String()
 				}
-				aspathStr := formatASPathFromAttrs(attrs)
+				aspathStr := formatASPathFromAttrs(attrs, mrt.ASPathIsFourByte(h.Type, h.Subtype))
 				os.Stdout.WriteString("  peer=" + peerName + " nh=" + nhStr + " path=" + aspathStr + "\n") //nolint:errcheck // output
 			}
 			return nil
@@ -88,7 +92,7 @@ func runShow(args []string) int {
 				os.Stdout.WriteString(ts.UTC().Format("15:04:05") + " " + peer + " [parse error]\n") //nolint:errcheck // output
 				return nil                                                                           //nolint:nilerr // skip unparseable records, continue iteration
 			}
-			showParsedMessage(ts, peer, m.PeerAS, parsed)
+			showParsedMessage(ts, peer, m.PeerAS, parsed, mrt.ASPathIsFourByte(h.Type, h.Subtype))
 			return nil
 		},
 		OnStateChange: func(h mrt.Header, usec uint32, s *mrt.StateChangeRecord) error {
@@ -111,7 +115,7 @@ func runShow(args []string) int {
 	return 0
 }
 
-func showParsedMessage(ts time.Time, peer string, peerAS uint32, parsed *mrt.ParsedMessage) {
+func showParsedMessage(ts time.Time, peer string, peerAS uint32, parsed *mrt.ParsedMessage, fourByteAS bool) {
 	var tb textbuf.Buffer
 	tb.Str(ts.UTC().Format("15:04:05")).Byte(' ').Str(peer).Str(" AS").Uint32(peerAS).Byte(' ')
 	prefix := tb.String()
@@ -123,16 +127,21 @@ func showParsedMessage(ts time.Time, peer string, peerAS uint32, parsed *mrt.Par
 	case 2:
 		u := parsed.Update
 		var lb textbuf.Buffer
-		if len(u.WithdrawnPrefixes) > 0 {
-			lb.Str("W=").Uint(uint64(len(u.WithdrawnPrefixes)))
+		// The UPDATE's own withdrawn/NLRI fields are IPv4 only; every other
+		// family travels in MP_UNREACH/MP_REACH, so both must be counted or an
+		// IPv6 UPDATE renders with no prefix counts at all.
+		withdrawn := len(u.WithdrawnPrefixes) + mpUnreachCount(u.Attributes)
+		announced := len(u.AnnouncedPrefixes) + mpReachCount(u.Attributes)
+		if withdrawn > 0 {
+			lb.Str("W=").Uint(uint64(withdrawn))
 		}
-		if len(u.AnnouncedPrefixes) > 0 {
+		if announced > 0 {
 			if lb.Len() > 0 {
 				lb.Byte(' ')
 			}
-			lb.Str("A=").Uint(uint64(len(u.AnnouncedPrefixes)))
+			lb.Str("A=").Uint(uint64(announced))
 		}
-		aspathStr := formatASPathFromAttrs(u.Attributes)
+		aspathStr := formatASPathFromAttrs(u.Attributes, fourByteAS)
 		if aspathStr != "" {
 			lb.Str(" path=").Str(aspathStr)
 		}
@@ -152,12 +161,45 @@ func showParsedMessage(ts time.Time, peer string, peerAS uint32, parsed *mrt.Par
 	}
 }
 
-func formatASPathFromAttrs(attrs []mrt.PathAttribute) string {
-	a := mrt.FindAttribute(attrs, 2)
+// mpReachCount returns the number of prefixes announced via MP_REACH_NLRI
+// (RFC 4760 Section 3). A malformed attribute contributes nothing rather than
+// aborting the record: show renders one line per record and a damaged
+// attribute must not hide the rest of it.
+func mpReachCount(attrs []mrt.PathAttribute) int {
+	a := mrt.FindAttribute(attrs, mrt.AttrMPReachNLRI)
+	if a == nil {
+		return 0
+	}
+	mp, err := mrt.ParseMPReach(a.Value)
+	if err != nil {
+		return 0
+	}
+	return len(mp.Prefixes)
+}
+
+// mpUnreachCount returns the number of prefixes withdrawn via MP_UNREACH_NLRI
+// (RFC 4760 Section 4).
+func mpUnreachCount(attrs []mrt.PathAttribute) int {
+	a := mrt.FindAttribute(attrs, mrt.AttrMPUnreachNLRI)
+	if a == nil {
+		return 0
+	}
+	mp, err := mrt.ParseMPUnreach(a.Value)
+	if err != nil {
+		return 0
+	}
+	return len(mp.Prefixes)
+}
+
+// formatASPathFromAttrs renders AS_PATH for display. fourByte MUST come from
+// the enclosing MRT record type via mrt.ASPathIsFourByte: RFC 6396 fixes the AS
+// width per record type and it cannot be inferred from the attribute bytes.
+func formatASPathFromAttrs(attrs []mrt.PathAttribute, fourByte bool) string {
+	a := mrt.FindAttribute(attrs, mrt.AttrASPath)
 	if a == nil {
 		return ""
 	}
-	segs, err := mrt.ParseASPath(a.Value, true)
+	segs, err := mrt.ParseASPath(a.Value, fourByte)
 	if err != nil {
 		return "?"
 	}

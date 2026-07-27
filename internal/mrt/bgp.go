@@ -1,10 +1,14 @@
 // Design: docs/architecture/mrt.md -- BGP message parsing for offline MRT analysis
+// RFC: rfc/short/rfc6396.md -- AS width and MP_REACH constraints per record type
+// Related: bgp_attribute.go -- typed path-attribute decoders (MP_REACH, aggregator, communities)
+// Related: format.go -- attribute string rendering for display and matching
 
 package mrt
 
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net/netip"
 )
 
@@ -12,6 +16,7 @@ var (
 	errShortMessage = errors.New("mrt: BGP message too short")
 	errBadMarker    = errors.New("mrt: invalid BGP marker")
 	errBadMsgType   = errors.New("mrt: unknown BGP message type")
+	errBadPrefixLen = errors.New("mrt: prefix length out of range")
 )
 
 // ParsedMessage is a parsed BGP message from an MRT record.
@@ -162,35 +167,76 @@ func parseCapabilities(optParams []byte) []Capability {
 	return caps
 }
 
-func parseUpdate(body []byte) (*ParsedUpdate, error) {
-	if len(body) < 4 {
-		return nil, errShortMessage
+// UpdateAttributeBytes returns the raw Path Attributes section of an UPDATE
+// body, without decoding the individual attributes.
+//
+// Callers that need the attribute bytes verbatim (to re-pack them, hash them,
+// or hand them to a matcher) use this; callers that want decoded attributes use
+// ParseUpdateBody. Both share one implementation of the field offsets, so the
+// two can never disagree about where the section starts.
+func UpdateAttributeBytes(body []byte) ([]byte, error) {
+	_, attrs, _, err := updateSections(body)
+	return attrs, err
+}
+
+// updateSections splits an UPDATE body into its three variable-length fields
+// (RFC 4271 Section 4.3):
+//
+//	Withdrawn Routes Length(2) + Withdrawn Routes(var) +
+//	Total Path Attribute Length(2) + Path Attributes(var) + NLRI(var)
+//
+// This is the single source of truth for the UPDATE field layout.
+func updateSections(body []byte) (withdrawn, attrs, nlri []byte, err error) {
+	const fixedFields = 4 // the two 2-octet length fields
+	if len(body) < fixedFields {
+		return nil, nil, nil, fmt.Errorf("%w: UPDATE body needs at least %d octets for its length fields, have %d", errShortMessage, fixedFields, len(body))
 	}
-	u := &ParsedUpdate{}
 
 	wdLen := int(binary.BigEndian.Uint16(body[0:2]))
 	off := 2
 	if off+wdLen > len(body) {
-		return nil, errShortMessage
+		return nil, nil, nil, fmt.Errorf("%w: withdrawn-routes length %d exceeds %d remaining octets", errShortMessage, wdLen, len(body)-off)
 	}
-	u.WithdrawnPrefixes = parsePrefixes(body[off:off+wdLen], false)
+	withdrawn = body[off : off+wdLen]
 	off += wdLen
 
 	if off+2 > len(body) {
-		return nil, errShortMessage
+		return nil, nil, nil, fmt.Errorf("%w: UPDATE truncated before the path-attribute length field at offset %d", errShortMessage, off)
 	}
 	attrLen := int(binary.BigEndian.Uint16(body[off : off+2]))
 	off += 2
 	if off+attrLen > len(body) {
-		return nil, errShortMessage
+		return nil, nil, nil, fmt.Errorf("%w: path-attribute length %d exceeds %d remaining octets", errShortMessage, attrLen, len(body)-off)
 	}
-	u.Attributes = parseAttributes(body[off : off+attrLen])
+	attrs = body[off : off+attrLen]
 	off += attrLen
 
 	if off < len(body) {
-		u.AnnouncedPrefixes = parsePrefixes(body[off:], false)
+		nlri = body[off:]
 	}
-	return u, nil
+	return withdrawn, attrs, nlri, nil
+}
+
+func parseUpdate(body []byte) (*ParsedUpdate, error) {
+	withdrawn, attrs, nlri, err := updateSections(body)
+	if err != nil {
+		return nil, err
+	}
+
+	withdrawnPrefixes, err := ParsePrefixes(withdrawn, false)
+	if err != nil {
+		return nil, fmt.Errorf("UPDATE withdrawn routes: %w", err)
+	}
+	announcedPrefixes, err := ParsePrefixes(nlri, false)
+	if err != nil {
+		return nil, fmt.Errorf("UPDATE NLRI: %w", err)
+	}
+
+	return &ParsedUpdate{
+		WithdrawnPrefixes: withdrawnPrefixes,
+		Attributes:        parseAttributes(attrs),
+		AnnouncedPrefixes: announcedPrefixes,
+	}, nil
 }
 
 func parseNotification(body []byte) *ParsedNotification {
@@ -249,38 +295,71 @@ func parseAttributes(data []byte) []PathAttribute {
 	return attrs
 }
 
-// ParsePrefixes parses packed NLRI prefixes into netip.Prefix values.
+// ParsePrefixes parses packed IPv4 NLRI prefixes into netip.Prefix values.
 // Set addPath=true when the NLRI includes a 4-byte Path Identifier per prefix.
-func ParsePrefixes(data []byte, addPath bool) []netip.Prefix {
-	return parsePrefixes(data, addPath)
+//
+// The withdrawn-routes and NLRI fields of a BGP UPDATE are always IPv4
+// (RFC 4271 Section 4.3); IPv6 reachability travels in MP_REACH_NLRI. Use
+// ParsePrefixesAFI for those.
+func ParsePrefixes(data []byte, addPath bool) ([]netip.Prefix, error) {
+	return ParsePrefixesAFI(data, AFIIPv4, addPath)
 }
 
-func parsePrefixes(data []byte, addPath bool) []netip.Prefix {
+// ParsePrefixesAFI parses packed NLRI prefixes for the given address family.
+//
+// Malformed input is reported, never silently dropped. A damaged NLRI field
+// returns the prefixes decoded so far together with an error naming the offset
+// and the offending value, so a caller can both salvage the good entries and
+// tell the operator the record is damaged. Returning the short list alone would
+// make "fewer routes than the file contains" indistinguishable from "the file
+// has fewer routes" (ai/rules/fail-closed-guards.md).
+//
+// A prefix length beyond the family width is never emitted: netip's zero Prefix
+// reads downstream as a default route.
+//
+// An unrecognized AFI yields no prefixes and an error, per RFC 6396
+// Section 4.3.3 ("SHOULD discard the remainder of the MRT record").
+func ParsePrefixesAFI(data []byte, afi uint16, addPath bool) ([]netip.Prefix, error) {
+	var maxBits int
+	switch afi {
+	case AFIIPv4:
+		maxBits = 32
+	case AFIIPv6:
+		maxBits = 128
+	default:
+		return nil, fmt.Errorf("%w: %d, want %d (IPv4) or %d (IPv6)", errBadAFI, afi, AFIIPv4, AFIIPv6)
+	}
+
 	var prefixes []netip.Prefix
 	off := 0
 	for off < len(data) {
 		if addPath {
 			if off+4 >= len(data) {
-				break
+				return prefixes, fmt.Errorf("%w: NLRI truncated inside the add-path Path Identifier at offset %d", errShortData, off)
 			}
 			off += 4
 		}
-		if off >= len(data) {
-			break
-		}
 		pfxLen := int(data[off])
 		off++
+		if pfxLen > maxBits {
+			return prefixes, fmt.Errorf("%w: prefix length %d at offset %d exceeds %d bits for AFI %d", errBadPrefixLen, pfxLen, off-1, maxBits, afi)
+		}
 		byteLen := (pfxLen + 7) / 8
 		if off+byteLen > len(data) {
-			break
+			return prefixes, fmt.Errorf("%w: prefix at offset %d needs %d octets, %d remain", errShortData, off, byteLen, len(data)-off)
 		}
-		var addr [4]byte
-		copy(addr[:], data[off:off+byteLen])
+
+		var buf [16]byte
+		copy(buf[:byteLen], data[off:off+byteLen])
 		off += byteLen
-		ip := netip.AddrFrom4(addr)
+
+		ip := netip.AddrFrom16(buf)
+		if afi == AFIIPv4 {
+			ip = netip.AddrFrom4([4]byte(buf[:4]))
+		}
 		prefixes = append(prefixes, netip.PrefixFrom(ip, pfxLen))
 	}
-	return prefixes
+	return prefixes, nil
 }
 
 // ParseASPath parses AS_PATH value bytes into a list of (segType, []asn) pairs.

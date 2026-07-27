@@ -147,6 +147,7 @@ Examples:
 	}
 
 	st := newAttrAnalysis()
+	var damaged malformedCounter
 
 	for _, fname := range args {
 		st.Files = append(st.Files, fname)
@@ -155,9 +156,9 @@ Examples:
 				st.PeerTable = parsePeerIndexTable(data)
 			},
 			OnRIB: func(data []byte, subtype uint16) {
-				forEachRIBEntry(data, subtype, func(peerIndex uint16, attrs []byte) {
+				damaged.note(forEachRIBEntry(data, subtype, func(peerIndex uint16, attrs []byte) {
 					attrAnalyzeRoute(attrs, peerIndex, st)
-				})
+				}))
 			},
 			OnBGP4MP: func(data []byte, subtype uint16, _ uint32) {
 				body, _ := extractBGP4MPUpdate(subtype, data)
@@ -177,6 +178,7 @@ Examples:
 
 	attrPrintJSON(os.Stdout, st)
 	attrPrintSummary(os.Stderr, st)
+	damaged.report(os.Stderr)
 
 	return 0
 }

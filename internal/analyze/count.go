@@ -31,15 +31,16 @@ Examples:
 
 	counts := make(map[int]int) // attrCount -> frequency
 	total := 0
+	var damaged malformedCounter
 
 	for _, fname := range args {
 		if err := processMRTFile(fname, mrtHandler{
 			OnRIB: func(data []byte, subtype uint16) {
-				forEachRIBEntry(data, subtype, func(_ uint16, attrs []byte) {
+				damaged.note(forEachRIBEntry(data, subtype, func(_ uint16, attrs []byte) {
 					n := countAttrs(attrs)
 					counts[n]++
 					total++
-				})
+				}))
 			},
 		}); err != nil {
 			fmt.Fprintf(os.Stderr, "error processing %s: %v\n", fname, err)
@@ -64,6 +65,8 @@ Examples:
 
 	fmt.Println("| Attrs | Count | Percent | Cumulative |")
 	fmt.Println("|-------|-------|---------|------------|")
+
+	defer damaged.report(os.Stderr)
 
 	cumulative := 0
 	for _, k := range keys {

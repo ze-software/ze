@@ -91,6 +91,7 @@ Examples:
 		PeerTable: make(map[uint16]*mrtPeerInfo),
 		ASNData:   make(map[uint32]*commASNStats),
 	}
+	var damaged malformedCounter
 
 	for _, fname := range fs.Args() {
 		st.Files = append(st.Files, fname)
@@ -99,7 +100,7 @@ Examples:
 				st.PeerTable = parsePeerIndexTable(data)
 			},
 			OnRIB: func(data []byte, subtype uint16) {
-				forEachRIBEntry(data, subtype, func(peerIndex uint16, attrs []byte) {
+				damaged.note(forEachRIBEntry(data, subtype, func(peerIndex uint16, attrs []byte) {
 					asn := uint32(0)
 					if peer, ok := st.PeerTable[peerIndex]; ok {
 						asn = peer.ASN
@@ -108,7 +109,7 @@ Examples:
 						asn = uint32(peerIndex) + 0x10000
 					}
 					commAnalyzeRoute(attrs, asn, peerIndex, st, *postPolicy)
-				})
+				}))
 			},
 			OnBGP4MP: func(data []byte, subtype uint16, _ uint32) {
 				body, peerASN := extractBGP4MPUpdate(subtype, data)
@@ -135,6 +136,7 @@ Examples:
 		fmt.Fprintf(os.Stderr, "unknown format: %s\n", *format)
 		return 1
 	}
+	damaged.report(os.Stderr)
 
 	return 0
 }
