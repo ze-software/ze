@@ -1,0 +1,61 @@
+# Test: ze doctor warns that BGP cannot bind on an LCP-shadowed interface when
+#       vpp.lcp.netns names a namespace ze does not run in.
+# VALIDATES: fixit-vpp-lcp-reachability AC-12 -- the DELIVERED checkVPPLCPNetns
+# (internal/plugins/iface/vpp/doctor.go) reached from the USER entry point.
+# Registration, phase, platform filtering and the diagnostic code all have to
+# line up for this to fire; the unit tests in
+# internal/plugins/iface/vpp/register_test.go exercise the decision logic, and
+# this proves an operator actually sees it. Required by ai/rules/doctor-checks.md
+# ("Test Requirement": unit AND functional), modelled on
+# test/ui/doctor-vpp-lcp-plugin.ci.
+# PREVENTS: the warning going silent -- the netns leaf DEFAULTS to "dataplane"
+# (ze-vpp-conf.yang), so the broken-by-default case is the one omitting the
+# leaf entirely. A check that only fired on an explicitly-set netns would look
+# correct in review and never reach the operator it exists for.
+#
+# No option=needs-linux: unlike the sibling lcp-plugin check this one opens no
+# probe and has no runtime.GOOS gate (doctor.go checkVPPLCPNetns reads the
+# config tree only), so it must fire on every platform.
+#
+# The netns leaf is deliberately OMITTED: "dataplane" is the YANG default and
+# doctor.go re-applies it, so this covers the default-configuration path.
+#
+# This file runs exactly ONE command on purpose. expect=stdout:contains= is
+# matched against the file's ACCUMULATED stdout, not per command, so a second
+# `ze explain doctor-vpp-lcp-netns` in the same file prints the code name and
+# satisfies the code assertion on its own -- with checkVPPLCPNetns stubbed out
+# the first draft of this test still passed that assertion. Keeping the file to
+# one command is what makes all three assertions gate.
+
+tmpfs=vpp-lcp-netns.conf:terminator=EOF_CONF
+bgp {
+    router-id 1.2.3.4
+    session {
+        asn {
+            local 65000
+        }
+    }
+}
+
+vpp {
+    lcp {
+        enabled true
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json vpp-lcp-netns.conf
+expect=stdout:contains=doctor-vpp-lcp-netns
+expect=stdout:contains=is not root-reachable
+expect=stdout:contains=dataplane
+# // test-relax: the `ze explain doctor-vpp-lcp-netns` command and its assertion
+#   are removed from this NEVER-COMMITTED test because they made it WEAKER, not
+#   stronger. Assertions match accumulated stdout, so explain's own output
+#   printed the code name and satisfied `contains=doctor-vpp-lcp-netns` even
+#   with checkVPPLCPNetns stubbed to return nil -- proven by a mutation run.
+#   What the dropped assertion actually proved is still gated elsewhere:
+#   TestRegistryKnownCodes (internal/core/diagnostic/registry_test.go:12)
+#   walks EVERY registered code and requires a non-empty title and
+#   description, and test/ui/command-contract-explain.ci gates the `ze explain`
+#   CLI contract itself. The three remaining assertions now all gate on the
+#   doctor output this test exists to prove.
