@@ -62,6 +62,22 @@ func setFilterState(configs map[string]*peerRoleConfig, n2ip map[string]string) 
 	filterMu.Unlock()
 }
 
+// filterKeyLocked maps an OnValidateOpen peer id (the peer NAME) to the key the
+// filter maps use (the peer ADDRESS). If peerID is already an address, or no
+// mapping exists, it is used as-is.
+//
+// Both the setter and the clearer go through here so they can never disagree
+// about which key they touch: a clear that skipped the name -> IP translation
+// would delete an unreachable key and leave the live one in place.
+//
+// Caller must hold filterMu.
+func filterKeyLocked(peerID string) string {
+	if ip, ok := filterNameToIP[peerID]; ok {
+		return ip
+	}
+	return peerID
+}
+
 // setFilterRemoteRole stores a peer's negotiated remote role for filter closures.
 // peerID is the peer name from OnValidateOpen; it is resolved to IP via filterNameToIP.
 func setFilterRemoteRole(peerID, remoteRole string) {
@@ -69,13 +85,22 @@ func setFilterRemoteRole(peerID, remoteRole string) {
 	if filterRemoteRoles == nil {
 		filterRemoteRoles = make(map[string]string)
 	}
-	// Resolve peer name to IP. If peerID is already an IP (no name mapping), use as-is.
-	key := peerID
-	if ip, ok := filterNameToIP[peerID]; ok {
-		key = ip
-	}
-	filterRemoteRoles[key] = remoteRole
+	filterRemoteRoles[filterKeyLocked(peerID)] = remoteRole
 	filterMu.Unlock()
+}
+
+// clearFilterRemoteRole drops a peer's learned remote role, so the RFC 9234
+// Section 5 gates fall back to the configured complement (resolvePeerRole)
+// instead of a value the peer is no longer advertising. Returns the role that
+// was dropped, or "" if there was none, so the caller can report a real
+// transition without a second lookup.
+func clearFilterRemoteRole(peerID string) string {
+	filterMu.Lock()
+	defer filterMu.Unlock()
+	key := filterKeyLocked(peerID)
+	previous := filterRemoteRoles[key]
+	delete(filterRemoteRoles, key)
+	return previous
 }
 
 // getFilterConfig returns the role config and remote role for a peer by IP address.
@@ -157,23 +182,7 @@ func RunRolePlugin(conn net.Conn) int {
 	// WantsValidateOpen is auto-set by SDK when this callback is registered.
 	// Also stores the remote peer's role for ingress/egress filter closures.
 	p.OnValidateOpen(func(input *sdk.ValidateOpenInput) *sdk.ValidateOpenOutput {
-		// Resolve peer name to IP for config lookup (peerConfigs keyed by IP).
-		configKey := input.Peer
-		if ip, ok := nameToIP[input.Peer]; ok {
-			configKey = ip
-		}
-		cfg := peerConfigs[configKey]
-		result := validateOpenRolePair(cfg, input)
-
-		// Store remote role for filter closures (even if validation rejects).
-		remoteRoles := extractRolesFromCaps(input.Remote.Capabilities)
-		if len(remoteRoles) > 0 {
-			if name, ok := roleValueToName(remoteRoles[0]); ok {
-				setFilterRemoteRole(input.Peer, name)
-			}
-		}
-
-		return result
+		return applyValidateOpen(peerConfigs, nameToIP, input)
 	})
 
 	ctx, cancel := sdk.SignalContext()
@@ -187,6 +196,68 @@ func RunRolePlugin(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// applyValidateOpen runs the RFC 9234 Section 4.2 OPEN validation for one peer
+// and re-establishes what that peer IS to us for the Section 5 filters.
+//
+// Every OPEN re-establishes the learned role, INCLUDING declaring its absence.
+// The previous form only wrote when the peer sent a usable Role capability, so
+// a peer that once advertised a role and later reconnected without one kept the
+// stale value indefinitely -- and resolvePeerRole (otc.go) PREFERS the learned
+// capability over the configured complement, so the peer went on being gated
+// against a relationship it had stopped claiming. The only clear was the
+// wholesale wipe in setFilterState on reconfigure.
+//
+// The OPEN is the ordering-safe place to do this, and a session-down handler is
+// not. A down clear would have to race this write from a different goroutine:
+// for an in-process plugin the structured state event is delivered on the
+// process deliveryLoop while validate-open arrives on the bridge callback loop,
+// and the state event carries no session identity or sequence number to order
+// the two by (internal/component/bgp/server/events.go:101-114 sets PeerAddress,
+// PeerName, State and Reason, and never a MessageID). A late down could
+// therefore delete a role that a newer session had already written. Clearing
+// here is driven by the very event that sets it, for the same session, so the
+// last OPEN always decides.
+//
+// The clear is deliberately symmetric with the set on the reject path too: the
+// role is recorded even when validateOpenRolePair refuses the session, so it
+// must be dropped on refusal as well, rather than leaving a stale relationship
+// exactly when the relationship is most in doubt.
+func applyValidateOpen(
+	peerConfigs map[string]*peerRoleConfig,
+	nameToIP map[string]string,
+	input *sdk.ValidateOpenInput,
+) *sdk.ValidateOpenOutput {
+	// Resolve peer name to IP for config lookup (peerConfigs keyed by IP).
+	configKey := input.Peer
+	if ip, ok := nameToIP[input.Peer]; ok {
+		configKey = ip
+	}
+	cfg := peerConfigs[configKey]
+	result := validateOpenRolePair(cfg, input)
+
+	// What role, if any, this OPEN declares. An unassigned value (RFC 9234
+	// Table 1 leaves 5-255 unassigned) is not a role we can act on, so it
+	// clears rather than preserving the previous session's value.
+	learned := ""
+	if roles := extractRolesFromCaps(input.Remote.Capabilities); len(roles) > 0 {
+		learned, _ = roleValueToName(roles[0])
+	}
+
+	if learned != "" {
+		setFilterRemoteRole(input.Peer, learned)
+		return result
+	}
+
+	// Report only a real transition: a peer that has never advertised a role
+	// must not log on every reconnect.
+	if previous := clearFilterRemoteRole(input.Peer); previous != "" {
+		logger().Info("role capability withdrawn: peer reconnected without the role it previously advertised",
+			"peer", input.Peer, "previous-role", previous,
+			"effect", "RFC 9234 Section 5 gates now use the configured role complement for this peer")
+	}
+	return result
 }
 
 // GetYANG returns the embedded YANG for the Role plugin.

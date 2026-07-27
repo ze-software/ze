@@ -345,10 +345,12 @@ func OTCIngressFilter(src filterapi.PeerFilterInfo, payload []byte, meta map[str
 
 	switch result {
 	case otcRejectLeak:
+		recordDrop(dropLeak, src.Address, remoteRole)
 		logger().Debug("OTC ingress reject: route leak",
 			"peer", src.Address, "remote-role", remoteRole)
 		return false, nil
 	case otcTreatWithdraw:
+		recordDrop(dropMalformedOTC, src.Address, remoteRole)
 		logger().Info("OTC treat-as-withdraw: malformed OTC",
 			"peer", src.Address)
 		if wd := payloadToWithdrawal(payload); wd != nil {
@@ -500,6 +502,7 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 	// propagated to Providers, Peers, or RSes."
 	// This check does not depend on source peer configuration.
 	if checkOTCEgress(destRemoteRole, extractAttrsFromPayload(payload)) {
+		recordDrop(dropOTCPresent, dest.Address, destRemoteRole)
 		logger().Debug("OTC egress suppress (wire-bytes)",
 			"src", src.Address, "dest", dest.Address, "dest-role", destRemoteRole)
 		return false
@@ -514,6 +517,7 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 	if destRemoteRole == roleProvider || destRemoteRole == rolePeer || destRemoteRole == roleRS {
 		srcRole := resolveSrcRole(meta, srcCfg)
 		if srcRole == roleCustomer || srcRole == rolePeer || srcRole == roleRSClient {
+			recordDrop(dropSourceRole, dest.Address, destRemoteRole)
 			logger().Debug("OTC egress suppress (src-role)",
 				"src", src.Address, "src-role", srcRole, "dest", dest.Address, "dest-role", destRemoteRole)
 			return false
@@ -540,6 +544,14 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 			destRole = roleUnknown
 		}
 		if !slices.Contains(srcCfg.resolvedExport, destRole) {
+			// Operator policy, not an RFC gate -- but just as invisible when it
+			// fires, and a mistyped export set is exactly how a peer's routes
+			// disappear. Counted under its own reason so it is distinguishable
+			// from the RFC suppressions above.
+			recordDrop(dropExportSet, dest.Address, destRole)
+			logger().Debug("OTC egress suppress (export set)",
+				"src", src.Address, "dest", dest.Address, "dest-role", destRole,
+				"export", srcCfg.resolvedExport)
 			return false // Destination role not in export set.
 		}
 	}

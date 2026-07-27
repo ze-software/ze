@@ -8,6 +8,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/metrics"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
@@ -43,6 +44,9 @@ func init() {
 		RunEngine:       RunRolePlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			ConfigureLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureMetrics: func(reg metrics.Registry) {
+			setMetricsRegistry(reg)
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

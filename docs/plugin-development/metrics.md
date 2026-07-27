@@ -93,6 +93,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `bgp-watchdog` | `watchdog` | `bgp` prefix redundant |
 | `bgp-rpki` | `rpki` | `bgp` prefix redundant |
 | `bgp-persist` | `persist` | `bgp` prefix redundant |
+| `bgp-role` | `role` | `bgp` prefix redundant |
 
 ### Full Inventory
 
@@ -124,6 +125,8 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_rpki_vrps_cached` | Gauge | | bgp-rpki |
 | `ze_rpki_sessions_active` | Gauge | | bgp-rpki |
 | `ze_rpki_validation_outcomes_total` | CounterVec | result | bgp-rpki |
+| `ze_role_route_rejects_total` | CounterVec | reason | bgp-role |
+| `ze_role_route_suppressions_total` | CounterVec | reason | bgp-role |
 | `ze_persist_routes_stored` | Gauge | | bgp-persist |
 | `ze_persist_peers_tracked` | Gauge | | bgp-persist |
 | `ze_persist_route_replays_total` | Counter | | bgp-persist |
@@ -326,8 +329,17 @@ with state machines, caches, or I/O operations benefit from metrics.
 | Has metrics | No metrics needed |
 |-------------|-------------------|
 | Plugins with route state (rib, sysrib, persist) | NLRI codecs (bgp-nlri-*) |
-| Plugins with external I/O (fib-kernel, rpki) | Capability-only plugins (bgp-role) |
+| Plugins with external I/O (fib-kernel, rpki) | Pure capability-only plugins |
 | Plugins with timers/state machines (gr, watchdog) | Format/encoding plugins |
+| Plugins that drop or withhold routes (bgp-role) | |
+
+A plugin that can refuse a route needs metrics even if it holds no state: a
+suppression is invisible to the operator otherwise. `bgp-role` was once listed
+as capability-only, but it filters every UPDATE on ingress and egress, so each
+of its refusal paths carries a reason-labeled counter.
+
+<!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop -->
+<!-- source: internal/component/bgp/plugins/role/otc.go -- OTCIngressFilter, OTCEgressFilter -->
 
 ## Reference Implementation
 

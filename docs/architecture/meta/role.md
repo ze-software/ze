@@ -59,12 +59,46 @@ One consequence operators should know: that recovery feeds the RFC gates only. E
 <!-- source: internal/component/bgp/plugins/role/otc.go -- resolvePeerRole, peerRoleComplement -->
 <!-- source: internal/component/bgp/plugins/role/config.go -- resolveExport -->
 
-## Known limits
+## Config keying
 
-`extractPeerRoleConfigs` falls back to keying by peer **name** when the peer has no resolvable remote IP, while all three readers look up by address, so such a peer gets no config and the RFC gates revert to permissive.
+Role config is keyed by the peer's remote address, because that is the only key the readers use: all three `getFilterConfig` callers pass `PeerFilterInfo.Address.String()`. `extractPeerRoleConfigs` takes the address from `connection > remote > ip` (via `configjson.PeerRemoteIP`, which also covers a peer inheriting the address from its group).
 
-Remote roles learned from a capability are never cleared on session down, so a peer that once advertised a role and reconnects without one keeps the stale value, which `resolvePeerRole` prefers over the config complement.
+When no remote IP resolves, the delivered map key -- the peer **name** -- is used instead, but only when that name is itself a parseable address. Operators commonly name a peer by its own address, and in that case the name *is* the string the readers look up, so the fallback resolves correctly.
+
+A name that is not an address can never be reached, and neither can the group-level `dynamic` placeholder. Both are refused at parse time with a WARN naming the peer, rather than stored under a key nothing can find: a missing config sends every RFC 9234 Section 5 gate down its permissive branch, and a silently inert role is indistinguishable from no role at all. Such a peer never establishes anyway (`reactor/config.go` fails an empty or `dynamic` remote IP with `ErrIncompleteConfig` and skips the peer), so the role config was inert either way -- the defect was that it was inert *silently*. `bgp-rpki` refuses the same two shapes.
 
 <!-- source: internal/component/bgp/plugins/role/config.go -- extractPeerRoleConfigs -->
-<!-- source: internal/component/bgp/plugins/role/role.go -- setFilterState, setFilterRemoteRole -->
+<!-- source: internal/component/bgp/configjson/traverse.go -- PeerRemoteIP -->
+<!-- source: internal/component/bgp/reactor/config.go -- parsePeerFromTree remote-ip validation -->
+
+## Learned role lifecycle
+
+The role learned from a peer's OPEN Role capability is re-established on **every** OPEN, including when the OPEN carries no Role capability (or an unassigned value from the 5-255 range), in which case the previously learned role is dropped and the transition is logged. Without that, a peer that once advertised a role and reconnected without one kept the stale value indefinitely, and `resolvePeerRole` prefers the learned capability over the config complement -- so the peer stayed gated against a relationship it had stopped claiming.
+
+The OPEN is the ordering-safe place to do this. A session-down clear is not: the structured state event carries no session identity or sequence number, and for an in-process plugin it is delivered on the process delivery loop while validate-open arrives on the bridge callback loop, so a late down could delete a role a newer session had already written. Clearing on the OPEN is driven by the same event that sets it, for the same session, so the last OPEN always decides.
+
+The clear is symmetric with the set on the reject path: the role is recorded even when `validateOpenRolePair` refuses the session, so it is dropped on refusal too.
+
+<!-- source: internal/component/bgp/plugins/role/role.go -- applyValidateOpen, clearFilterRemoteRole, filterKeyLocked -->
+<!-- source: internal/component/bgp/server/events.go -- getStructuredStateEvent -->
+
+## Observability
+
+Every route the plugin refuses is counted, by reason:
+
+| Metric | Reasons |
+|--------|---------|
+| `ze_role_route_rejects_total{reason}` | `leak`, `malformed-otc` |
+| `ze_role_route_suppressions_total{reason}` | `otc-present`, `source-role`, `export-set` |
+
+The first drop of each reason also emits one WARN naming the peer, latched per reason per process so the forward path never pays a per-route log. Per-route detail stays at debug level. Before this, these paths logged at Debug and nothing else, so a peer's advertisements could be withheld with no signal at the default log level -- including because of a role or export-set typo.
+
+<!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop, buildMetrics -->
+
+## Known limits
+
+Role config cannot reach peers created from a **dynamic group** (`connection > remote > ip dynamic` plus a `range`). Such peers establish with real addresses but have no `peer` list entry, so `configjson.ForEachPeer` never visits them and neither the group's nor any peer's role config is delivered for them. `bgp-rpki` has the same limitation for its per-peer action overrides.
+
+<!-- source: internal/component/bgp/configjson/traverse.go -- ForEachPeer -->
+<!-- source: internal/component/bgp/config/resolve.go -- resolveDynamicGroup -->
 

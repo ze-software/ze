@@ -6,10 +6,17 @@ package role
 
 import (
 	"fmt"
+	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
+
+// dynamicPeerIP is the group-level placeholder that ze-bgp-conf.yang allows in
+// connection > remote > ip to mean "accept sessions from any address in the
+// group's range". It is never a peer address: reactor/config.go:79-81 rejects
+// it at peer level, and dynamically created peers carry their real address.
+const dynamicPeerIP = "dynamic"
 
 // peerRoleConfig holds per-peer role configuration.
 // The "import" keyword declares the local role and enables RFC 9234 ingress rules.
@@ -187,13 +194,53 @@ func extractPeerRoleConfigs(jsonStr string) (map[string]*peerRoleConfig, map[str
 			return
 		}
 
-		// Key by IP address for filter lookups. Fall back to peer name.
+		// Key by IP address, because that is the only key the runtime readers
+		// use: all three getFilterConfig callers pass PeerFilterInfo.Address
+		// (otc.go, OTCIngressFilter and both OTCEgressFilter lookups).
 		// configjson.PeerRemoteIP reads connection>remote>ip (the delivered shape); role's old
 		// local reader used the stale flat remote/ip path and silently returned "" on real config.
 		ip := configjson.PeerRemoteIP(peerMap, groupMap)
-		key := peerAddr
-		if ip != "" {
-			key = ip
+
+		// "dynamic" is a group-level placeholder, never a peer address. It is
+		// non-empty, so it used to sail past the empty check and be stored under
+		// the literal key "dynamic" -- a key no reader can ever produce, since
+		// every reader passes PeerFilterInfo.Address.String(). Reject it rather
+		// than manufacture an unreachable entry, matching bgp-rpki
+		// (plugins/rpki/rpki_config.go:283-287).
+		if ip == dynamicPeerIP {
+			logger().Warn("role config ignored: peer has no usable remote ip",
+				"peer", peerAddr, "remote-ip", ip,
+				"effect", "no Role capability is advertised and no RFC 9234 OTC gate runs for this peer",
+				"fix", "set connection > remote > ip to a literal address on the peer, not the group placeholder")
+			return
+		}
+
+		key := ip
+		if key == "" {
+			// No connection > remote > ip anywhere. The delivered map key is the
+			// peer NAME, and operators very commonly name a peer by its own
+			// address -- in which case the name IS the key every reader uses, so
+			// the fallback resolves correctly and must be kept.
+			//
+			// When the name is not an address, it cannot be: the readers only
+			// ever look up PeerFilterInfo.Address.String(). Storing it anyway
+			// produced config nothing could find, and a nil cfg sends the
+			// RFC 9234 Section 5 gates down their permissive branch -- the
+			// zero-value trap of ai/rules/fail-closed-guards.md, where a miss is
+			// indistinguishable from "this peer has no role configured". Such a
+			// peer also never establishes (reactor/config.go:76-78 fails the
+			// empty remote IP with ErrIncompleteConfig and :516-521 skips it),
+			// so the role config is inert either way; the defect being fixed is
+			// that it was inert SILENTLY.
+			if _, err := netip.ParseAddr(peerAddr); err != nil {
+				logger().Warn("role config ignored: peer has no remote ip and its name is not an address",
+					"peer", peerAddr,
+					"effect", "no Role capability is advertised and no RFC 9234 OTC gate runs for this peer",
+					"fix", "set connection > remote > ip on the peer or its group")
+				return
+			}
+			key = peerAddr
+		} else {
 			nameToIP[peerAddr] = ip
 		}
 
