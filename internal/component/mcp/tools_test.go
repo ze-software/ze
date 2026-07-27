@@ -183,7 +183,9 @@ func TestDispatchGenerated(t *testing.T) {
 			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
 		},
 	}
-	valid := map[string]bool{"rib status": true, "rib": true}
+	// Keys are the valid actions; the value says whether the command reads an
+	// inline peer selector (dispatcher-derived, see Command.TakesInlineSelector).
+	valid := map[string]bool{"rib status": false, "rib": false, "peer detail": true}
 
 	// Action only.
 	args, _ := json.Marshal(map[string]string{"action": "rib status"})
@@ -204,11 +206,26 @@ func TestDispatchGenerated(t *testing.T) {
 		t.Errorf("dispatched = %q, want %q", dispatched, "show bgp rib ipv4/unicast")
 	}
 
-	// With peer.
-	args, _ = json.Marshal(map[string]string{"action": "rib status", "peer": "10.0.0.1"})
+	// With peer: the selector goes AFTER the command's own `peer` keyword
+	// (ai/rules/cli-grammar.md "Peer Commands"), never in front of the command.
+	// The old prefix form built `peer 10.0.0.1 show bgp peer detail`, which the
+	// dispatcher resolves nowhere.
+	args, _ = json.Marshal(map[string]string{"action": "peer detail", "peer": "10.0.0.1"})
 	s.dispatchGenerated("show bgp", valid, args)
-	if dispatched != "peer 10.0.0.1 show bgp rib status" {
-		t.Errorf("dispatched = %q, want %q", dispatched, "peer 10.0.0.1 show bgp rib status")
+	if dispatched != "show bgp peer 10.0.0.1 detail" {
+		t.Errorf("dispatched = %q, want %q", dispatched, "show bgp peer 10.0.0.1 detail")
+	}
+
+	// A peer selector on an action that reads none is refused, not silently
+	// spliced somewhere the dispatcher would reject (fail closed).
+	dispatched = ""
+	args, _ = json.Marshal(map[string]string{"action": "rib status", "peer": "10.0.0.1"})
+	result = s.dispatchGenerated("show bgp", valid, args)
+	if _, isErr := result["isError"]; !isErr {
+		t.Error("expected error when peer is supplied for a non-selector action")
+	}
+	if dispatched != "" {
+		t.Errorf("no command should have been dispatched, got %q", dispatched)
 	}
 
 	// Whitespace in peer rejected.
@@ -714,6 +731,14 @@ func TestTypedParamsInToolSchema(t *testing.T) {
 					Help: "List peers",
 				},
 				{
+					// The one selector-taking command in this group: the
+					// dispatcher reads an inline peer selector for it, so the
+					// group legitimately advertises a `peer` argument.
+					Name:          "show bgp peer detail",
+					Help:          "Peer detail",
+					TakesSelector: true,
+				},
+				{
 					Name: "show config dump",
 					Help: "Dump config",
 				},
@@ -724,10 +749,13 @@ func TestTypedParamsInToolSchema(t *testing.T) {
 	tools := s.allTools()
 	// Find ze_show_bgp in the tool list.
 	var ribTool map[string]any
+	var configTool map[string]any
 	for _, tool := range tools {
 		if tool["name"] == "ze_show_bgp" {
 			ribTool = tool
-			break
+		}
+		if tool["name"] == "ze_show_config" {
+			configTool = tool
 		}
 	}
 	if ribTool == nil {
@@ -772,9 +800,30 @@ func TestTypedParamsInToolSchema(t *testing.T) {
 		t.Error("'arguments' should not be present when typed params exist")
 	}
 
-	// "peer" should still be present.
+	// "peer" should still be present: this group contains a selector-taking
+	// command ("show bgp peer detail").
 	if _, ok := schema.Properties["peer"]; !ok {
 		t.Error("missing 'peer' property")
+	}
+
+	// ...and must be ABSENT from a group with no selector-taking command.
+	// It used to be added to every generated tool, which invited a model to set
+	// it on `show config dump` and produced a command resolving nowhere.
+	if configTool == nil {
+		t.Fatal("ze_show_config tool not found")
+	}
+	configSchemaRaw, ok := configTool["inputSchema"].(json.RawMessage)
+	if !ok {
+		t.Fatal("ze_show_config inputSchema not json.RawMessage")
+	}
+	var configSchema struct {
+		Properties map[string]json.RawMessage `json:"properties"`
+	}
+	if err := json.Unmarshal(configSchemaRaw, &configSchema); err != nil {
+		t.Fatalf("unmarshal ze_show_config schema: %v", err)
+	}
+	if _, ok := configSchema.Properties["peer"]; ok {
+		t.Error("ze_show_config advertises a 'peer' property but none of its commands take a selector")
 	}
 
 	// "action" should still have enum.
@@ -944,6 +993,57 @@ func TestToolDescriptor_NoUIMetaWithoutResource(t *testing.T) {
 		}
 		if tool["_meta"] != nil {
 			t.Errorf("tool %q has _meta but no UIResource", tool["name"])
+		}
+	}
+}
+
+// TestPeerPropertyOnlyWhereUsable pins the advertise-equals-accept invariant:
+// a generated tool offers the `peer` argument exactly when its dispatch path
+// can place a value in the command.
+//
+// VALIDATES: `peer` is advertised for a command with an inline selector AND a
+// `peer` keyword, and withheld both when there is no inline selector and when
+// the inline selector is not a peer (`clear dns cache record <name>`).
+// PREVENTS: re-advertising `peer` on every generated tool (the original bug,
+// which produced `peer <sel> show bgp peer detail`), and the subtler variant of
+// offering it on a selector-taking command with no `peer` keyword to anchor the
+// value to, where every call could only ever return an error.
+func TestPeerPropertyOnlyWhereUsable(t *testing.T) {
+	tests := []struct {
+		name   string
+		action action
+		want   bool
+	}{
+		{"peer keyword and inline selector", action{name: "peer detail", full: "show bgp peer detail", takesSelector: true}, true},
+		{"peer keyword, selector last", action{name: "peer", full: "delete bgp peer", takesSelector: true}, true},
+		{"inline selector but no peer keyword", action{name: "cache record", full: "clear dns cache record", takesSelector: true}, false},
+		{"peer keyword but no inline selector", action{name: "peer list", full: "show bgp peer list", takesSelector: false}, false},
+		{"neither", action{name: "dump", full: "show config dump", takesSelector: false}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := actionAcceptsPeer(tt.action); got != tt.want {
+				t.Errorf("actionAcceptsPeer(%q) = %v, want %v", tt.action.full, got, tt.want)
+			}
+			if got := groupTakesSelector([]action{tt.action}); got != tt.want {
+				t.Errorf("groupTakesSelector(%q) = %v, want %v", tt.action.full, got, tt.want)
+			}
+		})
+	}
+
+	// Whatever the group advertises, the dispatch path must agree: splicing
+	// succeeds for exactly the accepted set, and puts the value after `peer`.
+	for _, tt := range tests {
+		spliced, ok := spliceSelector(tt.action.full, "10.0.0.1")
+		if !tt.want {
+			continue
+		}
+		if !ok {
+			t.Errorf("%s: advertised as accepting a peer but spliceSelector refused %q", tt.name, tt.action.full)
+			continue
+		}
+		if !strings.Contains(spliced, "peer 10.0.0.1") {
+			t.Errorf("%s: selector not placed after the peer keyword: %q", tt.name, spliced)
 		}
 	}
 }

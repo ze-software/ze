@@ -33,7 +33,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        resp = dispatch(api, 'system file-descriptors max')
+        resp = dispatch(api, 'set system file-descriptors max')
         status = resp.get('status')
         if status is None:
             runtime_fail(f'fd-set: dispatch returned no status: {resp}')

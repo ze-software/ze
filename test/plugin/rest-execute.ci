@@ -16,7 +16,7 @@ import json
 import sys
 import urllib.request
 import urllib.error
-from ze_api import API
+from ze_api import API, runtime_fail
 # // test-relax: dropped 'import time'; blind sleep poll -> api.wait_until(HTTP GET ok)
 
 REST_PORT = 18082
@@ -37,6 +37,36 @@ def wait_for_rest(api, url, timeout=10):
     api.wait_until(_ok, attempts=max(1, int(timeout / 0.5)), delay=0.5)
     return captured.get('body')
 
+def post_execute(url, payload):
+    """POST /api/v1/execute and return the decoded result, however it failed.
+
+    urlopen RAISES on a non-2xx status, and a command the daemon cannot resolve
+    can also come back as a null body. Either way the exception/AttributeError
+    escaped main()'s try block, the finally shut ze down cleanly, and the
+    ZE-OBSERVER-FAIL sentinel that the excepthook then emitted was written to a
+    stderr nothing was relaying any more -- so the runner saw exit 0 and
+    reported PASS. Normalising every failure into a result dict keeps the
+    assertion (and its runtime_fail) running while ze is still alive.
+    """
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode(),
+        headers={'Content-Type': 'application/json'},
+    )
+    try:
+        body = urllib.request.urlopen(req, timeout=5).read()
+    except urllib.error.HTTPError as exc:
+        body = exc.read()
+    except (urllib.error.URLError, OSError) as exc:
+        return {'status': 'error', 'error': f'{exc}'}
+    try:
+        decoded = json.loads(body)
+    except (json.JSONDecodeError, ValueError):
+        return {'status': 'error', 'error': body[:200].decode('utf-8', 'replace')}
+    if not isinstance(decoded, dict):
+        return {'status': 'error', 'error': f'non-object response: {decoded!r}'}
+    return decoded
+
 def dispatch(api, command):
     resp = api._call_engine(
         'ze-plugin-engine:dispatch-command', {'command': command})
@@ -54,38 +84,47 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        # Wait for REST API to be up
+        # runtime_fail, never sys.exit: the runner watches ze's exit code, and
+        # the finally block below has already shut ze down cleanly (exit 0) by
+        # the time an observer's sys.exit(1) runs, so the runner reported PASS
+        # (ai/rules/testing.md, observer-exit antipattern). Every assertion here
+        # was sys.exit(1), which is why the params call below kept "passing"
+        # while asking for a command the daemon answers with "unknown command".
         data = wait_for_rest(api, f'{BASE_URL}/commands')
         if data is None:
-            print('FAIL: REST API did not respond within timeout', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail('REST API did not respond within timeout')
 
         # Test execute with params (exercises BuildCommand via convert helper)
         exec_url = f'{BASE_URL}/execute'
-        req = urllib.request.Request(
-            exec_url,
-            data=json.dumps({'command': 'show version'}).encode(),
-            headers={'Content-Type': 'application/json'},
-        )
-        resp = urllib.request.urlopen(req, timeout=5)
-        result = json.loads(resp.read())
+        # // test-relax: NO assertion removed -- the two inline
+        # Request/urlopen/json.loads blocks moved into post_execute() above, which
+        # is strictly STRONGER: urlopen raised on the failure these calls exist to
+        # catch, and the raise escaped to the excepthook only after ze had already
+        # been shut down by the finally block, so the sentinel never reached the
+        # runner and the test passed on a command the daemon rejects. Line count
+        # drops because the boilerplate is now shared; every runtime_fail below is
+        # kept and two payload assertions were added.
+        result = post_execute(exec_url, {'command': 'show version'})
         if result.get('status') != 'done':
-            print(f'FAIL: execute status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail(f'show version status={result.get("status")} error={result.get("error")}')
         print('OK: REST execute returned status=done', file=sys.stderr)
 
-        # Test execute with params map
-        req = urllib.request.Request(
-            exec_url,
-            data=json.dumps({'command': 'summary', 'params': {}}).encode(),
-            headers={'Content-Type': 'application/json'},
-        )
-        resp = urllib.request.urlopen(req, timeout=5)
-        result = json.loads(resp.read())
+        # Test execute with params map. Assert on the PAYLOAD, not just the
+        # status: a command that resolves nowhere returns status=error here, and
+        # a handler answering "done" with nothing would still be a defect.
+        result = post_execute(exec_url, {'command': 'show bgp summary', 'params': {}})
         if result.get('status') != 'done':
-            print(f'FAIL: summary status={result.get("status")}', file=sys.stderr)
-            sys.exit(1)
-        print('OK: REST execute with params returned status=done', file=sys.stderr)
+            runtime_fail(f'show bgp summary status={result.get("status")} error={result.get("error")} data={result.get("data")}')
+
+        payload = result.get('data')
+        if isinstance(payload, str):
+            payload = json.loads(payload)
+        summary = (payload or {}).get('summary', {})
+        if 'peers-configured' not in summary:
+            runtime_fail(f'execute with params returned no peers-configured: {payload}')
+        if not any(p.get('address') == '127.0.0.1' for p in summary.get('peers', [])):
+            runtime_fail(f'execute with params did not list peer 127.0.0.1: {summary}')
+        print('OK: REST execute with params returned peer data', file=sys.stderr)
     finally:
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()

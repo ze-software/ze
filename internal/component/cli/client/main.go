@@ -845,7 +845,13 @@ func fetchPeerSelectorsFromDispatch(dispatch CommandFunc) []cmd.Suggestion {
 		return peerCache.suggestions
 	}
 
-	output, err := dispatch("peer * list")
+	// `show bgp peer list` (ze-bgp:peer-list), NOT `peer * list`: the bare form
+	// was removed with the verb-first migration (ze-peer-cmd.yang revision note),
+	// and it was a builtin whose only registration was that YANG path, so the
+	// removal did not deprecate it -- it made this call return "unknown command".
+	// The `*` must be dropped too: this node declares no selector leaf, so a
+	// selector token breaks the match. Bare defaults to all peers.
+	output, err := dispatch("show bgp peer list")
 	if err != nil {
 		return nil
 	}
@@ -902,7 +908,8 @@ func fetchPeerSelectors(client *cliClient) []cmd.Suggestion {
 		return peerCache.suggestions
 	}
 
-	output, err := client.SendCommand("peer * list")
+	// See fetchPeerSelectorsFromDispatch: `show bgp peer list`, no `*`.
+	output, err := client.SendCommand("show bgp peer list")
 	if err != nil {
 		return nil
 	}

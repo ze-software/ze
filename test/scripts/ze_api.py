@@ -334,6 +334,12 @@ class API:
         In TLS mode, reads from the shared connection. If an inbound request
         arrives instead of the expected response, it is queued for _serve_one.
         """
+        # Fail closed BEFORE the engine hears anything. If an exception is
+        # propagating, this call is almost certainly the observer's
+        # `finally: dispatch(api, 'request shutdown')` -- the last moment ze is
+        # alive to relay the sentinel. See _emit_sentinel_if_unwinding.
+        _emit_sentinel_if_unwinding()
+
         req_id = self._next_id()
         self._send_rpc(self._engine_fd, req_id, method, params)
 
@@ -1628,10 +1634,19 @@ class API:
         Processes incoming RPC callbacks on callback connection until bye is received,
         parent dies, or timeout expires.
 
+        Fail-closed: if an exception is propagating when this is called -- the
+        ``finally: dispatch(api, 'request shutdown'); api.wait_for_shutdown()``
+        shape nearly every observer uses -- the ZE-OBSERVER-FAIL sentinel is
+        emitted HERE, before the wait, rather than by ``sys.excepthook`` after
+        it. See :func:`_emit_sentinel_if_unwinding` for why the ordering is the
+        whole defect.
+
         Args:
             timeout: Maximum time to wait
         """
         import time
+
+        _emit_sentinel_if_unwinding()
 
         start_time = time.time()
         try:
@@ -1771,13 +1786,18 @@ def dispatch_until(
     ``attempts`` are exhausted (the caller inspects it and fails as needed).
     Internal ``time.sleep`` is ratchet-exempt. Also exposed as
     :meth:`API.dispatch_until`.
+
+    Routed through the guarded :func:`dispatch` rather than ``API.dispatch``:
+    polling a command the daemon cannot resolve used to raise out of the loop on
+    the FIRST attempt, which is the swallow described in
+    :func:`_emit_sentinel_if_unwinding`. It now polls out and hands the caller
+    ``{"status": "error", ...}`` to fail on explicitly.
     """
     import time
 
     result: dict = {}
     for _ in range(max(1, attempts)):
-        resp = api.dispatch(command) or {}
-        result = resp.get("result", {}) or {}
+        result = dispatch(api, command)
         if predicate(result):
             return result
         time.sleep(delay)
@@ -1901,6 +1921,107 @@ def fail(message: str, encoding: str = "text") -> None:
 # in code and in the runner makes this a two-point coupling; change both.
 _OBSERVER_FAIL_SENTINEL = "ZE-OBSERVER-FAIL"
 
+# Set once the sentinel has been written, so the first (most specific) reason
+# wins and a later generic one cannot bury it. wait_for_shutdown and the
+# excepthook can both fire for a single failure; the runner only needs one line.
+_sentinel_written = False
+
+
+def _write_sentinel(message: str) -> None:
+    """Write the ZE-OBSERVER-FAIL slog line to the observer's stderr, once.
+
+    slog format is `time=... level=... msg="..." key=value ...`. Level must be
+    present for classifyStderrLine to treat it as valid slog and pass the relay
+    filter. The subsystem attr identifies the source in telemetry.
+
+    The single writer for the sentinel: runtime_fail, the fail-closed
+    wait_for_shutdown guard, and the excepthook all route through here so the
+    line format stays a two-point coupling with the runner rather than three.
+    """
+    global _sentinel_written
+    if _sentinel_written:
+        return
+    _sentinel_written = True
+    sys.stderr.write(
+        f"time=runtime level=ERROR "
+        f'msg="{_OBSERVER_FAIL_SENTINEL}: {message}" '
+        f"subsystem=test.observer\n"
+    )
+    sys.stderr.flush()
+
+
+def _emit_sentinel_if_unwinding() -> None:
+    """Emit the sentinel NOW if an exception is propagating through us.
+
+    This is the fail-closed half of the observer failure path, and it exists
+    because the swallow was an ORDERING defect, not a missing handler.
+
+    ``sys.excepthook`` does route an uncaught observer exception to
+    runtime_fail. But the exception first unwinds through the observer's
+    ``finally: dispatch(api, 'request shutdown'); api.wait_for_shutdown()``,
+    which stops ze -- and ze is what RELAYS the observer's stderr to the runner.
+    By the time the excepthook writes the sentinel there is nothing left to
+    carry it, the runner sees a clean exit 0, and the test passes having proven
+    nothing. Three tests dispatched commands the daemon answers with "unknown
+    command" for months this way.
+
+    Called from two places, and BOTH are needed:
+
+    - ``_call_engine``, which is the funnel every observer reaches first. The
+      typical ``finally`` runs ``dispatch(api, 'request shutdown')`` BEFORE
+      ``wait_for_shutdown``, and that dispatch can itself raise (ze often closes
+      the connection before replying), replacing the original exception and
+      skipping the wait entirely -- so a guard only in ``wait_for_shutdown``
+      never runs. Checking on the way IN to the engine call catches it while ze
+      is still up.
+    - ``wait_for_shutdown``, for the observers whose ``finally`` waits without
+      dispatching anything first.
+
+    This retrofits the fix to all 346 observer scripts without any of them
+    adopting anything. ``sys.exc_info()`` is set only while an exception is
+    genuinely in flight: a ``finally`` reached after an ``except`` handled one
+    sees ``(None, None, None)``, so a recovered error does not trip this. An
+    AST scan of all 707 observer blocks found no engine call inside an
+    ``except`` handler that recovers, so there is no false-positive surface.
+
+    SystemExit and KeyboardInterrupt are excluded: the first is how
+    runtime_fail and deliberate exits terminate (it has already written its own
+    sentinel), the second is operator interruption, and neither is an assertion
+    failure.
+    """
+    exc = sys.exc_info()[1]
+    if exc is None or isinstance(exc, (SystemExit, KeyboardInterrupt)):
+        return
+    detail = f"{type(exc).__name__}: {exc}".replace("\n", " ")
+    _write_sentinel(f"uncaught observer exception during shutdown: {detail}")
+
+
+def dispatch(api: "API", command: str) -> dict:
+    """Dispatch ``command`` and return its RPC result dict, never raising.
+
+    The guarded replacement for the ``def dispatch(api, command)`` helper that
+    346 observer scripts hand-roll. Same name, same signature, same return
+    shape, so adopting it is deleting the local definition and importing this
+    one -- no call site changes.
+
+    Why it must not raise: ``_call_engine`` raises RuntimeError when the engine
+    answers an RPC error (an unknown command, a denial). In the hand-rolled
+    version that exception escapes the caller's assertion, unwinds through the
+    ``finally`` that shuts ze down, and its sentinel then has no relay left
+    (see :func:`_emit_sentinel_if_unwinding`). Returning the failure as
+    ``{"status": "error", "data": <reason>}`` keeps it in front of the caller's
+    own ``runtime_fail`` while ze is still alive to carry the sentinel.
+    """
+    try:
+        resp = api._call_engine(  # noqa: SLF001  # ze_api owns this internal
+            "ze-plugin-engine:dispatch-command", {"command": command}
+        )
+    except RuntimeError as exc:
+        return {"status": "error", "data": str(exc)}
+    if resp is None:
+        return {"status": "error", "data": "engine call returned None"}
+    return resp.get("result", {}) or {}
+
 
 def runtime_fail(message: str) -> None:
     """Signal a runtime assertion failure from a Python observer plugin.
@@ -1914,7 +2035,11 @@ def runtime_fail(message: str) -> None:
        ``ZE-OBSERVER-FAIL`` sentinel in ``msg=``. The engine relays plugin
        stderr; ERROR-level lines always pass classifyStderrLine regardless of
        ``ze.log.relay`` so the line reaches the runner.
-    2. Request a clean ``daemon shutdown`` so ze stops and the runner unblocks.
+    2. Request a clean ``request shutdown`` so ze stops and the runner unblocks.
+       The bare ``daemon shutdown`` spelling this used to send was removed from
+       the command tree by the verb-first migration, so the request resolved
+       nowhere and ze kept running: the sentinel still failed the test, but only
+       after the outer timeout expired instead of on a clean stop.
     3. ``sys.exit(1)`` defensively (unreachable after the sentinel has been
        flushed, but kept so a reader understands intent).
 
@@ -1926,20 +2051,11 @@ def runtime_fail(message: str) -> None:
         message: Short human-readable reason. Interpolated into the slog
             ``msg=`` field between the sentinel and any trailing context.
     """
-    # slog format is `time=... level=... msg="..." key=value ...`. Level must
-    # be present for classifyStderrLine to treat it as "valid slog" and pass
-    # the relay filter. The subsystem attr identifies the source in telemetry.
-    line = (
-        f"time=runtime level=ERROR "
-        f'msg="{_OBSERVER_FAIL_SENTINEL}: {message}" '
-        f"subsystem=test.observer\n"
-    )
-    sys.stderr.write(line)
-    sys.stderr.flush()
+    _write_sentinel(message)
     try:
         _get_api()._call_engine(
             "ze-plugin-engine:dispatch-command",
-            {"command": "daemon shutdown"},
+            {"command": "request shutdown"},
         )
     except Exception:  # noqa: BLE001  # best-effort shutdown after fatal signal
         pass

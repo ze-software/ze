@@ -34,6 +34,12 @@ type commandMeta struct {
 	Params      []commandParam     // input parameters from YANG RPC (nil = none)
 	TaskSupport string             // raw YANG ze:task-support value ("" = optional)
 	UIResource  *commandUIResource // YANG ze:ui-resource extension (nil = no UI)
+	// TakesSelector is true when Dispatch consumes an inline selector token for
+	// this command (`show bgp peer <selector> detail`). Surfaces that BUILD a
+	// command string rather than parse one -- MCP -- need it to know whether a
+	// selector argument is meaningful at all, and where its value belongs.
+	// Derived from the dispatcher's own predicate, never from a name pattern.
+	TakesSelector bool
 }
 
 // commandParam is one input parameter, neutral counterpart of zemcp.ParamInfo
@@ -88,11 +94,12 @@ func commandMetaSource(s *pluginserver.Server) func() []commandMeta {
 		var infos []commandMeta
 		for _, cmd := range d.Commands() {
 			info := commandMeta{
-				Name:        cmd.Name,
-				Help:        cmd.Help,
-				ReadOnly:    cmd.ReadOnly,
-				Params:      paramsByPath[cmd.Name],
-				TaskSupport: taskSupportByPath[cmd.Name],
+				Name:          cmd.Name,
+				Help:          cmd.Help,
+				ReadOnly:      cmd.ReadOnly,
+				Params:        paramsByPath[cmd.Name],
+				TaskSupport:   taskSupportByPath[cmd.Name],
+				TakesSelector: cmd.TakesInlineSelector(),
 			}
 			if ui, ok := lookupUIResource(cmd.Name, uiResourceByPath); ok {
 				info.UIResource = &commandUIResource{
@@ -181,8 +188,8 @@ func buildTaskSupportMap(loader *yangloader.Loader) map[string]string {
 }
 
 // lookupUIResource checks if a command path or any of its parent paths has a
-// ze:ui-resource annotation. Commands like "peer list" inherit the UI resource
-// from the "peer" grouping container.
+// ze:ui-resource annotation. Commands like "show bgp peer list" inherit the UI
+// resource from the "peer" grouping container.
 func lookupUIResource(cmdPath string, m map[string]yangloader.UIResourceEntry) (yangloader.UIResourceEntry, bool) {
 	if m == nil {
 		return yangloader.UIResourceEntry{}, false

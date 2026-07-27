@@ -36,20 +36,35 @@ const (
 // Command describes a signal subcommand.
 type Command struct {
 	Name        string // CLI name (e.g., "reload")
-	ExecCommand string // SSH exec command sent to daemon (e.g., "daemon reload")
+	ExecCommand string // SSH exec command sent to daemon (e.g., "request reload")
 	Description string // One-line help text
 	Signal      string // Equivalent OS signal (for documentation; empty if none)
 }
 
 // commands is the registered list of signal subcommands.
 // Help text, dispatch, suggestions, and shell completions are all derived from this list.
+//
+// ExecCommand values land on ONE of two daemon surfaces, and the difference is
+// load-bearing when editing this table:
+//
+//   - "stop", "restart" and "reboot" are intercepted by the SSH exec middleware
+//     BEFORE the command dispatcher (`execMiddleware`,
+//     internal/component/ssh/ssh.go). They are lifecycle verbs the dispatcher
+//     deliberately does not register, so they must stay spelled exactly like
+//     that -- rewriting them verb-first would route them to the dispatcher,
+//     which has no such key.
+//   - Everything else is a real dispatcher command and MUST use the verb-first
+//     YANG path (`request reload`, `show status`, `request halt`). The former
+//     "daemon reload" / "daemon status" / "daemon quit" spellings were removed
+//     from the command tree by the verb-first migration and now resolve
+//     nowhere: the dispatcher answers ErrUnknownCommand.
 var commands = []Command{
-	{"reload", "daemon reload", "Reload configuration", "SIGHUP"},
+	{"reload", "request reload", "Reload configuration", "SIGHUP"},
 	{"stop", "stop", "Graceful shutdown (no GR marker)", "SIGTERM"},
 	{"restart", "restart", "Graceful restart (writes GR marker, then shuts down)", ""},
 	{"reboot", "reboot", "Graceful shutdown then system reboot (requires root on Linux)", ""},
-	{"status", "daemon status", "Dump daemon status", "SIGUSR1"},
-	{"quit", "daemon quit", "Goroutine dump + immediate exit", "SIGQUIT"},
+	{"status", "show status", "Dump daemon status", "SIGUSR1"},
+	{"quit", "request halt", "Goroutine dump + immediate exit", "SIGQUIT"},
 }
 
 // Commands returns a copy of the registered signal subcommands.

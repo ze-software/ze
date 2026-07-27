@@ -21,7 +21,7 @@ import (
 const dashboardPollInterval = 2 * time.Second
 
 // DashboardFactory creates a dashboard polling function.
-// The returned function calls commandExecutor("bgp summary") and returns the JSON.
+// The returned function calls commandExecutor("show bgp summary") and returns the JSON.
 // DashboardFactory creates a dashboard poller.
 // Type alias of contract.DashboardFactory so ssh, web, and hub use the same type.
 type DashboardFactory = contract.DashboardFactory
@@ -66,7 +66,7 @@ type dashboardSnapshot struct {
 	Peers            []dashboardPeer
 }
 
-// parseDashboardSnapshot parses the JSON output of "bgp summary" via commandExecutor.
+// parseDashboardSnapshot parses the JSON output of "show bgp summary" via commandExecutor.
 // The format is: {"summary": {"router-id": ..., "peers": [...]}}.
 func parseDashboardSnapshot(data string) (*dashboardSnapshot, error) {
 	var raw struct {
@@ -440,7 +440,7 @@ func (m *Model) fetchPeerDetail(addr string) {
 		return
 	}
 	var tb textbuf.Buffer
-	data, err := m.commandExecutor(tb.Str("peer ").Str(addr).Str(" detail").String())
+	data, err := m.commandExecutor(tb.Str("show bgp peer ").Str(addr).Str(" detail").String())
 	if err != nil {
 		return
 	}

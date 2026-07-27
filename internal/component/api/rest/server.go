@@ -555,7 +555,7 @@ func (s *RESTServer) handlePeerByName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var tb textbuf.Buffer
-	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: tb.Str("peer ").Str(name).Str(" detail").String()})
+	result, execErr := s.engine.Execute(r.Context(), &api.ExecuteRequest{Caller: s.callerIdentity(r), Command: tb.Str("show bgp peer ").Str(name).Str(" detail").String()})
 	if errors.Is(execErr, api.ErrUnauthorized) {
 		writeError(w, http.StatusForbidden, result.Error)
 		return

@@ -17,7 +17,7 @@ import (
 )
 
 // peers outputs tab-separated "selector\tdescription" pairs for peer completion.
-// Connects to the running daemon via SSH, queries `peer * list`, and outputs
+// Connects to the running daemon via SSH, queries `show bgp peer list`, and outputs
 // peer names, IP addresses, and deduplicated as<N> ASN selectors.
 // Returns 0 on success or when daemon is unreachable (graceful fallback).
 func peers() int {
@@ -35,7 +35,7 @@ func writePeers(w io.Writer) int {
 		return 0 // Graceful fallback: no usable credentials
 	}
 
-	output, err := sshclient.ExecCommand(creds, "peer * list")
+	output, err := sshclient.ExecCommand(creds, "show bgp peer list")
 	if err != nil {
 		return 0 // Graceful fallback: daemon not responding
 	}
@@ -43,7 +43,7 @@ func writePeers(w io.Writer) int {
 	return formatPeerCompletions(w, output)
 }
 
-// peerListResponse is the JSON structure returned by "peer * list".
+// peerListResponse is the JSON structure returned by "show bgp peer list".
 type peerListResponse struct {
 	Peers map[string]peerEntry `json:"peers"`
 }

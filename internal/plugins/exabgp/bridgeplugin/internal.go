@@ -247,7 +247,7 @@ func (r *bridgeRunner) readLoop(ctx context.Context, p *sdk.Plugin, sout io.Read
 		if bridge.IsRouteCommand(zebgpCmd) {
 			if peerAddr := bridge.ExtractPeerAddress(zebgpCmd); peerAddr != "" {
 				var tb textbuf.Buffer
-				flushCmd := tb.Str("peer ").Str(peerAddr).Str(" flush").String()
+				flushCmd := tb.Str("request peer ").Str(peerAddr).Str(" flush").String()
 				if _, _, ferr := p.DispatchCommand(ctx, flushCmd); ferr != nil {
 					r.log.Warn("flush failed", "error", ferr, "peer", peerAddr)
 				}

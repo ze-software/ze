@@ -5,16 +5,12 @@
 package handler
 
 import (
-	"errors"
 	"fmt"
-	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/selector"
 )
-
-var errNoPeerSpecified = errors.New("no peer specified")
 
 func init() {
 	pluginserver.RegisterRPCs(
@@ -31,20 +27,11 @@ func handleBgpPeerClearSoft(ctx *pluginserver.CommandContext, _ []string) (*plug
 		return errResp, err
 	}
 
-	peer := ctx.PeerSelector()
-	if peer == "*" || peer == "" {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "clear soft requires specific peer: bgp peer <ip> clear soft",
-		}, errNoPeerSpecified
-	}
-
-	addr, err := netip.ParseAddr(peer)
+	// Accepts an address OR a configured peer name; the wildcard is refused,
+	// since a soft clear targets a single session.
+	addr, errResp, err := pluginserver.ResolveSinglePeer(ctx, "clear soft")
 	if err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "invalid peer address: " + peer,
-		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
+		return errResp, err
 	}
 
 	families, err := r.SoftClearPeer(selector.Addr(addr))

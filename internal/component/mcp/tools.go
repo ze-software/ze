@@ -13,6 +13,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -62,6 +63,12 @@ type CommandInfo struct {
 	Params      []ParamInfo      // Input parameters from YANG RPC (nil = no typed params)
 	TaskSupport TaskSupportLevel // From YANG ze:task-support extension
 	UIResource  *UIResourceInfo  // From YANG ze:ui-resource extension (nil = no UI)
+	// TakesSelector reports that the dispatcher consumes an INLINE peer
+	// selector for this command -- the `show bgp peer <selector> detail` shape.
+	// Supplied by the hub from the dispatcher's own predicate
+	// (pluginserver.Command.TakesInlineSelector); MCP must never infer it from
+	// the command name.
+	TakesSelector bool
 }
 
 // ParamInfo describes a single input parameter from YANG RPC metadata.
@@ -86,12 +93,13 @@ type toolGroup struct {
 
 // action is a single subcommand within a group.
 type action struct {
-	name        string           // action name (suffix after prefix), e.g. "status", "dump"
-	help        string           // description
-	full        string           // full command path for dispatch
-	params      []ParamInfo      // typed parameters from YANG (nil = generic arguments only)
-	taskSupport TaskSupportLevel // from YANG ze:task-support
-	uiResource  *UIResourceInfo  // from YANG ze:ui-resource
+	name          string           // action name (suffix after prefix), e.g. "status", "dump"
+	help          string           // description
+	full          string           // full command path for dispatch
+	params        []ParamInfo      // typed parameters from YANG (nil = generic arguments only)
+	taskSupport   TaskSupportLevel // from YANG ze:task-support
+	uiResource    *UIResourceInfo  // from YANG ze:ui-resource
+	takesSelector bool             // dispatcher consumes an inline peer selector for `full`
 }
 
 // groupCommands groups commands by their natural prefix.
@@ -103,11 +111,12 @@ type action struct {
 // Single commands with no siblings become their own group with no action param.
 func groupCommands(commands []CommandInfo) []toolGroup {
 	type entry struct {
-		full        string
-		help        string
-		params      []ParamInfo
-		taskSupport TaskSupportLevel
-		uiResource  *UIResourceInfo
+		full          string
+		help          string
+		params        []ParamInfo
+		taskSupport   TaskSupportLevel
+		uiResource    *UIResourceInfo
+		takesSelector bool
 	}
 
 	// Index commands by first-token and first-two-tokens.
@@ -119,7 +128,7 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 		if len(tokens) == 0 {
 			continue
 		}
-		e := entry{full: cmd.Name, help: cmd.Help, params: cmd.Params, taskSupport: cmd.TaskSupport, uiResource: cmd.UIResource}
+		e := entry{full: cmd.Name, help: cmd.Help, params: cmd.Params, taskSupport: cmd.TaskSupport, uiResource: cmd.UIResource, takesSelector: cmd.TakesSelector}
 		one := tokens[0]
 		byOne[one] = append(byOne[one], e)
 		if len(tokens) >= 2 {
@@ -157,12 +166,13 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 					suffix = ""
 				}
 				g.actions = append(g.actions, action{
-					name:        suffix,
-					help:        e.help,
-					full:        e.full,
-					params:      e.params,
-					taskSupport: e.taskSupport,
-					uiResource:  e.uiResource,
+					name:          suffix,
+					help:          e.help,
+					full:          e.full,
+					params:        e.params,
+					taskSupport:   e.taskSupport,
+					uiResource:    e.uiResource,
+					takesSelector: e.takesSelector,
 				})
 				used[e.full] = true
 			}
@@ -179,7 +189,7 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 			tokens := strings.Fields(e.full)
 			if len(tokens) == 2 {
 				g := toolGroup{prefix: e.full}
-				g.actions = append(g.actions, action{name: "", help: e.help, full: e.full, params: e.params, taskSupport: e.taskSupport, uiResource: e.uiResource})
+				g.actions = append(g.actions, action{name: "", help: e.help, full: e.full, params: e.params, taskSupport: e.taskSupport, uiResource: e.uiResource, takesSelector: e.takesSelector})
 				g.taskSupport = e.taskSupport
 				g.uiResource = e.uiResource
 				used[e.full] = true
@@ -331,9 +341,15 @@ func buildToolDef(g toolGroup) map[string]any {
 		}
 	}
 
-	properties["peer"] = map[string]any{
-		"type":        "string",
-		"description": "Peer selector: address, name, or * for all",
+	// Advertise `peer` ONLY on groups that contain at least one command the
+	// dispatcher actually reads a selector for. It used to be added to EVERY
+	// generated tool, so a model was invited to set it on `show config dump`
+	// and got `peer <sel> show config dump`, which resolves nowhere.
+	if groupTakesSelector(g.actions) {
+		properties["peer"] = map[string]any{
+			"type":        "string",
+			"description": "Peer selector: address, name, as<N>, glob, or * for all. Only valid for actions that address a peer; the value is placed after the 'peer' keyword of the command.",
+		}
 	}
 
 	schema := map[string]any{
@@ -458,6 +474,70 @@ func yangTypeToJSON(yangType string) string {
 // reservedParams are the built-in dispatch parameters, not forwarded as typed args.
 var reservedParams = map[string]bool{"action": true, "arguments": true, "peer": true}
 
+// peerKeyword is the command token a peer selector value attaches to. The
+// grammar's peer exception spells the selector immediately after it
+// (`show bgp peer <selector> detail`, `request peer <selector> flush`) --
+// ai/rules/cli-grammar.md, "Peer Commands".
+const peerKeyword = "peer"
+
+// actionAcceptsPeer reports whether a `peer` argument is BOTH read by the
+// dispatcher for this command and placeable in it. Both halves are required:
+//
+//   - takesSelector says the dispatcher consumes an inline selector, but it is
+//     true for non-peer inline selectors too (`clear dns cache record <name>`,
+//     `create interface bridge name <n>`);
+//   - a `peer` token is what anchors the value's position (spliceSelector).
+//
+// Advertising the argument on exactly the set that can use it keeps the tool
+// schema honest: every tool that offers `peer` accepts one, and no tool offers
+// an argument whose only possible outcome is an error.
+func actionAcceptsPeer(a action) bool {
+	if !a.takesSelector {
+		return false
+	}
+	for tok := range strings.FieldsSeq(a.full) {
+		if strings.EqualFold(tok, peerKeyword) {
+			return true
+		}
+	}
+	return false
+}
+
+// groupTakesSelector reports whether any command in the group accepts a peer
+// selector, i.e. whether the `peer` tool argument is meaningful for this tool
+// at all. Derived from the dispatcher-supplied flag, never from the name.
+func groupTakesSelector(actions []action) bool {
+	return slices.ContainsFunc(actions, actionAcceptsPeer)
+}
+
+// spliceSelector inserts sel into full at the grammar's selector position:
+// immediately after the command's own `peer` keyword. It returns ok=false when
+// full has no `peer` token, so the caller can fail closed rather than guess a
+// position.
+//
+// The position matters, not just the presence: the dispatcher extracts an
+// inline selector at the FIRST token where the input diverges from the
+// registered key (matchCommandTokens/implicitSelectorDef in
+// internal/component/plugin/server/command.go). Right after `peer` is both that
+// divergence point and the spelling the YANG descriptions document. When `peer`
+// is the final token (`delete bgp peer`) the value lands trailing, which the
+// same dispatcher resolves through positional ArgDef matching.
+func spliceSelector(full, sel string) (string, bool) {
+	tokens := strings.Fields(full)
+	for i, tok := range tokens {
+		if !strings.EqualFold(tok, peerKeyword) {
+			continue
+		}
+		var tb textbuf.Buffer
+		tb.Join(tokens[:i+1], " ").Byte(' ').Str(sel)
+		if i+1 < len(tokens) {
+			tb.Byte(' ').Join(tokens[i+1:], " ")
+		}
+		return tb.String(), true
+	}
+	return "", false
+}
+
 // server runs one tool dispatch.
 //
 // Lifetime: one *server per HTTP request. `Streamable.callTool` creates it
@@ -489,13 +569,14 @@ type server struct {
 
 // dispatchGenerated handles a tools/call for an auto-generated tool.
 // It builds the command string from the tool group prefix + action + typed params + arguments.
-// validActions contains the server-defined action names; if non-nil, the action
-// is validated against this set to prevent injection of arbitrary tokens.
+// actionSelector maps each server-defined action name to whether that command
+// takes a peer selector; membership in the map is what validates the action, so
+// an arbitrary token can never be injected as one.
 //
 // Typed YANG params (any JSON field not in reservedParams) are appended as
 // "key value" pairs after the action. This lets handlers receive structured
 // params through the standard text command interface.
-func (s *server) dispatchGenerated(prefix string, validActions map[string]bool, args json.RawMessage) map[string]any {
+func (s *server) dispatchGenerated(prefix string, actionSelector map[string]bool, args json.RawMessage) map[string]any {
 	// Unmarshal into a generic map to capture typed params alongside standard ones.
 	var all map[string]any
 	if err := json.Unmarshal(args, &all); err != nil {
@@ -512,8 +593,9 @@ func (s *server) dispatchGenerated(prefix string, validActions map[string]bool, 
 			return ErrResult(err.Error())
 		}
 	}
-	if action != "" && !validActions[action] {
-		return ErrResult(fmt.Sprintf("invalid action %q", action))
+	if _, known := actionSelector[action]; action != "" && !known {
+		var tb textbuf.Buffer
+		return ErrResult(tb.Str("invalid action ").Quoted(action).String())
 	}
 	if strings.ContainsAny(action, "\n\r") {
 		return ErrResult("action must not contain newlines")
@@ -522,16 +604,44 @@ func (s *server) dispatchGenerated(prefix string, validActions map[string]bool, 
 		return ErrResult("arguments must not contain newlines or tabs")
 	}
 
-	var cmd textbuf.Buffer
-
-	if peer != "" {
-		cmd.Str("peer ").Str(peer).Byte(' ')
-	}
-
-	cmd.Str(prefix)
+	// Resolve the full dispatch path, then place the peer selector where the
+	// grammar puts it: after the command's own `peer` keyword
+	// (`show bgp peer <selector> detail`), NOT in front of the whole command.
+	// Prefixing produced `peer <selector> show bgp peer detail`, which resolves
+	// nowhere -- every peer-scoped MCP tool call failed.
+	full := prefix
 	if action != "" {
-		cmd.Byte(' ').Str(action)
+		var tb textbuf.Buffer
+		full = tb.Str(prefix).Byte(' ').Str(action).String()
 	}
+	if peer != "" {
+		if !actionSelector[action] {
+			// Note for the reader: a few commands declare a YANG input leaf
+			// that is literally named "peer" but is NOT a peer selector -- the
+			// veth peer interface name of `create interface veth name`
+			// (internal/component/iface/yang/ze-iface-api.yang, rpc
+			// interface-create-veth). Because "peer" is a reservedParams key it
+			// is consumed here rather than forwarded as a typed parameter, so
+			// that value cannot be supplied over MCP at all. That name
+			// collision predates this guard and is not fixed by it; the guard
+			// only makes the refusal explicit instead of emitting a command
+			// string the dispatcher cannot resolve.
+			var tb textbuf.Buffer
+			return ErrResult(tb.Str("command ").Quoted(full).Str(" does not take a peer selector; the \"peer\" argument is not accepted here").String())
+		}
+		spliced, ok := spliceSelector(full, peer)
+		if !ok {
+			// Fail closed: the command was declared selector-taking but has no
+			// `peer` keyword to anchor the value to, so any placement would be a
+			// guess. Say so instead of emitting a command the daemon rejects.
+			var tb textbuf.Buffer
+			return ErrResult(tb.Str("cannot place a peer selector in ").Quoted(full).Str(": the command has no \"peer\" keyword").String())
+		}
+		full = spliced
+	}
+
+	var cmd textbuf.Buffer
+	cmd.Str(full)
 
 	for key, val := range all {
 		if reservedParams[key] || val == nil {
@@ -641,7 +751,7 @@ var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]a
 					"properties": map[string]any{
 						"command": map[string]any{
 							"type":        "string",
-							"description": "A ze CLI command, e.g. 'peer list' or 'show bgp summary'",
+							"description": "A ze CLI command, e.g. 'show bgp peer list' or 'show bgp summary'",
 						},
 					},
 					"required": []any{"command"},
@@ -729,7 +839,7 @@ var handcraftedTools = []map[string]any{
 			"properties": map[string]any{
 				"command": map[string]any{
 					"type":        "string",
-					"description": "The ze command to execute (e.g., 'peer list', 'show bgp summary'). Optional only when the client supports elicitation.",
+					"description": "The ze command to execute (e.g., 'show bgp peer list', 'show bgp summary'). Optional only when the client supports elicitation.",
 				},
 			},
 		},

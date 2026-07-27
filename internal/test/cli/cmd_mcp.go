@@ -43,8 +43,8 @@ Stdin directives (one per line):
   <ze command>                     -- sent as ze_execute
   @<tool> <json args>              -- call a named MCP tool with JSON args
   wait <duration>                  -- sleep
-  wait-established                 -- poll "peer list" until a peer is Established
-  wait-peers                       -- poll "peer list" until at least one peer exists
+  wait-established                 -- poll "show bgp peer list" until a peer is Established
+  wait-peers                       -- poll "show bgp peer list" until at least one peer exists
   wait-tool <name>                 -- poll tools/list until <name> appears
   elicit-accept <json content>     -- queue an accept response for the next elicit
   elicit-decline                   -- queue a decline response for the next elicit

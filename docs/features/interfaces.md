@@ -565,9 +565,26 @@ The mechanism is driven by the `ze:ensure-exists` YANG extension on the
 type containers (`dummy`, `bridge`). The dispatch system builds an ensure
 chain at registration time and wraps the leaf handler automatically.
 
-<!-- source: internal/component/iface/yang/ze-iface-cmd.yang — ze:ensure-exists on dummy, bridge -->
-<!-- source: internal/component/plugin/server/ensure.go — wrapWithEnsureChain, buildEnsureChain -->
-<!-- source: internal/component/iface/cmd/manage.go — idempotent handleCreateDummy, handleCreateBridge -->
+Telling those two rollback cases apart requires the creation handler to
+report whether it created the resource or found it already present. That
+report is mandatory: if a handler on an ensure-exists path returns no
+`created` flag, the command is refused with `ensure-exists contract
+violation` naming the handler, and the sub-resource step never runs.
+Ze fails closed here rather than guessing, because each guess corrupts a
+different case: assuming "created" would delete an interface the operator
+already owned, and assuming "not created" would leave a half-built
+interface behind.
+
+`veth` has no compound form. Creating a veth creates a *pair*, so it needs
+a peer name, and the ensure chain invokes parent handlers with no arguments
+(it only knows the parent's name selector). There is nowhere in
+`create interface veth name <name> unit <vid>` to put the peer, so veth is
+deliberately absent from the table above; create the pair first, then use
+the direct form on either end.
+
+<!-- source: internal/component/iface/yang/ze-iface-cmd.yang — ze:ensure-exists on dummy, bridge; veth has none -->
+<!-- source: internal/component/plugin/server/ensure.go — wrapWithEnsureChain, buildEnsureChain, wasCreated, ErrEnsureContract -->
+<!-- source: internal/component/iface/cmd/manage.go — idempotent handleCreateTyped; handleCreateVeth requires a peer arg -->
 
 ## Backend Implementations
 

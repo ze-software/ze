@@ -15,14 +15,8 @@ tmpfs=dashboard-test.run:mode=755:terminator=EOF_RUN
 import json
 import sys
 import time
-from ze_api import API
+from ze_api import API, dispatch, runtime_fail
 
-def dispatch(api, command):
-    resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': command})
-    if resp is None:
-        return {'status': 'error', 'data': 'engine call returned None'}
-    return resp.get('result', {})
 
 def main():
     api = API()
@@ -34,10 +28,9 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        result = dispatch(api, 'bgp summary')
+        result = dispatch(api, 'show bgp summary')
         if result.get('status') != 'done':
-            print(f'FAIL: summary status={result.get("status")} data={result.get("data")}', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail(f'show bgp summary: status={result.get("status")} data={result.get("data")}')
 
         data = result.get('data', {})
         if isinstance(data, str):
@@ -45,19 +38,15 @@ def main():
 
         summary = data.get('summary', {})
         if 'router-id' not in summary:
-            print(f'FAIL: summary missing router-id: {json.dumps(data)}', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail(f'show bgp summary: missing router-id: {json.dumps(data)}')
         if 'peers' not in summary:
-            print(f'FAIL: summary missing peers: {json.dumps(data)}', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail(f'show bgp summary: missing peers: {json.dumps(data)}')
         if 'local-as' not in summary:
-            print(f'FAIL: summary missing local-as: {json.dumps(data)}', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail(f'show bgp summary: missing local-as: {json.dumps(data)}')
 
         peers = summary.get('peers', [])
         if not isinstance(peers, list):
-            print(f'FAIL: peers is not a list: {type(peers)}', file=sys.stderr)
-            sys.exit(1)
+            runtime_fail(f'show bgp summary: peers is not a list: {type(peers).__name__}')
 
         print(f'OK: summary has router-id={summary["router-id"]} local-as={summary["local-as"]} peers={len(peers)}', file=sys.stderr)
     finally:

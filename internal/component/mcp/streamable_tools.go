@@ -134,7 +134,11 @@ func (s *Streamable) lookupTaskSupport(name string) TaskSupportLevel {
 	return TaskSupportOptional
 }
 
-// findGeneratedTool maps an auto-generated tool name back to its command prefix.
+// findGeneratedTool maps an auto-generated tool name back to its command prefix
+// and its action set. The returned map's KEYS are the valid action names (an
+// action absent from the map is rejected); each VALUE says whether that
+// command takes a peer selector, which dispatchGenerated needs to decide
+// whether a `peer` argument is accepted and where its value is spliced in.
 func (s *Streamable) findGeneratedTool(name string) (string, map[string]bool, bool) {
 	skip := handcraftedNames()
 	groups := groupCommands(s.cfg.Commands())
@@ -143,11 +147,13 @@ func (s *Streamable) findGeneratedTool(name string) (string, map[string]bool, bo
 			continue
 		}
 		if toolName(g.prefix) == name {
-			valid := make(map[string]bool, len(g.actions))
+			actionSelector := make(map[string]bool, len(g.actions))
 			for _, a := range g.actions {
-				valid[a.name] = true
+				// Same predicate buildToolDef advertises with, so a tool never
+				// offers a `peer` argument its dispatch path would refuse.
+				actionSelector[a.name] = actionAcceptsPeer(a)
 			}
-			return g.prefix, valid, true
+			return g.prefix, actionSelector, true
 		}
 	}
 	return "", nil, false

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/netip"
 	"sort"
 	"strings"
 
@@ -15,10 +16,20 @@ import (
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/process"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errReactorNotAvailable = errors.New("reactor not available")
+
+// Peer-selector resolution failures (ResolveSinglePeer). Separate sentinels so a
+// caller can tell "you gave me a wildcard" from "nothing matched" from "several
+// matched" without string matching.
+var (
+	errNoSpecificPeer        = errors.New("command requires one specific peer")
+	errNoPeerMatchesSelector = errors.New("no peer matches selector")
+	errAmbiguousPeerSelector = errors.New("selector matches more than one peer")
+)
 
 // ErrUnknownCommand is returned when a command is not recognized.
 var ErrUnknownCommand = errors.New("unknown command")
@@ -218,6 +229,92 @@ func RequireReactor(ctx *CommandContext) (plugin.ReactorLifecycle, *plugin.Respo
 	return r, nil, nil
 }
 
+// ResolveSinglePeer resolves the command's peer selector to exactly one peer
+// address, accepting every form the selector vocabulary defines -- an address,
+// a configured peer NAME, an `as<N>` ASN, a glob -- not only an IP literal.
+//
+// action names the command in error text ("raw", "pause", ...).
+//
+// Why this exists: the peer-scoped commands split into two camps. `teardown`
+// and `flush` each carried their own hand-rolled "not an IP, try the name"
+// loop, while `raw`, `pause`, `resume`, `clear soft` and `delete bgp peer` went
+// straight to netip.ParseAddr and rejected the very selector their YANG leaf
+// advertises ("Peer selector", e.g. ze-raw-cmd.yang:19). An operator who
+// configured `peer peer1 { ... }` and typed `peer peer1 raw ...` got
+// "invalid peer address". This is the one resolver for all of them, so the two
+// existing copies stop being two and a sixth cannot appear
+// (ai/rules/derive-not-hardcode.md).
+//
+// The wildcard is REFUSED, deliberately and by name. Every caller acts on a
+// single session -- injecting raw bytes, pausing a read loop -- and silently
+// fanning that across every peer is a footgun, so `*` is rejected with the
+// selector quoted rather than being allowed to mean something surprising
+// (ai/rules/fail-closed-guards.md). An ambiguous selector that matches several
+// peers is refused the same way: this returns ONE peer or an error, never a
+// guess at which one was meant.
+func ResolveSinglePeer(ctx *CommandContext, action string) (netip.Addr, *plugin.Response, error) {
+	r, errResp, err := RequireReactor(ctx)
+	if err != nil {
+		return netip.Addr{}, errResp, err
+	}
+
+	sel := ctx.PeerSelector()
+	if sel == "" || sel == "*" {
+		var tb textbuf.Buffer
+		msg := tb.Str(action).Str(" requires one specific peer, got ").Quoted(sel).
+			Str("; use a peer address or a configured peer name").String()
+		return netip.Addr{}, &plugin.Response{Status: plugin.StatusError, Error: msg}, errNoSpecificPeer
+	}
+
+	parsed := selector.ParseDefault(sel)
+	peers := r.Peers()
+	var matched []netip.Addr
+	for i := range peers {
+		if selectorMatchesPeer(parsed, &peers[i]) {
+			matched = append(matched, peers[i].Address)
+		}
+	}
+
+	switch len(matched) {
+	case 1:
+		return matched[0], nil, nil
+	case 0:
+		// An ADDRESS that matches no current peer is passed through unchanged.
+		// That is the pre-existing contract every caller was written against:
+		// the handler downstream (PausePeer, RemovePeer, ...) owns "no such
+		// peer" and reports it with its own context, and several unit tests
+		// drive these handlers with an empty peer table on purpose. Only a
+		// NON-address selector -- a name, an ASN, a glob -- has to resolve here,
+		// because there is nothing downstream that could interpret it.
+		if ip, perr := netip.ParseAddr(sel); perr == nil {
+			return ip, nil, nil
+		}
+		var tb textbuf.Buffer
+		msg := tb.Str(action).Str(": no peer matches selector ").Quoted(sel).
+			Str("; use a peer address or a configured peer name (see `show bgp peer list`)").String()
+		return netip.Addr{}, &plugin.Response{Status: plugin.StatusError, Error: msg}, errNoPeerMatchesSelector
+	default:
+		var tb textbuf.Buffer
+		msg := tb.Str(action).Str(": selector ").Quoted(sel).Str(" matches ").Int(int64(len(matched))).
+			Str(" peers; it must identify exactly one").String()
+		return netip.Addr{}, &plugin.Response{Status: plugin.StatusError, Error: msg}, errAmbiguousPeerSelector
+	}
+}
+
+// selectorMatchesPeer applies the selector to one peer, mirroring the kind
+// handling the peer-listing commands use (cmd/peer's filterPeersBySelectorValue)
+// so a selector means the same thing whichever command consumes it.
+func selectorMatchesPeer(sel *selector.Selector, p *plugin.PeerInfo) bool {
+	switch sel.SelectorKind() {
+	case selector.KindName:
+		return p.Name == sel.NameValue()
+	case selector.KindASN:
+		return p.PeerAS == sel.ASNValue()
+	default:
+		return sel.Matches(p.Address)
+	}
+}
+
 // PeerSelector returns the effective neighbor selector.
 // Returns "*" if no neighbor was specified.
 func (c *CommandContext) PeerSelector() string {
@@ -244,6 +341,32 @@ type Command struct {
 	ReadOnly         bool             // True if command only reads state (safe for "ze show")
 	RequiresSelector bool             // True if command requires an explicit selector instead of implicit/all scope
 	ArgDefs          []command.ArgDef // Typed argument definitions from YANG leaves.
+}
+
+// TakesInlineSelector reports whether Dispatch would consume an INLINE selector
+// token for this command -- the `show bgp peer <selector> detail` shape, where
+// the value sits between the resource token and a later action token rather
+// than trailing the whole path.
+//
+// It answers with the dispatcher's OWN predicate (implicitSelectorDef over the
+// command's key tokens and ArgDefs) rather than a second hardcoded list, so a
+// caller that builds a command string cannot drift from what Dispatch accepts
+// (ai/rules/derive-not-hardcode.md). Callers outside the dispatcher -- notably
+// the MCP tool generator, which must decide whether to advertise a `peer`
+// argument at all and where to splice its value -- rely on this.
+//
+// A single-token command can never carry an inline selector: matchCommandTokens
+// only reaches the implicit-selector branch while keyIdx+1 < len(keyTokens), so
+// there is no interior position to splice into.
+func (c *Command) TakesInlineSelector() bool {
+	if c == nil {
+		return false
+	}
+	keyTokens := strings.Fields(c.Name)
+	if len(keyTokens) < 2 {
+		return false
+	}
+	return implicitSelectorDef(keyTokens, c.ArgDefs, nil) != nil
 }
 
 // RegisterOptions holds optional settings for command registration.

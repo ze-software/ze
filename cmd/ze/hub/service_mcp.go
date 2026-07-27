@@ -84,10 +84,11 @@ func mcpCommandLister(src func() []commandMeta) zemcp.CommandLister {
 		infos := make([]zemcp.CommandInfo, len(metas))
 		for i, m := range metas {
 			infos[i] = zemcp.CommandInfo{
-				Name:        m.Name,
-				Help:        m.Help,
-				ReadOnly:    m.ReadOnly,
-				TaskSupport: parseTaskSupportLevel(m.TaskSupport),
+				Name:          m.Name,
+				Help:          m.Help,
+				ReadOnly:      m.ReadOnly,
+				TaskSupport:   parseTaskSupportLevel(m.TaskSupport),
+				TakesSelector: m.TakesSelector,
 			}
 			if len(m.Params) > 0 {
 				params := make([]zemcp.ParamInfo, len(m.Params))

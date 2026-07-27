@@ -3,8 +3,10 @@ package signal
 import (
 	"net"
 	"slices"
+	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/core/env"
 )
 
@@ -162,12 +164,12 @@ func TestCommandExecMapping(t *testing.T) {
 		name string
 		exec string
 	}{
-		{"reload", "daemon reload"},
+		{"reload", "request reload"},
 		{"stop", "stop"},
 		{"restart", "restart"},
 		{"reboot", "reboot"},
-		{"status", "daemon status"},
-		{"quit", "daemon quit"},
+		{"status", "show status"},
+		{"quit", "request halt"},
 	}
 	for _, tt := range tests {
 		cmd := lookup(tt.name)
@@ -177,6 +179,36 @@ func TestCommandExecMapping(t *testing.T) {
 		}
 		if cmd.ExecCommand != tt.exec {
 			t.Errorf("lookup(%q).ExecCommand = %q, want %q", tt.name, cmd.ExecCommand, tt.exec)
+		}
+	}
+}
+
+// sshLifecycleVerbs are the exec strings the SSH server intercepts in
+// execMiddleware (internal/component/ssh/ssh.go) BEFORE the command dispatcher
+// sees them. The dispatcher deliberately registers no key for these, so they
+// are the one legitimate exception to the verb-first rule below.
+var sshLifecycleVerbs = map[string]bool{"stop": true, "restart": true, "reboot": true}
+
+// VALIDATES: every ExecCommand is a surface the daemon actually answers -- an
+// SSH lifecycle verb, or a command whose first token is a registered CLI verb
+// (command.Verbs, the canonical vocabulary the grammar gate derives from).
+// PREVENTS: the table drifting back to a noun-first spelling the verb-first
+// migration removed from the command tree ("daemon reload", "daemon status",
+// "daemon quit"), which the dispatcher answers with ErrUnknownCommand while
+// the exec-mapping table above still passes.
+
+func TestCommandExecReachesRealSurface(t *testing.T) {
+	for _, c := range Commands() {
+		if sshLifecycleVerbs[c.ExecCommand] {
+			continue
+		}
+		verb, _, ok := strings.Cut(c.ExecCommand, " ")
+		if !ok {
+			t.Errorf("signal %q: ExecCommand %q is a single token and is not an SSH lifecycle verb; it cannot reach the dispatcher", c.Name, c.ExecCommand)
+			continue
+		}
+		if !command.IsVerb(verb) {
+			t.Errorf("signal %q: ExecCommand %q starts with %q, which is not a registered CLI verb (internal/component/command.Verbs); the dispatcher has no such key", c.Name, c.ExecCommand, verb)
 		}
 	}
 }

@@ -3,7 +3,7 @@
 .PHONY: ze-lint ze-vet-evidence ze-race-reactor ze-linux-test ze-exabgp-test ze-vulncheck
 .PHONY: ze-test ze-verify ze-verify-changed ze-verify-list ze-validate ze-smoke ze-ci ze-all ze-all-test
 .PHONY: ze-lint-changed ze-unit-test-changed ze-clean-tmp ze-hook-test
-.PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-platform-vet
+.PHONY: ze-tier-check ze-iface-resolution-check ze-plugin-boundary-check ze-config-coercion-check ze-fs-persistence-check ze-dash-stdio-check ze-port-defaults-check ze-platform-vet ze-ci-dispatch-check
 .PHONY: ze-test-sensitivity-check ze-test-health ze-test-health-check ze-test-health-record
 .PHONY: ze-iso ze-iso-init ze-iso-build ze-iso-check ze-pxe
 .PHONY: ze-sync-vendor-web ze-check-vendor-web ze-ai-sync ze-ai-instructions
@@ -467,6 +467,14 @@ ze-plugin-boundary-check:
 ze-config-coercion-check:
 	@$(GO) run scripts/checks/config_string_coercion.go --selftest
 	@$(GO) run scripts/checks/config_string_coercion.go
+
+# Dispatch-command call-site gate: every command string the repo SENDS must
+# still resolve. GO_RUN (not GO run): this enumerates the live command registry,
+# so it needs the same feature tags the shipped binary has or gated plugins'
+# commands are absent and every use of them reports as dead.
+ze-ci-dispatch-check:
+	@$(GO_RUN) scripts/checks/ci_dispatch_commands.go --selftest
+	@$(GO_RUN) scripts/checks/ci_dispatch_commands.go
 
 ze-fs-persistence-check:
 	@$(GO) run scripts/checks/direct_fs_persistence.go --selftest

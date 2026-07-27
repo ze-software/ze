@@ -33,7 +33,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        resp = dispatch(api, 'system memory')
+        resp = dispatch(api, 'show system memory')
         status = resp.get('status')
         if status is None:
             runtime_fail(f'memory-map: dispatch returned no status: {resp}')

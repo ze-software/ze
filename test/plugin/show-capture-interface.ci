@@ -32,7 +32,7 @@ def main():
 
     try:
         # AC-5: invalid interface name
-        resp = dispatch(api, 'capture interface nonexistent-iface-xyz-99')
+        resp = dispatch(api, 'show capture interface nonexistent-iface-xyz-99')
         status = resp.get('status')
         if status != 'error':
             runtime_fail(f'expected error for invalid iface, got status={status}')
@@ -42,7 +42,7 @@ def main():
         print(f'OK: invalid interface rejected: {data}', file=sys.stderr)
 
         # Missing interface: no args at all
-        resp = dispatch(api, 'capture interface')
+        resp = dispatch(api, 'show capture interface')
         status = resp.get('status')
         if status != 'error':
             runtime_fail(f'expected error for missing iface, got status={status}')

@@ -19,7 +19,10 @@ import (
 var (
 	loadReloadCredentials = sshclient.LoadCredentialsWithFlags
 	execReloadCommand     = func(creds sshclient.Credentials) error {
-		_, err := sshclient.ExecCommand(creds, "reload")
+		// Verb-first YANG path. Bare "reload" was removed from the command tree
+		// and is not one of the SSH lifecycle verbs (stop/restart/reboot) the
+		// exec middleware intercepts, so it now resolves nowhere.
+		_, err := sshclient.ExecCommand(creds, "request reload")
 		return err
 	}
 )

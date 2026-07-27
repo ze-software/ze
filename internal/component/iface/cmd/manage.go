@@ -42,20 +42,28 @@ func handleCreateDummy(ctx *pluginserver.CommandContext, args []string) (*plugin
 	return handleCreateTyped(ctx, "dummy", iface.CreateDummy)
 }
 
+// ifTypeVeth is the InterfaceInfo.Type string a veth device reports
+// (internal/component/iface/discover.go zeTypeVeth).
+const ifTypeVeth = "veth"
+
+// handleCreateVeth creates a veth PAIR. It routes through handleCreateTyped so it
+// reports Data["created"] exactly like the dummy and bridge handlers do: every
+// creation handler is a candidate ensure-exists parent, and a handler that stays
+// silent about creation would make rollback undecidable (see wasCreated in
+// internal/component/plugin/server/ensure.go, which now rejects such a response
+// rather than reading the missing key as "not created").
+//
+// The peer name is closed over rather than passed as a second create argument
+// because handleCreateTyped owns the exists/type-conflict/report shape and only
+// varies by the name-keyed constructor.
 func handleCreateVeth(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	name := ctx.Selector("name")
-	if name == "" || len(args) == 0 {
-		return errResp("usage: create interface veth <name> <peer>")
+	if ctx.Selector("name") == "" || len(args) == 0 {
+		return errResp("usage: create interface veth name <name> <peer>")
 	}
 	peer := args[0]
-	if err := iface.CreateVeth(name, peer); err != nil {
-		return errResp(err.Error())
-	}
-	var tb textbuf.Buffer
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data:   plugin.Map{"message": tb.Str("created veth pair ").Str(name).Str(" <-> ").Str(peer).String()},
-	}, nil
+	return handleCreateTyped(ctx, ifTypeVeth, func(name string) error {
+		return iface.CreateVeth(name, peer)
+	})
 }
 
 func handleCreateBridge(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {

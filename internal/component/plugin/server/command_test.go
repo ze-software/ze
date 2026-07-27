@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"net/netip"
 	"strings"
 	"testing"
 	"time"
@@ -1436,4 +1437,113 @@ func TestDispatcherPositionalErrorMessage(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, resp.Error, "unexpected argument")
 	assert.Contains(t, resp.Error, "count")
+}
+
+// TestTakesInlineSelector proves the predicate MCP relies on agrees with what
+// Dispatch actually accepts, for both polarities.
+//
+// VALIDATES: TakesInlineSelector is true exactly when matchCommandTokens would
+// consume an interior selector token, and Dispatch resolves the spliced form.
+// PREVENTS: a command-string BUILDER (MCP) advertising or placing a peer
+// selector on a command the dispatcher reads none for -- the defect that made
+// every peer-scoped MCP tool emit `peer <sel> show bgp peer detail`.
+func TestTakesInlineSelector(t *testing.T) {
+	selectorDef := []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}}
+
+	tests := []struct {
+		name string
+		cmd  *Command
+		want bool
+	}{
+		{"interior selector slot", &Command{Name: "show bgp peer detail", ArgDefs: selectorDef}, true},
+		{"two-token key with selector", &Command{Name: "peer update", ArgDefs: selectorDef}, true},
+		{"no mandatory string arg", &Command{Name: "show bgp summary"}, false},
+		{"single token has no interior slot", &Command{Name: "announce", ArgDefs: selectorDef}, false},
+		{"selector name is itself a key token", &Command{Name: "show vpn ipsec peer selector", ArgDefs: selectorDef}, false},
+		{"ambiguous: two mandatory string args", &Command{
+			Name: "request cache forward",
+			ArgDefs: []command.ArgDef{
+				{Name: "id", Kind: command.ArgString, Mandatory: true},
+				{Name: "selector", Kind: command.ArgString, Mandatory: true},
+			},
+		}, false},
+		{"nil command", nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.cmd.TakesInlineSelector())
+		})
+	}
+
+	// The predicate is only useful if the spliced form really dispatches, so
+	// drive it through Dispatch rather than trusting the boolean alone.
+	d := NewDispatcher()
+	var gotSelector string
+	d.RegisterWithOptions("show bgp peer detail", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+		gotSelector = ctx.PeerSelector()
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "Peer detail", RegisterOptions{ArgDefs: selectorDef})
+
+	ctx := &CommandContext{}
+	resp, err := d.Dispatch(ctx, "show bgp peer 10.0.0.1 detail")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	assert.Equal(t, "10.0.0.1", gotSelector)
+}
+
+// TestResolveSinglePeer proves the selector resolution the peer-scoped commands
+// share: a configured NAME resolves, an address still resolves, the wildcard is
+// refused by name, and an unmatched or ambiguous selector fails with the value
+// quoted.
+//
+// VALIDATES: ResolveSinglePeer accepts every selector form the YANG leaf
+// advertises ("Peer selector") and returns exactly one peer or a named error.
+// PREVENTS: the regression this replaced -- raw/pause/resume/clear-soft/remove
+// calling netip.ParseAddr on the selector, so `peer peer1 raw ...` was rejected
+// with "invalid peer address" even though peer1 is the configured peer's name.
+func TestResolveSinglePeer(t *testing.T) {
+	edge1 := netip.MustParseAddr("10.0.0.1")
+	edge2 := netip.MustParseAddr("10.0.0.2")
+	srv := &Server{reactor: &mockReactor{peers: []plugin.PeerInfo{
+		{Address: edge1, Name: "edge1", PeerAS: 65001},
+		{Address: edge2, Name: "edge2", PeerAS: 65002},
+	}}}
+
+	tests := []struct {
+		name     string
+		selector string
+		want     netip.Addr
+		wantErr  error
+		errHas   string
+	}{
+		{"configured peer name", "edge1", edge1, nil, ""},
+		{"other peer name", "edge2", edge2, nil, ""},
+		{"ip literal still works", "10.0.0.1", edge1, nil, ""},
+		{"asn selector", "as65002", edge2, nil, ""},
+		{"wildcard refused", "*", netip.Addr{}, errNoSpecificPeer, `"*"`},
+		{"empty refused", "", netip.Addr{}, errNoSpecificPeer, `"*"`},
+		{"unknown name", "nope", netip.Addr{}, errNoPeerMatchesSelector, `"nope"`},
+		// An address that matches no current peer passes through: the handler
+		// downstream owns "no such peer". Only a non-address selector must
+		// resolve here, since nothing downstream could interpret one.
+		{"unknown address passes through", "192.0.2.9", netip.MustParseAddr("192.0.2.9"), nil, ""},
+		{"ambiguous glob", "10.0.0.*", netip.Addr{}, errAmbiguousPeerSelector, `"10.0.0.*"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := &CommandContext{Server: srv, Peer: tt.selector}
+			got, resp, err := ResolveSinglePeer(ctx, "raw")
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+				require.NotNil(t, resp)
+				assert.Equal(t, plugin.StatusError, resp.Status)
+				assert.Contains(t, resp.Error, tt.errHas, "error must quote the offending selector")
+				assert.Contains(t, resp.Error, "raw", "error must name the action")
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

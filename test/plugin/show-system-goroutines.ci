@@ -33,7 +33,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        resp = dispatch(api, 'system goroutines summary')
+        resp = dispatch(api, 'show system goroutines summary')
         status = resp.get('status')
         if status is None:
             runtime_fail(f'goroutines: dispatch returned no status: {resp}')

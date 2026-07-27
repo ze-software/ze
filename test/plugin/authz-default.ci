@@ -117,13 +117,20 @@ OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show bgp
 }
 echo "OK: unknown user denied show bgp peer list (fail closed)" >&2
 
-# Test 2: unknown user also denied on other commands
-OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "peer detail" 2>&1) && {
+# Test 2: unknown user also denied on other commands.
+#
+# The probe must be a command Ze actually has, for the same reason spelled out
+# in authz-deny.ci: the dispatcher resolves a command BEFORE authorizing it, so
+# an unregistered one comes back "unknown command" without ever consulting the
+# profile, and this check passes on a path that never reaches authorization.
+# This probe was `peer detail`, which the verb-first migration removed from the
+# command tree; `show version` is real and exercises the deny.
+OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "show version" 2>&1) && {
 	echo "FAIL: unknown user should be denied but was allowed" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1
 }
-echo "OK: unknown user denied peer detail (fail closed)" >&2
+echo "OK: unknown user denied show version (fail closed)" >&2
 
 echo "OK: all fail-closed authz tests passed" >&2
 exit 0

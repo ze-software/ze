@@ -33,7 +33,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        result = dispatch(api, 'show bgp peer 127.0.0.1')
+        result = dispatch(api, 'show bgp peer 127.0.0.1 detail')
         if result.get('status') != 'done':
             print(f'FAIL: status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

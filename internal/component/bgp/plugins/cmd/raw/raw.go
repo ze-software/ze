@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"net/netip"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
@@ -20,7 +19,6 @@ import (
 )
 
 var (
-	errRawRequiresSpecificPeer       = errors.New("raw requires specific peer")
 	errRawRequiresAtLeastEncodingAnd = errors.New("raw requires at least encoding and data")
 	errMissingEncodingAfterType      = errors.New("missing encoding after type")
 )
@@ -44,20 +42,12 @@ func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Respons
 	if err != nil {
 		return errResp, err
 	}
-	// Require peer selector
-	if ctx.Peer == "" || ctx.Peer == "*" {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "raw requires specific peer: bgp peer <addr> raw ...",
-		}, errRawRequiresSpecificPeer
-	}
-
-	peerAddr, err := netip.ParseAddr(ctx.Peer)
+	// Resolve the selector to one peer. Accepts an address OR a configured peer
+	// name (and any other selector form); the wildcard is refused, since raw
+	// injects bytes into a single session.
+	peerAddr, errResp, err := pluginserver.ResolveSinglePeer(ctx, "raw")
 	if err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "invalid peer address: " + ctx.Peer,
-		}, fmt.Errorf("invalid peer address: %w", err)
+		return errResp, err
 	}
 
 	if len(args) < 2 {

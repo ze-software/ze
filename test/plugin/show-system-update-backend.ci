@@ -31,7 +31,7 @@ def main():
     api.wait_for_post_startup(timeout=5.0)
 
     try:
-        resp = dispatch(api, 'system update')
+        resp = dispatch(api, 'show system update')
         if resp.get('status') != 'done':
             runtime_fail(f'system update status={resp.get("status")} data={resp.get("data")}')
 

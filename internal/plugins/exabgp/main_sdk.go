@@ -18,6 +18,7 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -136,7 +137,8 @@ func runSDKMode(ctx context.Context, pluginCmd, families []string, routeRefresh 
 			if bridge.IsRouteCommand(zebgpCmd) {
 				peerAddr := bridge.ExtractPeerAddress(zebgpCmd)
 				if peerAddr != "" {
-					flushCmd := fmt.Sprintf("peer %s flush", peerAddr)
+					var tb textbuf.Buffer
+					flushCmd := tb.Str("request peer ").Str(peerAddr).Str(" flush").String()
 					if _, _, err := p.DispatchCommand(ctx, flushCmd); err != nil {
 						slog.Warn("sdk: flush failed", "error", err, "peer", peerAddr)
 					}

@@ -460,21 +460,11 @@ func HandleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 		return errResp, err
 	}
 
-	// Parse peer address from context (extracted by dispatcher)
-	peer := ctx.PeerSelector()
-	if peer == "*" || peer == "" {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  "remove requires specific peer: peer <ip> remove",
-		}, errNoPeerSpecified
-	}
-
-	addr, err := netip.ParseAddr(peer)
+	// Accepts an address OR a configured peer name; the wildcard is refused,
+	// since removing every peer at once is never what a bare selector means.
+	addr, errResp, err := pluginserver.ResolveSinglePeer(ctx, "remove")
 	if err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  func() string { var tb textbuf.Buffer; return tb.Str("invalid peer address: ").Str(peer).String() }(),
-		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
+		return errResp, err
 	}
 
 	// Remove peer via reactor
@@ -517,23 +507,11 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 		return errResp, err
 	}
 
-	peer := ctx.PeerSelector()
-	if peer == "*" || peer == "" {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error: func() string {
-				var tb textbuf.Buffer
-				return tb.Str(action).Str(" requires specific peer: peer <ip> ").Str(action).String()
-			}(),
-		}, errNoPeerSpecified
-	}
-
-	addr, err := netip.ParseAddr(peer)
+	// Accepts an address OR a configured peer name; the wildcard is refused,
+	// since flow control acts on a single peer's read loop.
+	addr, errResp, err := pluginserver.ResolveSinglePeer(ctx, action)
 	if err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Error:  func() string { var tb textbuf.Buffer; return tb.Str("invalid peer address: ").Str(peer).String() }(),
-		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
+		return errResp, err
 	}
 
 	if err := fn(ctx.Reactor(), addr); err != nil {

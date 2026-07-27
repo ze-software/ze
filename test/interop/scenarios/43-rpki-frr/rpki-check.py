@@ -9,7 +9,7 @@ import json
 import sys
 import time
 
-from ze_api import API, wait_for_shutdown
+from ze_api import API, dispatch, wait_for_shutdown
 
 STATUS = "/tmp/rpki-check.json"
 
@@ -17,13 +17,6 @@ STATUS = "/tmp/rpki-check.json"
 def write_status(status, detail):
     with open(STATUS, "w", encoding="utf-8") as fh:
         json.dump({"status": status, "detail": detail}, fh)
-
-
-def dispatch(api, command):
-    resp = api._call_engine("ze-plugin-engine:dispatch-command", {"command": command})
-    if resp is None:
-        return {"status": "error", "data": "engine call returned None"}
-    return resp.get("result", {})
 
 
 def route_states(data):
@@ -49,8 +42,8 @@ def main():
     deadline = time.time() + 45
     last = {}
     while time.time() < deadline:
-        status = dispatch(api, "rpki status")
-        routes = dispatch(api, "adj-rib-in show")
+        status = dispatch(api, "show bgp rpki status")
+        routes = dispatch(api, "show bgp adj-rib-in")
         last = {"rpki": status, "adj-rib-in": routes}
 
         try:
@@ -60,7 +53,10 @@ def main():
             time.sleep(1)
             continue
 
-        synced = rpki_data.get("sessions", 0) >= 1 and rpki_data.get("vrp-count-ipv4", 0) >= 1
+        synced = (
+            rpki_data.get("sessions", 0) >= 1
+            and rpki_data.get("vrp-count-ipv4", 0) >= 1
+        )
         valid_ok = states.get("9.43.0.0/24") == 1
         invalid_ok = "10.43.0.0/24" not in states
         notfound_ok = states.get("11.43.0.0/24") == 2
