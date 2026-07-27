@@ -96,6 +96,36 @@ the Go runtime preempts.
 usages anywhere in BIRD's tree. There is no second decoupling layer to mirror;
 the page queue is the whole mechanism.
 
+-> Constraint (BLOCKING on the shape of the fix, found 2026-07-27 while scoping
+it): **the queue must be a pooled byte ring, NOT a `[][]byte` of per-message
+copies.** This is why the fix is not a small edit and must not be rushed.
+
+Today every producer encodes into the session's single `scratch`
+(`newSenderSession`, `sender.go`) and flushes it under `writeMu`. That buffer is
+allocated exactly once per collector session, and its comment says why: it
+"keeps the BGP-UPDATE -> BMP Route Monitoring hot path allocation-free". A
+handoff queue holding `[]byte` elements would have to COPY each message out of
+`scratch` before the producer returns (the producer reuses `scratch`
+immediately), which is one heap allocation per Route Monitoring message on that
+same hot path -- regressing precisely the property that comment records, and
+banned by `ai/rules/buffer-first.md` / `ai/rules/memory-architecture.md` for a
+wire-facing path.
+
+BIRD does not have this problem because it does not queue message objects: it
+memcpys into pooled `alloc_page()` pages and packs messages contiguously,
+splitting across page boundaries (`bmp.c:222-226`, `:316`). "Do what bird does"
+therefore includes the storage shape, not only the overflow policy. The Ze
+equivalent is a pooled ring sized in bytes, filled by copy under the existing
+`writeMu`, drained by the session's own goroutine -- which also gives the
+byte-accounting `tx_pending_count`/`tx_pending_limit` needs for free, since the
+limit is a fill level rather than a count of elements.
+
+Consequence for planning: this is a memory-architecture change to a hot path,
+not a channel bolted onto `sendLocked`. It needs its own design pass against
+`ai/rules/memory-architecture.md` (pool strategy by goroutine shape: one
+producer set + one drain goroutine per session), and an allocation assertion in
+its tests so the regression cannot come back silently.
+
 **2. `startSender` is not idempotent across config reloads.**
 
 `BMPPlugin.startSender` (`internal/component/bgp/plugins/bmp/bmp.go`) appends to
