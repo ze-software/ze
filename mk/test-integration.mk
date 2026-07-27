@@ -267,13 +267,31 @@ ZE_QEMU_PARALLEL ?= 4
 # ze-ddos-detect-conf (ze_ddos), and then every config load dies "no such
 # module: ze-ddos-detect-conf".
 ZE_QEMU_DUT_TAGS := ze_core zetest ze_distro ze_setup $(ZE_FEATURES) $(ZE_TAGS)
+# The stripped DUT is deliberately the MINIMAL build -- it is what
+# test/ui/ze-stripped-surface.ci asserts against, so it must NOT pick up
+# $(ZE_FEATURES). That is the one build here that does not derive from
+# ZE_QEMU_DUT_TAGS, and the reason is this line rather than an oversight.
+ZE_QEMU_STRIPPED_TAGS := ze_core $(ZE_TAGS)
+ZE_QEMU_TEST_TAGS := ze_test $(ZE_FEATURES) $(ZE_TAGS)
+
+# Every QEMU target cross-compiles the SAME three binaries. Spelling that out
+# per target let ze-qemu-debug and ze-qemu-shell build only two of them while
+# ze-qemu-debug's PATH shim still symlinked the third: bin/ze-stripped-linux-*
+# was never produced, so /tmp/ze-qemu-bin/ze-stripped dangled and any suite that
+# execs it (test/ui, via ZE_TEST_DEPS_STRIPPED) could not be debugged with the
+# one target whose entire job is reproducing a failure. Same drift class as the
+# tag sets above (plan/learned/1258, 1269): the fix is one definition, used by
+# all five call sites, so a sixth target cannot build a partial set.
+define ze-qemu-crossbuild
+@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-stripped + ze-test on host (CGO off)..."
+@mkdir -p bin
+CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_DUT_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
+CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_STRIPPED_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
+CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_TEST_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
+endef
 
 ze-qemu-all-test:
-	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-stripped + ze-test on host (CGO off)..."
-	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_DUT_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
+	$(ze-qemu-crossbuild)
 	@echo "Running full test suite in QEMU Linux VM (host-compiled binaries; no in-VM ze/ze-test compile)..."
 	# e2fsprogs: same reason as ze-qemu-needs-linux-test below -- this target runs
 	# the same qemu-all-tests.sh, so its unit phase needs debugfs/mkfs.ext4 too.
@@ -293,11 +311,7 @@ ze-qemu-all-test:
 # suite runs so a needs-linux test in any of them (plugin, firewall, l2tp, ...)
 # is exercised.
 ze-qemu-needs-linux-test:
-	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-stripped + ze-test on host (CGO off)..."
-	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_DUT_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
+	$(ze-qemu-crossbuild)
 	@echo "Running ONLY option=needs-linux tests in QEMU Linux VM (ZE_QEMU_LINUX_ONLY=1)..."
 	# 5400s. 1800s was sized when the unit phase died on startup (GOCACHE pointed
 	# through a host-only symlink, see qemu-all-tests.sh) and so cost seconds.
@@ -368,10 +382,7 @@ ze-qemu-debug: export ZE_QEMU_DEBUG_RUN = $(RUN)
 ze-qemu-debug:
 	@test -n "$$ZE_QEMU_DEBUG_RUN" || { echo 'usage: make ze-qemu-debug RUN='"'"'$(ZE_QEMU_TEST_BIN) bgp <suite> <N...> -v'"'"; exit 2; }
 ifneq ($(NOBUILD),1)
-	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-test on host (CGO off)..."
-	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_DUT_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
+	$(ze-qemu-crossbuild)
 endif
 	python3 scripts/evidence/qemu-run.py \
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
@@ -389,10 +400,7 @@ endif
 # Cross-compiles linux binaries first unless NOBUILD=1.
 ze-qemu-shell:
 ifneq ($(NOBUILD),1)
-	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-test on host (CGO off)..."
-	@mkdir -p bin
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_DUT_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
+	$(ze-qemu-crossbuild)
 endif
 	python3 scripts/evidence/qemu-run.py \
 		--packages "make coreutils nftables iproute2 iputils-ping kmod iptables" \
@@ -426,8 +434,6 @@ ze-qemu-integration-test:
 # untouched. The R-2 host-netns guard unit test (refuseHostNetnsFirewall) is covered
 # separately by ze-qemu-integration-test (it is in the nft integration package).
 ze-netns-qemu-test:
-	@echo "Cross-compiling linux/$(QEMU_GOARCH) ze + ze-stripped + ze-test on host (CGO off)..."
-	@mkdir -p bin
 	# This is the functional-test DUT daemon: zetest pulls in the test-only
 	# plugins (internal/test/plugins/all) the .ci suites need -- it is NOT a
 	# production build (the real $(ZEBIN_ZE) has neither zetest nor ze_test). It builds
@@ -439,9 +445,7 @@ ze-netns-qemu-test:
 	# owned by ze_ddos), and a hand-picked minimal build then fails EVERY config
 	# load with "no such module: ze-ddos-detect-conf". $(ZE_FEATURES) also carries
 	# ze_ssh (for 004-cli-show's SSH path), so no feature needs listing by hand.
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags '$(ZE_QEMU_DUT_TAGS)' -o $(ZE_QEMU_BIN) ./cmd/ze
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_core $(ZE_TAGS)' -o $(ZE_QEMU_STRIPPED_BIN) ./cmd/ze
-	CGO_ENABLED=0 GOOS=linux GOARCH=$(QEMU_GOARCH) $(GO) build -tags 'ze_test $(ZE_FEATURES) $(ZE_TAGS)' -o $(ZE_QEMU_TEST_BIN) ./cmd/ze
+	$(ze-qemu-crossbuild)
 	@echo "Running netns launch-mode evidence in QEMU Linux VM (host-safe firewall subset)..."
 	python3 scripts/evidence/qemu-run.py \
 		--packages "nftables iproute2 python3 libcap kmod iptables iputils-ping" \
