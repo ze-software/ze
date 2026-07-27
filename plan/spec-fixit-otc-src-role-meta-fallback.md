@@ -136,10 +136,17 @@ user approval and an `// rfc-test-change-approved:` marker
 
 <!-- Define BEFORE implementation. Each row is a testable assertion. -->
 <!-- The Implementation Audit cross-references these criteria. -->
+<!-- Written retroactively 2026-07-27 from the Task section, which stated the
+     required behavior precisely; the skeleton's placeholders were never
+     filled before implementation. Each row is what the landed code and tests
+     actually assert, not an aspiration. -->
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | [what triggers the behavior] | [observable outcome] |
-| AC-2 | [what triggers the behavior] | [observable outcome] |
+| AC-1 | `OTCEgressFilter` reached with `meta == nil` (the `RelayStoredRoute` shape), source configured `role customer` (source IS our Provider), destination remote role Provider | The route is SUPPRESSED. The Gao-Rexford guard evaluates using the role recovered from config rather than skipping |
+| AC-2 | Same, but `meta["src-role"]` present and a valid string | The meta value is used unchanged; config is not consulted. Existing behavior is untouched |
+| AC-3 | Same, but `meta["src-role"]` present and NOT a string (int, bool) | The fallback is taken. A malformed value is never MORE permissive than a missing one |
+| AC-4 | `OTCEgressFilter` reached with no `src-role` in meta AND no role config for the source peer | No suppression. `""` correctly means "peer unconfigured", not "unrestricted"; an unconfigured peer was never filtered and still is not |
+| AC-5 | A route legitimately transiting to a Provider (source configured `role provider`, i.e. source IS our Customer), `meta == nil`, destination Provider | ACCEPTED and NOT stamped. The fallback must not cause a false suppression, and the route must still reach the egress stamping block where a Provider destination correctly gets no OTC |
 
 ## End-to-End User Stories (MANDATORY for new features)
 
@@ -431,25 +438,40 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Close the missing-metadata gap in `OTCEgressFilter`'s Gao-Rexford safety net | Done | `role/otc.go` `resolveSrcRole`, called from the `destRemoteRole` branch of `OTCEgressFilter` | Fixed at the READ, not at the `RelayStoredRoute` caller, because the gap fires for ANY caller lacking meta |
+| Recover the value EXACTLY from config rather than guessing | Done | `resolveSrcRole` returns `srcCfg.role`, the field `OTCIngressFilter` copies into `meta["src-role"]` | Changed: qualified in the code comment. The two agree only at one INSTANT (meta captured at receive, config read at forward), so a config reload between them makes them differ; the relay-time role is the safer one to gate on |
+| Requires changing an RFC-tagged test; ask before writing code | Done | Thomas approved 2026-07-27; `// rfc-test-change-approved:` marker on `TestOTCEgressNoStampProvider` | Approval obtained BEFORE the change, per `ai/rules/testing.md` |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `TestOTCEgressSuppressProviderLearnedWithoutMeta` | Mutation-verified: disabling the fallback turns it red |
+| AC-2 | Done | `TestOTCEgressFilter/src_role_*` subtests | Unchanged by this work; they pass meta explicitly from a config-less source, so meta is the only signal |
+| AC-3 | Done | `TestOTCEgressFilter/meta_wrong_type_not_suppressed` | Moved to a config-less source so it isolates the type check |
+| AC-4 | Done | Same subtest (10.0.0.99 has no `peerRoleConfig`) | `resolveSrcRole` returns `""` when `srcCfg == nil` |
+| AC-5 | Done | `TestOTCEgressNoStampProvider` | Keeps its `RFC9234-5-4 negative` tag; fixture changed so the route still reaches the stamp block |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| Suppression with no meta | Done | `otc_test.go` `TestOTCEgressSuppressProviderLearnedWithoutMeta` | New test |
+| Stamping scope preserved | Done | `otc_test.go` `TestOTCEgressNoStampProvider` | Fixture changed, RFC tag retained |
+| Wrong-type meta ignored | Done | `otc_test.go` `meta_wrong_type_not_suppressed` | Source changed to config-less |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/bgp/plugins/role/otc.go` | Done | `resolveSrcRole` added; egress branch calls it |
+| `internal/component/bgp/plugins/role/otc_test.go` | Done | One new test, two fixtures adjusted |
+| `internal/component/bgp/reactor/reactor_api_relay.go` | Changed | Not in the original plan. Its comment documented this gap as OPEN and would have gone stale (`ai/rules/stale-comments.md`) |
+| `ai/RFC-REQUIREMENTS.md` | Changed | Not in the original plan. Regenerated because a new RFC-tagged test shifts the ledger and `ze-rfc-check` fails on a stale one |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 15 (3 requirements, 5 ACs, 3 tests, 4 files)
+- **Done:** 15
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (the exactness qualification, plus two files touched beyond the plan) -- all recorded above; none reduces scope
 
 ## Goal Validation (BLOCKING)
 
@@ -458,7 +480,11 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 <!-- See ai/rules/interop-and-goal-validation.md for required evidence types. -->
 | Goal (from Task section) | Evidence Type | Concrete Evidence |
 |--------------------------|---------------|-------------------|
-| [what the feature is meant to achieve] | [interop test / functional test / benchmark / chaos test] | [test name, output, or file reference] |
+| A caller without ingress metadata no longer skips the RFC 9234 Section 5 leak guard | Unit test, mutation-verified | `TestOTCEgressSuppressProviderLearnedWithoutMeta` passes with the fallback and FAILS without it (`go test -race -run TestOTCEgressSuppressProviderLearnedWithoutMeta ./internal/component/bgp/plugins/role/` exit 1 with the fallback disabled, exit 0 restored) |
+| The recovered value is the config-derived one, not a guess | Code reading, not a test | `OTCIngressFilter` writes `meta["src-role"] = cfg.role` from `getFilterConfig(src.Address.String())`; `OTCEgressFilter` reads `srcCfg, _ := getFilterConfig(src.Address.String())` and the fallback returns `srcCfg.role`. Same map, same key, same field |
+| No false suppression is introduced | Full-suite regression | `make ze-test-bgp` exit 0 (includes every `TestOTCEgress*` and the reactor forward/relay tests). Independently reviewed for wrongly-suppressing call sites -- see Review Gate |
+| The RFC 9234-5-4 obligation stays PROVEN, not just green | RFC ledger + non-vacuity argument | `ai/RFC-REQUIREMENTS.md` still lists `RFC9234-5-4` with `otc_test.go` as its negative proof, and the fixture was changed rather than the assertion precisely so the test still reaches the stamping block; flipping the assertion would have made the tag hold for the wrong reason |
+| The relay path specifically is covered | Code reading + comment | `reactor_api_relay.go` builds the replayed update with `Meta: nil`, which is exactly the shape the new test drives; its comment now records the gap as closed and names the proving test |
 
 ## Review Gate
 
@@ -491,36 +517,41 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 <!-- For each item: run a command (grep, ls, go test -run) and paste the evidence. -->
 <!-- Hook pre-commit-spec-audit.sh (exit 2) checks this section exists and is filled. -->
 
+Re-verified 2026-07-27 by running the commands below, not by re-reading the audit.
+
 ### Files Exist (ls)
-<!-- For EVERY file in "Files to Create": ls -la <path> — paste output. -->
-<!-- For EVERY .ci file in Wiring Test and Functional Tests: ls -la <path> — paste output. -->
 | File | Exists | Evidence |
 |------|--------|----------|
+| `internal/component/bgp/plugins/role/otc.go` | Yes | `ls -la` -> 19K |
+| `internal/component/bgp/plugins/role/otc_test.go` | Yes | `ls -la` -> 65K |
+| (no "Files to Create") | n/a | This change adds no new file; it modifies two existing ones |
 
 ### AC Verified (grep/test)
-<!-- For EVERY AC-N: independently verify. Do NOT copy from audit — re-check. -->
-<!-- Acceptable evidence: test name + pass output, grep showing function call, ls showing file. -->
-<!-- NOT acceptable: "already checked", "should work", reference to audit table above. -->
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Suppression fires with `meta == nil` | `grep -n resolveSrcRole otc.go` -> defined :392, CALLED at :435 inside the `destRemoteRole` branch. `go test -race -run TestOTCEgressSuppressProviderLearnedWithoutMeta` exit 0; same run with the fallback disabled exit 1 |
+| AC-2 | Explicit meta still wins | `resolveSrcRole` (:392) returns the meta string before consulting `srcCfg`; `make ze-test-bgp` exit 0 with the pre-existing `src_role_*` subtests unchanged |
+| AC-3 | Non-string meta takes the fallback | The `ok && role != ""` guard at :393 fails for a non-string, so control reaches the `srcCfg` branch. `meta_wrong_type_not_suppressed` passes |
+| AC-4 | No config -> no suppression | `resolveSrcRole` returns `""` when `srcCfg == nil`; `""` matches none of `roleCustomer/rolePeer/roleRSClient` at the call site |
+| AC-5 | Legit transit still accepted and unstamped | `grep -c 'func TestOTCEgressNoStampProvider'` -> present; passes in `make ze-test-bgp` |
 
 ### Wiring Verified (end-to-end)
-<!-- For EVERY wiring test row: does the .ci test exist AND does it exercise the full path? -->
-<!-- Read the .ci file content. Does it actually test what the wiring table claims? -->
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `RelayStoredRoute` -> `OTCEgressFilter` with `Meta: nil` | none | NO `.ci` for this path, stated rather than implied. The relay is driven by a peer-up replay, which the functional harness has no fixture for. Coverage is the unit test plus the code-level fact that `reactor_api_relay.go` sets `Meta: nil`. `ai/rules/functional-test-gate.md` asks for a functional test per user-facing behavior; this is an internal safety net with no distinct user entry point, and the OTC egress behavior it protects is already covered by `test/plugin/role-otc-*.ci` |
 
 ### Assumptions Resolved
-<!-- For EVERY A-N row in Risks & Assumptions: final status with evidence. -->
-<!-- `unvalidated` is not a valid final status. Broken assumptions need a Mistake Log row + Deviations entry. -->
 | ID | Final Status | Evidence |
 |----|--------------|----------|
+| "the value is recoverable EXACTLY" (Task) | Confirmed, with a caveat | Same config field on both sides (verified by reading `OTCIngressFilter` and the egress `getFilterConfig` call). Caveat recorded in code and in the audit: they agree at one instant, not across a config reload |
+| "landing it requires changing an RFC-tagged test" (Task) | Confirmed | The pre-write hook blocked the edit until `// rfc-test-change-approved:` was present; Thomas approved 2026-07-27 |
 
 ### Documentation Verified
-<!-- For EVERY Yes in Documentation Update Checklist: verify the edited doc claim against source. -->
-<!-- For EVERY No: paste the grep/source check that proves no doc update was needed. -->
 | Documentation claim or category | Source evidence | Verified |
 |---------------------------------|-----------------|----------|
+| No user-facing doc change | The fix restores an RFC 9234 guarantee already documented as implemented; it changes no config surface, CLI output or JSON shape. `git show c398e97f0 --stat` touches only `role/`, `reactor_api_relay.go` (comment), the RFC ledger and a deferral shard | Yes |
+| `ai/RFC-REQUIREMENTS.md` regenerated | `make ze-rfc-index`; diff shows `RFC9234-3.1-1` gaining the new test and line shifts confined to `otc_test.go` | Yes |
+| `reactor_api_relay.go` comment no longer stale | It previously described this gap as open; now records it closed and names the proving test | Yes |
 
 ## Checklist
 
