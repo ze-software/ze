@@ -327,6 +327,113 @@ func TestEvidenceNightlyIsAdvisory(t *testing.T) {
 	}
 }
 
+// TestQemuNightlyIsScheduledAdvisoryAndRunsTheLinuxOnlySuite
+//
+// VALIDATES: qemu-nightly.yml is scheduled-only, every job is advisory, and it
+// invokes `make ze-qemu-needs-linux-test` by name.
+// PREVENTS: (a) the Linux-only functional surface silently having no automated
+// home again -- `option=needs-linux:caps=net-admin` makes those tests SKIP on the
+// unprivileged verify runner, so this workflow is the only thing that executes
+// them, and a lost target here converts a redirection into a deletion
+// (ai/rules/no-parking.md); (b) the VM run creeping onto push/pull_request, where
+// a 3600s boot-plus-suite budget would sit in front of every merge.
+func TestQemuNightlyIsScheduledAdvisoryAndRunsTheLinuxOnlySuite(t *testing.T) {
+	on := onBlock(t, "qemu-nightly.yml")
+	for _, want := range []string{"schedule", "cron"} {
+		if !strings.Contains(on, want) {
+			t.Errorf("qemu-nightly.yml must be scheduled (%q); its `on:` block is:\n%s", want, on)
+		}
+	}
+	for _, forbidden := range []string{"push", "pull_request"} {
+		if strings.Contains(on, forbidden) {
+			t.Errorf("qemu-nightly.yml must NOT trigger on %q: a VM boot plus the full suite is not a merge gate", forbidden)
+		}
+	}
+	if targets := makeTargetsInWorkflow(t, "qemu-nightly.yml"); !slices.Contains(targets, "ze-qemu-needs-linux-test") {
+		t.Errorf("qemu-nightly.yml must run `make ze-qemu-needs-linux-test`; targets found: %v", targets)
+	}
+	for _, j := range jobBlocks(t, "qemu-nightly.yml") {
+		if !j.advisory {
+			t.Errorf("qemu-nightly.yml job %q has no job-level `continue-on-error: true`; "+
+				"KVM availability on hosted runners is not guaranteed, so this reports rather than wedges", j.name)
+		}
+	}
+}
+
+// TestCapabilityGatedTestsHaveAQemuHome
+//
+// VALIDATES: whenever a `.ci` test declares `option=needs-linux:caps=...`, the
+// workflow set runs `ze-qemu-needs-linux-test` SPECIFICALLY -- the one target
+// whose ZE_QEMU_LINUX_ONLY pass selects those tests -- and that no gated test
+// also carries a `skip-env` that would exclude it from that very run.
+// PREVENTS: the silent-coverage-deletion failure mode. A caps= option makes a
+// test skip on every host lacking the capability, INCLUDING the verify runner,
+// so marking tests with it and having no privileged runner would turn a red
+// suite into a green one by removing the coverage (ai/rules/no-parking.md).
+//
+// The earlier version of this test accepted ANY `ze-qemu-*` target, which was
+// fail-open: `ze-qemu-debug`, `ze-qemu-l2tp-ppp-test` and friends satisfy that
+// prefix and run no `.ci` from the plugin or reload suites. It also could not
+// see the second half of the problem, which is what actually bit:
+// test/plugin/show-policy-routes.ci carried `skip-env:var=ZE_QEMU` from an era
+// when QEMU could not do nftables, and qemu-all-tests.sh exports ZE_QEMU=1 --
+// so the caps gate skipped it everywhere else and the env gate skipped it in the
+// one place with the capability. It ran nowhere, and every gate stayed green.
+func TestCapabilityGatedTestsHaveAQemuHome(t *testing.T) {
+	root := repoRoot(t)
+	var gated []string
+	err := filepath.Walk(filepath.Join(root, "test"), func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() || filepath.Ext(path) != ".ci" {
+			return err //nolint:wrapcheck // walk callback: propagate as-is
+		}
+		b, rerr := os.ReadFile(path) //nolint:gosec // path from a repo-local walk
+		if rerr != nil {
+			return rerr //nolint:wrapcheck // walk callback: propagate as-is
+		}
+		for ln := range strings.SplitSeq(string(b), "\n") {
+			if strings.HasPrefix(strings.TrimSpace(ln), "option=needs-linux:caps=") {
+				rel, _ := filepath.Rel(root, path)
+				gated = append(gated, rel)
+				break
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk test/: %v", err)
+	}
+	if len(gated) == 0 {
+		t.Fatal("no .ci test declares option=needs-linux:caps=; the marker or the tree moved. This test must not pass vacuously.")
+	}
+
+	// A gated test that ALSO opts out of the QEMU run is excluded from the only
+	// place its capability exists, so the marker deletes it rather than moving it.
+	for _, rel := range gated {
+		body := readFileOrFail(t, filepath.Join(root, rel))
+		for ln := range strings.SplitSeq(body, "\n") {
+			if strings.HasPrefix(strings.TrimSpace(ln), "option=skip-env:var=ZE_QEMU") {
+				t.Errorf("%s declares a caps= gate AND %q: the caps gate skips it wherever the capability is absent, "+
+					"and qemu-all-tests.sh exports ZE_QEMU=1, so it runs in NO environment at all", rel, strings.TrimSpace(ln))
+			}
+		}
+	}
+
+	workflows, err := filepath.Glob(filepath.Join(root, workflowsDir, "*.yml"))
+	if err != nil || len(workflows) == 0 {
+		t.Fatalf("glob %s/*.yml: %v (%d found)", workflowsDir, err, len(workflows))
+	}
+	// By NAME, not by `ze-qemu-` prefix. Only ze-qemu-needs-linux-test passes
+	// ZE_QEMU_LINUX_ONLY=1, which is what makes the VM run select these tests.
+	const home = "ze-qemu-needs-linux-test"
+	for _, wf := range workflows {
+		if slices.Contains(parseMakeTargets(stripComments(readFileOrFail(t, wf))), home) {
+			return
+		}
+	}
+	t.Errorf("%d .ci test(s) declare option=needs-linux:caps=... (e.g. %s) but no workflow runs `make %s`: "+
+		"those tests skip everywhere, which deletes the coverage instead of relocating it", len(gated), gated[0], home)
+}
+
 // TestPerfNightlyIsScheduled
 //
 // VALIDATES: the perf-regression check is scheduled-only, never a merge gate.
@@ -391,6 +498,42 @@ func TestWorkflowMakeTargetsExist(t *testing.T) {
 	}
 	if checked == 0 {
 		t.Fatalf("found no `make <target>` invocations across %s/*.yml; the scan is broken. This test must not pass vacuously.", workflowsDir)
+	}
+}
+
+// TestCrossBranchDemoTargetsExist
+//
+// VALIDATES: the make targets the gh-pages deploy invokes BY NAME across the
+// branch boundary still exist in this branch's Makefile set.
+// PREVENTS: a rename on main breaking the website publish with nothing on main
+// noticing. TestWorkflowMakeTargetsExist only globs THIS branch's
+// .github/workflows, and main's pages.yml -- which used to invoke these two --
+// was deleted so that gh-pages owns the deploy. The invocations did not go away
+// with it: gh-pages/.github/workflows/pages.yml still runs
+// `make -C main ze-terminal-demo-tools` and `make -C main
+// ze-terminal-demos-release` against a checkout of THIS branch. That is a real
+// dependency no glob on main can see, so it is pinned here explicitly.
+func TestCrossBranchDemoTargetsExist(t *testing.T) {
+	root := repoRoot(t)
+	frags, err := filepath.Glob(filepath.Join(root, "mk", "*.mk"))
+	if err != nil || len(frags) == 0 {
+		t.Fatalf("glob mk/*.mk: %v (%d found)", err, len(frags))
+	}
+	var sb strings.Builder
+	sb.WriteString(readFileOrFail(t, filepath.Join(root, "Makefile")))
+	for _, f := range frags {
+		sb.WriteString("\n")
+		sb.WriteString(readFileOrFail(t, f))
+	}
+	corpus := sb.String()
+
+	// Invoked by gh-pages/.github/workflows/pages.yml, which runs on the
+	// gh-pages branch against a `main` checkout.
+	for _, target := range []string{"ze-terminal-demo-tools", "ze-terminal-demos-release"} {
+		if !strings.Contains(corpus, "\n"+target+":") {
+			t.Errorf("the gh-pages deploy runs `make -C main %s`, but no such target exists in Makefile or mk/*.mk: "+
+				"the website publish would fail with `No rule to make target` and nothing on main would report it", target)
+		}
 	}
 }
 

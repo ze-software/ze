@@ -22,9 +22,16 @@ name: evidence-nightly
 # nothing else to configure. GitHub disables scheduled workflows after 60 days
 # with no repository activity; `workflow_dispatch` is the manual re-trigger.
 #
-# ze-qemu-integration-test stays OUT: it additionally needs nested virt / KVM,
-# which GitHub-hosted runners do not reliably provide. Adding it here would be a
-# pipeline that cannot start, which catches nothing.
+# ze-qemu-integration-test stays OUT of THIS workflow: it additionally needs
+# nested virt / KVM, which GitHub-hosted runners do not reliably provide, and a
+# job that fails to start catches nothing.
+#
+# The QEMU surface is not unrun, though: qemu-nightly.yml carries the Linux-only
+# FUNCTIONAL suite (`ze-qemu-needs-linux-test`) in its own scheduled, advisory
+# job. What makes that viable is the accelerator fallback -- qemu-run.py asks for
+# `accel=hvf:kvm:tcg`, so an unusable /dev/kvm costs wall-clock rather than the
+# whole run. Keeping the two apart means a slow VM boot cannot delay the fuzz and
+# kernel-integration evidence this workflow exists to produce.
 #
 # scripts/dev/github_workflows_test.go pins this shape (scheduled-only, runs fuzz
 # AND integration by make-target name, never the QEMU target, every job advisory).

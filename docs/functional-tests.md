@@ -314,7 +314,16 @@ the heavy Docker throughput/p99 DUT matrix stays in `make ze-perf-gate`.
 
 `.ci` tests tagged `option=needs-linux` SKIP on non-Linux hosts (GOOS check) and
 run as root inside the QEMU VM via `make ze-qemu-needs-linux-test`, where
-CAP_NET_ADMIN and real interfaces are available. The `traffic` suite is enrolled
+CAP_NET_ADMIN and real interfaces are available. That target is scheduled in
+`.github/workflows/qemu-nightly.yml` (advisory), which is what makes the stronger
+`option=needs-linux:caps=net-admin` marker safe to use: it also skips on an
+unprivileged **Linux** host, so without a privileged runner it would remove the
+test everywhere rather than relocate it. `TestCapabilityGatedTestsHaveAQemuHome`
+(`scripts/dev/github_workflows_test.go`) fails if that link is ever broken.
+<!-- source: .github/workflows/qemu-nightly.yml -- scheduled ze-qemu-needs-linux-test -->
+<!-- source: internal/test/runner/record_parse.go -- caps=net-admin gate and skip reason -->
+
+The `traffic` suite is enrolled
 in `scripts/evidence/qemu-all-tests.sh`; `test/traffic/022-boot-qdisc-tc.ci` and
 `023-reload-qdisc-tc.ci` assert real `tc qdisc show` kernel state after boot and
 after a reload (the check `001`/`002` document as deferred). The chaos iface

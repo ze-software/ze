@@ -81,12 +81,16 @@ root without it.
 A `caps=` typo is a parse error on every host, so it cannot silently disable the
 gate.
 
-**Know what you are trading.** A `caps=net-admin` test runs in NO automated
-pipeline today: CI runs `make ze-verify` unprivileged, and no workflow invokes
-`ze-qemu-needs-linux-test` (see the "What actually RUNS these suites" table
-below, which already records the QEMU suites as automated by nothing). The marker
-turns an opaque hang into an honest skip -- it does not by itself give the test a
-home. Run the QEMU target locally when you add one, and say so.
+**Know what you are trading.** A `caps=net-admin` test does NOT run in the merge
+gate: `make ze-verify` runs unprivileged, so the marker turns an opaque hang into
+an honest skip there. Its home is `.github/workflows/qemu-nightly.yml`, which
+runs `ze-qemu-needs-linux-test` on a schedule -- so the marker RELOCATES the
+coverage rather than deleting it. `TestCapabilityGatedTestsHaveAQemuHome`
+(`scripts/dev/github_workflows_test.go`) fails if that link is ever broken:
+marking tests with a capability nobody's CI has would be a coverage deletion
+wearing a skip's clothing (`ai/rules/no-parking.md`). The nightly is advisory and
+may run under TCG emulation, so it is slower than a merge gate and reports rather
+than blocks; run the QEMU target locally when you add a test, and say so.
 
 Do NOT use `skip-os:value=darwin` as a substitute for `needs-linux`: `skip-os`
 says "do not run here", whereas `needs-linux` documents intent ("this is a
@@ -285,7 +289,8 @@ Woodpecker instance could not.
 | `make ze-verify` (unit + functional + static gates) | `.github/workflows/verify.yml`, push + pull_request | yes |
 | `ze-fuzz-test` | `.github/workflows/evidence-nightly.yml`, scheduled | advisory |
 | `ze-integration-test` (non-QEMU kernel suites) | `.github/workflows/evidence-nightly.yml`, scheduled, `sudo` (root) | advisory |
-| `ze-qemu-integration-test` | NOTHING automated | -- |
+| `ze-qemu-needs-linux-test` (Linux-only `.ci` functional surface) | `.github/workflows/qemu-nightly.yml`, scheduled | advisory |
+| `ze-qemu-integration-test` (Go `integration && linux` packages) | NOTHING automated | -- |
 
 Two notes on the nightly row:
 

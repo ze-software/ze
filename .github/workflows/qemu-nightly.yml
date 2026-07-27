@@ -1,0 +1,100 @@
+name: qemu-nightly
+
+# The Linux-only functional surface, run for real in the QEMU Alpine VM.
+#
+# WHY THIS EXISTS. `option=needs-linux` tests skip on the darwin dev host, and
+# `make ze-verify` runs on an UNPRIVILEGED GitHub runner, so any test that
+# programs the kernel (interfaces, nftables, FIB, eBPF) can execute in neither.
+# Before this workflow those tests ran unprivileged in the verify job and simply
+# failed: in CI run 30219943935 sixteen of them died with "operation not
+# permitted", which is not coverage, it is noise. They now carry
+# `option=needs-linux:caps=...`, which makes them skip cleanly when the
+# capability is absent -- and THIS workflow is the place the capabilities are
+# present, so the skip is a redirection rather than a deletion
+# (ai/rules/qemu-testing.md, ai/rules/no-parking.md).
+# TestCapabilityGatedTestsHaveAQemuHome fails if that redirection is ever
+# broken, either by dropping this target or by a gated test opting out of it.
+#
+# ACCELERATION. scripts/evidence/qemu-run.py passes `-machine accel=hvf:kvm:tcg`,
+# so QEMU falls through to TCG emulation when /dev/kvm is unusable: the run is
+# slower but it STARTS. The udev step below grants the runner user access when
+# the device is present, which is the difference between minutes and tens of
+# minutes. An earlier ruling (evidence-nightly.yml) kept every QEMU target out of
+# CI on the grounds that hosted runners "do not reliably provide" nested virt;
+# that is why this is a separate, scheduled, advisory workflow with a fallback
+# rather than a merge gate -- unreliable acceleration costs time here, it does
+# not stop the pipeline.
+#
+# NOT A MERGE GATE. `ze-qemu-needs-linux-test` boots a VM, cross-compiles three
+# binaries and runs every functional suite inside it; the make target alone
+# budgets 3600s. Putting that in front of a merge is exactly what
+# scripts/dev/github_workflows_test.go's fast-gate pin exists to prevent.
+#
+# scripts/dev/github_workflows_test.go pins this shape (scheduled-only, runs the
+# QEMU needs-linux target, every job advisory).
+
+on:
+  schedule:
+    - cron: "43 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  needs-linux:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    # The make target's own qemu-run budget is 3600s; this adds room for the
+    # Alpine ISO fetch, the in-VM Go toolchain, and three cross-compiles.
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: Install system packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential git make python3 qemu-system-x86 qemu-utils \
+            openssh-client curl
+
+      # /dev/kvm exists on GitHub's Linux runners but is root-owned, and
+      # existence is not access: qemu refuses to use an unreadable device. This
+      # is the documented udev workaround. It is best-effort on purpose -- if the
+      # device is absent the rule is a no-op and qemu-run.py's accel fallback
+      # takes TCG, so the suite still runs.
+      - name: Grant KVM access (best effort)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules || true
+          sudo udevadm trigger --name-match=kvm || true
+          ls -l /dev/kvm || echo "no /dev/kvm: QEMU will fall back to TCG (slower, still correct)"
+
+      # Size the guest for the RUNNER, not for a workstation. qemu-run.py
+      # defaults to 16384 MB / 8 vCPU (scripts/evidence/qemu-run.py:35-36),
+      # which is the whole of an ubuntu-latest box (4 vCPU / 16 GB) -- and
+      # Alpine live-boots its root filesystem onto a tmpfs sized from guest RAM,
+      # so asking for all of it invites the host OOM-killing qemu rather than a
+      # readable test failure. ZE_QEMU_PARALLEL likewise drops: 4 concurrent ze
+      # daemons inside a 3-vCPU guest is the same over-subscription that killed
+      # the verify runner in the first place.
+      #
+      # The boot budget is raised because it may be paid under TCG: qemu-run.py
+      # gives 60s to reach the login prompt (:37) and does NOT retry -- the
+      # 3-attempt loop at :312 starts only after `login:` is seen, so a slow
+      # boot is fatal rather than retried. 60s was sized on an accelerated host.
+      - name: make ze-qemu-needs-linux-test
+        env:
+          ZE_QEMU_MEMORY: "8192"
+          ZE_QEMU_CPUS: "3"
+          ZE_QEMU_PARALLEL: "2"
+          ZE_QEMU_BOOT_TIMEOUT: "300"
+        run: make ze-qemu-needs-linux-test
