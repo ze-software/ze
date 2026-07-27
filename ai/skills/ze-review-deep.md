@@ -19,12 +19,17 @@ When the argument contains agent names (e.g., "security", "logic", "concurrency"
 
 ## Model Selection
 
-The orchestrator (this skill) runs at the session's model. Spawned agents use different models based on task complexity:
+Review is a review-phase workload, so it runs on the review model throughout
+(`ai/rules/model-selection.md`: planning and review on Opus 5, implementation on
+Opus 4.8). The orchestrator (this skill) runs at the session's model.
 
 | Model | Agents | Why |
 |-------|--------|-----|
-| **sonnet** | Security (#1), Concurrency (#2), Logic (#5), Data Flow (#6), Performance (#10), Feature Completeness (#11) | Reasoning-heavy: exploit paths, race analysis, subtle bugs, cross-boundary tracing, escape analysis, missing-code detection |
-| **haiku** | Error Handling (#3), Test Coverage (#4), API Compat (#7), Project Rules (#8), Documentation (#9) | Mechanical: checklist matching, grep callers, compare docs to code |
+| **opus** | All agents (#1-#11) and the verification agent | Review is the judgment-heavy phase. A missed exploit path, race, or vacuous test costs more than the cheaper model saves, and a mechanical-looking lens (docs, project rules, test coverage) still needs judgment to tell a real gap from a false positive |
+
+Do not downgrade an individual agent to `sonnet` or `haiku` because its lens
+looks mechanical. If cost forces a reduction, cut the number of agents, never
+the model they run on.
 
 ## Steps
 
@@ -67,7 +72,7 @@ Enter numbers (e.g., 1,5), "all", or names (e.g., "security, logic"):
 
 ### 3. Launch selected agents
 
-Launch the selected agents simultaneously using the Agent tool. Use `model: sonnet` for agents 1, 2, 5, 6, 10, 11 and `model: haiku` for agents 3, 4, 7, 8, 9 (see Model Selection table). Each agent gets the file list, diff context, and the Agent Preamble above. Each agent MUST:
+Launch the selected agents simultaneously using the Agent tool. Use `model: opus` for every agent (see Model Selection table). Each agent gets the file list, diff context, and the Agent Preamble above. Each agent MUST:
 - Read the actual changed files (not just the diff)
 - Apply its specific lens exhaustively
 - Return findings in the structured format below
@@ -471,7 +476,7 @@ For each remaining finding, classify it as one of:
 
 Drop REFUTED findings. Keep CONFIRMED and PLAUSIBLE.
 
-When under 20 findings remain after dedup, verify each one yourself by reading the relevant code. When 20 or more, spawn a verification agent (model: sonnet) with the diff, relevant files, and the candidate list.
+When under 20 findings remain after dedup, verify each one yourself by reading the relevant code. When 20 or more, spawn a verification agent (model: opus) with the diff, relevant files, and the candidate list.
 
 ### 6. Format report
 

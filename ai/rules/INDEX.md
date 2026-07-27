@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 92 rules
+Total: 93 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -65,6 +65,7 @@ Total: 92 rules
 | Language and Spelling | The project language is US English Severity: blocking | `ai/rules/language-and-spelling.md` |
 | Lint Gate | Run before claiming implementation work is complete Severity: blocking | `ai/rules/lint-gate.md` |
 | Memory Architecture | Conceptual model for Ze's memory management Severity: advisory | `ai/rules/memory-architecture.md` |
+| Model Selection by Work Phase | starting, resuming, or handing off any spec/design, implementation, or review phase, and whenever you are about to cross from one phase into another in the same session Severity: blocking Related:... | `ai/rules/model-selection.md` |
 | Module Tiers (core / component / plugin) | creating a new package under `internal/`, or deciding whether something belongs in `internal/core/`, `internal/component/`, or `internal/plugins/`. Severity: advisory | `ai/rules/module-tiers.md` |
 | Naming | naming anything in Ze (identifiers, files, commands, config) Severity: advisory | `ai/rules/naming.md` |
 | Never Destroy Uncommitted Work | Never delete, revert, or overwrite files holding uncommitted Severity: blocking | `ai/rules/never-destroy-work.md` |

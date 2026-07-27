@@ -28,6 +28,9 @@ Required structure, in this exact order:
   DROPS these sections, fenced code blocks, and `Rationale:`/`See:` pointer
   lines. Anything an agent must obey to comply belongs in a directive section,
   never only in `## Rationale`.
+- **Write directives as bullets, table rows, or `**bold**` lines. Those reach the digest verbatim; prose does not.** The condenser keeps only the FIRST prose paragraph of each section, truncated to its first sentence or 220 characters, and drops every later prose paragraph in that section outright (`condense_body` / `flush_prose`, `scripts/dev/rules_condensed.py:106-148`).
+- **Keep each bullet on ONE physical line when its full text must reach the digest.** A wrapped bullet's continuation lines do not match the list-item pattern (`scripts/dev/rules_condensed.py:52`), so they are treated as prose and are dropped or truncated by the paragraph rule above. A long single line is correct here; do not wrap it for looks.
+- After editing a rule, READ your section in the regenerated `CONDENSED.md` before committing. A directive that lost half its sentence is not visible from the rule file alone.
 - `make ze-rules-lint` enforces the block; `make ze-rules-condensed` regenerates
   the digest. Both run in `make ze-doc-test`. A rule that fails the lint cannot
   land.

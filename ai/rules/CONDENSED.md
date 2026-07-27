@@ -9,7 +9,7 @@ dropped. When a rule governs your current action, open its full file (the
 path under each heading) before acting -- this digest maps directives, it is
 not a substitute for the rule.
 
-Rules: 92
+Rules: 93
 
 ---
 
@@ -2536,6 +2536,43 @@ Before writing any buffer/pool/allocation code, answer these questions (from `ai
 
 ---
 
+## Model Selection by Work Phase
+`ai/rules/model-selection.md`
+**When:** starting, resuming, or handing off any spec/design, implementation, or review phase, and whenever you are about to cross from one phase into another in the same session — **Severity:** blocking — **Related:** planning, critical-review, handoff
+
+## Directives
+Each phase of Ze work runs on a specific model.
+| Phase | Model | Covers |
+|-------|-------|--------|
+| Planning and design | Opus 5 | research, `/ze-spec`, `/ze-design`, spec writing and revision, architecture decisions, RFC reading, handoff authoring |
+| Implementation | Opus 4.8 | `/ze-implement`, writing code and tests, fixing failures, refactors, doc edits that follow from the code |
+| Review and audit | Opus 5 | `/ze-review`, `/ze-review-deep`, `/ze-review-spec`, `/ze-audit`, the Review Gate, spec closure, implementation audit |
+## Phase Boundaries Are Model Boundaries
+A session cannot change its own model.
+| Situation | Do |
+|-----------|-----|
+| The spec is approved and coding is about to start | State that the implementation phase wants Opus 4.8, then stop and let the operator switch or start an implementation session |
+| Implementation is complete and the Review Gate is next | State that review wants Opus 5, then stop. Never review your own implementation on the implementation model |
+| A review or audit produces fixes | The fixes are implementation. They belong on Opus 4.8, and the re-review that follows belongs back on Opus 5 |
+| You are already mid-phase on the wrong model | Say so plainly, name the model the phase wants, and let the operator decide. Do not silently continue |
+| The work is a one-line mechanical edit with no design or review content | Proceed on whatever model is loaded. This rule governs phases, not keystrokes |
+## Subagents
+- Subagents inherit the PHASE, not the task shape: reviewer subagents spawned during review stay on the review model, implementation subagents stay on the implementation model.
+- The `Agent` tool's `model` parameter selects a family (`opus`, `sonnet`, `haiku`), not a minor version, so it cannot pin 4.8 against 5. The phase-to-model mapping above is about the session driving the work.
+- Never downgrade a subagent to a cheaper model because its lens looks mechanical. `ai/skills/ze-review-deep.md` and `ai/skills/ze-debug.md` spawn every agent on `opus` for this reason. If cost forces a reduction, cut the NUMBER of agents, never the model they run on.
+## Banned Reasoning
+| Banned | Reality |
+|--------|---------|
+| "I am already here, I will just implement it" | The phase changed. The model has to change with it |
+| "It is a small implementation, review can stay on the same model" | Size is judged after review, not before |
+| "Switching costs a round trip" | The round trip is the point. It is the boundary |
+| "The review model can write the fix faster" | Then the fix is unreviewed work written by the reviewer. Two rules broken, not one |
+## Enforcement
+- The session is the enforcement point: announce the boundary, and stop rather than crossing it on the wrong model.
+- No hook or gate checks the running model. Nothing will catch this for you.
+
+---
+
 ## Module Tiers (core / component / plugin)
 `ai/rules/module-tiers.md`
 **When:** creating a new package under `internal/`, or deciding whether something belongs in `internal/core/`, `internal/component/`, or `internal/plugins/`. — **Severity:** advisory
@@ -4079,6 +4116,9 @@ Every `ai/rules/*.md` rule (except the generated `INDEX.md` and `CONDENSED.md`) 
 - The metadata block MUST be contiguous and immediately follow the title
 - Put imperative content under `## Directives` (or the rule's own directive
 - Put the "why" under `## Rationale` and code under `## Examples`. The digest
+- **Write directives as bullets, table rows, or `**bold**` lines. Those reach the digest verbatim; prose does not.** The condenser keeps only the FIRST prose paragraph of each section, truncated to its first sentence or 220 characters, and drops every later prose paragraph in that section outright (`condense_body` / `flush_prose`, `scripts/dev/rules_condensed.py:106-148`).
+- **Keep each bullet on ONE physical line when its full text must reach the digest.** A wrapped bullet's continuation lines do not match the list-item pattern (`scripts/dev/rules_condensed.py:52`), so they are treated as prose and are dropped or truncated by the paragraph rule above. A long single line is correct here; do not wrap it for looks.
+- After editing a rule, READ your section in the regenerated `CONDENSED.md` before committing. A directive that lost half its sentence is not visible from the rule file alone.
 - `make ze-rules-lint` enforces the block; `make ze-rules-condensed` regenerates
 - **Commit the regenerated `CONDENSED.md` in the SAME commit as the rule edit.**
 - When a **concurrent session** has an uncommitted rule edit, do NOT commit a

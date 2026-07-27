@@ -15,7 +15,7 @@ See also: `/ze-verify` (re-verify after fix)
 
 1. **Read the failing test output** provided by the user
 2. **Identify the failing tests:** Extract test names, packages, error messages, and expected vs actual values
-3. **Launch 4 parallel investigation agents** (use `model: sonnet` for reasoning depth):
+3. **Launch 4 parallel investigation agents** (use `model: opus` -- diagnosis is judgment work, see `ai/rules/model-selection.md`):
 
    **Task 1 -- Format/parsing mismatch:**
    Check test expectations against actual output formats. Are the tests expecting a different structure, field name, or encoding than what the code produces?
