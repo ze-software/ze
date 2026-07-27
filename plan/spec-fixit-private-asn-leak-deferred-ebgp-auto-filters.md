@@ -125,6 +125,54 @@ which, and how `show`/config output renders an entry the operator never typed.
 from user config. Full rationale under "### Resolutions (readiness pass)" (R-3). Thomas:
 override if a real `Auto` marker is required.
 
+### BLOCKING FINDING (2026-07-27): the auto-append design has an unpriced hot-path cost
+
+Verified against the tree, not inferred. **`runEgressPolicyChainASN4` returns
+`egressStepResult{accept: true}` and does nothing when the peer has no export filters**
+(`internal/component/bgp/reactor/filter_ordered.go:253-255`, and the same early return in
+its wrapper `runEgressPolicyChain` at `:225-227`).
+
+Two consequences, and the second is what blocks:
+
+1. **It explains why Thomas's ruling is the RIGHT shape and the cheap alternative is a
+   trap.** The hardcoded `ExtractRemovePrivateASOps` / `ExtractASPathPrependOps` steps
+   inside that body (`:250-251`) therefore never run for a peer with no configured export
+   filters. Adding an EBGP LOCAL_PREF strip as another hardcoded step in that body would
+   be a guard that fails OPEN for exactly the common case (an EBGP peer with no export
+   policy) -- banned by `ai/rules/fail-closed-guards.md`. Auto-APPENDING a `FilterRef`
+   is what makes `len(exportFilters) != 0` hold for every EBGP peer, so the ruling is
+   load-bearing, not stylistic.
+
+2. **But that is precisely why it is expensive.** Making the chain non-empty for every
+   EBGP peer means every EBGP destination of every forwarded UPDATE now enters the body,
+   which allocates a 64 KB stack scratch and renders the whole update to TEXT before any
+   filter runs (`filter_ordered.go:276-278`: `var scratchArr [65536]byte`, then
+   `AppendUpdateForFilter`). Today a no-policy EBGP peer skips all of that. For a daemon
+   whose forward rail exists to be zero-copy (`ai/rules/memory-architecture.md`), turning
+   the text-rendering egress chain on for every EBGP peer by default is a throughput
+   change, not an implementation detail. The spec never prices it.
+
+**The RFC violation is real and still live**, so this is a blocker to a fix, not a reason
+to leave it: an UPDATE received from an IBGP peer carrying LOCAL_PREF and forwarded to an
+EBGP peer keeps LOCAL_PREF on the wire. Producer citations, all re-verified 2026-07-27:
+`reactor_api_forward.go:471` (`wireu.RewriteASPath` is the only per-destination EBGP wire
+transform), `grep -rn LOCAL_PREF internal/component/bgp/wireu/*.go` (zero non-test hits,
+so nothing strips it), and `message/rfc7606.go:519-527` (the ingress discard covers an
+EBGP *source* only, never an IBGP source with an EBGP destination). The `rib/commit` and
+`peer_rib_routes` paths were checked and are NOT leaking: both gate LOCAL_PREF on
+`isIBGP` (`peer_rib_routes.go:96`, `:133`).
+
+**Needs a ruling from Thomas** (recorded rather than guessed, because the two answers
+produce materially different code and one of them contradicts the 2026-07-16 ruling):
+
+| Option | Shape | Cost | Against |
+|--------|-------|------|---------|
+| A: auto-append `FilterRef` as ruled | one chain entry per EBGP peer | every EBGP destination enters the text-rendering egress body | the forward rail's zero-copy premise |
+| B: extend the per-destination EBGP wire rewrite | suppress LOCAL_PREF inside the `RewriteASPath` copy that `reactor_api_forward.go:471` ALREADY pays for and caches per (localAS, asn4) in `ebgpWireCache` | no new allocation, no new pass | the 2026-07-16 ruling ("instead of special-casing both inside the wire path"), and it does not generalise to the prepend half |
+
+Option B was NOT taken unilaterally. It is cheaper and fixes the MUST NOT, but it
+contradicts a recorded ruling given before this cost was known.
+
 ### Convergence: three in-progress specs are standing on the seam this design retires
 
 `wireu.rewriteASPathPrepend` (`aspath_rewrite.go:63`) is the de-facto per-destination EBGP
