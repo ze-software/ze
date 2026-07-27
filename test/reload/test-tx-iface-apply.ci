@@ -17,7 +17,13 @@
 # survived.
 
 # ze-peer expectations
-option=skip-os:value=darwin
+# This test creates interfaces during a config reload, so it needs
+# CAP_NET_ADMIN, not merely Linux. skip-os:value=darwin only hid it from macOS:
+# on the unprivileged GitHub runner the reload transaction failed with
+# 'operation not permitted' creating the link, and the assertion failed.
+# caps=net-admin gates on the capability and names the runner where the test
+# executes (ai/rules/qemu-testing.md).
+option=needs-linux:caps=net-admin
 stdin=peer:terminator=EOF_PEER
 
 # Connection 1: peer from initial config sends route + EOR

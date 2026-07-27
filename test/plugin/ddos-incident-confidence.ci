@@ -37,7 +37,16 @@
 #   Pacing uses ze_api read_line(timeout=...) and time.monotonic -- never time.sleep
 #   (the .ci sleep ratchet is at its baseline).
 
-option=needs-linux
+# This test needs a fully privileged host, not merely Linux, and needs TWO
+# distinct capability families. Its `traffic { usage { track-ip true } }` block
+# drives rlimit.RemoveMemlock() + link.AttachTCX()
+# (internal/plugins/trafficusage/attach_linux.go:33,46), so it needs bpf
+# (CAP_BPF + CAP_SYS_RESOURCE) to account at all and net-admin to program the
+# interface's tc hooks. Without them eBPF accounting runs inert, no incident is
+# ever opened, and the observer's runtime_fail fires -- which is what a bare
+# needs-linux produced on the unprivileged GitHub runner
+# (ai/rules/qemu-testing.md).
+option=needs-linux:caps=net-admin,bpf
 # Serialize against every other ddos test: they all flood the SAME loopback
 # interface and the detector picks the victim by top-destination-bytes over that
 # interface, so a sibling's concurrent flood is indistinguishable from this

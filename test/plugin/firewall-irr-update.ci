@@ -10,7 +10,14 @@
 # 4. Observer dispatches "update firewall irr as-set AS-TEST"
 # 5. Observer verifies AS-SET fetch succeeds
 
-option=skip-os:value=darwin
+# This test programs nftables, so it needs CAP_NET_ADMIN, not merely Linux.
+# skip-os:value=darwin only hid it from macOS: on an unprivileged Linux host it
+# RAN, the firewall plugin died with "firewallnft: list tables: netlink receive:
+# operation not permitted" during its stage-3 handshake, the daemon never
+# reached the asserted state, and the test hung or failed. Declaring the
+# capability turns that into an honest skip naming the runner where it does
+# execute (ai/rules/qemu-testing.md).
+option=needs-linux:caps=net-admin
 option=env:var=ze.log.firewall.irr:value=debug
 option=timeout:value=20s
 

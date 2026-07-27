@@ -24,7 +24,12 @@
 # require CAP_NET_ADMIN; the SKIPPED-on-darwin runner cannot exercise them. Run via
 # `make ze-qemu-needs-linux-test` (boots a root QEMU VM). zetest0 is a uniquely named
 # throwaway dummy in the VM's default namespace, deleted at the end (idempotent on rerun).
-option=needs-linux
+# This test creates interfaces, so it needs CAP_NET_ADMIN, not merely Linux. On
+# the unprivileged GitHub runner 'create interface dummy name zetest0' came back
+# 'iface: create dummy "zetest0": operation not permitted'. caps=net-admin gates
+# on the capability and names the runner where it executes
+# (ai/rules/qemu-testing.md).
+option=needs-linux:caps=net-admin
 
 tmpfs=iface-verbs.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3

@@ -21,7 +21,12 @@
 # the route. The unit tests + forked-route-install.ci prove the darwin-safe half
 # (RPC -> Loc-RIB -> sysrib); this test proves the final sysrib -> fib-kernel ->
 # kernel hop for a forked source.
-option=needs-linux
+# This test asserts a route reaches the kernel FIB, so it needs CAP_NET_ADMIN,
+# not merely Linux. On the unprivileged GitHub runner the route never landed
+# ("10.99.0.0/24 not in kernel as RTPROT_ZE; ip route showed: ''") and routewatch
+# could not even open its netlink socket. caps=net-admin gates on the capability
+# and names the runner where the test executes (ai/rules/qemu-testing.md).
+option=needs-linux:caps=net-admin
 
 tmpfs=forked-kernel.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3

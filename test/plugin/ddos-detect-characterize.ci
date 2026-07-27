@@ -24,7 +24,19 @@
 #   and waits for a dump before the heavy flood, so the reflection flow is in the
 #   ring when characterization runs.
 
-option=needs-linux
+# This test needs a fully privileged host, not merely Linux, and needs TWO
+# distinct capability families -- which is why it declares both.
+#   - bpf (CAP_BPF + CAP_SYS_RESOURCE): traffic-usage calls
+#     rlimit.RemoveMemlock() and then link.AttachTCX()
+#     (internal/plugins/trafficusage/attach_linux.go:33,46). On the unprivileged
+#     GitHub runner the rlimit call failed with "need CAP_BPF/CAP_SYS_RESOURCE",
+#     eBPF accounting ran inert, and no incident was ever opened.
+#   - net-admin: AttachTCX programs the interface's tc hooks, a privileged
+#     network operation.
+# Declaring only one of the two would fail OPEN: a host holding just that one
+# passes the gate and the test fails exactly as it did with no marker at all
+# (ai/rules/fail-closed-guards.md, ai/rules/qemu-testing.md).
+option=needs-linux:caps=net-admin,bpf
 # Serialize against every other ddos test: they all flood the SAME loopback
 # interface and the detector picks the victim by top-destination-bytes over that
 # interface, so a sibling's concurrent flood is indistinguishable from this

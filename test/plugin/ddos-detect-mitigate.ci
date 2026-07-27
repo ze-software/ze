@@ -8,7 +8,7 @@
 # PREVENTS:  the mitigation chain staying inert (detector emits an empty target,
 #            responders refuse to act).
 #
-# STATUS: a Linux/QEMU integration test (option=needs-linux); NOT executable on
+# STATUS: a Linux/QEMU integration test (option=needs-linux:caps=net-admin,bpf); NOT executable on
 #   the darwin dev host. Reworked per spec-fixit-ddos-test-infra AC-2a: the
 #   daemon.pid/daemon.ready handshake is KEPT (it is armed for a background `ze`
 #   -- runner_exec_util.go:125-130, runner_exec.go:702-705,777-791 -- and polled
@@ -28,7 +28,19 @@
 #   If the trigger proves hard to drive on loopback, switch the flooded device
 #   to a dedicated veth created before the daemon starts.
 
-option=needs-linux
+# This test needs a fully privileged host, not merely Linux, and needs TWO
+# distinct capability families -- which is why it declares both.
+#   - bpf (CAP_BPF + CAP_SYS_RESOURCE): traffic-usage calls
+#     rlimit.RemoveMemlock() and then link.AttachTCX()
+#     (internal/plugins/trafficusage/attach_linux.go:33,46). On the unprivileged
+#     GitHub runner the rlimit call failed with "need CAP_BPF/CAP_SYS_RESOURCE",
+#     eBPF accounting ran inert, and no incident was ever opened.
+#   - net-admin: AttachTCX programs the interface's tc hooks, a privileged
+#     network operation.
+# Declaring only one of the two would fail OPEN: a host holding just that one
+# passes the gate and the test fails exactly as it did with no marker at all
+# (ai/rules/fail-closed-guards.md, ai/rules/qemu-testing.md).
+option=needs-linux:caps=net-admin,bpf
 # Serialize against every other ddos test: they all flood the SAME loopback
 # interface and the detector picks the victim by top-destination-bytes over that
 # interface, so a sibling's concurrent flood is indistinguishable from this

@@ -9,7 +9,12 @@
 # This test verifies the wiring that makes that lifecycle possible: profiles load
 # from config, the plugin starts, and the show command returns correct data.
 
-option=needs-linux
+# This test creates a VLAN interface, so it needs CAP_NET_ADMIN, not merely
+# Linux. On the unprivileged GitHub runner the interface plugin logged
+# 'iface: create vlan "eth0.100": operation not permitted' and ze exited 1.
+# needs-linux alone does not gate on the capability; caps=net-admin does, and
+# names the runner where the test really executes (ai/rules/qemu-testing.md).
+option=needs-linux:caps=net-admin
 # Serialize against every other needs-linux cos test: they all configure the SAME
 # VLAN (unit v100 / vlan-id 100) on the VM's real eth0, and the QEMU run gives
 # them one shared root namespace, so concurrent daemons create, reconcile and
