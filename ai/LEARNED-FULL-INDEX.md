@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1248 summaries
+Total: 1249 summaries
 
 ## 000-099
 
@@ -1322,3 +1322,4 @@ Total: 1248 summaries
 | 1274 | netlink int fields truncate uint32 config on a 32-bit build | `plan/learned/1274-netlink-int-field-truncation.md` |
 | 1275 | fixit: the six independent reasons GitHub Actions was red | `plan/learned/1275-fixit-ci-green.md` |
 | 1276 | fixit: the CI reds that survived the six root causes | `plan/learned/1276-fixit-ci-red-classes.md` |
+| 1277 | fixit-rfc6286-bgp-identifier | `plan/learned/1277-fixit-rfc6286-bgp-identifier.md` |
