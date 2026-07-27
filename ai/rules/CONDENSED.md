@@ -488,7 +488,7 @@ These rules are enforced automatically, not just by review.
 | Registration | Every plugin `CommandDecl` at registration (`validateCommandName`) | plugin startup in functional/exabgp suites |
 | Runtime guard | The runtime built-in assembly (`AllBuiltinRPCs` x `WireMethodToPaths`) re-checked with `ExemptCategory` by wire method; and the `CommandRegistry.Register` boundary rejecting a bad name | `TestRuntimeBuiltinSurfaceGrammar` / `TestRegistrationRejectsBadGrammar` (unit) |
 | Root namespace | Every registered root command (`registry.MustRegisterRootHandler` / `RegisterRoot`, enumerated from source) against R9 across surfaces (`grammar.CheckRootNamespace`): a hyphenated root whose left segment names a YANG verb or container is a namespace member masquerading as a compound root. Root handlers never pass through the YANG-tree static gate, so this feeder is the only one that governs them | `make ze-cli-grammar-check` (same gate); `TestRootNamespaceGrammar` (unit) |
-| Demo call sites | Every `ze <token>` invocation in `demos/terminal/**/*.sh`: the position-1 token must be a YANG verb, a registered root, or the `-` stdin sentinel. The other feeders check how commands are DECLARED; this one checks the repo's own CALL SITES, which no other gate reaches -- `make ze-verify` never executes the demos (Docker + VHS, run from `mk/terminal-demo.mk` at release time and by the website workflow), so a removed launch form rots there silently: `ze <config-file>` stayed in thirteen demo scripts and failed the Deploy website job on every push for four days | `make ze-cli-grammar-check` (same gate); `TestCLIGrammarGateStatic` (unit) |
+| Demo call sites | Every `ze <token>` invocation in `demos/terminal/**/*.sh`: the position-1 token must be a YANG verb, a registered root, or the `-` stdin sentinel. The other feeders check how commands are DECLARED; this one checks the repo's own CALL SITES, which no other gate reaches -- `make ze-verify` never executes the demos (Docker + VHS, run from `mk/terminal-demo.mk` at release time and by the gh-pages website workflow), so a removed launch form rots there silently -- and since main's own `pages.yml` was deleted, main no longer gets even the after-the-fact signal it once did: `ze <config-file>` stayed in thirteen demo scripts and failed the Deploy website job on every push for four days. This static gate is now the ONLY thing on main that sees a broken demo call site | `make ze-cli-grammar-check` (same gate); `TestCLIGrammarGateStatic` (unit) |
 ## YANG Tree
 The YANG container nesting must mirror the corrected grammar.
 ## No Flag Syntax in YANG (Filters Are Keyword Grammar)
@@ -3788,7 +3788,7 @@ A functional `.ci` test that boots a daemon (or runs `ze`) which exercises a rea
 | Same, AND needs privileged network configuration (creates interfaces, brings links up, netlink) | `option=needs-linux:caps=net-admin` |
 | Needs to skip only on a specific non-Linux OS for an unrelated reason | `option=skip-os:value=darwin` |
 **`caps=net-admin` exists because Linux alone is not the requirement.** On an
-**Know what you are trading.** A `caps=net-admin` test runs in NO automated
+**Know what you are trading.** A `caps=net-admin` test does NOT run in the merge
 ## How to Write a QEMU Integration Test
 ### 1. File naming and build tags
 File name: `<feature>_integration_linux_test.go`
@@ -3853,7 +3853,8 @@ This rule says "BLOCKING", so it is worth being precise about which gate enforce
 | `make ze-verify` (unit + functional + static gates) | `.github/workflows/verify.yml`, push + pull_request | yes |
 | `ze-fuzz-test` | `.github/workflows/evidence-nightly.yml`, scheduled | advisory |
 | `ze-integration-test` (non-QEMU kernel suites) | `.github/workflows/evidence-nightly.yml`, scheduled, `sudo` (root) | advisory |
-| `ze-qemu-integration-test` | NOTHING automated | -- |
+| `ze-qemu-needs-linux-test` (Linux-only `.ci` functional surface) | `.github/workflows/qemu-nightly.yml`, scheduled | advisory |
+| `ze-qemu-integration-test` (Go `integration && linux` packages) | NOTHING automated | -- |
 ## Common Mistakes
 | Mistake | Fix |
 |---------|-----|

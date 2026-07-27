@@ -20,7 +20,7 @@
 **[BLOCKER]** CI runs ONLY `make ze-verify` (`.woodpecker/verify.yml:19`). The entire
 Linux-integration / QEMU / fuzz / mutation / interop surface runs in NO automated
 pipeline: a grep of `.woodpecker/` + `.github/workflows/` for qemu|integration|fuzz|mutation|interop
-returns zero, and the only other workflows are `codeql.yml` and `pages.yml`. Heavy suites
+returns zero, and the only other workflow is `codeql.yml` (`pages.yml` was deleted on 2026-07-27 -- the gh-pages branch owns the website deploy; see plan/learned/1275-fixit-ci-green.md). Heavy suites
 exist as make targets (`mk/test-integration.mk` 29KB, `mk/test-fuzz.mk`, `mk/test-mutation.mk`)
 that nothing in CI invokes. `ai/rules/qemu-testing.md:3` calls QEMU tests BLOCKING/mandatory,
 yet no gate enforces it. A regression in any heavy suite silently reaches main.
@@ -58,7 +58,7 @@ scheduling itself, this spec folds into it.
 - [ ] `test/interop/run.py` - Docker-based BGP interop runner; exists but no pipeline invokes it
 - [ ] `.woodpecker/verify.yml` - one `verify` step, `golang:1.26`, runs `make ze-verify` (line 19) on push/pull_request only
 - [ ] `.github/workflows/codeql.yml` - CodeQL scan; does not run any ze test suite
-- [ ] `.github/workflows/pages.yml` - docs/pages publish; does not run any ze test suite
+- [x] `.github/workflows/pages.yml` - DELETED 2026-07-27; the gh-pages branch's own workflow owns the deploy (plan/learned/1275-fixit-ci-green.md)
 - [ ] `mk/test-release.mk` - `ze-release-evidence` (:83) composes the heavy matrix with a continue-on-failure category runner and `ZE_RELEASE_SKIP`
 - [ ] `mk/test-integration.mk` - `ze-integration-test` (:106), `ze-qemu-integration-test` (:321), other QEMU/deployment targets
 - [ ] `mk/test-fuzz.mk` - `ze-fuzz-test` (:12) runs all fuzz corpora

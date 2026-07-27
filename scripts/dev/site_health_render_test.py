@@ -3,8 +3,8 @@
 
 These live HERE, not in the gh-pages worktree, on purpose. Nothing in gh-pages
 executes its `tools/test_*.py` files: `tools/build.py`, `update-website.sh` and
-`.github/workflows/pages.yml` contain no test invocation, so `tools/test_render_doc.py`
-has never run. Adding a second unexecuted test file would have been an ironic way
+gh-pages' own `.github/workflows/pages.yml` contain no test invocation, so
+`tools/test_render_doc.py` has never run. Adding a second unexecuted test file would have been an ironic way
 to ship a tool whose job is to find tests nothing runs.
 
 Placed under scripts/dev/, TestPythonUnitTests (scripts/dev/python_tests_test.go)
