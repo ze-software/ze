@@ -1,13 +1,12 @@
 // Design: plan/learned/425-arch-0-system-boundaries.md — PluginManager implementation
 // Design: docs/architecture/plugin-manager-wiring.md — two-phase startup
 // Related: ../server/startup.go — Server calls SpawnMore/GetProcessManager during handshake
+// Related: ../acceptor.go — NewHubAcceptor, the shared TLS acceptor lifecycle ensureAcceptor uses
 
 package plugin
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
@@ -230,53 +229,14 @@ func (m *Manager) ensureAcceptor(configs []parent.PluginConfig) error {
 		return nil
 	}
 
-	hubConf := m.hubConfig
-	if hubConf == nil || len(hubConf.Servers) == 0 {
-		// Auto-generate hub config for external plugins without explicit config.
-		var tokenBytes [32]byte
-		if _, err := rand.Read(tokenBytes[:]); err != nil {
-			return fmt.Errorf("generate hub token: %w", err)
-		}
-		hubConf = &parent.HubConfig{
-			Servers: []parent.HubServerConfig{{
-				Name:   "auto",
-				Host:   "127.0.0.1",
-				Port:   0,
-				Secret: hex.EncodeToString(tokenBytes[:]),
-			}},
-		}
-	}
-
-	// Use the first server block for the plugin acceptor.
-	server := hubConf.Servers[0]
-
-	cert, err := pluginipc.GenerateSelfSignedCert()
+	// Creation (auto-generated server block, cert, listener, per-client secret
+	// lookup, accept loop) is shared with the hub orchestrator's subsystem
+	// path -- see parent.NewHubAcceptor. Only the policy above is engine-local.
+	acceptor, err := parent.NewHubAcceptor(m.hubConfig)
 	if err != nil {
-		return fmt.Errorf("generate TLS cert: %w", err)
+		return fmt.Errorf("plugin TLS acceptor: %w", err)
 	}
-
-	listeners, err := pluginipc.StartListeners([]string{server.Address()}, cert)
-	if err != nil {
-		return fmt.Errorf("start TLS listeners: %w", err)
-	}
-
-	m.acceptor = pluginipc.NewPluginAcceptor(listeners[0], server.Secret, pluginipc.CertFingerprint(cert))
-
-	// Wire per-client secrets if the server block has any.
-	if len(server.Clients) > 0 {
-		clients := server.Clients // capture for closure
-		m.acceptor.SetSecretLookup(func(name string) (string, bool) {
-			s, ok := clients[name]
-			return s, ok
-		})
-	}
-
-	m.acceptor.Start()
-
-	// Close extra listeners (acceptor owns the first one).
-	for _, ln := range listeners[1:] {
-		ln.Close() //nolint:errcheck,gosec // extra listeners not used yet
-	}
+	m.acceptor = acceptor
 
 	return nil
 }

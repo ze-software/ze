@@ -4,7 +4,12 @@
 
 # Source peer (ASN 65001) on 127.0.0.1
 option=env:var=ze.log.bgp.filter.community:value=info
-option=env:var=ze.log.bgp.adj-rib-in:value=info
+# bgp.adj.rib.in, not bgp.adj-rib-in: the plugin registers as "bgp-adj-rib-in"
+# (adj_rib_in/register.go) and its engine logger name is CanonicalSubsystemName of
+# that (plugin/inprocess.go), which maps every hyphen to a dot. getLogEnv splits
+# the subsystem on "." only (core/slogutil/slogutil.go), so a hyphenated key
+# matches no lookup and the level silently stays at the WARN default.
+option=env:var=ze.log.bgp.adj.rib.in:value=info
 option=env:var=ze.log.bgp.reactor.session:value=debug
 stdin=source:terminator=EOF_SOURCE
 option=tcp_connections:value=1

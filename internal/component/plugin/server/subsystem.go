@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
 // Related: startup_driver.go — shared 5-stage handshake driver (hubStartupSink)
+// Related: ../acceptor.go — NewHubAcceptor, the shared TLS acceptor the hub injects here
 
 package server
 
@@ -47,19 +48,37 @@ type SubsystemConfig struct {
 // SubsystemHandler wraps a forked process that handles a subset of commands.
 // It spawns the subprocess, completes the 5-stage protocol, and routes
 // commands to it via pipes.
+//
+// A subsystem is ALWAYS an external fork (Start builds a PluginConfig with no
+// Internal flag), so Start requires a TLS acceptor for the child's connect-back.
+// Callers MUST call SetAcceptor before Start; SubsystemManager does this for
+// every handler it owns.
 type SubsystemHandler struct {
 	config   SubsystemConfig
 	proc     *process.Process
-	commands []string                 // Commands declared during Stage 1
-	schema   *plugin.PluginSchemaDecl // YANG schema declared during Stage 1
+	acceptor *pluginipc.PluginAcceptor // TLS connect-back listener; MUST be set before Start
+	commands []string                  // Commands declared during Stage 1
+	schema   *plugin.PluginSchemaDecl  // YANG schema declared during Stage 1
 	mu       sync.RWMutex
 }
 
 // NewSubsystemHandler creates a handler backed by a forked process.
+//
+// The returned handler has no TLS acceptor: the caller MUST call SetAcceptor
+// before Start, or Start fails closed. Prefer SubsystemManager.NewHandler,
+// which injects the manager's acceptor.
 func NewSubsystemHandler(config SubsystemConfig) *SubsystemHandler {
 	return &SubsystemHandler{
 		config: config,
 	}
+}
+
+// SetAcceptor sets the TLS acceptor the forked subsystem connects back to.
+// MUST be called before Start.
+func (h *SubsystemHandler) SetAcceptor(a *pluginipc.PluginAcceptor) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.acceptor = a
 }
 
 // Name returns the subsystem name.
@@ -88,6 +107,24 @@ func (h *SubsystemHandler) Start(ctx context.Context) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	// Fail closed: a subsystem is always an external fork, and an external
+	// plugin with no acceptor has nowhere to connect back to. Refuse here, where
+	// the subsystem is still nameable, rather than letting the process layer
+	// report a bare plugin name (ai/rules/fail-closed-guards.md).
+	//
+	// The wording is operator-facing on purpose: this error reaches the console
+	// through cmd/ze/hub/main.go, and a reader there cannot act on Go symbols.
+	// For maintainers: the owner must build one with plugin.NewHubAcceptor and
+	// install it via SubsystemManager.SetAcceptor before any Start. The
+	// "no TLS acceptor configured" phrase is deliberately shared with
+	// process.startExternal so one log/test needle catches either layer.
+	if h.acceptor == nil {
+		return fmt.Errorf("start subsystem %s: no TLS acceptor configured; "+
+			"the hub did not open the plugin connect-back listener before forking -- "+
+			"this is an internal wiring fault, not a config error; "+
+			"restart ze and report it with the config that triggered it", h.config.Name)
+	}
+
 	// Build command:
 	// - If Binary contains spaces (full command), use as-is
 	// - Otherwise, add --mode=<name>
@@ -110,6 +147,7 @@ func (h *SubsystemHandler) Start(ctx context.Context) error {
 	}
 
 	h.proc = process.NewProcess(procConfig)
+	h.proc.SetAcceptor(h.acceptor)
 	if err := h.proc.StartWithContext(ctx); err != nil {
 		return fmt.Errorf("start subsystem %s: %w", h.config.Name, err)
 	}
@@ -263,6 +301,11 @@ func (h *SubsystemHandler) Handle(ctx context.Context, command string) (*plugin.
 type SubsystemManager struct {
 	handlers map[string]*SubsystemHandler
 
+	// acceptor is the TLS connect-back listener every forked subsystem shares.
+	// The owner (hub Orchestrator) creates it with plugin.NewHubAcceptor and
+	// installs it via SetAcceptor; the manager only hands it to handlers.
+	acceptor *pluginipc.PluginAcceptor
+
 	// frozen holds an immutable snapshot for lock-free Get/FindHandler after startup.
 	// nil before Freeze() is called.
 	frozen atomic.Pointer[frozenSubsystems]
@@ -277,11 +320,44 @@ func NewSubsystemManager() *SubsystemManager {
 	}
 }
 
+// SetAcceptor installs the TLS acceptor every forked subsystem connects back
+// to, and back-fills handlers registered before it existed (the orchestrator
+// registers subsystems at construction but can only bind a listener at Start).
+// MUST be called before any handler is started.
+//
+// The manager does NOT own the acceptor's lifecycle: the caller that created it
+// MUST Stop it.
+func (m *SubsystemManager) SetAcceptor(a *pluginipc.PluginAcceptor) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.acceptor = a
+	for _, handler := range m.handlers {
+		handler.SetAcceptor(a)
+	}
+}
+
+// NewHandler builds a handler already wired to the manager's acceptor, for
+// callers that must start a replacement before publishing it (hub reload).
+// Use this rather than the bare NewSubsystemHandler, which leaves the handler
+// with no acceptor and therefore unable to start.
+func (m *SubsystemManager) NewHandler(config SubsystemConfig) *SubsystemHandler {
+	m.mu.RLock()
+	acceptor := m.acceptor
+	m.mu.RUnlock()
+
+	handler := NewSubsystemHandler(config)
+	handler.SetAcceptor(acceptor)
+	return handler
+}
+
 // Register adds a subsystem configuration.
 func (m *SubsystemManager) Register(config SubsystemConfig) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.handlers[config.Name] = NewSubsystemHandler(config)
+	handler := NewSubsystemHandler(config)
+	handler.SetAcceptor(m.acceptor)
+	m.handlers[config.Name] = handler
 	m.publishFrozenLocked(false)
 }
 

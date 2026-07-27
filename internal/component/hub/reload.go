@@ -101,6 +101,14 @@ func (o *Orchestrator) Reload(configPath string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
+	// Refuse after Stop. Stop cancels o.ctx but leaves it non-nil, so without
+	// this a post-shutdown reload would pass the "was it started" checks below,
+	// mint a fresh TLS acceptor, then fail to fork on the canceled context --
+	// leaving a bound listener nothing will ever close.
+	if o.stopped {
+		return fmt.Errorf("reload: %w", ErrOrchestratorStopped)
+	}
+
 	// Read and parse new config via storage (filesystem or blob). When the
 	// store is blob-backed (e.g., gokrazy read-only root, ze-test tmpfs)
 	// fall back to a direct filesystem read. Without this fallback, SIGHUP
@@ -139,6 +147,12 @@ func (o *Orchestrator) Reload(configPath string) error {
 		if o.ctx == nil {
 			return nil
 		}
+		// A hub that started with no plugin has no acceptor yet; the first
+		// reload-added external plugin needs one before it can be forked.
+		if err := o.ensureAcceptor(); err != nil {
+			o.subsystems.Unregister(p.Name)
+			return fmt.Errorf("reload: start plugin %s: %w", p.Name, err)
+		}
 		handler := o.subsystems.Get(p.Name)
 		if handler == nil {
 			return nil
@@ -154,7 +168,15 @@ func (o *Orchestrator) Reload(configPath string) error {
 
 	startReplacement := func(p PluginDef) (*pluginserver.SubsystemHandler, error) {
 		reloadLogger().Info("reload: starting changed plugin replacement", slog.String("plugin", p.Name))
-		handler := pluginserver.NewSubsystemHandler(subsystemConfig(p, configPath))
+		if o.ctx != nil {
+			if err := o.ensureAcceptor(); err != nil {
+				return nil, fmt.Errorf("reload: start plugin %s: %w", p.Name, err)
+			}
+		}
+		// NewHandler (not the bare NewSubsystemHandler) so the replacement
+		// carries the manager's TLS acceptor: it is started before it is
+		// published, so nothing else would inject one.
+		handler := o.subsystems.NewHandler(subsystemConfig(p, configPath))
 		if o.ctx == nil {
 			return handler, nil
 		}
@@ -181,6 +203,10 @@ func (o *Orchestrator) Reload(configPath string) error {
 		for _, name := range started {
 			o.subsystems.Unregister(name)
 		}
+		// A rollback that empties the registry must also give back the acceptor
+		// this reload caused to be created, or the hub keeps a bound TLS
+		// listener with no subsystem behind it.
+		o.releaseAcceptorIfIdleLocked()
 	}
 
 	// Start added plugins BEFORE stopping removed ones.
@@ -212,6 +238,9 @@ func (o *Orchestrator) Reload(configPath string) error {
 		reloadLogger().Info("reload: stopping removed plugin", slog.String("plugin", name))
 		o.subsystems.Unregister(name)
 	}
+	// A reload that removed the last plugin leaves nothing to fork, so the
+	// listener goes away with it.
+	o.releaseAcceptorIfIdleLocked()
 
 	// Forward SIGHUP to kept (unchanged) children so they reload their own config.
 	for _, name := range kept {

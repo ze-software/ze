@@ -18,12 +18,21 @@ is ALSO included: it drives `ze cli` over the real SSH CLI path (a config-declar
 SSH user + `ze init`-provisioned client credentials), which needs the daemon
 built with ze_ssh (see the make target; ze init is already in ze_core).
 
-It ALSO runs a policy-routing subset. 005-next-hop needs an interface on the
-next-hop's subnet to exist inside the netns (enterTestNetns brings up only
+It ALSO runs the policy-routing suite in full. 005-next-hop needs an interface on
+the next-hop's subnet to exist inside the netns (enterTestNetns brings up only
 loopback), which the test now provisions via option=netns-link -- this run is
-that fix's real-kernel regression guard. 006-reload is EXCLUDED: it is a
-separate, still-open reload-reconciliation failure (stale ip rules after SIGHUP),
-not the netns-interface bug, and is tracked in plan/handover/21-netlink-suite-recovery.md.
+that fix's real-kernel regression guard.
+
+Every subset below selects by test NAME. A numeric nick is a load-order ordinal
+over the alphabetically-sorted .ci glob (runner.GenerateNick, record.go, is a
+bare counter; EncodingTests.Discover sorts the glob then adds in that order), so
+adding or renaming any earlier file silently renumbers every test after it -- and
+an in-range-but-shifted nick runs the WRONG test while still reporting green.
+That had already happened here: firewall nick "17" resolved to
+command-owner-firewall-root.ci, not to any 017-*.ci. Names exact-match
+(indexRecordSelector, selection.go), so a named set stays stable, and
+assert_named below refuses to run a set that has drifted. See ai/rules/testing.md
+"A numeric id is a position, not an identity".
 
 The 9p workspace mount is security_model=none (no xattr), so file capabilities
 cannot be set there; ze is copied to a tmpfs dir first. That dir must be
@@ -60,29 +69,33 @@ def _qemu_bin(env_key, name):
 ZE_QEMU_BIN = _qemu_bin("ZE_QEMU_BIN", "ze")
 ZE_QEMU_STRIPPED_BIN = _qemu_bin("ZE_QEMU_STRIPPED_BIN", "ze-stripped")
 ZE_QEMU_TEST_BIN = _qemu_bin("ZE_QEMU_TEST_BIN", "ze-test")
-# Confirmed host-safe green firewall subset under the netns launch mode.
-# Numeric IDs map to NNN-*.ci; the copp-* names select the CoPP suites, which
-# exercise the standalone control-plane-protection path (no firewall {} block)
-# that the ApplyAll on-demand-backend fix unblocks. ddos-local-withdraw drives the
-# ddos-local responder (via the fakeddos injector) through the same on-demand
-# backend to prove a cleared mitigation's ze_ddos-local table is swept.
+# Confirmed host-safe green firewall subset under the netns launch mode: every
+# test/firewall/*.ci except 009-set-element-timeout (see the module docstring --
+# it crashes the Alpine QEMU kernel). The copp-* names exercise the standalone
+# control-plane-protection path (no firewall {} block) that the ApplyAll
+# on-demand-backend fix unblocks. ddos-local-withdraw drives the ddos-local
+# responder (via the fakeddos injector) through the same on-demand backend to
+# prove a cleared mitigation's ze_ddos-local table is swept.
+# command-owner-firewall-root is an offline help-path test that entered this set
+# as the numeric nick "17" (there is no 017-*.ci); it touches no nft state and is
+# kept so the enrolled set is unchanged by the numeric-to-name conversion.
 FIREWALL_IDS = [
-    "1",
-    "2",
-    "3",
-    "4",
-    "5",
-    "6",
-    "7",
-    "8",
-    "10",
-    "11",
-    "12",
-    "13",
-    "14",
-    "15",
-    "16",
-    "17",
+    "001-boot-apply",
+    "002-reload",
+    "003-coexistence",
+    "004-cli-show",
+    "005-match-in-set-addr",
+    "006-dscp-ipv6-rejected",
+    "007-setdscp-inet",
+    "008-match-in-set-port",
+    "010-byte-rate-limit",
+    "011-snat-addr-range",
+    "012-icmp-type",
+    "013-iface-wildcard",
+    "014-nat-exclude",
+    "015-masquerade-ports",
+    "016-masquerade-flags",
+    "command-owner-firewall-root",
     "copp-bgp",
     "copp-trusted",
     "copp-withdraw",
@@ -91,21 +104,32 @@ FIREWALL_IDS = [
     "ddos-local-withdraw",
 ]
 
-# Policy-routing subset, host-safe under the netns launch mode. 006-reload is
-# excluded (separate open reload-reconciliation failure, not the netns-interface
-# bug this run guards). 005-next-hop provisions eth1 via option=netns-link so its
-# next-hop auto-route resolves inside the throwaway netns.
-POLICY_IDS = ["1", "2", "3", "4", "5"]
+# Policy-routing suite in full, host-safe under the netns launch mode.
+# 005-next-hop provisions eth1 via option=netns-link so its next-hop auto-route
+# resolves inside the throwaway netns.
+# 006-reload was excluded while it was believed to be a still-open
+# reload-reconciliation failure. It is not: 94b07348d showed both of its verdict
+# assertions matched the base-chain `policy accept` declaration rather than a rule
+# line, so phase 1 was vacuous and phase 2 could never pass -- the reload had
+# worked all along. Its config uses only accept/drop actions, so it programs no ip
+# rule and asserts none (translate.go emits ipRuleSpec only for table/next-hop
+# actions), which is what the old "stale ip rules after SIGHUP" rationale claimed.
+# Its interface match lowers to nftables iifname, a string match that needs no
+# link in the netns -- exactly like 002/003/004, which pass here without one.
+POLICY_IDS = [
+    "001-boot-apply",
+    "002-set-table",
+    "003-tcp-flags",
+    "004-tcp-mss",
+    "005-next-hop",
+    "006-reload",
+]
 
 # OSPF interface subset that exercises the netns launch mode's uid-drop path for
 # observer tests. Each provisions its dummy link(s) via option=netns-link, loads
 # the iface backend on demand (EnsureBackend, v2 and v3), and its ze_api-using
 # observer imports ze_api from the tmpfs workdir (the copyTestScripts fix). This
-# is the gate for all three infra fixes. Selected by test NAME, not numeric nick:
-# nicks are load-order ordinals over the alphabetically-sorted glob, so adding or
-# renaming any earlier ospf/*.ci silently renumbers -- and an in-range-but-shifted
-# nick runs the WRONG test and still reports green. Names exact-match (selection.go
-# indexRecordSelector) so the set stays stable.
+# is the gate for all three infra fixes.
 #   ospf-nbma, ospf-ptmp, ospf-show                     (v2 raw-socket + IPv4 read)
 #   ospf-multiaf, ospf-multiaf-reconcile, ospf-multiaf-show,
 #   ospf-multiaf-v4-route                               (v3 AF engines, EnsureBackend v3)
@@ -128,6 +152,46 @@ OSPF_IDS = [
 #   ospfv3-nbma   NBMA interface (network-type nbma + static neighbor) boots clean
 #   ospfv3-ptmp   point-to-multipoint interface boots clean
 OSPFV3_IDS = ["ospfv3-vlink", "ospfv3-nbma", "ospfv3-ptmp"]
+
+
+SUITES = (
+    ("firewall", FIREWALL_IDS),
+    ("policy", POLICY_IDS),
+    ("ospf", OSPF_IDS),
+    ("ospfv3", OSPFV3_IDS),
+)
+
+
+def assert_named(suite, ids):
+    """Refuse to run a subset whose selectors are not real test names.
+
+    ze-test's positional selector matches a record's Nick, Name, or CIFile
+    (indexRecordSelector, internal/test/runner/selection.go), and a missing one
+    makes the whole run exit non-zero ("test %q not found" -> RunCISubcommand
+    returns 1), so an unmatched NAME is already fail-closed at the runner. This
+    guard exists for the failure the runner CANNOT see: a numeric selector, which
+    it resolves happily as a load-order ordinal and which therefore silently
+    re-points to a different test the moment an alphabetically-earlier .ci file is
+    added, renamed, or deleted. That is a gate reporting success for tests it
+    never ran, so it fails the run here rather than shrinking or shifting the set
+    in silence (ai/rules/fail-closed-guards.md, ai/rules/testing.md).
+
+    Checked before any test runs so the diagnosis is not buried under suite
+    output. The suite directory is test/<suite>/ for all four (registerCIRoot,
+    internal/test/cli/register.go) and this script runs at the repo root.
+    """
+    bad = []
+    for name in ids:
+        if name.isdigit():
+            bad.append(f"{name!r}: numeric nick (a position, not an identity)")
+        elif not os.path.isfile(os.path.join("test", suite, f"{name}.ci")):
+            bad.append(f"{name!r}: no test/{suite}/{name}.ci")
+    if bad:
+        print(f"SELECTION FAIL: {suite} subset does not name real tests:", flush=True)
+        for line in bad:
+            print(f"  - {line}", flush=True)
+        sys.exit(f"{suite} subset invalid; refusing to run a silently smaller gate")
+    print(f"selection OK: {suite} names {len(ids)} test(s)", flush=True)
 
 
 def sh(cmd, **kw):
@@ -177,6 +241,10 @@ def run_suite(suite, ids):
 
 
 def main():
+    # Before anything else: a drifted selector must stop the run, not shrink it.
+    for suite, ids in SUITES:
+        assert_named(suite, ids)
+
     setcap_binaries()
     prepare_state()
 
@@ -189,25 +257,16 @@ def main():
     os.umask(0o077)
 
     before = host_nft()
-    rc_firewall = run_suite("firewall", FIREWALL_IDS)
-    rc_policy = run_suite("policy", POLICY_IDS)
-    rc_ospf = run_suite("ospf", OSPF_IDS)
-    rc_ospfv3 = run_suite("ospfv3", OSPFV3_IDS)
+    # Driven off SUITES so a suite can never be enrolled in the guard/selection
+    # above yet dropped from the run or from the verdict below.
+    codes = [(suite, run_suite(suite, ids)) for suite, ids in SUITES]
     after = host_nft()
 
     ok = True
-    if rc_firewall != 0:
-        print(f"FAIL: firewall netns subset returned {rc_firewall}")
-        ok = False
-    if rc_policy != 0:
-        print(f"FAIL: policy netns subset returned {rc_policy}")
-        ok = False
-    if rc_ospf != 0:
-        print(f"FAIL: ospf netns subset returned {rc_ospf}")
-        ok = False
-    if rc_ospfv3 != 0:
-        print(f"FAIL: ospfv3 netns subset returned {rc_ospfv3}")
-        ok = False
+    for suite, rc in codes:
+        if rc != 0:
+            print(f"FAIL: {suite} netns subset returned {rc}")
+            ok = False
     if before != after:
         print("HOST-SAFETY FAIL: host nft tables changed during the netns run")
         print(f"--- before ---\n{before}\n--- after ---\n{after}")

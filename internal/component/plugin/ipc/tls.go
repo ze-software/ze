@@ -625,12 +625,22 @@ func (pa *PluginAcceptor) handleConn(conn net.Conn) {
 	lookup := pa.combinedLookup()
 	name, err := AuthenticateWithLookup(authCtx, conn, pa.secret, lookup)
 	if err != nil {
+		// Say something. This rejection used to be silent, so a plugin whose
+		// name the validPluginName regex refuses (an underscore, a dot, or a
+		// name over 64 chars -- none of which any config layer rejects first)
+		// produced a 30s connect-back hang with no diagnosis anywhere. A guard
+		// that denies without speaking does not exist
+		// (ai/rules/fail-closed-guards.md). The error text carries the offending
+		// name but never a token or secret (see AuthenticateWithLookup).
+		slog.Warn("acceptor: plugin connect-back rejected", "error", err)
 		return // Authenticate already closed conn on failure.
 	}
 
 	val, ok := pa.pending.LoadAndDelete(name)
 	if !ok {
-		// No one waiting for this plugin name. Close.
+		// No one waiting for this plugin name. Benign in a shutdown race (the
+		// waiter left), so Debug rather than Warn -- but no longer silent.
+		slog.Debug("acceptor: authenticated plugin has no waiter", "plugin", name)
 		conn.Close() //nolint:errcheck,gosec // unexpected plugin
 		return
 	}

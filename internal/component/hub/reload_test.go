@@ -258,6 +258,9 @@ func TestOrchestratorReloadChangedPluginStartFailurePreservesOld(t *testing.T) {
 
 	o := NewOrchestrator(cfg)
 	o.ctx = context.Background()
+	// Reload on a started orchestrator now binds a real TLS acceptor for the
+	// forked replacement; release it when the test ends.
+	t.Cleanup(o.Stop)
 	oldHandler := o.subsystems.Get("bgp")
 	require.NotNil(t, oldHandler)
 

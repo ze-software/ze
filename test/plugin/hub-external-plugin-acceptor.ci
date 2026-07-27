@@ -1,0 +1,79 @@
+# Test: a PURE hub config (plugin {} only, no bgp/ospf/... block) starts its
+# external plugin.
+#
+# VALIDATES: `ze -` on a config whose only top-level block is `plugin {}` routes
+# to the hub Orchestrator (zeconfig.ProbeConfigType -> ConfigTypeHub,
+# cmd/ze/hub/main.go runOrchestratorWithData), and that path now establishes a
+# TLS acceptor before forking subsystems (hub.Orchestrator.ensureAcceptor ->
+# plugin.NewHubAcceptor -> SubsystemManager.SetAcceptor -> Process.SetAcceptor).
+# The plugin can only print the asserted line AFTER ze_api.ready() returns, and
+# ready() returns only when all five startup stages completed over a TLS
+# connect-back -- which is impossible without a live acceptor.
+#
+# PREVENTS: the orchestrator/subsystem path regressing to
+# "no TLS acceptor configured (hub config required for external plugins)".
+# Only the engine's PluginManager ever called SetAcceptor, so every external
+# plugin declared in a pure hub config died before exec. No test covered this
+# path at all -- the only pure-hub configs in test/ were parse-only fixtures --
+# which is why the defect survived. The reject= line below pins the exact
+# regression text.
+#
+# No sleep: the await=stderr fence below waits for the relayed plugin line and
+# then tears the daemon down (the .ci sleep ratchet has zero headroom).
+
+tmpfs=hub-acceptor-probe.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""External plugin for a pure `plugin { external ... }` hub config.
+
+Completes the 5-stage startup handshake against the hub's minimal startup sink
+(nil config, nil registry), then announces itself on stderr.
+
+How that line reaches the daemon's stderr, precisely: a bare print carries no
+`level=` tag, so slogutil.ParseLogLine would score it Info and the default WARN
+relay filter (slogutil.RelayLevel) would DROP it. It survives because
+classifyStderrLine (internal/component/plugin/process/process.go) promotes any
+non-empty non-slog plugin stderr line to WARN, which clears that filter. If that
+promotion is ever removed, this test fails as a 20s await timeout -- emit a real
+`level=WARN msg=...` slog line here instead.
+"""
+
+import sys
+
+from ze_api import ready, wait_for_shutdown
+
+
+def main() -> None:
+    # Blocks until stage 5 (ready) is acknowledged. Reaching this point proves
+    # the TLS connect-back succeeded, i.e. the hub wired an acceptor.
+    ready()
+    print("hub-external-plugin reached stage running", file=sys.stderr, flush=True)
+
+    # Hold the process open so the daemon stays in its steady state until the
+    # runner tears it down. Any transport error here means ze went away first,
+    # which is the normal end of this test.
+    try:
+        wait_for_shutdown(timeout=30.0)
+    except (OSError, EOFError, TimeoutError):
+        pass
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# Pure hub config: `plugin {}` is the ONLY top-level block, so ProbeConfigType
+# returns ConfigTypeHub and Run hands it to the orchestrator rather than the
+# full YANG daemon. A single `bgp {}`/`ospf {}` block here would route around
+# the code under test.
+stdin=hub-conf:terminator=EOF_CONF
+plugin {
+	external hub-acceptor-probe {
+		run ./hub-acceptor-probe.run
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=hub-conf:timeout=20s
+await=stderr:contains=hub-external-plugin reached stage running
+expect=stderr:contains=hub-external-plugin reached stage running
+reject=stderr:pattern=no TLS acceptor configured
