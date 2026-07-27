@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-07-19 |
+| Phase | 4 of 6 defects closed (see Implementation Status) |
+| Updated | 2026-07-27 |
 
 ## Post-Compaction Recovery
 
@@ -99,6 +99,85 @@ proposed AC-7 pending approval; it is NOT silently folded into defect 2.
 **Resolved Q-2 (2026-07-17): AC-7 approved and in scope** (three leak sites above re-verified
 against source: `session_handlers.go:43-47`, `:98-115`, `:121-124`; cancel-goroutine
 `<-s.done` exit at `session.go:733-734`).
+
+## Implementation Status (audited 2026-07-27) -- THIS SPEC CANNOT BE CLOSED
+
+**Verdict: NOT closeable. AC-6 and AC-7 have no implementation and no test.** The closure
+sections (`## Implementation Audit`, `## Goal Validation`, `## Pre-Commit Verification`)
+are deliberately ABSENT from this spec rather than filled with "Partial" rows. Filling
+them would satisfy `commit_helper.py`'s `pre_commit_verification_gaps` gate over work that
+is not done, which is the false completion `ai/rules/no-partial-completion.md` forbids:
+"deferred is not done", and "you may not claim work is done while any in-scope acceptance
+criterion remains unimplemented". They are owed to the session that closes AC-6 and AC-7.
+
+### Why the learned summary already exists
+
+`plan/learned/1202-fixit-bgp-session-fsm-lifecycle.md` is COMMITTED (`cbf8f4be4`) while
+this spec is still open. That is the completed-but-not-closed signal
+`scripts/dev/spec-closure-check.py` looks for, and here it is a **false positive**: the
+summary's own first paragraph scopes itself to "ONLY the FSM-package slice", names the
+reactor-side consumers as out of scope, and its `## Parked` section says "Not committed".
+The slice it describes IS finished. The SPEC is not. Do not read the summary's existence
+as evidence that the spec is closeable; read its first paragraph instead.
+
+### Per-AC state, verified against the working tree
+
+| AC | State | Producing code | Test |
+|----|-------|----------------|------|
+| AC-1 (graced expiry re-arms; next expiry tears down) | **Met at the timer, wired in the session, untested at the session level** | `Timers.GraceRearmHoldTimer` (`fsm/timer.go:283-309`), called from the session's hold-expiry callback at `reactor/session.go:472` with `holdGraceExtension` (a fixed 10s, `session.go:188`, per Q-1). The teardown branch signals `errChan` at `session.go:479-482` | `TestHoldTimerRearmsAfterGracedExpiry` (`fsm/timer_test.go:456`) asserts `fireCount == 2` and `IsHoldTimerRunning() == false` after the second expiry. It models the grace branch with its own callback; nothing drives `Session`'s real callback, and `test/parse/deadpeer-holddown.ci` does not exist |
+| AC-2 (`IsHoldTimerRunning` true after a graced expiry) | **Met** | same | `fsm/timer_test.go:477-478`, explicit `require.True(..., "AC-2: hold timer must still be armed after a graced expiry")` |
+| AC-3 (`StopAll` on every teardown path; keepalive stops; Session collectable) | **Code met, named test MISSING** | `defer s.timers.StopAll()` at `reactor/session.go:827`, plus `defer s.stopSendHoldTimer()` at `:826`. The single defer covers all eight dirty paths, as D-3 intended | `TestSessionRunStopsTimersOnValidationTeardown` **does not exist** -- `grep -rn 'TestSessionRunStopsTimers' internal/component/bgp/` returns nothing. The heap-reachability assertion the spec asks for does not exist either. The `Run`-exit discipline is currently unguarded by any test |
+| AC-4a (second OPEN gets Cease, session leaves Established, capabilities not rebuilt) | **Met** | `reactor/session_handlers.go:61-82`: state gate on `Established`/`OpenConfirm`, `NotifyCease` code 6, `logFSMEvent(EventBGPOpen)` so the peer-closed cascade runs, then `closeConn` | `TestSecondOpenOnEstablishedSessionIsRefused` and `TestSecondOpenInOpenConfirmIsRefused` (`reactor/session_handlers_test.go:518,652`) -- both PASS 2026-07-27, and the WARN they emit (`FSM event failed ... state=IDLE`) shows the FSM transition really fired. Plus `test/plugin/open-in-established.ci` (7.2K, present) |
+| AC-5 (`FSM.Event` returns a sentinel on a default arm; `logFSMEvent`'s warn branch is live) | **Met** | `fsm.ErrFSMError` (`fsm/fsm.go:51`) returned from five error default arms (`:339,391,442,502,603`); consumed by `logFSMEvent` (`reactor/session.go:797-806`) | `TestFSMEventReturnsErrorOnIllegalTransition` (`fsm/fsm_test.go:568`), 14 subtests, all PASS 2026-07-27. It covers BOTH polarities, including the deliberate Idle ignores that must return nil |
+| **AC-6 (policy teardown exits `Run` promptly with a deliberate reconnect class)** | **NOT MET** | The policy teardown at `reactor/session_read.go:289-297` sends the NOTIFICATION, fires the FSM event and calls `closeConn` -- then `return nil, kept`. It sets NO close reason and signals NOTHING on `errChan`. `closeConn` nils `s.conn` (`session_connection.go`), so `Run`'s loop reaches the `conn == nil` branch at `session.go:882`, finds `closeReason` empty at `:884`, and sleeps 10 ms at `:887` -- forever, until an unrelated event arrives. This is defect 4b exactly as the Task section describes it. The D-7 "distinct sentinel taking the backoff class" does not exist: `grep -rn 'PolicyTeardown' internal/component/bgp/reactor/*.go` shows only the request/take plumbing, no error value | `TestPolicyTeardownExitsRun` **does not exist** |
+| **AC-7 (TCP connection closed by the time `Run` returns)** | **NOT MET** | `grep -rn 'defer s.closeConn\|defer .*closeConn' internal/component/bgp/reactor/*.go` -> **no match**. `Run`'s defers are `close(s.done)`, `stopSendHoldTimer`, `timers.StopAll`, `resetCoalesce` -- no `closeConn`. All three leak sites Q-2 approved are still live: the `handleOpen` unpack error (`session_handlers.go:87-91`), the openValidator rejection (`runOpenValidator` at `session_open_validation.go:81-117` sends a NOTIFICATION and returns WITHOUT closing, reached from `session_handlers.go:139-141`), and the local-capability parse error (`session_handlers.go:150-153`). The cancel goroutine still exits on `<-s.done` without closing (`session.go:852-853`) | none |
+
+### Also owed, beyond the ACs
+
+| Deliverable | State |
+|-------------|-------|
+| `test/parse/deadpeer-holddown.ci` (defect 1 end-to-end) | **Missing.** `ls` finds no such file |
+| `test/interop/scenarios/47-holdtime-deadpeer-frr/` | **Missing.** Scenario 47 exists but is `47-rfc7606-relay-shape-frr`; the number is taken and the dead-peer scenario was never created |
+| `ze_bgp_hold_expiry_graced_total` and `ze_bgp_open_in_established_total` (both approved in Q-5) | **Missing.** `grep -rn 'graced\|open_in_established' internal/component/bgp/reactor/reactor_metrics.go` returns nothing |
+| `test/plugin/open-in-established.ci` | Present (the spec's TDD plan named `test/parse/`; it landed in `test/plugin/`) |
+
+### What landed, and when
+
+The FSM-package slice landed as `cbf8f4be4`. The reactor half arrived piecemeal in three
+LATER, differently-titled commits, which is why the Review Gate below -- written for the
+fsm slice and still accurate for it -- reads as though none of the reactor work exists:
+
+| Commit | Brought |
+|--------|---------|
+| `cbf8f4be4` | `fsm/*`: generation guard, `GraceRearmHoldTimer`, `ErrFSMError` (AC-2, AC-5, and AC-1's timer half) |
+| `8ff8730f6` "re-arm the hold timer on a graced expiry" | `session.go` grace-branch caller + `holdGraceExtension` (AC-1's session half) |
+| `99ff5e85f` "eliminate four reactor concurrency/consistency races" | `defer s.timers.StopAll()` in `Run` (AC-3's code half) |
+| `e929099ed` "refuse a second OPEN on an established session" | the `handleOpen` gate (AC-4a) |
+
+### Verification run for this audit (2026-07-27)
+
+Full default-on feature tags (`ze_core` + every `ze_*` in `feature-gates.txt`), per
+`ai/rules/bash-output.md`:
+
+- `go test -race ./internal/component/bgp/fsm/` -> `ok ... 5.818s`
+- `go test -race -run 'TestSecondOpenOnEstablishedSessionIsRefused|TestSecondOpenInOpenConfirmIsRefused' ./internal/component/bgp/reactor/` -> both `--- PASS`
+- `go test -race -run TestFSMEventReturnsErrorOnIllegalTransition ./internal/component/bgp/fsm/` -> `--- PASS`, 14 subtests
+
+No verification was run for AC-6 or AC-7 because there is nothing to run.
+
+### To close this spec
+
+1. AC-6: give the policy teardown a distinct sentinel per D-7, `setCloseReason` it and
+   signal `errChan`, so `Run` returns promptly and `peer_run.go` takes the BACKOFF arm
+   rather than `ErrTeardown`'s immediate-reconnect arm. Add `TestPolicyTeardownExitsRun`.
+2. AC-7: add `defer s.closeConn()` beside the existing `defer s.timers.StopAll()` in
+   `Run`, per D-8. Cover the three leak sites.
+3. AC-3: write `TestSessionRunStopsTimersOnValidationTeardown` (table-driven over the
+   eight dirty paths) so the landed defer is actually guarded.
+4. Add `deadpeer-holddown.ci`, the dead-peer interop scenario at a free number, and the
+   two Q-5 counters.
+5. Re-run the Review Gate over the WHOLE diff, not the fsm slice, then append the closure
+   sections from `plan/TEMPLATE-CLOSURE.md` and fill them.
 
 ## Required Reading
 

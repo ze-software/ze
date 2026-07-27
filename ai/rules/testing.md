@@ -342,7 +342,7 @@ the two wired conventions, never a bare test file plus hope:
 
 | Your tool | Convention | Runs because |
 |-----------|-----------|--------------|
-| Has its own unit tests | Name them `scripts/dev/<tool>_test.py` (unittest, with `unittest.main()`) | `TestPythonUnitTests` (`scripts/dev/python_tests_test.go`) globs `*_test.py` and runs each. A new file is picked up automatically |
+| Has its own unit tests | Name them `<tool>_test.py` (unittest, with `unittest.main()`) and put them BESIDE the tool -- `scripts/dev/` or `test/scripts/` | `TestPythonUnitTests` (`scripts/dev/python_tests_test.go`) globs `*_test.py` under BOTH roots and runs each. A new file is picked up automatically, and each root carries its own non-empty assertion so a root that stops contributing fails loudly rather than silently covering nothing |
 | Wants fixture tests inside the script | Add a `--selftest` flag, then a small Go test that shells out to it | The pattern of `dep_audit.py`, `migrate_module.py`, `qemu-run.py`. See `scripts/dev/migrate_module_test.go` |
 
 Both land inside `go test`, so `make ze-unit-test` covers them via `go list ./...`
