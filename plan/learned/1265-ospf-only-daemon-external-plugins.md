@@ -24,6 +24,16 @@ hit them.
   committed config is serialized in set format and re-probed on `ze start`/reboot,
   so fixing only the hierarchical path leaves the reboot path misrouted (caught in
   review).
+- **SUPERSEDED 2026-07-27: the Orchestrator now wires an acceptor.** The sentence
+  above is kept as the record of what was true then, but do not act on it. This
+  fix routed AROUND the acceptor bug rather than fixing it, so a genuinely pure
+  `plugin {}` / `env {}` hub config -- which SHOULD reach the Orchestrator -- still
+  could not start an external plugin. That underlying defect is now fixed:
+  `NewHubAcceptor` (`internal/component/plugin/acceptor.go`) owns the lifecycle
+  once, `Orchestrator` creates and stops it, and `SubsystemHandler.Start` fails
+  closed naming the subsystem instead of reaching the process layer's error. The
+  probe narrowing here remains correct for its own reason (a non-BGP config needs
+  built-in protocols), but it is now belt-and-braces, not load-bearing.
 - **`request shutdown` must not require a BGP reactor.** `handleDaemonShutdown`
   (`internal/component/plugin/server/system.go`) called `RequireReactor` +
   `ctx.Reactor().Stop()`. A reactorless daemon could not be stopped by command and

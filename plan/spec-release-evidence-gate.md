@@ -31,10 +31,11 @@ evidence matrix while keeping `ze-verify` fast.
 
 ### Inherited item: the `static` suite currently runs NOWHERE (2026-07-27)
 
-Rehomed here from `plan/spec-fixit-sleeps-cli-harness.md` at its closure; it was that
-spec's A-4 obligation ("wire the linux-gated static suite into an actually-run linux
-path, do NOT drop the gate") and was the one live item left in it. Verified unmet by an
-independent check, with the tree having moved AGAINST it since:
+Rehomed here from the `fixit-sleeps-cli-harness` spec at its closure (the spec is gone;
+its rows live in `plan/deferrals/ad-hoc-2026-07-27-2c83641a.md`). It was that spec's A-4
+obligation ("wire the linux-gated static suite into an actually-run linux path, do NOT
+drop the gate") and was the one live item left in it. Verified unmet by an independent
+check, with the tree having moved AGAINST it since:
 
 | Producer | Fact |
 |----------|------|

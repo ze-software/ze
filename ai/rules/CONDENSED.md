@@ -438,6 +438,7 @@ A hyphen inside a command token joins words that name **one indivisible thing**.
 | `show l2tp session-history` | `show l2tp session history` | `session` is a real container under `l2tp` |
 | `resolve peeringdb as-set` | `resolve peeringdb as-set` (unchanged) | `as-set` is one IRR object; no `as` sibling; keep the hyphen |
 **Enforcement (R9).** Inside the YANG command tree, the static gate flags any child
+**When the compound is genuine, exempt it -- do not split it.** `CheckSiblings` fires on
 ## Choosing the Verb: Read vs Perturb (`show`/`monitor` vs `debug`)
 The verb is chosen by the command's **effect on live state**, not by how "diagnostic" it feels.
 - **No -- it only reports current state.** Use `show` (one snapshot) or
@@ -1991,6 +1992,7 @@ Also Make targets, not Claude hooks.
 | `check_ci_sleep_ratchet` | `ci-sleep-justification.md` | changed `test/**/*.ci` | Caps how MANY `time.sleep(` calls exist tree-wide against a committed delta baseline. BLOCKING. |
 | `check_ci_sleep_justification` | `ci-sleep-justification.md` | changed `test/**/*.ci` | Caps how many sleeps are UNEXPLAINED: each needs a comment above or trailing it. BLOCKING. |
 | `check_known_failure_load_excuses` | `fix-dont-record.md` | changed `plan/known-failures/*.md` | Rejects a shard blaming host load ("under load", "loaded host", "load average", "load-sensitive", "passes in isolation", "resource contention", "contended host"). `README.md` / `RESOLVED.md` exempt. BLOCKING. |
+| `check_ci_log_subsystem_keys` | `testing.md`, `config-naming.md` | changed `test/**/*.ci` | Rejects a `ze.log.<subsystem>` key whose subsystem contains a hyphen that is not declared literally in Go. An internal plugin's logger name is `CanonicalSubsystemName` of its registry name (every hyphen becomes a dot) and `getLogEnv` splits on `.` only, so `ze.log.bgp.adj-rib-in` sets nothing and the level silently stays at the WARN default. Scan is tree-wide; `#` comment lines exempt. BLOCKING. |
 ## Commit-time gates (`scripts/dev/commit_helper.py`)
 These are NOT Claude hooks.
 | Gate | Enforces | Severity | What it does |
@@ -4375,6 +4377,12 @@ that can fail because of the changed file: direct Go test, matching `.ci`/`.et` 
 | All unit tests | `make ze-unit-test` | ~5 min |
 | All editor tests | `make ze-editor-test` | ~30s |
 | Pre-commit gate | `make ze-verify` | 4-10 min (see `tmp/.ze-verify-duration.txt`) |
+**A numeric id is a position, not an identity (BLOCKING for anything you keep).**
+| Use | Form |
+|-----|------|
+| Iterating right now, from a failure index you just read | `ze-test bgp plugin 145` |
+| A script, a gate subset, a handover, a claim of evidence | `ze-test bgp plugin -p <name>` (`--pattern`) |
+**A `ze.log.<subsystem>` key in a `.ci` test must name a real slog subsystem.**
 **Escalation ladder:** direct test -> file/feature test -> single package -> component group -> whole suite or `ze-verify`. If any rung fails, fix from that evidence and rerun the failed rung or a narrower failing test, not a wider suite.
 **Overlapping runs:** If a test run is failing, kill it before starting another. Never run `make ze-verify` twice concurrently.
 **Understand before modifying:** Before bulk-editing `.ci` files or test files, run one test and read its output to understand the format and expected behavior. Assumptions about test syntax cause cascading failures across every modified file.

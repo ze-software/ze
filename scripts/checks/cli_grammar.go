@@ -60,6 +60,7 @@ type result struct {
 	DemoScripts  int               `json:"demo-scripts-checked"`
 	RootsChecked int               `json:"roots-checked"`
 	RootExempt   int               `json:"root-namespace-exempt"`
+	TreeExempt   int               `json:"tree-namespace-exempt"`
 	PendingSplit int               `json:"pending-namespace-split"`
 	Valid        bool              `json:"valid"`
 }
@@ -91,6 +92,36 @@ var pendingNamespaceSplit = map[string]bool{}
 // legitimate future root (route-refresh, prefix-list, next-hop, as-path, ...) is
 // not a hard false positive that forces editing gate source.
 var rootNamespaceExempt = map[string]bool{}
+
+// treeNamespaceExempt is the YANG-tree feeder's relief valve, the exact counterpart of
+// rootNamespaceExempt: a tree token whose hyphen is a genuine indivisible name even
+// though its left segment happens to also exist as a sibling at that level (R9 test 2,
+// "keep the hyphen for a protocol / LSA / object name", beating R9 test 3, "a shared
+// prefix is not proof of a namespace"). Without it the tree feeder is the one
+// enforcement path with no escape for a real compound: pendingNamespaceSplit means
+// "scheduled for rename", which is the wrong claim to record about a name that is
+// staying, and grammar.ExemptCategory is keyed on wire-method namespace
+// (bridge/wire-protocol/editor), which a plain `ze-show:` command never matches.
+//
+// Add an entry ONLY for a demonstrably-indivisible compound, with a one-line reason.
+// Entries are counted into TreeExempt and printed, so an exemption is reported, never
+// silent. A NEW R9 collision that is not listed here still fails the gate.
+//
+// Note CheckSiblings tests only the LEFT hyphen segment, so which side the shared word
+// falls on decides whether a name is flagged at all: `summary` / `asbr-summary` and
+// `external` / `nssa-external` are the same "two distinct LSA types share a word"
+// situation as `router` / `router-information` and are silently fine. That positional
+// asymmetry is why this valve exists.
+var treeNamespaceExempt = map[string]bool{
+	// RFC 7770 names one object, the Router Information (RI) LSA -- OSPFv2 opaque
+	// type 4, OSPFv3 function code 12. The `router` sibling is the Router-LSA
+	// (Type 1), a different LSA type that shares the word by accident and owns
+	// nothing under it; `show ospf database router information` would file an
+	// Opaque LSA under Type 1. ai/rules/cli-grammar.md R9 test 2 lists
+	// `router-information` by name as a keep-the-hyphen LSA name.
+	"show ospf database router-information":      true,
+	"show ospf ipv6 database router-information": true,
+}
 
 type flagHit struct {
 	File string `json:"file"`
@@ -214,6 +245,10 @@ func walk(node *command.Node, prefix string, res *result) {
 	for _, f := range grammar.CheckSiblings(prefix, names) {
 		if pendingNamespaceSplit[f.Command] {
 			res.PendingSplit++
+			continue
+		}
+		if treeNamespaceExempt[f.Command] {
+			res.TreeExempt++
 			continue
 		}
 		res.Findings = append(res.Findings, f)
@@ -471,6 +506,9 @@ func printResult(r result) {
 	fmt.Fprintf(os.Stdout, "Roots checked: %d\n", r.RootsChecked)
 	if r.RootExempt > 0 {
 		fmt.Fprintf(os.Stdout, "Root namespace-exempt (indivisible compounds): %d\n", r.RootExempt)
+	}
+	if r.TreeExempt > 0 {
+		fmt.Fprintf(os.Stdout, "Tree namespace-exempt (indivisible compounds): %d\n", r.TreeExempt)
 	}
 	cats := make([]string, 0, len(r.Exempt))
 	for c := range r.Exempt {

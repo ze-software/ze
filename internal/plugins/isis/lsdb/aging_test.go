@@ -203,8 +203,9 @@ func TestISISReceivedPurgeRefloodSurfaced(t *testing.T) {
 // metadata accessors concurrently, which is the exact shape that produced the
 // reported DATA RACE.
 //
-// VALIDATES: fixit-isis-lsdb-entry-race -- Lifetime() and IsPurged() are safe to
-// call without the LSDB lock.
+// VALIDATES: fixit-isis-lsdb-entry-race -- every exported *Entry accessor is
+// safe to call without the LSDB lock, which for Lifetime() and IsPurged() holds
+// only because those two fields are atomic.
 //
 // PREVENTS: the shipped race. Lookup hands out a LIVE *Entry and its doc invited
 // unlocked metadata reads ("callers that only read metadata are fine"), but the
@@ -213,44 +214,74 @@ func TestISISReceivedPurgeRefloodSurfaced(t *testing.T) {
 // writing is a race whether or not the reader mutates, so SNP generation on the
 // flooding goroutine raced the tick.
 //
-// Run under -race this fails deterministically if either field goes back to
-// being a plain (non-atomic) field. It does NOT rely on TestISISDISElection,
-// which surfaced the race only by scheduling luck and did not reproduce on
-// demand.
+// It does NOT rely on TestISISDISElection, which surfaced the race only by
+// scheduling luck and did not reproduce on demand.
 //
-// The other accessors (Sequence, Checksum, LSPID, IsOverloaded, IsOwn) are NOT
-// covered here because they cannot race: replaceLocked builds a fresh Entry and
-// swaps it into the map, so those fields are written once before the entry is
-// reachable. Only lifetime (aging tick, and the clause 7.3.16 duplicate
-// refresh) and purged (markPurgedLocked) are mutated after publication.
+// EVERY exported accessor is read, not just the two atomic ones. The field
+// discipline documented on the Entry struct is a claim about the whole accessor
+// set (an accessor is the evidence for "read without the lock"), so the test
+// exercises the whole set: an accessor added later over a field that is mutated
+// after publication fails here rather than shipping.
+//
+// The writer RE-ORIGINATES the LSPs once the tick reports them purged, and that
+// is load-bearing rather than tidiness. All eight LSPs reach the purge state
+// within the first few tick iterations; markPurgedLocked then early-returns and
+// the tick writes no entry field at all for the remaining ~150 ms, so the
+// reader/writer overlap this test exists to create collapses to a few
+// microseconds. Measured on 2026-07-27 against the pre-fix code (lifetime
+// reverted to a plain uint32), the version without the re-arm caught the
+// regression in only 6 of 12 single runs -- a coin flip in a -count=1 suite,
+// which is what ze-verify runs. Re-originating keeps both post-publication
+// writes (the decrement and markPurgedLocked) flowing for the whole run.
 func TestISISLSDBEntryAccessorsAreRaceFree(t *testing.T) {
 	d := New(nil)
 
+	// A SHORT lifetime on purpose: the run must reach markPurgedLocked often, so
+	// the purged write is exercised as heavily as the lifetime decrement. A long
+	// lifetime would cover the decrement well and the purge hardly at all.
 	const lsps = 8
+	const lifetime = 3
 	ids := make([]types.LSPID, 0, lsps)
+	built := make([]*packet.LSP, 0, lsps)
+	raws := make([][]byte, 0, lsps)
 	for i := range lsps {
 		id := lspID(uint8(i+1), 0)
-		lsp, raw := buildLSP(t, packet.PDUTypeL2LSP, id, 1, 3, nil)
+		lsp, raw := buildLSP(t, packet.PDUTypeL2LSP, id, 1, lifetime, nil)
 		d.Insert(Level2, lsp, raw)
 		ids = append(ids, id)
+		// Kept for the writer's re-origination below. buildLSP needs *testing.T,
+		// which may only be used from the test goroutine, so the PDUs are built
+		// here once rather than inside the writer.
+		built = append(built, lsp)
+		raws = append(raws, raw)
 	}
 
 	var wg sync.WaitGroup
 	stop := make(chan struct{})
 
-	// Writer: the aging tick, which decrements lifetime and marks entries purged.
+	// Writer: the aging tick -- setLifetime on the decrement path and
+	// markPurgedLocked on the crossing-to-zero path. These are the two writes
+	// that land on an ALREADY-PUBLISHED entry, which is condition 1 of the field
+	// discipline.
 	wg.Go(func() {
 		for {
 			select {
 			case <-stop:
 				return
 			default:
-				d.Tick()
+				if res := d.Tick(); len(res.PurgedL2) > 0 {
+					// Re-originate: a database of purged entries is a database
+					// the tick no longer writes to (see the note above).
+					for i := range ids {
+						d.Insert(Level2, built[i], raws[i])
+					}
+				}
 			}
 		}
 	})
 
-	// Readers: the unlocked metadata reads SNP generation and show/SPF perform.
+	// Readers: the unlocked reads that SNP generation, show and SPF perform on
+	// the live pointer Lookup returns, after the LSDB read lock is released.
 	for range 4 {
 		wg.Go(func() {
 			for {
@@ -267,6 +298,13 @@ func TestISISLSDBEntryAccessorsAreRaceFree(t *testing.T) {
 						_ = e.IsPurged()
 						_ = e.Sequence()
 						_ = e.Checksum()
+						_ = e.LSPID()
+						_ = e.IsOverloaded()
+						_ = e.IsOwn()
+						_ = e.Raw()
+						if lsp, err := e.Decode(); err == nil {
+							packet.ReleaseTLVs(lsp.TLVs)
+						}
 					}
 				}
 			}

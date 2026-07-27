@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 298 design docs, 3114 files
+Total: 300 design docs, 3122 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -44,6 +44,10 @@ Total: 298 design docs, 3114 files
 
 - `internal/plugins/vrrp/packet/packet.go` -- WriteTo(buf, off) int contract
 - `internal/plugins/vrrp/packet/validate.go` -- zero-allocation decode over a lazy VIP view
+
+## `ai/rules/cli-grammar.md`
+
+- `scripts/checks/ci_dispatch_commands.go` -- dispatch-key migration leaves dead callers
 
 ## `ai/rules/cli-patterns.md`
 
@@ -407,6 +411,7 @@ Total: 298 design docs, 3114 files
 | `internal/component/bgp/plugins/adj_rib_in/rib_claims.go` | Stage 2 configure, exclusive-role claims |
 | `internal/component/bgp/reactor/reactor_api_relay.go` | stored-route relay (egress-rail) |
 | `internal/component/cli/completer_plugin.go` | plugin SDK methods |
+| `internal/component/plugin/acceptor.go` | TLS transport for external plugins |
 | `internal/component/plugin/cli/main.go` | plugin CLI dispatch |
 | `internal/component/plugin/cli/test_cmd.go` | plugin CLI dispatch |
 | `internal/component/plugin/inprocess.go` | plugin process management |
@@ -866,12 +871,15 @@ Total: 298 design docs, 3114 files
 | `internal/component/bgp/plugin/register.go` | BGP plugin registration with ConfigRoots |
 | `internal/component/bgp/plugins/adj_rib_in/ingest_position_test.go` | Adj-RIB-In ingest position |
 | `internal/component/bgp/plugins/bmp/bmp.go` | BMP plugin lifecycle |
+| `internal/component/bgp/plugins/bmp/bmp_events.go` | BMP plugin lifecycle |
 | `internal/component/bgp/plugins/bmp/doc.go` | BGP plugin model |
 | `internal/component/bgp/plugins/bmp/header.go` | BMP wire format |
 | `internal/component/bgp/plugins/bmp/msg.go` | BMP message types |
 | `internal/component/bgp/plugins/bmp/sender.go` | BMP sender (outbound to collectors) |
+| `internal/component/bgp/plugins/bmp/sender_drain.go` | BMP sender transmit path |
 | `internal/component/bgp/plugins/bmp/state.go` | BMP monitored peer state |
 | `internal/component/bgp/plugins/bmp/tlv.go` | BMP TLV encoding |
+| `internal/component/bgp/plugins/bmp/txqueue.go` | BMP sender transmit queue |
 | `internal/component/bgp/plugins/capa/decode.go` | core BGP capability decode |
 | `internal/component/bgp/plugins/capa/register.go` | core BGP capability decode plugin |
 | `internal/component/bgp/plugins/filter_aspath/config.go` | AS-path filter config parsing |
@@ -1318,6 +1326,7 @@ Total: 298 design docs, 3114 files
 | `internal/chaos/report/mrtlog.go` | MRT recording consumer for chaos |
 | `internal/component/bgp/plugins/rib/rib_mrt.go` | RIB snapshot bridge for MRT TABLE_DUMP_V2 |
 | `internal/mrt/bgp.go` | BGP message parsing for offline MRT analysis |
+| `internal/mrt/bgp_attribute.go` | offline path-attribute decoding |
 | `internal/mrt/decode.go` | wire format decoding |
 | `internal/mrt/encode.go` | wire format encoding |
 | `internal/mrt/format.go` | attribute string rendering for display and matching |
@@ -1557,6 +1566,7 @@ Total: 298 design docs, 3114 files
 | `internal/test/runner/parallel.go` | test runner framework |
 | `internal/test/runner/parsing.go` | test runner framework |
 | `internal/test/runner/peer_contract.go` | .ci peer blocks and their consumers |
+| `internal/test/runner/plugin_stage_stall.go` | plugin startup stall watchdog budget |
 | `internal/test/runner/ports.go` | test runner framework |
 | `internal/test/runner/record.go` | test record types and state |
 | `internal/test/runner/record_collection.go` | test record collection and querying |
@@ -2090,6 +2100,10 @@ Total: 298 design docs, 3114 files
 ## `docs/guide/rpki.md`
 
 - `internal/component/bgp/plugins/rpki/rpki_status.go` -- `show bgp rpki status` action serialization (global + per-peer)
+
+## `docs/plugin-development/metrics.md`
+
+- `internal/component/bgp/plugins/role/metrics.go` -- role plugin operator signal
 
 ## `docs/research/bfd-implementation-guide.md`
 

@@ -254,6 +254,41 @@ component group -> whole suite or `ze-verify`.
 | All editor tests | `make ze-editor-test` | ~30s |
 | Pre-commit gate | `make ze-verify` | 4-10 min (see `tmp/.ze-verify-duration.txt`) |
 
+**A numeric id is a position, not an identity (BLOCKING for anything you keep).**
+`ze-test <suite> N` resolves `N` as a one-based ordinal over the sorted `.ci` glob,
+so adding, renaming, or deleting an EARLIER file silently renumbers every test
+after it. Ids are fine while you iterate inside one turn. They are not fine in
+anything that outlives the turn -- a verification script, a gate subset, a
+handover, a commit message claiming "8/8 green". A concurrent session added `.ci`
+files mid-session and id 373 moved from `resolve-ping` to
+`remove-private-as-replace-peer` while an id-driven script reported green for
+tests it never ran.
+
+| Use | Form |
+|-----|------|
+| Iterating right now, from a failure index you just read | `ze-test bgp plugin 145` |
+| A script, a gate subset, a handover, a claim of evidence | `ze-test bgp plugin -p <name>` (`--pattern`) |
+
+A positional selector matches a record's Nick, Name, or CIFile EXACTLY
+(`indexRecordSelector`, `internal/test/runner/selection.go`), so passing names as
+positional ids is as stable as `--pattern` and, unlike a substring pattern,
+cannot widen. `scripts/evidence/netns_qemu.py` selects all four of its subsets by
+name for exactly this reason, and its `assert_named` guard refuses to run a
+subset that still carries a numeric selector -- a nick had already drifted there,
+with firewall `"17"` resolving to `command-owner-firewall-root.ci` rather than to
+any `017-*.ci`.
+
+**A `ze.log.<subsystem>` key in a `.ci` test must name a real slog subsystem.**
+An internal plugin's logger name is `CanonicalSubsystemName` of its registry name
+(`internal/component/plugin/inprocess.go`), which turns every hyphen into a dot,
+and `getLogEnv` (`internal/core/slogutil/slogutil.go`) splits the subsystem on
+`.` only. So a plugin registered `bgp-adj-rib-in` reads `ze.log.bgp.adj.rib.in`;
+`ze.log.bgp.adj-rib-in` matches no lookup, sets nothing, and leaves the level at
+the WARN default -- with no error, which is why it has recurred three times. A
+hyphen in the key is legitimate ONLY when that exact subsystem is declared
+literally in Go (`slogutil.LazyLogger("bgp.filter.aspath-length")`). Enforced by
+`check_ci_log_subsystem_keys` in `make ze-verify-wiring-docs`.
+
 **Escalation ladder:** direct test -> file/feature test -> single package -> component group -> whole suite or `ze-verify`. If any rung fails, fix from that evidence and rerun the failed rung or a narrower failing test, not a wider suite.
 
 `make ze-verify` is the **final gate**, not a development tool. Use targeted commands and component groups during iteration.

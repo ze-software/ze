@@ -70,10 +70,30 @@ was pulled into scope rather than left as the only open corner of a small RFC.
   triple-covered (`mandatory true`, `ze:validate "nonzero-ipv4"`, and `parseRouterID`),
   but the enforcing test and the ledger id both bind the per-peer leaf, so a mutation to
   the shared helper only turns the peer-level test red.
-- `parsePeersFromTree` parses a peer `router-id` with bare `netip.ParseAddr` and accepts
-  `0.0.0.0`, bypassing `parseRouterID`. Unreachable in production because that fallback
-  needs `reloadFunc == nil || ConfigPath == ""` and both are always set, but it is a
-  second non-validating parse of a leaf the public status row now makes a claim about.
+- **`parsePeersFromTree` had a second, non-validating parse of the peer `router-id`, and
+  the claim that it was unreachable was wrong.** This summary first said the fallback
+  "needs `reloadFunc == nil || ConfigPath == ""` and both are always set". They are not:
+  `internal/component/bgp/config/loader.go:93` gates BOTH `SetConfigPath` and
+  `SetReloadFunc` on `configPath != "" && configPath != "-"`, so a stdin config (`ze -`, a
+  supported form) leaves both unset and `loadPeersFullOrTree`
+  (`internal/component/bgp/reactor/reactor_api.go:454`) takes the fallback. Fixed
+  2026-07-27: the fallback now calls the same `parseRouterID` helper as the full pipeline
+  and rejects `0.0.0.0`, tested by `TestParsePeersFromTreeRejectsBadRouterID`.
+  Do not reason about a fallback's reachability from what its callers "always" do without
+  reading the setter's own guard (`ai/rules/no-fabrication.md`).
+- **Separate, still open: `parsePeersFromTree` reads a peer shape the YANG no longer
+  produces.** It expects `remote`, `local`, `receive-hold-time` and `router-id` directly
+  under the peer (`reactor_api.go:701-782`), while `grouping peer-fields` nests them as
+  `connection > remote`, `session > router-id` and `timer > receive-hold-time`
+  (`internal/component/bgp/yang/ze-bgp-conf.yang:290-805`) -- which is what the full
+  pipeline `configToPeer` reads (`internal/component/bgp/reactor/config.go:50-51,144`).
+  So on a real YANG tree the fallback fails at `missing required remote container`
+  (`reactor_api.go:703`) before reaching any other leaf, and its `router-id` branch is
+  dead for YANG-shaped trees; only the hand-built trees in the reactor's own tests carry
+  the flat shape. The live entry point is the config transaction
+  (`internal/component/bgp/plugin/register.go:208,227` -> `PeerDiffCount` /
+  `ReconcilePeersWithJournal`). Not fixed here: realigning the shape rewrites a function
+  whose entire existing test surface encodes the flat form, which needs its own spec.
 
 ## Files
 
@@ -83,4 +103,6 @@ was pulled into scope rather than left as the only open corner of a small RFC.
 - `internal/component/bgp/reactor/session.go` -- `DetectCollision`, Section 2.3 tie-break
 - `internal/component/bgp/reactor/session_handlers.go`, `session_connection.go` -- the rails
 - `internal/component/bgp/reactor/config.go` -- `parseRouterID` non-zero check
+- `internal/component/bgp/reactor/reactor_api.go` -- `parsePeersFromTree`, the second
+  `router-id` parse (now routed through `parseRouterID`)
 - `rfc/short/rfc6286.md`, `rfc/enrolled.txt`, `docs/features/rfc-status.md`
