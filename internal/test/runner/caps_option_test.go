@@ -146,17 +146,26 @@ func TestNeedsLinuxCapsListGatesOnEveryToken(t *testing.T) {
 	}
 }
 
-// The bpf token must map to BOTH CAP_BPF and CAP_SYS_RESOURCE. Checking only
-// CAP_BPF would still fail on the prlimit(2) fallback that raises RLIMIT_MEMLOCK.
+// The bpf token maps to CAP_BPF and NOTHING ELSE.
 //
-// VALIDATES: capsRequired[bpf] covers the rlimit capability as well.
-// PREVENTS: a token whose NAME says eBPF while the probe tests one of the two
-// bits it needs -- a guard that cannot evaluate what it claims to.
-func TestBPFTokenRequiresRlimitCapability(t *testing.T) {
+// VALIDATES: capsRequired[bpf] is exactly {CAP_BPF}.
+// PREVENTS: re-adding CAP_SYS_RESOURCE. The CI message that motivated this
+// token read "need CAP_BPF/CAP_SYS_RESOURCE", which reads like two
+// requirements and is one cascade: without CAP_BPF the memcg probe
+// (BPF_MAP_CREATE) fails, so rlimit.RemoveMemlock falls back to prlimit(2),
+// which is then also denied. That fallback exists for kernels older than 5.11
+// (vendor/github.com/cilium/ebpf/rlimit/rlimit_linux.go:108), and every kernel
+// this gate runs on is far past it -- the ze appliance builds 7.1.4, CI is 6.x.
+// Requiring the second bit makes the gate over-strict, and an over-strict gate
+// SKIPS a test the host could have run, which is the coverage deletion the
+// whole mechanism exists to prevent.
+func TestBPFTokenIsCapBPFOnly(t *testing.T) {
 	bits := capsRequired[capsBPF]
-	for _, want := range []int{capBPF, capSysResource} {
-		if !slices.Contains(bits, want) {
-			t.Errorf("capsRequired[%q] = %v, missing bit %d", capsBPF, bits, want)
-		}
+	if !slices.Contains(bits, capBPF) {
+		t.Errorf("capsRequired[%q] = %v, missing CAP_BPF (bit %d)", capsBPF, bits, capBPF)
+	}
+	if slices.Contains(bits, capSysResource) {
+		t.Errorf("capsRequired[%q] = %v still requires CAP_SYS_RESOURCE (bit %d): "+
+			"no kernel this runs on needs it, so the gate would over-skip", capsBPF, bits, capSysResource)
 	}
 }

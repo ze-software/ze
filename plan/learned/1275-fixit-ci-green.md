@@ -83,9 +83,15 @@ for exactly that reason.
   conclusion: the probe tests bit 12 and nothing else, so a host with
   `--cap-add=NET_ADMIN` and no CAP_BPF passes a gate it cannot satisfy and the
   test fails exactly as it did unmarked. The runner now accepts
-  `caps=net-admin,bpf` and `bpf` maps to CAP_BPF **and** CAP_SYS_RESOURCE,
-  because `rlimit.RemoveMemlock` falls back to `prlimit(2)` when memcg
-  accounting is unavailable (`vendor/github.com/cilium/ebpf/rlimit/`).
+  `caps=net-admin,bpf`. `bpf` maps to CAP_BPF ALONE: the CI message read "need
+  CAP_BPF/CAP_SYS_RESOURCE", which invites requiring both, but that is a CASCADE
+  -- without CAP_BPF the memcg probe (BPF_MAP_CREATE) fails, so
+  `rlimit.RemoveMemlock` falls back to `prlimit(2)` and is denied there too. The
+  fallback exists for kernels older than 5.11
+  (`vendor/github.com/cilium/ebpf/rlimit/rlimit_linux.go:108`) and every kernel
+  this gate runs on is far past it -- ze's appliance builds 7.1.4, CI is 6.x.
+  Requiring the second bit would be over-strict, and an over-strict gate SKIPS a
+  test the host could run, which is the deletion the mechanism exists to stop.
 
 - **One website pipeline, not two.** The site is built locally
   (`gh-pages/update-website.sh` -> `tools/build.py`) and its HTML committed to
@@ -131,6 +137,18 @@ for exactly that reason.
   "CAP_NET_ADMIN" and produced ten false positives, including four pure-BGP tests
   that would have been wrongly removed from macOS coverage. Grep for the failure,
   not for the topic.
+- **An under-provisioned container invents its own failures, and I fell for it
+  TWICE.** A first reproduction had all four daemon tests failing on `plugin ...
+  TLS connect-back: context canceled`, which looked like a real defect; the
+  observers are `#!/usr/bin/env python3` and the Alpine image had no python3.
+  Having caught that, the next image lacked `go` -- which several ospf tests exec
+  as a helper peer -- and 65 tests died in about a second, which I briefly
+  reported as a finding. It was not: `go` is present wherever Go is tested. The
+  damage was not the wrong claim but the wrong CONCLUSION drawn from it -- with
+  two thirds of the suite dead on arrival the run generated almost no load, so
+  "the six pass under load" was meaningless until the image could actually run
+  the suite. Provision the reproduction to match the environment before reading
+  anything into its failures.
 - **A `.ci` option name can appear in prose.** A scripted `option=needs-linux` ->
   `option=needs-linux:caps=net-admin` replacement spliced a comment block into
   the middle of three files' STATUS prose, because `replace(..., 1)` hit a
@@ -152,17 +170,24 @@ for exactly that reason.
   has never connected, so the demo's readiness loop broke on its first iteration
   and then asserted on data that had not arrived. The VRP count is the first
   observable that means synced.
-- **Six ospf failures remain unattributed, and that is a reporting gap the
-  concurrency fix closes rather than one this change diagnosed.** `ospf-config`,
-  `ospf-instance-teardown`, `ospf-inter-area-cli`, `ospf-interface-runtime`,
-  `ospf-route-daemon` and `ospf-virtual-link-config` FAILed in CI, but the job
-  was killed mid-suite, so the ospf failure INDEX never printed and no per-test
-  error text exists anywhere in the log. The ~40 sibling TIMEs are demonstrably
-  thrash victims; these six may or may not be. Two of them (`ospf-config`,
-  `ospf-virtual-link-config`) pass on macOS, the other four carry
-  `skip-os:value=darwin` and so run nowhere but Linux. Marking them on a guess
-  was rejected: a wrong `caps=net-admin` deletes coverage for no reason. The next
-  run, with the suite bounded, is the first that can produce a readable index.
+- **The six ospf failures were load casualties, and the concurrency bound cures
+  them. Proven, not inferred.** They could not be attributed at first: the job
+  was killed mid-suite so the ospf failure index never printed. Reproduced
+  afterwards in a container (cross-compiled linux binaries, 2 CPUs, go + python3
+  + iproute2 present) -- same suite, same binaries, concurrency the only
+  variable:
+
+  | run | result | wall clock |
+  |-----|--------|-----------|
+  | `-p 0` (the old default: all 89 at once) | 4 pass, 36 fail, 49 timeout | 251s |
+  | bounded `DefaultSuiteConcurrency` | **89 pass** | 68.7s |
+
+  All six (3, 30, 31, 33, 66, 88) are in the unbounded run's failure sets and
+  all six pass bounded. The bounded run is also 3.7x FASTER, which is what
+  proves the unbounded one was thrash rather than work. Declining to mark them
+  `caps=` was right: two of them are pure `ze config validate -` with no daemon
+  at all.
+
 - Two plugin tests (`as112-external-refuses`, `cos-external-warns`) failed on
   this macOS host when run in isolation and passed in the full verify run, so
   they are load-sensitive locally, not deterministic. They passed on the Linux

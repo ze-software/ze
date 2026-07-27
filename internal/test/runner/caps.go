@@ -27,12 +27,24 @@ const (
 //
 //   - net-admin: privileged network configuration -- creating interfaces,
 //     bringing links up, programming netlink and nftables.
-//   - bpf: loading eBPF programs and creating maps, AND raising RLIMIT_MEMLOCK
-//     to do it. Both are needed: the ebpf library's rlimit.RemoveMemlock
-//     (vendor/github.com/cilium/ebpf/rlimit/rlimit_linux.go) probes with
-//     BPF_MAP_CREATE and, when memcg accounting is unavailable, falls back to
-//     prlimit(2), which is CAP_SYS_RESOURCE. Declaring only one of the pair
-//     would let a host that holds it pass a gate it cannot actually satisfy.
+//
+//   - bpf: loading eBPF programs and creating maps. CAP_BPF alone, deliberately
+//     NOT CAP_SYS_RESOURCE. rlimit.RemoveMemlock
+//     (vendor/github.com/cilium/ebpf/rlimit/rlimit_linux.go:109-127) only
+//     reaches its prlimit(2) fallback -- the part that needs CAP_SYS_RESOURCE --
+//     when memcg BPF accounting is unavailable, which is kernels older than
+//     5.11. Every kernel this gate is ever evaluated on is far past that: the ze
+//     appliance builds 7.1.4, the CI runner is 6.x, the QEMU Alpine VM likewise.
+//     On all of them a process holding CAP_BPF makes RemoveMemlock return early
+//     and CAP_SYS_RESOURCE is never consulted.
+//
+//     The CI log that motivated this token read "need CAP_BPF/CAP_SYS_RESOURCE",
+//     which invites requiring both. That message is a CASCADE, not two
+//     independent requirements: without CAP_BPF the memcg probe (BPF_MAP_CREATE)
+//     fails, so the library falls back to prlimit, which is then also denied.
+//     Requiring the second bit would make the gate over-strict, and an
+//     over-strict gate SKIPS a test the host could actually run -- the coverage
+//     deletion this whole mechanism exists to prevent.
 const (
 	capsNetAdmin = "net-admin"
 	capsBPF      = "bpf"
@@ -46,7 +58,7 @@ const (
 // (ai/rules/fail-closed-guards.md).
 var capsRequired = map[string][]int{
 	capsNetAdmin: {capNetAdmin},
-	capsBPF:      {capBPF, capSysResource},
+	capsBPF:      {capBPF},
 }
 
 // capsAccepted lists the accepted tokens for an error message, derived from the
