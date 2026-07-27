@@ -10,8 +10,15 @@ source .claude/hooks/lib/state-file.sh
 # Clean up stale markers from dead sessions
 _cleanup_stale_markers
 
-# Clean up old tmp/ scratch files (>24h) silently
-find tmp/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
+# Clean up old tmp/ scratch files (>24h) silently.
+#
+# go.mod is EXCLUDED: tmp/go.mod is a tracked, committed sentinel marking tmp/ as
+# a nested module so `go list ./...` skips the caches under it. It is old by
+# definition, top-level, and a regular file, so it matched this reaper exactly --
+# every session start silently deleted a tracked file, and until something ran
+# scripts/dev/ensure-links.py again `go list ./...` walked the caches the
+# sentinel exists to hide. Keep this exclusion in sync with `make ze-clean-tmp`.
+find tmp/ -maxdepth 1 -type f -not -name go.mod -mmin +1440 -delete 2>/dev/null || true
 find tmp/session/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
 
 # Backstop: reap per-session scratch dirs (tmp/s/<sid>/) from sessions that

@@ -692,9 +692,14 @@ clean-all:
 	@if [ -e tmp ]; then find tmp/ -mindepth 1 -maxdepth 1 -exec rm -rf {} + 2>/dev/null || true; fi
 	@python3 scripts/dev/ensure-links.py --quiet
 
+# go.mod is EXCLUDED from the file reap below: tmp/go.mod is the TRACKED sentinel
+# that keeps `go list ./...` out of the caches under tmp/ (SENTINEL in
+# scripts/dev/ensure-links.py). Being committed, it is always older than 24h, so
+# an unqualified reap silently deletes a tracked file. Keep this exclusion in
+# sync with the identical one in .claude/hooks/session-start.sh.
 ze-clean-tmp:
 	@echo "Cleaning tmp/ scratch files older than 24h..."
-	@find tmp/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
+	@find tmp/ -maxdepth 1 -type f -not -name go.mod -mmin +1440 -delete 2>/dev/null || true
 	@find tmp/ -maxdepth 1 -type d -not -name session -not -name kernel \
 		-mmin +1440 -exec rm -rf {} + 2>/dev/null || true
 	@find tmp/session/ -maxdepth 1 -type f -mmin +1440 -delete 2>/dev/null || true
