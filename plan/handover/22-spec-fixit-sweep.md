@@ -118,8 +118,43 @@ the RFC gates ONLY. Export-set matching still uses the capability value, because
 `unknown` there is an operator-selected export target, not a missing answer.
 Resolving it there too would silently retarget a documented knob.
 
-A fresh reviewer is running against `276096afb`. Closure needs its verdict
-CLEAN, then `review_gate.py record`, then commit B.
+**Round 2 also came back FINDINGS** (`d373d9f40`, `6766b15e4`). It found a
+THIRD reader of `getFilterConfig` -- `OTCIngressFilter` (`otc.go:312`), 155
+lines above the two that sit together -- still gated on the capability-only
+role. For a peer that sent no Role capability that value is `""`, so the guard
+at `otc.go:320` returned early and skipped ALL THREE Section 5 ingress MUSTs:
+leak detection from a Customer/RS-Client, the Peer ASN mismatch check, and the
+ingress stamp. Without the stamp the attribute never propagates, so a leak
+cannot be caught hops away -- which is the whole point of OTC.
+
+The reviewer proved it with a live experiment rather than by inference, and
+showed the existing subtest for that branch (`config_but_no_remote_role`) PINS
+the permissive outcome: its `{role: provider}` fixture complements to Customer,
+and no ingress rule bites a Customer sending a route without OTC. It read as
+coverage while proving nothing. `resolveDestRole` is now `resolvePeerRole` and
+serves all three readers; `TestOTCIngressStampsWhenPeerSentNoRoleCapability`
+gates it.
+
+**Twice in a row the miss was the same rule** (`ai/rules/before-writing-code.md`
+Sibling Call-Site Audit). Round 1 swept one of three call sites, round 2 swept
+two of three. If you touch this plugin, enumerate every `getFilterConfig` caller
+FIRST -- there are three, at `otc.go:312`, `:467` and `:468`.
+
+**Still open, none of them blocking the OTC fix, all needing a home:**
+
+| What | Where | Why it matters |
+|------|-------|----------------|
+| Suppressions from an INFERRED role log at `Debug` only and have no metric | `otc.go:481`, `:495` | after this change a peer whose role was never negotiated can have advertisements silently withdrawn, including on a config typo that was previously inert |
+| Config keyed by peer NAME when no remote IP resolves, while all three readers look up by address | `config.go:193-198` | such a peer gets no config, so the RFC gates revert to permissive and the fallback is defeated |
+| Capability-learned roles never cleared on session down | `role.go:61` is the only clearer | a peer that once advertised a role and reconnects without one keeps the stale value, which `resolvePeerRole` PREFERS over config |
+
+The last two are now documented under "Known limits" in
+`docs/architecture/meta/role.md` so they are at least visible to operators, but
+documenting is not fixing.
+
+Closure still needs a round-3 review verdict CLEAN against the current hashes,
+then `review_gate.py record`, then commit B. Do not record an artifact against
+`276096afb` -- the code has moved twice since.
 
 **One thing needs you:** `tmp/delete-d3c58d3d.sh` removes
 `internal/component/bgp/plugins/role/zz_reviewscratch_test.go`, untracked
