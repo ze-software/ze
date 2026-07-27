@@ -99,12 +99,22 @@ pre-commit verification, then the two-commit closure.
 `spec-fixit-isis-lsdb-entry-race` is a skeleton (unfilled ACs) whose fix landed in
 `7f3bfd338` plus `71f91c170`; closing it means filling the ACs retroactively.
 
-### 3. Known test gaps left open (do not let these go quiet)
+### 3. ~~Known test gaps left open~~ CLOSED 2026-07-27 (`22156e6a7`)
 
-- No `.ci` functional test for the second-OPEN behaviour. `functional-test-gate.md`
-  wants one; the spec's own user story names `test/parse/open-in-established.ci`.
-- The OpenConfirm branch of the new gate is implemented and named in AC-4a but
-  only the Established path is tested.
+Both gaps are closed, all assertions mutation-verified:
+
+- `test/plugin/open-in-established.ci` -- the functional test. Placed in
+  `test/plugin/` rather than the `test/parse/open-in-established.ci` the spec's
+  user story named, because `test/parse/` is for config parsing
+  (`ai/rules/testing.md` directory table) and this needs a scripted peer.
+- `TestSecondOpenInOpenConfirmIsRefused` -- the OpenConfirm arm.
+
+One finding worth carrying: the `.ci` observer waits on the **`session-drops`
+counter**, not on peer state. The refused OPEN is injected the instant the
+session establishes, so `established` lasts milliseconds -- an event-stream
+observer missed it and a 250 ms poll missed it, both while the Cease was already
+on the wire. If you write another test around a fast teardown, reach for a
+monotonic counter rather than a transient state.
 
 ## Environment warnings for whoever picks this up
 
