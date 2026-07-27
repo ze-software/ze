@@ -60,10 +60,34 @@ ZE_VERSION := $(shell date +%y.%m.%d)
 ZE_BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 ZE_LDFLAGS := -X main.version=$(ZE_VERSION) -X main.buildDate=$(ZE_BUILD_DATE)
 
-# CPU limit: leave 3 cores free (minimum 1). Used as GOMAXPROCS for tests so
-# parallel stages do not starve the system. Unit tests exercise the shipped
-# default-on feature set; GO_TEST_CORE runs bare ze_core compile-out checks.
-GO_TEST_PROCS := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); p=$$(( n - 3 )); [ $$p -lt 1 ] && p=1; echo $$p)
+# CPU limit: leave 3 cores free, but never drop below HALF the cores. Used as
+# GOMAXPROCS for tests so parallel stages do not starve the system. Unit tests
+# exercise the shipped default-on feature set; GO_TEST_CORE runs bare ze_core
+# compile-out checks.
+#
+# The half-the-cores floor is not cosmetic. "n - 3" was sized for a development
+# workstation and DEGENERATES on a small CI runner: GitHub's hosted 4-vCPU
+# runner landed on GOMAXPROCS=1, and that is two failures, not one.
+#   - `go test -p` defaults to GOMAXPROCS, so all ~450 packages ran ONE AT A
+#     TIME (the cached unit stage took 22 minutes).
+#   - internal/component/cli/testing's headless model races a command goroutine
+#     against 10 runtime.Gosched() yields and falls back to a 900ms wait when
+#     the goroutine has not finished (headless.go:152-191). With one P the
+#     command cannot run in parallel, so the .et suite paid the 900ms far more
+#     often and blew go test's 10-minute package default (CI run 30219943935).
+# Floor: n=4 -> 2, n=8 -> 5, n=16 -> 13. Never above n-3 on a big machine.
+GO_TEST_PROCS := $(shell n=$$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4); p=$$(( n - 3 )); h=$$(( (n + 1) / 2 )); [ $$p -lt $$h ] && p=$$h; [ $$p -lt 1 ] && p=1; echo $$p)
+# Per-test-binary wall-clock cap, stated rather than inherited. go test's
+# implicit default is 10m, which nothing in this repo ever chose: the slowest
+# package measured here (internal/component/cli/testing, the .et editor suite)
+# takes ~170s on a 16-core host, so 10m was under 4x headroom and a slower
+# runner crossed it. This is a HANG catcher, not a wait: no test is expected to
+# approach it, and one that does is a defect to fix, not a number to raise.
+# $(or …), not ?=: `?=` only skips assignment when the variable is UNDEFINED,
+# so an exported-but-empty GO_TEST_TIMEOUT= would expand to `go test -timeout
+# -tags …` and every target would die on `invalid value "-tags" for flag
+# -timeout`. $(or …) treats empty the same as unset.
+GO_TEST_TIMEOUT := $(or $(GO_TEST_TIMEOUT),20m)
 # GO_TEST_CORE runs only ./cmd/ze/hub, so every absent-feature compile-out test
 # (//go:build !ze_lg / !ze_ssh / !ze_web) MUST live under cmd/ze/hub. A negated
 # feature-gate test placed elsewhere would be silently skipped by both passes.
@@ -75,14 +99,14 @@ GO_TEST_TAGS = ze_core $(ZE_FEATURES) $(ZE_TAGS)
 # for those tools; a tool that only reads source text does not need it.
 GO_RUN = go run -tags '$(GO_TEST_TAGS)'
 GO_TEST_CORE_TAGS = ze_core $(ZE_TAGS)
-GO_TEST = GOMAXPROCS=$(GO_TEST_PROCS) go test -tags '$(GO_TEST_TAGS)'
-GO_TEST_CORE = GOMAXPROCS=$(GO_TEST_PROCS) go test -tags '$(GO_TEST_CORE_TAGS)'
+GO_TEST = GOMAXPROCS=$(GO_TEST_PROCS) go test -timeout $(GO_TEST_TIMEOUT) -tags '$(GO_TEST_TAGS)'
+GO_TEST_CORE = GOMAXPROCS=$(GO_TEST_PROCS) go test -timeout $(GO_TEST_TIMEOUT) -tags '$(GO_TEST_CORE_TAGS)'
 # `go test -race` links the race runtime through cgo, so the global CGO_ENABLED=0
 # (kept so release binaries stay static) has to be overridden on race targets or
 # every -race run aborts with "-race requires cgo". Non-race test runs stay
 # CGO-free. Use these for any -race invocation instead of `$(GO_TEST) -race`.
-GO_TEST_RACE = GOMAXPROCS=$(GO_TEST_PROCS) CGO_ENABLED=1 go test -tags '$(GO_TEST_TAGS)' -race
-GO_TEST_CORE_RACE = GOMAXPROCS=$(GO_TEST_PROCS) CGO_ENABLED=1 go test -tags '$(GO_TEST_CORE_TAGS)' -race
+GO_TEST_RACE = GOMAXPROCS=$(GO_TEST_PROCS) CGO_ENABLED=1 go test -timeout $(GO_TEST_TIMEOUT) -tags '$(GO_TEST_TAGS)' -race
+GO_TEST_CORE_RACE = GOMAXPROCS=$(GO_TEST_PROCS) CGO_ENABLED=1 go test -timeout $(GO_TEST_TIMEOUT) -tags '$(GO_TEST_CORE_TAGS)' -race
 ZE_EXABGP_TIMEOUT ?= 180
 ZE_LINUX_GO_IMAGE ?= golang:1.26-alpine
 ZE_LINUX_TEST_PACKAGES ?= ./internal/plugins/traffic/vpp

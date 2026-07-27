@@ -25,8 +25,19 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
+      # fetch-depth: 0 is load-bearing, not a convenience. actions/checkout
+      # defaults to a shallow clone, and `collect_adoption`
+      # (scripts/dev/testing_health.py) answers UNKNOWN in one on purpose:
+      # git attributes every file to the graft commit, so package age -- the
+      # whole point of the metric -- cannot be derived. `do_check` compares
+      # every metric status, so the committed `ok` never matched CI's
+      # `unknown` and ze-regen-check-readonly was red on EVERY run, with a
+      # diagnostic ("regenerate and commit") that could not fix it: regenerating
+      # in a full clone reproduces the `ok` already committed.
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@v7
