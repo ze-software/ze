@@ -136,6 +136,28 @@ def build_host_ze(root: Path, work: Path) -> str:
     return ze
 
 
+def build_hint(output: str) -> str:
+    """Name the one-time setup step when the build output shows it is missing.
+
+    `ze appliance build` resolves the gokrazy system packages strictly from the
+    repo-local gokrazy/modcache with GOPROXY=off (internal/appliance/cmd_build.go
+    ensureModcache). On a checkout where `make ze-gokrazy-deps` has never run,
+    that cache holds neither github.com/rtr7/kernel nor the Go toolchain the
+    builddir modules pin, and gok reports "toolchain not available" -- which
+    reads as a broken Go installation and is not one. This does NOT skip: the
+    prerequisite is one documented command away, and skipping would delete the
+    only coverage of the boot-time hugepage reservation
+    (ai/rules/fail-closed-guards.md). It makes the failure actionable.
+    """
+    for marker in ("toolchain not available", "incomplete packages", "GOPROXY=off"):
+        if marker in output:
+            return (
+                " (gokrazy/modcache looks unpopulated -- run `make ze-gokrazy-deps`"
+                " once, then retry)"
+            )
+    return ""
+
+
 def build_image(ze: str, root: Path, work: Path) -> Path:
     name = "ze-vpp-hp-qemu"
     appliance_dir = work / "appliances"
@@ -168,7 +190,9 @@ def build_image(ze: str, root: Path, work: Path) -> Path:
         env=env,
     )
     if build.returncode != 0:
-        raise SystemExit(f"ze appliance build failed:\n{build.stdout}")
+        raise SystemExit(
+            f"ze appliance build failed:{build_hint(build.stdout)}\n{build.stdout}"
+        )
     imgs = sorted(appliance_dir.rglob("ze-*.img"))
     if not imgs:
         raise SystemExit("appliance build produced no image")

@@ -10,6 +10,14 @@
 #            stale snapshot.
 
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
+# The kernel data plane is DISABLED for this test. skip-kernel-probe above bypasses
+# only the modprobe; on a host where l2tp_netlink is already loaded the genl tunnel
+# create still runs and needs CAP_NET_ADMIN, which is why this test used to fail
+# unprivileged with "session never established". With no kernel worker the session
+# establishes on the control plane alone, which is the whole of what this test
+# asserts -- it reads the CLI surface, never the kernel's view. A test that DOES
+# need the data plane must not set this (see test/l2tp/session-stopccn-cascade.ci).
+option=env:var=ze.l2tp.disable-kernel-dataplane:value=true
 option=env:var=TEST_SECRET:value=session-detail-secret
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1

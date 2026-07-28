@@ -4361,6 +4361,13 @@ Makefile wiring, reference implementations).
 | Target | What it runs | When required |
 |--------|-------------|---------------|
 | `make ze-qemu-integration-test` | iface, config/system, fib/kernel, firewall/nft, firewall/vpp, traffic/netlink in QEMU Alpine VM | Any change to `//go:build linux` code |
+### Capability-Requiring `.ci` Tests (Linux host, per-test netns)
+| Target | What it runs | When required |
+|--------|-------------|---------------|
+| `make ze-netns-test` | `firewall` `policy` `ospf` `ospfv3` suites under `ZE_TEST_NETNS=1` | Any change to nft/FIB/OSPF kernel programming |
+| `make ze-netns-plugin-test` | `show-system-kernel-log`, which needs CAP_SYSLOG to read `/dev/kmsg` | Any change to `readKmsg` |
+Both setcap a **throwaway** binary, run under `sudo` with a per-test network namespace, assert the host's kernel state is byte-identical before and after, and exit non-zero (never skip) when Linux, `sudo`, or `setcap`...
+**Prefer a knob that skips the work over a target that supplies the privilege.**
 **fakeOps pattern:** VPP backends use a `vppOps` interface seam so the Apply
 ### VPP Backend Testing Is Mandatory (BLOCKING)
 Every VPP backend must ship with functional tests.

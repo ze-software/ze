@@ -56,6 +56,15 @@ const SubsystemName = "l2tp"
 // Tests override this via export_test.go to run without root privileges.
 var probeKernelModulesFn = probeKernelModules
 
+// newSubsystemKernelWorkerFn constructs the per-listener kernel worker.
+// Production uses newSubsystemKernelWorker (Linux genl; returns nil on other OS).
+// Indirected as a var so a test can assert WHETHER construction was attempted,
+// which is the only host-independent way to pin the
+// ze.l2tp.disable-kernel-dataplane knob: the real constructor legitimately
+// returns nil on non-Linux and on a genl resolve failure, so a nil result proves
+// nothing on its own.
+var newSubsystemKernelWorkerFn = newSubsystemKernelWorker
+
 // Subsystem is the ze.Subsystem implementation for L2TPv2.
 //
 // Phase 3 scope: UDP listener + reactor skeleton are wired. Tunnel state
@@ -204,6 +213,12 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		return fmt.Errorf("l2tp: %w", err)
 	}
 
+	// Read once, outside the per-listener loop below: the value cannot change
+	// mid-Start, and re-reading it per listener would let a concurrent Setenv in
+	// a test produce a subsystem whose listeners disagree about whether the data
+	// plane exists.
+	disableDataplane := env.GetBool("ze.l2tp.disable-kernel-dataplane", false)
+
 	// Bind every configured listen endpoint and launch a reactor + timer
 	// + kernel worker for each. On any bind failure, unwind the partial
 	// state so a retry is safe.
@@ -254,7 +269,25 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		// would race with the worker's report selects.
 		errCh := make(chan kernelSetupFailed, 16)
 		successCh := make(chan kernelSetupSucceeded, 16)
-		worker := newSubsystemKernelWorker(errCh, successCh, s.logger)
+		// ze.l2tp.disable-kernel-dataplane leaves the worker nil, which the
+		// reactor already treats as "no kernel setup to do" -- the same state it
+		// is in on non-Linux (kernel_other.go newSubsystemKernelWorker returns
+		// nil). Sessions still establish on the control plane, so the CLI surface
+		// (show / teardown) is exercisable without CAP_NET_ADMIN.
+		//
+		// DISTINCT from ze.l2tp.skip-kernel-probe, which bypasses only the
+		// modprobe above and leaves the data plane fully wired. That distinction
+		// is load-bearing, not tidiness: test/l2tp/session-stopccn-cascade.ci
+		// sets skip-kernel-probe AND needs the data plane (it carries
+		// option=needs-linux:caps=net-admin and documents the reason inline), so
+		// widening that knob to cover this would break it with a symptom -- no
+		// session -- a long way from the cause.
+		var worker *kernelWorker
+		if disableDataplane {
+			s.logger.Warn("l2tp: kernel data plane disabled (ze.l2tp.disable-kernel-dataplane=true); sessions will not be programmed into the kernel")
+		} else {
+			worker = newSubsystemKernelWorkerFn(errCh, successCh, s.logger)
+		}
 		reactor.SetKernelWorker(worker, errCh, successCh)
 
 		// Phase 6a: construct a PPP driver if an iface backend is loaded.
@@ -375,19 +408,61 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	return nil
 }
 
+// stopKernelWorkersLocked releases every kernel worker's resources and reaps its
+// goroutine. Caller MUST hold s.mu.
+//
+// This MUST run before pppDriver.Stop, and that is a correctness requirement,
+// not a preference. A PPP session's frame reader sits in a BLOCKING read(2) on
+// its /dev/ppp channel descriptor (ppp.NewFDFile keeps the fd out of the Go
+// poller on purpose -- frame_linux.go), and pppSession.run waits for that reader
+// before returning, which Driver.Stop in turn waits for. Closing the channel
+// descriptor does NOT end that read: on Linux close(2) drops one reference to an
+// open file description that the blocked read still holds, so ppp_read is never
+// woken and no error is delivered. The old comment here ("blocking reads return
+// EBADF, per-session goroutines exit") described a shutdown that cannot happen.
+//
+// What DOES wake the reader is closing the PPPoX socket, which the kernel worker
+// owns: pppol2tp_release -> ppp_unregister_channel marks the channel dead and
+// wakes every waiter, so the read returns and the session goroutine unwinds.
+// That is exactly how a RUNTIME session teardown already works -- the reactor
+// never calls Driver.StopSession for L2TP, it enqueues a kernelTeardownEvent and
+// the worker's teardownSessionFDsLocked closes the PPPoX socket. Shutdown had
+// the two halves inverted, so Driver.Stop waited for a reader that only the
+// still-pending kernel teardown could release.
+//
+// Observed 2026-07-28 on a Linux host with CAP_NET_ADMIN and l2tp_netlink
+// loaded: after one session reached the kernel data plane, `ze` logged "L2TP
+// subsystem stopping" and never exited (one thread parked in ppp_read, every
+// other thread in futex_wait), so test/plugin/show-l2tp-{sessions,history,
+// session-detail}.ci timed out instead of asserting.
+//
+// SignalStop comes first for all workers so an in-flight setupSession is broken
+// out of its successCh/errCh send select BEFORE TeardownAll acquires w.mu;
+// otherwise a blocked report holds w.mu and TeardownAll deadlocks.
+func (s *Subsystem) stopKernelWorkersLocked() {
+	for _, kw := range s.kernelWorkers {
+		if kw != nil {
+			kw.SignalStop()
+		}
+	}
+	for _, kw := range s.kernelWorkers {
+		if kw != nil {
+			kw.TeardownAll()
+			kw.Stop()
+		}
+	}
+}
+
 // unwindLocked stops any partially-started reactors and listeners. Must be
 // called with s.mu held. Errors are joined so the caller can surface them
 // all without suppressing any.
 //
-// Order matters. Stop timers and reactors BEFORE the PPP drivers so no new
-// ppp.StartSession writes land on pppDriver.SessionsIn() mid-teardown.
-// Stop the PPP drivers BEFORE the kernel workers: the kernel worker owns
-// the fds, and pppDriver.Stop closes them from the PPP side; the kernel
-// worker's TeardownAll is idempotent against double-close via closeFD
-// error logging. Then TeardownAll drains kernel state and Stop signals
-// the worker goroutine to exit. The listener is closed last because the
-// kernel data plane (programmed via the worker's socketFD) holds a
-// kernel-side reference until tunnel delete completes.
+// Order matters. Stop timers and reactors BEFORE anything else so no new
+// ppp.StartSession writes land on pppDriver.SessionsIn() mid-teardown. Then the
+// kernel workers, then the PPP drivers (see stopKernelWorkersLocked for why that
+// pair is in that order). The listener is closed last because the kernel data
+// plane (programmed via the worker's socketFD) holds a kernel-side reference
+// until tunnel delete completes.
 func (s *Subsystem) unwindLocked() {
 	var errs []error
 	// Timers first: they send on reactor channels, so stop them before
@@ -401,10 +476,11 @@ func (s *Subsystem) unwindLocked() {
 	for _, r := range s.reactors {
 		r.Stop()
 	}
-	// PPP drivers: close every active session's chan fd (blocking reads
-	// return EBADF, per-session goroutines exit), wait for them.
-	// Driver.Stop closes AuthEventsOut/IPEventsOut channels, causing
-	// drain goroutines to exit.
+	// Kernel workers BEFORE the PPP drivers: see stopKernelWorkersLocked.
+	s.stopKernelWorkersLocked()
+	// PPP drivers: close every active session's chan fd and wait for the
+	// per-session goroutines. Driver.Stop closes AuthEventsOut/IPEventsOut,
+	// causing drain goroutines to exit.
 	for _, d := range s.pppDrivers {
 		if d != nil {
 			d.Stop()
@@ -415,22 +491,6 @@ func (s *Subsystem) unwindLocked() {
 		<-done
 	}
 	s.drainDones = nil
-	// Kernel workers: SignalStop first to break any in-flight
-	// setupSession out of its successCh/errCh channel-send select BEFORE
-	// TeardownAll acquires w.mu; otherwise a blocked report would hold
-	// w.mu forever. Then TeardownAll drains kernel state, and Stop
-	// finally reaps the worker goroutine.
-	for _, kw := range s.kernelWorkers {
-		if kw != nil {
-			kw.SignalStop()
-		}
-	}
-	for _, kw := range s.kernelWorkers {
-		if kw != nil {
-			kw.TeardownAll()
-			kw.Stop()
-		}
-	}
 	// Listeners last: kernel tunnel/session delete commands carry a
 	// reference to the UDP socket; close after the worker drains.
 	for _, l := range s.listeners {
@@ -480,16 +540,18 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	s.logger.Info("L2TP subsystem stopping")
 
 	var errs []error
-	// Same order as unwindLocked. Reactors stop before PPP drivers and
-	// workers so no new kernelSetupEvents / ppp.StartSession dispatches
-	// land after TeardownAll, satisfying AC-14: every kernel resource is
-	// torn down before Stop() returns.
+	// Same order as unwindLocked. Reactors stop before the kernel workers and
+	// the PPP drivers so no new kernelSetupEvents / ppp.StartSession
+	// dispatches land after TeardownAll, satisfying AC-14: every kernel
+	// resource is torn down before Stop() returns.
 	for _, t := range s.timers {
 		t.Stop()
 	}
 	for _, r := range s.reactors {
 		r.Stop()
 	}
+	// Kernel workers BEFORE the PPP drivers: see stopKernelWorkersLocked.
+	s.stopKernelWorkersLocked()
 	for _, d := range s.pppDrivers {
 		if d != nil {
 			d.Stop()
@@ -499,19 +561,6 @@ func (s *Subsystem) Stop(_ context.Context) error {
 		<-done
 	}
 	s.drainDones = nil
-	// Same SignalStop-first pattern as unwindLocked: release w.mu holders
-	// before TeardownAll acquires the lock.
-	for _, kw := range s.kernelWorkers {
-		if kw != nil {
-			kw.SignalStop()
-		}
-	}
-	for _, kw := range s.kernelWorkers {
-		if kw != nil {
-			kw.TeardownAll()
-			kw.Stop()
-		}
-	}
 	for _, l := range s.listeners {
 		if err := l.Stop(); err != nil {
 			errs = append(errs, err)

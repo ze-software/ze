@@ -824,6 +824,8 @@ help-test:
 	@echo "    ze-integration-fib-test       FIB kernel routes"
 	@echo "    ze-integration-firewall-test  nftables"
 	@echo "    ze-integration-traffic-test   tc qdisc"
+	@echo "    ze-netns-test             firewall/policy/ospf/ospfv3 .ci in a per-test netns"
+	@echo "    ze-netns-plugin-test      plugin .ci needing CAP_SYSLOG (/dev/kmsg)"
 	@echo ""
 	@echo "  QEMU (macOS-friendly, no Docker Desktop kernel limits):"
 	@echo "    ze-qemu-all-test          FULL suite in QEMU: functional + unit + integration (host-compiled)"

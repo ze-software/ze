@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"errors"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -19,6 +18,11 @@ import (
 const (
 	defaultKernelLogCount = 50
 	maxKernelLogCount     = 10000
+	// kmsgRecordMax bounds one /dev/kmsg record. Each read returns exactly one
+	// record, and a buffer shorter than the record makes the kernel return
+	// EINVAL, so this must stay at or above the kernel's own record ceiling
+	// (CONSOLE_EXT_LOG_MAX, 8192).
+	kmsgRecordMax = 8192
 )
 
 var kmsgLevelNames = [8]string{
@@ -32,8 +36,29 @@ func RegisterShowKernelLog() {
 }
 
 func handleShowSystemKernelLog(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	count := defaultKernelLogCount
-	maxLevel := 7
+	count, maxLevel := parseKernelLogArgs(args)
+
+	entries, err := readKmsg(count, maxLevel)
+	if err != nil {
+		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
+	}
+
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: plugin.Map{
+			"entries": entries,
+			"count":   len(entries),
+		},
+	}, nil
+}
+
+// parseKernelLogArgs reads the `count N` / `level L` pair out of the dispatched
+// argument list, falling back to the defaults for anything absent or outside
+// range. Split out of the handler so the range checks are reachable from a test
+// on every host: the handler itself cannot run without /dev/kmsg.
+func parseKernelLogArgs(args []string) (count, maxLevel int) {
+	count = defaultKernelLogCount
+	maxLevel = len(kmsgLevelNames) - 1
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -52,19 +77,7 @@ func handleShowSystemKernelLog(_ *pluginserver.CommandContext, args []string) (*
 			}
 		}
 	}
-
-	entries, err := readKmsg(count, maxLevel)
-	if err != nil {
-		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, nil //nolint:nilerr // operational error in Response
-	}
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: plugin.Map{
-			"entries": entries,
-			"count":   len(entries),
-		},
-	}, nil
+	return count, maxLevel
 }
 
 func parseLevelArg(s string) int {
@@ -80,41 +93,74 @@ func parseLevelArg(s string) int {
 	return 7
 }
 
+// readKmsg drains the kernel ring buffer and returns the newest count entries
+// at or below maxLevel.
+//
+// It reads the descriptor with RAW syscalls, deliberately not os.OpenFile plus
+// (*os.File).Read. On Linux os.OpenFile registers every descriptor it hands back
+// with the runtime netpoller (os/file_unix.go newFile: `pollable := kind ==
+// kindOpenFile || ...`; the "not pollable" carve-out below that line covers only
+// the BSDs), and for a pollable descriptor EAGAIN is not returned to the caller
+// -- the runtime parks the goroutine until the fd is readable again. /dev/kmsg
+// becomes readable again only when the kernel logs a NEW message, so the EAGAIN
+// exit below was unreachable: once the ring buffer was drained this function
+// blocked, the ze-show:system-kernel-log RPC never returned, and `show system
+// kernel-log` hung the daemon until its caller timed out.
+//
+// That went unseen because the open itself fails EPERM on any host with
+// kernel.dmesg_restrict=1 and no CAP_SYSLOG, which is every unprivileged host:
+// the handler returned a clean StatusError long before it could hang, so the
+// hang only appears once the process HAS the capability. Reading the descriptor
+// directly keeps EAGAIN observable, which is the entire premise of opening with
+// O_NONBLOCK.
 func readKmsg(count, maxLevel int) ([]map[string]any, error) {
-	f, err := os.OpenFile("/dev/kmsg", os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	fd, err := syscall.Open("/dev/kmsg", syscall.O_RDONLY|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
 	if err != nil {
-		return nil, err
+		return nil, &os.PathError{Op: "open", Path: "/dev/kmsg", Err: err}
 	}
-	defer f.Close() //nolint:errcheck // diagnostic read-only fd, close error not actionable
+	defer syscall.Close(fd) //nolint:errcheck // diagnostic read-only fd, close error not actionable
 
+	return drainKmsg(fd, count, maxLevel), nil
+}
+
+// drainKmsg reads every currently queued record from fd and returns the newest
+// count of them at or below maxLevel. Separate from readKmsg so a test can drive
+// both loop exits (drained-then-EAGAIN, and end-of-file) over a pipe on a host
+// where /dev/kmsg cannot be opened.
+func drainKmsg(fd, count, maxLevel int) []map[string]any {
 	var entries []map[string]any
-	buf := make([]byte, 8192)
+	buf := make([]byte, kmsgRecordMax)
 	for {
-		n, readErr := f.Read(buf)
-		if n > 0 {
-			entry := parseKmsgLine(string(buf[:n]))
-			if entry != nil {
-				level, _ := entry["level-num"].(int)
-				if level <= maxLevel {
-					entries = append(entries, entry)
-				}
-			}
-		}
+		n, readErr := syscall.Read(fd, buf)
 		if readErr != nil {
-			if errors.Is(readErr, io.EOF) || errors.Is(readErr, os.ErrClosed) {
-				break
+			// EINTR is not a failure: a raw syscall sees the runtime's own
+			// preemption signals, which (*os.File).Read used to absorb.
+			if errors.Is(readErr, syscall.EINTR) {
+				continue
 			}
-			if isEAGAIN(readErr) {
-				break
-			}
+			// EAGAIN is the documented end of the ring buffer for a
+			// non-blocking reader. Any other error ends the scan with what was
+			// already collected rather than failing a diagnostic command.
 			break
+		}
+		if n == 0 {
+			// A raw read reports end-of-file as (0, nil), where
+			// (*os.File).Read reported io.EOF. Without this the loop spins.
+			break
+		}
+		entry := parseKmsgLine(string(buf[:n]))
+		if entry != nil {
+			level, _ := entry["level-num"].(int)
+			if level <= maxLevel {
+				entries = append(entries, entry)
+			}
 		}
 	}
 
 	if len(entries) > count {
 		entries = entries[len(entries)-count:]
 	}
-	return entries, nil
+	return entries
 }
 
 func isEAGAIN(err error) bool {

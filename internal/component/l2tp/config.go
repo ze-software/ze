@@ -49,6 +49,23 @@ var (
 		Description: "Skip kernel module probe at Start (test-only; bypasses modprobe for L2TP CLI tests)",
 		Private:     true,
 	})
+	// Test-only: build no kernel worker at all, so a session establishes on the
+	// control plane and nothing is programmed into the kernel. This is what lets
+	// the CLI-surface tests (show l2tp sessions/history/session-detail, teardown
+	// session) run without CAP_NET_ADMIN on a host where l2tp_netlink IS loaded
+	// -- there, skip-kernel-probe alone is not enough, because the probe is not
+	// what needs the privilege; the genl tunnel create is.
+	//
+	// Deliberately SEPARATE from ze.l2tp.skip-kernel-probe rather than folded
+	// into it: test/l2tp/session-stopccn-cascade.ci sets that knob and still
+	// requires the data plane.
+	_ = env.MustRegister(env.EnvEntry{
+		Key:         "ze.l2tp.disable-kernel-dataplane",
+		Type:        "bool",
+		Default:     "false",
+		Description: "Build no kernel worker, so sessions establish on the control plane only (test-only; L2TP CLI tests without CAP_NET_ADMIN)",
+		Private:     true,
+	})
 	_ = env.MustRegister(env.EnvEntry{
 		Key:         "ze.l2tp.metrics.poll-interval",
 		Type:        "string",

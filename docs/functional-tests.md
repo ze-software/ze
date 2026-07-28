@@ -398,6 +398,61 @@ under `make ze-qemu-needs-linux-test`, which sets no `ZE_TEST_NETNS`.
 
 <!-- source: internal/test/runner/caps.go -- applyNetnsLinkGate, skipReasonNetnsLink -->
 
+#### Kernel-capability `plugin` subset (`make ze-netns-plugin-test`)
+
+One `test/plugin` test needs a real kernel capability and therefore cannot pass
+under a plain `make ze-plugin-test` on a privileged-capable but unprivileged
+Linux host:
+
+| Test | Needs | Why |
+|------|-------|-----|
+| `show-system-kernel-log` | `CAP_SYSLOG` (+ `CAP_DAC_OVERRIDE` for the device mode) | Opens `/dev/kmsg`, which is `crw------- root root` and additionally gated by `kernel.dmesg_restrict`. No configuration knob can skip the work: reading the log IS the behaviour under test. |
+
+```bash
+make ze-netns-plugin-test
+make ze-netns-plugin-test ZE_NETNS_PLUGIN_TESTS=show-system-kernel-log
+```
+
+**Five L2TP tests used to live here and no longer do.** `show-l2tp-history`,
+`show-l2tp-sessions`, `show-l2tp-session-detail`, `teardown-session` and
+`teardown-session-all` each establish an L2TP session, and
+`ze.l2tp.skip-kernel-probe=true` bypasses only the modprobe at Start, **not** the
+data plane: wherever `resolveGenlFamily` succeeds (any host with `l2tp_netlink`
+loaded) a real kernel worker is built, ICCN sets `kernelSetupNeeded`, and the
+genl tunnel create returns EPERM without `CAP_NET_ADMIN` -- the session is then
+torn down and the observer reports "session never established".
+
+They now set `ze.l2tp.disable-kernel-dataplane=true` as well, which builds no
+kernel worker at all. That is not a new skip: it makes DETERMINISTIC the state
+these tests already ran in on macOS and on any Linux host whose kernel exposes
+no l2tp genl family, where the worker is never built and the session establishes
+on the control plane alone. Since all five assert on the CLI surface
+(`show l2tp sessions`, `teardown session`) and never on the kernel's view, the
+coverage is unchanged and they pass unprivileged -- verified 3x 5/5. Data-plane
+coverage lives where it belongs, in `test/l2tp/session-stopccn-cascade.ci`
+(`option=needs-linux:caps=net-admin`) and the L2TP unit tests.
+
+A test that genuinely needs the data plane must NOT set that knob.
+
+These tests deliberately carry **no** `option=needs-linux:caps=...`. That marker
+also skips on non-Linux, and they pass on macOS; marking them would delete real
+coverage to hide a host-specific requirement.
+
+The target reuses the per-test netns launch mode above: `ze` runs as a normal
+user off a **throwaway** setcap'd binary (the isolated `tmp/.../testbin-*/bin`
+set, removed by the recipe's trap, so no capability-bearing binary survives),
+and the kernel L2TP tunnel plus the `pppN` interface each test creates live and
+die inside the per-test namespace. Run the same tests privileged in the host
+namespace instead and a real `ppp0` and a real kernel L2TP tunnel appear on the
+operator's machine. The recipe asserts `ip l2tp show tunnel/session` and
+`ip -br link` are byte-identical before and after, the same shape as the nft
+assertion in `ze-netns-test`, and exits non-zero when Linux, `sudo`, or `setcap`
+is missing rather than skipping.
+
+<!-- source: mk/test-integration.mk -- ze-netns-plugin-test -->
+<!-- source: internal/component/l2tp/subsystem.go -- skip-kernel-probe scope, stopKernelWorkersLocked -->
+<!-- source: internal/plugins/host-cmd/cmd/show_kernel_log_linux.go -- readKmsg /dev/kmsg reader -->
+
 How the runner isolates each test (all gated on `ZE_TEST_NETNS`; the default path
 is byte-identical for every suite that passes today):
 

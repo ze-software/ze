@@ -9,6 +9,7 @@
 #   make ze-ipsec-interop-test         strongSwan interop (Docker + privileged)
 #   make ze-stress-test                BGP stress (Linux, root, netns)
 #   make ze-integration-test           All netns integration tests (CAP_NET_ADMIN)
+#   make ze-netns-plugin-test          Kernel-capability plugin .ci subset (Linux + sudo)
 #   make ze-live-test                  Live tests (Docker + internet)
 #   make ze-qemu-integration-test      Integration tests in QEMU VM (macOS-friendly)
 #   make ze-deployment-preflight       Check deployment tooling availability
@@ -20,7 +21,7 @@
 .PHONY: ze-stress-test ze-stress-bird-test ze-stress-profile ze-stress-web-test ze-stress-fleet-test
 .PHONY: ze-live-test ze-live-rpki-test
 .PHONY: ze-integration-test ze-integration-iface-test ze-integration-fib-test ze-integration-firewall-test ze-integration-traffic-test ze-integration-gtsm-test ze-integration-as112-test
-.PHONY: ze-netns-test ze-netns-qemu-test
+.PHONY: ze-netns-test ze-netns-qemu-test ze-netns-plugin-test
 .PHONY: ze-release-check ze-deployment-vpp-test ze-deployment-vpp-iface-test ze-deployment-l2tp-test ze-deployment-l2tp-ppp-test
 .PHONY: ze-deployment-l2tp-ppp-docker-test ze-deployment-gokrazy-l2tp-ppp-test
 .PHONY: ze-deployment-pppoe-accel-docker-test
@@ -149,6 +150,8 @@ ze-netns-test: $(ZEBIN_ZE) $(ZEBIN_STRIPPED) $(ZEBIN_TEST)
 	done; \
 	after=$$(sudo nft list tables 2>/dev/null | sort); \
 	sudo setcap -r $(ZEBIN_ZE) $(ZEBIN_STRIPPED) 2>/dev/null || true; \
+	: "give the shared port-lock dir back to the caller (see ZE_NETNS_PORT_LOCK_RESTORE below)"; \
+	$(ZE_NETNS_PORT_LOCK_RESTORE); \
 	if [ "$$before" != "$$after" ]; then \
 		printf "\033[31mHOST-SAFETY FAILURE: host nft tables changed during netns run\033[0m\n"; \
 		printf -- "--- before ---\n%s\n--- after ---\n%s\n" "$$before" "$$after"; \
@@ -158,6 +161,112 @@ ze-netns-test: $(ZEBIN_ZE) $(ZEBIN_STRIPPED) $(ZEBIN_TEST)
 	fi; \
 	[ $$failed -eq 0 ] || { printf "\033[31mnetns run FAILED (%d issue(s))\033[0m\n" "$$failed"; exit 1; }; \
 	printf "\033[32mnetns run OK\033[0m\n"
+
+# ─── Kernel-capability subset of the plugin suite (netns launch mode) ───────
+# Six test/plugin tests need real kernel capabilities and are therefore NOT
+# provable by `make ze-plugin-test` on an unprivileged host:
+#
+#   show-l2tp-history / show-l2tp-sessions / show-l2tp-session-detail /
+#   teardown-session / teardown-session-all
+#       Each establishes an L2TP session. `ze.l2tp.skip-kernel-probe=true`
+#       bypasses only the modprobe at Start (internal/component/l2tp/
+#       subsystem.go), NOT the kernel data plane: whenever resolveGenlFamily
+#       succeeds -- i.e. on any host where l2tp_netlink is loaded --
+#       newSubsystemKernelWorker builds a real worker, ICCN sets
+#       kernelSetupNeeded, and the genl tunnel create needs CAP_NET_ADMIN.
+#       Without it the create returns EPERM, handleKernelError tears the
+#       session down, and the observer reports "session never established".
+#       The kernel then also needs a PPPoL2TP socket and /dev/ppp, which is
+#       mode 0600 root:root, hence cap_dac_override.
+#   show-system-kernel-log
+#       Reads /dev/kmsg, which a host with kernel.dmesg_restrict=1 refuses
+#       without CAP_SYSLOG.
+#
+# These do NOT carry option=needs-linux:caps=..., deliberately. That marker
+# skips on non-Linux too, and all six PASS on macOS and on any Linux host
+# whose kernel has no l2tp genl family -- there the kernel worker is never
+# built and the tests exercise the control plane alone. Marking them would
+# delete real coverage to hide a host-specific requirement
+# (ai/rules/no-test-deletion.md), so the requirement gets a RUNNER instead.
+#
+# Host safety comes from the same per-test netns launch mode as ze-netns-test
+# above (ZE_TEST_NETNS=1): each test runs in a throwaway namespace and ze runs
+# as a NORMAL user off a setcap'd binary, so the kernel L2TP tunnel and the
+# pppN interface it creates live and die inside that namespace. Run privileged
+# in the HOST namespace instead and a real `ppp0` plus a real kernel L2TP
+# tunnel appear on the operator's machine (verified 2026-07-28), which is
+# exactly what this mode exists to prevent. The recipe asserts `ip l2tp show`
+# and `ip -br link` are byte-identical before and after, the same shape as the
+# nft assertion in ze-netns-test.
+#
+# The setcap lands on the THROWAWAY isolated binary set ($(ZE_ALT_BIN), built
+# by the same $(ZE_ALT_BUILD) every functional target uses), never on the dev
+# bin/ze, and the whole directory is removed by the trap on exit -- so no
+# capability-bearing binary survives the run even if it fails. ZE_TEST_NO_BUILD=1
+# is REQUIRED: file capabilities are an inode xattr, so a rebuild mid-run would
+# silently discard them (same trap as ze-netns-test).
+#
+# The trap removes the directory under sudo FIRST, then again as the caller.
+# The runner runs as root here and derives ze's config dir from the binary's
+# parent (internal/core/paths/paths.go isBinDir), so it creates a root-owned
+# etc/ze inside the throwaway root; the plain user-level rm then removed bin/
+# and failed on etc/, leaving a root-owned directory behind on every run.
+#
+# Fails LOUDLY when the privilege is unavailable: no Linux, no sudo, or no
+# setcap is an error exit, never a silent skip (ai/rules/fail-closed-guards.md).
+#
+# ZE_NETNS_PORT_LOCK_RESTORE undoes the one piece of state a root runner leaves
+# OUTSIDE the repo. The port allocator locks each candidate port with a file in
+# $TMPDIR/ze-test-port-locks (internal/test/runner/ports.go), a directory shared
+# by every runner on the machine; run as root it creates root-owned lock files
+# there, and the NEXT unprivileged `make ze-plugin-test` then dies on
+# "allocate ports: open port lock 3926: permission denied" -- a failure with no
+# visible connection to the privileged run that caused it.
+ZE_NETNS_PORT_LOCK_RESTORE = sudo chown -R $$(id -u):$$(id -g) "$${TMPDIR:-/tmp}/ze-test-port-locks" 2>/dev/null || true
+ZE_NETNS_PLUGIN_CAPS ?= cap_net_admin,cap_net_raw,cap_net_bind_service,cap_dac_override,cap_syslog+ep
+# Only show-system-kernel-log remains here. The five L2TP tests this target was
+# built for (show-l2tp-history, show-l2tp-session-detail, show-l2tp-sessions,
+# teardown-session, teardown-session-all) now set
+# ze.l2tp.disable-kernel-dataplane, so no kernel worker is built, nothing is
+# programmed into the kernel, and they pass in a plain unprivileged
+# `make ze-plugin-test` -- verified 3x 5/5. Running them HERE would prove nothing
+# extra: the knob disables the data plane whether or not the caps are present,
+# and the netns vehicle is ~5x slower (20.1s against their 20s budget, i.e. an
+# outright timeout) for a run that exercises the same control-plane path.
+#
+# show-system-kernel-log cannot be freed the same way: it reads /dev/kmsg, which
+# is crw------- root root and gated by kernel.dmesg_restrict, so it needs
+# cap_syslog + cap_dac_override rather than a knob that skips work.
+#
+# Adding a test back here is right whenever it genuinely needs a capability;
+# adding one that merely CAN run here is not.
+ZE_NETNS_PLUGIN_TESTS ?= show-system-kernel-log
+ze-netns-plugin-test:
+	@[ "$$(uname)" = "Linux" ] || { echo "error: ze-netns-plugin-test requires Linux (netns + kernel L2TP); there is no macOS equivalent"; exit 1; }
+	@command -v setcap >/dev/null 2>&1 || { echo "error: setcap not found (install libcap2-bin / libcap)"; exit 1; }
+	@sudo -n true >/dev/null 2>&1 || { echo "error: passwordless sudo required (the runner needs CAP_SYS_ADMIN to create the per-test netns)"; exit 1; }
+	@trap 'sudo rm -rf $(ZE_ALT_DIR) 2>/dev/null; $(ZE_ALT_TRAP); $(ZE_NETNS_PORT_LOCK_RESTORE)' EXIT; $(ZE_ALT_BUILD) \
+	printf 'Granting %s to the throwaway %s...\n' '$(ZE_NETNS_PLUGIN_CAPS)' '$(ZE_ALT_BIN)/ze'; \
+	sudo setcap $(ZE_NETNS_PLUGIN_CAPS) $(ZE_ALT_BIN)/ze || exit 1; \
+	before_l2tp=$$(sudo ip l2tp show tunnel 2>/dev/null; sudo ip l2tp show session 2>/dev/null); \
+	before_link=$$(ip -br link 2>/dev/null | sort); \
+	failed=0; \
+	sudo env PATH="$$PATH" ZE_TEST_NO_BUILD=1 ZE_TEST_NETNS=1 ZE_TEST_UID=$$(id -u) ZE_TEST_GID=$$(id -g) \
+		ZE_BIN=$(ZE_ALT_BIN)/ze ZE_TEST_BIN=$(ZE_ALT_BIN)/ze-test \
+		$(SUITE_RUN) $(ZE_ALT_BIN)/ze-test bgp plugin -p 1 $(ZE_NETNS_PLUGIN_TESTS) || failed=1; \
+	sudo setcap -r $(ZE_ALT_BIN)/ze 2>/dev/null || true; \
+	after_l2tp=$$(sudo ip l2tp show tunnel 2>/dev/null; sudo ip l2tp show session 2>/dev/null); \
+	after_link=$$(ip -br link 2>/dev/null | sort); \
+	if [ "$$before_l2tp" != "$$after_l2tp" ] || [ "$$before_link" != "$$after_link" ]; then \
+		printf "\033[31mHOST-SAFETY FAILURE: host L2TP or link state changed during the run\033[0m\n"; \
+		printf -- "--- l2tp before ---\n%s\n--- l2tp after ---\n%s\n" "$$before_l2tp" "$$after_l2tp"; \
+		printf -- "--- links before ---\n%s\n--- links after ---\n%s\n" "$$before_link" "$$after_link"; \
+		failed=1; \
+	else \
+		printf "\033[32mhost L2TP tunnels/sessions and links unchanged (host-safe)\033[0m\n"; \
+	fi; \
+	[ $$failed -eq 0 ] || { printf "\033[31mze-netns-plugin-test FAILED\033[0m\n"; exit 1; }; \
+	printf "\033[32mze-netns-plugin-test OK (%s)\033[0m\n" '$(words $(ZE_NETNS_PLUGIN_TESTS)) tests'
 
 # ─── Deployment evidence ────────────────────────────────────────────────────
 

@@ -11,6 +11,7 @@
 #            lookup traverses a stale reactor pool.
 
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
+option=env:var=ze.l2tp.disable-kernel-dataplane:value=true
 option=env:var=TEST_SECRET:value=sessions-secret
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
