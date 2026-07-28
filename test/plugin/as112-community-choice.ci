@@ -11,16 +11,31 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=timeout:value=15s
-# Startup: only EOR expected (both update blocks have watchdog withdraw=true).
+# EOR and announce are deliberately NOT ordered against each other, and this is
+# one unordered group for that reason. RFC 4724 Section 4 requires the End-of-RIB
+# marker "once it completes the initial routing update ... for an address family",
+# i.e. the marker TERMINATES the initial update -- routes legitimately precede it,
+# and nothing requires the marker first. Which side of the marker the announces
+# land on depends on when the probe completes relative to establishment:
+# reactor/peer_run.go:388 sets sendingInitialRoutes BEFORE plugins are notified of
+# peer-up, so a watchdog announce raised from the state=up callback is queued
+# (reactor/peer.go:1148 Peer.ShouldQueue) and drained by the operation-queue loop
+# in reactor/peer_initial_sync.go:207-280, which runs BEFORE that function's EOR
+# loop at :380-400 -- while a probe firing later is drained by the post-EOR loop
+# at :411 instead. Both orders are correct; asserting either asserts on
+# scheduling, which is why this test lost the race ~10 times out of 10 when run
+# solo and passed when batched with its siblings.
+#
+# This is the same correction commit 689ce5eca applied to the sibling AS112
+# fixtures ("The messages are now one unordered group"); this file was missed by
+# it. All three frames below are asserted byte-for-byte as before -- only the
+# ordering constraint between them is dropped.
+cmd=api:conn=1:seq=1:text=EOR + healthcheck probe UP triggers watchdog announce as112-comm med 100
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-# After probe succeeds (rise=1), healthcheck dispatches
-# "request bgp watchdog announce as112-comm med 100", announcing both routes.
-# Unordered group (pool iteration order is not deterministic).
-cmd=api:conn=1:seq=2:text=healthcheck probe UP triggers watchdog announce as112-comm med 100
 # 192.175.48.0/24 -- community no-export (AC-4): COMMUNITIES 0xFFFFFF01.
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0118C0AF30
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0118C0AF30
 # 192.31.196.0/24 -- community nopeer (AC-5): COMMUNITIES 0xFFFFFF04.
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0418C01FC4
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304010203048004040000006440050400000064C00804FFFFFF0418C01FC4
 EOF_PEER
 
 # ze bgp configuration
