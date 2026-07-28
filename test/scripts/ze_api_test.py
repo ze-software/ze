@@ -31,8 +31,12 @@ original defect was ORDERING, not a missing handler, so a test that only proves
 import io
 import os
 import re
+import shutil
 import sys
+import tempfile
+import time
 import unittest
+import unittest.mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -384,6 +388,161 @@ class TestDispatchUntilShortCircuit(SentinelTestCase):
         )
         self.assertEqual(result["status"], "done")
         self.assertEqual(len(calls), 3)
+
+
+class TestWaitForDaemonReady(unittest.TestCase):
+    """The standalone-driver readiness wait (spec-fixit-migrate-sleeps-infra P1)."""
+
+    def setUp(self):
+        self._dir = tempfile.mkdtemp()
+        self._cwd = os.getcwd()
+        os.chdir(self._dir)
+        self.addCleanup(shutil.rmtree, self._dir, True)
+        self.addCleanup(os.chdir, self._cwd)
+
+    def test_returns_the_pid_once_both_files_are_present(self):
+        Path("daemon.pid").write_text("4242\n")
+        Path("daemon.ready").write_text("")
+        self.assertEqual(ze_api.wait_for_daemon_ready(attempts=3, delay=0.01), 4242)
+
+    def test_an_empty_pid_file_is_waited_out_not_parsed(self):
+        """The race this helper exists to close.
+
+        ze creates daemon.pid before writing it, so an exists() check can be
+        followed by a read of an EMPTY file. The old hand-rolled loop did
+        exactly that and died on int(""); the pid parse must be part of the
+        WAIT, so a half-written file is simply "not yet".
+        """
+        Path("daemon.pid").write_text("")
+        Path("daemon.ready").write_text("")
+
+        writes = []
+        real_sleep = time.sleep
+
+        def fill(_delay):
+            writes.append(1)
+            if len(writes) == 2:
+                Path("daemon.pid").write_text("77\n")
+            real_sleep(0)
+
+        with unittest.mock.patch.object(time, "sleep", fill):
+            pid = ze_api.wait_for_daemon_ready(attempts=10, delay=0.01)
+
+        self.assertEqual(pid, 77)
+
+    def test_timeout_names_the_missing_file(self):
+        Path("daemon.pid").write_text("9\n")
+        with self.assertRaises(TimeoutError) as caught:
+            ze_api.wait_for_daemon_ready(attempts=2, delay=0.01)
+        self.assertIn("daemon.ready", str(caught.exception))
+
+    def test_a_ready_file_alone_is_not_enough(self):
+        """Readiness without a readable pid is not readiness.
+
+        The driver's very next act is os.kill(pid, SIGTERM); returning before a
+        pid exists would hand it a zero.
+        """
+        Path("daemon.ready").write_text("")
+        with self.assertRaises(TimeoutError) as caught:
+            ze_api.wait_for_daemon_ready(attempts=2, delay=0.01)
+        self.assertIn("daemon.pid", str(caught.exception))
+
+
+class TestWaitForOutput(unittest.TestCase):
+    """The kernel-readback wait (spec-fixit-migrate-sleeps-infra P3)."""
+
+    def test_returns_the_first_output_satisfying_the_predicate(self):
+        out = ze_api.wait_for_output(
+            ["printf", "table inet ze_pr"],
+            lambda text: "ze_pr" in text,
+            attempts=3,
+            delay=0.01,
+        )
+        self.assertEqual(out, "table inet ze_pr")
+
+    def test_a_failing_command_is_retried_not_raised(self):
+        """`nft list table` exits non-zero until the table exists.
+
+        That is the normal state while the daemon is still applying, so it must
+        count as "not yet" rather than kill the driver.
+        """
+        script = Path(self._tmp()) / "flaky.sh"
+        marker = script.parent / "attempts"
+        script.write_text(
+            "#!/bin/sh\n"
+            f'n=$(cat "{marker}" 2>/dev/null || echo 0)\n'
+            f'n=$((n + 1)); echo "$n" > "{marker}"\n'
+            '[ "$n" -lt 3 ] && exit 1\n'
+            'echo "table inet ze_pr"\n'
+        )
+        script.chmod(0o755)
+
+        out = ze_api.wait_for_output(
+            [str(script)], lambda text: "ze_pr" in text, attempts=10, delay=0.01
+        )
+        self.assertEqual(out.strip(), "table inet ze_pr")
+        self.assertEqual(marker.read_text().strip(), "3")
+
+    def test_an_absence_wait_completes_when_the_command_starts_failing(self):
+        """A withdrawn nft table presents as a non-zero exit, not as empty output.
+
+        The predicate is therefore consulted with "" on a failed turn, so
+        `lambda out: "ze_pr" not in out` -- how every teardown assertion is
+        spelled -- can ever become true.
+
+        Asserted by CALL COUNT, not by return value: a version that skipped the
+        predicate whenever the command failed would still return "" here, after
+        burning the entire attempt budget. Only the count separates "satisfied
+        on turn 1" from "gave up on turn 200".
+        """
+        marker = Path(self._tmp()) / "attempts"
+        script = marker.parent / "always-fails.sh"
+        script.write_text(
+            "#!/bin/sh\n"
+            f'n=$(cat "{marker}" 2>/dev/null || echo 0)\n'
+            f'echo "$((n + 1))" > "{marker}"\n'
+            "exit 1\n"
+        )
+        script.chmod(0o755)
+
+        out = ze_api.wait_for_output(
+            [str(script)], lambda text: "ze_pr" not in text, attempts=25, delay=0.01
+        )
+        self.assertEqual(out, "")
+        self.assertEqual(
+            marker.read_text().strip(),
+            "1",
+            "an absence wait must be satisfied on the first failing turn, "
+            "not after the whole budget",
+        )
+
+    def test_exhaustion_returns_the_last_output_instead_of_raising(self):
+        """The caller's own assertions must produce the failure message.
+
+        Raising here would collapse every converted driver's specific per-phase
+        message into one generic timeout.
+        """
+        out = ze_api.wait_for_output(
+            ["printf", "nothing useful"],
+            lambda _text: False,
+            attempts=2,
+            delay=0.01,
+        )
+        self.assertEqual(out, "nothing useful")
+
+    def test_a_missing_binary_is_retried_not_raised(self):
+        out = ze_api.wait_for_output(
+            ["/nonexistent/ze-not-a-real-binary"],
+            lambda text: text != "",
+            attempts=2,
+            delay=0.01,
+        )
+        self.assertEqual(out, "")
+
+    def _tmp(self):
+        path = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, path, True)
+        return path
 
 
 if __name__ == "__main__":

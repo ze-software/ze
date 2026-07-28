@@ -10,6 +10,7 @@ option=needs-linux:caps=net-admin
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
 import os, shutil, signal, subprocess, sys, time
+from ze_api import wait_for_daemon_ready, wait_for_output
 
 def nft_table_exists(name):
     try:
@@ -72,36 +73,38 @@ def wait_rules(predicate):
     Same shape as the daemon.pid/daemon.ready poll below: bounded, and it
     returns the moment the kernel actually holds the expected ruleset.
     """
-    while True:
-        dump = ""
-        rules = []
-        if nft_table_exists("ze_pr"):
-            dump = subprocess.check_output(["nft", "list", "table", "inet", "ze_pr"], text=True)
-            rules = rule_lines(dump)
-            if predicate(rules):
-                return
-        if time.monotonic() >= DEADLINE:
-            # Fall through: the assertions below re-read the table and report
-            # the real phase message against a fresh dump.
-            return
-        # poll interval; the loop returns as soon as predicate(rules) holds, bounded wait not a blind sleep
-        time.sleep(0.05)
+    # // test-relax: the hand-rolled poll body became ze_api.wait_for_output.
+    # Same condition, same DEADLINE, same fall-through on exhaustion (the helper
+    # returns the last output rather than raising, precisely so the assertions
+    # below keep reporting their own phase message). The internal sleep is
+    # ratchet-exempt in the helper. attempts is derived from the budget still
+    # REMAINING, so two calls continue to share one 12s deadline rather than
+    # getting 12s each.
+    #
+    # The nft_table_exists pre-check is gone because the helper subsumes it: a
+    # `nft list table` on a missing table exits non-zero, which the helper turns
+    # into "", and rule_lines("") is [] -- the same empty-ruleset the predicate
+    # used to be handed. Neither phase predicate is satisfiable by [], so a
+    # missing table still cannot complete the wait early.
+    remaining = max(0.0, DEADLINE - time.monotonic())
+    wait_for_output(
+        ["nft", "list", "table", "inet", "ze_pr"],
+        lambda dump: predicate(rule_lines(dump)),
+        attempts=max(1, int(remaining / 0.05)),
+        delay=0.05,
+    )
 
 # One budget for both kernel-readback polls, well inside the suite's per-test
 # timeout so a genuine failure reports THIS driver's phase message rather than
 # an opaque test-level timeout.
 DEADLINE = time.monotonic() + 12.0
 
-for _ in range(200):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
-    time.sleep(0.05)
-else:
-    sys.exit("daemon readiness files missing")
-
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
+# // test-relax: hand-rolled daemon-readiness for-loop -> ze_api.wait_for_daemon_ready
+# (same 200x0.05s budget, ratchet-exempt internal sleep). It also folds in the
+# pid read, which closes a real race this driver had: daemon.pid is created
+# before it is written, so exists() could be followed by int("") and a traceback
+# that looks nothing like a readiness problem.
+pid = wait_for_daemon_ready()
 
 # Wait for the initial apply to reach nftables: the accept rule is the signal.
 wait_rules(lambda rs: any("accept" in r for r in rs))

@@ -29,22 +29,47 @@ option=needs-linux:caps=net-admin
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
-import os, signal, subprocess, sys, time
+import os, signal, sys
+from ze_api import wait_for_daemon_ready, wait_for_output
 
-for _ in range(200):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
-    time.sleep(0.05)
-else:
-    sys.exit("daemon readiness files missing")
+# // test-relax: two WAITS replaced, no assertion touched. The hand-rolled
+# daemon-readiness for-loop became ze_api.wait_for_daemon_ready (same 200x0.05s
+# budget, ratchet-exempt internal sleep), and the blind post-apply settle became
+# ze_api.wait_for_output. Every expect= below is unchanged and still evaluated
+# against a real `nft list table` readback; the driver is shorter only because
+# the loops moved into the shared helpers.
+pid = wait_for_daemon_ready()
 
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
 
-# blind settle: let the initial apply reach nftables before the kernel readback; this standalone driver has no post-apply signal to poll
-time.sleep(0.5)
-out = subprocess.check_output(["nft", "list", "table", "inet", "ze_pr"], text=True)
+def rule_lines(dump):
+    """The chain's RULE lines only -- structure and the base-chain decl removed.
+
+    Same filter as the re-emit loop below, and it must stay that way: gating the
+    wait on a line the re-emit loop would discard means waiting for something
+    the test never asserts on.
+    """
+    return [
+        s
+        for s in (line.strip() for line in dump.splitlines())
+        if s and s not in ("{", "}") and not s.startswith(("table ", "chain ", "type "))
+    ]
+
+
+# Was a blind 0.5s "settle". ze_pr is programmed by applyPolicies ->
+# firewall.ApplyAll() (internal/plugins/policyroute/register.go:200), which this
+# driver cannot observe from outside the daemon, so it waited on a clock sized
+# for a fast native host. This config declares two rules (bypass-dst accept,
+# block-quic drop) and both expectations below need both, so the wait gates on
+# BOTH rather than on the table merely existing.
+# attempts=100 (5s), not the 200 default: this driver already spent up to 10s on
+# the readiness wait and the whole test is capped at 10s, so a full-budget second
+# wait would be cut short by the harness and report an opaque test-level timeout
+# instead of the assertion message below.
+out = wait_for_output(
+    ["nft", "list", "table", "inet", "ze_pr"],
+    lambda dump: len(rule_lines(dump)) >= 2,
+    attempts=100,
+)
 sys.stdout.write(out)
 
 # Re-emit the RULE lines under a marker so the verdict expectations below can
@@ -59,10 +84,12 @@ sys.stdout.write(out)
 # The same trap made test/policy/006-reload unpassable in the opposite direction.
 # Matching "RULE ...accept" is also independent of WHERE nft renders the verdict
 # on the line, which a line-anchored regex would not be.
-for _line in out.splitlines():
-    _s = _line.strip()
-    if not _s or _s in ("{", "}") or _s.startswith(("table ", "chain ", "type ")):
-        continue
+#
+# // test-relax: this loop's inline filter is now the rule_lines() helper defined
+# above, called here instead of duplicated. Byte-identical predicate, same lines
+# emitted; the point is that the WAIT above and this RE-EMIT can no longer drift
+# apart, which would mean gating on a line the test never asserts on.
+for _s in rule_lines(out):
     sys.stdout.write("RULE " + _s + "\n")
 
 os.kill(pid, signal.SIGTERM)

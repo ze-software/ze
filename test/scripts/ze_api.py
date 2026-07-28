@@ -1779,6 +1779,120 @@ def wait_until(
     return False
 
 
+def wait_for_daemon_ready(
+    pid_file: str = "daemon.pid",
+    ready_file: str = "daemon.ready",
+    attempts: int = 200,
+    delay: float = 0.05,
+) -> int:
+    """Block until the test daemon finished startup, and return its pid.
+
+    The readiness wait for a STANDALONE driver -- one launched as a plain
+    ``cmd=foreground:exec=python3 driver.py`` with no :class:`API` connection to
+    poll. It replaces the hand-rolled loop those drivers each carried::
+
+        for _ in range(200):
+            if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
+                break
+            time.sleep(0.05)
+        else:
+            sys.exit("daemon readiness files missing")
+        with open("daemon.pid") as f:
+            pid = int(f.read().strip())
+
+    ``daemon.ready`` is written by ze only after
+    ``apiServer.WaitForStartupComplete`` returns (cmd/ze/hub/main.go:1110-1127),
+    i.e. after every plugin startup phase settled, so its presence is a real
+    barrier and not a guess.
+
+    Returning the pid is not a convenience: every caller reads it immediately
+    afterwards to ``os.kill(pid, SIGTERM)`` at the end of the test, and reading
+    the file separately re-opens the race this helper closes. ``daemon.pid`` is
+    created before it is written, so an ``os.path.exists`` check can be followed
+    by a read of an EMPTY file -- ``int("")`` raises ``ValueError`` and the
+    driver dies with a traceback that looks nothing like a readiness problem.
+    Parsing the pid is therefore part of the wait predicate, not a step after it.
+
+    Raises:
+        TimeoutError: naming what was still missing, after
+            ``attempts * delay`` seconds.
+
+    Internal ``time.sleep`` is ratchet-exempt (the gate counts sleeps in
+    test/**/*.ci, not in this module).
+    """
+    import os
+
+    pid = 0
+
+    def _ready() -> bool:
+        nonlocal pid
+        if not os.path.exists(ready_file):
+            return False
+        try:
+            with open(pid_file) as handle:
+                pid = int(handle.read().strip())
+        except (OSError, ValueError):
+            return False
+        return pid > 0
+
+    if not wait_until(_ready, attempts=attempts, delay=delay):
+        missing = [p for p in (pid_file, ready_file) if not os.path.exists(p)]
+        detail = (
+            "missing " + ", ".join(missing)
+            if missing
+            else f"{pid_file} never held a pid"
+        )
+        raise TimeoutError(f"daemon not ready after {attempts * delay:.1f}s: {detail}")
+    return pid
+
+
+def wait_for_output(
+    argv: list[str],
+    predicate: Callable[[str], bool],
+    attempts: int = 200,
+    delay: float = 0.05,
+) -> str:
+    """Run ``argv`` until ``predicate(stdout)`` holds; return that stdout.
+
+    The kernel-readback counterpart to :func:`dispatch_until`, for standalone
+    drivers that must observe an effect the daemon programs OUTSIDE its own
+    process: nftables rules, ip rules, routes, tc qdiscs. It replaces the "blind
+    settle" sleep those drivers took before their first readback -- a duration
+    guessed on a fast native host, which is the first thing to miss under QEMU
+    emulation over a 9p mount, and which then reads as a product regression
+    rather than as a test that waited on a clock instead of on state
+    (ai/rules/fix-dont-record.md).
+
+    A non-zero exit from ``argv`` is "not yet", not an error: ``nft list table``
+    fails outright until the table exists, which is the normal state while the
+    daemon is still applying. The predicate is still consulted on that turn,
+    with ``""`` -- so an ABSENCE wait (``lambda out: "ze_pr" not in out``)
+    completes when the command starts failing, which is exactly how a withdrawn
+    table presents.
+
+    On exhaustion the LAST output is returned rather than raised, so the
+    caller's own assertions run against a real readback and report their own
+    per-phase message. Raising here would replace every specific failure in
+    every converted driver with one generic timeout.
+
+    Internal ``time.sleep`` is ratchet-exempt (the gate counts sleeps in
+    test/**/*.ci, not in this module).
+    """
+    import subprocess
+    import time
+
+    out = ""
+    for _ in range(max(1, attempts)):
+        try:
+            out = subprocess.check_output(argv, stderr=subprocess.DEVNULL, text=True)
+        except (OSError, subprocess.CalledProcessError):
+            out = ""
+        if predicate(out):
+            return out
+        time.sleep(delay)
+    return out
+
+
 def dispatch_until(
     api: API,
     command: str,

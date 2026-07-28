@@ -10,26 +10,39 @@ option=needs-linux:caps=net-admin
 
 tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
-import os, signal, subprocess, sys, time
+import os, signal, subprocess, sys
+from ze_api import wait_for_daemon_ready, wait_for_output
 
-for _ in range(200):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
-    time.sleep(0.05)
-else:
-    sys.exit("daemon readiness files missing")
+# // test-relax: two WAITS replaced, no assertion touched. The hand-rolled
+# daemon-readiness for-loop became ze_api.wait_for_daemon_ready (same 200x0.05s
+# budget, ratchet-exempt internal sleep), and the blind post-apply settle became
+# ze_api.wait_for_output. Every expect= below is unchanged and still evaluated
+# against real `nft list table` / `ip rule show` readbacks.
+pid = wait_for_daemon_ready()
 
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
-
-# blind settle: let the initial apply reach nftables before the kernel readback; this standalone driver has no post-apply signal to poll
-time.sleep(0.5)
+# Was a blind 0.5s "settle" covering BOTH readbacks below. The wait now gates on
+# the ip rule rather than on the nft table, and the order is load-bearing:
+# applyPolicies programs nftables FIRST (firewall.ApplyAll,
+# internal/plugins/policyroute/register.go:200) and the ip rules SECOND
+# (rm.applyAll, :204). Waiting on ze_pr would therefore prove nothing about the
+# ip rule -- the later of the two -- and would leave `expect=stdout:contains=
+# IP_RULE:` racing exactly as the sleep did. Gating on the LAST thing programmed
+# makes the earlier one already true by construction, so the nft readback below
+# needs no wait of its own.
+#
+# attempts=100 (5s), not the 200 default: this driver already spent up to 10s on
+# the readiness wait and the whole test is capped at 10s, so a full-budget second
+# wait would be cut short by the harness and report an opaque test-level timeout
+# instead of the assertion message below.
+rule_out = wait_for_output(
+    ["ip", "rule", "show"],
+    lambda dump: any("lookup 100" in line and "fwmark" in line for line in dump.splitlines()),
+    attempts=100,
+)
 
 nft_out = subprocess.check_output(["nft", "list", "table", "inet", "ze_pr"], text=True)
 sys.stdout.write(nft_out)
 
-rule_out = subprocess.check_output(["ip", "rule", "show"], text=True)
 for line in rule_out.splitlines():
     if "lookup 100" in line and "fwmark" in line:
         sys.stdout.write("IP_RULE: " + line + "\n")

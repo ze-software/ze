@@ -102,7 +102,8 @@ documented.
 - [ ] `internal/component/bgp/reactor/reactor_api.go` — `FlushForwardPool` (:891) / `DrainPeerSync` (:922): the quiesce barrier is OUTBOUND-only and forward-pool-based.
   -> Constraint: redistribute UPDATEs and control messages (KEEPALIVE/ROUTE-REFRESH) bypass the updates-sent counter via the forward-pool send path (`reactor_notify.go:268`), so `quiesce()` blocks ~10s on the forward-pool barrier for them (P6).
 - [ ] `internal/component/bgp/reactor/peer.go` — `DefaultReconnectMin = 5s` (:81): the reconnect backoff that makes establishment slow/variable in bgp-redistribute-* (P6).
-- [ ] `internal/component/plugin/server/startup.go` — `WaitForStartupComplete` (:254), called before the `ze.ready.file` write (`cmd/ze/hub/main.go:641`): the daemon-readiness barrier a `wait_for_daemon_ready()` helper (P1) and the dataplane-programmed question (P3) build on.
+- [ ] `internal/component/plugin/server/startup.go` — `WaitForStartupComplete` (:291), called before the `ze.ready.file` write (`cmd/ze/hub/main.go:1110-1127`): the daemon-readiness barrier a `wait_for_daemon_ready()` helper (P1) and the dataplane-programmed question (P3) build on.
+  -> Decision (2026-07-28): A-1 is RESOLVED, and the answer is "yes for the plugin's own apply, no for what the plugin programs afterwards". `daemon.ready` is written only after every plugin startup phase settled (`startup.go:194` -> `signalStartupComplete`), and the policy plugin's `OnConfigure` (`internal/plugins/policyroute/register.go:88-102`) calls `applyPolicies` SYNCHRONOUSLY. But `applyPolicies` programs nftables FIRST (`firewall.ApplyAll`, `:200`) and the ip rules/auto routes SECOND (`rm.applyAll`, `:204`), so a wait must gate on whichever object the test actually reads -- gating on the nft table proves nothing about an `ip rule show` assertion. P3 therefore did NOT delete the lead-ins; it replaced each with a bounded poll on that test's own readback (`ze_api.wait_for_output`).
 - [ ] `internal/plugins/fib/kernel/fibkernel.go` — `installed` map (the authoritative programmed set), fire-and-forget sysrib->fib-kernel delivery: no end-to-end "FIB in sync" signal exists (P4).
 - [ ] `internal/plugins/traffic/netlink/ops_linux.go` / `backend_linux.go` — tc `Apply` is synchronous, run in-band in `OnConfigure`/`OnConfigApply`; `ListQdiscs` is a live readback (P3).
 - [ ] `test/scripts/ze_api.py` — existing primitives; the home for `wait_for_daemon_ready` (P1) and a reject-fence helper (P5).
@@ -360,6 +361,76 @@ Host-verifiable blind-sleep conversions (each verified 3x+ standalone and concur
 - remove-private-as-export + remove-private-as-replace-peer (2, commit 16cd29d00): observer waits receiver-peer `updates-sent` (route forwarded over RS fast path) before shutdown.
 
 Baseline: 246 -> 223. Remaining 223 are categorized in Design Insights (QEMU-gated bulk, P0-blocked redistribute, infra-gated reject-fence cases, deliberate-window timers, raw-protocol pacing, already-deterministic non-api poll loops). No further CLEAN host-verifiable blind sleeps remain to convert on this darwin host.
+
+### Session 2026-07-28 (dd843d81) -- P1 shipped, P3 done for policy + firewall
+
+**The blocker was the HOST, and it is gone.** Every "cannot verify here" note above
+says *darwin*. This session ran on Linux with passwordless sudo, `nft`, `tc`,
+`setcap` and QEMU present, so `ZE_NETNS_SUITES` (`mk/test-integration.mk:136` --
+firewall, policy, ospf, ospfv3) runs NATIVELY, each test in its own netns, with a
+host-safety check on the nft table set. That is a real verification vehicle for
+exactly the buckets P1 and P3 name. Nothing in the analysis below rests on a skip.
+
+**P1 (AC-1) -- `wait_for_daemon_ready`, shipped.** `test/scripts/ze_api.py`.
+Returns the pid rather than just a bool, because every caller reads `daemon.pid`
+immediately afterwards to SIGTERM the daemon, and doing that as a separate step
+re-opens the race the helper exists to close: ze creates `daemon.pid` before
+writing it, so `os.path.exists` could be followed by `int("")`. The pid parse is
+therefore part of the wait predicate.
+
+**P3 (AC-3) -- `wait_for_output`, shipped.** Same file. The kernel-readback
+counterpart to `dispatch_until`, for standalone drivers with no API connection:
+run a readback command until a predicate holds, treating a non-zero exit as "not
+yet" and still consulting the predicate with `""` so ABSENCE waits work. On
+exhaustion it returns the LAST output instead of raising, so each driver's own
+per-phase assertion still produces the failure message.
+
+**A-1 is RESOLVED and the answer is subtler than the assumption.** `daemon.ready`
+IS a real barrier -- it is written only after every plugin startup phase settled
+(`startup.go:194`, `cmd/ze/hub/main.go:1110-1127`) and the policy plugin's
+`OnConfigure` applies synchronously. But `applyPolicies`
+(`internal/plugins/policyroute/register.go:181-218`) programs nftables FIRST
+(`:200`) and ip rules/auto routes SECOND (`:204`). So the lead-ins could NOT
+simply be deleted, and a wait on the nft table would not have covered an
+`ip rule show` assertion. Each converted driver waits on the object IT reads.
+
+**Converted, 20 sleeps removed, baseline 100 -> 80:**
+- `test/policy/*.ci` -- all six, 12 -> 0. 3x 6/6, and faster (7.6s -> ~4.6s).
+- `test/firewall/*.ci` -- 8 -> 0 across 004-cli-show, 009-set-element-timeout,
+  ddos-local-withdraw. 3x 23/23.
+- `004-cli-show` could not be deleted either: the SSH CLI server binds separately
+  from `OnConfigure`, so `daemon.ready` does not cover it. It now waits on
+  127.0.0.1:2222 actually accepting.
+- `006-reload`'s `wait_rules` now delegates to the shared helper while keeping its
+  own 12s deadline, derived per call from the budget still remaining.
+
+**Non-vacuity is demonstrated, not asserted.** Three source mutations, each
+built and run:
+| Mutation | Expected | Observed |
+|----------|----------|----------|
+| skip `firewall.ApplyAll` (register.go:200) | every policy test fails | 6/6 fail |
+| skip `rm.applyAll` (register.go:204) -- ip rules only | ONLY the two reading `ip rule show` fail | exactly 002, 005 |
+| drop set elements (nft/lower_linux.go:191-192) | only the set-element test fails | exactly firewall 009 |
+Plus three mutations of the helpers themselves against their new unit tests in
+`test/scripts/ze_api_test.py` (wired into `go test` via
+`scripts/dev/python_tests_test.go`), each red.
+
+**Found while verifying, deferred:** `make ze-netns-test` reports
+`ddos-local-withdraw` as failing, and that is the TARGET's defect. It depends on
+`$(ZEBIN_ZE)`, the production binary, which `mk/test-integration.mk:532` says has
+"neither zetest nor ze_test" -- so the `ddos/fake` node the test configures does
+not exist and the daemon dies with `unknown field in ddos: fake`. Against a
+zetest-tagged DUT the same test passes in 653ms. The target also cannot run
+on-session at all (`bin/ze-<sid>` vs bare-name lookup). Both ->
+`plan/spec-fixit-netns-test-dut-tags.md`.
+
+**Scope boundary observed:** `test/traffic` and `test/vpp` blind holds are the
+"backgrounded ze has no ZE_READY_FILE to poll" shape, which is
+`plan/spec-fixit-sleeps-qemu-bulk.md`'s AC-2/AC-3/AC-6, not this spec's. Left
+alone deliberately rather than done under the wrong spec.
+
+**Still open here:** P2 (runner stderr-wait), P4 (fib), P6/P7 (already reported
+done above), P8, P9, and the `test/plugin` remainder.
 ### Bugs Found/Fixed
 ### Documentation Updates
 ### Deviations from Plan

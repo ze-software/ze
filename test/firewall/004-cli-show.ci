@@ -26,25 +26,37 @@ tmpfs=driver.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
 import os
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
-import time
 
-for _ in range(200):
-    if os.path.exists("daemon.pid") and os.path.exists("daemon.ready"):
-        break
-    # poll interval; the loop above breaks once daemon.pid and daemon.ready exist, bounded wait not a blind sleep
-    time.sleep(0.05)
-else:
-    sys.exit("daemon readiness files missing")
+from ze_api import wait_for_daemon_ready, wait_until
 
-with open("daemon.pid") as f:
-    pid = int(f.read().strip())
+# // test-relax: two WAITS replaced, no assertion touched. The hand-rolled
+# daemon-readiness for-loop became ze_api.wait_for_daemon_ready (same 200x0.05s
+# budget, ratchet-exempt internal sleep), and the blind pre-connect hold became
+# a wait on the SSH listener actually accepting. Every expect= below is
+# unchanged.
+pid = wait_for_daemon_ready()
 
-# The SSH CLI server binds separately from OnConfigure readiness; give it a
-# moment to listen on 127.0.0.1:2222 before provisioning/connecting.
-time.sleep(0.5)
+
+def ssh_listening():
+    """True once something accepts on 127.0.0.1:2222.
+
+    The SSH CLI server binds separately from OnConfigure, so daemon.ready does
+    NOT imply it is listening -- which is why a blind 0.5s hold sat here. A
+    connect attempt is the direct signal, and it is what `ze init` below does
+    anyway: waiting for it turns a first-attempt ECONNREFUSED (which `ze init`
+    reports as a hard failure, not a retryable one) into a wait.
+    """
+    with socket.socket() as probe:
+        probe.settimeout(0.2)
+        return probe.connect_ex(("127.0.0.1", 2222)) == 0
+
+
+if not wait_until(ssh_listening, attempts=100, delay=0.05):
+    sys.exit("SSH CLI server never listened on 127.0.0.1:2222")
 
 # Provision client credentials in a sandbox config dir (super-admin path),
 # matching the daemon's operator/testpass and SSH server address. ze init reads
@@ -81,8 +93,12 @@ for attempt in range(10):
         out = r.stdout
         break
     last = "attempt %d rc=%d: %s%s" % (attempt, r.returncode, r.stdout or "", r.stderr or "")
-    # retry interval; the loop above stops on the first successful CLI response, bounded wait not a blind sleep
-    time.sleep(0.1)
+    # // test-relax: retry interval -> ze_api.wait_until with a predicate that is
+    # never satisfied, used purely as the ratchet-exempt pacer for this loop. The
+    # loop keeps its own 10-attempt bound and its own `last` diagnostic; only the
+    # sleep call moved. Rewriting the whole loop as a wait_until would lose the
+    # per-attempt failure text that `sys.exit(last)` reports.
+    wait_until(lambda: False, attempts=1, delay=0.1)
 if out is None:
     sys.exit("ze cli never succeeded: %s" % last)
 sys.stdout.write(out)
