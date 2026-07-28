@@ -25,24 +25,30 @@ const (
 	tableReservedMin = 1000
 	tableReservedMax = 2999
 
-	// maxEncodableTable is the largest table value Ze will program.
+	// maxEncodableTable is the largest table value this build can program.
 	// netlink.Rule.Table is a Go int and the encoder emits FRA_TABLE only for
 	// Table >= 256 and the compat byte only for 0 <= Table < 256
 	// (vendor/github.com/vishvananda/netlink/rule_linux.go:57,126), so on a
 	// 32-bit build a value above MaxInt32 turns negative and the rule is
 	// installed with RT_TABLE_UNSPEC instead of the operator's table, with no
-	// error anywhere.
+	// error anywhere. On the 64-bit targets Ze ships this bound is above every
+	// uint32 and never bites, so the full kernel-legal range stays available.
 	//
-	// The bound is MaxInt32 on every build, not this build's math.MaxInt, so
-	// that it is a literal a static analyser can fold: CodeQL's
-	// go/incorrect-integer-conversion resolves math.MaxInt once, on the 64-bit
-	// host running the extractor, so a math.MaxInt bound never clears the
-	// 32-bit int case and the conversion in newIPRule stayed flagged (alert
-	// 171). The price is table IDs 2^31..2^32-1, which the kernel accepts and a
-	// 64-bit build could program. The YANG range in
-	// yang/ze-policyroute-conf.yang and docs/guide/policy-routing.md carry the
-	// same limit.
-	maxEncodableTable = math.MaxInt32
+	// This tracks the build's own int, exactly like its two siblings
+	// (internal/core/routingtable/registry.go maxEncodableTableID,
+	// internal/plugins/static/config.go maxNetlinkInt), which bound the same
+	// netlink int-typed fields.
+	//
+	// Do NOT narrow this to a literal math.MaxInt32 to quiet CodeQL's
+	// go/incorrect-integer-conversion. That was tried (alert 171) and it costs
+	// table IDs 2^31..2^32-1 that the kernel accepts and every shipped target
+	// can program; test/parse/netlink-int-field-range.ci pins the full range.
+	// The alert is about the int conversion in newIPRule, not about this
+	// constant, and it is answered there: the conversion lives in
+	// architecture-constrained files where int is known to be 64-bit
+	// (netlinkint_linux_amd64.go, netlinkint_linux_arm64.go) and the narrow
+	// bound applies only on the builds that need it (netlinkint_linux_generic.go).
+	maxEncodableTable = uint64(math.MaxInt)
 )
 
 func parsePolicyConfig(jsonData string) ([]PolicyRoute, error) {
@@ -186,9 +192,9 @@ func parsePolicyMatch(m map[string]any) PolicyMatch {
 }
 
 // validateActionTable rejects table values Ze must not program (0, the kernel
-// system tables, the ze-reserved range) and values above the largest table Ze
-// programs. maxEncodable is a parameter, not the constant, so a test can pin
-// either side of the bound without restating it.
+// system tables, the ze-reserved range) and values this build cannot program
+// without truncation. maxEncodable is a parameter, not the constant, so the
+// 32-bit rejection stays testable on a 64-bit host where it can never be hit.
 func validateActionTable(tbl, maxEncodable uint64) error {
 	if tbl == 0 {
 		return errTableValueMustBe1Got
@@ -200,7 +206,7 @@ func validateActionTable(tbl, maxEncodable uint64) error {
 		return fmt.Errorf("table: value %d is in ze-reserved range %d-%d", tbl, tableReservedMin, tableReservedMax)
 	}
 	if tbl > maxEncodable {
-		return fmt.Errorf("table: value %d exceeds %d, the largest table Ze can program through netlink", tbl, maxEncodable)
+		return fmt.Errorf("table: value %d exceeds %d, the largest this build can program through netlink", tbl, maxEncodable)
 	}
 	return nil
 }

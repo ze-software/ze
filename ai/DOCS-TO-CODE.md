@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 300 design docs, 3122 files
+Total: 301 design docs, 3126 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2678,6 +2678,15 @@ Total: 300 design docs, 3122 files
 ## `plan/learned/1254-gokrazy-derived-parent-discards-pins.md`
 
 - `internal/appliance/instance/prepare.go` -- preparing a
+
+## `plan/learned/1274-netlink-int-field-truncation.md`
+
+| File | Topic |
+|------|-------|
+| `internal/plugins/policyroute/netlinkint_linux_amd64.go` | netlink int width |
+| `internal/plugins/policyroute/netlinkint_linux_arm64.go` | netlink int width |
+| `internal/plugins/policyroute/netlinkint_linux_generic.go` | netlink int width |
+| `internal/plugins/policyroute/netlinkint_linux_test.go` | netlink int width |
 
 ## `plan/learned/415-prefix-data.md`
 

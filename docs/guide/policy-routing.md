@@ -187,18 +187,17 @@ Ze reserves these ranges to prevent collisions:
 | Tables 3000 and above | user | Explicit table IDs in config |
 | fwmarks 0x50000-0x5FFFF | ze policy-routing | Packet marks for table steering |
 
-<!-- source: internal/plugins/policyroute/yang/ze-policyroute-conf.yang — leaf table range "1..999|3000..2147483647" -->
+<!-- source: internal/plugins/policyroute/yang/ze-policyroute-conf.yang — leaf table range "1..999|3000..max" -->
 <!-- source: internal/plugins/policyroute/marks.go — autoTableBase/autoTableMax 2000-2999 -->
 
 User-specified table IDs in the 1000-2999 range are rejected at config
 validation time, as are 0 and the kernel tables 253-255.
 
-The kernel's own table IDs run to 4294967295, but Ze stops at 2147483647. The
-netlink bindings carry a table ID in a machine int, so a 32-bit build cannot
-program anything above that, and would install a rule that silently selects no
-table. A config asking for more is rejected at validation instead. The limit is
-the same on the 64-bit targets Ze ships, so the usable range does not move with
-the build.
+The upper bound is the kernel's own: table IDs run to 4294967295. A 32-bit
+build cannot program an ID above 2147483647 (the netlink bindings carry a
+table ID in a machine int), and rejects it at config validation rather than
+installing a rule that would silently select no table. Ze's released targets
+are 64-bit, where the whole range is available.
 
 <!-- source: internal/plugins/policyroute/config.go — validateActionTable, maxEncodableTable -->
 <!-- source: internal/core/routingtable/registry.go — validateTableID, maxEncodableTableID -->

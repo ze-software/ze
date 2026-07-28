@@ -343,14 +343,13 @@ func TestValidateActionTableRejectsUnencodable(t *testing.T) {
 	}
 }
 
-// VALIDATES: the bound parsePolicyAction applies is MaxInt32 on every build, so
-// a table value is accepted exactly when it survives the int conversion a
-// 32-bit target would perform.
-// PREVENTS: the parser being wired back to this build's math.MaxInt, which
-// accepts table IDs a 32-bit build installs as RT_TABLE_UNSPEC, and which no
-// static analyser can fold into a bounds check (go/incorrect-integer-conversion,
-// alert 171).
-func TestParsePolicyConfigTableBoundIsInt32(t *testing.T) {
+// VALIDATES: the bound parsePolicyAction applies is this build's own int limit,
+// so a table value is accepted exactly when it survives the int conversion.
+// PREVENTS: the parser being wired to a hardcoded 32-bit bound, which would
+// reject kernel-legal table IDs on the 64-bit targets Ze ships. That narrowing
+// was shipped once to quiet CodeQL alert 171 and reverted: the int conversion
+// is answered where it happens (netlinkTableInt), not by refusing config.
+func TestParsePolicyConfigTableBoundMatchesBuild(t *testing.T) {
 	for _, tbl := range []uint64{4000, math.MaxInt32, math.MaxInt32 + 1, math.MaxUint32} {
 		input := `{
 			"policy": {
@@ -369,9 +368,9 @@ func TestParsePolicyConfigTableBoundIsInt32(t *testing.T) {
 		}`
 
 		_, err := parsePolicyConfig(input)
-		fits := tbl <= math.MaxInt32
+		fits := tbl <= uint64(math.MaxInt)
 		if fits != (err == nil) {
-			t.Errorf("table %d: fits in int32 = %v, accepted = %v (err=%v)", tbl, fits, err == nil, err)
+			t.Errorf("table %d: fits in int = %v, accepted = %v (err=%v)", tbl, fits, err == nil, err)
 		}
 	}
 }

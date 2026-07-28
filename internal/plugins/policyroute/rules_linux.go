@@ -44,19 +44,20 @@ func (rm *linuxRuleManager) close() {
 // the encoder rather than rejected, so this refuses to build a rule that would
 // silently select the wrong table. See maxEncodableTable in config.go.
 //
-// The check reads a local and compares it to the constant directly, rather than
-// testing uint64(r.Table), so the guard and the int conversion below name the
-// same value. CodeQL's go/incorrect-integer-conversion did not accept the
-// earlier form (alert 171).
+// netlinkTableInt owns that conversion because whether it can truncate at all
+// depends on the target's int width. It is defined per architecture
+// (netlinkint_linux_amd64.go, netlinkint_linux_arm64.go,
+// netlinkint_linux_generic.go) so the shipped 64-bit targets keep the full
+// kernel-legal table range and only a build that could truncate pays a bound.
 func newIPRule(r ipRuleSpec) (*netlink.Rule, error) {
-	table := r.Table
-	if table > maxEncodableTable {
-		return nil, fmt.Errorf("table %d exceeds %d, the largest table Ze can program through netlink", table, maxEncodableTable)
+	table, err := netlinkTableInt(r.Table)
+	if err != nil {
+		return nil, err
 	}
 	mask := r.Mask
 	rule := netlink.NewRule()
 	rule.Priority = r.Priority
-	rule.Table = int(table)
+	rule.Table = table
 	rule.Mark = r.Mark
 	rule.Mask = &mask
 	rule.Family = unix.AF_INET
