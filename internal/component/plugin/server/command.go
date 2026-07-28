@@ -646,7 +646,7 @@ func applyExtractedSelectors(ctx *CommandContext, selectors map[string]string) {
 		ctx.Selectors[strings.ToLower(name)] = value
 	}
 	// Compatibility bridge for existing peer-scoped handlers.
-	if selector, ok := ctx.Selectors["selector"]; ok {
+	if selector, ok := ctx.Selectors[selectorLeaf]; ok {
 		ctx.Peer = selector
 	}
 }
@@ -736,10 +736,47 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	// values to appear inline where the YANG arg metadata expects them.
 	matchedCmd, args, selectors, ok := d.matchBuiltinTokens(tokens)
 	if ok {
+		// Typed-argument validation runs HERE, ahead of the selector guard,
+		// because the guard needs its answer: matchCommandTokens fills only
+		// INTERIOR selector slots (it stops at a later key token), so a command
+		// whose own noun is the TERMINAL key token -- `delete bgp peer
+		// <selector>` -- yields no selector at all and the guard below would
+		// reject the documented form. validateCommandArgs is the one place that
+		// binds a positional token to a leaf, so the guard consults ITS answer
+		// rather than re-deriving a second one (ai/rules/derive-not-hardcode.md).
+		//
+		// Only the RESULT is used early. The error is HELD and reported at its
+		// original place in the sequence, after authorization and the flag
+		// check, so the message an operator sees is unchanged: a command typed
+		// with no arguments at all is still told it "requires a selector"
+		// rather than that leaf "selector" is missing.
+		var argErr error
+		var positional map[string]string
+		if len(matchedCmd.ArgDefs) > 0 {
+			positional, argErr = validateCommandArgs(args, matchedCmd.ArgDefs, selectors)
+		}
+
+		// Adopt the trailing positional as the peer selector, under three fences
+		// that together mean no command which resolves today changes meaning:
+		// the command must REQUIRE a selector (so the only path altered is one
+		// that returns an error), none may have arrived out of band, and
+		// validateCommandArgs must have bound the value from a LONE spare token.
+		// The last fence is what keeps `announce unicast 10.0.0.0/24 ...` --
+		// a single-token command that also carries `leaf selector mandatory` --
+		// from announcing to a peer called "unicast".
+		if matchedCmd.RequiresSelector && selectors[selectorLeaf] == "" && (ctx == nil || ctx.Peer == "") {
+			if value, found := positional[selectorLeaf]; found {
+				if selectors == nil {
+					selectors = make(map[string]string, 1)
+				}
+				selectors[selectorLeaf] = value
+			}
+		}
+
 		applyExtractedSelectors(ctx, selectors)
 
 		explicitSelector := false
-		if _, ok := selectors["selector"]; ok {
+		if _, ok := selectors[selectorLeaf]; ok {
 			explicitSelector = true
 		}
 		if matchedCmd.RequiresSelector && !explicitSelector && (ctx == nil || ctx.Peer == "") {
@@ -779,15 +816,14 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 			}, flagErr
 		}
 
-		// Validate args against YANG-declared types, counting inline selector
-		// values extracted during prefix matching as already matched.
-		if len(matchedCmd.ArgDefs) > 0 {
-			if valErr := validateCommandArgs(args, matchedCmd.ArgDefs, selectors); valErr != nil {
-				return &plugin.Response{
-					Status: plugin.StatusError,
-					Error:  valErr.Error(),
-				}, valErr
-			}
+		// Report the argument-validation verdict computed above. It is raised
+		// here, not where it was computed, so authorization and the flag check
+		// keep answering first.
+		if argErr != nil {
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Error:  argErr.Error(),
+			}, argErr
 		}
 
 		// Execute handler.
@@ -843,19 +879,29 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	return d.dispatchPlugin(ctx, pluginInput, pluginLower, peerSelector)
 }
 
+// selectorLeaf is the YANG leaf name every peer-scoped command uses for its
+// selector ("Peer selector", e.g. ze-peer-cmd.yang:104). It is the one leaf the
+// dispatcher bridges onto CommandContext.Peer, so both the bridge in
+// applyExtractedSelectors and the guard in Dispatch name it from here rather
+// than spelling the literal twice.
+const selectorLeaf = "selector"
+
 // validateCommandArgs implements two-phase validation of command arguments
 // against YANG-declared ArgDefs.
 //
 // Phase 1 (keyword extraction): scan args for tokens matching ArgDef leaf names;
 // when found, the next token is validated as that leaf's typed value.
-// Phase 2 (positional matching): remaining args are validated against ArgDefs
-// with enum values. Unmatched args pass through to the handler.
+// Phase 2 (positional matching): remaining args are offered to the unmatched
+// ArgDefs. Unmatched args pass through to the handler.
 // Phase 3 (mandatory check): ArgDefs with Mandatory=true must have been matched.
-func validateCommandArgs(args []string, defs []command.ArgDef, preMatched map[string]string) error {
-	if len(defs) == 0 {
-		return nil
-	}
-
+//
+// It returns the leaf a LONE spare positional token filled, keyed by leaf name,
+// or nil. Dispatch needs that answer for the terminal-noun selector shape (see
+// the fences there), and this is the only place a positional token is bound to a
+// leaf, so reporting it is cheaper and safer than a second matcher that would
+// drift. "Lone" is the point: when a command leaves several tokens unconsumed,
+// which of them is the value is a guess, and the caller must not make it.
+func validateCommandArgs(args []string, defs []command.ArgDef, preMatched map[string]string) (map[string]string, error) {
 	consumed := make([]bool, len(args))
 	matched := make(map[string]bool, len(preMatched))
 	defByName := make(map[string]*command.ArgDef, len(defs))
@@ -873,65 +919,98 @@ func validateCommandArgs(args []string, defs []command.ArgDef, preMatched map[st
 			continue
 		}
 		if matched[def.Name] {
-			return fmt.Errorf("duplicate keyword %q", args[i])
+			return nil, fmt.Errorf("duplicate keyword %q", args[i])
 		}
 		consumed[i] = true
 		if i+1 >= len(args) {
-			return fmt.Errorf("%s requires a value", args[i])
+			return nil, fmt.Errorf("%s requires a value", args[i])
 		}
 		i++
 		consumed[i] = true
 		if err := command.ValidateArgString(args[i], def); err != nil {
-			return err
+			return nil, err
 		}
 		matched[def.Name] = true
 	}
 
+	spare := 0
+	for i := range consumed {
+		if !consumed[i] {
+			spare++
+		}
+	}
+
 	// Phase 2: positional matching for unconsumed args.
+	var lone map[string]string
 	for i, arg := range args {
 		if consumed[i] {
 			continue
 		}
-		found := false
-		unmatchedDefs := 0
-		for j := range defs {
-			def := &defs[j]
-			if matched[def.Name] {
+		def := positionalDef(arg, defs, matched)
+		if def == nil {
+			// No unmatched def can hold this token. With nothing left to fill,
+			// the token is the handler's business and passes through; with defs
+			// still open, it is a value none of them accepts.
+			if unmatchedDefCount(defs, matched) == 0 {
 				continue
 			}
-			unmatchedDefs++
-			if def.Kind == command.ArgEnum || def.Kind == command.ArgUnion {
-				if command.ValidateArgString(arg, def) == nil {
-					matched[def.Name] = true
-					found = true
-					break
-				}
-			}
-			if def.Kind == command.ArgString {
-				if err := command.ValidateArgString(arg, def); err != nil {
-					continue
-				}
-				matched[def.Name] = true
-				found = true
-				break
-			}
+			return nil, positionalError(arg, defs)
 		}
-		if unmatchedDefs == 0 {
-			continue
-		}
-		if !found {
-			return positionalError(arg, defs)
+		matched[def.Name] = true
+		if spare == 1 {
+			lone = map[string]string{def.Name: arg}
 		}
 	}
 
 	// Phase 3: mandatory check.
 	for i := range defs {
 		if defs[i].Mandatory && !matched[defs[i].Name] {
-			return fmt.Errorf("required argument missing: %s", defs[i].Name)
+			return lone, fmt.Errorf("required argument missing: %s", defs[i].Name)
 		}
 	}
 
+	return lone, nil
+}
+
+// positionalDef picks the ArgDef a positional token fills, or nil when none
+// accepts it.
+//
+// EVERY ArgKind is offered the token. The shipped loop tested only ArgEnum,
+// ArgUnion and ArgString, which made a mandatory non-string leaf impossible to
+// fill positionally: `show tcp-check <host> <port>` skipped the uint16 `port`,
+// bound the numeric token to the next STRING leaf, and Phase 3 then rejected a
+// fully-formed command with "required argument missing: port".
+//
+// Mandatory defs are offered the token FIRST. Declaration order alone lets an
+// optional leaf that merely accepts the same lexical shape (a pattern-less
+// string accepts anything) swallow the value a required leaf needed, turning a
+// complete command into "required argument missing". Preferring the required
+// leaf can only ever fill more of them, never fewer, so this direction cannot
+// invent a new failure.
+func positionalDef(arg string, defs []command.ArgDef, matched map[string]bool) *command.ArgDef {
+	for _, wantMandatory := range [...]bool{true, false} {
+		for i := range defs {
+			def := &defs[i]
+			if matched[def.Name] || def.Mandatory != wantMandatory {
+				continue
+			}
+			if command.ValidateArgString(arg, def) == nil {
+				return def
+			}
+		}
+	}
 	return nil
+}
+
+// unmatchedDefCount reports how many ArgDefs are still waiting for a value.
+func unmatchedDefCount(defs []command.ArgDef, matched map[string]bool) int {
+	n := 0
+	for i := range defs {
+		if !matched[defs[i].Name] {
+			n++
+		}
+	}
+	return n
 }
 
 // firstFlagToken returns the first flag-shaped token in args, or "" if there is

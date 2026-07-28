@@ -1617,3 +1617,197 @@ func TestSelectorMatchesPeerPolarity(t *testing.T) {
 		})
 	}
 }
+
+// TestDispatcherPositionalTypedLeaf covers the FIRST shape the positional
+// matcher could not fill: a mandatory leaf whose YANG type is not a string.
+//
+// VALIDATES: a positional token is offered to every ArgKind, so `show tcp-check
+// <host> <port> timeout <t>` fills the uint16 `port` leaf and dispatches.
+// PREVENTS: the shipped Phase 2 loop, which tested only ArgEnum/ArgUnion/
+// ArgString. The numeric token skipped `port` (uint), landed on the next
+// STRING leaf (`source`), and Phase 3 then rejected the fully-formed command
+// with "required argument missing: port".
+func TestDispatcherPositionalTypedLeaf(t *testing.T) {
+	d := NewDispatcher()
+
+	var receivedArgs []string
+	handler := func(_ *CommandContext, args []string) (*plugin.Response, error) {
+		receivedArgs = args
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	// Same ArgDef shape the YANG produces for `show tcp-check`
+	// (internal/plugins/diag/yang/ze-diag-cmd.yang): two mandatory leaves, the
+	// second of them a uint16, followed by two optional string leaves.
+	d.RegisterWithOptions("show tcp-check", handler, "TCP check", RegisterOptions{
+		ReadOnly: true,
+		ArgDefs: []command.ArgDef{
+			{Name: "host", Kind: command.ArgString, Mandatory: true},
+			{Name: "port", Kind: command.ArgUint, UintBits: 16, Mandatory: true},
+			{Name: "source", Kind: command.ArgString},
+			{Name: "timeout", Kind: command.ArgString},
+		},
+	})
+
+	resp, err := d.Dispatch(nil, "show tcp-check 127.0.0.1 1 timeout 2s")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, []string{"127.0.0.1", "1", "timeout", "2s"}, receivedArgs,
+		"the handler still owns the raw tail; matching must not rewrite it")
+
+	// The mandatory typed leaf is still REQUIRED: filling it positionally must
+	// not turn Phase 3 into a rubber stamp.
+	receivedArgs = nil
+	_, err = d.Dispatch(nil, "show tcp-check 127.0.0.1")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "required argument missing: port")
+	assert.Nil(t, receivedArgs)
+
+	// Out-of-range values are still rejected by the leaf's own type.
+	_, err = d.Dispatch(nil, "show tcp-check 127.0.0.1 65536")
+	require.Error(t, err)
+}
+
+// TestDispatcherPositionalPrefersMandatory pins the order the positional
+// matcher offers a token in: a required leaf before an optional one.
+//
+// VALIDATES: an optional leaf that merely accepts the same lexical shape cannot
+// starve a mandatory leaf of its value.
+// PREVENTS: first-fit-in-declaration-order, which lets the optional `source`
+// string swallow a token the mandatory `port` needed and then reports the
+// command as incomplete.
+func TestDispatcherPositionalPrefersMandatory(t *testing.T) {
+	d := NewDispatcher()
+
+	handler := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	// `source` is declared BEFORE the mandatory `port` and accepts any string,
+	// so declaration order alone would bind the numeric token to it.
+	d.RegisterWithOptions("show demo probe", handler, "Probe", RegisterOptions{
+		ReadOnly: true,
+		ArgDefs: []command.ArgDef{
+			{Name: "source", Kind: command.ArgString},
+			{Name: "port", Kind: command.ArgUint, UintBits: 16, Mandatory: true},
+		},
+	})
+
+	resp, err := d.Dispatch(nil, "show demo probe 179")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+}
+
+// TestDispatchTerminalNounSelector covers the SECOND shape: a command whose own
+// noun is the LAST key token, so its selector can only arrive as a trailing
+// positional.
+//
+// VALIDATES: `delete bgp peer <selector>` reaches its handler with the selector
+// applied to the command context.
+// PREVENTS: the shipped guard. matchCommandTokens fills only INTERIOR selector
+// slots (it needs a later key token to stop at), so a terminal noun yielded no
+// selector at all and RequiresSelector rejected the documented form outright
+// with "delete bgp peer requires a selector" -- the root cause of
+// test/plugin/api-peer-remove.ci.
+func TestDispatchTerminalNounSelector(t *testing.T) {
+	d := NewDispatcher()
+
+	var gotPeer string
+	var gotArgs []string
+	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		gotPeer = ctx.PeerSelector()
+		gotArgs = args
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+
+	d.RegisterWithOptions("delete bgp peer", handler, "Remove a peer", RegisterOptions{
+		RequiresSelector: true,
+		ArgDefs:          []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}},
+	})
+
+	ctx := &CommandContext{}
+	resp, err := d.Dispatch(ctx, "delete bgp peer 127.0.0.1")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, "127.0.0.1", gotPeer, "the trailing positional must reach the handler as the peer selector")
+	assert.Equal(t, "127.0.0.1", ctx.Selector("selector"))
+	assert.Equal(t, []string{"127.0.0.1"}, gotArgs,
+		"the tail is still handed to the handler unchanged")
+
+	// A configured peer NAME is a selector too, not only an address.
+	ctx = &CommandContext{}
+	_, err = d.Dispatch(ctx, "delete bgp peer edge1")
+	require.NoError(t, err)
+	assert.Equal(t, "edge1", gotPeer)
+}
+
+// TestDispatchTerminalNounSelectorBoundaries fences the trailing-positional
+// selector so it cannot swallow a payload the handler owns.
+//
+// VALIDATES: the selector is adopted ONLY from a lone trailing token, only for
+// a command that requires a selector, and never over one supplied out of band.
+// PREVENTS: the greedy reading of the same fix. `announce` is a single-token
+// command carrying `leaf selector mandatory`
+// (internal/component/bgp/plugins/cmd/announce/yang/ze-cli-announce-cmd.yang:13)
+// whose real arguments are a multi-token route; binding its FIRST positional
+// would silently announce to a peer named "unicast".
+func TestDispatchTerminalNounSelectorBoundaries(t *testing.T) {
+	selectorDefs := []command.ArgDef{{Name: "selector", Kind: command.ArgString, Mandatory: true}}
+
+	t.Run("multi-token payload is not a selector", func(t *testing.T) {
+		d := NewDispatcher()
+		d.RegisterWithOptions("announce", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+			t.Fatal("handler must not run without a selector")
+			return &plugin.Response{Status: plugin.StatusDone}, nil
+		}, "Announce", RegisterOptions{RequiresSelector: true, ArgDefs: selectorDefs})
+
+		_, err := d.Dispatch(&CommandContext{}, "announce unicast 10.0.0.0/24 next-hop 192.0.2.1")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "requires a selector")
+	})
+
+	t.Run("no trailing token still reports the selector as missing", func(t *testing.T) {
+		d := NewDispatcher()
+		d.RegisterWithOptions("delete bgp peer", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+			t.Fatal("handler must not run without a selector")
+			return &plugin.Response{Status: plugin.StatusDone}, nil
+		}, "Remove a peer", RegisterOptions{RequiresSelector: true, ArgDefs: selectorDefs})
+
+		_, err := d.Dispatch(&CommandContext{}, "delete bgp peer")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "requires a selector")
+	})
+
+	t.Run("an out-of-band selector wins over the trailing token", func(t *testing.T) {
+		d := NewDispatcher()
+		var gotPeer string
+		var gotArgs []string
+		d.RegisterWithOptions("peer raw", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+			gotPeer = ctx.PeerSelector()
+			gotArgs = args
+			return &plugin.Response{Status: plugin.StatusDone}, nil
+		}, "Raw bytes", RegisterOptions{RequiresSelector: true, ArgDefs: selectorDefs})
+
+		ctx := &CommandContext{Peer: "10.0.0.9"}
+		_, err := d.Dispatch(ctx, "peer raw deadbeef")
+		require.NoError(t, err)
+		assert.Equal(t, "10.0.0.9", gotPeer, "the caller-supplied selector must not be replaced by the payload")
+		assert.Equal(t, []string{"deadbeef"}, gotArgs)
+	})
+
+	t.Run("a command that needs no selector is untouched", func(t *testing.T) {
+		d := NewDispatcher()
+		var gotPeer string
+		d.RegisterWithOptions("show demo record", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+			gotPeer = ctx.PeerSelector()
+			return &plugin.Response{Status: plugin.StatusDone}, nil
+		}, "Record", RegisterOptions{ReadOnly: true, ArgDefs: selectorDefs})
+
+		ctx := &CommandContext{}
+		_, err := d.Dispatch(ctx, "show demo record whatever")
+		require.NoError(t, err)
+		assert.Equal(t, "*", gotPeer, "no RequiresSelector means no trailing-positional adoption")
+	})
+}
