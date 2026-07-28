@@ -6,6 +6,14 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
+# A check-mode ze-peer closes the instant its expect=bgp rule matches, and ze
+# reads that close as session-down. For the SOURCE that costs two things the
+# observer below depends on: adj-rib-in deletes the peer's routes on down
+# (adj_rib_in/rib.go:649-652), and the closed peer's opQueue never drains, so
+# the DrainPeerSync quiescer (reactor/peer.go:1172) burns the full 10s
+# quiesceTimeout. linger holds the session open until teardown, as in
+# role-otc-egress-stamp.ci and community-strip.ci.
+option=linger:value=true
 # Drop ze-peer's default mirrored role then advertise Provider (0x00).
 option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=00
@@ -19,24 +27,47 @@ EOF_PEER
 stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=15s
+# The dest must still BE a forward target when the source's route arrives. Its
+# expect=bgp rule matches on ze's End-of-RIB, which ze sends before the source's
+# UPDATE has been forwarded, so without linger the peer closes first and
+# selectForwardTargets (rs/server_forward.go:123) skips it as !Up. The route is
+# then withheld because there is no destination left, not because the role
+# filter refused it, and the EOR-only assertion above passes for the wrong
+# reason -- one run in three, measured. linger keeps the session established
+# until teardown so the egress rule is actually reached.
+option=linger:value=true
 option=open:value=drop-capability:code=9
 option=open:value=add-capability:code=9:hex=00
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_DEST
 
-# Python test plugin: keeps the daemon alive while the destination EOR-only
-# assertion proves suppression.
 tmpfs=test-egress.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-"""Keep the daemon alive while the dest peer proves OTC egress suppression."""
-import json
+"""Assert ze learned the provider route and withheld it from the other provider.
+
+The dest peer's expect=bgp rule asserts an ABSENCE (only an End-of-RIB reaches
+the wire), and an absence is satisfied just as well by a daemon that never got
+as far as deciding. So this observer's barrier has to be the INVERSE of
+role-otc-egress-stamp.ci's: that test waits for the dest to be SENT something
+(updates-sent - eor-sent >= 1), this one holds until the forwarding decision has
+been MADE and then asserts the difference is still 0, alongside the positive
+half -- that the source peer's UPDATE was received in the first place. Either
+half alone is vacuous; together they say "ze had the route and did not send it".
+"""
 import sys
 from ze_api import API, runtime_fail, result_json_data
-# // test-relax: removed unused 'import time'; blind sleep is now dispatch_until + quiesce
+
 
 def dispatch(api, command):
     resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
     return resp.get('result', {})
+
+
+def peer_rows(api):
+    data = result_json_data(dispatch(api, 'show bgp peer * detail'), {})
+    rows = data.get('peers', {}) if isinstance(data, dict) else {}
+    return rows if isinstance(rows, dict) else {}
+
 
 def main():
     api = API()
@@ -46,28 +77,46 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for the source route to land in adj-rib-in, then drain outbound so the
-    # destination EOR-only (suppression) assertion is deterministic.
-    # // test-relax: blind sleep(3.0) -> dispatch_until(adj-rib-in>=1) + quiesce (anchor-then-quiesce)
-    api.dispatch_until(
-        'show bgp adj-rib-in status',
-        lambda r: result_json_data(r, {}).get('total-routes', 0) >= 1,
-    )
-    api.quiesce()
+    # Barrier 1: both ze-peers assert the EOR frame, so neither may have its
+    # session closed by the shutdown below before that frame is on the wire.
+    if not api.wait_peer_eor_sent(expected_peers=2):
+        runtime_fail('ze never sent an initial-sync EOR to both peers')
 
-    # Query adj-rib-in for diagnostic context. The destination EOR-only assertion
-    # is the actual egress-suppression proof.
-    result = dispatch(api, 'show bgp adj-rib-in status')
-    data = result_json_data(result, {})
-    total = data.get('total-routes', -1)
+    # Barrier 2: the forwarding decision for the source's route has been made.
+    # quiesce drains the forward pool AND each peer's initial-sync opQueue, so
+    # after it returns the dest has been either sent the route or refused it --
+    # which is what makes the "still 0" assertion below mean something.
+    # // test-relax: dispatch_until(adj-rib-in total-routes>=1) is gone. It polled a
+    # // counter that only status()'s ribIn feeds, the non-lingering source had
+    # // already been torn down by then, so it burned its full 5s budget every run;
+    # // quiesce then burned the full 10s quiesceTimeout waiting on that dead peer's
+    # // opQueue. 15.02s against a 15s budget is the timeout this test kept hitting.
+    # // With linger both are immediate (0.25s + 0.00s measured).
+    if not api.quiesce():
+        runtime_fail('quiesce barrier did not settle; forwarding decision not yet made')
 
-    if total < 0:  # validation gate + single-peer disconnect makes count unreliable
-        msg = f'adj-rib-in query failed, got total={total}'
-        print(f'FAIL: {msg}', file=sys.stderr)
-        sys.stderr.flush()
-        runtime_fail(msg)
+    rows = peer_rows(api)
+    source = rows.get('127.0.0.1', {})
+    dest = rows.get('127.0.0.2', {})
+    if not source or not dest:
+        runtime_fail(f'peer detail missing a peer row: {sorted(rows)}')
 
-    print('OK: EOR-only destination assertion verified OTC egress suppression', file=sys.stderr)
+    # Positive half: ze received the provider route. Without this the assertion
+    # below would pass on a daemon that was never given anything to leak.
+    if int(source.get('updates-received', 0) or 0) < 1:
+        runtime_fail(f'source peer UPDATE never reached ze: {source}')
+
+    # Negative half: nothing but the End-of-RIB was written to the dest.
+    # updates-sent counts EVERY UPDATE including the EOR marker
+    # (reactor_notify.go IncrUpdatesSent sees only the message type), so the
+    # difference is the route this test proves was withheld.
+    leaked = int(dest.get('updates-sent', 0) or 0) - int(dest.get('eor-sent', 0) or 0)
+    if leaked != 0:
+        runtime_fail(f'provider route leaked to the provider dest peer: {dest}')
+
+    total = result_json_data(dispatch(api, 'show bgp adj-rib-in status'), {}).get('total-routes', -1)
+    print(f'OK: route accepted from the provider source ({total} in adj-rib-in), '
+          f'{leaked} routes beyond EOR sent to the provider dest', file=sys.stderr)
     dispatch(api, 'request shutdown')
     api.wait_for_shutdown()
 
@@ -148,6 +197,11 @@ cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
 cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
+# recordDrop's first-occurrence WARN (role/metrics.go): the role plugin is what
+# withheld the route, not a peer that happened to be down. Without this the two
+# counter assertions above are satisfied by any daemon that simply never
+# forwarded, which is exactly the state this test used to pass in.
+expect=stderr:contains=role dropped a route
 reject=stderr:pattern=panic recovered
 reject=stderr:pattern=fatal error
 reject=stderr:pattern=ZE-OBSERVER-FAIL

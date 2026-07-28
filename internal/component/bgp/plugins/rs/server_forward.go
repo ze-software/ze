@@ -160,8 +160,16 @@ func (rs *RouteServer) explainNoTarget(sourcePeer string, msgID uint64, families
 		switch {
 		case addr == sourcePeer:
 			b.Str("source")
+		// The two !Up cases are split because the log line exists to tell them
+		// apart (see the caller: "the two causes need opposite fixes"), and
+		// PeerState.StateSeen is what distinguishes them. Printing one label for
+		// both sent a reader chasing a peer-up/replay ordering bug when the peer
+		// had simply closed the session and there was no destination left --
+		// which is what a check-mode test peer does the moment its rule matches.
+		case !peer.Up && peer.StateSeen:
+			b.Str("down")
 		case !peer.Up:
-			b.Str("not-up")
+			b.Str("not-yet-up")
 		case msgID != 0 && msgID <= peer.ForwardFrom:
 			b.Str("below-cut(").Uint(peer.ForwardFrom).Byte(')')
 		default:
