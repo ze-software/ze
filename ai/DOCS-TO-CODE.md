@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 301 design docs, 3128 files
+Total: 301 design docs, 3129 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1686,6 +1686,7 @@ Total: 301 design docs, 3128 files
 | `internal/core/bgp/attribute/builder.go` | path attribute encoding |
 | `internal/core/bgp/attribute/builder_parse.go` | path attribute encoding |
 | `internal/core/bgp/attribute/community.go` | path attribute encoding |
+| `internal/core/bgp/attribute/flowspec_action.go` | FlowSpec traffic-action extended communities |
 | `internal/core/bgp/attribute/iterator.go` | path attribute encoding |
 | `internal/core/bgp/attribute/mpnlri.go` | path attribute encoding |
 | `internal/core/bgp/attribute/opaque.go` | path attribute encoding |

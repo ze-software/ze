@@ -12,7 +12,7 @@
 # ze-peer expectations: receive a FlowSpec route from ze
 stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow destination-ipv4 10.1.0.0/24 protocol tcp destination-port 80
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020040050400000064C010080800000000000001800E150001850401020304000B01180A0100038106058150
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020040050400000064800E150001850401020304000B01180A0100038106058150C010080800000000000001
 # EOR
 cmd=api:conn=1:seq=2:text=peer * update text nlri ipv4/flow eor
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000185

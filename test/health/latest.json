@@ -81,7 +81,7 @@
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 20657,
+        "denominator": 20663,
         "numerator": 136,
         "percent": 0.7
       },
@@ -89,7 +89,7 @@
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "136 / 20657 (floor 136)",
+      "value": "136 / 20663 (floor 136)",
       "worst": [
         {
           "file": "cmd/ze/hub/aaa_lifecycle_test.go",
@@ -184,15 +184,15 @@
         "ci_files": 1476,
         "et_files": 164,
         "fuzz_funcs": 76,
-        "test_files": 2735,
-        "test_funcs": 20687
+        "test_files": 2736,
+        "test_funcs": 20693
       },
-      "detail": "2735 Go test files, 76 fuzz targets, 123 benchmarks, 1476 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "2736 Go test files, 76 fuzz targets, 123 benchmarks, 1476 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "20687 test functions"
+      "value": "20693 test functions"
     },
     {
       "action": "Take the lowest-scoring package and add tests until its survivors die.",
@@ -270,13 +270,13 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 2735,
+        "denominator": 2736,
         "numerator": 896,
-        "percent": 32.8
+        "percent": 32.7
       },
       "question": "Q2",
       "status": "ok",
-      "value": "896 / 2735",
+      "value": "896 / 2736",
       "worst": [
         {
           "area": "internal/chaos/report",

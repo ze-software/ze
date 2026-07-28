@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1256 summaries
+Total: 1257 summaries
 
 ## 000-099
 
@@ -1330,3 +1330,4 @@ Total: 1256 summaries
 | 1282 | The Verify Plugin Stage: Nine Reds, and Why Tests Had Nowhere to Be Written | `plan/learned/1282-fixit-verify-plugin-stage-and-draft-tests.md` |
 | 1283 | fixit-ci-plugin-suite-nine | `plan/learned/1283-fixit-ci-plugin-suite-nine.md` |
 | 1284 | test-draft-workflow | `plan/learned/1284-test-draft-workflow.md` |
+| 1285 | bgp-attribute-order-one-convention | `plan/learned/1285-bgp-attribute-order-one-convention.md` |

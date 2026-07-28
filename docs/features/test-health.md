@@ -21,7 +21,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**136 / 20657 (floor 136)** (ok)
+**136 / 20663 (floor 136)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -104,15 +104,15 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### In-repo test inventory
 
-**20687 test functions** (ok)
+**20693 test functions** (ok)
 
-2735 Go test files, 76 fuzz targets, 123 benchmarks, 1476 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+2736 Go test files, 76 fuzz targets, 123 benchmarks, 1476 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
 ### Test files that expect a specific error
 
-**896 / 2735** (ok)
+**896 / 2736** (ok)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
