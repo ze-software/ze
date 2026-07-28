@@ -4,36 +4,73 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 # Route sent by plugin script
-cmd=api:conn=1:seq=1:text=peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow source-ipv4 10.0.0.2/32
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020040050400000064C010080800000000000001800E100001850401020304000602200A000002
+cmd=api:conn=1:seq=1:text=peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add source-ipv4 10.0.0.2/32
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020040050400000064800E100001850401020304000602200A000002C010080800000000000001
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","local-preference":100,"extended-community":[{"string":"0x0800:000000000001","value":576460752303423489}],"ipv4/flow":[{"action":"add","nlri":{"source":[["10.0.0.2/32/0"]],"next-hop":"1.2.3.4"}}]}
-# EOR sent by plugin script
-cmd=api:conn=1:seq=2:text=peer * update text nlri ipv4/flow eor
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000185
+# // test-relax: the End-of-RIB rule that stood here asserted an ordering the
+# product does not define, and named a producer that never ran. Nothing in this
+# test sends an EOR: the marker is peer1's OWN initial-sync one
+# (reactor/peer_initial_sync.go sendInitialRoutes, one per negotiated family), and
+# RFC 4724 Section 2 allows exactly one per family per session, so an explicit
+# `update text nlri ipv4/flow eor` could never put a second on the wire. It only
+# appeared to work while a static config route rode the initial sync AHEAD of the
+# marker; with the plugin as the producer the route necessarily follows it.
+# The frame is still proven: the observer takes wait_peer_eor_sent below, which
+# reads the eor-sent counter IncrEORSent bumps only after the socket flush, and
+# fails the test if the marker never reaches the wire.
 EOF_PEER
 
 # Python plugin script
 tmpfs=flowspec.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 
-import time
-from ze_api import ready, send, wait_for_ack, wait_for_shutdown
+from ze_api import API, runtime_fail
 
 
 def main() -> None:
-    ready()
+    api = API()
+    # Full 5-stage handshake (the module-level ready() helper's sequence).
+    api.declare_done()
+    api.wait_for_config(timeout=10.0)
+    api.capability_done()
+    api.wait_for_registry(timeout=10.0)
+    api.ready()
 
-    # Send FlowSpec route (same as static route in config)
-    send('peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow source-ipv4 10.0.0.2/32')
-    wait_for_ack(expected_count=1)  # // test-relax: dropped redundant sleep; wait_for_ack is the outbound barrier
-    wait_for_shutdown()
+    # Put the send on ONE side of the peer's initial route sync. Behind this
+    # barrier the marker is already on the wire, so the peer sees marker, then
+    # route, every run -- and checker.go silently accepts the marker, which
+    # matches no expectation at that point. Without it, whether the route joins
+    # the initial dump or follows it is decided by how promptly the host
+    # scheduled the daemon.
+    # // test-relax: unordered EOR expectation -> product eor-sent barrier
+    if not api.wait_peer_eor_sent():
+        runtime_fail('peer1 never sent its initial-sync End-of-RIB')
+
+    # THE subject of this test: a FlowSpec route announced through the external
+    # process API. `add` is the grammar's required verb (route/route.go
+    # ErrMissingAddDel) and copy-to-nexthop is a colon-less FlowSpec action the
+    # update-text parser now accepts (attribute/flowspec_action.go); this command
+    # was rejected on both counts before, so it never produced anything.
+    api.send('peer * update text extended-community [copy-to-nexthop] nhop 1.2.3.4 nlri ipv4/flow add source-ipv4 10.0.0.2/32')
+    api.wait_for_ack(expected_count=1)  # // test-relax: dropped redundant sleep; wait_for_ack is the outbound barrier
+    api.wait_for_shutdown()
 
 
 if __name__ == '__main__':
     main()
 EOF_RUN
 
-# ze bgp configuration with BOTH static route AND plugin
+# ze bgp configuration. The plugin is the ONLY producer of the asserted route.
+#
+# There used to be a static `update { ... }` here, commented "ensures route is
+# sent". It was a crutch: the observer's command was missing the add/del verb the
+# grammar requires (route/route.go ErrMissingAddDel) and carried `copy-to-nexthop`,
+# which the `update text` parser rejected outright, so the plugin never produced
+# anything and the static route satisfied the wire assertions in its place. The
+# test's own header says the subject is "FlowSpec routes via external process API",
+# and with the crutch present that was never what the bytes proved -- the failure
+# only surfaced intermittently, when the observer's exception happened to reach the
+# daemon before shutdown.
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external flowspec-process {
@@ -67,17 +104,15 @@ bgp {
 		}
 
 
-		# Static FlowSpec route (ensures route is sent)
-		update {
-			attribute {
-				next-hop 1.2.3.4
-				extended-community [copy-to-nexthop]
-			}
-			nlri {
-				ipv4/flow add source-ipv4 10.0.0.2/32
-			}
-		}
-
+		# // test-relax: the static `update { ... }` that stood here is REPLACED, not
+		# dropped. It was announcing the very route this test asserts, so the plugin
+		# send named in the header was never what the bytes proved -- and could not
+		# be, since that command was rejected twice over (missing add/del verb, and
+		# an extended community the update-text parser did not accept). Both are
+		# fixed in this change, so the plugin now produces the route and the same
+		# expect=bgp assertions below prove the API path they were always meant to.
+		# Coverage of the static config path is unaffected: test/encode/simple-flow.ci
+		# and the other 14 test/encode flow tests exercise it directly.
 		process flowspec-process {
 		}
 	}
