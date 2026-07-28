@@ -202,6 +202,7 @@ means "no rule applies".
 | Edit CLAUDE.md, AGENTS.md, any synced file, or add an agent behavior rule | `ai/rules/canonical-sources.md` -- never edit generated files; shared rules go in `ai/rules/` |
 | Design or implement anything | `ai/rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
 | Start a planning, implementation, or review phase | `ai/rules/model-selection.md` -- planning and review run on Opus 5, implementation runs on Opus 4.8; announce the boundary and stop rather than crossing it on the wrong model |
+| Work on ANY spec (research, design, implement, review, close) | `ai/rules/spec-delegation.md` -- the main thread supervises only; each phase runs in a subagent through its `ze-*` skill, and the main thread verifies the report rather than relaying it |
 | Make a behavioral claim about code, or recommend work based on one | `ai/rules/no-fabrication.md` -- cite the producing function `file:line`; read the producer, not the caller; if you can't cite it, label it unverified |
 | Find recurring development friction or problem patterns | `ai/rules/friction-reporting.md` -- report the pattern and decide whether a new or changed rule would prevent it |
 | Write any code | `ai/rules/before-writing-code.md`, relevant `ai/patterns/`, `ai/rules/hook-mapping.md` (which checks will fire) |

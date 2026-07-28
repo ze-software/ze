@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1252 summaries
+Total: 1253 summaries
 
 ## 000-099
 
@@ -1326,3 +1326,4 @@ Total: 1252 summaries
 | 1278 | fixit-sleeps-cli-harness (closed as stale) | `plan/learned/1278-fixit-sleeps-cli-harness.md` |
 | 1279 | Perf harness rot, and a reaper that ate a tracked file | `plan/learned/1279-perf-harness-rot-and-tmp-reaper.md` |
 | 1280 | fixit-rs-community-strip-arity | `plan/learned/1280-fixit-rs-community-strip-arity.md` |
+| 1281 | Spec Delegation: Subagents Execute, the Main Thread Supervises | `plan/learned/1281-spec-delegation-subagents.md` |

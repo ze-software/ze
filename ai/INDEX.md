@@ -182,6 +182,7 @@ artifact type. Check them whenever your work touches the described concern.
 | Error / failure message content | `ai/rules/error-messages.md` | Any error, log line, or failure output: name the subject + offending value + corrective action; greppable phrase; fail closed |
 | Discoverability | `ai/rules/discovery-updates.md` | Any feature, tool, self-check, verification gate, test infrastructure, or agent workflow |
 | Which model runs this phase | `ai/rules/model-selection.md` | Crossing between planning/design, implementation, and review: planning and review run on Opus 5, implementation on Opus 4.8 |
+| Who executes this phase (main thread vs subagent) | `ai/rules/spec-delegation.md` | Any spec work: the main thread supervises, each phase runs in a subagent through its `ze-*` skill |
 
 ## Dev Tools
 

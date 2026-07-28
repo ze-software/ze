@@ -9,7 +9,7 @@ dropped. When a rule governs your current action, open its full file (the
 path under each heading) before acting -- this digest maps directives, it is
 not a substitute for the rule.
 
-Rules: 93
+Rules: 94
 
 ---
 
@@ -2560,6 +2560,7 @@ A session cannot change its own model.
 | The work is a one-line mechanical edit with no design or review content | Proceed on whatever model is loaded. This rule governs phases, not keystrokes |
 ## Subagents
 - Subagents inherit the PHASE, not the task shape: reviewer subagents spawned during review stay on the review model, implementation subagents stay on the implementation model.
+- WHO executes a phase is governed separately by `ai/rules/spec-delegation.md`: the main thread supervises, and each phase runs in a subagent through its `ze-*` skill. That rule never lets a session delegate its way across a model boundary.
 - The `Agent` tool's `model` parameter selects a family (`opus`, `sonnet`, `haiku`), not a minor version, so it cannot pin 4.8 against 5. The phase-to-model mapping above is about the session driving the work.
 - Never downgrade a subagent to a cheaper model because its lens looks mechanical. `ai/skills/ze-review-deep.md` and `ai/skills/ze-debug.md` spawn every agent on `opus` for this reason. If cost forces a reduction, cut the NUMBER of agents, never the model they run on.
 ## Banned Reasoning
@@ -4170,6 +4171,38 @@ Place at file top, after `// Design:` and `// Related:` lines:
 - Internal APIs (ze-to-ze communication)
 - Standard library usage
 - Well-known protocols where the RFC number in a comment suffices
+
+---
+
+## Spec Work Runs in Subagents; the Main Thread Supervises
+`ai/rules/spec-delegation.md`
+**When:** starting, resuming, or continuing work on ANY spec -- research, design, implementation, review, audit, or closure -- in the main session thread — **Severity:** blocking — **Related:** model-selection, critical-review, planning, handoff
+
+## Directives
+**The main thread supervises. It does not perform the spec work itself.** Each phase runs in a subagent invoked through its `ze-*` skill; the main thread launches it, reads the report back, verifies it, decides, and gates the next phase.
+| Phase | Delegate to a subagent running | The main thread does |
+|-------|--------------------------------|----------------------|
+| Research a topic or subsystem | `/ze-explore`, `/ze-audit` | states the question, reads the findings, decides what they change |
+| Write or revise a spec | `/ze-spec` | relays the user's answers, approves the design, owns the status transition |
+| Stress-test a design | `/ze-design` | carries the one-decision-per-question dialogue with the user |
+| Implement | `/ze-implement` | selects the spec, relays user decisions, checks the report against the spec's ACs |
+| Review gate | `/ze-review`, `/ze-review-deep`, `/ze-review-spec` | verifies each finding, decides which are real, loops until zero |
+| Debug a red test or gate | `/ze-debug` | confirms the diagnosis names a `file:line` root cause, not a symptom |
+| Verify | `/ze-verify` | reads the failure index, decides what to fix next |
+**Launch independent phases in ONE message with parallel `Agent` calls.** Two review lenses, two research questions, or two independent spec areas are concurrent work, not a queue.
+**Give every subagent the spec path, the phase it is in, and the rules that govern it.** A subagent inherits no session state: name `plan/<spec>.md`, the `ai/rules/` files that apply, and what its report must contain. It has no LSP tool and cannot ask the user -- do not hand it work that needs either.
+**Verify what a subagent reports; never relay it as fact.** An agent's report is a claim, not evidence (`ai/rules/no-fabrication.md`). Before acting on a finding or repeating it to the user, confirm the `file:line` it cites actually produces the behavior it describes.
+**Anything the user must answer stays in the main thread.** A subagent cannot hold a dialogue with the user, so `/ze-spec` and `/ze-design` question gates, scope reductions, and RFC-compliance escalations (`ai/rules/rfc-compliance.md`) are raised by the main thread, never delegated away.
+**Delegation never dilutes the independence of review.** Reviewer subagents must be spawned separately from the implementation agent and must not be given the implementer's reasoning as their starting point (`ai/rules/critical-review.md`).
+**Delegation does not override phase-to-model boundaries.** Subagents inherit the PHASE, not the task shape (`ai/rules/model-selection.md`), so the main thread still announces a boundary and stops rather than delegating an implementation phase from a review session to get around the switch.
+## Banned Reasoning
+| Banned | Reality |
+|--------|---------|
+| "This edit is small, I will just do it inline" | Size is judged after review. A one-line spec change still passes through the phase that owns it |
+| "Spawning an agent costs a round trip" | The round trip is the supervision. Doing the work inline is what the main thread is not for |
+| "I already have the context loaded, an agent would have to re-read it" | Re-reading is cheap; a main thread that fills with implementation detail cannot supervise the phases that follow |
+| "The agent's report looks right, I will pass it on" | Unverified relay is fabrication with an extra hop (`ai/rules/no-fabrication.md`) |
+| "I will implement it and then spawn a reviewer" | The implementation phase was owed a subagent too. One rule broken does not excuse the next |
 
 ---
 

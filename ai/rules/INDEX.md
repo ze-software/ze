@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 93 rules
+Total: 94 rules
 
 | Rule | When to read | File |
 |------|--------------|------|
@@ -94,6 +94,7 @@ Total: 93 rules
 | RFC Summaries Before Design | when a spec lists RFC summaries in its Required Reading section Severity: blocking | `ai/rules/rfc-reading.md` |
 | Rule File Format | authoring or editing any `ai/rules/*.md` rule file Severity: blocking Related: canonical-sources, discovery-updates | `ai/rules/rule-format.md` |
 | Self-Documenting Code | Code that implements external APIs or protocols MUST reference the upstream spec inline Severity: blocking | `ai/rules/self-documenting.md` |
+| Spec Work Runs in Subagents; the Main Thread Supervises | starting, resuming, or continuing work on ANY spec -- research, design, implementation, review, audit, or closure -- in the main session thread Severity: blocking Related: model-selection,... | `ai/rules/spec-delegation.md` |
 | No Code in Specs | Specs MUST NOT contain code snippets (any language) Severity: blocking | `ai/rules/spec-no-code.md` |
 | Spec Preservation | Completed specs become learned summaries in `plan/learned/NNN-<name>.md` Severity: advisory | `ai/rules/spec-preservation.md` |
 | Stale Comments | when changing code behavior Severity: blocking | `ai/rules/stale-comments.md` |
