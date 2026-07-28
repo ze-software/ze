@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 func TestDiscoverExaBGPSuiteAssignsNumericIDsInDisplayOrder(t *testing.T) {
@@ -74,6 +76,53 @@ func TestParseExaBGPCIRejectsMissingConfig(t *testing.T) {
 	suite, err := discoverExaBGPSuite(base)
 	if err == nil {
 		t.Fatalf("discover suite unexpectedly succeeded: %#v", suite)
+	}
+}
+
+// test-relax: the three TestResolveZeDaemonBinary* cases here tested a private
+// resolver this package should never have had. Their subject (honor ZE_BIN,
+// find this session's binary, fail closed when there is none) is buildZe, which
+// already carries that coverage in build_test.go -- TestBuildZeNoBuild,
+// TestBuildZeNoBuildEnvOverride, TestBuildZeNoBuildRelativeOverride -- and is
+// enforced package-wide by TestSuiteRunnersResolveDUTThroughBuildZe. The
+// duplicate resolver was deleted, so the coverage moves rather than shrinks.
+//
+// VALIDATES: cmd_exabgp.go names buildZe, so that structural guard cannot be
+// satisfied by dropping the DUT lookup altogether.
+// PREVENTS: the ExaBGP wrapper being left to guess again. It has no way to know
+// where this session's bin/ is or which build tags a binary carries, and the
+// version that guessed reached a stale root-level ./ze with no ze_exabgp
+// command -- all 42 encoding tests red on "unknown command: exabgp"
+// (ai/rules/fail-closed-guards.md).
+func TestExaBGPSuiteCallsBuildZe(t *testing.T) {
+	src, err := os.ReadFile(filepath.Join(".", "cmd_exabgp.go"))
+	if err != nil {
+		t.Fatalf("read cmd_exabgp.go: %v", err)
+	}
+	if !strings.Contains(string(src), "buildZe(ctx, baseDir)") {
+		t.Error("cmd_exabgp.go must resolve the ze binary with buildZe(ctx, baseDir)")
+	}
+}
+
+// VALIDATES: the resolved path reaches the wrapper process as ZE_BIN, last, so
+// it beats any value inherited from the parent shell.
+// PREVENTS: the wrapper guessing again because the runner resolved a binary and
+// then never told it (ai/rules/fail-closed-guards.md, "make the miss explicit at
+// the producer").
+func TestExaBGPClientEnvExportsResolvedZeBin(t *testing.T) {
+	t.Setenv("ZE_BIN", "/inherited/ze")
+	test := &exabgpTestEntry{record: &runner.Record{Nick: "1"}, tcpConnections: 1}
+
+	got := exaBGPClientEnv(test, 17900, "/resolved/ze")
+
+	last := ""
+	for _, entry := range got {
+		if strings.HasPrefix(entry, "ZE_BIN=") {
+			last = entry
+		}
+	}
+	if last != "ZE_BIN=/resolved/ze" {
+		t.Fatalf("effective ZE_BIN = %q, want the resolved path", last)
 	}
 }
 

@@ -32,39 +32,47 @@ _SSH_HASH = '$2a$04$7an2xuyUkE94D4FwxauYPOILpSYl08/IR3nqLIWWfprP5pcplMviu'
 
 
 def find_ze_binary() -> str:
-    """Find the ze binary."""
-    script_dir = Path(__file__).parent.parent.parent.parent
+    """Resolve the ze binary this wrapper drives, or exit with the paths tried.
 
-    # Check bin/ directory first (make build output, always up to date)
-    bin_path = script_dir / 'bin' / 'ze'
+    `ze exabgp migrate` exists only in a build carrying the ze_exabgp tag
+    (cmd/ze/dispatch_exabgp.go, feature-gates.txt), so an approximate answer here
+    is not a degraded run: it is every test failing with "unknown command:
+    exabgp" and nothing naming the cause.
+
+    ZE_BIN is exported by the Go runner (internal/test/cli/cmd_exabgp.go), which
+    resolves the binary under test through buildZe: an explicit ZE_BIN when the
+    caller set one, otherwise this session's own bin/ (internal/test/sessionpath),
+    built with the full feature tag set when it is absent. None of that is
+    knowable from here, and re-deriving the session id in a third place is the
+    drift internal/test/sessionpath exists to prevent.
+
+    The old fallbacks are gone on purpose (ai/rules/fail-closed-guards.md): a
+    root-level ./ze, a ze on PATH, and an untagged `go build -o ze ./cmd/ze` are
+    all binaries nobody promised carry ze_exabgp, and silently choosing one is
+    exactly how a stale artifact from a previous day ran the whole suite.
+    """
+    repo_root = Path(__file__).resolve().parents[3]
+
+    ze_bin = os.environ.get('ZE_BIN', '').strip()
+    if ze_bin:
+        named = Path(ze_bin)
+        if not named.is_absolute():
+            named = repo_root / named
+        if named.exists():
+            return str(named)
+        print(f"Error: ZE_BIN={ze_bin} does not exist", file=sys.stderr)
+        sys.exit(1)
+
+    # Off-session (a human shell, CI) `make ze` writes the unsuffixed name, and
+    # this script is runnable by hand against an ExaBGP config.
+    bin_path = repo_root / 'bin' / 'ze'
     if bin_path.exists():
         return str(bin_path)
 
-    # Fallback: root-level ze (may be stale)
-    ze_path = script_dir / 'ze'
-    if ze_path.exists():
-        return str(ze_path)
-
-    # Fallback: check if ze is in PATH
-    result = subprocess.run(['which', 'ze'], capture_output=True, text=True)
-    if result.returncode == 0:
-        return result.stdout.strip()
-
-    # Try to build it
-    print("Building ze...", file=sys.stderr)
-    result = subprocess.run(
-        ['go', 'build', '-o', str(ze_path), './cmd/ze'],
-        cwd=script_dir,
-        capture_output=True,
-        text=True
-    )
-    if result.returncode == 0 and ze_path.exists():
-        return str(ze_path)
-
-    print(f"Error: Cannot find or build ze binary", file=sys.stderr)
-    print(f"  Tried: {ze_path}", file=sys.stderr)
-    if result.stderr:
-        print(f"  Build error: {result.stderr}", file=sys.stderr)
+    print("Error: no ze binary for the ExaBGP wrapper", file=sys.stderr)
+    print("  tried: $ZE_BIN (unset or empty), " + str(bin_path), file=sys.stderr)
+    print("  build one with `make ze` (it carries the ze_exabgp tag), or set ZE_BIN",
+          file=sys.stderr)
     sys.exit(1)
 
 
@@ -81,7 +89,10 @@ def migrate_config(ze_binary: str, config_path: str) -> tuple:
     )
 
     if result.returncode != 0:
-        print(f"Error migrating config: {result.stderr}", file=sys.stderr)
+        # Name the binary: the failure mode this wrapper is most likely to hit is
+        # a ze without the ze_exabgp tag, and "unknown command: exabgp" alone does
+        # not say WHICH ze was asked.
+        print(f"Error migrating config with {ze_binary}: {result.stderr}", file=sys.stderr)
         sys.exit(1)
 
     # Parse external process info from stderr (format: "process:name:cmd")

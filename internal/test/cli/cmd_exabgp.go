@@ -50,6 +50,7 @@ type exabgpCLI struct {
 	client    string
 	port      int
 	testArgs  []string
+	zeBinary  string
 }
 
 type exabgpTestEntry struct {
@@ -128,6 +129,26 @@ func zeTestExabgpMain(args []string) error {
 		}
 		return runExaBGPServerForeground(test, cli.port, cli.saveDir)
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Every path below spawns the ExaBGP wrapper, which drives a ze daemon. The
+	// wrapper is a Python script: it cannot know whether ZE_BIN is set, where
+	// this session's bin/ is, or which build tags a binary carries. So the DUT is
+	// resolved HERE, through the one resolver every other suite in this package
+	// uses (TestSuiteRunnersResolveDUTThroughBuildZe), and passed down.
+	//
+	// It matters more here than elsewhere: `ze exabgp migrate` exists only under
+	// the ze_exabgp tag (cmd/ze/dispatch_exabgp.go, feature-gates.txt), which
+	// runner.TestBuildTags supplies, so a wrapper left to guess does not degrade
+	// -- it fails all 42 tests with "unknown command: exabgp" and names no cause.
+	zeBinary, err := buildZe(ctx, baseDir)
+	if err != nil {
+		return err
+	}
+	cli.zeBinary = zeBinary
+
 	if cli.client != "" {
 		test, ok := suite.byNick[cli.client]
 		if !ok {
@@ -137,7 +158,7 @@ func zeTestExabgpMain(args []string) error {
 		if cli.port <= 0 {
 			return errors.New("--client requires --port")
 		}
-		return runExaBGPClientForeground(test, cli.port)
+		return runExaBGPClientForeground(test, cli.port, cli.zeBinary)
 	}
 
 	selected, err := suite.tests.Select(runner.Selection{
@@ -153,9 +174,6 @@ func zeTestExabgpMain(args []string) error {
 		printExaBGPUsage()
 		return nil
 	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	success := runExaBGPSelected(ctx, suite, cli)
 	if !success {
@@ -462,7 +480,7 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 	}
 	detail.port = port
 
-	client, err := startExaBGPClient(testCtx, test, port)
+	client, err := startExaBGPClient(testCtx, test, port, cli.zeBinary)
 	if err != nil {
 		stopExaProcess(server)
 		detail.serverStdout = server.stdout.String()
@@ -609,9 +627,9 @@ func runExaBGPServerForeground(test *exabgpTestEntry, port int, saveDir string) 
 	return cmd.Run()
 }
 
-func runExaBGPClientForeground(test *exabgpTestEntry, port int) error {
+func runExaBGPClientForeground(test *exabgpTestEntry, port int, zeBinary string) error {
 	cmd := exec.CommandContext(context.Background(), exaBGPWrapperPath(test), exaBGPClientArgs(test)...) //nolint:gosec // wrapper path is derived from repository-owned fixtures.
-	cmd.Env = exaBGPClientEnv(test, port)
+	cmd.Env = exaBGPClientEnv(test, port, zeBinary)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
@@ -625,8 +643,8 @@ func startExaBGPServer(ctx context.Context, test *exabgpTestEntry, port int, sav
 	return proc, portCh, err
 }
 
-func startExaBGPClient(ctx context.Context, test *exabgpTestEntry, port int) (*exaProcess, error) {
-	return startExaProcess(ctx, "client", exaBGPWrapperPath(test), exaBGPClientArgs(test), exaBGPClientEnv(test, port), nil)
+func startExaBGPClient(ctx context.Context, test *exabgpTestEntry, port int, zeBinary string) (*exaProcess, error) {
+	return startExaProcess(ctx, "client", exaBGPWrapperPath(test), exaBGPClientArgs(test), exaBGPClientEnv(test, port, zeBinary), nil)
 }
 
 func exaBGPServerArgs(test *exabgpTestEntry, port int, saveDir string) []string {
@@ -655,9 +673,10 @@ func exaBGPServerEnv(test *exabgpTestEntry, port int) []string {
 	return env
 }
 
-func exaBGPClientEnv(test *exabgpTestEntry, port int) []string {
+func exaBGPClientEnv(test *exabgpTestEntry, port int, zeBinary string) []string {
 	env := os.Environ()
 	portText := strconv.Itoa(port)
+	var tb textbuf.Buffer
 	env = append(env,
 		"ze_test_bgp_port="+portText,
 		"exabgp_tcp_port="+portText,
@@ -667,6 +686,10 @@ func exaBGPClientEnv(test *exabgpTestEntry, port int) []string {
 		"exabgp_debug_configuration=true",
 		"exabgp_api_socketname=exabgp-test-"+portText,
 		"exabgp_api_version=4",
+		// Appended AFTER os.Environ() so the path this process verified wins over
+		// any inherited ZE_BIN: the wrapper must drive the binary that was
+		// checked, not one a parent shell left pointing somewhere else.
+		tb.Str("ZE_BIN=").Str(zeBinary).String(),
 	)
 	return env
 }
