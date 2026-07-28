@@ -171,3 +171,39 @@ Capture on the next occurrence: the full `tmp/stress-repro/` log, plus the daemo
 `replay ownership declared` and `session established` timestamps. If ownership is
 the EARLIER of the two (it should now always be), the duplicate is NOT the replay
 race and needs fresh triage rather than this entry.
+
+## Update 2026-07-28: the SOURCE arm of the two-producer race is fixed; 380's is not
+
+The "two producers, one queue" analysis above is correct and has now been acted on
+for ONE of its two arms. Read this before re-deriving from the text above, which
+describes `Up` as if it still had a single producer and a single meaning.
+
+**Source arm (FIXED).** `processForward`
+(`internal/component/bgp/plugins/rs/server_withdrawal.go`) used to drop the whole
+UPDATE on the bare `!peer.Up`. That conflated two opposite situations, because
+`PeerState` is created by `handleOpen` as well as by `handleState`: a peer whose
+state event has not arrived yet is `!Up` and merely NOT YET UP, not down. The drop
+was permanent -- `dispatchStructured` has already advanced `seenMsgID`, so the cut
+`handleStateUp` captures excludes the message from the replay rail too. It now
+tests `peer.StateSeen && !peer.Up`, and `handleState` sets `StateSeen` for BOTH
+polarities, so `!Up` means DOWN only after a state event has been observed.
+Pinned by `TestProcessForwardSourceNotYetUp` and `TestHandleStateMarksStateSeen`.
+
+That cleared CI tests 130 `community-strip` and 400 `role-otc-egress-stamp`, whose
+signature was `forward dropped: source peer not up ... peer-known=true` -- the log
+line added 2026-07-26 in `e4ee32b03`, which is what made the drop visible at all.
+
+**Destination arm (STILL OPEN).** 380's missing withdraw is untouched and the
+analysis above still stands verbatim: `selectForwardTargets`
+(`rs/server_forward.go`) includes a peer iff `peer.Up`, so a RECEIVER that loses
+the peer-up race is not a forward target, and `buildReplayRoutes`
+(`adj_rib_in/rib.go`) emits stored announcements only -- the replay rail
+structurally cannot carry a withdraw. The receiver gets the announce via replay and
+never the withdraw: a route nothing retracts, which is a blackhole rather than a
+test problem.
+
+`StateSeen` does NOT help here. It makes the SOURCE's not-yet-up state readable;
+the destination's `Up` is still the only gate on being a forward target, and
+turning that off would forward to a peer whose session is not established.
+
+Remaining work stays owned by `plan/spec-fixit-stored-route-relay-hardening.md`.

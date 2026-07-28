@@ -10,6 +10,20 @@ type PeerState struct {
 	Address string // Peer IP address
 	ASN     uint32 // Peer AS number
 	Up      bool   // Session is established
+	// StateSeen records that handleState has processed at least one state event
+	// for this peer, which is what makes Up == false READABLE.
+	//
+	// Without it, `!Up` conflates two opposite situations. A PeerState is created
+	// by handleOpen (server_handlers.go) as well as by handleState, and the engine
+	// relays a peer's OPEN and its first UPDATE from the session read path while
+	// the state transition travels the FSM goroutine -- so an UPDATE can reach a
+	// worker while the peer is still `Up == false` and merely NOT YET UP. Reading
+	// that as "down" made processForward discard the whole UPDATE, and because
+	// dispatchStructured has already advanced seenMsgID past it, the cut
+	// handleStateUp then captures excludes it from the replay as well: permanent
+	// route loss on a healthy session. StateSeen is false only in the not-yet
+	// window; a peer that went down keeps its entry with StateSeen true.
+	StateSeen bool
 	// Replaying is true from handleStateUp until replayForPeer finishes. It is NOT
 	// consulted by selectForwardTargets: a replaying peer IS a live-forward target
 	// on purpose, because excluding it loses routes when peers connect together

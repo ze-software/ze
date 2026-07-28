@@ -117,6 +117,9 @@ func (rs *RouteServer) handleState(event *Event) {
 	}
 	up := state == "up"
 	rs.peers[peerAddr].Up = up
+	// From here on `!Up` means DOWN for this peer, never "not yet" -- see
+	// PeerState.StateSeen and processForward's guard.
+	rs.peers[peerAddr].StateSeen = true
 	cut := rs.seenMsgID
 	if up {
 		// THE CUT, captured in the same critical section that makes this peer a

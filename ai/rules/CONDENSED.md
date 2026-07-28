@@ -4312,6 +4312,14 @@ Every AC-N MUST have a test whose assertion directly verifies the AC's **expecte
 
 ## Directives
 Structural template: `ai/patterns/functional-test.md`
+## Draft a Functional Test Before It Is Live (BLOCKING)
+Never write or iterate on a `.ci` inside `test/<suite>/`, and never edit a live one in place.
+| Step | Command |
+|------|---------|
+| Write it in the incubator | `test/draft/<suite>/<name>.ci` |
+| Run only drafts | `ze-test <suite> --draft -a` |
+| Prove it under load | `scripts/dev/stress-repro.py "<suite> --draft" --test <id> --any-failure` |
+| Promote when green | `mv test/draft/<suite>/<name>.ci test/<suite>/` |
 ## Fix Code, Not Tests
 When a test fails, fix the code to make the test pass.
 ## RFC-Tagged Tests (BLOCKING)

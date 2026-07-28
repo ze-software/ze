@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1253 summaries
+Total: 1256 summaries
 
 ## 000-099
 
@@ -1327,3 +1327,6 @@ Total: 1253 summaries
 | 1279 | Perf harness rot, and a reaper that ate a tracked file | `plan/learned/1279-perf-harness-rot-and-tmp-reaper.md` |
 | 1280 | fixit-rs-community-strip-arity | `plan/learned/1280-fixit-rs-community-strip-arity.md` |
 | 1281 | Spec Delegation: Subagents Execute, the Main Thread Supervises | `plan/learned/1281-spec-delegation-subagents.md` |
+| 1282 | The Verify Plugin Stage: Nine Reds, and Why Tests Had Nowhere to Be Written | `plan/learned/1282-fixit-verify-plugin-stage-and-draft-tests.md` |
+| 1283 | fixit-ci-plugin-suite-nine | `plan/learned/1283-fixit-ci-plugin-suite-nine.md` |
+| 1284 | test-draft-workflow | `plan/learned/1284-test-draft-workflow.md` |

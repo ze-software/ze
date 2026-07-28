@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 301 design docs, 3127 files
+Total: 301 design docs, 3128 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2050,6 +2050,7 @@ Total: 301 design docs, 3127 files
 | `internal/perf/allocgate.go` | alloc-ceiling gate (ze-alloc-gate stage) |
 | `internal/test/plugins/fakeas112/store.go` | fakeas112 current-set + replay-on-request |
 | `internal/test/plugins/fakeredist/store.go` | fakeredist current-set + replay-on-request |
+| `internal/test/runner/draft_dir.go` | test/draft/, the incubator for functional tests under development |
 | `internal/test/runner/failure_group.go` | functional failure routing groups |
 | `scripts/status/verify_run.go` | verify failure routing protocol |
 

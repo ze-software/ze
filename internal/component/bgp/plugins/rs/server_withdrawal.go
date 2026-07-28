@@ -29,12 +29,22 @@ func (rs *RouteServer) processForward(key workerKey, item workItem) {
 		}
 	}()
 
-	// If the source peer is down, skip withdrawal map update and forward -- handleStateDown
-	// will withdraw all routes. This prevents PeerDown from blocking while
-	// workers process queued UPDATEs for a peer that is already gone.
+	// If the source peer is DOWN, skip withdrawal map update and forward --
+	// handleStateDown will withdraw all its routes anyway. This prevents PeerDown
+	// from blocking while workers process queued UPDATEs for a peer that is
+	// already gone.
+	//
+	// "Down" is StateSeen && !Up, not the bare !Up this used to test. A peer whose
+	// state event has not arrived yet is also !Up, and discarding its UPDATE lost
+	// the route for good: no rail replays it (dispatchStructured has already
+	// advanced seenMsgID past the message, so handleStateUp's cut excludes it
+	// too). The engine relays a message only for a session it considers
+	// established, so an UPDATE from a not-yet-up source is a real route on a
+	// healthy session and is forwarded. Target selection is unaffected either
+	// way: selectForwardTargets requires Up of the TARGETS, never of the source.
 	rs.mu.RLock()
 	peer := rs.peers[item.sourcePeer]
-	peerDown := peer == nil || !peer.Up
+	peerDown := peer != nil && peer.StateSeen && !peer.Up
 	known := peer != nil
 	rs.mu.RUnlock()
 	if peerDown {
@@ -42,7 +52,7 @@ func (rs *RouteServer) processForward(key workerKey, item workItem) {
 		// (ai/rules/fail-closed-guards.md). This arm drops the whole UPDATE --
 		// every withdrawal and every announcement in it -- and no rail replays
 		// it later, so the silence here hid permanent route loss.
-		logger().Warn("forward dropped: source peer not up",
+		logger().Warn("forward dropped: source peer is down",
 			"source-peer", item.sourcePeer, "msg-id", item.msgID, "peer-known", known)
 		return
 	}

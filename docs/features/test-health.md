@@ -11,7 +11,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
 | Enrolled RFCs with zero test-proven requirements | Q2 | **36 / 166** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
-| Logged known-failing tests | Q3 | **1** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
+| Logged known-failing tests | Q3 | **2** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
 8 further metric(s) are within threshold and are listed in full below.
 
@@ -21,7 +21,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 ### Tests with no reachable failure call
 
-**136 / 20616 (floor 136)** (ok)
+**136 / 20657 (floor 136)** (ok)
 
 These execute code and pass unconditionally. Breaking the code under test would not turn them red.
 
@@ -63,7 +63,7 @@ These execute code and pass unconditionally. Breaking the code under test would 
 
 ### time.sleep() calls in .ci tests
 
-**100 (floor 100)** (ok)
+**80 (floor 80)** (ok)
 
 A sleep is a guess about timing that hides the race it was added to mask. The ratchet allows the count to fall, never rise.
 
@@ -104,15 +104,15 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### In-repo test inventory
 
-**20646 test functions** (ok)
+**20687 test functions** (ok)
 
-2729 Go test files, 76 fuzz targets, 123 benchmarks, 1474 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
+2735 Go test files, 76 fuzz targets, 123 benchmarks, 1476 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.
 
 *Action if this degrades:* This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.
 
 ### Test files that expect a specific error
 
-**895 / 2729** (ok)
+**896 / 2735** (ok)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -150,7 +150,7 @@ A technique adopted only forward from its introduction shows here as a step: rec
 
 ### Logged known-failing tests
 
-**1** (attention)
+**2** (attention)
 
 Reds logged rather than fixed, one shard file per live failure (41 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.
 

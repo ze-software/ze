@@ -81,7 +81,7 @@
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 20616,
+        "denominator": 20657,
         "numerator": 136,
         "percent": 0.7
       },
@@ -89,7 +89,7 @@
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "136 / 20616 (floor 136)",
+      "value": "136 / 20657 (floor 136)",
       "worst": [
         {
           "file": "cmd/ze/hub/aaa_lifecycle_test.go",
@@ -181,18 +181,18 @@
       "action": "This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.",
       "counts": {
         "bench_funcs": 123,
-        "ci_files": 1474,
+        "ci_files": 1476,
         "et_files": 164,
         "fuzz_funcs": 76,
-        "test_files": 2729,
-        "test_funcs": 20646
+        "test_files": 2735,
+        "test_funcs": 20687
       },
-      "detail": "2729 Go test files, 76 fuzz targets, 123 benchmarks, 1474 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "2735 Go test files, 76 fuzz targets, 123 benchmarks, 1476 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "20646 test functions"
+      "value": "20687 test functions"
     },
     {
       "action": "Take the lowest-scoring package and add tests until its survivors die.",
@@ -254,15 +254,15 @@
     },
     {
       "action": "Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change.",
-      "actual": 100,
-      "baseline": 100,
+      "actual": 80,
+      "baseline": 80,
       "detail": "A sleep is a guess about timing that hides the race it was added to mask. The ratchet allows the count to fall, never rise.",
       "headroom": 0,
       "key": "ci-sleeps",
       "label": "time.sleep() calls in .ci tests",
       "question": "Q1",
       "status": "ok",
-      "value": "100 (floor 100)"
+      "value": "80 (floor 80)"
     },
     {
       "action": "Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.",
@@ -270,13 +270,13 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 2729,
-        "numerator": 895,
+        "denominator": 2735,
+        "numerator": 896,
         "percent": 32.8
       },
       "question": "Q2",
       "status": "ok",
-      "value": "895 / 2729",
+      "value": "896 / 2735",
       "worst": [
         {
           "area": "internal/chaos/report",
@@ -369,11 +369,11 @@
       "detail": "Reds logged rather than fixed, one shard file per live failure (41 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.",
       "key": "known-failures",
       "label": "Logged known-failing tests",
-      "live": 1,
+      "live": 2,
       "question": "Q3",
       "resolved": 41,
       "status": "warn",
-      "value": "1"
+      "value": "2"
     }
   ]
 }

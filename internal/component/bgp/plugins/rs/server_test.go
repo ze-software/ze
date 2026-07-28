@@ -924,6 +924,69 @@ func TestProcessForwardPopulatesWithdrawalMap(t *testing.T) {
 	}
 }
 
+// TestProcessForwardSourceNotYetUp verifies an UPDATE from a source peer whose
+// state event has not arrived yet is FORWARDED, while one from a peer that has
+// gone down is dropped.
+//
+// VALIDATES: processForward distinguishes "not yet up" from "down" via
+// PeerState.StateSeen (server_withdrawal.go).
+// PREVENTS: permanent route loss on a healthy session. handleOpen creates the
+// PeerState, and the engine relays a peer's OPEN and first UPDATE from the
+// session read path while the state transition travels the FSM goroutine, so the
+// worker can see Up == false for a peer that is merely not-yet-up. The old
+// `!peer.Up` guard discarded the whole UPDATE, and dispatchStructured has already
+// advanced seenMsgID past it, so handleStateUp's cut excluded it from the replay
+// as well -- the route was gone for good. Reproduced as CI test 130
+// community-strip / 400 role-otc-egress-stamp under load.
+func TestProcessForwardSourceNotYetUp(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	// 10.0.0.1: OPEN seen, state event not yet delivered (StateSeen false).
+	// 10.0.0.3: was up, then went down (StateSeen true, Up false).
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1"}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true, StateSeen: true}
+	rs.peers["10.0.0.3"] = &PeerState{Address: "10.0.0.3", StateSeen: true}
+	rs.mu.Unlock()
+
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 41 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.1.0.0/24")
+	rs.dispatchText("peer 10.0.0.3 remote as 65003 received update 42 origin igp next-hop 3.3.3.3 nlri ipv4/unicast add prefix 10.3.0.0/24")
+	flushWorkers(t, rs)
+
+	rs.withdrawalMu.Lock()
+	notYetUp := len(rs.withdrawals["10.0.0.1"])
+	down := len(rs.withdrawals["10.0.0.3"])
+	rs.withdrawalMu.Unlock()
+
+	require.Equal(t, 1, notYetUp, "UPDATE from a not-yet-up source peer must be forwarded, not discarded")
+	require.Equal(t, 0, down, "UPDATE from a source peer that is down must still be discarded")
+}
+
+// TestHandleStateMarksStateSeen verifies handleState records that a state event
+// was observed, for BOTH polarities.
+//
+// VALIDATES: PeerState.StateSeen is what makes Up == false readable.
+// PREVENTS: the down arm of processForward's guard silently never firing (a peer
+// that went down would keep being treated as "not yet up" and its queued UPDATEs
+// forwarded after teardown) if only the up path set the flag.
+func TestHandleStateMarksStateSeen(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	rs.handleState(&Event{PeerAddr: "10.0.0.1", State: "up"})
+	rs.mu.RLock()
+	afterUp := *rs.peers["10.0.0.1"]
+	rs.mu.RUnlock()
+	require.True(t, afterUp.StateSeen, "state=up must set StateSeen")
+	require.True(t, afterUp.Up, "state=up must set Up")
+
+	rs.handleState(&Event{PeerAddr: "10.0.0.2", State: "down"})
+	rs.mu.RLock()
+	afterDown := *rs.peers["10.0.0.2"]
+	rs.mu.RUnlock()
+	require.True(t, afterDown.StateSeen, "state=down must set StateSeen")
+	require.False(t, afterDown.Up, "state=down must clear Up")
+}
+
 // TestWithdrawalMapConsistency verifies withdrawal map is consistent after PeerDown drain.
 //
 // VALIDATES: AC-5 — withdrawal map correct after worker drains, cleared on peer-down.
