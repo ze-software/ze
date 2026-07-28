@@ -97,8 +97,8 @@ def engine_reaching_names(ze_api_source: str) -> set[str]:
     """Names of ze_api functions/methods that transitively reach the guard.
 
     Both module-level functions and API methods are collected into one flat name
-    set, because a .ci observer call site is matched on its trailing name
-    (`dispatch(...)` and `api.dispatch(...)` are the same function to us).
+    set, because a .ci observer call site is matched on its trailing name: a bare
+    `dispatch` and an `api.dispatch` attribute access are the same function to us.
     """
     tree = ast.parse(ze_api_source)
 

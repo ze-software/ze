@@ -520,6 +520,45 @@ func prefixKnown(resolver *pluginserver.Dispatcher, keys []string, prefix string
 	return false
 }
 
+// emittersFor decides how a file is scanned: which emitter shapes apply, whether
+// the ze_api scoping rule applies (Python only), and whether the file is scanned
+// at all.
+//
+// UNIT TESTS OF THE TOOLING ARE NOT EMITTERS. `_test.go` was excluded from the
+// first version for a reason that applies verbatim to `_test.py`, and leaving the
+// Python half in was an oversight, not a policy: both name a test that runs
+// IN-PROCESS against a fake, never against a daemon. test/scripts/ze_api_test.py
+// replaces `api._call_engine` with a function that raises, then dispatches
+// "show bgp nonsense" precisely BECAUSE the string must not resolve -- that is the
+// unknown-command path under test. scripts/dev/ci_observer_recover_check_test.py
+// passes observer source as triple-quoted FIXTURE text to a scanner. Neither
+// string ever reaches a dispatcher, so neither can rot the way this gate exists to
+// catch: a dead command there fails nothing and, more to the point, false-passes
+// nothing. The daemon-driving Python surface -- .ci observer blocks,
+// test/perf/run.py, test/scripts/ze_api.py itself -- carries no `_test.py` suffix
+// and stays fully scanned.
+//
+// The rule is deliberately the file-name convention rather than a per-file
+// allowlist: `python3 <file>_test.py` under TestPythonUnitTests
+// (scripts/dev/python_tests_test.go) is what "unit test" means here, and an
+// allowlist would need a human to maintain it. runSelftest asserts both halves of
+// this decision, so widening the exemption cannot happen silently.
+func emittersFor(path string) (emitters []*regexp.Regexp, pyScoped, skip bool) {
+	switch filepath.Ext(path) {
+	case ".ci", ".py":
+		if strings.HasSuffix(path, "_test.py") {
+			return nil, false, true
+		}
+		return pyEmitters, true, false
+	case ".go":
+		if strings.HasSuffix(path, "_test.go") {
+			return nil, false, true
+		}
+		return goEmitters, false, false
+	}
+	return nil, false, true
+}
+
 func scanAll(resolver *pluginserver.Dispatcher, keys []string) ([]Finding, int, int) {
 	var findings []Finding
 	scanned := 0
@@ -530,18 +569,8 @@ func scanAll(resolver *pluginserver.Dispatcher, keys []string) ([]Finding, int, 
 			if err != nil || info.IsDir() {
 				return nil
 			}
-			var emitters []*regexp.Regexp
-			pyScoped := false
-			switch filepath.Ext(path) {
-			case ".ci", ".py":
-				emitters = pyEmitters
-				pyScoped = true
-			case ".go":
-				if strings.HasSuffix(path, "_test.go") {
-					return nil
-				}
-				emitters = goEmitters
-			default:
+			emitters, pyScoped, skip := emittersFor(path)
+			if skip {
 				return nil
 			}
 			src, readErr := os.ReadFile(path) //nolint:gosec // repo-relative walk
@@ -721,6 +750,32 @@ func runSelftest() error {
 	}
 	if passthroughs != 1 {
 		return fmt.Errorf("fixture: expected 1 pass-through variable, got %d", passthroughs)
+	}
+
+	// The file-selection rule, asserted in BOTH directions. The scanned half is
+	// what stops the unit-test exemption from quietly widening into "any file
+	// with test in the name"; the skipped half is what stops it from being
+	// deleted by someone who reads it as dead code.
+	for _, scanned := range []string{
+		"test/plugin/cursor-replay.ci",
+		"test/scripts/ze_api.py",
+		"test/perf/run.py",
+		"internal/component/ssh/ssh.go",
+		"scripts/dev/ci_observer_recover_check.py",
+	} {
+		if _, _, skip := emittersFor(scanned); skip {
+			return fmt.Errorf("file selection: %q must be scanned but is skipped", scanned)
+		}
+	}
+	for _, skipped := range []string{
+		"test/scripts/ze_api_test.py",
+		"scripts/dev/ci_observer_recover_check_test.py",
+		"scripts/checks/ci_dispatch_commands_test.go",
+		"docs/performance.md",
+	} {
+		if _, _, skip := emittersFor(skipped); !skip {
+			return fmt.Errorf("file selection: %q must be skipped but is scanned", skipped)
+		}
 	}
 	return nil
 }
