@@ -67,8 +67,10 @@ func withModules(t *testing.T, fn func() map[string]bool) {
 
 func codes(diags []diagnostic.Diagnostic) []string {
 	out := make([]string, 0, len(diags))
-	for _, d := range diags {
-		out = append(out, d.Code)
+	// Indexed, not ranged by value: Diagnostic is 184 bytes (gocritic
+	// rangeValCopy), and only Code is read here.
+	for i := range diags {
+		out = append(out, diags[i].Code)
 	}
 	return out
 }
