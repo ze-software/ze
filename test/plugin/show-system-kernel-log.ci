@@ -1,6 +1,8 @@
 # Test: show system kernel-log count 5 returns kernel messages
 # Exercises: dispatch-command -> ze-show:system-kernel-log -> handleShowSystemKernelLog
-# Verifies AC-2: returns JSON with entries and count (Linux-only; accepts platform error)
+# Verifies AC-2: returns JSON with entries and count (Linux-only; accepts both
+# the non-Linux stub's platform error and a Linux kernel that refuses the read
+# for want of CAP_SYSLOG -- see the three outcomes in the observer below)
 
 # ze-peer: accepts connection
 stdin=peer:terminator=EOF_PEER
@@ -75,6 +77,20 @@ def main():
         data = result_text_data(resp)
         if isinstance(data, str) and 'not available on this platform' in data:
             print(f'OK: kernel-log not available on this platform (expected on non-Linux)', file=sys.stderr)
+            return
+
+        # Third outcome, and the one this test used to fail on: Linux, handler
+        # present, kernel says no. /dev/kmsg is world-readable but a reader
+        # without CAP_SYSLOG is refused while kernel.dmesg_restrict=1 -- the
+        # default on Debian/Ubuntu and on the GitHub runners, so CI reached this
+        # branch on EVERY run. That is a property of the HOST, not of ze, and the
+        # dispatch path under test (command -> ze-show:system-kernel-log ->
+        # handleShowSystemKernelLog -> a structured response) is fully exercised
+        # by getting here. Matched on the handler's own prefix
+        # (kmsgDeniedPrefix, internal/plugins/host-cmd/cmd/show_kernel_log_linux.go)
+        # rather than on 'error', so any OTHER error still fails the test.
+        if isinstance(data, str) and 'kernel log unavailable' in data:
+            print(f'OK: kernel-log refused by host policy: {data}', file=sys.stderr)
             return
 
         if status != 'done':

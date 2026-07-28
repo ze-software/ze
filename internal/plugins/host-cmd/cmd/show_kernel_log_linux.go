@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -116,11 +117,33 @@ func parseLevelArg(s string) int {
 func readKmsg(count, maxLevel int) ([]map[string]any, error) {
 	fd, err := syscall.Open("/dev/kmsg", syscall.O_RDONLY|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
 	if err != nil {
-		return nil, &os.PathError{Op: "open", Path: "/dev/kmsg", Err: err}
+		return nil, kmsgOpenError(err)
 	}
 	defer syscall.Close(fd) //nolint:errcheck // diagnostic read-only fd, close error not actionable
 
 	return drainKmsg(fd, count, maxLevel), nil
+}
+
+// kmsgDeniedPrefix opens every response produced when the kernel refuses the
+// read. Exported-in-spirit as a stable needle: the `show system kernel-log`
+// functional test asserts on it to tell "this host will not serve the ring
+// buffer" apart from "ze is broken", which a bare errno cannot express.
+const kmsgDeniedPrefix = "kernel log unavailable"
+
+// kmsgOpenError turns a failed /dev/kmsg open into a message an operator can act
+// on. EPERM/EACCES here is not a defect, it is a host policy: the device node is
+// world-readable on a stock kernel, but a reader without CAP_SYSLOG is refused
+// while kernel.dmesg_restrict is 1 (the default on Debian/Ubuntu, and on the
+// GitHub runners). "open /dev/kmsg: operation not permitted" states the syscall
+// and hides both remedies, which is the failure ai/rules/error-messages.md is
+// about; every other errno keeps its bare form because there is no remedy to
+// name.
+func kmsgOpenError(err error) error {
+	pathErr := &os.PathError{Op: "open", Path: "/dev/kmsg", Err: err}
+	if errors.Is(err, syscall.EPERM) || errors.Is(err, syscall.EACCES) {
+		return fmt.Errorf("%s: %w -- reading the kernel ring buffer needs CAP_SYSLOG, or kernel.dmesg_restrict=0", kmsgDeniedPrefix, pathErr)
+	}
+	return pathErr
 }
 
 // drainKmsg reads every currently queued record from fd and returns the newest
