@@ -2,7 +2,7 @@ option=file:conf-flow-packets.conf
 
 # flow source-ipv4 10.0.1.0/24 protocol =TCP destination-port =3128 extended-community rate-limit 1000 packets
 1:cmd:announce ipv4 flow source-ipv4 10.0.1.0/24 protocol =tcp destination-port =3128 extended-community [rate-limit:1000:packets]
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0045:02:0000002E4001010040020040050400000064C01008800C0000447A0000800E1200018500000C02180A000103810605910C38
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0045:02:0000002E4001010040020040050400000064800E1200018500000C02180A000103810605910C38C01008800C0000447A0000
 1:json:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"router-id":"1.2.3.4","direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100,"extended-community":[{"value":9226749737724149760,"string":"rate-limit:1000:packets"}]},"announce":{"ipv4 flow":{"no-nexthop":[{"source-ipv4":["10.0.1.0/24"],"protocol":["=tcp"],"destination-port":["=3128"],"string":"flow source-ipv4 10.0.1.0/24 protocol =tcp destination-port =3128"}]}}}}}}
 
 # EOR
