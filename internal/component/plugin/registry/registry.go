@@ -275,8 +275,36 @@ var (
 
 	// metricsRegistry stores the metrics registry.
 	// Set by the config loader after creating the Prometheus registry.
-	// Read by GetInternalPluginRunner to inject into plugins via ConfigureMetrics.
+	// Injected into plugins through InjectPluginMetrics, never read directly by
+	// the spawn path -- see metricsPending for why.
 	metricsRegistry metrics.Registry
+
+	// metricsPending holds the ConfigureMetrics hooks of plugins that were
+	// started before any metrics registry existed, keyed by plugin name.
+	//
+	// This is not an optimization, it is the whole reason plugin metrics exist
+	// at runtime. runPluginPhase spawns every process of a phase in step (a)
+	// (server/startup.go SpawnMore) and only then runs the tier-ordered
+	// handshake in step (c), while the registry is not created until the bgp
+	// plugin's stage-2 OnConfigure builds the reactor (bgp/plugin/register.go ->
+	// bgp/config/loader_create.go registry.SetMetricsRegistry). Every internal
+	// plugin therefore reached GetInternalPluginRunner with a nil registry and
+	// silently skipped ConfigureMetrics forever: with telemetry enabled and
+	// bgp-role, bgp-adj-rib-in and bgp-rib all loaded, `show metrics values`
+	// carried 38 ze_* series and not one of them came from a plugin. Declaring a
+	// Dependency cannot fix it, because dependencies order the HANDSHAKE and the
+	// injection is bound to the SPAWN.
+	//
+	// Deferring the hook instead of dropping it makes the arrival order stop
+	// mattering: whichever of spawn and SetMetricsRegistry happens second does
+	// the injection.
+	metricsPending = make(map[string]func(metrics.Registry))
+
+	// metricsConfigured records the plugins whose ConfigureMetrics has already
+	// run, so a plugin spawned after the registry exists is not configured a
+	// second time when a later SetMetricsRegistry drains the pending set.
+	// Re-registering the same collector would fail in the Prometheus registry.
+	metricsConfigured = make(map[string]bool)
 
 	// eventBusInstance stores the EventBus instance.
 	// Set by the engine after creating the plugin server (which implements ze.EventBus).
@@ -384,12 +412,65 @@ func FilterTypesMap() map[string]string {
 	return out
 }
 
-// SetMetricsRegistry stores the metrics registry for plugin injection.
-// Called by the config loader after creating the Prometheus registry.
+// SetMetricsRegistry stores the metrics registry for plugin injection and
+// configures every plugin that was already started without one.
+//
+// Called by the config loader after creating the Prometheus registry, which is
+// AFTER the plugin processes have been spawned (see metricsPending). The drain
+// is what makes a plugin's counters exist at all.
 func SetMetricsRegistry(reg metrics.Registry) {
 	mu.Lock()
-	defer mu.Unlock()
 	metricsRegistry = reg
+	if reg == nil {
+		// Nothing to inject, so the deferred hooks stay deferred. Draining them
+		// here would mark them configured and then run nothing, which is the
+		// original bug with an extra step: the real registry that arrives later
+		// would find the pending set already emptied.
+		mu.Unlock()
+		return
+	}
+	pending := make(map[string]func(metrics.Registry), len(metricsPending))
+	maps.Copy(pending, metricsPending)
+	clear(metricsPending)
+	for name := range pending {
+		metricsConfigured[name] = true
+	}
+	mu.Unlock()
+
+	// Invoked outside the lock: a plugin's ConfigureMetrics builds its collectors
+	// and is free to call back into this package.
+	for _, fn := range pending {
+		fn(reg)
+	}
+}
+
+// InjectPluginMetrics gives a starting plugin its metrics registry, or defers
+// the hook until one exists.
+//
+// The spawn path calls this instead of reading GetMetricsRegistry itself: a nil
+// answer at spawn time is the NORMAL case, not an "off" signal, so dropping the
+// hook there is what left every plugin's counters unregistered for the process
+// lifetime. Idempotent per plugin name -- the second caller is a no-op, so a
+// plugin spawned after the registry exists is never configured twice.
+func InjectPluginMetrics(name string, fn func(metrics.Registry)) {
+	if fn == nil {
+		return
+	}
+	mu.Lock()
+	if metricsConfigured[name] {
+		mu.Unlock()
+		return
+	}
+	reg := metricsRegistry
+	if reg == nil {
+		metricsPending[name] = fn
+		mu.Unlock()
+		return
+	}
+	metricsConfigured[name] = true
+	mu.Unlock()
+
+	fn(reg)
 }
 
 // GetMetricsRegistry returns the stored metrics registry, or nil.
@@ -851,6 +932,12 @@ func Reset() {
 	filterTypes = make(map[string]string)
 	rpcHandlers = make(map[string]func(json.RawMessage) (any, error))
 	metricsRegistry = nil
+	// Cleared with the registry they belong to: a deferred hook or a
+	// "already configured" mark surviving Reset would make the next test's
+	// SetMetricsRegistry configure a plugin from the previous one, or skip a
+	// plugin that genuinely needs configuring.
+	clear(metricsPending)
+	clear(metricsConfigured)
 	eventBusInstance = nil
 	ntpSyncProvider = nil
 }

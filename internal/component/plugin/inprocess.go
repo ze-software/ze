@@ -105,9 +105,14 @@ func GetInternalPluginRunner(name string) InternalPluginRunner {
 			reg.ConfigureEngineLogger(CanonicalSubsystemName(name))
 		}
 		if reg.ConfigureMetrics != nil {
-			if mr := registry.GetMetricsRegistry(); mr != nil {
-				reg.ConfigureMetrics(mr)
-			}
+			// Deferred, not conditional: at spawn time the metrics registry does
+			// not exist yet (runPluginPhase spawns every process before the tier
+			// handshake, and the registry is built inside the bgp plugin's
+			// stage-2 OnConfigure), so the old `if mr != nil` skipped the hook for
+			// every internal plugin and their counters never appeared in
+			// `show metrics values`. InjectPluginMetrics runs it now if a registry
+			// is already there, otherwise as soon as one is set.
+			registry.InjectPluginMetrics(name, reg.ConfigureMetrics)
 		}
 		if reg.ConfigureEventBus != nil {
 			if eb := registry.GetEventBus(); eb != nil {

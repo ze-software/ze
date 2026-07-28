@@ -1614,7 +1614,7 @@ Files: 27 | Docs: `docs/architecture.md`, `docs/architecture/api/architecture.md
 | `rpc_register.go` | `docs/architecture/api/commands.md` |
 | `schema.go` | `docs/architecture/hub-architecture.md` |
 | `server.go` | `docs/architecture.md`, `docs/architecture/api/architecture.md`, `docs/architecture/api/process-protocol.md`, `docs/architecture/overview.md`, `docs/architecture/testing/runner-architecture.md`, `docs/architecture/update-cache.md`, `docs/guide/operations.md`, `docs/guide/plugins.md`, `docs/plugin-development/metrics.md`, `docs/plugin-overview.md` |
-| `startup.go` | `docs/architecture/api/process-protocol.md` |
+| `startup.go` | `docs/architecture/api/process-protocol.md`, `docs/plugin-development/metrics.md` |
 | `startup_autoload.go` | `docs/config-reference.md`, `docs/features.md`, `docs/guide/plugins.md`, `docs/plugin-overview.md` |
 | `startup_driver.go` | `docs/architecture/api/process-protocol.md` |
 | `subsystem.go` | `docs/architecture/api/process-protocol.md`, `docs/architecture/hub-architecture.md` |

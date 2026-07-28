@@ -10,7 +10,8 @@ via the existing `ConfigureMetrics` callback in the `Registration` struct.
 Each plugin follows the same three-step pattern used by bgp-rib and bgp-gr:
 
 1. **Registration:** Set `ConfigureMetrics` in the `Registration` struct inside
-   `init()`. The callback type-asserts the `any` parameter to `metrics.Registry`.
+   `init()`. The callback receives a typed `metrics.Registry`; no assertion is
+   needed.
 
 2. **Storage:** Declare a package-level `atomic.Pointer` holding a metrics struct.
    The struct contains the counters and gauges created from the registry.
@@ -312,6 +313,27 @@ Dual-stack IPv6 (RFC 5308) adds **no new IS-IS series**: it sets `afi=ipv6` on t
 labelled series above and on the SPF route-install gauge
 `ze_isis_routes_installed{level,afi}`. IPv4 uses `afi=ipv4`; the IPv6 install pass
 runs over the same shared SPF tree.
+
+## When ConfigureMetrics Runs
+
+The hook does **not** fire while the plugin is being spawned. `runPluginPhase`
+starts every process of a startup phase before it runs the tier-ordered
+handshake, and the Prometheus registry is not created until the bgp plugin's
+stage-2 `OnConfigure` builds the reactor — so at spawn time there is usually no
+registry yet. `registry.InjectPluginMetrics` therefore defers the hook and
+`registry.SetMetricsRegistry` drains the deferred set the moment a registry
+exists; whichever of the two happens second performs the injection, exactly once
+per plugin.
+
+<!-- source: internal/component/plugin/registry/registry.go -- InjectPluginMetrics, SetMetricsRegistry -->
+<!-- source: internal/component/plugin/server/startup.go -- runPluginPhase spawns before the tier handshake -->
+
+Two consequences for a plugin author:
+
+- Do not read your metrics struct during `init()` or at the top of `RunEngine`;
+  load the atomic pointer at each metric update point, as step 3 above says.
+- Declaring a `Dependency` on `bgp` does not order the injection. Dependencies
+  order the 5-stage handshake, not the spawn the hook used to be bound to.
 
 ## NopRegistry Fallback
 

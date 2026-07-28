@@ -1,0 +1,138 @@
+# Test: an internal plugin's own metrics reach the Prometheus registry
+#
+# VALIDATES: Registration.ConfigureMetrics runs for a plugin spawned before the
+#            metrics registry exists, so the plugin's counters are queryable.
+# PREVENTS: the regression where GetInternalPluginRunner read
+#           registry.GetMetricsRegistry() at spawn time, found nil and dropped
+#           the hook. runPluginPhase spawns every process of a phase
+#           (server/startup.go step (a)) before the tier handshake, and the
+#           registry is not created until the bgp plugin's stage-2 OnConfigure
+#           builds the reactor (bgp/config/loader_create.go). Every internal
+#           plugin therefore skipped ConfigureMetrics for the process lifetime:
+#           `show metrics values` carried 38 ze_* series and not one of them came
+#           from a plugin, while the role plugin's own WARN told operators to
+#           look for ze_role_route_suppressions_total.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# ze is configured `import customer`, so RFC 9234 Section 4.2 requires this peer
+# to announce the complementary Provider role. Left to itself ze-peer mirrors
+# ze's own capability, both ends claim customer, and the session dies with an
+# OPEN Message Error subcode 11 (role mismatch) before any metric can be queried.
+option=open:value=drop-capability:code=9
+option=open:value=add-capability:code=9:hex=00
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+tmpfs=plugin-metrics.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert the bgp-role plugin's metric families are in the exposed registry."""
+import sys
+from ze_api import API, runtime_fail, result_json_data
+
+# Registered by the role plugin's buildMetrics (bgp/plugins/role/metrics.go),
+# which runs only from its Registration.ConfigureMetrics hook. Both children are
+# pre-created at 0, so their PRESENCE is the signal that the hook ran -- this
+# test deliberately does not need a route to be dropped.
+PLUGIN_METRICS = ('ze_role_route_rejects_total', 'ze_role_route_suppressions_total')
+
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+
+def series_count(result):
+    if result.get('status') != 'done':
+        return 0
+    data = result_json_data(result, {})
+    if not isinstance(data, dict):
+        return 0
+    return len(data.get('series') or [])
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    for name in PLUGIN_METRICS:
+        result = api.dispatch_until(f'show metrics name {name}', lambda r: series_count(r) > 0)
+        if series_count(result) == 0:
+            runtime_fail(f'{name} is absent from the metrics registry: {result}')
+        print(f'OK: {name} has {series_count(result)} series', file=sys.stderr)
+
+    # Control: a metric the REACTOR registers directly. It was present even with
+    # the plugin hook broken, so it is not evidence on its own -- it is here so a
+    # failure of the two assertions above cannot be blamed on telemetry being off.
+    if series_count(dispatch(api, 'show metrics name ze_peers_configured')) == 0:
+        runtime_fail('reactor metrics missing too; telemetry is not enabled in this test')
+
+    sys.stderr.flush()
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external plugin-metrics {
+		run ./plugin-metrics.run
+		encoder json
+	}
+}
+
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		role {
+			import customer
+			export default
+		}
+		process plugin-metrics {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-role -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL
