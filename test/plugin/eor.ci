@@ -1,11 +1,18 @@
 # EOR test - End of RIB markers for IPv4 and IPv6
+#
+# VALIDATES: ze emits one End-of-RIB marker per NEGOTIATED family when a session
+#            establishes, in ascending AFI order, with the exact RFC 4724 Section 2
+#            encoding (ipv4/unicast in the body, ipv6/unicast as MP_UNREACH).
+# PREVENTS:  a family losing its marker, or the marker being emitted for a family
+#            the peer never negotiated.
 
-# ze-peer expectations
+# ze-peer expectations. Both markers come from sendInitialRoutes
+# (internal/component/bgp/reactor/peer_initial_sync.go), which emits one per
+# negotiated family on establishment. Families() sorts by AFI, so ipv4 precedes
+# ipv6 deterministically.
 stdin=peer:terminator=EOF_PEER
 option=asn:value=1
-cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-cmd=api:conn=1:seq=2:text=peer * update text nlri ipv6/unicast eor
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
 EOF_PEER
 
@@ -13,19 +20,36 @@ EOF_PEER
 tmpfs=eor.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 
-import time
-
-from ze_api import ready, send, wait_for_ack, wait_for_shutdown
+from ze_api import API, runtime_fail
 
 
 def main() -> None:
-    ready()
+    api = API()
+    # Full 5-stage handshake (the module-level ready() helper's sequence).
+    api.declare_done()
+    api.wait_for_config(timeout=10.0)
+    api.capability_done()
+    api.wait_for_registry(timeout=10.0)
+    api.ready()
 
-    # Test EOR for both IPv4 and IPv6 families
-    send('peer * update text nlri ipv4/unicast eor')
-    send('peer * update text nlri ipv6/unicast eor')
-    wait_for_ack(expected_count=2)  # // test-relax: dropped 2 redundant sleeps; wait_for_ack(2) is the outbound barrier
-    wait_for_shutdown()
+    # This observer OBSERVES; it no longer sends.
+    #
+    # It used to call `update text nlri <family> eor` twice, on the premise -- once
+    # stated in this file -- that removing graceful-restart stops ze emitting
+    # markers by itself. That premise is false: sendInitialRoutes emits one per
+    # negotiated family unconditionally (peer_initial_sync.go), and those markers
+    # claim the per-family slot RFC 4724 Section 2 allows. AnnounceEOR then refuses
+    # the explicit one at BOTH gates -- peer.ShouldQueue() before the drain and
+    # !peer.ClaimInitialSyncEOR(fam) after it (reactor_api_forward.go) -- so it
+    # could never reach the wire. Its only observable effect was to raise "no
+    # established peers to send to" on the run where ze-peer, already satisfied by
+    # the real markers, had closed the session first.
+    #
+    # The wire assertions above are unchanged; they now have one producer.
+    if not api.wait_peer_eor_sent():
+        runtime_fail('peer1 never sent its initial-sync End-of-RIB')
+
+    api.wait_for_shutdown()
 
 
 if __name__ == '__main__':
@@ -65,9 +89,7 @@ bgp {
 		behavior {
 			group-updates disable
 		}
-	
-		# Note: graceful-restart removed to prevent automatic EOR on session establishment
-		# Automatic EOR is tested separately in graceful-restart-specific tests
+
 		process announce-routes {
 		}
 	}
