@@ -2,7 +2,7 @@
 # bgp-rs-community-strip-multi, driven through the route-server FAST-PATH rail.
 #
 # VALIDATES: spec-fixit-rs-community-strip-arity AC-6 -- the two rails strip
-# identically. This one covers reactor/forward_rs.go:342, which carries its own
+# identically. This one covers reactor/forward_rs.go:347, which carries its own
 # copy of the strip emission; the general rail is covered by the sibling file.
 #
 # PREVENTS: a fix landing on one rail only. The rails are selected by config
@@ -11,7 +11,7 @@
 # identical and one of them green.
 #
 # PREVENTS: the leak this test was written for. wireu.StripControlCommunities
-# (internal/component/bgp/wireu/community.go:141) accumulates EVERY matching
+# (internal/component/bgp/wireu/community.go:158) accumulates EVERY matching
 # control community into ONE slice, and the rail passes that whole slice as a
 # single AttrModRemove operation. The consuming helper, removeValues in
 # internal/component/bgp/plugins/filter_community/handler.go, used to accept a
@@ -123,7 +123,7 @@ bgp {
 			# LOAD-BEARING, and its absence is why an earlier draft of this test
 			# saw all five communities arrive intact even against the FIXED
 			# binary: session/rs-client defaults to false, and both the strip
-			# emission (reactor_api_forward.go:634 `facts.rsClient`) and the
+			# emission (reactor_api_forward.go:642 `facts.rsClient`) and the
 			# RFC 7947 policy branch above it are gated on it. Without the leaf
 			# no AttrModRemove is ever accumulated, so there is nothing for the
 			# community handler to do and the attribute is copied through.
@@ -163,7 +163,7 @@ bgp {
 			# LOAD-BEARING, and its absence is why an earlier draft of this test
 			# saw all five communities arrive intact even against the FIXED
 			# binary: session/rs-client defaults to false, and both the strip
-			# emission (reactor_api_forward.go:634 `facts.rsClient`) and the
+			# emission (reactor_api_forward.go:642 `facts.rsClient`) and the
 			# RFC 7947 policy branch above it are gated on it. Without the leaf
 			# no AttrModRemove is ever accumulated, so there is nothing for the
 			# community handler to do and the attribute is copied through.

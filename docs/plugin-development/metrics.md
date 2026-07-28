@@ -39,6 +39,7 @@ ze_{scope}_{subject}_{detail}
 <!-- source: internal/component/bgp/plugins/rib/rib.go -- ze_rib_* metric names -->
 <!-- source: internal/component/bgp/plugins/gr/gr.go -- ze_gr_* metric names -->
 <!-- source: internal/component/bgp/reactor/reactor_metrics.go -- ze_peer_* metric names -->
+<!-- source: internal/component/bgp/filterapi/metrics.go -- ze_bgp_attr_mod_* metric names -->
 
 ### Type-Specific Rules
 
@@ -108,6 +109,7 @@ Use labels for runtime dimensions. Never encode variable data in metric names.
 | `ze_attr_pool_intern_total` | GaugeVec | pool | bgp-rib |
 | `ze_attr_pool_dedup_hits_total` | GaugeVec | pool | bgp-rib |
 | `ze_attr_pool_slots_used` | GaugeVec | pool | bgp-rib |
+| `ze_bgp_attr_mod_remove_buffer_refused_total` | CounterVec | attribute | bgp reactor (filterapi) |
 | `ze_gr_active_peers` | Gauge | | bgp-gr |
 | `ze_gr_stale_routes` | GaugeVec | peer | bgp-gr |
 | `ze_gr_timer_expired_total` | CounterVec | peer | bgp-gr |
