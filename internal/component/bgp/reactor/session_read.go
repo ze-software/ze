@@ -292,8 +292,15 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		s.mu.RUnlock()
 		s.logNotifyErr(conn, req.code, req.subcode, nil)
 		s.logFSMEvent(fsm.EventUpdateMsgErr)
+		// Record the reason BEFORE closing: closeConn nils s.conn, and a Run
+		// loop that reaches its conn == nil branch with no close reason set
+		// sleeps 10 ms and retries forever (session.go:901-908). Returning the
+		// sentinel is what actually exits Run on both read rails; the close
+		// reason is the belt to that braces, and is what Run reports if the
+		// cancel goroutine wins the race to closeConn first.
+		s.setCloseReason(ErrPolicyTeardown)
 		s.closeConn()
-		return nil, kept
+		return ErrPolicyTeardown, kept
 	}
 
 	var err error

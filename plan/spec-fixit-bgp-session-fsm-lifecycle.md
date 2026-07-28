@@ -102,7 +102,11 @@ against source: `session_handlers.go:43-47`, `:98-115`, `:121-124`; cancel-gorou
 
 ## Implementation Status (audited 2026-07-27) -- THIS SPEC CANNOT BE CLOSED
 
-**Verdict: NOT closeable. AC-6 and AC-7 have no implementation and no test.** The closure
+**Verdict (2026-07-27, updated): still NOT closeable, but for a smaller reason.** AC-6 and
+AC-7 now have code and mutation-verified tests, and AC-3's missing test landed with them;
+what remains is the "Also owed, beyond the ACs" table below (`deadpeer-holddown.ci`, the
+dead-peer interop scenario, the two Q-5 counters) plus a Review Gate over the whole diff.
+The closure
 sections (`## Implementation Audit`, `## Goal Validation`, `## Pre-Commit Verification`)
 are deliberately ABSENT from this spec rather than filled with "Partial" rows. Filling
 them would satisfy `commit_helper.py`'s `pre_commit_verification_gaps` gate over work that
@@ -126,11 +130,11 @@ as evidence that the spec is closeable; read its first paragraph instead.
 |----|-------|----------------|------|
 | AC-1 (graced expiry re-arms; next expiry tears down) | **Met at the timer, wired in the session, untested at the session level** | `Timers.GraceRearmHoldTimer` (`fsm/timer.go:283-309`), called from the session's hold-expiry callback at `reactor/session.go:472` with `holdGraceExtension` (a fixed 10s, `session.go:188`, per Q-1). The teardown branch signals `errChan` at `session.go:479-482` | `TestHoldTimerRearmsAfterGracedExpiry` (`fsm/timer_test.go:456`) asserts `fireCount == 2` and `IsHoldTimerRunning() == false` after the second expiry. It models the grace branch with its own callback; nothing drives `Session`'s real callback, and `test/parse/deadpeer-holddown.ci` does not exist |
 | AC-2 (`IsHoldTimerRunning` true after a graced expiry) | **Met** | same | `fsm/timer_test.go:477-478`, explicit `require.True(..., "AC-2: hold timer must still be armed after a graced expiry")` |
-| AC-3 (`StopAll` on every teardown path; keepalive stops; Session collectable) | **Code met, named test MISSING** | `defer s.timers.StopAll()` at `reactor/session.go:827`, plus `defer s.stopSendHoldTimer()` at `:826`. The single defer covers all eight dirty paths, as D-3 intended | `TestSessionRunStopsTimersOnValidationTeardown` **does not exist** -- `grep -rn 'TestSessionRunStopsTimers' internal/component/bgp/` returns nothing. The heap-reachability assertion the spec asks for does not exist either. The `Run`-exit discipline is currently unguarded by any test |
+| AC-3 (`StopAll` on every teardown path; keepalive stops; Session collectable) | **Code met; named test LANDED 2026-07-27; heap-reachability assertion still absent** | `defer s.timers.StopAll()` at `reactor/session.go:855`, plus `defer s.stopSendHoldTimer()` at `:854`. The single defer covers all eight dirty paths, as D-3 intended | `TestSessionRunStopsTimersOnValidationTeardown` (`reactor/session_run_exit_test.go`), table-driven over two dirty paths reachable without a handshake (`session_read.go:107-119` bad length, `session_handlers.go:33` unknown type), asserting BOTH `IsKeepaliveTimerRunning` and `IsHoldTimerRunning` are false once `Run` has returned. Mutation-verified: deleting `defer s.timers.StopAll()` turns both subtests red. The heap-reachability assertion the spec asks for is still NOT written -- timers-stopped is the observable proxy for it |
 | AC-4a (second OPEN gets Cease, session leaves Established, capabilities not rebuilt) | **Met** | `reactor/session_handlers.go:61-82`: state gate on `Established`/`OpenConfirm`, `NotifyCease` code 6, `logFSMEvent(EventBGPOpen)` so the peer-closed cascade runs, then `closeConn` | `TestSecondOpenOnEstablishedSessionIsRefused` and `TestSecondOpenInOpenConfirmIsRefused` (`reactor/session_handlers_test.go:518,652`) -- both PASS 2026-07-27, and the WARN they emit (`FSM event failed ... state=IDLE`) shows the FSM transition really fired. Plus `test/plugin/open-in-established.ci` (7.2K, present) |
 | AC-5 (`FSM.Event` returns a sentinel on a default arm; `logFSMEvent`'s warn branch is live) | **Met** | `fsm.ErrFSMError` (`fsm/fsm.go:51`) returned from five error default arms (`:339,391,442,502,603`); consumed by `logFSMEvent` (`reactor/session.go:797-806`) | `TestFSMEventReturnsErrorOnIllegalTransition` (`fsm/fsm_test.go:568`), 14 subtests, all PASS 2026-07-27. It covers BOTH polarities, including the deliberate Idle ignores that must return nil |
-| **AC-6 (policy teardown exits `Run` promptly with a deliberate reconnect class)** | **NOT MET** | The policy teardown at `reactor/session_read.go:289-297` sends the NOTIFICATION, fires the FSM event and calls `closeConn` -- then `return nil, kept`. It sets NO close reason and signals NOTHING on `errChan`. `closeConn` nils `s.conn` (`session_connection.go`), so `Run`'s loop reaches the `conn == nil` branch at `session.go:882`, finds `closeReason` empty at `:884`, and sleeps 10 ms at `:887` -- forever, until an unrelated event arrives. This is defect 4b exactly as the Task section describes it. The D-7 "distinct sentinel taking the backoff class" does not exist: `grep -rn 'PolicyTeardown' internal/component/bgp/reactor/*.go` shows only the request/take plumbing, no error value | `TestPolicyTeardownExitsRun` **does not exist** |
-| **AC-7 (TCP connection closed by the time `Run` returns)** | **NOT MET** | `grep -rn 'defer s.closeConn\|defer .*closeConn' internal/component/bgp/reactor/*.go` -> **no match**. `Run`'s defers are `close(s.done)`, `stopSendHoldTimer`, `timers.StopAll`, `resetCoalesce` -- no `closeConn`. All three leak sites Q-2 approved are still live: the `handleOpen` unpack error (`session_handlers.go:87-91`), the openValidator rejection (`runOpenValidator` at `session_open_validation.go:81-117` sends a NOTIFICATION and returns WITHOUT closing, reached from `session_handlers.go:139-141`), and the local-capability parse error (`session_handlers.go:150-153`). The cancel goroutine still exits on `<-s.done` without closing (`session.go:852-853`) | none |
+| **AC-6 (policy teardown exits `Run` promptly with a deliberate reconnect class)** | **MET 2026-07-27** | `reactor/session.go:783` declares `ErrPolicyTeardown`, deliberately distinct from `ErrTeardown` so `peer_run.go:78`'s immediate-reconnect arm is NOT taken and the session falls through to exponential backoff (D-7 / Q-4). The teardown branch (`reactor/session_read.go:301-303`) now calls `setCloseReason(ErrPolicyTeardown)` BEFORE `closeConn` and returns the sentinel, which both read rails propagate (`readAndProcessMessage` `:137-139`, and every `processMessage` call site in `session_coalesce.go`). Was: `return nil, kept` with no close reason, so `Run` reached its `conn == nil` branch (`session.go:901`), found `closeReason` empty (`:903`) and slept 10 ms (`:906`) round the loop forever | `TestPolicyTeardownExitsRun` (`reactor/session_run_exit_test.go`): drives the real callback path, asserts `Run` returns `ErrPolicyTeardown` inside 5 s, asserts `NotErrorIs(ErrTeardown)` for the D-7 reconnect class, and asserts the Cease / Connection-Rejected NOTIFICATION on the wire. Mutation-verified: restoring `return nil, kept` fails it with "Run did not return within 5s ... spinning on the conn == nil branch" |
+| **AC-7 (TCP connection closed by the time `Run` returns)** | **MET 2026-07-27** | One `defer s.closeConn()` in `Run` (`reactor/session.go:868`), beside D-3's `defer s.timers.StopAll()` (`:855`), exactly the D-8 shape. `closeConn` is idempotent (nil-checked under `s.mu`, `session_connection.go:481`), so the paths that already close are unaffected | `TestRunClosesConnectionOnEveryExit` (`reactor/session_run_exit_test.go`), one subtest per Q-2-approved leak site: OPEN unpack error (`session_handlers.go:87-91`), openValidator rejection (`session_open_validation.go:115-116`), local-capability parse error (`session_handlers.go:150-153`). Each asserts the peer's read ends in EOF/closed-pipe rather than a deadline. Mutation-verified: deleting the defer turns all three red with "the connection was STILL OPEN after Run returned" |
 
 ### Also owed, beyond the ACs
 
@@ -167,15 +171,25 @@ No verification was run for AC-6 or AC-7 because there is nothing to run.
 
 ### To close this spec
 
-1. AC-6: give the policy teardown a distinct sentinel per D-7, `setCloseReason` it and
-   signal `errChan`, so `Run` returns promptly and `peer_run.go` takes the BACKOFF arm
-   rather than `ErrTeardown`'s immediate-reconnect arm. Add `TestPolicyTeardownExitsRun`.
-2. AC-7: add `defer s.closeConn()` beside the existing `defer s.timers.StopAll()` in
-   `Run`, per D-8. Cover the three leak sites.
-3. AC-3: write `TestSessionRunStopsTimersOnValidationTeardown` (table-driven over the
-   eight dirty paths) so the landed defer is actually guarded.
+1. ~~AC-6: give the policy teardown a distinct sentinel per D-7~~ **DONE 2026-07-27.**
+   Landed as `ErrPolicyTeardown` + `setCloseReason` + sentinel return, with
+   `TestPolicyTeardownExitsRun`. One deliberate deviation from this step's wording:
+   `errChan` is NOT signalled. Its only consumer is the cancel goroutine
+   (`session.go:870-896`), whose job is to close the connection so a blocked
+   `io.ReadFull` returns -- but this path already runs ON the read goroutine with the
+   connection closed, so the signal would wake a goroutine only to have it repeat a
+   `setCloseReason` that CAS-loses and a `closeConn` that no-ops. Returning the sentinel
+   is what actually exits `Run`; the close reason covers the race where the cancel
+   goroutine closes first.
+2. ~~AC-7: add `defer s.closeConn()` beside the existing `defer s.timers.StopAll()`~~
+   **DONE 2026-07-27**, with `TestRunClosesConnectionOnEveryExit` covering all three
+   Q-2 leak sites.
+3. ~~AC-3: write `TestSessionRunStopsTimersOnValidationTeardown`~~ **DONE 2026-07-27**,
+   table-driven over two dirty paths (not all eight: the other six need a negotiated
+   session to reach, and the assertion is about `Run`'s single exit defer, which is
+   path-independent by construction). The heap-reachability assertion is still unwritten.
 4. Add `deadpeer-holddown.ci`, the dead-peer interop scenario at a free number, and the
-   two Q-5 counters.
+   two Q-5 counters. **STILL OWED.**
 5. Re-run the Review Gate over the WHOLE diff, not the fsm slice, then append the closure
    sections from `plan/TEMPLATE-CLOSURE.md` and fill them.
 

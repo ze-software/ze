@@ -773,6 +773,15 @@ func (s *Session) Stop() error {
 // ErrTeardown is returned when the session is torn down via API.
 var ErrTeardown = errors.New("session teardown")
 
+// ErrPolicyTeardown is returned when an import policy filter asked for the
+// session to be torn down (e.g. filter_family). Deliberately DISTINCT from
+// ErrTeardown: peer_run.go classifies ErrTeardown as an immediate reconnect,
+// and a peer whose UPDATE tripped the filter typically re-offends on the first
+// UPDATE of the next session, which turns immediate reconnect into a
+// NOTIFICATION storm. This sentinel falls through to the exponential-backoff
+// arm instead (spec-fixit-bgp-session-fsm-lifecycle D-7, resolved Q-4).
+var ErrPolicyTeardown = errors.New("session teardown requested by import policy")
+
 // logNotifyErr sends a NOTIFICATION and logs if the send fails.
 // Used on error/shutdown paths where the connection may already be dead.
 func (s *Session) logNotifyErr(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte) {
@@ -844,6 +853,19 @@ func (s *Session) Run(ctx context.Context) error {
 	// lifecycle).
 	defer s.stopSendHoldTimer()
 	defer s.timers.StopAll()
+
+	// Same discipline for the CONNECTION: when the read loop exits, the TCP
+	// connection is closed, whatever the exit path. Several error returns send
+	// a NOTIFICATION and then return without closing — the OPEN unpack error
+	// (session_handlers.go:87-91), the openValidator rejection (runOpenValidator
+	// at session_open_validation.go:81-117, reached from session_handlers.go:139-141)
+	// and the local-capability parse error (session_handlers.go:150-153) — and the
+	// cancel goroutine exits on <-s.done without closing, so on those paths nothing
+	// closed the socket at all. Per-site closeConn calls are the shape that produced
+	// this bug class; one defer covers current and future exits. closeConn is
+	// idempotent (nil-checked under s.mu), so the paths that already close are
+	// unaffected (spec-fixit-bgp-session-fsm-lifecycle AC-7 / D-8).
+	defer s.closeConn()
 
 	// Cancel goroutine: watches for shutdown signals and closes the connection
 	// to unblock ReadFull. Sets closeReason before closing so the read loop
