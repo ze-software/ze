@@ -418,7 +418,21 @@ func TestReadGRMarkerTimeBoundary(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			store := newTestStore(t)
-			expiry := time.Now().Add(tt.offset)
+			// Round UP to the next whole second before applying the offset.
+			//
+			// The marker stores whole seconds (makeMarkerBytes takes .Unix(), and
+			// Read rebuilds it with time.Unix(ts, 0)), so an expiry derived from an
+			// unrounded time.Now() keeps only `1 - frac(now)` of the margin the case
+			// names: at now = 12:00:00.999, "1s in future" is stored as 12:00:01 and
+			// is 1ms away, which the microseconds between this write and the Read
+			// below then cross. The case failed 3 runs in a row and passed the next
+			// 5 purely on where the clock sat inside its second.
+			//
+			// Rounding up first makes the stored margin at least the named offset in
+			// every phase. The past cases stay correct: ceil(now)-1s is never after
+			// now, and Read treats an exactly-equal expiry as expired (!Before).
+			base := time.Now().Truncate(time.Second).Add(time.Second)
+			expiry := base.Add(tt.offset)
 			if err := store.WriteFile(markerKey, makeMarkerBytes(expiry.Unix()), 0); err != nil {
 				t.Fatalf("WriteFile: %v", err)
 			}
