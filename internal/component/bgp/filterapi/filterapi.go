@@ -129,6 +129,27 @@ func (a *ModAccumulator) Reset() {
 // when no filter writes modifications (the common case).
 // Multiple calls with the same code are allowed -- the handler
 // receives all ops for a given code at once during the progressive build.
+//
+// CALLER OBLIGATION, list-valued attributes. For an attribute whose value is a
+// list of fixed-width wire values -- COMMUNITY (4), EXTENDED_COMMUNITY (8),
+// LARGE_COMMUNITY (12) -- buf MUST be a whole number of those values,
+// concatenated. One value is the common case; several in one operation is
+// explicitly allowed and means "remove/add every one of them".
+//
+// This is stated here because leaving it unstated cost a live defect. The
+// route-server strip path emits every control community as one concatenated
+// buffer (internal/component/bgp/wireu/community.go:141, reaching Op at
+// reactor/reactor_api_forward.go:635 and reactor/forward_rs.go:342), while the
+// COMMUNITY handler's removal helper accepted ONLY a single value and returned
+// the data untouched otherwise -- silently, with the comment "caller bug". Any
+// route carrying two or more control communities therefore had none of them
+// stripped, and nothing anywhere said so. The handler now accepts a whole number
+// of values and warns on anything else; see
+// internal/component/bgp/plugins/filter_community/handler.go removeValues.
+//
+// Op does NOT validate this. It has no attribute-width table and runs per
+// forwarded UPDATE; the check belongs at the handler that already knows its own
+// value width.
 func (a *ModAccumulator) Op(code, action uint8, buf []byte) {
 	a.ops = append(a.ops, AttrOp{Code: code, Action: action, Buf: buf})
 }

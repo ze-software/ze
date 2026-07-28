@@ -138,6 +138,23 @@ func parseCommunityAttr(policy *CommunityPolicy, data []byte, rsASN uint32) {
 // StripControlCommunities returns the wire bytes of COMMUNITY values that
 // should be removed before forwarding (0:X and RS:X entries).
 // Returns nil if no control communities are present.
+//
+// The result is EVERY matching value, concatenated: a route tagged with three
+// control communities yields twelve bytes, not four. Callers pass it to
+// filterapi.ModAccumulator.Op as ONE AttrModRemove operation, which is valid
+// because a Remove buffer is a set of whole wire values (see Op's caller
+// obligation). Do not assume a single value: assuming exactly one is what made
+// the strip a no-op for every route carrying two or more, leaking the route
+// server's own control tags to its clients.
+//
+// Matching uses the LOW SIXTEEN BITS of rsASN, because an RFC 1997 community's
+// high half is 16 bits wide. A route server with a 4-octet ASN therefore matches
+// on a truncation and cannot express RS:X unambiguously in a standard community;
+// that is a property of the attribute, not a bug here.
+//
+// This is ze's own forwarding convention. RFC 7947 requires per-client import
+// and export policy on each redistribution but places no normative requirement
+// on stripping control communities.
 func StripControlCommunities(payload []byte, rsASN uint32) []byte {
 	var result []byte
 	rsHigh := uint16(rsASN)

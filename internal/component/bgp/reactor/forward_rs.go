@@ -338,6 +338,11 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 
 		var mods filterapi.ModAccumulator
 
+		// ONE operation carrying EVERY control community; see the identical site
+		// on the general rail (reactor_api_forward.go) for why the multi-value
+		// form is the contract rather than a shortcut. The two rails MUST stay
+		// behaviorally identical: a fix applied to one only would leak on
+		// whichever path the deployment happens to select.
 		if facts.rsClient && len(communityStripBytes) > 0 {
 			mods.Op(8, filterapi.AttrModRemove, communityStripBytes)
 		}

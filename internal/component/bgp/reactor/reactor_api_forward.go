@@ -631,6 +631,14 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 
 		var mods filterapi.ModAccumulator
 
+		// ONE operation carrying EVERY control community, not one per value.
+		// filterapi.ModAccumulator.Op documents a Remove buffer as a whole number
+		// of wire values, and filter_community's handler removes each of them.
+		// Splitting here would work too, but it would leave the contract resting
+		// on both route-server rails remembering to do it -- which is exactly how
+		// this leaked: the handler used to accept a single value only, and
+		// silently returned the list untouched for anything longer, so a route
+		// tagged with two or more control communities kept all of them.
 		if facts.rsClient && len(communityStripBytes) > 0 {
 			mods.Op(8, filterapi.AttrModRemove, communityStripBytes)
 		}

@@ -1019,6 +1019,13 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		// same registry; they self-register via filterapi, not as run plugins,
 		// so their ConfigureMetrics callback never fires.
 		filter.SetMetricsRegistry(r.metricsRegistry)
+		// Same reasoning for the attribute-modification contract counters. The
+		// AttrMod handlers register at init() via filterapi.RegisterAttrModHandler
+		// and run during the progressive build whether or not the plugin that
+		// supplied them is running, so a ConfigureMetrics hook on that plugin
+		// would leave the counter dead in exactly the configurations where a
+		// contract violation is reachable.
+		filterapi.SetMetricsRegistry(r.metricsRegistry)
 		go r.metricsUpdateLoop()
 	}
 

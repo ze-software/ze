@@ -1,7 +1,11 @@
 package filter_community
 
 import (
+	"bytes"
 	"encoding/binary"
+	"io"
+	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/metrics"
 )
 
 // buildFullCommunityAttr builds a full COMMUNITY attribute (flags+code+extlen+data) for handler tests.
@@ -267,4 +272,254 @@ func TestApplyEgressFilterOps(t *testing.T) {
 	assert.Equal(t, byte(attribute.AttrCommunity), ops[1].Code)
 	assert.Equal(t, filterapi.AttrModAdd, ops[1].Action)
 	assert.Equal(t, tagWire, ops[1].Buf)
+}
+
+// TestRemoveValuesMultiValueBuffer verifies that a Remove buffer holding SEVERAL
+// whole wire values removes every one of them.
+//
+// VALIDATES: spec-fixit-rs-community-strip-arity AC-1/AC-2 -- the route-server
+// strip path (reactor_api_forward.go:635, forward_rs.go:342) hands this function
+// the concatenated output of wireu.StripControlCommunities, which accumulates
+// EVERY matching control community into one slice.
+// PREVENTS: the leak this spec exists for. Before the fix the size guard saw
+// 8 bytes against a 4-byte value width, returned the list untouched, and both
+// control communities reached the route-server client.
+func TestRemoveValuesMultiValueBuffer(t *testing.T) {
+	data := buildCommunityValues(0x0000_FDE9, 0x0001_0001, 0x0000_FDEA, 0x0002_0002)
+	toRemove := buildCommunityValues(0x0000_FDE9, 0x0000_FDEA)
+
+	got, ok := removeValues(data, 4, toRemove)
+
+	require.True(t, ok, "a whole number of values is a valid buffer")
+	assert.Equal(t, buildCommunityValues(0x0001_0001, 0x0002_0002), got,
+		"both control communities removed, both ordinary ones kept in order")
+}
+
+// TestRemoveValuesSingleUnchanged pins the single-value case byte-for-byte.
+//
+// VALIDATES: spec-fixit-rs-community-strip-arity A-2 -- widening the contract
+// must not disturb the producers that already split, namely the text-delta path
+// (reactor/filter_delta.go:221-224) and the plugin's own egress filter
+// (egress.go:28-30).
+// PREVENTS: a regression in configured `community { egress strip NAME }`, which
+// is the only community stripping with existing functional coverage.
+func TestRemoveValuesSingleUnchanged(t *testing.T) {
+	data := buildCommunityValues(0x0001_0001, 0x0002_0002, 0x0003_0003)
+	toRemove := buildCommunityValues(0x0002_0002)
+
+	got, ok := removeValues(data, 4, toRemove)
+
+	require.True(t, ok)
+	assert.Equal(t, buildCommunityValues(0x0001_0001, 0x0003_0003), got)
+}
+
+// TestRemoveValuesNonMultipleRefusedLoudly verifies that a buffer length which is
+// not a whole multiple of the value width is REPORTED, not silently swallowed.
+//
+// VALIDATES: spec-fixit-rs-community-strip-arity AC-5 and
+// ai/rules/fail-closed-guards.md -- a guard must fail closed or say something.
+// PREVENTS: the second half of this defect. The original guard returned the data
+// unchanged with the comment "caller bug, silently preserve data", so the
+// route-server contract violation was invisible from the day it was introduced.
+// Asserting on the RETURNED signal rather than only on the log keeps this test
+// independent of logging configuration.
+func TestRemoveValuesNonMultipleRefusedLoudly(t *testing.T) {
+	data := buildCommunityValues(0x0001_0001, 0x0002_0002)
+	toRemove := []byte{0x00, 0x01, 0x00, 0x02, 0xFF} // 5 bytes, width 4
+
+	got, ok := removeValues(data, 4, toRemove)
+
+	assert.False(t, ok, "a non-multiple length is a caller-contract violation")
+	assert.Equal(t, data, got, "data is preserved unchanged when the op is refused")
+}
+
+// TestGenericCommunityHandlerWarnsOnNonMultiple verifies the handler both LOGS the
+// refusal and keeps applying the attribute's remaining operations.
+//
+// VALIDATES: spec-fixit-rs-community-strip-arity AC-5, both halves.
+// PREVENTS: a refusal that is silent (the original defect) or one that discards
+// the sibling operations along with the bad one.
+func TestGenericCommunityHandlerWarnsOnNonMultiple(t *testing.T) {
+	var logged bytes.Buffer
+	saved := logger
+	logger = func() *slog.Logger {
+		return slog.New(slog.NewTextHandler(&logged, &slog.HandlerOptions{Level: slog.LevelWarn}))
+	}
+	t.Cleanup(func() { logger = saved })
+
+	src := buildFullCommunityAttr(buildCommunityValues(0x0001_0001, 0x0002_0002))
+	ops := []filterapi.AttrOp{
+		{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModRemove, Buf: []byte{0x00, 0x01, 0x00}},
+		{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModRemove, Buf: buildCommunityValues(0x0001_0001)},
+	}
+
+	buf := make([]byte, 256)
+	off := communityAttrModHandler(src, ops, buf, 0)
+
+	out := logged.String()
+	assert.Contains(t, out, "level=WARN", "the refusal must be reported, not swallowed")
+	assert.Contains(t, out, "3", "the message names the offending buffer length")
+
+	require.Equal(t, 8, off, "the well-formed sibling op still applied")
+	assert.Equal(t, uint32(0x0002_0002), binary.BigEndian.Uint32(buf[4:8]),
+		"only the value named by the VALID op was removed")
+}
+
+// TestRemoveValuesAllWidths proves the fix is width-independent.
+//
+// VALIDATES: spec-fixit-rs-community-strip-arity AC-7 and A-4 -- widths 4, 8 and
+// 12 share genericCommunityHandler with only valueSize differing
+// (handler.go:19-31), so the arity rule must hold for all three.
+// PREVENTS: a fix that repairs COMMUNITY while leaving EXTENDED_COMMUNITY and
+// LARGE_COMMUNITY silently dropping multi-value Remove buffers.
+func TestRemoveValuesAllWidths(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		width int
+	}{
+		{"community", 4},
+		{"extended-community", 8},
+		{"large-community", 12},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			val := func(fill byte) []byte {
+				b := make([]byte, tc.width)
+				for i := range b {
+					b[i] = fill
+				}
+				return b
+			}
+			data := append(append(append([]byte{}, val(1)...), val(2)...), val(3)...)
+			toRemove := append(append([]byte{}, val(1)...), val(3)...)
+
+			got, ok := removeValues(data, tc.width, toRemove)
+
+			require.True(t, ok)
+			assert.Equal(t, val(2), got, "both listed values removed at width %d", tc.width)
+
+			short, ok := removeValues(data, tc.width, val(1)[:tc.width-1])
+			assert.False(t, ok, "a non-multiple length is refused at width %d", tc.width)
+			assert.Equal(t, data, short)
+		})
+	}
+}
+
+// TestRemoveValuesMultiRemovingEverythingOmitsAttribute verifies that a
+// multi-value Remove which empties the list still omits the attribute.
+//
+// VALIDATES: spec-fixit-rs-community-strip-arity AC-4 -- the existing
+// "omit entirely when nothing remains" behavior at handler.go:93-95 must
+// survive the arity change.
+// PREVENTS: a zero-length COMMUNITY attribute on the wire, which is malformed.
+func TestRemoveValuesMultiRemovingEverythingOmitsAttribute(t *testing.T) {
+	src := buildFullCommunityAttr(buildCommunityValues(0x0000_FDE9, 0x0000_FDEA))
+	ops := []filterapi.AttrOp{{
+		Code:   byte(attribute.AttrCommunity),
+		Action: filterapi.AttrModRemove,
+		Buf:    buildCommunityValues(0x0000_FDE9, 0x0000_FDEA),
+	}}
+
+	buf := make([]byte, 256)
+	off := communityAttrModHandler(src, ops, buf, 0)
+
+	assert.Equal(t, 0, off, "every value removed: attribute omitted entirely")
+}
+
+// countingCounter and countingRegistry are the smallest metrics.Registry that
+// lets this package observe whether the handler reached the recorder in
+// filterapi. Only CounterVec is real; everything else is a no-op.
+type countingCounter struct{ n int }
+
+func (c *countingCounter) Inc()          { c.n++ }
+func (c *countingCounter) Add(_ float64) { c.n++ }
+
+type countingCounterVec struct{ seen map[string]*countingCounter }
+
+func (v *countingCounterVec) With(labelValues ...string) metrics.Counter {
+	if v.seen == nil {
+		v.seen = map[string]*countingCounter{}
+	}
+	key := strings.Join(labelValues, "|")
+	c, ok := v.seen[key]
+	if !ok {
+		c = &countingCounter{}
+		v.seen[key] = c
+	}
+	return c
+}
+
+func (v *countingCounterVec) Delete(_ ...string) bool { return false }
+
+type countingRegistry struct{ vec *countingCounterVec }
+
+func (r *countingRegistry) Counter(_, _ string) metrics.Counter { return &countingCounter{} }
+func (r *countingRegistry) Gauge(_, _ string) metrics.Gauge {
+	return metrics.NopRegistry{}.Gauge("", "")
+}
+
+func (r *countingRegistry) CounterVec(_, _ string, _ []string) metrics.CounterVec {
+	if r.vec == nil {
+		r.vec = &countingCounterVec{}
+	}
+	return r.vec
+}
+
+func (r *countingRegistry) GaugeVec(_, _ string, _ []string) metrics.GaugeVec {
+	return metrics.NopRegistry{}.GaugeVec("", "", nil)
+}
+
+func (r *countingRegistry) Histogram(_, _ string, _ []float64) metrics.Histogram {
+	return metrics.NopRegistry{}.Histogram("", "", nil)
+}
+
+func (r *countingRegistry) HistogramVec(_, _ string, _ []float64, _ []string) metrics.HistogramVec {
+	return metrics.NopRegistry{}.HistogramVec("", "", nil, nil)
+}
+
+// TestGenericCommunityHandlerCountsRefusals verifies the handler reaches the
+// filterapi refusal counter, and only on a refusal.
+//
+// VALIDATES: spec-fixit-rs-community-strip-arity R-2 -- "the loud refusal fires
+// in production for a producer the enumeration missed" needs to be MEASURABLE,
+// not only greppable. Its mitigation is that one line identifies the producer;
+// the counter is what makes anyone look.
+// PREVENTS: a recorder that is correct in isolation but never called, which is
+// the same dead-coverage shape as the untested strip path this spec started
+// from. Asserting the label too pins the counter to the right attribute.
+func TestGenericCommunityHandlerCountsRefusals(t *testing.T) {
+	reg := &countingRegistry{}
+	filterapi.SetMetricsRegistry(reg)
+	t.Cleanup(func() { filterapi.SetMetricsRegistry(nil) })
+
+	silenced := logger
+	logger = func() *slog.Logger {
+		return slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
+	t.Cleanup(func() { logger = silenced })
+
+	src := buildFullCommunityAttr(buildCommunityValues(0x0001_0001, 0x0002_0002))
+
+	// A well-formed Remove must NOT count.
+	good := []filterapi.AttrOp{{
+		Code:   byte(attribute.AttrCommunity),
+		Action: filterapi.AttrModRemove,
+		Buf:    buildCommunityValues(0x0001_0001),
+	}}
+	buf := make([]byte, 256)
+	communityAttrModHandler(src, good, buf, 0)
+	// Assert on the ABSENCE of the series, not on its value: SetMetricsRegistry
+	// creates the vector eagerly, so reg.vec is already non-nil here and only a
+	// With() call -- i.e. an actual refusal -- creates the per-label counter.
+	assert.NotContains(t, reg.vec.seen, "community", "a valid Remove must not count as a refusal")
+
+	// A non-multiple buffer must count once, under the community label.
+	bad := []filterapi.AttrOp{{
+		Code:   byte(attribute.AttrCommunity),
+		Action: filterapi.AttrModRemove,
+		Buf:    []byte{0x00, 0x01, 0x00},
+	}}
+	communityAttrModHandler(src, bad, buf, 0)
+
+	require.NotNil(t, reg.vec, "the refusal must have created the counter vector")
+	assert.Equal(t, 1, reg.vec.seen["community"].n)
 }

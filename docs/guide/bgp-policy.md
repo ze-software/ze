@@ -72,6 +72,35 @@ Attribute modification belongs in an explicit export or import chain. Keep each 
 
 Inspect the live plugin documentation before using increment or decrement operations. Attribute ranges and missing-attribute behaviour are validated by the owning plugin.
 
+## Route-server control communities
+
+When ze runs as a route server, a client can steer its own routes by tagging them with communities the route server reads and then removes. A peer becomes a route-server client with `rs-client true` under its `session` block; the communities below are only interpreted for such peers.
+
+| Community | Meaning |
+|-----------|---------|
+| `0:<asn>` | Do not advertise this route to `<asn>`. |
+| `<rs-asn>:<asn>` | Advertise this route ONLY to the listed ASNs. |
+| `<rs-asn>:0` | Do not advertise this route to any client. |
+| `65535:666` | RFC 7999 blackhole. |
+
+A whitelist wins over a blacklist: if a route carries any `<rs-asn>:<asn>` tag, only the listed ASNs receive it and `0:<asn>` tags on the same route are not consulted.
+
+These are control tags, not attributes to pass on. The route server strips every one of them from the route before forwarding it, so a client never sees another client's steering instructions or the route server's own. Communities the route server does not recognise are forwarded untouched and in their original order, so a client's own tagging survives.
+
+```
+# Client tags a route: keep it away from AS 64998, and let AS 65002 have it.
+# The route server removes both tags; 65001:100 reaches AS 65002 unchanged.
+community [ 0:64998 65000:65002 65001:100 ]
+```
+
+Two limits are worth knowing:
+
+- A standard community's high half is 16 bits (RFC 1997), so a route server with a 4-octet ASN matches `<rs-asn>:<asn>` on the low 16 bits of its ASN only. Use large communities where that is ambiguous.
+- Stripping is ze's own forwarding behaviour. RFC 7947 requires per-client import and export policy but does not mandate it, so a different route-server implementation may leave these tags in place.
+
+<!-- source: internal/component/bgp/wireu/community.go — ParseCommunityPolicy, ShouldForwardTo, StripControlCommunities -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go — general forwarding rail; forward_rs.go — route-server fast path -->
+
 ## Redistribution
 
 The top-level `redistribute` block moves selected routes between protocol RIBs. Redistribution is separate from ordinary per-peer BGP filtering, but the resulting routes still pass through the destination protocol's policy and loop-prevention rules.
