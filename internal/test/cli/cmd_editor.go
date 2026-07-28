@@ -32,6 +32,7 @@ func cmdEditorMain(args []string) error {
 	fs.StringVar(pattern, "pattern", "", "run only tests matching pattern")
 	start := fs.String("start", "", "start at test id/name and run through the end")
 	dir := fs.String("dir", "", "test directory (default: test/editor)")
+	draft := fs.Bool("draft", false, "discover from test/draft/editor instead of test/editor (tests under development)")
 	verbose := fs.Bool("v", false, "verbose output")
 	fs.BoolVar(verbose, "verbose", false, "verbose output")
 	quiet := fs.Bool("q", false, "minimal output")
@@ -73,7 +74,7 @@ Examples:
 		return fmt.Errorf("find base dir: %w", err)
 	}
 
-	testDir := filepath.Join(baseDir, "test", "editor")
+	testDir := runner.SuiteDir(baseDir, "editor", *draft)
 	testArgs := fs.Args()
 	if *dir != "" {
 		if filepath.IsAbs(*dir) {

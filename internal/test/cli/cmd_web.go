@@ -86,6 +86,7 @@ func cmdWebMain(args []string) error {
 	listOnly := fs.Bool("l", false, "list tests without running")
 	fs.BoolVar(listOnly, "list", false, "list tests without running")
 	start := fs.String("start", "", "start at test id/name and run through the end")
+	draft := fs.Bool("draft", false, "discover from test/draft/web instead of test/web (tests under development)")
 
 	fs.Usage = func() {
 		os.Stderr.WriteString(webUsageHeader) //nolint:errcheck // terminal output
@@ -107,7 +108,7 @@ func cmdWebMain(args []string) error {
 		return fmt.Errorf("find base dir: %w", err)
 	}
 
-	testDir := filepath.Join(baseDir, "test", "web")
+	testDir := runner.SuiteDir(baseDir, "web", *draft)
 	runner.ResetNickCounter()
 	tests := runner.NewTestSet[*zeTestWebTest]()
 	if walkErr := filepath.WalkDir(testDir, func(path string, d os.DirEntry, werr error) error {

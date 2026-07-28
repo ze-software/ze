@@ -59,6 +59,11 @@ func TestCIFrameLengthsWellFormed(t *testing.T) {
 		if err != nil {
 			return err
 		}
+		// test/draft/ is invisible to every gate, this one included
+		// (test/draft/README.md).
+		if d.IsDir() && IsDraftPath(root, path) {
+			return filepath.SkipDir
+		}
 		if d.IsDir() || !strings.HasSuffix(path, ".ci") {
 			return nil
 		}
@@ -202,6 +207,11 @@ func TestCIFrameStructureWellFormed(t *testing.T) {
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
+		}
+		// test/draft/ is invisible to every gate, this one included
+		// (test/draft/README.md).
+		if d.IsDir() && IsDraftPath(root, path) {
+			return filepath.SkipDir
 		}
 		if d.IsDir() || !strings.HasSuffix(path, ".ci") {
 			return nil

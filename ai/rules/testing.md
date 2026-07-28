@@ -8,6 +8,29 @@
 Rationale: `ai/rationale/testing.md`
 Structural template: `ai/patterns/functional-test.md`
 
+## Draft a Functional Test Before It Is Live (BLOCKING)
+
+Never write or iterate on a `.ci` inside `test/<suite>/`, and never edit a live
+one in place. That directory runs on every `make ze-verify` in the checkout,
+including runs by OTHER sessions, who then have to work out whether your
+half-written test is their regression.
+
+| Step | Command |
+|------|---------|
+| Write it in the incubator | `test/draft/<suite>/<name>.ci` |
+| Run only drafts | `ze-test <suite> --draft -a` |
+| Prove it under load | `scripts/dev/stress-repro.py "<suite> --draft" --test <id> --any-failure` |
+| Promote when green | `mv test/draft/<suite>/<name>.ci test/<suite>/` |
+
+`test/draft/` is gitignored and skipped by every repo-wide gate, so a draft
+cannot redden anything for anyone. Changing an existing test is the same move:
+copy it into the incubator, work there, `mv` it back. Full workflow: the
+`/ze-test` skill, `test/draft/README.md`, `docs/functional-tests.md`.
+
+Nothing in the incubator is gated, so promote early: the accept-only check, the
+`time.sleep(` ratchet, and frame-length validation only start applying once the
+file is live.
+
 ## Fix Code, Not Tests
 
 When a test fails, fix the code to make the test pass. NEVER weaken or simplify test expectations to match broken code. Tests are ground truth. Even if an underlying mechanism changed (e.g., Unix sockets replaced by SSH), the test expectations stay and the replacement mechanism must satisfy them.

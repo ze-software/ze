@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -47,6 +46,7 @@ func runCISubcommandInner(cfg CIRunnerConfig, args []string) error {
 	fs.BoolVar(quiet, "quiet", false, "minimal output")
 	parallel := fs.Int("p", cfg.DefaultParallel, "max concurrent tests (0 = all)")
 	fs.IntVar(parallel, "parallel", cfg.DefaultParallel, "max concurrent tests (0 = all)")
+	draft := fs.Bool("draft", false, "discover from test/draft/<suite> instead of test/<suite> (tests under development)")
 
 	fs.Usage = func() {
 		var b textbuf.Buffer
@@ -77,7 +77,7 @@ func runCISubcommandInner(cfg CIRunnerConfig, args []string) error {
 
 	runner.ResetNickCounter()
 	tests := runner.NewEncodingTests(baseDir)
-	testDir := filepath.Join(baseDir, "test", cfg.TestSubdir)
+	testDir := runner.SuiteDir(baseDir, cfg.TestSubdir, *draft)
 
 	if err := tests.Discover(testDir); err != nil {
 		return fmt.Errorf("discover tests: %w", err)

@@ -25,6 +25,19 @@ build/
 database.zefs
 etc/ze/database.zefs*
 
+# Functional tests under development. A .ci in here is invisible to every suite
+# and every repo-wide gate (see test/draft/README.md), so a half-written test can
+# never redden `make ze-verify` or CI. Ignored rather than merely excluded: CI
+# checks out git, so an ignored tree does not exist there at all, which makes the
+# guarantee independent of every gate remembering to skip it.
+# Promote with: mv test/draft/<suite>/<name>.ci test/<suite>/<name>.ci
+#
+# `test/draft/*`, NOT `test/draft/`: git does not descend into an excluded
+# DIRECTORY, so the negation below would never be evaluated and the README would
+# be ignored too, leaving the convention undiscoverable from a fresh clone.
+test/draft/*
+!test/draft/README.md
+
 # MRT data files (large, downloaded)
 test/internet/*.gz
 test/internet/*.bz2

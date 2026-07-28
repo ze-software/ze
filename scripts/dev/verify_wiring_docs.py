@@ -206,6 +206,24 @@ SLEEP_BASELINE = "test/.ci-sleep-baseline"
 SLEEP_RE = re.compile(r"time\.sleep\(")
 _SIGNED_INT_RE = re.compile(r"^[+-]?\d+$")
 
+# Functional tests under development live here. Gitignored and invisible to every
+# repo-wide gate, so a draft cannot move this ratchet or redden any other check
+# (test/draft/README.md, internal/test/runner/draft_dir.go).
+DRAFT_DIR = "draft"
+
+
+def real_ci_files(root: Path):
+    """Every .ci test under test/, EXCLUDING the test/draft/ incubator.
+
+    A draft carrying an unjustified `time.sleep(` would otherwise raise the count
+    over the committed ceiling and fail the ratchet for whoever ran verify next --
+    including a session that had nothing to do with the draft.
+    """
+    for ci in (root / "test").rglob("*.ci"):
+        if ci.relative_to(root / "test").parts[:1] == (DRAFT_DIR,):
+            continue
+        yield ci
+
 
 def parse_sleep_baseline(text: str) -> int | None:
     """Ceiling from the composable delta baseline: the SUM of every signed-integer
@@ -251,7 +269,7 @@ def check_ci_sleep_ratchet(root: Path, changed: Iterable[str]) -> int:
     if ceiling is None:
         return 0
     count = 0
-    for ci in (root / "test").rglob("*.ci"):
+    for ci in real_ci_files(root):
         try:
             count += len(SLEEP_RE.findall(ci.read_text(encoding="utf-8")))
         except OSError:

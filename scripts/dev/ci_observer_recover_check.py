@@ -246,7 +246,13 @@ def main() -> int:
 
     engine_names = engine_reaching_names(ze_api_path.read_text())
 
-    ci_files = sorted((root / "test").rglob("*.ci"))
+    # test/draft/ is the incubator for tests under development and is invisible to
+    # every repo-wide gate, this one included (test/draft/README.md).
+    ci_files = sorted(
+        ci
+        for ci in (root / "test").rglob("*.ci")
+        if ci.relative_to(root / "test").parts[:1] != ("draft",)
+    )
     findings = []
     blocks_scanned = 0
     for ci in ci_files:

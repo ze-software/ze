@@ -185,10 +185,47 @@ ze-test editor --start 42
 
 # Stress test selected tests
 ze-test bgp encode --count 10 1 2
+
+# Run tests under development from test/draft/<suite> instead of test/<suite>
+ze-test bgp plugin --draft --all
 ```
 <!-- source: internal/test/cli/cmd_bgp.go -- parseRunCLI, printRunUsage -->
 <!-- source: internal/test/cli/ci_runner.go -- runCISubcommand common options -->
 <!-- source: internal/test/cli/cmd_editor.go -- editorMain common options -->
+
+---
+## Writing a Test: Draft First
+
+**Never write or iterate on a `.ci` inside `test/<suite>/`.** That directory is
+live: every `make ze-verify` in the checkout runs it, including runs by other
+sessions working on unrelated things, who then have to work out whether your
+half-written test is their regression. The same applies to CHANGING an existing
+test.
+
+Drafts live in `test/draft/<suite>/`, which is gitignored and skipped by every
+repo-wide gate:
+
+```bash
+$EDITOR test/draft/plugin/my-test.ci        # 1. write
+ze-test bgp plugin --draft -a               # 2. run only drafts
+python3 scripts/dev/stress-repro.py "bgp plugin --draft" --test 1 --any-failure
+mv test/draft/plugin/my-test.ci test/plugin/  # 3. promote when green
+ze-test bgp plugin -a                       # 4. now it is real
+```
+
+`--draft` swaps the discovery root; without it you always get the real tests.
+Suite discovery is a non-recursive glob, so the incubator is invisible to it for
+free; the six gates that walk `test/` recursively each skip it explicitly, and
+`TestDraftDirIsInvisibleToRepoGates` fails if one of them stops. Adding a new
+repo-wide `.ci` scanner means skipping `test/draft/` in it and adding a row to
+that test.
+
+Nothing in the incubator is gated, so promote early rather than polishing for
+days against no accept-only check, no sleep ratchet, and no frame-length
+validation. Full contract and workflow: `test/draft/README.md`, or the
+`/ze-test` skill.
+<!-- source: internal/test/runner/draft_dir.go -- SuiteDir, IsDraftPath, DraftDirName -->
+<!-- source: internal/test/runner/draft_dir_test.go -- TestDraftDirIsInvisibleToRepoGates ratchet -->
 
 ---
 ## Functional Suite Inventory
@@ -358,11 +395,32 @@ collision -- so a sibling's concurrent flood is indistinguishable from the test'
 own: `ddos-detect-characterize` resolved `127.0.0.4`, which belongs to
 `ddos-detect-mitigate`, and `ddos-direction` resolved no victim at all and fell
 back to `direction=remote`. Non-overlap is the only property that fixes it.
-`TestDDoSFunctionalTestsDeclareExclusiveGroup` ratchets the invariant so a new
-needs-linux ddos test cannot land without it.
+`TestContendingFunctionalTestsDeclareExclusiveGroup` ratchets the invariant so a
+new needs-linux ddos test cannot land without it.
+
+The BFD cluster (`option=exclusive:group=bfd-ports`) is the same shape with a
+different shared resource, and it contends on every host rather than only in the
+VM. BFD listens on the ports RFC 5881 and RFC 5883 *fix* -- 3784 for control and
+3785 for echo -- so every BFD test's daemon binds the same wildcard tuple. They
+co-exist only because `ze.bfd.test-parallel=true` sets `SO_REUSEPORT`, and the
+kernel then hashes each inbound datagram to one socket in that group: a control
+reply or a reflected echo meant for one daemon is delivered to a sibling's
+instead. `bfd-echo-handshake` was the visible casualty, failing in CI with
+`ze_bfd_echo_rtt_us histogram has no buckets` because its reflections were landing
+on another BFD test's daemon. A port number an RFC fixes is precisely the address
+unique config cannot partition. Membership is "declares `ze.bfd.test-parallel`",
+which is the same ratchet's third cluster.
+<!-- source: internal/component/bfd/transport/udp_linux.go -- applySocketOptions, SO_REUSEPORT under ze.bfd.test-parallel -->
+
+Related: a test that binds a *chosen* port must take it from the runner's per-test
+range (`$PORT`, `$PORT2`), never a literal. `bfd-echo-handshake` hardcoded
+telemetry port 19274, which sits outside every range the runner hands out, so a
+sibling whose shifted range covered it collided and ze logged `metrics server
+failed to start: address already in use` -- a red with nothing to do with the
+subject of the test.
 <!-- source: internal/test/runner/record_parse.go -- option=exclusive parsing, ExclusiveGroup -->
 <!-- source: internal/test/runner/parallel.go -- per-group lock taken before the concurrency semaphore -->
-<!-- source: internal/test/runner/exclusive_group_test.go -- TestDDoSFunctionalTestsDeclareExclusiveGroup ratchet -->
+<!-- source: internal/test/runner/exclusive_group_test.go -- TestContendingFunctionalTestsDeclareExclusiveGroup ratchet -->
 <!-- source: internal/plugins/policyroute/translate.go -- policyRoutingTable = "ze_pr" -->
 <!-- source: internal/plugins/policyroute/marks.go -- fwmarkBase deterministic per process -->
 <!-- source: test/traffic/022-boot-qdisc-tc.ci -- needs-linux tc qdisc assertion -->

@@ -156,9 +156,9 @@ func zeTestRunSimpleTests(ctx context.Context, cli *zeTestRunCLIFlags, baseDir s
 	var testDir string
 	switch cli.command {
 	case "decode":
-		testDir = filepath.Join(baseDir, "test", "decode")
+		testDir = runner.SuiteDir(baseDir, "decode", cli.draft)
 	case "parse":
-		testDir = filepath.Join(baseDir, "test", "parse")
+		testDir = runner.SuiteDir(baseDir, "parse", cli.draft)
 	}
 
 	if err := tests.Discover(testDir); err != nil {
@@ -214,17 +214,18 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 	runner.ResetNickCounter()
 
 	tests := runner.NewEncodingTests(baseDir)
-	testDir := filepath.Join(baseDir, "test", "encode")
+	suite := "encode"
 	switch cli.command {
 	case cmdPlugin:
-		testDir = filepath.Join(baseDir, "test", "plugin")
+		suite = "plugin"
 	case "reload":
-		testDir = filepath.Join(baseDir, "test", "reload")
+		suite = "reload"
 	case cmdChaosWeb:
-		testDir = filepath.Join(baseDir, "test", "chaos-web")
+		suite = "chaos-web"
 	case cmdChaosIntg:
-		testDir = filepath.Join(baseDir, "test", "chaos")
+		suite = "chaos"
 	}
+	testDir := runner.SuiteDir(baseDir, suite, cli.draft)
 
 	if err := tests.Discover(testDir); err != nil {
 		return fmt.Errorf("discover tests: %w", err)
@@ -510,7 +511,11 @@ type zeTestRunCLIFlags struct {
 	server    string
 	client    string
 	count     int
-	testArgs  []string
+	// draft discovers from test/draft/<suite> instead of test/<suite>, so a test
+	// under development runs without being visible to any suite or gate
+	// (test/draft/README.md).
+	draft    bool
+	testArgs []string
 }
 
 func zeTestParseRunCLI(args []string) *zeTestRunCLIFlags {
@@ -556,6 +561,7 @@ func zeTestParseRunCLI(args []string) *zeTestRunCLIFlags {
 	fs.StringVar(&cli.client, "client", "", "run client only for test")
 	fs.IntVar(&cli.count, "c", 1, "run each test N times")
 	fs.IntVar(&cli.count, "count", 1, "run each test N times")
+	fs.BoolVar(&cli.draft, "draft", false, "discover from test/draft/<suite> instead of test/<suite> (tests under development)")
 
 	if err := fs.Parse(args[1:]); err != nil {
 		return nil

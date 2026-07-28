@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -50,7 +49,7 @@ func zeTestVppMain(args []string) error {
 	runner.ResetNickCounter()
 
 	tests := runner.NewEncodingTests(baseDir)
-	testDir := filepath.Join(baseDir, "test", "vpp")
+	testDir := runner.SuiteDir(baseDir, "vpp", cli.draft)
 	if err := tests.Discover(testDir); err != nil {
 		return fmt.Errorf("discover tests: %w", err)
 	}
@@ -130,6 +129,8 @@ type vppCLIFlags struct {
 	quiet    bool
 	saveDir  string
 	port     int
+	// draft discovers from test/draft/vpp instead of test/vpp (test/draft/README.md).
+	draft    bool
 	testArgs []string
 }
 
@@ -153,6 +154,7 @@ func zeTestParseVPPCLI(args []string) (*vppCLIFlags, bool) {
 	fs.StringVar(&cli.saveDir, "s", "", "save logs to directory")
 	fs.StringVar(&cli.saveDir, "save", "", "save logs to directory")
 	fs.IntVar(&cli.port, "port", 21790, "base port reservation (unused by stub, but runner needs one)")
+	fs.BoolVar(&cli.draft, "draft", false, "discover from test/draft/vpp instead of test/vpp (tests under development)")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, false

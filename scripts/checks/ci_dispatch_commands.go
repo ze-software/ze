@@ -80,6 +80,13 @@ const dynamicMarker = "ze-dispatch-check: dynamic"
 // scanRoots are the trees that hold command emitters.
 var scanRoots = []string{"test", "internal", "cmd", "pkg", "scripts", "demos"}
 
+// draftTestDir is the incubator for functional tests under development. It is
+// gitignored and invisible to every repo-wide gate, so a half-written .ci cannot
+// redden this check (test/draft/README.md, internal/test/runner/draft_dir.go).
+// Spelled literally rather than imported: this file is a standalone check under
+// scripts/, and importing internal/test/runner here would cross a module tier.
+const draftTestDir = "test/draft"
+
 func main() {
 	jsonMode := flag.Bool("json", false, "emit findings as JSON")
 	selftest := flag.Bool("selftest", false, "run built-in fixture tests")
@@ -566,7 +573,17 @@ func scanAll(resolver *pluginserver.Dispatcher, keys []string) ([]Finding, int, 
 
 	for _, root := range scanRoots {
 		_ = filepath.Walk(root, func(path string, info os.FileInfo, err error) error { //nolint:errcheck // per-file
-			if err != nil || info.IsDir() {
+			if err != nil {
+				return nil
+			}
+			// test/draft/ holds functional tests under development and is
+			// invisible to every repo-wide gate, this one included
+			// (test/draft/README.md). Pruned at the directory so nothing inside
+			// is read.
+			if info.IsDir() {
+				if filepath.ToSlash(path) == draftTestDir {
+					return filepath.SkipDir
+				}
 				return nil
 			}
 			emitters, pyScoped, skip := emittersFor(path)
