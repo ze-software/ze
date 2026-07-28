@@ -215,18 +215,33 @@ func (hm *HeadlessModel) settle() {
 	}
 }
 
-// SettleWait blocks until pending commands complete or deadline expires.
-// Called before expectation checks to ensure state-mutating commands (file I/O)
-// and timer-driven state (countdown ticks, draft poll, validation debounce)
-// have been applied to the model.
+// SettleWait is the barrier that separates "commands issued" from "state
+// asserted". It blocks until every command that was in flight on entry has
+// completed and its message has been applied to the model, so an expectation
+// can never observe a half-applied edit.
 //
-// Drains the pending items from the snapshot taken at entry. Items spawned
-// during processing (e.g., countdown timer chain) are left in pending for
-// later calls. This prevents chasing an infinite timer chain while still
-// ensuring the original command result is processed.
+// The wait is unconditional, not time-boxed. Every tea.Cmd reachable from the
+// .et harness terminates: tea.Tick commands return when their interval elapses
+// (100ms validation debounce, 1s confirm countdown, 2s draft poll, 50ms
+// monitor/ping/traceroute drains), command dispatch returns when the work
+// finishes, and the only channel readers in the cli package
+// (drainMonitorEvents and the ping/traceroute drains) are non-blocking selects.
+// Each done channel is buffered with capacity 1 and receives exactly one value,
+// so a blocking receive always completes, and a channel leaves pending as soon
+// as it is received, so no channel is received twice.
 //
-// Total budget per snapshot item: 5s, generous enough for file I/O under
-// race detector with 141 parallel tests.
+// A wall-clock deadline here was a bug, not a safeguard. A state-mutating
+// command (the session set write-through takes ~550ms unloaded, several times
+// that under the race detector) could still be running when the deadline
+// expired; the caller then asserted against the pre-command editor and reported
+// "expected dirty:true, got false" for an edit that landed moments later.
+// Blocking cannot be defeated by a slow machine; `go test -timeout` remains the
+// backstop if a future command ever does block forever.
+//
+// Only the snapshot taken on entry is drained. Messages processed here may
+// schedule the next tick of a self-rescheduling chain (draft poll, monitor
+// poll); those land in hm.pending for a later call, so the barrier terminates
+// instead of chasing an endless chain.
 func (hm *HeadlessModel) SettleWait() {
 	if len(hm.pending) == 0 {
 		return
@@ -238,34 +253,18 @@ func (hm *HeadlessModel) SettleWait() {
 	snapshot := hm.pending
 	hm.pending = nil
 
-	deadline := time.Now().Add(5 * time.Second)
-	for len(snapshot) > 0 && time.Now().Before(deadline) {
-		drained := false
-		var remaining []<-chan tea.Msg
-		for _, ch := range snapshot {
-			select {
-			case msg := <-ch:
-				if msg != nil {
-					hm.processMsg(msg, 0)
-				}
-				drained = true
-			default: // non-blocking: channel not ready, goroutine still running
-				remaining = append(remaining, ch)
-			}
-		}
-		snapshot = remaining
-
-		if !drained && len(snapshot) > 0 {
-			// Short sleep to avoid busy-waiting. 10ms balances
-			// responsiveness with CPU usage under heavy load.
-			time.Sleep(10 * time.Millisecond)
+	for _, ch := range snapshot {
+		if msg := <-ch; msg != nil {
+			hm.processMsg(msg, 0)
 		}
 	}
+}
 
-	// Any items from the snapshot that did not complete within the
-	// deadline are returned to pending alongside items spawned during
-	// processing.
-	hm.pending = append(hm.pending, snapshot...)
+// HasPending reports whether any command is still in flight. The .et runner
+// uses it to tell "the expectation failed and more work could still change the
+// answer" apart from "the expectation failed and nothing is left to wait for".
+func (hm *HeadlessModel) HasPending() bool {
+	return len(hm.pending) > 0
 }
 
 // processMsg processes a message from a command.

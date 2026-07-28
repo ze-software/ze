@@ -339,23 +339,28 @@ func runTestCase(tc *TestCase) *TestResult {
 			}
 
 		case StepExpect:
-			// Block until pending commands complete (file I/O that
-			// exceeded the 900ms processCmdWithDepth timeout). Under
-			// concurrent test load with race detector, this wait is
-			// essential -- non-blocking Settle alone is insufficient.
+			// SettleWait is the barrier: it blocks until every command in
+			// flight (file I/O that exceeded the 900ms processCmdWithDepth
+			// deadline and was handed to the pending set) has completed and
+			// been applied, so the assertion below cannot race the edit it is
+			// checking.
 			//
-			// Multiple retries handle cascading pending items: draining
-			// one snapshot may spawn new commands (e.g., command result
-			// triggers status update) that need a subsequent SettleWait.
+			// Draining one generation can schedule the next (a command
+			// result that triggers a status update), so re-drain while the
+			// assertion fails and work remains in flight. The bound is on
+			// generations of cascaded commands, never on wall-clock time,
+			// so a slow machine changes how long each drain takes but not
+			// whether the assertion sees settled state. Once nothing is
+			// pending, no further drain can change the answer -- stop and
+			// report the failure instead of spinning.
 			exp := tc.Expects[step.ExpectIndex]
 			var lastErr error
-			for attempt := range 5 {
+			for range 5 {
 				hm.SettleWait()
 				lastErr = CheckExpectation(exp, hm)
-				if lastErr == nil {
+				if lastErr == nil || !hm.HasPending() {
 					break
 				}
-				_ = attempt
 			}
 			result.Steps = append(result.Steps, trace.StepResult{
 				Step: stepNum, Kind: "expect", Assert: exp.Type,
