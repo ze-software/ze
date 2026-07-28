@@ -63,6 +63,7 @@ gomu changes production code in small ways and runs the same tests. If the tests
 | Linux kernel behavior, real peer compatibility, deployment, or release evidence | QEMU, Docker interop, deployment scripts, perf gates | [QEMU, interop, and release evidence](https://ze-software.net/quality/qemu-interop-release/) |
 | A failing verify run that needs a clear rerun command | Verify stages, failure groups, trace output, debug logs | [Verify and debugging workflow](https://ze-software.net/quality/verify-debugging/) |
 | Whether the suite would actually catch a regression, not how large it is | Proof density, tests that cannot fail, tests nothing runs, ratchets, KPI history | [Testing health](https://ze-software.net/quality/health/) |
+| RFC requirement coverage, public gap disclosure, or AI agent test-change guards | `make ze-rfc-check`, RFC test tags, status-ledger agreement, audit freshness | [RFC compliance gate](https://ze-software.net/quality/rfc-compliance/) |
 
 ## Commands that matter
 

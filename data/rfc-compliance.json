@@ -1,0 +1,244 @@
+{
+  "gate": {
+    "ok": true,
+    "error_count": 0,
+    "gated_must": 2720,
+    "enrolled_rfcs": 166,
+    "test_tags": 2575,
+    "message": "rfc-requirements OK: 2720 gated MUST-level requirement(s) across 166 enrolled RFC(s); 2575 test tag(s) resolved."
+  },
+  "satisfaction": [
+    {
+      "label": "Positive and negative tests",
+      "short": "Test pair",
+      "condition": "positive tag + negative tag",
+      "key": "both_polarities",
+      "count": 974,
+      "share": 35.8
+    },
+    {
+      "label": "One polarity plus reason",
+      "short": "Single polarity",
+      "condition": "{single-polarity} annotation + required tag",
+      "key": "single_polarity",
+      "count": 370,
+      "share": 13.6
+    },
+    {
+      "label": "Not applicable",
+      "short": "Not applicable",
+      "condition": "{not-applicable} annotation",
+      "key": "not_applicable",
+      "count": 841,
+      "share": 30.9
+    },
+    {
+      "label": "Declared gap",
+      "short": "Gap",
+      "condition": "{gap} annotation + public ledger disclosure",
+      "key": "gap",
+      "count": 535,
+      "share": 19.7
+    },
+    {
+      "label": "One polarity, unexcused",
+      "short": "Unexcused one side",
+      "condition": "tag without annotation",
+      "key": "one_polarity_unexcused",
+      "count": 0,
+      "share": 0.0
+    },
+    {
+      "label": "Missing, unexcused",
+      "short": "Missing",
+      "condition": "no tag, no annotation",
+      "key": "missing_unexcused",
+      "count": 0,
+      "share": 0.0
+    }
+  ],
+  "gaps": {
+    "requirements": 535,
+    "rfcs": 84,
+    "status_counts": [
+      {
+        "status": "Partial",
+        "count": 61
+      },
+      {
+        "status": "Experimental",
+        "count": 16
+      },
+      {
+        "status": "Supported",
+        "count": 5
+      },
+      {
+        "status": "Not supported",
+        "count": 1
+      },
+      {
+        "status": "Unsupported",
+        "count": 1
+      }
+    ],
+    "supported_with_remaining": [
+      {
+        "rfc": "RFC 1350",
+        "remaining": "RFC1350-2-3 unmet (Sorcerer's Apprentice fix): sendAndWaitACK retransmits DATA on any non-matching ACK (handler.go:407) instead of silently ignoring a duplicate or stale ACK."
+      },
+      {
+        "rfc": "RFC 4301",
+        "remaining": "One MUST gap (RFC4301-4.4.1.1-1): SPD selectors are limited to IP-prefix + next-layer-protocol; TCP/UDP/SCTP port and ICMP type/code selectors are not modeled or projected (internal/component/ike/dataplane/dataplane.go:110-130; engine/initiator.go:325 tsToIPNet drops ports)."
+      },
+      {
+        "rfc": "RFC 6396",
+        "remaining": "One MUST gap gated in rfc/short/rfc6396.md [RFC6396-4.4.3-1]: the live BGP4MP writer always emits the BGP4MP_MESSAGE_AS4 subtype and records the on-wire message verbatim without checking the session's negotiated 4-byte-AS capability, so a message from an OLD (2-byte) peer carries a 2-byte AS_PATH mislabeled as AS4. RIB-path AS_PATH is unaffected (canonicalized to 4-byte)."
+      },
+      {
+        "rfc": "RFC 7313",
+        "remaining": "Four MUST-level receive-side gaps annotated in `rfc/short/rfc7313.md`: RFC7313-4-4/4-5 -- a received BoRR/EoRR is log-only (internal/component/bgp/plugins/rib/rib.go:751-756), so ze marks no Adj-RIB-In routes stale and purges none; and RFC7313-4-6/4-7 -- neither the send nor receive path applies a Graceful-Restart End-of-RIB gate to BoRR emission or acceptance."
+      },
+      {
+        "rfc": "RFC 7911",
+        "remaining": "One MUST gap, gated in `rfc/short/rfc7911.md`: on re-advertisement ze preserves the ingress Path Identifier (internal/component/bgp/reactor/forward_body.go copies the received path-id and the egress RIB key rib_structured.go carries it) rather than minting its own per RFC7911-2-2, so a re-advertised path is not assigned a fresh Path Identifier."
+      }
+    ],
+    "top_rfcs": [
+      {
+        "rfc": "RFC 9012",
+        "count": 51,
+        "status": "Partial"
+      },
+      {
+        "rfc": "DRAFT-IETF-BESS-MUP-SAFI",
+        "count": 37,
+        "status": "Partial"
+      },
+      {
+        "rfc": "RFC 1661",
+        "count": 25,
+        "status": "Partial"
+      },
+      {
+        "rfc": "RFC 4271",
+        "count": 21,
+        "status": "Partial"
+      },
+      {
+        "rfc": "RFC 9830",
+        "count": 20,
+        "status": "Partial"
+      },
+      {
+        "rfc": "RFC 2131",
+        "count": 18,
+        "status": "Partial"
+      },
+      {
+        "rfc": "RFC 7166",
+        "count": 17,
+        "status": "Unsupported"
+      },
+      {
+        "rfc": "RFC 4577",
+        "count": 16,
+        "status": "Not supported"
+      },
+      {
+        "rfc": "RFC 7432",
+        "count": 15,
+        "status": "Partial"
+      },
+      {
+        "rfc": "RFC 5880",
+        "count": 14,
+        "status": "Partial"
+      },
+      {
+        "rfc": "RFC 8665",
+        "count": 14,
+        "status": "Partial"
+      },
+      {
+        "rfc": "RFC 9514",
+        "count": 13,
+        "status": "Partial"
+      }
+    ]
+  },
+  "audit": {
+    "verdicts": 52,
+    "fresh": 52,
+    "stale": 0,
+    "missing": 2668
+  },
+  "checks": [
+    {
+      "name": "Enrolment ratchet",
+      "errors": [],
+      "error_count": 0
+    },
+    {
+      "name": "New summary ratchet",
+      "errors": [],
+      "error_count": 0
+    },
+    {
+      "name": "Retired requirement ratchet",
+      "errors": [],
+      "error_count": 0
+    },
+    {
+      "name": "Coverage polarity ratchet",
+      "errors": [],
+      "error_count": 0
+    },
+    {
+      "name": "Summary parse",
+      "errors": [],
+      "error_count": 0
+    },
+    {
+      "name": "Requirement ID allocation",
+      "errors": [],
+      "error_count": 0
+    },
+    {
+      "name": "Requirement coverage",
+      "errors": [],
+      "error_count": 0
+    },
+    {
+      "name": "Public claim agreement",
+      "errors": [],
+      "error_count": 0
+    },
+    {
+      "name": "Semantic audit freshness",
+      "errors": [],
+      "error_count": 0
+    },
+    {
+      "name": "Generated ledger freshness",
+      "errors": [],
+      "error_count": 0
+    }
+  ],
+  "agent_guard": {
+    "hook_path": ".claude/hooks/pretool-writeedit.py",
+    "hook_present": true,
+    "blocks_unapproved": true,
+    "approval_token": "rfc-test-change-approved",
+    "make_target_present": true,
+    "verify_stage_mentions": 2
+  },
+  "sources": {
+    "requirements": "rfc/short/*.md",
+    "enrolment": "rfc/enrolled.txt",
+    "test_tags": "internal/, pkg/, test/",
+    "status_ledger": "docs/features/rfc-status.md",
+    "audit_verdicts": "rfc/audit/*.json",
+    "gate_script": "scripts/dev/rfc_requirements.py"
+  }
+}

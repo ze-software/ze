@@ -952,6 +952,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ### Trust
 - [Code Quality](https://ze-software.net/quality/index.md): Tests, QEMU, fuzzing, and mutation checks (web: https://ze-software.net/quality/)
 - [Testing Health](https://ze-software.net/quality/health/index.md): Measured test state and how it moves over time (web: https://ze-software.net/quality/health/)
+- [RFC Compliance Gate](https://ze-software.net/quality/rfc-compliance/index.md): AI-enforced RFC requirements, tests, gaps, and public claims (web: https://ze-software.net/quality/rfc-compliance/)
 - [Dependencies](https://ze-software.net/dependencies/index.md): 40 direct packages, generated from go.mod (web: https://ze-software.net/dependencies/)
 - [Security](https://ze-software.net/security/index.md): Security policy and vulnerability reporting (web: https://ze-software.net/security/)
 

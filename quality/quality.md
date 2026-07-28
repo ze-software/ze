@@ -13,6 +13,8 @@ Ze's quality work has one rule: when something fails, the output should show wha
 <!-- source: ../main/scripts/status/verify_run.go -- staged verify and failure index -->
 <!-- source: ../main/scripts/dev/verify-lock.sh -- shared verify lock -->
 
+<!-- source: ../main/scripts/dev/rfc_requirements.py -- RFC requirement gate -->
+<!-- source: ../main/.claude/hooks/pretool-writeedit.py -- RFC-tagged test edit guard -->
 <div class="quality-hero">
   <div class="quality-hero-card">
     <span class="quality-hero-kicker">Quality model</span>
@@ -80,6 +82,7 @@ Ze's quality work has one rule: when something fails, the output should show wha
 <tr><td>Linux kernel behavior, real peer compatibility, deployment, or release evidence</td><td>QEMU, Docker interop, deployment scripts, perf gates</td><td><a href="qemu-interop-release/">QEMU, interop, and release evidence</a></td></tr>
 <tr><td>A failing verify run that needs a clear rerun command</td><td>Verify stages, failure groups, trace output, debug logs</td><td><a href="verify-debugging/">Verify and debugging workflow</a></td></tr>
 <tr><td>Whether the suite would actually catch a regression, not how large it is</td><td>Proof density, tests that cannot fail, tests nothing runs, ratchets, KPI history</td><td><a href="health/">Testing health</a></td></tr>
+<tr><td>RFC requirement coverage, public gap disclosure, or AI agent test-change guards</td><td><code>make ze-rfc-check</code>, RFC test tags, status-ledger agreement, audit freshness</td><td><a href="rfc-compliance/">RFC compliance gate</a></td></tr>
 </tbody>
 </table>
 

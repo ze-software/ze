@@ -1999,6 +1999,9 @@
     <loc>https://ze-software.net/quality/qemu-interop-release/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-compliance/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/unit-fuzz-mutation/</loc>
   </url>
   <url>

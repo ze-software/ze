@@ -98,6 +98,7 @@ STEPS = [
     "deps",
     "quality",
     "test-health",
+    "rfc-compliance",
     "config",
     "plugins",
     "facts",
@@ -263,6 +264,11 @@ def step_quality():
 def step_test_health():
     render_test_health = load_module("render-test-health")
     return render_test_health.main()
+
+
+def step_rfc_compliance():
+    render_rfc_compliance = load_module("render-rfc-compliance")
+    return render_rfc_compliance.main()
 
 
 def _extract_plugin_registry_once():
@@ -516,6 +522,7 @@ STEP_FUNCS = {
     "deps": step_deps,
     "quality": step_quality,
     "test-health": step_test_health,
+    "rfc-compliance": step_rfc_compliance,
     "config": step_config,
     "plugins": step_plugins,
     "facts": step_facts,

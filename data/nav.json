@@ -34,6 +34,7 @@
                     {"label_only": "Trust"},
                     {"href": "quality/", "icon": "✓", "title": "Code Quality", "desc": "Tests, QEMU, fuzzing, and mutation checks"},
                     {"href": "quality/health/", "icon": "📈", "title": "Testing Health", "desc": "Measured test state and how it moves over time"},
+                    {"href": "quality/rfc-compliance/", "icon": "🤖", "title": "RFC Compliance Gate", "desc": "AI-enforced RFC requirements, tests, gaps, and public claims"},
                     {"href": "dependencies/", "icon": "📦", "title": "Dependencies", "desc": "%(dependencies)s direct packages, generated from go.mod"},
                     {"href": "security/", "icon": "🔒", "title": "Security", "desc": "Security policy and vulnerability reporting"}
                 ]
