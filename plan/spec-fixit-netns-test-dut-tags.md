@@ -18,7 +18,7 @@ report failures no test is responsible for.
 `$(ZEBIN_ZE)` (`mk/test-integration.mk:138`), and the recipe hands the suites
 `ZE_TEST_NO_BUILD=1` (`mk/test-integration.mk:148`), so the daemon under test is
 the production binary. But
-`mk/test-integration.mk:532` states plainly that "the real `$(ZEBIN_ZE)` has
+`mk/test-integration.mk:548` states plainly that "the real `$(ZEBIN_ZE)` has
 neither zetest nor ze_test", while the functional-test DUT is built with
 `-tags 'ze_core ze_distro ze_setup zetest $(ZE_FEATURES) $(ZE_TAGS)'`
 (`mk/test-functional.mk:140`). Any test whose config touches a `zetest`-only
@@ -144,7 +144,7 @@ fails immediately with
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| DUT tag set matches the functional one | `internal/test/runner/*_test.go` (existing `TestBuildTags` is the precedent, `mk/test-integration.mk:534`) | the netns DUT carries `zetest` | |
+| DUT tag set matches the functional one | `internal/test/runner/*_test.go` (existing `TestBuildTags` is the precedent, `mk/test-integration.mk:550`) | the netns DUT carries `zetest` | |
 
 ### Functional Tests
 | Test | Location | Scenario | Status |
@@ -184,7 +184,7 @@ field that a differently-tagged binary would have accepted. A vehicle that can
 report a failure no test can cause is worse than a vehicle that refuses to run.
 
 ## Known Limitations
-- Does not address QEMU targets; `ZE_QEMU_DUT_TAGS` (`mk/test-integration.mk:362`)
+- Does not address QEMU targets; `ZE_QEMU_DUT_TAGS` (`mk/test-integration.mk:378`)
   already includes `zetest` and is unaffected.
 
 ## Checklist

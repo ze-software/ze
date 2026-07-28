@@ -417,7 +417,7 @@ Plus three mutations of the helpers themselves against their new unit tests in
 
 **Found while verifying, deferred:** `make ze-netns-test` reports
 `ddos-local-withdraw` as failing, and that is the TARGET's defect. It depends on
-`$(ZEBIN_ZE)`, the production binary, which `mk/test-integration.mk:532` says has
+`$(ZEBIN_ZE)`, the production binary, which `mk/test-integration.mk:548` says has
 "neither zetest nor ze_test" -- so the `ddos/fake` node the test configures does
 not exist and the daemon dies with `unknown field in ddos: fake`. Against a
 zetest-tagged DUT the same test passes in 653ms. The target also cannot run

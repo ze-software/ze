@@ -21,18 +21,18 @@ the strip works.
 **Cause.** An arity mismatch between two halves of the modification accumulator
 contract, in a path with zero test coverage.
 
-`StripControlCommunities` (`internal/component/bgp/wireu/community.go:141`) walks
+`StripControlCommunities` (`internal/component/bgp/wireu/community.go:158`) walks
 the COMMUNITY attribute and accumulates **every** matching four-byte value into a
 single slice at `:189`. Both route-server call sites hand that whole slice to the
 accumulator as one Remove operation:
 
 | Call site | Producer line |
 |-----------|---------------|
-| `internal/component/bgp/reactor/reactor_api_forward.go:616` builds it, `:635` emits it | `mods.Op(8, filterapi.AttrModRemove, communityStripBytes)` |
-| `internal/component/bgp/reactor/forward_rs.go:325` builds it, `:342` emits it | `mods.Op(8, filterapi.AttrModRemove, communityStripBytes)` |
+| `internal/component/bgp/reactor/reactor_api_forward.go:643` builds it, `:635` emits it | `mods.Op(8, filterapi.AttrModRemove, communityStripBytes)` |
+| `internal/component/bgp/reactor/forward_rs.go:347` builds it, `:342` emits it | `mods.Op(8, filterapi.AttrModRemove, communityStripBytes)` |
 
 The consumer is `removeValues`
-(`internal/component/bgp/plugins/filter_community/handler.go:118`), reached
+(`internal/component/bgp/plugins/filter_community/handler.go:165`), reached
 through `communityAttrModHandler` (`:19`) and `genericCommunityHandler` (`:64`,
 which calls `removeValues(data, 4, op.Buf)` at `:78`). Its first statement is a
 size guard at `:119-122`:
@@ -95,16 +95,16 @@ the arity part of a typed structure. That is weeks away; this is a live leak.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE writing this spec)
-- [ ] `internal/component/bgp/wireu/community.go:141` - `StripControlCommunities`: walks the attribute section, and for a COMMUNITY attribute appends every four-byte value whose high half is 0 or the route server's low sixteen ASN bits into one result slice (`:186-191`). Returns nil when nothing matches.
+- [ ] `internal/component/bgp/wireu/community.go:158` - `StripControlCommunities`: walks the attribute section, and for a COMMUNITY attribute appends every four-byte value whose high half is 0 or the route server's low sixteen ASN bits into one result slice (`:186-191`). Returns nil when nothing matches.
 - [ ] `internal/component/bgp/wireu/community.go:51` - `ParseCommunityPolicy`: independent walk producing the blacklist, whitelist, blackhole and prepend-target policy. Correct today; unchanged by this fix.
 - [ ] `internal/component/bgp/reactor/reactor_api_forward.go:610-636` - the route-server branch of the destination loop: parses the policy once per UPDATE at `:614-616`, suppresses non-forward destinations at `:618`, then emits the single Remove operation at `:635`.
 - [ ] `internal/component/bgp/reactor/forward_rs.go:320-343` - the route-server fast-path rail: the identical sequence, strip buffer built at `:325`, single Remove operation at `:342`.
 - [ ] `internal/component/bgp/plugins/filter_community/handler.go:19` - `communityAttrModHandler` delegates to `genericCommunityHandler` with `valueSize` 4.
 - [ ] `internal/component/bgp/plugins/filter_community/handler.go:64` - `genericCommunityHandler`: copies the source value into a fresh buffer at `:69-70`, applies Remove operations at `:76-80`, then Add at `:81-85`, then Set at `:86-91`, omits the attribute entirely when nothing remains at `:93-95`, and writes an always-extended-length header at `:110-113`.
-- [ ] `internal/component/bgp/plugins/filter_community/handler.go:118` - `removeValues`: returns the input unchanged when the removal buffer length is not exactly `valueSize`; otherwise rebuilds the list with an allocating append loop at `:121-126`.
+- [ ] `internal/component/bgp/plugins/filter_community/handler.go:165` - `removeValues`: returns the input unchanged when the removal buffer length is not exactly `valueSize`; otherwise rebuilds the list with an allocating append loop at `:121-126`.
 - [ ] `internal/component/bgp/plugins/filter_community/egress.go:28-30` - the plugin's own egress filter emits one Remove operation per configured wire value.
 - [ ] `internal/component/bgp/reactor/filter_delta.go:221-224` - the text-delta path splits a Remove directive into `valueSize` chunks before emitting.
-- [ ] `internal/component/bgp/filterapi/filterapi.go:132` - `ModAccumulator.Op`: documents that repeated calls with the same code are allowed and reach the handler together, but states nothing about the value-buffer arity.
+- [ ] `internal/component/bgp/filterapi/filterapi.go:153` - `func (a *ModAccumulator) Op(`: documents that repeated calls with the same code are allowed and reach the handler together, but states nothing about the value-buffer arity.
 - [ ] `internal/component/bgp/reactor/forward_build.go:199-223` - `buildModifiedPayload` dispatch: groups operations by code and hands all operations for a code to its registered handler in one call.
 - [ ] `internal/component/bgp/reactor/filter_delta_handlers.go:468` - `attrModHandlersWithDefaults`: fills generic set handlers for the codes listed at `:82-98`, which exclude the community codes because the plugin registers specialised ones.
 
@@ -438,7 +438,7 @@ Left for an owner decision.
 ### Trap worth recording
 
 Every rebuild during this work went to `bin/ze`, but the runner resolves the DUT
-from `tmp/s/<session-id>/bin` FIRST (`internal/test/sessionpath/sessionpath.go:115`).
+from `tmp/s/<session-id>/bin` FIRST (`FindPrebuiltDir`, `internal/test/sessionpath/sessionpath.go:107-132`).
 A stale session-scoped binary was therefore under test for several iterations,
 which read exactly like "the fix does not work on this path" and sent this
 investigation looking for a third forwarding rail that does not exist
