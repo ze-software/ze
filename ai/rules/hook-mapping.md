@@ -1,6 +1,6 @@
 # Hook-to-Rule Mapping
 
-**When:** Quick reference: which checks enforce which rules, and when they trigger
+**When:** looking up which check enforces a rule, or why a hook rejected an edit
 **Severity:** advisory
 
 ## Directives
@@ -60,7 +60,8 @@ resolver, change BOTH and re-run the test.
 ### LSP gate (`block-until-lsp.sh`, standalone)
 
 Enforces `session-start.md`. Triggers on `Bash|Write|Edit|MultiEdit|NotebookEdit|ToolSearch|Task|Agent`.
-Blocks those tools until `ToolSearch query="select:LSP"` has run this session. BLOCKING.
+Blocks those tools until `ToolSearch query="select:LSP"` has run this session. BLOCKING. <!-- severity-note: the LSP gate's severity, not this reference page's -->
+
 
 ### Bash (`pretool-bash.py`)
 
@@ -69,7 +70,7 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 | destructive-git | `CLAUDE.md` prohibitions | Bash | Blocks git commit/push/reset/restore/clean/merge. Allows `git restore --staged`. BLOCKING. |
 | worktree-copy | `CLAUDE.md` prohibitions | Bash | Blocks cp/mv/rsync from `.claude/worktrees/` to main repo. BLOCKING. | <!-- doc-links: ignore (.claude/worktrees/ exists only while a worktree agent is active) -->
 | root-build | (build hygiene) | Bash | Blocks `go build` without `-o bin/`. Allows `go build ./...` (check-only). BLOCKING. |
-| pipe-tail | `bash-output.md` | Bash | Blocks `\| tail` and piping `make ze-*` output. BLOCKING. |
+| pipe-tail | `bash-output.md` | Bash | Blocks a lossy filter (`head`/`tail`/`grep`/`awk`/`sed`/`cat`/`less`/`more`) piped from an EXPENSIVE producer (`make`, `go test\|build\|vet`, `golangci-lint`, `bin/ze*`, `ze-test`). `\| tee` passes. Cheap commands (`git log \| tail`) are not its business: it used to block every `\| tail` while letting `go test ./... \| head` through, which is the case the rule exists to stop. BLOCKING. |
 | system-tmp | `testing.md` | Bash | Blocks access to `/tmp`; must use project `tmp/`. BLOCKING. |
 | test-deletion | `no-test-deletion.md` | Bash | Blocks `rm`/`git checkout` of test files. BLOCKING. |
 

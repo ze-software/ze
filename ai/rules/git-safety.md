@@ -1,7 +1,7 @@
 # Git Safety
 
-**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why a shared single-file plan log (now sharded for both deferrals and known-failures) cross-commits between concurrent sessions.
-**Severity:** advisory
+**When:** before any git operation, and when writing or running a commit script
+**Severity:** blocking
 
 ## Directives
 

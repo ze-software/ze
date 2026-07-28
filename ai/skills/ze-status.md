@@ -18,6 +18,7 @@ See also: `/ze-debrief` (deep dive on current session/spec)
 |------|--------|---------|
 | spec-name | design/skeleton/in-progress/blocked | date |
 
+2b. **Work in flight:** Run `scripts/dev/spec-session.sh wip`. Report the count against the cap and the three stalest. Every rule in `ai/rules/` governs how well ONE spec is executed; the cap is the only thing that limits how many are open at once, so an over-cap count is an attention item in its own right, not background noise.
 3. **Git state:** Run `git status` and `git log --oneline -5`. Summarize:
    - Current branch
    - Uncommitted changes (count and key files)
@@ -34,7 +35,7 @@ See also: `/ze-debrief` (deep dive on current session/spec)
 
 **Spec:** [selected spec name and status, or "none selected"]
 **Branch:** [branch] | **Uncommitted:** [count] files
-**Tests:** [PASS/FAIL/not run] | **Deferrals:** [count] open
+**Tests:** [PASS/FAIL/not run] | **Deferrals:** [count] open | **In flight:** [n]/[cap] specs
 
 ### Open Specs
 [table from step 2, or "none"]
@@ -49,8 +50,9 @@ Generate the attention list by checking these conditions in order:
 
 | Condition | Attention Item | Suggested Action |
 |-----------|---------------|------------------|
-| Spec with `Status \| done` | "[spec] passed its gate but was never closed -- closure violation" | Prepare the two closure commits (`ai/rules/planning.md` Spec Closure) |
-| Spec listed by `scripts/dev/spec-closure-check.py --list` | "[spec] completed but not closed" | Prepare the two closure commits (`ai/rules/planning.md` Closure Enforcement) |
+| Spec with `Status \| done` | "[spec] passed its gate but was never closed -- closure violation" | `/ze-close` (step 6 prepares the two closure commits) |
+| Spec listed by `scripts/dev/spec-closure-check.py --list` | "[spec] completed but not closed" | `/ze-close` (step 6 prepares the two closure commits) |
+| `spec-session.sh wip` count over `ZE_SPEC_WIP_CAP` | "N specs in flight (cap M) -- no new spec can be started" | `/ze-close` the stalest, or agree a new cap with the user |
 | Tests failing | "N test failures in last run" | `/ze-debug` |
 | Spec in-progress with uncommitted changes | "Uncommitted work on [spec]" | `/ze-verify` then `/ze-commit` |
 | Spec in skeleton/design status | "[spec] needs implementation" | `/ze-implement` |

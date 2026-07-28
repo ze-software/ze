@@ -1,6 +1,6 @@
 # Critical Review Is the Central Deliverable
 
-**When:** Before closing a spec or claiming a substantive change is done -- review is INDEPENDENT (subagents / fresh session), never the author's own inline reasoning, and is enforced by
+**When:** before closing a spec, or claiming any substantive change is done
 **Severity:** blocking
 
 ## Directives
@@ -48,7 +48,7 @@ reviewers caught on the same diff minutes later.
 `scripts/dev/commit_helper.py` refuses a spec-closure commit (one that adds a
 `plan/learned/NNN-*.md` or removes a `plan/spec-*.md`) unless `review_gate.py
 check` passes: a CLEAN artifact exists, covers every reviewable file in the commit
-(the ze-implement closure commits all of a spec's code in commit A, so that is
+(the ze-close closure commits all of a spec's code in commit A, so that is
 full coverage), and its hashes still match (any edit after the review invalidates
 it, forcing a fresh pass). A code-free closure still requires a clean artifact to
 exist. Override with `--review-override <reason>` only as an explicit owner

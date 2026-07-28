@@ -6,101 +6,102 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 94 rules
+Total: 95 rules
 
-| Rule | When to read | File |
-|------|--------------|------|
-| Agent Tooling Contract | All agent-facing CLI output must follow these rules Severity: blocking | `ai/rules/agent-tooling.md` |
-| Anti-Rationalization | The answer is always "no." Severity: blocking | `ai/rules/anti-rationalization.md` |
-| API Contracts in Comments | when authoring functions with caller obligations Severity: blocking | `ai/rules/api-contracts.md` |
-| Appliance Dependency Bumps | a Dependabot alert fires on a `go.mod` under `gokrazy/modcache/`, or you must bump the vendored gokrazy init. Severity: advisory | `ai/rules/appliance-dep-bumps.md` |
-| Architecture Summary | Read before reasoning about where a component sits, the BGP subsystem layout, or how formatted events (down) and text commands (up) flow between core and plugins. Severity: advisory | `ai/rules/architecture-summary.md` |
-| Running Test / Build Commands | Prefer `make` targets Severity: blocking | `ai/rules/bash-output.md` |
-| Before Writing Code | Complete before writing any code, tests, or documentation Severity: blocking | `ai/rules/before-writing-code.md` |
-| Buffer-First Encoding -- Mechanical Reference | All wire encoding MUST write into pooled, bounded buffers Severity: blocking | `ai/rules/buffer-first.md` |
-| Canonical Sources and Sync Direction | Never edit a generated file Severity: blocking | `ai/rules/canonical-sources.md` |
-| CI Sleep Justification | Adding, editing, or reviewing any `time.sleep(` in a `test//*.ci` functional test. Every sleep must carry a comment explaining why it is there. Severity: advisory | `ai/rules/ci-sleep-justification.md` |
-| CLI Grammar: Keywords Before Values | Every CLI command must place a closed keyword before any Severity: blocking | `ai/rules/cli-grammar.md` |
-| CLI Patterns | All CLI commands MUST follow these patterns Severity: blocking | `ai/rules/cli-patterns.md` |
-| Comparison Honesty | Comparing Ze with another product, project, daemon, appliance, distribution, or vendor feature set. Severity: advisory | `ai/rules/comparison-honesty.md` |
-| No Backwards Compatibility | tempted to add backwards-compatibility code, shims, or fallbacks Severity: advisory | `ai/rules/compatibility.md` |
-| Config Design | Structural template: `ai/patterns/config-option.md` Severity: advisory | `ai/rules/config-design.md` |
-| Config Manipulation | Config content MUST be manipulated through one of two methods only Severity: blocking | `ai/rules/config-manipulation.md` |
-| Config Naming Conventions | Names cross four layers (YANG, env var, Go struct, CLI) Severity: advisory Related: naming, config-design | `ai/rules/config-naming.md` |
-| Config String Coercion | Writing or reviewing a plugin/component `config.go` that reads YANG leaf values out of the delivered config into a typed `Config` struct. Severity: advisory | `ai/rules/config-string-coercion.md` |
-| Config Surface: YANG Config vs Env Var | deciding whether a new setting is a YANG config leaf or an env var Severity: advisory Related: config-design | `ai/rules/config-surface.md` |
-| Critical Review Is the Central Deliverable | Before closing a spec or claiming a substantive change is done -- review is INDEPENDENT (subagents / fresh session), never the author's own inline reasoning, and is enforced by Severity: blocking | `ai/rules/critical-review.md` |
-| Data Flow Tracing | Trace full data flow before writing or reviewing specs Severity: blocking | `ai/rules/data-flow-tracing.md` |
-| Deferral Tracking | A deferral whose destination is prose ("later", "future work") is a deletion with a polite name Severity: advisory | `ai/rules/deferral-tracking.md` |
-| Derive, Never Hardcode | If enumerated data has a canonical source (registry, Severity: blocking | `ai/rules/derive-not-hardcode.md` |
-| Design Context | Before any design decision (communication mechanism, Severity: blocking | `ai/rules/design-context.md` |
-| Design Document References | All `.go` source files (non-test, non-generated) MUST have `// Design:` comment Severity: blocking | `ai/rules/design-doc-references.md` |
-| Design Principles | Read before any design decision; the checklist (abstract when you can at 2+ use cases, no speculative features, single responsibility, minimal coupling, explicit behavior) gates new structure.... | `ai/rules/design-principles.md` |
-| Diagnosis Before Fix | Before changing code to make a symptom go away (failing test, rejected input, error, red gate, broken demo), write the Diagnosis first Severity: blocking | `ai/rules/diagnosis-before-fix.md` |
-| Discovery Updates | A change that adds or changes something future agents need to use, Severity: blocking | `ai/rules/discovery-updates.md` |
-| Doctor Checks | Every feature that adds a new runtime dependency must register Severity: blocking | `ai/rules/doctor-checks.md` |
-| Documentation | Every feature change MUST update the specific documentation it affects Severity: blocking | `ai/rules/documentation.md` |
-| Prefer Typed Numeric Over String | Hot paths use typed numeric identity (enum, registered Severity: blocking | `ai/rules/enum-over-string.md` |
-| Error Messages | Every error, log line, and failure output you write must let a Severity: blocking | `ai/rules/error-messages.md` |
-| Exact Or Reject | If the implementation cannot deliver EXACTLY what the Severity: blocking | `ai/rules/exact-or-reject.md` |
-| Fail-Closed Guards | A guard must fail closed or say something Severity: blocking Related: exact-or-reject, no-fabrication | `ai/rules/fail-closed-guards.md` |
-| Feature-Gate Registration (compile-out-able features) | How to add or change a compile-out-able feature Severity: advisory | `ai/rules/feature-gate-registration.md` |
-| File Modularity | Each `.go` source file contains exactly one concern — a cohesive group of types and functions serving a single responsibility Severity: advisory | `ai/rules/file-modularity.md` |
-| Fix, Don't Record. Say It Short. | a test fails, a gate goes red, or you are about to write a problem down -- a `plan/known-failures/` shard, a deferral row, a commit body, a report, a learned summary Severity: blocking Related:... | `ai/rules/fix-dont-record.md` |
-| Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures | a functional-test failure (panic, crash, exit-code mismatch, timeout) appears only in a full `make ze-verify` / `ze-functional-test` run and cannot be reproduced by rerunning the one suite in... | `ai/rules/flaky-under-load.md` |
-| Friction Reporting | During research, implementation, review, or verification, if you encounter a recurring problem pattern, repeated surprise, stale guidance, tooling friction, or wasted effort, report it immediately... | `ai/rules/friction-reporting.md` |
-| Functional Test Gate | Every user-facing behavior MUST have a functional test that exercises Severity: blocking | `ai/rules/functional-test-gate.md` |
-| Git Safety | Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why a shared single-file plan log (now sharded... | `ai/rules/git-safety.md` |
-| Go Standards | Read before writing Go in Ze; covers env access, context handling, aliased imports, error wrapping, and other Ze-specific Go conventions. Severity: blocking | `ai/rules/go-standards.md` |
-| Go Compiler Upgrade Checklist | Every Go compiler version bump (go.mod `go` directive change or toolchain update). Severity: advisory | `ai/rules/go-upgrade-checklist.md` |
-| Goroutine Lifecycle | All goroutines MUST be long-lived workers Severity: blocking | `ai/rules/goroutine-lifecycle.md` |
-| Session Handoff | with the rationale so the user can verify the handoff matches the decisions Severity: blocking | `ai/rules/handoff.md` |
-| Hook-to-Rule Mapping | Quick reference: which checks enforce which rules, and when they trigger Severity: advisory | `ai/rules/hook-mapping.md` |
-| Impact Analysis | Before modifying a file, check what else needs to change Severity: blocking | `ai/rules/impact-analysis.md` |
-| Implementation Audit | Before marking any spec done, complete line-by-line audit comparing spec to implementation Severity: blocking | `ai/rules/implementation-audit.md` |
-| Initrd: Prefer Procfs/Sysfs Over External Commands | Read before modifying the installer initrd (`cmd/ze-installer`, Severity: blocking | `ai/rules/initrd-no-external-tools.md` |
-| Feature Integration Completeness | Every new feature MUST be proven to work integrated, not just in isolation Severity: blocking | `ai/rules/integration-completeness.md` |
-| Interop Testing and Goal Validation | Protocol features MUST have interop tests Severity: blocking | `ai/rules/interop-and-goal-validation.md` |
-| JSON Format | All JSON output MUST follow these conventions Severity: blocking | `ai/rules/json-format.md` |
-| Language and Spelling | The project language is US English Severity: blocking | `ai/rules/language-and-spelling.md` |
-| Lint Gate | Run before claiming implementation work is complete Severity: blocking | `ai/rules/lint-gate.md` |
-| Memory Architecture | Conceptual model for Ze's memory management Severity: advisory | `ai/rules/memory-architecture.md` |
-| Model Selection by Work Phase | starting, resuming, or handing off any spec/design, implementation, or review phase, and whenever you are about to cross from one phase into another in the same session Severity: blocking Related:... | `ai/rules/model-selection.md` |
-| Module Tiers (core / component / plugin) | creating a new package under `internal/`, or deciding whether something belongs in `internal/core/`, `internal/component/`, or `internal/plugins/`. Severity: advisory | `ai/rules/module-tiers.md` |
-| Naming | naming anything in Ze (identifiers, files, commands, config) Severity: advisory | `ai/rules/naming.md` |
-| Never Destroy Uncommitted Work | Never delete, revert, or overwrite files holding uncommitted Severity: blocking | `ai/rules/never-destroy-work.md` |
-| Don't Ask, Do | Never use phrases like "would you like me to", "want me to", "shall I", Severity: advisory | `ai/rules/no-asking.md` |
-| No Fabrication | State only what the source explicitly says or does Severity: blocking | `ai/rules/no-fabrication.md` |
-| No Fork Loops | Never write a shell for-loop that forks an external command per Severity: blocking | `ai/rules/no-fork-loops.md` |
-| No Layering | when replacing X with Y Severity: blocking | `ai/rules/no-layering.md` |
-| No Parking: Fix Blockers, Never Reduce Coverage To Reach Green | when a defect blocks a goal the current work exists to achieve Severity: blocking | `ai/rules/no-parking.md` |
-| No Partial Completion | Read before claiming any work "done"; every acceptance criterion needs working code plus a test, "deferred" is not "done," and scope cuts require explicit user approval. Severity: advisory | `ai/rules/no-partial-completion.md` |
-| No Printf Allocations | reaching for `fmt.Sprintf`, `fmt.Fprintf`, `fmt.Errorf`, or `.String()` concatenation on a hot or allocation-sensitive path Severity: blocking | `ai/rules/no-sprintf-alloc.md` |
-| Test Deletion and Weakening | A red test means the CODE is wrong by default Severity: advisory | `ai/rules/no-test-deletion.md` |
-| No Workarounds For Missing Behavior | If a user could experience a problem while trying to achieve a goal, implement the missing behavior at the source Severity: blocking | `ai/rules/no-workarounds-for-missing-behavior.md` |
-| OS-Specific Tests | A test that cannot run on every OS MUST either carry a build tag Severity: advisory | `ai/rules/os-specific-tests.md` |
-| Pipe Completeness | Every command that produces output MUST support all pipe operators Severity: blocking | `ai/rules/pipe-completeness.md` |
-| Planning | Complete before implementing any non-trivial feature Severity: blocking | `ai/rules/planning.md` |
-| Plugin Design | All plugins MUST follow these patterns Severity: blocking | `ai/rules/plugin-design.md` |
-| Plugin Process Boundary | Writing or reviewing a plugin that calls another in-process package's plain exported function directly (not through DirectBridge/DispatchCommand) to register a callback, fetch a live backend handle,... | `ai/rules/plugin-process-boundary.md` |
-| Plugin Self-Containment (BLOCKING) | its features disappears; every OTHER plugin and the core keep working. Severity: advisory | `ai/rules/plugin-self-containment.md` |
-| Ze Project Knowledge | One-line lesson + rule pointer Severity: advisory | `ai/rules/project-knowledge.md` |
-| Protocol Subpackage Skeleton (advisory) | creating a new protocol implementation, adding the first subpackages to a single-package protocol, or reorganizing a protocol's module layout. Severity: advisory | `ai/rules/protocol-skeleton.md` |
-| QEMU Integration Testing | writing Linux-only code (`//go:build linux`) that must ship with QEMU integration tests Severity: blocking | `ai/rules/qemu-testing.md` |
-| Quality Standards | All checks must pass before claiming "done." Severity: blocking | `ai/rules/quality.md` |
-| Registration-Based Dispatch | the registration pattern: register handlers into a dispatcher (or sub-dispatcher), Severity: advisory | `ai/rules/registration-dispatch.md` |
-| File Cross-References | Cross-reference comments let Claude load only needed files without scanning the whole package Severity: advisory | `ai/rules/related-refs.md` |
-| RFC Compliance (every protocol, not just BGP) | writing, changing, reviewing, or testing ANY protocol-implementing code, for ANY RFC Ze implements Severity: blocking | `ai/rules/rfc-compliance.md` |
-| RFC Summaries Before Design | when a spec lists RFC summaries in its Required Reading section Severity: blocking | `ai/rules/rfc-reading.md` |
-| Rule File Format | authoring or editing any `ai/rules/*.md` rule file Severity: blocking Related: canonical-sources, discovery-updates | `ai/rules/rule-format.md` |
-| Self-Documenting Code | Code that implements external APIs or protocols MUST reference the upstream spec inline Severity: blocking | `ai/rules/self-documenting.md` |
-| Spec Work Runs in Subagents; the Main Thread Supervises | starting, resuming, or continuing work on ANY spec -- research, design, implementation, review, audit, or closure -- in the main session thread Severity: blocking Related: model-selection,... | `ai/rules/spec-delegation.md` |
-| No Code in Specs | Specs MUST NOT contain code snippets (any language) Severity: blocking | `ai/rules/spec-no-code.md` |
-| Spec Preservation | Completed specs become learned summaries in `plan/learned/NNN-<name>.md` Severity: advisory | `ai/rules/spec-preservation.md` |
-| Stale Comments | when changing code behavior Severity: blocking | `ai/rules/stale-comments.md` |
-| Test-Driven Development | Tests must exist and fail before implementation Severity: blocking | `ai/rules/tdd.md` |
-| Testing | writing tests, or when a test fails and you are tempted to weaken it Severity: blocking | `ai/rules/testing.md` |
-| Wiring Completeness | Wiring is not a verification step at the end Severity: blocking | `ai/rules/wiring-completeness.md` |
-| YANG Module Structure | authoring or editing any `*.yang` module (module identity, imports, value typing, layout). Complements `config-naming.md` (leaf/env/struct names) and `cli-grammar.md` (command grammar). Severity:... | `ai/rules/yang-structure.md` |
-| Ze Divergences from Standard Go | Ze differs from typical Go projects in specific, load-bearing ways Severity: advisory | `ai/rules/ze-divergences.md` |
-| zefs Persistence (no loose state files) | Writing or reviewing code under `internal/plugins`, `internal/component`, or `cmd/ze` that needs to persist daemon runtime state across a restart, reconfigure, or update (a rolling baseline, a... | `ai/rules/zefs-persistence.md` |
+| Rule | When to read | Severity | File |
+|------|--------------|----------|------|
+| Agent Tooling Contract | adding or changing any CLI output, JSON envelope, diagnostic code, or repair plan that an agent consumes | blocking | `ai/rules/agent-tooling.md` |
+| Anti-Rationalization | when you catch yourself explaining why a test, a gate, or a completion standard does not apply this time | blocking | `ai/rules/anti-rationalization.md` |
+| API Contracts in Comments | when authoring functions with caller obligations | blocking | `ai/rules/api-contracts.md` |
+| Appliance Dependency Bumps | when a Dependabot alert fires on a `go.mod` under `gokrazy/modcache/`, or the vendored gokrazy init must be bumped | blocking | `ai/rules/appliance-dep-bumps.md` |
+| Architecture Summary | reasoning about where a component sits, how the BGP subsystem is laid out, or how events and commands flow between core and plugins | advisory | `ai/rules/architecture-summary.md` |
+| Running Test / Build Commands | running any test, build, lint, or verification command from Bash | blocking | `ai/rules/bash-output.md` |
+| Before Writing Code | before writing any code, tests, or documentation | blocking | `ai/rules/before-writing-code.md` |
+| Buffer-First Encoding -- Mechanical Reference | writing or reviewing any wire-encoding path | blocking | `ai/rules/buffer-first.md` |
+| Canonical Sources and Sync Direction | before editing a file a generator produces, or deciding where a shared rule belongs | blocking | `ai/rules/canonical-sources.md` |
+| CI Sleep Justification | adding, editing, or reviewing any `time.sleep(` in a `test/**/*.ci` functional test | advisory | `ai/rules/ci-sleep-justification.md` |
+| CLI Grammar: Keywords Before Values | adding or changing any CLI command, root command, or YANG command path | blocking | `ai/rules/cli-grammar.md` |
+| CLI Patterns | adding or changing a CLI subcommand, flag, or exit code | blocking | `ai/rules/cli-patterns.md` |
+| Comparison Honesty | Comparing Ze with another product, project, daemon, appliance, distribution, or vendor feature set. | advisory | `ai/rules/comparison-honesty.md` |
+| No Backwards Compatibility | when tempted to add backwards-compatibility code, shims, aliases, or fallbacks | advisory | `ai/rules/compatibility.md` |
+| Config Design | adding or changing a config option, YANG container, or listener endpoint | advisory | `ai/rules/config-design.md` |
+| Config Manipulation | when code needs to read, merge, or rewrite config content | blocking | `ai/rules/config-manipulation.md` |
+| Config Naming Conventions | naming a config leaf, env var, Go config field, or CLI setting | advisory | `ai/rules/config-naming.md` |
+| Config String Coercion | Writing or reviewing a plugin/component `config.go` that reads YANG leaf values out of the delivered config into a typed `Config` struct. | advisory | `ai/rules/config-string-coercion.md` |
+| Config Surface: YANG Config vs Env Var | deciding whether a new setting is a YANG config leaf or an env var | advisory | `ai/rules/config-surface.md` |
+| Critical Review Is the Central Deliverable | before closing a spec, or claiming any substantive change is done | blocking | `ai/rules/critical-review.md` |
+| Data Flow Tracing | before writing or reviewing a spec whose data crosses a boundary | blocking | `ai/rules/data-flow-tracing.md` |
+| Deferral Tracking | when deciding that in-scope work will not be done now | blocking | `ai/rules/deferral-tracking.md` |
+| Derive, Never Hardcode | writing any display, help, error, usage, doc, or test string that enumerates data a registry already holds | blocking | `ai/rules/derive-not-hardcode.md` |
+| Design Context | before any design decision: communication mechanism, naming, package placement, platform backend, or lifecycle | blocking | `ai/rules/design-context.md` |
+| Design Document References | creating or splitting any non-test, non-generated `.go` file | blocking | `ai/rules/design-doc-references.md` |
+| Design Principles | before any design decision that adds structure: a new abstraction, package, wrapper, or interface | advisory | `ai/rules/design-principles.md` |
+| Diagnosis Before Fix | Before changing code to make a symptom go away (failing test, rejected input, error, red gate, broken demo), write the Diagnosis first | blocking | `ai/rules/diagnosis-before-fix.md` |
+| Discovery Updates | adding or changing anything future agents must discover: a feature, command, tool, gate, test type, or runtime dependency | blocking | `ai/rules/discovery-updates.md` |
+| Doctor Checks | when an implementation introduces a runtime dependency: a file, socket, port, kernel module, binary, or certificate | blocking | `ai/rules/doctor-checks.md` |
+| Documentation | changing any user-visible behavior, command, config surface, or protocol support level | blocking | `ai/rules/documentation.md` |
+| Prefer Typed Numeric Over String | adding a string field that crosses a component seam or sits on a hot path | blocking | `ai/rules/enum-over-string.md` |
+| Error Messages | writing or reviewing any error, log line, or failure output | blocking | `ai/rules/error-messages.md` |
+| Exact Or Reject | writing a backend or translator that applies operator config to a device, kernel, or wire format | blocking | `ai/rules/exact-or-reject.md` |
+| Fail-Closed Guards | writing or reviewing a guard: an auth check, validator, constraint, ratchet, or lookup that gates behavior | blocking | `ai/rules/fail-closed-guards.md` |
+| Feature-Gate Registration (compile-out-able features) | adding or changing a compile-out-able feature gated by a `//go:build ze_<feature>` tag | advisory | `ai/rules/feature-gate-registration.md` |
+| File Modularity | when a `.go` file grows past ~600 lines, or starts holding more than one concern | advisory | `ai/rules/file-modularity.md` |
+| Fix, Don't Record. Say It Short. | when a test fails, a gate goes red, or you are about to write a problem down instead of fixing it | blocking | `ai/rules/fix-dont-record.md` |
+| Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures | when a functional-test failure appears only in a full `make ze-verify` run and will not reproduce in isolation | advisory | `ai/rules/flaky-under-load.md` |
+| Friction Reporting | During research, implementation, review, or verification, if you encounter a recurring problem pattern, repeated surprise, stale guidance, tooling friction, or wasted effort, report it immediately... | advisory | `ai/rules/friction-reporting.md` |
+| Functional Test Gate | adding or changing any user-facing behavior | blocking | `ai/rules/functional-test-gate.md` |
+| Git Safety | before any git operation, and when writing or running a commit script | blocking | `ai/rules/git-safety.md` |
+| Go Standards | writing Go in Ze: env access, context, logging, imports, errors, naming | blocking | `ai/rules/go-standards.md` |
+| Go Compiler Upgrade Checklist | bumping the Go compiler: a go.mod `go` directive change or toolchain update | advisory | `ai/rules/go-upgrade-checklist.md` |
+| Goroutine Lifecycle | before writing `go func()` anywhere | blocking | `ai/rules/goroutine-lifecycle.md` |
+| Session Handoff | when the user asks how to continue, or when work must survive beyond this session | blocking | `ai/rules/handoff.md` |
+| Hook-to-Rule Mapping | looking up which check enforces a rule, or why a hook rejected an edit | advisory | `ai/rules/hook-mapping.md` |
+| Impact Analysis | Before modifying a file, check what else needs to change | blocking | `ai/rules/impact-analysis.md` |
+| Implementation Audit | Before marking any spec done, complete line-by-line audit comparing spec to implementation | blocking | `ai/rules/implementation-audit.md` |
+| Initrd: Prefer Procfs/Sysfs Over External Commands | modifying the installer initrd (`cmd/ze-installer`, `internal/install/disk/*_linux.go`) | blocking | `ai/rules/initrd-no-external-tools.md` |
+| Feature Integration Completeness | adding an injectable, flag, config option, RPC, event, or struct field, and before claiming any feature works | blocking | `ai/rules/integration-completeness.md` |
+| Interop Testing and Goal Validation | implementing or changing protocol behavior, and when validating that a spec's stated goals are met | blocking | `ai/rules/interop-and-goal-validation.md` |
+| JSON Format | emitting JSON from any command, RPC, event, or Go struct tag | blocking | `ai/rules/json-format.md` |
+| Language and Spelling | writing any project text, or any prose in Thomas's voice | blocking | `ai/rules/language-and-spelling.md` |
+| Lint Gate | before claiming Go implementation work is complete | blocking | `ai/rules/lint-gate.md` |
+| Memory Architecture | before writing buffer, pool, allocation, or string-building code | blocking | `ai/rules/memory-architecture.md` |
+| Model Selection by Work Phase | starting, resuming, or handing off any spec/design, implementation, or review phase, and whenever you are about to cross from one phase into another in the same session | blocking | `ai/rules/model-selection.md` |
+| Module Tiers (core / component / plugin) | creating a new package under `internal/`, or deciding whether something belongs in `internal/core/`, `internal/component/`, or `internal/plugins/`. | advisory | `ai/rules/module-tiers.md` |
+| Naming | naming anything in Ze (identifiers, files, commands, config) | advisory | `ai/rules/naming.md` |
+| Never Destroy Uncommitted Work | before deleting, reverting, or overwriting any file holding uncommitted or user-visible work | blocking | `ai/rules/never-destroy-work.md` |
+| Don't Ask, Do | when you are about to ask permission instead of finishing the work | advisory | `ai/rules/no-asking.md` |
+| No Fabrication | when stating what code does, or recommending work premised on a behavioral claim | blocking | `ai/rules/no-fabrication.md` |
+| No Fork Loops | writing a shell loop, or any Bash command that could fork one process per file | blocking | `ai/rules/no-fork-loops.md` |
+| No Layering | when replacing X with Y | blocking | `ai/rules/no-layering.md` |
+| No Parking: Fix Blockers, Never Reduce Coverage To Reach Green | when a defect blocks a goal the current work exists to achieve | blocking | `ai/rules/no-parking.md` |
+| No Partial Completion | before claiming any work done, complete, or ready to commit | blocking | `ai/rules/no-partial-completion.md` |
+| No Printf Allocations | reaching for `fmt.Sprintf`, `fmt.Fprintf`, `fmt.Errorf`, or `.String()` concatenation on a hot or allocation-sensitive path | blocking | `ai/rules/no-sprintf-alloc.md` |
+| Test Deletion and Weakening | when a test is red and you are tempted to delete, skip, weaken, or rewrite it | blocking | `ai/rules/no-test-deletion.md` |
+| No Workarounds For Missing Behavior | If a user could experience a problem while trying to achieve a goal, implement the missing behavior at the source | blocking | `ai/rules/no-workarounds-for-missing-behavior.md` |
+| OS-Specific Tests | writing a test that cannot run on every OS | advisory | `ai/rules/os-specific-tests.md` |
+| Pipe Completeness | adding a command that produces output, or a new display mode | blocking | `ai/rules/pipe-completeness.md` |
+| Planning | before implementing any non-trivial feature, and when creating or updating a spec | blocking | `ai/rules/planning.md` |
+| Plugin Design | creating or changing a plugin: registration, placement, transport, comm mechanism, or a registered name | blocking | `ai/rules/plugin-design.md` |
+| Plugin Process Boundary | Writing or reviewing a plugin that calls another in-process package's plain exported function directly (not through DirectBridge/DispatchCommand) to register a callback, fetch a live backend handle,... | advisory | `ai/rules/plugin-process-boundary.md` |
+| Plugin Self-Containment | adding or moving a plugin's command, schema, help text, or doctor check | blocking | `ai/rules/plugin-self-containment.md` |
+| Ze Project Knowledge | looking up a Ze-specific fact or past mistake that no single rule owns | advisory | `ai/rules/project-knowledge.md` |
+| Protocol Subpackage Skeleton (advisory) | creating a new protocol implementation, adding the first subpackages to a single-package protocol, or reorganizing a protocol's module layout. | advisory | `ai/rules/protocol-skeleton.md` |
+| QEMU Integration Testing | writing Linux-only code (`//go:build linux`) that must ship with QEMU integration tests | blocking | `ai/rules/qemu-testing.md` |
+| Quality Standards | before presenting any work as complete | blocking | `ai/rules/quality.md` |
+| Registration-Based Dispatch | adding a command group that dispatches to sub-actions | advisory | `ai/rules/registration-dispatch.md` |
+| File Cross-References | splitting a file, or adding a file tightly coupled to a sibling | blocking | `ai/rules/related-refs.md` |
+| RFC Compliance (every protocol, not just BGP) | writing, changing, reviewing, or testing ANY protocol-implementing code, for ANY RFC Ze implements | blocking | `ai/rules/rfc-compliance.md` |
+| RFC Summaries Before Design | when a spec lists RFC summaries in its Required Reading section | blocking | `ai/rules/rfc-reading.md` |
+| Rule File Format | authoring or editing any `ai/rules/*.md` rule file | blocking | `ai/rules/rule-format.md` |
+| Rule Precedence | when two rules point in different directions, or you are deciding whether to stop, ask, delegate, or continue | blocking | `ai/rules/rule-precedence.md` |
+| Self-Documenting Code | implementing an external API, an RFC, or another project's wire or file format | blocking | `ai/rules/self-documenting.md` |
+| Spec Work Runs in Subagents; the Main Thread Supervises | starting, resuming, or continuing work on ANY spec -- research, design, implementation, review, audit, or closure -- in the main session thread | blocking | `ai/rules/spec-delegation.md` |
+| No Code in Specs | writing or editing a spec | blocking | `ai/rules/spec-no-code.md` |
+| Spec Preservation | closing a completed spec | blocking | `ai/rules/spec-preservation.md` |
+| Stale Comments | when changing code behavior | blocking | `ai/rules/stale-comments.md` |
+| Test-Driven Development | before writing implementation code for any new behavior | blocking | `ai/rules/tdd.md` |
+| Testing | writing tests, or when a test fails and you are tempted to weaken it | blocking | `ai/rules/testing.md` |
+| Wiring Completeness | Wiring is not a verification step at the end | blocking | `ai/rules/wiring-completeness.md` |
+| YANG Module Structure | authoring or editing any `*.yang` module (module identity, imports, value typing, layout). Complements `config-naming.md` (leaf/env/struct names) and `cli-grammar.md` (command grammar). | advisory | `ai/rules/yang-structure.md` |
+| Ze Divergences from Standard Go | when a Go instinct formed outside Ze is about to drive a decision | advisory | `ai/rules/ze-divergences.md` |
+| zefs Persistence (no loose state files) | Writing or reviewing code under `internal/plugins`, `internal/component`, or `cmd/ze` that needs to persist daemon runtime state across a restart, reconfigure, or update (a rolling baseline, a... | advisory | `ai/rules/zefs-persistence.md` |

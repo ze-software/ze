@@ -1,6 +1,6 @@
 # Quality Standards
 
-**When:** All checks must pass before claiming "done."
+**When:** before presenting any work as complete
 **Severity:** blocking
 
 ## Directives

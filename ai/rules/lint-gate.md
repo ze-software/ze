@@ -1,6 +1,6 @@
 # Lint Gate
 
-**When:** Run before claiming implementation work is complete
+**When:** before claiming Go implementation work is complete
 **Severity:** blocking
 
 ## Directives

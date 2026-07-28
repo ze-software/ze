@@ -1,6 +1,6 @@
 # Buffer-First Encoding -- Mechanical Reference
 
-**When:** All wire encoding MUST write into pooled, bounded buffers
+**When:** writing or reviewing any wire-encoding path
 **Severity:** blocking
 
 ## Directives

@@ -1,6 +1,6 @@
 # Ze Divergences from Standard Go
 
-**When:** Ze differs from typical Go projects in specific, load-bearing ways
+**When:** when a Go instinct formed outside Ze is about to drive a decision
 **Severity:** advisory
 
 ## Directives

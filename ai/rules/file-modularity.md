@@ -1,6 +1,6 @@
 # File Modularity
 
-**When:** Each `.go` source file contains exactly one concern — a cohesive group of types and functions serving a single responsibility
+**When:** when a `.go` file grows past ~600 lines, or starts holding more than one concern
 **Severity:** advisory
 
 ## Directives

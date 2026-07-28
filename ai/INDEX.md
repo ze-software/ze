@@ -35,7 +35,7 @@ and gated fresh, so they never lie about the current code.
 | Implement an RFC | `ai/rules/rfc-compliance.md` | `docs/contributing/rfc-implementation-guide.md` |
 | Prove an RFC MUST is enforced (tag a test, coverage gate) | `ai/skills/ze-rfc.md` | Tag the test `RFC requirement: <id> <polarity>` (both polarities); `make ze-rfc-check` gates coverage; ledger `ai/RFC-REQUIREMENTS.md` via `make ze-rfc-index`; audit with `/ze-rfc-audit` |
 | Write a spec | `ai/rules/planning.md` | `plan/TEMPLATE.md` (design-time only; placeholders are legal at `skeleton`, blocked from `design` on) |
-| Close a spec (audit, goal validation, review gate, pre-commit evidence) | `ai/rules/implementation-audit.md` | `plan/TEMPLATE-CLOSURE.md`, appended by `/ze-implement` at stage 11; every Pre-Commit sub-table needs an evidence row |
+| Close a spec (audit, goal validation, review gate, pre-commit evidence) | `ai/rules/implementation-audit.md` | `plan/TEMPLATE-CLOSURE.md`, appended by `/ze-close` at step 1; every Pre-Commit sub-table needs an evidence row |
 | Record design risks and assumptions | `ai/rules/planning.md` (Risks & Assumptions) | A-N/R-N tables in `plan/TEMPLATE.md`; validate during /ze-implement audit |
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/discovery-updates.md` | Update docs, rules, indexes, and verification paths in the same change |
 | Compare Ze with other products | `ai/rules/comparison-honesty.md` | Cite every claim, link code or official feature docs, label uncertainty, and add hide-column controls for wide product matrices |
@@ -182,6 +182,8 @@ artifact type. Check them whenever your work touches the described concern.
 | Error / failure message content | `ai/rules/error-messages.md` | Any error, log line, or failure output: name the subject + offending value + corrective action; greppable phrase; fail closed |
 | Discoverability | `ai/rules/discovery-updates.md` | Any feature, tool, self-check, verification gate, test infrastructure, or agent workflow |
 | Which model runs this phase | `ai/rules/model-selection.md` | Crossing between planning/design, implementation, and review: planning and review run on Opus 5, implementation on Opus 4.8 |
+| Two rules point in different directions | `ai/rules/rule-precedence.md` | The ladder: irreversible action > outside-facing correctness > scope integrity > phase boundaries > autonomy |
+| How much work is already in flight | `scripts/dev/spec-session.sh wip` | In-progress specs, stalest first, against `ZE_SPEC_WIP_CAP` (default 12); `claim` refuses a new `ready` spec over the cap |
 | Who executes this phase (main thread vs subagent) | `ai/rules/spec-delegation.md` | Any spec work: the main thread supervises, each phase runs in a subagent through its `ze-*` skill |
 
 ## Dev Tools

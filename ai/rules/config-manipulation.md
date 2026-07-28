@@ -1,6 +1,6 @@
 # Config Manipulation
 
-**When:** Config content MUST be manipulated through one of two methods only
+**When:** when code needs to read, merge, or rewrite config content
 **Severity:** blocking
 
 ## Directives

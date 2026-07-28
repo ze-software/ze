@@ -227,6 +227,7 @@ means "no rule applies".
 | Run any test/build/lint command | `ai/rules/bash-output.md` -- prefer `make`; a bare `go test` drops feature tags and fakes reds; no pipes, read log after |
 | Delete / overwrite any user-visible file | `ai/rules/never-destroy-work.md` -- ask first for user-visible or uncommitted work; this is the standing exception to "don't ask" |
 | Complete work autonomously | `ai/rules/no-asking.md` -- finish the task, then report; ask only for destructive actions or genuine scope changes |
+| Decide whether to stop, ask, delegate, or continue when two rules disagree | `ai/rules/rule-precedence.md` -- one ladder: irreversible action > outside-facing correctness > scope integrity > phase boundaries > autonomy. Stopping at a phase boundary is not asking permission; a forced question is always "which way", never "may I skip it" |
 | Understand architecture or how Ze diverges from standard Go | `docs/architecture/core-design.md`, `ai/rules/ze-divergences.md` |
 | Check past decisions or known traps | `ai/LEARNED-INDEX.md` -> `plan/learned/`, `plan/learned/RECURRING-PATTERNS.md`, `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md` |
 

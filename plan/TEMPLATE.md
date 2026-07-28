@@ -3,7 +3,7 @@
 <!-- DESIGN-TIME template: everything that must exist BEFORE code is written.
      The closure half (Implementation Summary, Audit, Goal Validation, Review
      Gate, Pre-Commit Verification, Mistake Log) lives in
-     plan/TEMPLATE-CLOSURE.md and is APPENDED by /ze-implement at stage 10.
+     plan/TEMPLATE-CLOSURE.md and is APPENDED by /ze-close at step 1.
      Do not copy it in advance: sections copied 300 lines ahead of their use
      reach closure untouched, the ones created when needed get filled. -->
 

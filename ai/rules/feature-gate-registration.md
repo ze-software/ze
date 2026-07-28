@@ -1,6 +1,6 @@
 # Feature-Gate Registration (compile-out-able features)
 
-**When:** How to add or change a **compile-out-able feature**
+**When:** adding or changing a compile-out-able feature gated by a `//go:build ze_<feature>` tag
 **Severity:** advisory
 
 ## Directives

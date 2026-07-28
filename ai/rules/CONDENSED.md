@@ -9,13 +9,13 @@ dropped. When a rule governs your current action, open its full file (the
 path under each heading) before acting -- this digest maps directives, it is
 not a substitute for the rule.
 
-Rules: 94
+Rules: 95
 
 ---
 
 ## Agent Tooling Contract
 `ai/rules/agent-tooling.md`
-**When:** All agent-facing CLI output must follow these rules — **Severity:** blocking
+**When:** adding or changing any CLI output, JSON envelope, diagnostic code, or repair plan that an agent consumes — **Severity:** blocking
 
 ## Directives
 All agent-facing CLI output must follow these rules.
@@ -63,7 +63,7 @@ When adding agent-facing features:
 
 ## Anti-Rationalization
 `ai/rules/anti-rationalization.md`
-**When:** The answer is always "no." — **Severity:** blocking
+**When:** when you catch yourself explaining why a test, a gate, or a completion standard does not apply this time — **Severity:** blocking
 
 ## Directives
 The answer is always "no."
@@ -141,7 +141,7 @@ Use "MUST" (not "should") for obligations that cause bugs when violated.
 
 ## Appliance Dependency Bumps
 `ai/rules/appliance-dep-bumps.md`
-**When:** a Dependabot alert fires on a `go.mod` under `gokrazy/modcache/`, or you must bump the vendored gokrazy init. — **Severity:** advisory
+**When:** when a Dependabot alert fires on a `go.mod` under `gokrazy/modcache/`, or the vendored gokrazy init must be bumped — **Severity:** blocking
 
 ## Directives
 The alert is almost always a stale *vendored upstream manifest*, not your real dependency graph.
@@ -201,7 +201,7 @@ Separate from the builddir concern: six **root** `go.mod` direct dependencies ar
 
 ## Architecture Summary
 `ai/rules/architecture-summary.md`
-**When:** Read before reasoning about where a component sits, the BGP subsystem layout, or how formatted events (down) and text commands (up) flow between core and plugins. — **Severity:** advisory
+**When:** reasoning about where a component sits, how the BGP subsystem is laid out, or how events and commands flow between core and plugins — **Severity:** advisory
 
 ## Directives
 Full details: `docs/architecture/core-design.md`
@@ -236,7 +236,7 @@ Unbounded event buffer — no events ever dropped.
 
 ## Running Test / Build Commands
 `ai/rules/bash-output.md`
-**When:** Prefer `make` targets — **Severity:** blocking
+**When:** running any test, build, lint, or verification command from Bash — **Severity:** blocking
 
 ## Directives
 Prefer `make` targets.
@@ -266,7 +266,7 @@ Under an AI session every canonical binary is built as `bin/<name>-<session-id>`
 
 ## Before Writing Code
 `ai/rules/before-writing-code.md`
-**When:** Complete before writing any code, tests, or documentation — **Severity:** blocking
+**When:** before writing any code, tests, or documentation — **Severity:** blocking
 
 ## Directives
 Complete before writing any code, tests, or documentation.
@@ -288,7 +288,7 @@ When you add a guard, fallback, retry, or special case to a call site of a share
 
 ## Buffer-First Encoding -- Mechanical Reference
 `ai/rules/buffer-first.md`
-**When:** All wire encoding MUST write into pooled, bounded buffers — **Severity:** blocking
+**When:** writing or reviewing any wire-encoding path — **Severity:** blocking
 
 ## Directives
 All wire encoding MUST write into pooled, bounded buffers.
@@ -331,7 +331,7 @@ The same rule covers the BGP text/JSON format-generation files migrated by fmt-0
 
 ## Canonical Sources and Sync Direction
 `ai/rules/canonical-sources.md`
-**When:** Never edit a generated file — **Severity:** blocking
+**When:** before editing a file a generator produces, or deciding where a shared rule belongs — **Severity:** blocking
 
 ## Directives
 Never edit a generated file.
@@ -359,7 +359,7 @@ All "Generates" targets above are gitignored, so `git diff` can NEVER show drift
 
 ## CI Sleep Justification
 `ai/rules/ci-sleep-justification.md`
-**When:** Adding, editing, or reviewing any `time.sleep(` in a `test/**/*.ci` functional test. Every sleep must carry a comment explaining why it is there. — **Severity:** advisory
+**When:** adding, editing, or reviewing any `time.sleep(` in a `test/**/*.ci` functional test — **Severity:** advisory
 
 ## Rule
 Every `time.sleep(` call in a `.ci` test MUST have an explanatory comment on the line directly above it, or trailing it on the same line.
@@ -387,7 +387,7 @@ The comment must state which of these the sleep is:
 
 ## CLI Grammar: Keywords Before Values
 `ai/rules/cli-grammar.md`
-**When:** Every CLI command must place a closed keyword before any — **Severity:** blocking
+**When:** adding or changing any CLI command, root command, or YANG command path — **Severity:** blocking
 
 ## Directives
 Every CLI command must place a closed keyword before any user-supplied value.
@@ -503,7 +503,7 @@ All CLI commands: online (RPC handlers via YANG dispatch) and offline (`cmd/ze/`
 
 ## CLI Patterns
 `ai/rules/cli-patterns.md`
-**When:** All CLI commands MUST follow these patterns — **Severity:** blocking
+**When:** adding or changing a CLI subcommand, flag, or exit code — **Severity:** blocking
 
 ## Directives
 All CLI commands MUST follow these patterns.
@@ -581,7 +581,7 @@ Before publishing or handing off a comparison:
 
 ## No Backwards Compatibility
 `ai/rules/compatibility.md`
-**When:** tempted to add backwards-compatibility code, shims, or fallbacks — **Severity:** advisory
+**When:** when tempted to add backwards-compatibility code, shims, aliases, or fallbacks — **Severity:** advisory
 
 ## Directives
 ## Pre-release (current state)
@@ -596,7 +596,7 @@ External tools only (`ze exabgp plugin`, `ze config migrate`).
 
 ## Config Design
 `ai/rules/config-design.md`
-**When:** Structural template: `ai/patterns/config-option.md` — **Severity:** advisory
+**When:** adding or changing a config option, YANG container, or listener endpoint — **Severity:** advisory
 
 ## Directives
 Structural template: `ai/patterns/config-option.md` Decision framework (YANG vs env var): `ai/rules/config-surface.md` Naming conventions: `ai/rules/config-naming.md`
@@ -621,7 +621,7 @@ All network listener endpoints use the `zt:listener` grouping (`ip` + `port` fro
 
 ## Config Manipulation
 `ai/rules/config-manipulation.md`
-**When:** Config content MUST be manipulated through one of two methods only — **Severity:** blocking
+**When:** when code needs to read, merge, or rewrite config content — **Severity:** blocking
 
 ## Directives
 Config content MUST be manipulated through one of two methods only.
@@ -639,7 +639,7 @@ The config format IS set commands.
 
 ## Config Naming Conventions
 `ai/rules/config-naming.md`
-**When:** Names cross four layers (YANG, env var, Go struct, CLI) — **Severity:** advisory — **Related:** naming, config-design
+**When:** naming a config leaf, env var, Go config field, or CLI setting — **Severity:** advisory — **Related:** naming, config-design
 
 ## Directives
 Names cross four layers (YANG, env var, Go struct, CLI).
@@ -753,7 +753,7 @@ Before adding any tunable setting:
 
 ## Critical Review Is the Central Deliverable
 `ai/rules/critical-review.md`
-**When:** Before closing a spec or claiming a substantive change is done -- review is INDEPENDENT (subagents / fresh session), never the author's own inline reasoning, and is enforced by — **Severity:** blocking
+**When:** before closing a spec, or claiming any substantive change is done — **Severity:** blocking
 
 ## Directives
 Before closing a spec or claiming a substantive change is done -- review is INDEPENDENT (subagents / fresh session), never the author's own inline reasoning, and is enforced by `commit_helper.py`.
@@ -788,7 +788,7 @@ Every spec closure and every substantive code change runs this.
 
 ## Data Flow Tracing
 `ai/rules/data-flow-tracing.md`
-**When:** Trace full data flow before writing or reviewing specs — **Severity:** blocking
+**When:** before writing or reviewing a spec whose data crosses a boundary — **Severity:** blocking
 
 ## Directives
 Trace full data flow before writing or reviewing specs.
@@ -808,7 +808,7 @@ Trace full data flow before writing or reviewing specs.
 
 ## Deferral Tracking
 `ai/rules/deferral-tracking.md`
-**When:** A deferral whose destination is prose ("later", "future work") is a deletion with a polite name — **Severity:** advisory
+**When:** when deciding that in-scope work will not be done now — **Severity:** blocking
 
 ## Directives
 **Obligation on you (not a hard gate):** Every decision to not perform in-scope work MUST be recorded AND land in a destination spec.
@@ -907,7 +907,7 @@ A row is closed when the WORK is settled, never when it is merely filed.
 
 ## Derive, Never Hardcode
 `ai/rules/derive-not-hardcode.md`
-**When:** If enumerated data has a canonical source (registry, — **Severity:** blocking
+**When:** writing any display, help, error, usage, doc, or test string that enumerates data a registry already holds — **Severity:** blocking
 
 ## Directives
 If enumerated data has a canonical source (registry, map, typed enum, list function), DERIVE every display/help/error/usage/doc string from it.
@@ -942,7 +942,7 @@ Otherwise: derive.
 
 ## Design Context
 `ai/rules/design-context.md`
-**When:** Before any design decision (communication mechanism, — **Severity:** blocking
+**When:** before any design decision: communication mechanism, naming, package placement, platform backend, or lifecycle — **Severity:** blocking
 
 ## Directives
 Before any design decision (communication mechanism, naming, package placement, platform backend, lifecycle), load the relevant context below.
@@ -1009,7 +1009,7 @@ Before any design decision (communication mechanism, naming, package placement, 
 
 ## Design Document References
 `ai/rules/design-doc-references.md`
-**When:** All `.go` source files (non-test, non-generated) MUST have `// Design:` comment — **Severity:** blocking
+**When:** creating or splitting any non-test, non-generated `.go` file — **Severity:** blocking
 
 ## Directives
 All `.go` source files (non-test, non-generated) MUST have `// Design:` comment.
@@ -1031,7 +1031,7 @@ The `// Design:` line must be the first comment in every file.
 
 ## Design Principles
 `ai/rules/design-principles.md`
-**When:** Read before any design decision; the checklist (abstract when you can at 2+ use cases, no speculative features, single responsibility, minimal coupling, explicit behavior) gates new structure. — **Severity:** advisory
+**When:** before any design decision that adds structure: a new abstraction, package, wrapper, or interface — **Severity:** advisory
 
 ## Directives
 Detail for the pool/buffer/lazy principles: `ai/rules/buffer-first.md`, `ai/rules/exact-or-reject.md`.
@@ -1091,7 +1091,7 @@ Always ask: am I fixing where the problem **is**, or where it **shows up**? A sp
 
 ## Discovery Updates
 `ai/rules/discovery-updates.md`
-**When:** A change that adds or changes something future agents need to use, — **Severity:** blocking
+**When:** adding or changing anything future agents must discover: a feature, command, tool, gate, test type, or runtime dependency — **Severity:** blocking
 
 ## Directives
 A change that adds or changes something future agents need to use, verify, document, or avoid MUST update the discovery path in the same work.
@@ -1155,7 +1155,7 @@ Use these before inventing a new mechanism:
 
 ## Doctor Checks
 `ai/rules/doctor-checks.md`
-**When:** Every feature that adds a new runtime dependency must register — **Severity:** blocking
+**When:** when an implementation introduces a runtime dependency: a file, socket, port, kernel module, binary, or certificate — **Severity:** blocking
 
 ## Directives
 Every feature that adds a new runtime dependency must register a `ze doctor` check so agents can verify readiness before starting the daemon.
@@ -1200,7 +1200,7 @@ Every new doctor check needs both:
 
 ## Documentation
 `ai/rules/documentation.md`
-**When:** Every feature change MUST update the specific documentation it affects — **Severity:** blocking
+**When:** changing any user-visible behavior, command, config surface, or protocol support level — **Severity:** blocking
 
 ## Directives
 Every feature change MUST update the specific documentation it affects.
@@ -1250,7 +1250,7 @@ Run `make ze-doc-test` after editing any file under `docs/`, after adding or rem
 
 ## Prefer Typed Numeric Over String
 `ai/rules/enum-over-string.md`
-**When:** Hot paths use typed numeric identity (enum, registered — **Severity:** blocking
+**When:** adding a string field that crosses a component seam or sits on a hot path — **Severity:** blocking
 
 ## Directives
 Hot paths use typed numeric identity (enum, registered ID, bitset, packed integer), not strings.
@@ -1313,7 +1313,7 @@ Before adding a `string` field crossing a component seam OR on a hot path:
 
 ## Error Messages
 `ai/rules/error-messages.md`
-**When:** Every error, log line, and failure output you write must let a — **Severity:** blocking
+**When:** writing or reviewing any error, log line, or failure output — **Severity:** blocking
 
 ## Directives
 Every error, log line, and failure output you write must let a human or an agent see what failed, why, and what to do next, without opening the source.
@@ -1356,7 +1356,7 @@ Before returning or logging an error, ask:
 
 ## Exact Or Reject
 `ai/rules/exact-or-reject.md`
-**When:** If the implementation cannot deliver EXACTLY what the — **Severity:** blocking
+**When:** writing a backend or translator that applies operator config to a device, kernel, or wire format — **Severity:** blocking
 
 ## Directives
 If the implementation cannot deliver EXACTLY what the operator's config asks for, `ze config verify` / `ze config commit` MUST fail with a clear error.
@@ -1395,7 +1395,7 @@ Before marking any backend/translator spec done, for every path that accepts con
 
 ## Fail-Closed Guards
 `ai/rules/fail-closed-guards.md`
-**When:** A guard must fail closed or say something — **Severity:** blocking — **Related:** exact-or-reject, no-fabrication
+**When:** writing or reviewing a guard: an auth check, validator, constraint, ratchet, or lookup that gates behavior — **Severity:** blocking — **Related:** exact-or-reject, no-fabrication
 
 ## Directives
 A guard must fail closed or say something.
@@ -1422,7 +1422,7 @@ holds.** Read the producing function.
 
 ## Feature-Gate Registration (compile-out-able features)
 `ai/rules/feature-gate-registration.md`
-**When:** How to add or change a **compile-out-able feature** — **Severity:** advisory
+**When:** adding or changing a compile-out-able feature gated by a `//go:build ze_<feature>` tag — **Severity:** advisory
 
 ## Directives
 How to add or change a **compile-out-able feature**: a subsystem that can be dropped from the `ze` binary at build time via a `//go:build ze_<feature>` tag, for a smaller binary and a smaller attack surface...
@@ -1478,7 +1478,7 @@ the gate ONCE in `feature-gates.txt`; derive the rest.
 
 ## File Modularity
 `ai/rules/file-modularity.md`
-**When:** Each `.go` source file contains exactly one concern — a cohesive group of types and functions serving a single responsibility — **Severity:** advisory
+**When:** when a `.go` file grows past ~600 lines, or starts holding more than one concern — **Severity:** advisory
 
 ## Directives
 ## One Concern Per File
@@ -1511,7 +1511,7 @@ Learned: `plan/learned/363-file-modularity.md`.
 
 ## Fix, Don't Record. Say It Short.
 `ai/rules/fix-dont-record.md`
-**When:** a test fails, a gate goes red, or you are about to write a problem down -- a `plan/known-failures/` shard, a deferral row, a commit body, a report, a learned summary — **Severity:** blocking — **Related:** no-parking, anti-rationalization, flaky-under-load, testing, ci-sleep-justification
+**When:** when a test fails, a gate goes red, or you are about to write a problem down instead of fixing it — **Severity:** blocking — **Related:** no-parking, anti-rationalization, flaky-under-load, testing, ci-sleep-justification
 
 ## Directives
 Two failures, one rule: writing a problem down instead of fixing it, and writing at length instead of writing what matters.
@@ -1558,7 +1558,7 @@ A record earns its length from what a future reader must DO, never from what you
 
 ## Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures
 `ai/rules/flaky-under-load.md`
-**When:** a functional-test failure (panic, crash, exit-code mismatch, timeout) appears only in a full `make ze-verify` / `ze-functional-test` run and cannot be reproduced by rerunning the one suite in isolation. — **Severity:** advisory — **Related:** fix-dont-record, no-parking, testing
+**When:** when a functional-test failure appears only in a full `make ze-verify` run and will not reproduce in isolation — **Severity:** advisory — **Related:** fix-dont-record, no-parking, testing
 
 ## Directives
 **This rule is about DIAGNOSING such a failure. The outcome is always a fix.**
@@ -1604,7 +1604,7 @@ Use the stress reproducer against the suspected suite.
 
 ## Functional Test Gate
 `ai/rules/functional-test-gate.md`
-**When:** Every user-facing behavior MUST have a functional test that exercises — **Severity:** blocking
+**When:** adding or changing any user-facing behavior — **Severity:** blocking
 
 ## Directives
 Every user-facing behavior MUST have a functional test that exercises it through a user entry point.
@@ -1657,7 +1657,7 @@ A functional test that EXISTS is not the same as one that GATES.
 
 ## Git Safety
 `ai/rules/git-safety.md`
-**When:** Read before any git operation or writing a commit script; covers the AI-tool git bans, the Claude-run commit-script path, verify-status handling, and why a shared single-file plan log (now sharded for both deferrals and known-failures) cross-commits between concurrent sessions. — **Severity:** advisory
+**When:** before any git operation, and when writing or running a commit script — **Severity:** blocking
 
 ## Directives
 ## Commit Rules
@@ -1755,7 +1755,7 @@ Never `--no-gpg-sign` / `-c commit.gpgsign=false`.
 
 ## Go Standards
 `ai/rules/go-standards.md`
-**When:** Read before writing Go in Ze; covers env access, context handling, aliased imports, error wrapping, and other Ze-specific Go conventions. — **Severity:** blocking
+**When:** writing Go in Ze: env access, context, logging, imports, errors, naming — **Severity:** blocking
 
 ## Directives
 ## Required
@@ -1834,7 +1834,7 @@ Names of variables and constants must describe what the value IS, not its Go typ
 
 ## Go Compiler Upgrade Checklist
 `ai/rules/go-upgrade-checklist.md`
-**When:** Every Go compiler version bump (go.mod `go` directive change or toolchain update). — **Severity:** advisory
+**When:** bumping the Go compiler: a go.mod `go` directive change or toolchain update — **Severity:** advisory
 
 ## textbuf.noescape vs strings.Builder
 `internal/core/textbuf/textbuf.go` uses a `noescape` function identical to the technique `strings.Builder` uses via `abi.NoEscape` to prevent self-referential slices from escaping to the heap.
@@ -1848,7 +1848,7 @@ Names of variables and constants must describe what the value IS, not its Go typ
 
 ## Goroutine Lifecycle
 `ai/rules/goroutine-lifecycle.md`
-**When:** All goroutines MUST be long-lived workers — **Severity:** blocking
+**When:** before writing `go func()` anywhere — **Severity:** blocking
 
 ## Directives
 All goroutines MUST be long-lived workers.
@@ -1865,7 +1865,7 @@ All goroutines MUST be long-lived workers.
 
 ## Session Handoff
 `ai/rules/handoff.md`
-**When:** with the rationale so the user can verify the handoff matches the decisions — **Severity:** blocking
+**When:** when the user asks how to continue, or when work must survive beyond this session — **Severity:** blocking
 
 ## Directives
 with the rationale so the user can verify the handoff matches the decisions they believe were agreed.
@@ -1897,7 +1897,7 @@ When a handoff must survive beyond the chat (multi-session work, work picked up 
 
 ## Hook-to-Rule Mapping
 `ai/rules/hook-mapping.md`
-**When:** Quick reference: which checks enforce which rules, and when they trigger — **Severity:** advisory
+**When:** looking up which check enforces a rule, or why a hook rejected an edit — **Severity:** advisory
 
 ## Directives
 Quick reference: which checks enforce which rules, and when they trigger.
@@ -1920,7 +1920,7 @@ Enforces `session-start.md`.
 | destructive-git | `CLAUDE.md` prohibitions | Bash | Blocks git commit/push/reset/restore/clean/merge. Allows `git restore --staged`. BLOCKING. |
 | worktree-copy | `CLAUDE.md` prohibitions | Bash | Blocks cp/mv/rsync from `.claude/worktrees/` to main repo. BLOCKING. | <!-- doc-links: ignore (.claude/worktrees/ exists only while a worktree agent is active) -->
 | root-build | (build hygiene) | Bash | Blocks `go build` without `-o bin/`. Allows `go build ./...` (check-only). BLOCKING. |
-| pipe-tail | `bash-output.md` | Bash | Blocks `\| tail` and piping `make ze-*` output. BLOCKING. |
+| pipe-tail | `bash-output.md` | Bash | Blocks a lossy filter (`head`/`tail`/`grep`/`awk`/`sed`/`cat`/`less`/`more`) piped from an EXPENSIVE producer (`make`, `go test\|build\|vet`, `golangci-lint`, `bin/ze*`, `ze-test`). `\| tee` passes. Cheap commands (`git log \| tail`) are not its business: it used to block every `\| tail` while letting `go test ./... \| head` through, which is the case the rule exists to stop. BLOCKING. |
 | system-tmp | `testing.md` | Bash | Blocks access to `/tmp`; must use project `tmp/`. BLOCKING. |
 | test-deletion | `no-test-deletion.md` | Bash | Blocks `rm`/`git checkout` of test files. BLOCKING. |
 The five commit-time gates (spec-audit, deferral-in-diff, deferral-unassigned, wiring-at-commit, doc-drift) used to sit here but gated on the literal `git commit` string, which the sanctioned commit path never sends...
@@ -2122,7 +2122,7 @@ Before: writing summary to `plan/learned/`, claiming "done", asking to commit.
 For each AC-N, quote the expected behavior from the AC table, then name the test and its assertion.
 ## Pre-Commit Verification (BLOCKING)
 **Do NOT trust the audit.** After filling the audit, independently re-verify every item.
-This is a separate section in the spec (see `plan/TEMPLATE-CLOSURE.md`, appended at `/ze-implement` stage 11).
+This is a separate section in the spec (see `plan/TEMPLATE-CLOSURE.md`, appended at `/ze-close` step 1).
 | Table | What to verify | How |
 |-------|---------------|-----|
 | Files Exist | Every file from "Files to Create" | `ls -la <path>` — paste output |
@@ -2146,7 +2146,7 @@ This is a separate section in the spec (see `plan/TEMPLATE-CLOSURE.md`, appended
 
 ## Initrd: Prefer Procfs/Sysfs Over External Commands
 `ai/rules/initrd-no-external-tools.md`
-**When:** Read before modifying the installer initrd (`cmd/ze-installer`, — **Severity:** blocking
+**When:** modifying the installer initrd (`cmd/ze-installer`, `internal/install/disk/*_linux.go`) — **Severity:** blocking
 
 ## Directives
 Read before modifying the installer initrd (`cmd/ze-installer`, `internal/install/disk/*_linux.go`).
@@ -2170,7 +2170,7 @@ The operations the old shell init shelled out to are now in-process Go:
 
 ## Feature Integration Completeness
 `ai/rules/integration-completeness.md`
-**When:** Every new feature MUST be proven to work integrated, not just in isolation — **Severity:** blocking
+**When:** adding an injectable, flag, config option, RPC, event, or struct field, and before claiming any feature works — **Severity:** blocking
 
 ## Directives
 Every new feature MUST be proven to work integrated, not just in isolation.
@@ -2222,7 +2222,7 @@ Before modifying any handler, dispatcher, or protocol step: **grep for ALL imple
 
 ## Interop Testing and Goal Validation
 `ai/rules/interop-and-goal-validation.md`
-**When:** Protocol features MUST have interop tests — **Severity:** blocking
+**When:** implementing or changing protocol behavior, and when validating that a spec's stated goals are met — **Severity:** blocking
 
 ## Directives
 Protocol features MUST have interop tests.
@@ -2309,7 +2309,7 @@ The spec's Goal Validation table must have:
 
 ## JSON Format
 `ai/rules/json-format.md`
-**When:** All JSON output MUST follow these conventions — **Severity:** blocking
+**When:** emitting JSON from any command, RPC, event, or Go struct tag — **Severity:** blocking
 
 ## Directives
 All JSON output MUST follow these conventions.
@@ -2357,7 +2357,7 @@ Format: `"afi/safi"`.
 
 ## Language and Spelling
 `ai/rules/language-and-spelling.md`
-**When:** The project language is **US English** — **Severity:** blocking
+**When:** writing any project text, or any prose in Thomas's voice — **Severity:** blocking
 
 ## Directives
 The project language is **US English**.
@@ -2388,7 +2388,7 @@ Before writing or reviewing any project text, ask: is this text the project spea
 
 ## Lint Gate
 `ai/rules/lint-gate.md`
-**When:** Run before claiming implementation work is complete — **Severity:** blocking
+**When:** before claiming Go implementation work is complete — **Severity:** blocking
 
 ## Directives
 Run before claiming implementation work is complete.
@@ -2413,7 +2413,7 @@ Before claiming any Go implementation work is done, run:
 
 ## Memory Architecture
 `ai/rules/memory-architecture.md`
-**When:** Conceptual model for Ze's memory management — **Severity:** advisory
+**When:** before writing buffer, pool, allocation, or string-building code — **Severity:** blocking
 
 ## Directives
 Conceptual model for Ze's memory management.
@@ -2548,7 +2548,7 @@ Each phase of Ze work runs on a specific model.
 |-------|-------|--------|
 | Planning and design | Opus 5 | research, `/ze-spec`, `/ze-design`, spec writing and revision, architecture decisions, RFC reading, handoff authoring |
 | Implementation | Opus 4.8 | `/ze-implement`, writing code and tests, fixing failures, refactors, doc edits that follow from the code |
-| Review and audit | Opus 5 | `/ze-review`, `/ze-review-deep`, `/ze-review-spec`, `/ze-audit`, the Review Gate, spec closure, implementation audit |
+| Review and audit | Opus 5 | `/ze-review`, `/ze-review-deep`, `/ze-review-spec`, `/ze-audit`, `/ze-close` (Review Gate, spec closure, implementation audit) |
 ## Phase Boundaries Are Model Boundaries
 A session cannot change its own model.
 | Situation | Do |
@@ -2682,7 +2682,7 @@ What the recurring package names mean, verified against each package's own doc c
 
 ## Never Destroy Uncommitted Work
 `ai/rules/never-destroy-work.md`
-**When:** Never delete, revert, or overwrite files holding uncommitted — **Severity:** blocking
+**When:** before deleting, reverting, or overwriting any file holding uncommitted or user-visible work — **Severity:** blocking
 
 ## Directives
 Never delete, revert, or overwrite files holding uncommitted work the user wrote or requested without explicit permission.
@@ -2720,7 +2720,7 @@ If a file should be deleted but this rule requires permission, ask the user dire
 
 ## Don't Ask, Do
 `ai/rules/no-asking.md`
-**When:** Never use phrases like "would you like me to", "want me to", "shall I", — **Severity:** advisory
+**When:** when you are about to ask permission instead of finishing the work — **Severity:** advisory
 
 ## Directives
 Never use phrases like "would you like me to", "want me to", "shall I", or "I can" before completing work.
@@ -2732,7 +2732,7 @@ Never use phrases like "would you like me to", "want me to", "shall I", or "I ca
 
 ## No Fabrication
 `ai/rules/no-fabrication.md`
-**When:** State only what the source explicitly says or does — **Severity:** blocking
+**When:** when stating what code does, or recommending work premised on a behavioral claim — **Severity:** blocking
 
 ## Directives
 State only what the source explicitly says or does.
@@ -2766,7 +2766,7 @@ The `design-without-lsp` check in `.claude/hooks/pretool-writeedit.py` blocks wr
 
 ## No Fork Loops
 `ai/rules/no-fork-loops.md`
-**When:** Never write a shell for-loop that forks an external command per — **Severity:** blocking
+**When:** writing a shell loop, or any Bash command that could fork one process per file — **Severity:** blocking
 
 ## Directives
 Never write a shell for-loop that forks an external command per iteration when a single invocation can process all inputs.
@@ -2844,7 +2844,7 @@ The goal is met when the real, user-visible path works against the real counterp
 
 ## No Partial Completion
 `ai/rules/no-partial-completion.md`
-**When:** Read before claiming any work "done"; every acceptance criterion needs working code plus a test, "deferred" is not "done," and scope cuts require explicit user approval. — **Severity:** advisory
+**When:** before claiming any work done, complete, or ready to commit — **Severity:** blocking
 
 ## Directives
 **BLOCKING. ABSOLUTE PROHIBITION. Same level as git safety.**
@@ -3141,7 +3141,7 @@ During bulk `+` → textbuf conversions, it is tempting to use `Slice()` everywh
 
 ## Test Deletion and Weakening
 `ai/rules/no-test-deletion.md`
-**When:** A red test means the CODE is wrong by default — **Severity:** advisory
+**When:** when a test is red and you are tempted to delete, skip, weaken, or rewrite it — **Severity:** blocking
 
 ## Directives
 A red test means the CODE is wrong by default.
@@ -3202,7 +3202,7 @@ Verification must exercise the user-visible goal, not just the workaround bounda
 
 ## OS-Specific Tests
 `ai/rules/os-specific-tests.md`
-**When:** A test that cannot run on every OS MUST either carry a build tag — **Severity:** advisory
+**When:** writing a test that cannot run on every OS — **Severity:** advisory
 
 ## Directives
 A test that cannot run on every OS MUST either carry a build tag (`//go:build linux`) on its file, or skip (`t.Skip`) with a reason on the OSes where it cannot run.
@@ -3216,7 +3216,7 @@ A test that cannot run on every OS MUST either carry a build tag (`//go:build li
 
 ## Pipe Completeness
 `ai/rules/pipe-completeness.md`
-**When:** Every command that produces output MUST support all pipe operators — **Severity:** blocking
+**When:** adding a command that produces output, or a new display mode — **Severity:** blocking
 
 ## Directives
 Every command that produces output MUST support all pipe operators.
@@ -3251,7 +3251,7 @@ Both `monitor traceroute | log` and `monitor ping | log` bypass `ApplyPipes` and
 
 ## Planning
 `ai/rules/planning.md`
-**When:** Complete before implementing any non-trivial feature — **Severity:** blocking
+**When:** before implementing any non-trivial feature, and when creating or updating a spec — **Severity:** blocking
 
 ## Directives
 Complete before implementing any non-trivial feature.
@@ -3393,7 +3393,7 @@ When a spec is complete, write a concise summary to `plan/learned/` using the ne
 
 ## Plugin Design
 `ai/rules/plugin-design.md`
-**When:** All plugins MUST follow these patterns — **Severity:** blocking
+**When:** creating or changing a plugin: registration, placement, transport, comm mechanism, or a registered name — **Severity:** blocking
 
 ## Directives
 All plugins MUST follow these patterns.
@@ -3648,9 +3648,9 @@ If your plugin calls a same-process-effect function directly, check `sdk.Plugin.
 
 ---
 
-## Plugin Self-Containment (BLOCKING)
+## Plugin Self-Containment
 `ai/rules/plugin-self-containment.md`
-**When:** its features disappears; every OTHER plugin and the core keep working.** — **Severity:** advisory
+**When:** adding or moving a plugin's command, schema, help text, or doctor check — **Severity:** blocking
 
 ## Directives
 **A plugin owns its ENTIRE feature surface. Remove the plugin and every one of
@@ -3716,7 +3716,7 @@ A removal-compliance test must exist and run in verification: build (or analyse 
 
 ## Ze Project Knowledge
 `ai/rules/project-knowledge.md`
-**When:** One-line lesson + rule pointer — **Severity:** advisory
+**When:** looking up a Ze-specific fact or past mistake that no single rule owns — **Severity:** advisory
 
 ## Project Knowledge (not in other rules)
 - **Family registration** is dynamic via `PluginRegistry.Register()` -- never enumerate, validate format only.
@@ -3917,7 +3917,7 @@ This rule says "BLOCKING", so it is worth being precise about which gate enforce
 
 ## Quality Standards
 `ai/rules/quality.md`
-**When:** All checks must pass before claiming "done." — **Severity:** blocking
+**When:** before presenting any work as complete — **Severity:** blocking
 
 ## Directives
 ## Linting
@@ -3960,7 +3960,7 @@ Validate understanding of existing architecture BEFORE proposing changes.
 
 ## Registration-Based Dispatch
 `ai/rules/registration-dispatch.md`
-**When:** the registration pattern: register handlers into a dispatcher (or sub-dispatcher), — **Severity:** advisory
+**When:** adding a command group that dispatches to sub-actions — **Severity:** advisory
 
 ## Rule
 **Never use switch/case to dispatch subcommands.** All command dispatch must use
@@ -3976,7 +3976,7 @@ Use `subdispatch.New(name, summary)` for any command group that has sub-actions.
 
 ## File Cross-References
 `ai/rules/related-refs.md`
-**When:** Cross-reference comments let Claude load only needed files without scanning the whole package — **Severity:** advisory
+**When:** splitting a file, or adding a file tightly coupled to a sibling — **Severity:** blocking
 
 ## Directives
 ## Purpose
@@ -4136,10 +4136,18 @@ when a summary exists (or should exist) in the repo
 Every `ai/rules/*.md` rule (except the generated `INDEX.md` and `CONDENSED.md`) MUST open with a title and a machine-readable metadata block, so tooling can parse triggers and severity without guessing.
 | Element | Requirement |
 |---------|-------------|
-| `# Title` | First non-blank line, a single H1. |
-| `**When:** <trigger>` | Required. One line. The situation that makes this rule apply, phrased so an agent can match it against the task at hand. |
-| `**Severity:** blocking\|advisory` | Required. `blocking` = a gate/hook enforces it or violating it breaks correctness; `advisory` = strong convention. |
+| `# Title` | First non-blank line, a single H1. It MUST NOT contain "BLOCKING": `**Severity:**` carries that, and no tool can read a title marker. |
+| `**When:** <trigger>` | Required. One line. The SITUATION that makes this rule apply, phrased so an agent can match it against the task at hand. See "The trigger is a routing key". |
+| `**Severity:** blocking\|advisory` | Required. `blocking` = a gate/hook enforces it or violating it breaks correctness; `advisory` = strong convention. It MUST agree with the prose: a rule whose body says BLOCKING may not declare `advisory`. |
 | `**Related:** slug, slug` | Optional. Comma-separated rule slugs (filename without `.md`), no paths. |
+## The trigger is a routing key
+`**When:**` is not a summary and not the rule's first directive.
+| Requirement | Why |
+|-------------|-----|
+| Start with a temporal opener (`when`, `whenever`, `before`, `after`, `while`, `during`, `if`, `once`, `unless`, `upon`, `on`, `at`, `any/every/each time`, `prior to`, `as soon as`) or a gerund (`writing`, `adding`, `reviewing`, `naming`, `closing`, ...) | A uniform opening makes the column scannable, and both forms force a situation rather than an assertion |
+| Name what the author is DOING or what has HAPPENED, never what they must do | "All CLI commands MUST follow these patterns" matches every task and therefore routes nothing. "adding or changing a CLI subcommand, flag, or exit code" routes |
+| One complete clause, one line | A trigger that ends on a comma, a dangling `by`/`with`/`the`, or an unbalanced `**` was copied out of a wrapped bold body line. Three such triggers shipped into `CONDENSED.md` unnoticed |
+| Do not restate the directive | The directive belongs under `## Directives`, where the digest picks it up. Duplicating it in the trigger costs tokens in every session and routes nothing |
 - The metadata block MUST be contiguous and immediately follow the title
 - Put imperative content under `## Directives` (or the rule's own directive
 - Put the "why" under `## Rationale` and code under `## Examples`. The digest
@@ -4152,9 +4160,32 @@ Every `ai/rules/*.md` rule (except the generated `INDEX.md` and `CONDENSED.md`) 
 
 ---
 
+## Rule Precedence
+`ai/rules/rule-precedence.md`
+**When:** when two rules point in different directions, or you are deciding whether to stop, ask, delegate, or continue — **Severity:** blocking — **Related:** no-asking, model-selection, spec-delegation, no-parking, no-partial-completion
+
+## Directives
+Rules that disagree almost always disagree about one thing: whether to keep going.
+**The ladder. A higher rung always wins, and the rungs below it do not get a vote.**
+| Rung | Governs | Rules | What it does to the decision |
+|------|---------|-------|------------------------------|
+| 1 | Irreversible or destructive action | `never-destroy-work`, `git-safety` bans, `CLAUDE.md` prohibitions | STOP and ask. Nothing on any lower rung licenses it, including an explicit instruction to hurry |
+| 2 | Correctness owed to someone outside this repo | `rfc-compliance`, `interop-and-goal-validation` | When full compliance AND full proof of it is on the table, you may not pick anything narrower. Ask Thomas which way to fix it |
+| 3 | Scope integrity | `no-partial-completion`, `no-parking`, `fix-dont-record`, `no-test-deletion` | Never silently reduce scope, park a blocker, or weaken a test. If scope must change, the user decides |
+| 4 | Phase boundaries | `model-selection`, `spec-delegation`, `critical-review` | End the phase, report, and hand off. Do not cross onto the next phase in this context |
+| 5 | Autonomy | `no-asking` | Everything not caught above: finish the work, then report. Do not ask permission to do what you were already asked to do |
+**Stopping at a phase boundary is NOT asking permission.** `no-asking` bans "would you like me to...?" before work you were already asked to do. It does not ban ending a phase, reporting the result, and letting the operator choose the next model or session. Rung 4 and rung 5 only look like a conflict if you read `no-asking` as "never stop".
+**When a higher rung forces a question, the question is HOW, never WHETHER.** "Which way do you want this fixed" is always legitimate. "May I skip it", "may I drop the test", "shall I defer this" are banned at every rung (`no-parking.md`).
+**Deferral versus parking, settled by one question: does the goal this work exists to achieve still hold if I leave this?** If yes, it is separable future work: home it per `deferral-tracking.md`. If no, it is parking with a polite name: fix it now (`no-parking.md`).
+**Recording versus fixing, settled by one question: did I try to reproduce it and fail?** Only a failure whose mechanism you actively tried and could not reproduce may be written down instead of fixed. Anything deterministic, structural, or load-explained gets fixed (`fix-dont-record.md`).
+**A rule's own subject matter is never overridden by this ladder.** The ladder decides stop/ask/delegate/continue. It does not license writing `fmt.Sprintf` on a hot path because you were in a hurry, and it does not exempt you from `no-fabrication` at any rung.
+**If the ladder genuinely does not resolve a conflict, say so in one or two sentences, name both rules, state the reading you are taking, and proceed under it** -- unless the conflict sits on rung 1 or 2, where you stop instead. Silently picking a side and not mentioning it is the failure this clause exists to prevent.
+
+---
+
 ## Self-Documenting Code
 `ai/rules/self-documenting.md`
-**When:** Code that implements external APIs or protocols MUST reference the upstream spec inline — **Severity:** blocking
+**When:** implementing an external API, an RFC, or another project's wire or file format — **Severity:** blocking
 
 ## Directives
 Code that implements external APIs or protocols MUST reference the upstream spec inline.
@@ -4187,6 +4218,7 @@ Place at file top, after `// Design:` and `// Related:` lines:
 | Stress-test a design | `/ze-design` | carries the one-decision-per-question dialogue with the user |
 | Implement | `/ze-implement` | selects the spec, relays user decisions, checks the report against the spec's ACs |
 | Review gate | `/ze-review`, `/ze-review-deep`, `/ze-review-spec` | verifies each finding, decides which are real, loops until zero |
+| Close | `/ze-close` | confirms the Review Gate artifact is clean, then that the two closure commits actually ran |
 | Debug a red test or gate | `/ze-debug` | confirms the diagnosis names a `file:line` root cause, not a symptom |
 | Verify | `/ze-verify` | reads the failure index, decides what to fix next |
 **Launch independent phases in ONE message with parallel `Agent` calls.** Two review lenses, two research questions, or two independent spec areas are concurrent work, not a queue.
@@ -4208,7 +4240,7 @@ Place at file top, after `// Design:` and `// Related:` lines:
 
 ## No Code in Specs
 `ai/rules/spec-no-code.md`
-**When:** Specs MUST NOT contain code snippets (any language) — **Severity:** blocking
+**When:** writing or editing a spec — **Severity:** blocking
 
 ## Directives
 Specs MUST NOT contain code snippets (any language).
@@ -4223,7 +4255,7 @@ Specs MUST NOT contain code snippets (any language).
 
 ## Spec Preservation
 `ai/rules/spec-preservation.md`
-**When:** Completed specs become learned summaries in `plan/learned/NNN-<name>.md` — **Severity:** advisory
+**When:** closing a completed spec — **Severity:** blocking
 
 ## Directives
 Completed specs become learned summaries in `plan/learned/NNN-<name>.md`.
@@ -4257,7 +4289,7 @@ When changing code behavior, update or remove comments that described the old be
 
 ## Test-Driven Development
 `ai/rules/tdd.md`
-**When:** Tests must exist and fail before implementation — **Severity:** blocking
+**When:** before writing implementation code for any new behavior — **Severity:** blocking
 
 ## Directives
 Tests must exist and fail before implementation.
@@ -4718,7 +4750,7 @@ Before saving a `.yang` edit:
 
 ## Ze Divergences from Standard Go
 `ai/rules/ze-divergences.md`
-**When:** Ze differs from typical Go projects in specific, load-bearing ways — **Severity:** advisory
+**When:** when a Go instinct formed outside Ze is about to drive a decision — **Severity:** advisory
 
 ## Directives
 Ze differs from typical Go projects in specific, load-bearing ways.

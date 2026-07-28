@@ -1,6 +1,6 @@
 # Go Standards
 
-**When:** Read before writing Go in Ze; covers env access, context handling, aliased imports, error wrapping, and other Ze-specific Go conventions.
+**When:** writing Go in Ze: env access, context, logging, imports, errors, naming
 **Severity:** blocking
 
 ## Directives

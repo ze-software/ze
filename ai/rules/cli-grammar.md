@@ -1,6 +1,6 @@
 # CLI Grammar: Keywords Before Values
 
-**When:** Every CLI command must place a closed keyword before any
+**When:** adding or changing any CLI command, root command, or YANG command path
 **Severity:** blocking
 
 ## Directives

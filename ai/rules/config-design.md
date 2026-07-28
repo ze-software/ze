@@ -1,6 +1,6 @@
 # Config Design
 
-**When:** Structural template: `ai/patterns/config-option.md`
+**When:** adding or changing a config option, YANG container, or listener endpoint
 **Severity:** advisory
 
 ## Directives

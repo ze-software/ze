@@ -1,6 +1,6 @@
 # Design Context
 
-**When:** Before any design decision (communication mechanism,
+**When:** before any design decision: communication mechanism, naming, package placement, platform backend, or lifecycle
 **Severity:** blocking
 
 ## Directives

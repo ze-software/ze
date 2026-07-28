@@ -1,6 +1,6 @@
 # Plugin Design
 
-**When:** All plugins MUST follow these patterns
+**When:** creating or changing a plugin: registration, placement, transport, comm mechanism, or a registered name
 **Severity:** blocking
 
 ## Directives

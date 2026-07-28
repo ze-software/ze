@@ -1,6 +1,6 @@
 # No Fabrication
 
-**When:** State only what the source explicitly says or does
+**When:** when stating what code does, or recommending work premised on a behavioral claim
 **Severity:** blocking
 
 ## Directives

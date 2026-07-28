@@ -1,6 +1,6 @@
 # Agent Tooling Contract
 
-**When:** All agent-facing CLI output must follow these rules
+**When:** adding or changing any CLI output, JSON envelope, diagnostic code, or repair plan that an agent consumes
 **Severity:** blocking
 
 ## Directives

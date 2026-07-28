@@ -1,6 +1,6 @@
 # Data Flow Tracing
 
-**When:** Trace full data flow before writing or reviewing specs
+**When:** before writing or reviewing a spec whose data crosses a boundary
 **Severity:** blocking
 
 ## Directives

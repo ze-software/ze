@@ -1,6 +1,6 @@
 # Error Messages
 
-**When:** Every error, log line, and failure output you write must let a
+**When:** writing or reviewing any error, log line, or failure output
 **Severity:** blocking
 
 ## Directives

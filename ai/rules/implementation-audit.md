@@ -56,7 +56,7 @@ For each AC-N, quote the expected behavior from the AC table, then name the test
 
 **Do NOT trust the audit.** After filling the audit, independently re-verify every item.
 This is a separate section in the spec (see `plan/TEMPLATE-CLOSURE.md`, appended at
-`/ze-implement` stage 11). It requires FRESH evidence:
+`/ze-close` step 1). It requires FRESH evidence:
 
 | Table | What to verify | How |
 |-------|---------------|-----|

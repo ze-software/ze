@@ -1,6 +1,6 @@
 # Anti-Rationalization
 
-**When:** The answer is always "no."
+**When:** when you catch yourself explaining why a test, a gate, or a completion standard does not apply this time
 **Severity:** blocking
 
 ## Directives

@@ -34,7 +34,7 @@ Fill the `## Review Gate` section in the spec. Loop until 0 BLOCKER, 0 ISSUE.
 | Start research | First action of `/ze-spec` Step 2 |
 | Spec approved | After user approves in `/ze-spec` Step 4 |
 | Start coding | First action of `/ze-implement`, before audit |
-| Implementation complete | `/ze-implement` step 16: commit A (code + spec + learned), then commit B (`git rm` spec) |
+| Implementation complete | `/ze-close` step 6: commit A (code + spec + learned), then commit B (`git rm` spec) |
 
 ## Spec Closure (BLOCKING)
 

@@ -120,19 +120,46 @@ def check_root_build(cmd, _ctx):
     )
 
 
+# ai/rules/bash-output.md scopes this to EXPENSIVE producers: "Never pipe `make`,
+# `go test`, `go build`, `golangci-lint`, `bin/ze*`, or any test/verify/build
+# command through `head`, `tail`, `grep`, `awk`, `sed`, `cat`." The reason is
+# specific to those: their output is the evidence, truncating it fakes a green,
+# and re-running to see the rest costs minutes.
+EXPENSIVE_PRODUCER = re.compile(
+    r"(^|[\s;&(])("
+    r"make\s|"
+    r"go\s+(test|build|vet)\b|"
+    r"golangci-lint\b|"
+    r"bin/ze[\w-]*\b|"
+    r"ze-test\b"
+    r")"
+)
+LOSSY_FILTER = re.compile(r"^\s*(head|tail|grep|egrep|fgrep|awk|sed|cat|less|more)\b")
+
+
 def check_pipe_tail(cmd, _ctx):
-    """block-pipe-tail.sh: no `| tail`, no piping `make ze-*` through lossy filters."""
-    if "| tail" in cmd:
-        return (2, "❌ Blocked: '| tail' -- capture to file instead, or use Read tool")
-    if re.search(r"make ze-.*\|", cmd):
-        after_pipe = cmd.rsplit("|", 1)[1]
-        if re.match(r"^\s*tee\s", after_pipe):  # tee is non-lossy
-            return None
+    """block-pipe-tail.sh: no lossy pipe on an expensive command's output.
+
+    Scoped to the producers ai/rules/bash-output.md names. The previous form
+    blocked EVERY `| tail` (so `git log | tail -3` and `wc -l | tail -1` were
+    rejected, teaching sessions to route around the hook) while letting
+    `go test ./... | head -50` through, which is the exact case the rule exists
+    to stop: a truncated test log reads as a pass.
+    """
+    if not EXPENSIVE_PRODUCER.search(cmd):
+        return None
+    # Split on single pipes only: `||` is control flow, not a pipeline.
+    segments = re.split(r"(?<!\|)\|(?!\|)", cmd)
+    for segment in segments[1:]:
+        if not LOSSY_FILTER.match(segment):
+            continue  # `| tee`, `| tr`, ... keep the whole stream
         return (
             2,
-            "❌ Blocked: piping make ze-* output through a lossy filter\n"
+            "❌ Blocked: piping an expensive command's output through a lossy "
+            f"filter ({segment.strip().split()[0]})\n"
+            "  -- The truncated output is what you would judge the run by.\n"
             "  -- Use: make ze-verify ZE_VERIFY_LOG=tmp/ze-verify-$$.log\n"
-            "  -- Or:  make ze-verify 2>&1 | tee tmp/ze-verify-$$.log\n"
+            "  -- Or:  <command> 2>&1 | tee tmp/out-$$.log\n"
             "  -- Then: Read the log with offset/limit",
         )
     return None

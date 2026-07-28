@@ -13,6 +13,21 @@ Tooling (rules_index.py, rules_condensed.py, and the eager @-import of
 CONDENSED.md) relies on this block being present and machine-readable. This
 linter is the durable gate that keeps it true; it runs inside `make ze-doc-test`.
 
+Beyond presence, two checks keep the block HONEST, because a metadata field that
+is syntactically fine but semantically wrong is worse than a missing one: it
+routes confidently to the wrong place.
+
+  1. `**When:**` must name a SITUATION, not restate the directive. It is the
+     routing key an agent matches against the task in hand, so it has to start
+     with a temporal opener or a gerund ("when ...", "before ...", "writing ...").
+     "All CLI commands MUST follow these patterns" is a directive: it matches
+     every task and therefore routes nothing. The same check catches triggers
+     copied out of a wrapped body line and cut mid-clause; eight had shipped
+     into CONDENSED.md, where they were read by every session.
+
+  2. `**Severity:**` must agree with the prose. A rule that declares `advisory`
+     while its body says BLOCKING teaches readers that the field is decoration.
+
 Usage:
     python3 scripts/dev/rules_lint.py           # report violations, exit 1 if any
     python3 scripts/dev/rules_lint.py --quiet    # exit code only
@@ -24,15 +39,168 @@ from pathlib import Path
 
 SKIP = {"INDEX.md", "CONDENSED.md"}
 SEVERITIES = {"blocking", "advisory"}
+
+# A trigger must open with one of these, or with a gerund (any -ing word not in
+# NOT_GERUND). Keep the set small and closed: the value of a uniform routing
+# column is that it can be scanned, and every addition is one more shape to read.
+OPENERS = (
+    "when ",
+    "whenever ",
+    "while ",
+    "before ",
+    "after ",
+    "during ",
+    "if ",
+    "unless ",
+    "once ",
+    "upon ",
+    "on ",
+    "at ",
+    "any time ",
+    "every time ",
+    "each time ",
+    "prior to ",
+    "as soon as ",
+)
+
+# Words that end in -ing but are not gerunds, so they cannot open a trigger.
+NOT_GERUND = {"nothing", "something", "anything", "everything", "string", "thing"}
+
+# Truncation tells: a trigger cut out of a wrapped body line keeps its dangling
+# punctuation or a stray bold marker.
+TRUNCATED_TAIL = (",", ";", ":", "-", "--")
+
+# ... or it stops on a word no English clause ends on. critical-review.md shipped
+# "...and is enforced by" for months: syntactically a fine metadata line, and
+# useless as a trigger.
+DANGLING_LAST_WORD = {
+    "a",
+    "an",
+    "and",
+    "any",
+    "are",
+    "as",
+    "at",
+    "be",
+    "been",
+    "before",
+    "but",
+    "by",
+    "each",
+    "every",
+    "for",
+    "from",
+    "in",
+    "into",
+    "is",
+    "its",
+    "not",
+    "of",
+    "on",
+    "or",
+    "the",
+    "their",
+    "then",
+    "these",
+    "this",
+    "those",
+    "to",
+    "was",
+    "were",
+    "which",
+    "with",
+}
 # Exact spelling the consumers require: rules_condensed.py:META_LINE and
 # rules_index.py match `**When:**` / `**Severity:**` / `**Related:**`
 # case-sensitively, so the lint must too -- a lowercase key that "passes" here
 # would leak into CONDENSED/INDEX bodies unparsed. Keep this in sync with them.
 CANON_KEYS = ("When", "Severity", "Related")
 
+CODE_SPAN = re.compile(r"`[^`]*`")
+# A BLOCKING mention that carries this marker belongs to the artifact the line
+# describes, not to the rule declaring it. Line-scoped on purpose: a file-scoped
+# opt-out would silently cover every later addition to that file.
+SEVERITY_NOTE = re.compile(r"<!--\s*severity-note:")
+
 META_LINE = re.compile(r"^\*\*(?P<key>[A-Za-z]+):\*\*\s*(?P<val>.*)$")
 H1 = re.compile(r"^#\s+(\S.*)$")
 RELATED_SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
+def _strip_markup(text):
+    """Drop the markup a trigger may legitimately carry, keeping the words."""
+    return text.replace("**", "").replace("`", "").replace("*", "").strip()
+
+
+def check_trigger(trigger):
+    """Return violations for a '**When:**' value that cannot route a task."""
+    problems = []
+    bare = _strip_markup(trigger)
+    if not bare:
+        return ["'**When:**' has no text once markup is stripped"]
+
+    # An ODD number of '**' outside code spans means one marker lost its partner,
+    # which is what truncating a wrapped bold body line produces. Balanced pairs
+    # are legitimate emphasis, and `test/**/*.ci` inside backticks is a glob.
+    if CODE_SPAN.sub("", trigger).count("**") % 2:
+        problems.append(
+            "'**When:**' has an unbalanced '**' -- it was copied out of a wrapped "
+            "bold body line, not written as a trigger"
+        )
+    if bare.endswith(TRUNCATED_TAIL):
+        problems.append(
+            f"'**When:**' ends with {bare[-1]!r}, so it is a truncated sentence "
+            "rather than a complete situation"
+        )
+    last = bare.rstrip(".").split()[-1].lower() if bare.split() else ""
+    if last in DANGLING_LAST_WORD:
+        problems.append(
+            f"'**When:**' ends on {last!r}, so the situation is cut off mid-clause"
+        )
+
+    lowered = bare.lower()
+    words = lowered.split()
+    first = words[0].strip(",;:.") if words else ""
+    is_gerund = first.endswith("ing") and len(first) >= 5 and first not in NOT_GERUND
+    if not (is_gerund or lowered.startswith(OPENERS)):
+        problems.append(
+            "'**When:**' must name a situation, not a directive: start it with a "
+            "temporal opener (when/whenever/before/after/while/if/once/during) or "
+            f"a gerund (writing/adding/reviewing/...). Got {bare.split()[0]!r}. "
+            "See ai/rules/rule-format.md 'The trigger is a routing key'"
+        )
+    return problems
+
+
+def check_severity_agrees(severity, title, lines, body_start):
+    """Return violations where the declared severity contradicts the prose.
+
+    Table rows are exempt: reference rules such as hook-mapping.md tabulate OTHER
+    rules' severities, and those cells say nothing about this rule's own weight.
+    A prose line that describes another artifact's severity can say so with a
+    trailing `<!-- severity-note: ... -->`.
+    """
+    problems = []
+    if "BLOCKING" in title:
+        problems.append(
+            "the title must not say BLOCKING -- '**Severity:** blocking' carries "
+            "that, and a title marker cannot be read by tooling"
+        )
+    if severity != "advisory":
+        return problems
+    for offset, line in enumerate(lines[body_start:]):
+        stripped = line.strip()
+        if stripped.startswith(("|", ">")):
+            continue  # table row or quoted example, not this rule's own claim
+        if "BLOCKING" not in stripped or SEVERITY_NOTE.search(stripped):
+            continue
+        problems.append(
+            f"declares '**Severity:** advisory' but line {body_start + offset + 1} "
+            f"says BLOCKING ({stripped[:60]!r}) -- raise the severity, drop the "
+            "word, or mark the line <!-- severity-note: whose severity this is -->"
+        )
+        break
+    return problems
 
 
 def check_rule(path):
@@ -44,9 +212,11 @@ def check_rule(path):
     idx = 0
     while idx < len(lines) and not lines[idx].strip():
         idx += 1
-    if idx >= len(lines) or not H1.match(lines[idx].strip()):
+    title_match = H1.match(lines[idx].strip()) if idx < len(lines) else None
+    if not title_match:
         problems.append("first non-blank line must be a single '# Title'")
         return problems
+    title = title_match.group(1)
     idx += 1
 
     # Allow one blank line between title and the metadata block.
@@ -77,6 +247,8 @@ def check_rule(path):
         problems.append("missing required '**When:** <trigger>' line")
     elif not meta["When"]:
         problems.append("'**When:**' line is empty")
+    else:
+        problems.extend(check_trigger(meta["When"]))
 
     if "Severity" not in meta:
         problems.append("missing required '**Severity:** blocking|advisory' line")
@@ -85,6 +257,8 @@ def check_rule(path):
             f"'**Severity:**' must be one of {sorted(SEVERITIES)}, got "
             f"'{meta['Severity']}'"
         )
+    else:
+        problems.extend(check_severity_agrees(meta["Severity"], title, lines, idx))
 
     # Order: When before Severity before Related, when present.
     canon = [k for k in CANON_KEYS if k in order]

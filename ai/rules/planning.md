@@ -1,6 +1,6 @@
 # Planning
 
-**When:** Complete before implementing any non-trivial feature
+**When:** before implementing any non-trivial feature, and when creating or updating a spec
 **Severity:** blocking
 
 ## Directives
@@ -27,7 +27,7 @@ rejected-then-rewrite cycle.
 
 **Two templates, one per lifecycle half.** `plan/TEMPLATE.md` is design-time:
 everything that must exist BEFORE code. The closure half lives in
-`plan/TEMPLATE-CLOSURE.md` and is appended by `/ze-implement` at stage 11. Do
+`plan/TEMPLATE-CLOSURE.md` and is appended by `/ze-close` at step 1. Do
 not copy the closure sections into a new spec: measured across 161 specs,
 sections copied at creation but used only at closure arrived there untouched in
 65-75% of in-progress specs, while the sections authors added when they needed

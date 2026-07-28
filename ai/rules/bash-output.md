@@ -1,6 +1,6 @@
 # Running Test / Build Commands
 
-**When:** Prefer `make` targets
+**When:** running any test, build, lint, or verification command from Bash
 **Severity:** blocking
 
 ## Directives

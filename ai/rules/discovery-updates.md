@@ -1,6 +1,6 @@
 # Discovery Updates
 
-**When:** A change that adds or changes something future agents need to use,
+**When:** adding or changing anything future agents must discover: a feature, command, tool, gate, test type, or runtime dependency
 **Severity:** blocking
 
 ## Directives

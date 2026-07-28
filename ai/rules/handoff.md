@@ -1,6 +1,6 @@
 # Session Handoff
 
-**When:** with the rationale so the user can verify the handoff matches the decisions
+**When:** when the user asks how to continue, or when work must survive beyond this session
 **Severity:** blocking
 
 ## Directives

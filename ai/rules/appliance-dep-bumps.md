@@ -1,7 +1,7 @@
 # Appliance Dependency Bumps
 
-**When:** a Dependabot alert fires on a `go.mod` under `gokrazy/modcache/`, or you must bump the vendored gokrazy init.
-**Severity:** advisory
+**When:** when a Dependabot alert fires on a `go.mod` under `gokrazy/modcache/`, or the vendored gokrazy init must be bumped
+**Severity:** blocking
 
 ## Directives
 

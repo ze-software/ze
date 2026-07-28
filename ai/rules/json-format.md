@@ -1,6 +1,6 @@
 # JSON Format
 
-**When:** All JSON output MUST follow these conventions
+**When:** emitting JSON from any command, RPC, event, or Go struct tag
 **Severity:** blocking
 
 ## Directives

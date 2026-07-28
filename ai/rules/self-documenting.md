@@ -1,6 +1,6 @@
 # Self-Documenting Code
 
-**When:** Code that implements external APIs or protocols MUST reference the upstream spec inline
+**When:** implementing an external API, an RFC, or another project's wire or file format
 **Severity:** blocking
 
 ## Directives

@@ -1,7 +1,7 @@
 # Memory Architecture
 
-**When:** Conceptual model for Ze's memory management
-**Severity:** advisory
+**When:** before writing buffer, pool, allocation, or string-building code
+**Severity:** blocking
 
 ## Directives
 

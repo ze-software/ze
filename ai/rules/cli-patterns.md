@@ -1,6 +1,6 @@
 # CLI Patterns
 
-**When:** All CLI commands MUST follow these patterns
+**When:** adding or changing a CLI subcommand, flag, or exit code
 **Severity:** blocking
 
 ## Directives

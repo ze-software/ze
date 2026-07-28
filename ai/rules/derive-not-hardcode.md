@@ -1,6 +1,6 @@
 # Derive, Never Hardcode
 
-**When:** If enumerated data has a canonical source (registry,
+**When:** writing any display, help, error, usage, doc, or test string that enumerates data a registry already holds
 **Severity:** blocking
 
 ## Directives

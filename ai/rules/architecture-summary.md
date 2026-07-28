@@ -1,6 +1,6 @@
 # Architecture Summary
 
-**When:** Read before reasoning about where a component sits, the BGP subsystem layout, or how formatted events (down) and text commands (up) flow between core and plugins.
+**When:** reasoning about where a component sits, how the BGP subsystem is laid out, or how events and commands flow between core and plugins
 **Severity:** advisory
 
 ## Directives

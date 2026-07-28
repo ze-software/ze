@@ -1,7 +1,7 @@
 # Deferral Tracking
 
-**When:** A deferral whose destination is prose ("later", "future work") is a deletion with a polite name
-**Severity:** advisory
+**When:** when deciding that in-scope work will not be done now
+**Severity:** blocking
 
 ## Directives
 

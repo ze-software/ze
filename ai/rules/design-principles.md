@@ -1,6 +1,6 @@
 # Design Principles
 
-**When:** Read before any design decision; the checklist (abstract when you can at 2+ use cases, no speculative features, single responsibility, minimal coupling, explicit behavior) gates new structure.
+**When:** before any design decision that adds structure: a new abstraction, package, wrapper, or interface
 **Severity:** advisory
 
 ## Directives

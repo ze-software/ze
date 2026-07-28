@@ -102,7 +102,7 @@ feature type:
   docs, source anchors.
 
 `plan/TEMPLATE.md` is design-time only. The closure sections live in
-`plan/TEMPLATE-CLOSURE.md` and are appended by `/ze-implement` at stage 11. Do not
+`plan/TEMPLATE-CLOSURE.md` and are appended by `/ze-close` at step 1. Do not
 copy them into a new spec.
 
 **3. Discovery (BLOCKING):** answer the `ai/rules/discovery-updates.md` Mechanical
@@ -260,7 +260,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
    - Files to Modify/Create (from design)
    - Integration Checklist + Documentation Update Checklist (from the Feature Surface Gate -- every applicable row named with a file; N/A rows justified)
    - Implementation Steps
-   - Review Gate section: keep the template's empty Run tables. `/ze-implement`'s /ze-review gate fills them by running `/ze-review` (the BLOCKING Review Gate) before closure. Never delete this section from the produced spec.
+   - Review Gate section: keep the template's empty Run tables. `/ze-close`'s Review Gate step fills them by running `/ze-review` (the BLOCKING Review Gate) before closure. Never delete this section from the produced spec.
 3. Run Pre-Spec Verification:
    - All checkboxes `[ ]` (never `[x]`)
    - No code snippets

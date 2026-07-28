@@ -1,6 +1,6 @@
 # Canonical Sources and Sync Direction
 
-**When:** Never edit a generated file
+**When:** before editing a file a generator produces, or deciding where a shared rule belongs
 **Severity:** blocking
 
 ## Directives

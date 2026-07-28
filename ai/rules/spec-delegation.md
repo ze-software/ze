@@ -15,6 +15,7 @@
 | Stress-test a design | `/ze-design` | carries the one-decision-per-question dialogue with the user |
 | Implement | `/ze-implement` | selects the spec, relays user decisions, checks the report against the spec's ACs |
 | Review gate | `/ze-review`, `/ze-review-deep`, `/ze-review-spec` | verifies each finding, decides which are real, loops until zero |
+| Close | `/ze-close` | confirms the Review Gate artifact is clean, then that the two closure commits actually ran |
 | Debug a red test or gate | `/ze-debug` | confirms the diagnosis names a `file:line` root cause, not a symptom |
 | Verify | `/ze-verify` | reads the failure index, decides what to fix next |
 

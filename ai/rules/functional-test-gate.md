@@ -1,6 +1,6 @@
 # Functional Test Gate
 
-**When:** Every user-facing behavior MUST have a functional test that exercises
+**When:** adding or changing any user-facing behavior
 **Severity:** blocking
 
 ## Directives

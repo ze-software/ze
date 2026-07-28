@@ -1,6 +1,6 @@
 # Design Document References
 
-**When:** All `.go` source files (non-test, non-generated) MUST have `// Design:` comment
+**When:** creating or splitting any non-test, non-generated `.go` file
 **Severity:** blocking
 
 ## Directives

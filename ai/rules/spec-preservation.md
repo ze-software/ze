@@ -1,7 +1,7 @@
 # Spec Preservation
 
-**When:** Completed specs become learned summaries in `plan/learned/NNN-<name>.md`
-**Severity:** advisory
+**When:** closing a completed spec
+**Severity:** blocking
 
 ## Directives
 

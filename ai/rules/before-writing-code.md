@@ -1,6 +1,6 @@
 # Before Writing Code
 
-**When:** Complete before writing any code, tests, or documentation
+**When:** before writing any code, tests, or documentation
 **Severity:** blocking
 
 ## Directives

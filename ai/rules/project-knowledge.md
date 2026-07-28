@@ -1,6 +1,6 @@
 # Ze Project Knowledge
 
-**When:** One-line lesson + rule pointer
+**When:** looking up a Ze-specific fact or past mistake that no single rule owns
 **Severity:** advisory
 
 ## Project Knowledge (not in other rules)

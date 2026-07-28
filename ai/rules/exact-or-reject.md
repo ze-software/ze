@@ -1,6 +1,6 @@
 # Exact Or Reject
 
-**When:** If the implementation cannot deliver EXACTLY what the
+**When:** writing a backend or translator that applies operator config to a device, kernel, or wire format
 **Severity:** blocking
 
 ## Directives

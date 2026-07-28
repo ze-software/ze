@@ -1,6 +1,6 @@
 # Go Compiler Upgrade Checklist
 
-**When:** Every Go compiler version bump (go.mod `go` directive change or toolchain update).
+**When:** bumping the Go compiler: a go.mod `go` directive change or toolchain update
 **Severity:** advisory
 
 ## textbuf.noescape vs strings.Builder

@@ -1,6 +1,6 @@
 # Fail-Closed Guards
 
-**When:** A guard must fail closed or say something
+**When:** writing or reviewing a guard: an auth check, validator, constraint, ratchet, or lookup that gates behavior
 **Severity:** blocking
 **Related:** exact-or-reject, no-fabrication
 

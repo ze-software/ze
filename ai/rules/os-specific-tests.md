@@ -1,6 +1,6 @@
 # OS-Specific Tests
 
-**When:** A test that cannot run on every OS MUST either carry a build tag
+**When:** writing a test that cannot run on every OS
 **Severity:** advisory
 
 ## Directives

@@ -13,7 +13,7 @@ never by convenience, and never by "the session I happen to be in".
 |-------|-------|--------|
 | Planning and design | Opus 5 | research, `/ze-spec`, `/ze-design`, spec writing and revision, architecture decisions, RFC reading, handoff authoring |
 | Implementation | Opus 4.8 | `/ze-implement`, writing code and tests, fixing failures, refactors, doc edits that follow from the code |
-| Review and audit | Opus 5 | `/ze-review`, `/ze-review-deep`, `/ze-review-spec`, `/ze-audit`, the Review Gate, spec closure, implementation audit |
+| Review and audit | Opus 5 | `/ze-review`, `/ze-review-deep`, `/ze-review-spec`, `/ze-audit`, `/ze-close` (Review Gate, spec closure, implementation audit) |
 
 Planning and review are the judgment-heavy phases and both run Opus 5.
 Implementation is the execution phase and runs Opus 4.8.

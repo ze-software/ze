@@ -41,6 +41,10 @@ BASH_CMDS = [
     "go build -o bin/ze ./cmd/ze",
     "go build ./...",
     "grep x | tail -5",
+    "git log --oneline | tail -3",
+    "go test ./... | head -50",
+    "go test ./... 2>&1 | tee tmp/t.log",
+    "bin/ze-test bgp plugin | grep FAIL",
     "cat /tmp/x",
     "cat tmp/x",
     "git reset --hard",
@@ -475,7 +479,14 @@ BASH_GOLDEN = {
     "go build ./...": 0,
     "go build ./cmd/ze": 2,
     "grep -n x f.log": 0,
-    "grep x | tail -5": 2,
+    # A lossy pipe is blocked on an EXPENSIVE producer only (bash-output.md).
+    # `grep x | tail` and `git log | tail` are cheap: blocking them was a false
+    # positive that taught sessions to route around the hook.
+    "grep x | tail -5": 0,
+    "git log --oneline | tail -3": 0,
+    "go test ./... | head -50": 2,
+    "go test ./... 2>&1 | tee tmp/t.log": 0,
+    "bin/ze-test bgp plugin | grep FAIL": 2,
     "ls -la": 0,
     "make ze-verify 2>&1 | tee tmp/v.log": 0,
     "make ze-verify | grep X": 2,

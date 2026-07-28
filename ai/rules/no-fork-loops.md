@@ -1,6 +1,6 @@
 # No Fork Loops
 
-**When:** Never write a shell for-loop that forks an external command per
+**When:** writing a shell loop, or any Bash command that could fork one process per file
 **Severity:** blocking
 
 ## Directives

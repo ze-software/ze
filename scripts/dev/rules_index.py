@@ -68,9 +68,22 @@ def title_of(raw_lines, fallback):
     return fallback
 
 
+def _strip_bold(text):
+    """Drop bold markers outside code spans.
+
+    A blanket replace corrupts globs: the trigger of ci-sleep-justification.md
+    carries `test/**/*.ci`, which rendered as `test//*.ci` in the index until the
+    code spans were protected.
+    """
+    out = []
+    for i, part in enumerate(re.split(r"(`[^`]*`)", text)):
+        out.append(part if i % 2 else part.replace("**", ""))
+    return "".join(out)
+
+
 def clean(text):
     text = MARKER_STRIP.sub("", text)
-    text = text.replace("**", "")  # drop residual bold emphasis
+    text = _strip_bold(text)
     text = WS.sub(" ", text).strip()
     text = text.replace("|", r"\|")
     if len(text) > MAX_SUMMARY:
@@ -90,6 +103,32 @@ def is_prose(para):
     return True
 
 
+def meta_of(raw_lines):
+    """Return the rule's metadata block as a dict.
+
+    The block is contiguous by construction (ai/rules/rule-format.md), so a
+    paragraph-level match would swallow Severity and Related into the When text.
+    That is exactly what happened before this function existed: every index row
+    read "<trigger> Severity: blocking Related: ...".
+    """
+    meta = {}
+    seen_title = False
+    for line in raw_lines:
+        stripped = line.strip()
+        if not seen_title:
+            seen_title = stripped.startswith("# ")
+            continue
+        if not stripped:
+            if meta:
+                break  # block ended
+            continue
+        m = re.match(r"^\*\*(When|Severity|Related):\*\*\s*(.*)$", stripped)
+        if not m:
+            break
+        meta[m.group(1)] = m.group(2).strip()
+    return meta
+
+
 def summarise(raw_lines):
     """Return the When-to-read summary for a rule, or '' if none can be derived.
 
@@ -97,15 +136,16 @@ def summarise(raw_lines):
     the first plain prose paragraph. A bold heading like `**When to use ...**` is
     not a trigger, so the When branch matches the exact `**When:**` marker only.
     """
-    when = blocking = prose = ""
+    meta = meta_of(raw_lines)
+    if meta.get("When"):
+        return clean(meta["When"])
+    blocking = prose = ""
     for para in paragraphs(raw_lines):
-        if not when and para.startswith("**When:**"):
-            when = para
         if not blocking and para.startswith("**BLOCKING"):
             blocking = para
         if not prose and is_prose(para):
             prose = para
-    chosen = when or blocking or prose
+    chosen = blocking or prose
     return clean(chosen) if chosen else ""
 
 
@@ -123,7 +163,8 @@ def build(rules_dir):
         if not summary:
             missing.append(md.name)
             summary = "_(no summary -- add a `**When:**` line)_"
-        rows.append((md.name, title, summary))
+        severity = meta_of(raw).get("Severity", "-")
+        rows.append((md.name, title, summary, severity))
 
     lines = [
         "# Ze Rules Index",
@@ -136,11 +177,11 @@ def build(rules_dir):
         "",
         f"Total: {len(rows)} rules",
         "",
-        "| Rule | When to read | File |",
-        "|------|--------------|------|",
+        "| Rule | When to read | Severity | File |",
+        "|------|--------------|----------|------|",
     ]
-    for name, title, summary in rows:
-        lines.append(f"| {title} | {summary} | `ai/rules/{name}` |")
+    for name, title, summary, severity in rows:
+        lines.append(f"| {title} | {summary} | {severity} | `ai/rules/{name}` |")
     lines.append("")
     return "\n".join(lines), missing
 

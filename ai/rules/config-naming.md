@@ -1,6 +1,6 @@
 # Config Naming Conventions
 
-**When:** Names cross four layers (YANG, env var, Go struct, CLI)
+**When:** naming a config leaf, env var, Go config field, or CLI setting
 **Severity:** advisory
 **Related:** naming, config-design
 

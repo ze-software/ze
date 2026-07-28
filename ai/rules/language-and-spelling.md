@@ -1,6 +1,6 @@
 # Language and Spelling
 
-**When:** The project language is **US English**
+**When:** writing any project text, or any prose in Thomas's voice
 **Severity:** blocking
 
 ## Directives

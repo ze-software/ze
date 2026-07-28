@@ -1,6 +1,6 @@
 # Pipe Completeness
 
-**When:** Every command that produces output MUST support all pipe operators
+**When:** adding a command that produces output, or a new display mode
 **Severity:** blocking
 
 ## Directives

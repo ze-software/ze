@@ -1,6 +1,6 @@
 # Initrd: Prefer Procfs/Sysfs Over External Commands
 
-**When:** Read before modifying the installer initrd (`cmd/ze-installer`,
+**When:** modifying the installer initrd (`cmd/ze-installer`, `internal/install/disk/*_linux.go`)
 **Severity:** blocking
 
 ## Directives

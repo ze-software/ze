@@ -1,6 +1,6 @@
 # Never Destroy Uncommitted Work
 
-**When:** Never delete, revert, or overwrite files holding uncommitted
+**When:** before deleting, reverting, or overwriting any file holding uncommitted or user-visible work
 **Severity:** blocking
 
 ## Directives

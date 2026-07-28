@@ -1,6 +1,6 @@
 # No Backwards Compatibility
 
-**When:** tempted to add backwards-compatibility code, shims, or fallbacks
+**When:** when tempted to add backwards-compatibility code, shims, aliases, or fallbacks
 **Severity:** advisory
 
 ## Directives

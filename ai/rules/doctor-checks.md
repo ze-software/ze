@@ -1,6 +1,6 @@
 # Doctor Checks
 
-**When:** Every feature that adds a new runtime dependency must register
+**When:** when an implementation introduces a runtime dependency: a file, socket, port, kernel module, binary, or certificate
 **Severity:** blocking
 
 ## Directives

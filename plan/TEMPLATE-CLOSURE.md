@@ -1,4 +1,4 @@
-# Closure sections (append to the spec at /ze-implement stage 10)
+# Closure sections (append to the spec at /ze-close step 1)
 
 <!-- NOT a standalone spec. Append this file's sections (everything below the
      horizontal rule) to plan/spec-<name>.md when implementation is done and you

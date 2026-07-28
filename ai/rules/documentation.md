@@ -1,6 +1,6 @@
 # Documentation
 
-**When:** Every feature change MUST update the specific documentation it affects
+**When:** changing any user-visible behavior, command, config surface, or protocol support level
 **Severity:** blocking
 
 ## Directives

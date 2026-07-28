@@ -1,6 +1,6 @@
 # Feature Integration Completeness
 
-**When:** Every new feature MUST be proven to work integrated, not just in isolation
+**When:** adding an injectable, flag, config option, RPC, event, or struct field, and before claiming any feature works
 **Severity:** blocking
 
 ## Directives

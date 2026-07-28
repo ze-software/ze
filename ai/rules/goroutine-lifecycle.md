@@ -1,6 +1,6 @@
 # Goroutine Lifecycle
 
-**When:** All goroutines MUST be long-lived workers
+**When:** before writing `go func()` anywhere
 **Severity:** blocking
 
 ## Directives

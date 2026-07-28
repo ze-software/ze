@@ -1,6 +1,6 @@
 # Registration-Based Dispatch
 
-**When:** the registration pattern: register handlers into a dispatcher (or sub-dispatcher),
+**When:** adding a command group that dispatches to sub-actions
 **Severity:** advisory
 
 ## Rule

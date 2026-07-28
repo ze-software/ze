@@ -14,10 +14,33 @@ Required structure, in this exact order:
 
 | Element | Requirement |
 |---------|-------------|
-| `# Title` | First non-blank line, a single H1. |
-| `**When:** <trigger>` | Required. One line. The situation that makes this rule apply, phrased so an agent can match it against the task at hand. |
-| `**Severity:** blocking\|advisory` | Required. `blocking` = a gate/hook enforces it or violating it breaks correctness; `advisory` = strong convention. |
+| `# Title` | First non-blank line, a single H1. It MUST NOT contain "BLOCKING": `**Severity:**` carries that, and no tool can read a title marker. |
+| `**When:** <trigger>` | Required. One line. The SITUATION that makes this rule apply, phrased so an agent can match it against the task at hand. See "The trigger is a routing key". |
+| `**Severity:** blocking\|advisory` | Required. `blocking` = a gate/hook enforces it or violating it breaks correctness; `advisory` = strong convention. It MUST agree with the prose: a rule whose body says BLOCKING may not declare `advisory`. |
 | `**Related:** slug, slug` | Optional. Comma-separated rule slugs (filename without `.md`), no paths. |
+
+## The trigger is a routing key
+
+`**When:**` is not a summary and not the rule's first directive. It is the only
+field an agent matches against the task in hand before deciding whether to open
+the file, so it MUST name a situation and nothing else.
+
+| Requirement | Why |
+|-------------|-----|
+| Start with a temporal opener (`when`, `whenever`, `before`, `after`, `while`, `during`, `if`, `once`, `unless`, `upon`, `on`, `at`, `any/every/each time`, `prior to`, `as soon as`) or a gerund (`writing`, `adding`, `reviewing`, `naming`, `closing`, ...) | A uniform opening makes the column scannable, and both forms force a situation rather than an assertion |
+| Name what the author is DOING or what has HAPPENED, never what they must do | "All CLI commands MUST follow these patterns" matches every task and therefore routes nothing. "adding or changing a CLI subcommand, flag, or exit code" routes |
+| One complete clause, one line | A trigger that ends on a comma, a dangling `by`/`with`/`the`, or an unbalanced `**` was copied out of a wrapped bold body line. Three such triggers shipped into `CONDENSED.md` unnoticed |
+| Do not restate the directive | The directive belongs under `## Directives`, where the digest picks it up. Duplicating it in the trigger costs tokens in every session and routes nothing |
+
+Reference rules (a lookup table, a glossary, an architecture summary) get a
+trigger too, phrased as the moment you would reach for them: "looking up which
+check enforces a rule", "reasoning about where a component sits".
+
+`scripts/dev/rules_lint.py` enforces all of this. When a line legitimately
+describes ANOTHER artifact's severity (as `hook-mapping.md` does), mark that
+line `<!-- severity-note: whose severity this is -->`. The marker is
+line-scoped on purpose: a file-scoped opt-out would silently cover every later
+addition to that file.
 
 - The metadata block MUST be contiguous and immediately follow the title
   (one blank line allowed). No prose, table, or heading may sit between the

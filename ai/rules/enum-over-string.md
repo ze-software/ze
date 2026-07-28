@@ -1,6 +1,6 @@
 # Prefer Typed Numeric Over String
 
-**When:** Hot paths use typed numeric identity (enum, registered
+**When:** adding a string field that crosses a component seam or sits on a hot path
 **Severity:** blocking
 
 ## Directives

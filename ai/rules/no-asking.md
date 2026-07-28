@@ -1,6 +1,6 @@
 # Don't Ask, Do
 
-**When:** Never use phrases like "would you like me to", "want me to", "shall I",
+**When:** when you are about to ask permission instead of finishing the work
 **Severity:** advisory
 
 ## Directives

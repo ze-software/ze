@@ -1,7 +1,7 @@
 # Test Deletion and Weakening
 
-**When:** A red test means the CODE is wrong by default
-**Severity:** advisory
+**When:** when a test is red and you are tempted to delete, skip, weaken, or rewrite it
+**Severity:** blocking
 
 ## Directives
 

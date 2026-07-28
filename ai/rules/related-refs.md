@@ -1,7 +1,7 @@
 # File Cross-References
 
-**When:** Cross-reference comments let Claude load only needed files without scanning the whole package
-**Severity:** advisory
+**When:** splitting a file, or adding a file tightly coupled to a sibling
+**Severity:** blocking
 
 ## Directives
 

@@ -1,6 +1,6 @@
 # No Code in Specs
 
-**When:** Specs MUST NOT contain code snippets (any language)
+**When:** writing or editing a spec
 **Severity:** blocking
 
 ## Directives

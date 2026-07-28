@@ -1,6 +1,6 @@
 # Fix, Don't Record. Say It Short.
 
-**When:** a test fails, a gate goes red, or you are about to write a problem down -- a `plan/known-failures/` shard, a deferral row, a commit body, a report, a learned summary
+**When:** when a test fails, a gate goes red, or you are about to write a problem down instead of fixing it
 **Severity:** blocking
 **Related:** no-parking, anti-rationalization, flaky-under-load, testing, ci-sleep-justification
 

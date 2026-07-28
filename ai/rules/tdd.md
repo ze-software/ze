@@ -1,6 +1,6 @@
 # Test-Driven Development
 
-**When:** Tests must exist and fail before implementation
+**When:** before writing implementation code for any new behavior
 **Severity:** blocking
 
 ## Directives

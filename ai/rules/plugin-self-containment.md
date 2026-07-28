@@ -1,7 +1,7 @@
-# Plugin Self-Containment (BLOCKING)
+# Plugin Self-Containment
 
-**When:** its features disappears; every OTHER plugin and the core keep working.**
-**Severity:** advisory
+**When:** adding or moving a plugin's command, schema, help text, or doctor check
+**Severity:** blocking
 
 ## Directives
 

@@ -1,6 +1,6 @@
 # Interop Testing and Goal Validation
 
-**When:** Protocol features MUST have interop tests
+**When:** implementing or changing protocol behavior, and when validating that a spec's stated goals are met
 **Severity:** blocking
 
 ## Directives
@@ -118,7 +118,7 @@ Before claiming a feature is done, answer for each spec goal:
 
 The spec template has a **Goal Validation** section (added below the Implementation Audit).
 Each row maps a stated goal to the evidence that proves it. This section is filled during
-`/ze-implement` step 11 (Deliverables review) and verified during `/ze-review`.
+`/ze-close` step 1 (Deliverables review) and verified during `/ze-review`.
 
 ## Mechanical Check
 
