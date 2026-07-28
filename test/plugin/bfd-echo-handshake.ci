@@ -10,6 +10,17 @@
 #            is never observed.
 
 option=env:var=ze.bfd.test-parallel:value=true
+# BFD listens on the RFC 5881 / RFC 5883 FIXED ports, so every concurrently
+# running BFD test's daemon binds the same wildcard (0.0.0.0, 3784/3785) tuple.
+# SO_REUSEPORT above lets them co-bind, and the kernel then HASHES each inbound
+# datagram to one socket in the group (internal/component/bfd/transport/
+# udp_linux.go applySocketOptions) -- so a control reply or a reflected echo meant
+# for this daemon can be delivered to a sibling test's daemon instead. That is the
+# kernel-global surface option=exclusive exists for: unique addresses cannot
+# partition a port number the RFC fixes. Tests outside the group still run
+# alongside these.
+option=exclusive:group=bfd-ports
+
 # RFC 5881 Section 5 requires TTL=255 on received BFD control/echo packets.
 # The engine enforces this via the IP_RECVTTL cmsg; the non-Linux transport
 # stub (udp_other.go) returns 0 (see parseReceivedTTL) which makes ze fail
@@ -199,7 +210,7 @@ def main():
     scrape = {'body': ''}
     def echo_metrics_ready():
         try:
-            with urllib.request.urlopen('http://127.0.0.1:19274/metrics', timeout=1.0) as resp:
+            with urllib.request.urlopen('http://127.0.0.1:$PORT2/metrics', timeout=1.0) as resp:
                 scrape['body'] = resp.read().decode('utf-8', 'replace')
         except (OSError, ValueError):
             return False
@@ -262,7 +273,13 @@ telemetry {
 		enabled true
 		server primary {
 			ip 127.0.0.1
-			port 19274
+			# $PORT2, not a literal. A hardcoded telemetry port sits outside the
+			# per-test range the runner hands out, so it is the one listener in
+			# this test that another concurrently-running test can collide with --
+			# and when it does, ze logs "metrics server failed to start: address
+			# already in use" and every scrape below fails on a defect that has
+			# nothing to do with BFD.
+			port $PORT2
 		}
 	}
 }

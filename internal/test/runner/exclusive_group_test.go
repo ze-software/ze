@@ -61,21 +61,39 @@ func TestRecordWithoutExclusiveOptionHasNoGroup(t *testing.T) {
 //     all of them. Unique victim addresses only stop the bind collision.
 //   - cos: every test configures the same VLAN (vlan-id 100) on the VM's real
 //     eth0, so concurrent daemons create and reconcile one device, eth0.100.
+//   - bfd: BFD listens on the ports RFC 5881 / RFC 5883 FIX (3784/3785). Every
+//     test's daemon binds the same wildcard tuple, co-existing only because
+//     ze.bfd.test-parallel turns on SO_REUSEPORT -- and the kernel then hashes
+//     each inbound datagram to ONE socket in that group
+//     (internal/component/bfd/transport/udp_linux.go applySocketOptions), so a
+//     control reply or a reflected echo meant for one daemon is delivered to a
+//     sibling's. A port number an RFC fixes is the one address unique config
+//     cannot partition.
 //
-// Non-overlap is the only property that fixes either, so a member without the
-// group is a latent corruption of every sibling.
+// Non-overlap is the only property that fixes any of them, so a member without
+// the group is a latent corruption of every sibling.
 //
 // Asserts over the file sets rather than hardcoded lists, so a newly added
-// ddos-*.ci or cos-*.ci is covered the moment it lands.
+// member is covered the moment it lands.
 func TestContendingFunctionalTestsDeclareExclusiveGroup(t *testing.T) {
+	// selector is the line a file must contain to BE a member of the cluster.
+	// ddos/cos contend only inside the QEMU VM, and only needs-linux tests run
+	// there -- everything else skips, so it can neither corrupt nor be corrupted.
+	// Requiring the option on an offline sibling (ddos-flowspec-announce asserts
+	// BGP flowspec encoding and starts no flood) would buy nothing and make the
+	// rule look arbitrary to the next author. BFD is the opposite case: its
+	// contention is two processes on one host, so it bites on every platform, and
+	// membership is exactly "this test asked to co-bind the RFC ports".
 	clusters := []struct {
 		glob      string
+		selector  string
 		group     string
 		shared    string
 		minChecks int
 	}{
-		{"ddos-*.ci", "option=exclusive:group=ddos-flood", "the loopback byte counters their detector reads", 5},
-		{"cos-*.ci", "option=exclusive:group=cos-vlan", "the eth0.100 VLAN device they each configure", 3},
+		{"ddos-*.ci", "option=needs-linux", "option=exclusive:group=ddos-flood", "the loopback byte counters their detector reads", 5},
+		{"cos-*.ci", "option=needs-linux", "option=exclusive:group=cos-vlan", "the eth0.100 VLAN device they each configure", 3},
+		{"*.ci", "ze.bfd.test-parallel", "option=exclusive:group=bfd-ports", "the RFC-fixed BFD ports 3784/3785 they all co-bind", 10},
 	}
 
 	for _, c := range clusters {
@@ -91,13 +109,7 @@ func TestContendingFunctionalTestsDeclareExclusiveGroup(t *testing.T) {
 				t.Fatalf("read %s: %v", path, err)
 			}
 			body := string(data)
-			// Scoped to option=needs-linux: the contention exists only in the VM,
-			// and only needs-linux tests execute there -- everything else skips, so
-			// it can neither corrupt nor be corrupted. Requiring the option on an
-			// offline sibling (ddos-flowspec-announce asserts BGP flowspec encoding
-			// and starts no flood) would buy nothing and make the rule look
-			// arbitrary to the next author.
-			if !strings.Contains(body, "option=needs-linux") {
+			if !strings.Contains(body, c.selector) {
 				continue
 			}
 			checked++
@@ -110,8 +122,8 @@ func TestContendingFunctionalTestsDeclareExclusiveGroup(t *testing.T) {
 		// Fail closed: a glob or filter that matches nothing would make the loop
 		// above vacuous and the ratchet would silently stop ratcheting.
 		if checked < c.minChecks {
-			t.Fatalf("checked %d needs-linux %s files, want at least %d; the assertion above ran on nothing",
-				checked, c.glob, c.minChecks)
+			t.Fatalf("checked %d %s files matching %q, want at least %d; the assertion above ran on nothing",
+				checked, c.glob, c.selector, c.minChecks)
 		}
 	}
 }

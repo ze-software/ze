@@ -6,6 +6,17 @@
 #            double-encoded strings.
 
 option=env:var=ze.bfd.test-parallel:value=true
+# BFD listens on the RFC 5881 / RFC 5883 FIXED ports, so every concurrently
+# running BFD test's daemon binds the same wildcard (0.0.0.0, 3784/3785) tuple.
+# SO_REUSEPORT above lets them co-bind, and the kernel then HASHES each inbound
+# datagram to one socket in the group (internal/component/bfd/transport/
+# udp_linux.go applySocketOptions) -- so a control reply or a reflected echo meant
+# for this daemon can be delivered to a sibling test's daemon instead. That is the
+# kernel-global surface option=exclusive exists for: unique addresses cannot
+# partition a port number the RFC fixes. Tests outside the group still run
+# alongside these.
+option=exclusive:group=bfd-ports
+
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
