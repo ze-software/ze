@@ -247,10 +247,23 @@ func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
 		return attribute.ExtendedCommunity{}, errEmptyExtendedCommunity
 	}
 
+	// FlowSpec traffic actions written as one word, BEFORE the colon split: they
+	// carry no colon, so splitting first reports them as a malformed format rather
+	// than as an action this parser does not know. The config path
+	// (config/routeattr_community.go parseOneExtCommunity) has always accepted
+	// them, so a route an operator could write in config -- `copy-to-nexthop` --
+	// could not be expressed through `update text`. One shared table now, so the
+	// two vocabularies cannot drift again.
+	if ec, ok := attribute.FlowSpecActionKeyword(s); ok {
+		return ec, nil
+	}
+
 	// Split on first colon to get type prefix
 	before, after, ok := strings.Cut(s, ":")
 	if !ok {
-		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid extended community format: %s", s)
+		return attribute.ExtendedCommunity{}, fmt.Errorf(
+			"invalid extended community %q: expected <type>:<value>, or one of %v",
+			s, attribute.FlowSpecActionKeywords())
 	}
 
 	typePrefix := strings.ToLower(before)

@@ -207,17 +207,12 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 		return parseExtCommunityHex(s)
 	}
 
-	// FlowSpec single-word actions (no colons).
-	switch s {
-	case "redirect-to-nexthop-draft":
-		// Pre-IETF draft: Redirect to next-hop (type 0x08, subtype 0x00).
-		return []byte{0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, nil
-	case "copy-to-nexthop":
-		// RFC 5575bis: Copy and redirect to next-hop (type 0x08, subtype 0x00, value 1).
-		return []byte{0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}, nil
-	case "discard":
-		// RFC 8955 Section 7.3: Traffic-rate 0 = discard (type 0x8006).
-		return []byte{0x80, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, nil
+	// FlowSpec single-word actions (no colons). The table lives in the attribute
+	// package because the `update text` API parser needs the SAME vocabulary
+	// (route/route_community.go parseExtendedCommunity); it used to have its own,
+	// shorter one, so `copy-to-nexthop` worked here and failed there.
+	if ec, ok := attribute.FlowSpecActionKeyword(s); ok {
+		return ec[:], nil
 	}
 
 	// Format: [type:]value1:value2
