@@ -146,6 +146,50 @@ func TestRelayPayloadAddsNextHopWhenIPv4CameViaMPReach(t *testing.T) {
 	}
 }
 
+// TestRelayPayloadKeepsSourceAttributeOrder verifies the synthesized MP_REACH
+// takes the POSITION of the stripped one instead of being appended.
+//
+// VALIDATES: writeRelayPayload's contract that "attribute order from the source
+// is preserved for every surviving attribute" holds for attributes the source
+// placed AFTER MP_REACH.
+// PREVENTS: the two-rail byte divergence. A live forward relays the source's own
+// bytes; this rail reconstructs. Appending the synthesized MP_REACH moved every
+// later attribute in front of it, so the same route left the daemon as two
+// different byte strings depending only on whether the destination peer was an
+// established forward target yet. Caught as test/plugin/role-otc-unicast-scope.ci
+// receiving ORIGIN, AS_PATH, OTC, MP_REACH against the ORIGIN, AS_PATH, MP_REACH,
+// OTC its source peer sent.
+func TestRelayPayloadKeepsSourceAttributeOrder(t *testing.T) {
+	// The source UPDATE from test/plugin/role-otc-unicast-scope.ci: ORIGIN,
+	// AS_PATH, MP_REACH (ipv4/multicast, nh 1.1.1.1, 10.0.0.0/24), then OTC(35)
+	// AFTER the MP_REACH.
+	mpValue := "0001" + "02" + "04" + "01010101" + "00" + "180A0000"
+	otc := "C023040000FDE9"
+	attrs := mustHex(t, "4001010040020602010000FDE9"+"800E0D"+mpValue+otc)
+
+	got := buildRelay(t, attrs, mustHex(t, "01010101"), mustHex(t, "180A0000"), family.IPv4Multicast)
+
+	out := wireu.NewWireUpdate(got, 0)
+	outAttrs, err := out.Attrs()
+	require.NoError(t, err)
+	outSpans, ok := scanAttrBlock(nil, outAttrs.Packed())
+	require.True(t, ok)
+
+	codes := make([]attribute.AttributeCode, 0, len(outSpans))
+	for _, s := range outSpans {
+		codes = append(codes, s.code)
+	}
+	require.Equal(t,
+		[]attribute.AttributeCode{
+			attribute.AttrOrigin,
+			attribute.AttrASPath,
+			attribute.AttrMPReachNLRI,
+			attribute.AttributeCode(35),
+		},
+		codes,
+		"the synthesized MP_REACH must sit where the source's did, before OTC")
+}
+
 // TestScanAttrBlockRejectsMalformed verifies the walker fails closed.
 //
 // VALIDATES: spec S-1/S-2 -- attacker-shaped attribute bytes must be rejected
