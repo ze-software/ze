@@ -10,9 +10,45 @@ package vrrp
 
 import (
 	"testing"
+	"time"
 
+	"github.com/ze-software/ze/internal/plugins/vrrp/fsm"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+// waitSettled returns the engine's instance views once none is still in
+// Initialize, so a caller samples protocol state that has stopped moving.
+//
+// The engine drives an instance's startup transition on the instance's own
+// goroutine, so `apply` returning says nothing about the FSM having left
+// Initialize. Any test that compares two snapshots either side of an operation
+// has to settle first, otherwise the startup transition lands between the
+// samples and is attributed to whatever ran in between.
+//
+// Bounded and loud: a state that never settles is a real defect, and reporting
+// it as "waited 2s, still initialize" is more use than a hang.
+func waitSettled(t *testing.T, eng *engine) []instanceView {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	var views []instanceView
+	for {
+		views = eng.snapshots()
+		moving := false
+		for i := range views {
+			if views[i].State == fsm.StateInitialize.String() {
+				moving = true
+				break
+			}
+		}
+		if !moving {
+			return views
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("instances never left %v: %+v", fsm.StateInitialize, views)
+		}
+		time.Sleep(time.Millisecond)
+	}
+}
 
 // TestCommandDeclsMatchDispatch proves every declared command is answered.
 //
@@ -108,7 +144,14 @@ func TestClearStatisticsPreservesState(t *testing.T) {
 	spec.IsOwner = true // becomes Master at startup
 	eng.apply([]GroupSpec{spec})
 
-	before := eng.snapshots()
+	// Settle the startup transition BEFORE sampling, or this test accuses
+	// clearStatistics of a state change it did not cause. An owner reaches
+	// Master through the instance goroutine, so `before` could still read
+	// "initialize" while `after` reads "master" -- the assertion below then
+	// fires on scheduling rather than on behavior, which is what made this fail
+	// only inside a loaded full run (ai/rules/fix-dont-record.md: wait for the
+	// condition, never for a duration).
+	before := waitSettled(t, eng)
 	if len(before) != 1 {
 		t.Fatalf("instances = %d, want 1", len(before))
 	}

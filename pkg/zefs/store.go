@@ -567,6 +567,19 @@ func (s *BlobStore) flushInPlace() error {
 	containerHdrLen := netcapstringHeaderLen(containerCap)
 	containerDataOff := containerHdrOff + containerHdrLen
 
+	// Bound the slice against what was actually read back. The container capacity
+	// is in-memory state and the file is whatever is on disk right now; when they
+	// disagree the old unchecked slice panicked out of the plugin goroutine
+	// ("slice bounds out of range [:2876] with capacity 512", seen from
+	// loadOSPFBootCount under a contended run). An error here is not a lost
+	// write: flush() restores the pre-pwrite snapshot and falls back to
+	// flushFull, which re-encodes the whole file from memory
+	// (ai/rules/fail-closed-guards.md -- fail closed, and say which two numbers
+	// disagreed).
+	if end := containerDataOff + containerCap; end > len(fileData) {
+		return fmt.Errorf("zefs: flush in-place: %s is %d bytes, container needs %d (offset %d + capacity %d)",
+			s.path, len(fileData), end, containerDataOff, containerCap)
+	}
 	containerCRC := crc32.Checksum(fileData[containerDataOff:containerDataOff+containerCap], CRC32cTable)
 	hdrBuf := make([]byte, containerHdrLen)
 	writeNetcapstringHeader(hdrBuf, 0, containerCap, containerCap, containerCRC)

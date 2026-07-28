@@ -25,6 +25,7 @@ var errPeerCheckFailed = errors.New("peer check failed")
 
 const (
 	cmdPlugin    = "plugin"
+	cmdReload    = "reload"
 	cmdChaosWeb  = "chaos-web"
 	cmdChaosIntg = "chaos"
 )
@@ -40,7 +41,7 @@ var bgpCIRunnerDirs = map[string]bool{
 	cmdPlugin:    true,
 	"decode":     true,
 	"parse":      true,
-	"reload":     true,
+	cmdReload:    true,
 	cmdChaosIntg: true,
 	cmdChaosWeb:  true,
 }
@@ -77,7 +78,7 @@ func zeTestBgpMain(args []string) error {
 	}
 
 	switch cli.command {
-	case "encode", cmdPlugin, "reload", cmdChaosWeb, cmdChaosIntg:
+	case "encode", cmdPlugin, cmdReload, cmdChaosWeb, cmdChaosIntg:
 		return zeTestRunEncodingOrAPI(ctx, cli, baseDir)
 	case "decode":
 		return zeTestRunSimpleTests(ctx, cli, baseDir, zeTestNewDecodingTestSuite)
@@ -218,8 +219,8 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 	switch cli.command {
 	case cmdPlugin:
 		suite = "plugin"
-	case "reload":
-		suite = "reload"
+	case cmdReload:
+		suite = cmdReload
 	case cmdChaosWeb:
 		suite = "chaos-web"
 	case cmdChaosIntg:
