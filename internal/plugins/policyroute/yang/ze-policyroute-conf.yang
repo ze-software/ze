@@ -106,12 +106,14 @@ module ze-policyroute-conf {
 
                     leaf table {
                         type uint32 {
-                            range "1..999|3000..max";
+                            range "1..999|3000..2147483647";
                         }
                         description
                             "Route matching packets via this kernel routing
                              table. Range 1000-2999 is reserved for ze
-                             internal use (VRF and policy-routing auto tables).";
+                             internal use (VRF and policy-routing auto tables).
+                             The upper bound is MaxInt32: the netlink bindings
+                             carry a table ID in a machine int.";
                     }
 
                     leaf next-hop {

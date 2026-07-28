@@ -43,14 +43,20 @@ func (rm *linuxRuleManager) close() {
 // is a Go int, and a value that does not survive that conversion is dropped by
 // the encoder rather than rejected, so this refuses to build a rule that would
 // silently select the wrong table. See maxEncodableTable in config.go.
+//
+// The check reads a local and compares it to the constant directly, rather than
+// testing uint64(r.Table), so the guard and the int conversion below name the
+// same value. CodeQL's go/incorrect-integer-conversion did not accept the
+// earlier form (alert 171).
 func newIPRule(r ipRuleSpec) (*netlink.Rule, error) {
-	if uint64(r.Table) > maxEncodableTable {
-		return nil, fmt.Errorf("table %d exceeds %d, the largest this build can program through netlink", r.Table, maxEncodableTable)
+	table := r.Table
+	if table > maxEncodableTable {
+		return nil, fmt.Errorf("table %d exceeds %d, the largest table Ze can program through netlink", table, maxEncodableTable)
 	}
 	mask := r.Mask
 	rule := netlink.NewRule()
 	rule.Priority = r.Priority
-	rule.Table = int(r.Table)
+	rule.Table = int(table)
 	rule.Mark = r.Mark
 	rule.Mask = &mask
 	rule.Family = unix.AF_INET
