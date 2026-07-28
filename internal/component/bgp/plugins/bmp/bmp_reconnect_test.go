@@ -65,8 +65,18 @@ func dumpBus(t *testing.T, batch func() *ribevents.BestChangeBatch) *locRIBTestB
 	setEventBus(bus)
 	t.Cleanup(func() { eventBusPtr.Store(nil) })
 
-	unsub := ribevents.ReplayRequest.Subscribe(bus, func(*replay.Request) {
-		if _, err := ribevents.BestChange.Emit(bus, batch()); err != nil {
+	unsub := ribevents.ReplayRequest.Subscribe(bus, func(req *replay.Request) {
+		b := batch()
+		// Model the real RIB: replayBestPaths echoes the REQUEST's correlation
+		// token onto every batch it produces in answer
+		// (internal/component/bgp/plugins/rib/rib_bestchange.go:1202). A
+		// stand-in that stamped its own fixed token would answer every dump
+		// with a batch addressed to nobody, which is not what the RIB does.
+		// An intentionally-incremental batch (token 0) stays incremental.
+		if b != nil && b.IsReplay() {
+			b.ReplayID = req.ReplayID
+		}
+		if _, err := ribevents.BestChange.Emit(bus, b); err != nil {
 			t.Errorf("stand-in RIB emit: %v", err)
 		}
 	})
@@ -280,8 +290,12 @@ func TestLocRIBOnePeerUpAcrossReplayBatches(t *testing.T) {
 	if routes != 2 {
 		t.Errorf("Route Monitoring count = %d, want 2 (one per best change)", routes)
 	}
-	if eors != 2 {
-		t.Errorf("End-of-RIB count = %d, want 2 (one closing each replay batch)", eors)
+	// Two dumps, and each one closes BOTH families: IPv4 by its batch, IPv6 by
+	// closeDumpFamilies because the RIB stayed silent about it (RFC 4724
+	// Section 4 -- the marker is owed "including the case when there is no
+	// update to send" for that family).
+	if eors != 4 {
+		t.Errorf("End-of-RIB count = %d, want 4 (two families closed by each of the two replay batches)", eors)
 	}
 }
 
@@ -296,8 +310,13 @@ func TestLocRIBDumpTargetsOnlyTheReconnectingCollector(t *testing.T) {
 	setEventBus(bus)
 	t.Cleanup(func() { eventBusPtr.Store(nil) })
 
-	unsubRIB := ribevents.ReplayRequest.Subscribe(bus, func(*replay.Request) {
-		if _, err := ribevents.BestChange.Emit(bus, locRIBBatch(1, true)); err != nil {
+	unsubRIB := ribevents.ReplayRequest.Subscribe(bus, func(req *replay.Request) {
+		b := locRIBBatch(1, true)
+		// Echo the request's correlation token, as replayBestPaths does
+		// (rib_bestchange.go:1202); that echo is what lets the requester tell
+		// its own dump from somebody else's.
+		b.ReplayID = req.ReplayID
+		if _, err := ribevents.BestChange.Emit(bus, b); err != nil {
 			t.Errorf("stand-in RIB emit: %v", err)
 		}
 	})
@@ -466,8 +485,21 @@ func TestConcurrentDumpsStayAddressedToTheirOwnCollector(t *testing.T) {
 	waitQueueDrained(t, ssA)
 	waitQueueDrained(t, ssB)
 
-	// Each collector must see exactly its own dump: one route and one
-	// End-of-RIB. Two of either means it received the other's as well.
+	// Each collector must see exactly its own dump: one route, and one
+	// End-of-RIB per family the dump owes a marker for. More of either means it
+	// received the other collector's as well, which is what this test exists to
+	// catch; the per-collector counts are what isolate the dumps, not the
+	// absolute marker count.
+	//
+	// rfc-test-change-approved: 2026-07-27 Thomas ruled "do what is right RFC
+	// wise". The marker count rose from 1 to 2 because a dump that produced an
+	// IPv4 batch and no IPv6 batch now closes IPv6 as well: RFC 4724 Section 4
+	// requires the End-of-RIB marker "once it completes the initial routing
+	// update (including the case when there is no update to send) for an address
+	// family", and RFC 7854 Section 5 imports that definition for the BMP dump.
+	// The isolation assertion this test was written for is UNCHANGED and still
+	// exact -- neither collector may see the other's route or markers.
+	const wantEORs = 2 // IPv4 (closed by the batch) + IPv6 (empty, closed anyway)
 	for name, conn := range map[string]*recordingConn{"collector-a": connA, "collector-b": connB} {
 		var routes, eors int
 		for _, m := range decodeBMPStream(t, conn.written()) {
@@ -482,8 +514,8 @@ func TestConcurrentDumpsStayAddressedToTheirOwnCollector(t *testing.T) {
 		if routes != 1 {
 			t.Errorf("%s: %d routes, want exactly its own dump's 1", name, routes)
 		}
-		if eors != 1 {
-			t.Errorf("%s: %d End-of-RIB markers, want exactly 1", name, eors)
+		if eors != wantEORs {
+			t.Errorf("%s: %d End-of-RIB markers, want exactly %d (one per family the dump owes)", name, eors, wantEORs)
 		}
 	}
 }

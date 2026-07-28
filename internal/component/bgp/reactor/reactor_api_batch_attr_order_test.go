@@ -35,6 +35,17 @@ import (
 //
 // These tests pin BOTH halves: ascending type-code order (RFC 4271 Section 5), and
 // byte-for-byte agreement between the two rails.
+//
+// AIGP (code 26, RFC 7311) is deliberately NOT a case in orderCases below, and
+// that is not a gap: TestAnnounceRailsPreserveUnlistedAttributes in
+// reactor_api_batch_attr_preserve_test.go drives AIGP through both rails and
+// asserts the same two properties this table exists for -- the exact wire order
+// (wantCodes [1 2 5 8 14 26 40] and [1 2 3 5 8 26 40], plus assertAscending) and
+// byte-for-byte rail agreement (hex(queued) == hex(batch)). Restating it here
+// would duplicate that coverage at equal strength while mixing an
+// attribute-PRESERVATION concern into a table whose cases carry RFC-requirement
+// tags for Section 5 ORDERING; the file split is described at the top of that
+// file. Checked 2026-07-27 when the question was reopened.
 
 // attrCodes returns the attribute type codes present in a packed attribute block,
 // in wire order.

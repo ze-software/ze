@@ -672,6 +672,16 @@ def check_enrolment(
             f"{rfc} is enrolled but rfc/short/{rfc}.md does not exist -- there is no "
             f"requirement list to enforce"
         )
+    for rfc in sorted(current):
+        if source_keyword_count(rfc) is None:
+            errs.append(
+                f"{rfc} is enrolled but there is no source text at rfc/full/{rfc}.txt or "
+                f"rfc/drafts/{rfc}.txt -- without it the summary is validated only against "
+                f"itself, so a requirement the RFC does not contain cannot be caught and a "
+                f"requirement it does contain can be missing invisibly. Fetch the source "
+                f"(https://www.rfc-editor.org/rfc/{rfc}.txt for an RFC; the datatracker "
+                f"archive for a draft) before enrolling"
+            )
     return errs
 
 

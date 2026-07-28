@@ -258,10 +258,11 @@ func (bp *BMPPlugin) emitReplayRequest(bus ze.EventBus, ss *senderSession) error
 	bp.dumpMu.Lock()
 	defer bp.dumpMu.Unlock()
 
-	scope := &dumpScope{session: ss}
+	token := nextDumpToken()
+	scope := &dumpScope{session: ss, replayID: token}
 	bp.dumpScope.Store(scope)
 
-	_, err := ribevents.ReplayRequest.Emit(bus, &replay.Request{ReplayID: replay.Broadcast})
+	_, err := ribevents.ReplayRequest.Emit(bus, &replay.Request{ReplayID: token})
 
 	// Retract BEFORE the End-of-RIB sweep: the dump is over, and leaving the
 	// scope published would let a batch arriving now be counted into it.
@@ -270,17 +271,35 @@ func (bp *BMPPlugin) emitReplayRequest(bus ze.EventBus, ss *senderSession) error
 		return err
 	}
 
-	bp.closeEmptyDump(scope, ss)
+	bp.closeDumpFamilies(scope, ss)
 	return nil
 }
 
-// emptyDumpFamilies are the families closed with an End-of-RIB marker when a
-// dump produces NO batches at all. With nothing to go on, these are the two the
-// collector is most likely waiting on.
-var emptyDumpFamilies = [...]family.Family{family.IPv4Unicast, family.IPv6Unicast}
+// dumpTokens allocates the per-dump correlation tokens. Monotonic from 1, which
+// the replay vocabulary reserves for exactly this ("any other -> a per-target
+// token the emitter maps back to one consumer", internal/core/replay).
+//
+// Disjointness on this hop is what makes the token decisive: 0 means incremental
+// (replay.IsReplay), replay.Broadcast is the reserved everyone-token, and the
+// ONLY other emitter of (bgp-rib, replay-request) is sysrib, which emits
+// Broadcast (internal/component/sysrib/sysrib.go:898). So a batch stamped with
+// our token can only be the batch our request produced. A uint64 counter cannot
+// realistically reach Broadcast (MaxUint64), and 0 is skipped by starting at 1.
+var dumpTokens atomic.Uint64
 
-// closeEmptyDump sends End-of-RIB markers for a dump the RIB answered with
-// nothing at all.
+// nextDumpToken returns a fresh correlation token for one dump.
+func nextDumpToken() uint64 {
+	return dumpTokens.Add(1)
+}
+
+// dumpFamilies are the families a Loc-RIB dump owes an End-of-RIB marker for.
+// The Loc-RIB emulated peer carries zero-length OPENs (RFC 9069 Section 5.2, and
+// RFC9069-x-3), so there is no negotiated family set to derive this from: these
+// are the two a collector is realistically waiting on.
+var dumpFamilies = [...]family.Family{family.IPv4Unicast, family.IPv6Unicast}
+
+// closeDumpFamilies sends the End-of-RIB markers a dump still owes: every family
+// in dumpFamilies that no batch closed.
 //
 // The RIB emits NO batch for a family with zero best paths -- replayBestPaths
 // only publishes a family whose change list is non-empty
@@ -293,17 +312,21 @@ var emptyDumpFamilies = [...]family.Family{family.IPv4Unicast, family.IPv6Unicas
 // synchronous, so by then every batch this dump produced has been processed and
 // scope.closed is final.
 //
-// RESIDUAL, stated rather than hidden: this closes the wholly-empty dump only.
-// A MIXED table -- IPv6 populated, IPv4 empty -- still yields an IPv6 marker and
-// no IPv4 one. Closing that too means emitting a marker for a family the RIB
-// stayed silent about on every dump, which changes the marker count that
-// TestConcurrentDumpsStayAddressedToTheirOwnCollector asserts; that test is
-// tagged `RFC requirement: RFC7854-x-16/x-17`, so only the user may authorize
-// the change (ai/rules/testing.md). scope.closed already records what is needed
-// to do it in one line.
-func (bp *BMPPlugin) closeEmptyDump(scope *dumpScope, ss *senderSession) {
-	if scope.anyClosed() {
-		return // the dump produced batches; handleBestChange closed each family
+// The MIXED table is covered too, and that is the point of working from
+// scope.closed rather than from "did the dump produce anything at all". A table
+// with IPv6 populated and IPv4 empty used to yield an IPv6 marker and no IPv4
+// one, which contradicts RFC 4724 Section 4: the End-of-RIB marker "MUST be
+// sent by a BGP speaker to its peer once it completes the initial routing
+// update (including the case when there is no update to send) for an address
+// family". RFC 7854 Section 5 makes the BMP dump's completion "MUST be
+// indicated by sending an End-of-RIB marker for that peer (as specified in
+// Section 2 of [RFC4724])", importing that per-<AFI, SAFI> definition verbatim,
+// so a silent family is precisely the case the marker exists to describe: a
+// collector waiting on IPv4 waits forever while the dump is in fact complete.
+func (bp *BMPPlugin) closeDumpFamilies(scope *dumpScope, ss *senderSession) {
+	missing := scope.unclosed(dumpFamilies[:])
+	if len(missing) == 0 {
+		return // every family this dump owes a marker for already got one
 	}
 
 	senders := []*senderSession{ss}
@@ -322,7 +345,7 @@ func (bp *BMPPlugin) closeEmptyDump(scope *dumpScope, ss *senderSession) {
 	bp.ensureLocRIBPeerUp(senders)
 
 	peer := locRIBPeerHeader(bp.localRouterID())
-	for _, fam := range emptyDumpFamilies {
+	for _, fam := range missing {
 		bp.sendLocRIBEndOfRIB(senders, fam, peer)
 	}
 }
@@ -369,34 +392,29 @@ func (bp *BMPPlugin) handleBestChange(batch *ribevents.BestChangeBatch) {
 	// A replay batch this plugin asked for is scoped to what it asked for: one
 	// collector's fresh session, or every connected session when Loc-RIB
 	// monitoring has just started. A replay somebody ELSE asked for (sysrib
-	// emits on the same broadcast handle) is delivered here too; those routes
-	// are still real, so they fan out as before, but they are not this
-	// plugin's dump and must not be closed with an End-of-RIB marker.
-	// KNOWN GAP, deliberately left visible rather than papered over: this claims
-	// a replay batch on the strength of "a dump of ours is in flight", never on
-	// WHO asked. sysrib emits its own replay-request on the same broadcast
-	// handle from its own goroutine (internal/component/sysrib/sysrib.go), and a
-	// dump of a million routes takes seconds, so the two overlap. A foreign
-	// replay landing inside this window is treated as ours: senders narrows to
-	// scope.session, so every OTHER collector silently loses the batch, and the
-	// family is closed with an End-of-RIB asserting a dump they never requested
-	// has completed. dumpMu does not help -- it serializes only this plugin's
-	// own emits.
+	// emits on the same handle) is delivered here too; those routes are still
+	// real, so they fan out as before, but they are not this plugin's dump and
+	// must not be closed with an End-of-RIB marker.
 	//
-	// The fix is a per-dump correlation token in the replay.Request: the BGP RIB
-	// ignores the token for routing and echoes it verbatim onto each batch
-	// (rib_bestchange.go), so `batch.ReplayID == scope.replayID` answers exactly
-	// the right question, and BMP is in-process so the token survives (the JSON
-	// codec on BestChangeBatch would flatten it for a forked plugin). It is NOT
-	// applied here because TestStartLocRIBTriggersInitialDump asserts the
-	// request carries replay.Broadcast specifically, and that test is tagged
-	// `RFC requirement: RFC9069-x-4`, which only the user may authorize changing
-	// (ai/rules/testing.md). The assertion is over-specified -- RFC 9069's
-	// obligation is that a full-table replay is REQUESTED, and the RIB walks its
-	// whole table for any token -- but that is the user's call, not this code's.
+	// The claim is made on the TOKEN, which answers "is this batch mine", not on
+	// "is a dump of mine in flight", which answered a weaker question and got it
+	// wrong whenever the two overlapped. sysrib emits its own replay-request from
+	// its own goroutine (internal/component/sysrib/sysrib.go:898) and a dump of a
+	// million routes takes seconds, so overlap is ordinary. A foreign replay
+	// landing in that window used to be treated as ours: senders narrowed to
+	// scope.session, so every OTHER collector silently lost the batch, and the
+	// family was closed with an End-of-RIB asserting a dump they never requested
+	// had completed -- a marker RFC 7854 Section 5 defines as meaning the dump IS
+	// complete. dumpMu never helped: it serializes only this plugin's own emits.
+	//
+	// The RIB ignores the token for routing (it walks the whole table either way,
+	// rib_bestchange.go:1143-1211) and echoes it verbatim onto each batch (:1202),
+	// which is what makes the comparison exact. BMP is in-process, so the token
+	// survives delivery; the JSON codec on BestChangeBatch would flatten it for a
+	// forked plugin, which is why this stays an in-process claim.
 	var ourScope *dumpScope
 	if batch.IsReplay() {
-		if scope := bp.dumpScope.Load(); scope != nil {
+		if scope := bp.dumpScope.Load(); scope != nil && scope.replayID == batch.ReplayID {
 			ourScope = scope
 			if scope.session != nil {
 				senders = []*senderSession{scope.session}

@@ -9,7 +9,13 @@ Generate a structured implementation summary from an RFC text file.
 
 ## Instructions
 1. Use ULTRATHINK for deep analysis
-2. READ: `rfc/full/$ARGUMENTS.txt` (drafts: `rfc/drafts/$ARGUMENTS.txt`)
+2. READ: `rfc/full/$ARGUMENTS.txt` (drafts: `rfc/drafts/$ARGUMENTS.txt`). If it is not
+   there, FETCH it before writing a line of summary -- `curl -o rfc/full/$ARGUMENTS.txt
+   https://www.rfc-editor.org/rfc/$ARGUMENTS.txt`, or the datatracker archive for a draft.
+   Enrolment REQUIRES this file (`check_enrolment`, owner ruling 2026-07-27): a summary
+   written without its source is validated only against itself, which permits both a
+   requirement the RFC does not contain and, invisibly, one it does contain that was never
+   extracted.
 3. WRITE: `rfc/short/$ARGUMENTS.md`
 4. CHECK errata: https://www.rfc-editor.org/errata/rfcNNNN
 5. ALLOCATE requirement IDs (see "Requirement IDs" below) — every checklist line gets one

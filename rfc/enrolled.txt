@@ -12,6 +12,20 @@
 # proven cannot quietly stop being proven. Adding a row is a deliberate act taken once the
 # tests exist -- writing a summary does NOT enroll it.
 #
+# ENROLMENT REQUIRES THE SOURCE TEXT (owner ruling 2026-07-27, enforced by
+# check_enrolment in scripts/dev/rfc_requirements.py). Every stem below must have its own
+# text at rfc/full/<stem>.txt or rfc/drafts/<stem>.txt. Without it the summary is checked
+# only against itself -- rfc_requirements.py reports "no source text under rfc/full/ --
+# cannot judge" and every obligation the summary states is taken on faith, which permits
+# BOTH a requirement the RFC does not contain (one was found and corrected) and, invisibly
+# because the ledger reads complete, a requirement it does contain that was never
+# extracted. 55 enrolled RFCs were in that state, rfc7854 and rfc9069 among them; all were
+# backfilled on 2026-07-27 before the requirement was turned on, so it fails nothing today.
+# Fetch: https://www.rfc-editor.org/rfc/<stem>.txt, or the datatracker archive for a draft.
+#
+# The text being PRESENT is not the same as the summary having been audited against it.
+# That re-audit is tracked separately (plan/spec-release-evidence-gate.md).
+#
 # The un-enrolled remainder is NOT hidden: every summary appears in ai/RFC-REQUIREMENTS.md
 # marked "not enrolled", which is the explicit tracked backlog required by
 # ai/rules/testing.md ("Back-Fill New Test Types"). An empty file fails the gate rather

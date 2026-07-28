@@ -630,6 +630,33 @@ class TestEnrolment(unittest.TestCase):
         )
         self.assertTrue(any("rfc9999" in e for e in errs))
 
+    def test_enrolled_rfc_without_source_text_fails(self):
+        """Enrolment REQUIRES the RFC's own text (owner ruling 2026-07-27).
+
+        Without it the summary is validated only against itself: the gate reports
+        'no source text under rfc/full/ -- cannot judge' and every obligation the
+        summary states is taken on faith. 55 of the enrolled RFCs were in that
+        state, including the two the BMP work was done under.
+        """
+        errs = R.check_enrolment(
+            current={"rfc9999"}, baseline={"rfc9999"}, summaries={"rfc9999"}
+        )
+        self.assertTrue(
+            any("no source text" in e and "rfc9999" in e for e in errs),
+            f"expected a missing-source-text violation, got {errs}",
+        )
+
+    def test_enrolled_rfc_with_source_text_passes(self):
+        """The other polarity: a stem whose text IS present raises nothing.
+
+        rfc7606 is enrolled and has rfc/full/rfc7606.txt in the tree, so this
+        fails if the new check ever rejects a stem it should accept.
+        """
+        errs = R.check_enrolment(
+            current={"rfc7606"}, baseline={"rfc7606"}, summaries={"rfc7606"}
+        )
+        self.assertEqual(errs, [])
+
 
 # --------------------------------------------------------------------------
 # Fingerprints (AC-13)

@@ -437,9 +437,40 @@ func TestStartLocRIBTriggersInitialDump(t *testing.T) {
 	if !replay.IsReplay(got[0].ReplayID) {
 		t.Errorf("replay-request ReplayID = %d, want a replay token (RFC 9069: initial dump must request a full-table replay)", got[0].ReplayID)
 	}
-	if got[0].ReplayID != replay.Broadcast {
-		t.Errorf("replay-request ReplayID = %#x, want replay.Broadcast %#x (full-table dump)", got[0].ReplayID, replay.Broadcast)
+
+	// rfc-test-change-approved: 2026-07-27 Thomas ruled "do what is right RFC
+	// wise". The dropped assertion required the token to be replay.Broadcast
+	// specifically. Neither RFC 9069 nor RFC 7854 Section 5 says anything about
+	// which internal token requests a replay -- the obligation is that the dump
+	// is full and is closed with an End-of-RIB marker (RFC 7854 S5, importing
+	// RFC 4724 S2) -- and the RIB walks its whole table for ANY token
+	// (rib_bestchange.go:1143-1211 ignores it, :1202 only echoes it). Pinning
+	// the value blocked the per-dump token that stops a foreign replay being
+	// mis-claimed as this plugin's dump. The obligation-bearing assertion
+	// (IsReplay) is UNCHANGED and the replacement below is strictly stronger.
+	second := bp.dumpToken(t, bus)
+	if !replay.IsReplay(second) {
+		t.Errorf("second dump's ReplayID = %d, want a replay token", second)
 	}
+	if second == got[0].ReplayID {
+		t.Errorf("both dumps used ReplayID %#x; per-dump tokens must differ, or a batch "+
+			"cannot be attributed to the dump that asked for it", second)
+	}
+}
+
+// dumpToken runs one more dump on bus and returns the token it requested.
+func (bp *BMPPlugin) dumpToken(t *testing.T, bus *locRIBTestBus) uint64 {
+	t.Helper()
+	var seen []*replay.Request
+	unsub := ribevents.ReplayRequest.Subscribe(bus, func(r *replay.Request) { seen = append(seen, r) })
+	defer unsub()
+	if err := bp.emitReplayRequest(bus, nil); err != nil {
+		t.Fatalf("second dump request: %v", err)
+	}
+	if len(seen) != 1 {
+		t.Fatalf("second dump emitted %d replay-request(s), want 1", len(seen))
+	}
+	return seen[0].ReplayID
 }
 
 // locRIBTestBus is a minimal in-memory ze.EventBus for exercising the Loc-RIB replay-request
@@ -489,5 +520,195 @@ func (b *locRIBTestBus) Subscribe(ns, et string, handler func(any)) func() {
 				return
 			}
 		}
+	}
+}
+
+// TestMixedFamilyDumpClosesTheSilentFamily proves the marker is owed per family,
+// not per dump.
+//
+// VALIDATES: a dump whose RIB answers for ONE family still closes the other.
+// RFC 4724 Section 4: the End-of-RIB marker "MUST be sent by a BGP speaker to
+// its peer once it completes the initial routing update (including the case
+// when there is no update to send) for an address family". RFC 7854 Section 5
+// makes the BMP initial dump's completion "MUST be indicated by sending an
+// End-of-RIB marker for that peer (as specified in Section 2 of [RFC4724])",
+// importing that per-<AFI, SAFI> definition.
+// PREVENTS: the mixed-table gap. replayBestPaths publishes NO batch for a family
+// with no best paths (rib_bestchange.go:1193-1196), so on an IPv6-only table the
+// IPv4 marker was never sent and a collector waiting on IPv4 waited forever for
+// a dump that had already finished.
+func TestMixedFamilyDumpClosesTheSilentFamily(t *testing.T) {
+	conn := newRecordingConn()
+	ss := newTestSession(t, "mixed-family", conn)
+	bp := &BMPPlugin{
+		senders:   []*senderSession{ss},
+		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+	}
+
+	// The stand-in RIB answers with IPv6 only -- IPv4 is empty, so it stays
+	// silent about it exactly as the real replayBestPaths does.
+	bus := dumpBus(t, func() *ribevents.BestChangeBatch {
+		return &ribevents.BestChangeBatch{
+			Protocol: "bgp",
+			Family:   family.IPv6Unicast,
+			ReplayID: replay.Broadcast,
+			Changes: []ribevents.BestChangeEntry{{
+				Action:  ribevents.BestChangeAdd,
+				Prefix:  netip.MustParsePrefix("2001:db8::/32"),
+				NextHop: netip.MustParseAddr("2001:db8::1"),
+				ASPath:  []uint32{65001},
+			}},
+		}
+	})
+
+	// startLocRIB subscribes AND runs a first dump; drain and reset so the
+	// counts below describe exactly one dump.
+	bp.startLocRIB()
+	t.Cleanup(bp.stopLocRIB)
+	waitQueueDrained(t, ss)
+	conn.reset()
+
+	if err := bp.emitReplayRequest(bus, ss); err != nil {
+		t.Fatalf("dump request: %v", err)
+	}
+	waitQueueDrained(t, ss)
+
+	var v4Markers, v6Markers, routes int
+	for _, m := range decodeBMPStream(t, conn.written()) {
+		rm, ok := m.(*RouteMonitoring)
+		if !ok {
+			continue
+		}
+		if !isEndOfRIB(rm) {
+			routes++
+			continue
+		}
+		// The IPv4 unicast marker is the minimum-length UPDATE; any other
+		// family's is an MP_UNREACH_NLRI carrying its AFI/SAFI (RFC 4724 S2).
+		if bytes.Equal(rm.BGPUpdate[message.HeaderLen:], []byte{0, 0, 0, 0}) {
+			v4Markers++
+		} else {
+			v6Markers++
+		}
+	}
+
+	if routes != 1 {
+		t.Errorf("Route Monitoring count = %d, want 1 (the single IPv6 best path)", routes)
+	}
+	if v6Markers != 1 {
+		t.Errorf("IPv6 End-of-RIB count = %d, want 1 (the family the RIB answered for)", v6Markers)
+	}
+	if v4Markers != 1 {
+		t.Errorf("IPv4 End-of-RIB count = %d, want 1: RFC 4724 S4 owes a marker for a family "+
+			"even when there is no update to send, and a collector waiting on IPv4 otherwise waits forever", v4Markers)
+	}
+}
+
+// TestForeignReplayIsNotClaimedAsOurDump is the reason the per-dump correlation
+// token exists.
+//
+// VALIDATES: a replay batch somebody ELSE asked for, landing while this
+// plugin's own dump is in flight, is treated as ordinary routes: it fans out to
+// every connected collector and is NOT closed with an End-of-RIB marker.
+// PREVENTS: the mis-claim. Claiming on "a dump of ours is in flight" rather than
+// on the token meant a sysrib-initiated replay (sysrib.go:898, emitted from its
+// own goroutine, overlapping ours because a large dump takes seconds) was taken
+// as ours: senders narrowed to the one collector the dump was addressed to, so
+// every OTHER collector silently lost the batch, and the family was closed with
+// an End-of-RIB -- which RFC 7854 Section 5 defines as "the initial dump is
+// completed for a given peer", told to collectors that had requested nothing.
+func TestForeignReplayIsNotClaimedAsOurDump(t *testing.T) {
+	bus := newLocRIBTestBus()
+	setEventBus(bus)
+	t.Cleanup(func() { eventBusPtr.Store(nil) })
+
+	// The stand-in RIB answers our request with TWO batches, delivered
+	// synchronously inside our Emit and therefore both inside the window where
+	// our dump scope is published: somebody else's broadcast replay first, then
+	// ours carrying our token back.
+	unsubRIB := ribevents.ReplayRequest.Subscribe(bus, func(req *replay.Request) {
+		foreign := &ribevents.BestChangeBatch{
+			Protocol: "bgp",
+			Family:   family.IPv4Unicast,
+			ReplayID: replay.Broadcast, // sysrib's token, not ours
+			Changes: []ribevents.BestChangeEntry{{
+				Action:  ribevents.BestChangeAdd,
+				Prefix:  netip.MustParsePrefix("10.99.0.0/24"),
+				NextHop: netip.MustParseAddr("192.0.2.9"),
+				ASPath:  []uint32{65009},
+			}},
+		}
+		if _, err := ribevents.BestChange.Emit(bus, foreign); err != nil {
+			t.Errorf("foreign replay emit: %v", err)
+		}
+		ours := &ribevents.BestChangeBatch{
+			Protocol: "bgp",
+			Family:   family.IPv6Unicast,
+			ReplayID: req.ReplayID, // echoed, as the real RIB does
+			Changes: []ribevents.BestChangeEntry{{
+				Action:  ribevents.BestChangeAdd,
+				Prefix:  netip.MustParsePrefix("2001:db8::/32"),
+				NextHop: netip.MustParseAddr("2001:db8::1"),
+				ASPath:  []uint32{65001},
+			}},
+		}
+		if _, err := ribevents.BestChange.Emit(bus, ours); err != nil {
+			t.Errorf("our replay emit: %v", err)
+		}
+	})
+	defer unsubRIB()
+
+	connA, connB := newRecordingConn(), newRecordingConn()
+	ssA := newTestSession(t, "dump-target", connA)
+	ssB := newTestSession(t, "other-collector", connB)
+	bp := &BMPPlugin{
+		senders:   []*senderSession{ssA, ssB},
+		openCache: map[string]*openPair{"10.0.0.1": {sent: makeBGPOpen(65000, 0x01020305)}},
+	}
+
+	bp.startLocRIB()
+	t.Cleanup(bp.stopLocRIB)
+	waitQueueDrained(t, ssA)
+	waitQueueDrained(t, ssB)
+	connA.reset()
+	connB.reset()
+
+	// A dump addressed to ssA alone.
+	if err := bp.emitReplayRequest(bus, ssA); err != nil {
+		t.Fatalf("dump request: %v", err)
+	}
+	waitQueueDrained(t, ssA)
+	waitQueueDrained(t, ssB)
+
+	countB := func(conn *recordingConn) (routes, eors int) {
+		for _, m := range decodeBMPStream(t, conn.written()) {
+			if rm, ok := m.(*RouteMonitoring); ok {
+				if isEndOfRIB(rm) {
+					eors++
+				} else {
+					routes++
+				}
+			}
+		}
+		return routes, eors
+	}
+
+	routesB, eorsB := countB(connB)
+	if routesB != 1 {
+		t.Errorf("other collector got %d routes, want 1: the foreign replay is not our dump and "+
+			"must still fan out to every collector", routesB)
+	}
+	if eorsB != 0 {
+		t.Errorf("other collector got %d End-of-RIB markers, want 0: it requested no dump, and a "+
+			"marker tells it one of ITS dumps completed (RFC 7854 S5)", eorsB)
+	}
+
+	routesA, eorsA := countB(connA)
+	if routesA != 2 {
+		t.Errorf("dump target got %d routes, want 2 (the foreign one plus its own dump's)", routesA)
+	}
+	if eorsA != 2 {
+		t.Errorf("dump target got %d End-of-RIB markers, want 2 (its own dump closes IPv4 and IPv6, "+
+			"and the foreign batch closes nothing)", eorsA)
 	}
 }

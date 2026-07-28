@@ -1121,6 +1121,18 @@ func TestOTCEgressSuppressProviderLearnedWithoutMeta(t *testing.T) {
 // RFC9234-5-4 proven -- by a test whose source DOES have role config.
 //
 // rfc-test-change-approved: 2026-07-27 Thomas approved correcting the fixture to carry NLRI. The test asserted a stamp on a payload with attributes and no NLRI, which is the shape RFC 9234 S5 conditions the stamp against. Assertions unchanged.
+//
+// Re-audited 2026-07-27 against the RFC text itself, because this test gained
+// its RFC tag and its fixture correction in the SAME session, so the hook that
+// protects it was not protecting it when the fixture was written. The
+// correction stands: RFC 9234 Section 5 conditions BOTH rules on a route --
+// ingress rule 3 "If a route is received from a Provider, a Peer, or an RS and
+// the OTC Attribute is not present, then it MUST be added", egress rule 1 "If a
+// route is to be advertised to a Customer, a Peer, or an RS-Client ... then
+// when advertising the route, an OTC Attribute MUST be added". A payload with
+// attributes and no NLRI carries no route, so it is outside both rules, and the
+// edit is byte-identical to the three corrections approved alongside it
+// (`nil` -> `[]byte{24, 10, 2, 2}`, no assertion touched).
 // RFC requirement: RFC9234-5-4 positive -- a route advertised to a Customer is
 // stamped with the local AS number, and the rule is conditioned on the
 // DESTINATION alone, so it holds when the source has no role configuration.

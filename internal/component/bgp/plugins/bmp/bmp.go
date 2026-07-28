@@ -137,12 +137,21 @@ type openPair struct {
 type dumpScope struct {
 	session *senderSession
 
+	// replayID is the correlation token this dump put on its replay-request.
+	// The BGP RIB echoes it verbatim onto every batch it produces in answer
+	// (rib_bestchange.go:1202), so `batch.ReplayID == scope.replayID` answers
+	// "is this batch MINE" exactly, rather than the weaker "is a dump of mine
+	// in flight" -- which claimed a replay somebody else asked for.
+	replayID uint64
+
 	// closed records the families whose batch this dump closed with an
-	// End-of-RIB marker, so emitReplayRequest can tell whether the RIB answered
-	// with anything at all. Guarded by mu: the dump is delivered synchronously
-	// on the emitting goroutine, but a replay from another producer can be
-	// mis-claimed onto this scope from ITS goroutine (see the known gap in
-	// handleBestChange), so the map must not be written unsynchronized.
+	// End-of-RIB marker, so closeDumpFamilies can send markers for exactly the
+	// families the RIB stayed silent about. Guarded by mu: the dump is
+	// delivered synchronously on the emitting goroutine, but a batch can reach
+	// handleBestChange from ANOTHER producer's goroutine while this scope is
+	// published, so the map must not be written unsynchronized. (That batch no
+	// longer WRITES here -- the replayID check rejects it first -- but the lock
+	// is what makes that ordering safe rather than lucky.)
 	mu     sync.Mutex
 	closed map[family.Family]bool
 }
@@ -157,12 +166,21 @@ func (d *dumpScope) noteClosed(fam family.Family) {
 	d.closed[fam] = true
 }
 
-// anyClosed reports whether this dump closed at least one family, i.e. whether
-// the RIB answered the replay-request with anything at all.
-func (d *dumpScope) anyClosed() bool {
+// unclosed returns the subset of want this dump did NOT close with an
+// End-of-RIB marker. RFC 4724 Section 4 requires the marker "once it completes
+// the initial routing update (including the case when there is no update to
+// send) for an address family", so a family the RIB stayed silent about is
+// exactly a family that still owes a marker -- not one to skip.
+func (d *dumpScope) unclosed(want []family.Family) []family.Family {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	return len(d.closed) > 0
+	missing := make([]family.Family, 0, len(want))
+	for _, fam := range want {
+		if !d.closed[fam] {
+			missing = append(missing, fam)
+		}
+	}
+	return missing
 }
 
 // peerUpState is everything the Peer Up message for one established BGP peer
