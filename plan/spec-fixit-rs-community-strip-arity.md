@@ -95,13 +95,21 @@ the arity part of a typed structure. That is weeks away; this is a live leak.
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE writing this spec)
+
+> Line numbers in this section and in Data Flow describe the tree as it was when
+> the spec was written. Citations that still name live code were re-pointed on
+> 2026-07-28 after commit `4730deb84` moved them. Citations that
+> name code the fix DELETED (the `len(toRemove) != valueSize` size guard and its
+> "silently preserve data" comment, cited below as `handler.go:119-122` and
+> `handler.go:120`) are kept at their pre-fix positions on purpose: they are the
+> record of what the defect was, and there is nothing left to point them at.
 - [ ] `internal/component/bgp/wireu/community.go:158` - `StripControlCommunities`: walks the attribute section, and for a COMMUNITY attribute appends every four-byte value whose high half is 0 or the route server's low sixteen ASN bits into one result slice (`:186-191`). Returns nil when nothing matches.
 - [ ] `internal/component/bgp/wireu/community.go:51` - `ParseCommunityPolicy`: independent walk producing the blacklist, whitelist, blackhole and prepend-target policy. Correct today; unchanged by this fix.
 - [ ] `internal/component/bgp/reactor/reactor_api_forward.go:610-636` - the route-server branch of the destination loop: parses the policy once per UPDATE at `:614-616`, suppresses non-forward destinations at `:618`, then emits the single Remove operation at `:635`.
 - [ ] `internal/component/bgp/reactor/forward_rs.go:320-343` - the route-server fast-path rail: the identical sequence, strip buffer built at `:325`, single Remove operation at `:342`.
 - [ ] `internal/component/bgp/plugins/filter_community/handler.go:19` - `communityAttrModHandler` delegates to `genericCommunityHandler` with `valueSize` 4.
 - [ ] `internal/component/bgp/plugins/filter_community/handler.go:64` - `genericCommunityHandler`: copies the source value into a fresh buffer at `:69-70`, applies Remove operations at `:76-80`, then Add at `:81-85`, then Set at `:86-91`, omits the attribute entirely when nothing remains at `:93-95`, and writes an always-extended-length header at `:110-113`.
-- [ ] `internal/component/bgp/plugins/filter_community/handler.go:165` - `removeValues`: returns the input unchanged when the removal buffer length is not exactly `valueSize`; otherwise rebuilds the list with an allocating append loop at `:121-126`.
+- [ ] `internal/component/bgp/plugins/filter_community/handler.go:165` - `removeValues`: returns the input unchanged when the removal buffer length is not exactly `valueSize`; otherwise rebuilds the list with an allocating append loop at `:172`.
 - [ ] `internal/component/bgp/plugins/filter_community/egress.go:28-30` - the plugin's own egress filter emits one Remove operation per configured wire value.
 - [ ] `internal/component/bgp/reactor/filter_delta.go:221-224` - the text-delta path splits a Remove directive into `valueSize` chunks before emitting.
 - [ ] `internal/component/bgp/filterapi/filterapi.go:153` - `func (a *ModAccumulator) Op(`: documents that repeated calls with the same code are allowed and reach the handler together, but states nothing about the value-buffer arity.
@@ -512,3 +520,286 @@ ze's own, stated at `internal/component/bgp/wireu/community.go:138-140`.
 - [ ] Learned summary written to `plan/learned/NNN-fixit-rs-community-strip-arity.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-fixit-rs-community-strip-arity.md` only (commit A preserves the spec in history)
+
+## Correction to the Implementation Summary (2026-07-28, session 63608781)
+
+The "Not done" note above states that the refusal counter is NOT implemented and
+is "left for an owner decision". That is superseded: **the counter shipped in the
+same commit** that carries this spec. `filterapi.RecordRemoveBufferRefused` is
+defined at `internal/component/bgp/filterapi/metrics.go:46`, registered as
+`ze_bgp_attr_mod_remove_buffer_refused_total` at
+`internal/component/bgp/filterapi/metrics.go:39`, wired from the reactor's
+metrics-enable block at `internal/component/bgp/reactor/reactor.go:1028`, called
+at `internal/component/bgp/plugins/filter_community/handler.go:100`, and covered
+by four tests in `internal/component/bgp/filterapi/metrics_test.go`.
+
+The objection recorded in that note (this package has no metrics surface) was
+resolved rather than accepted: the counter lives in `filterapi`, which already
+owns the accumulator contract being violated, not in `filter_community`. The
+reasoning is recorded in the code at
+`internal/component/bgp/filterapi/metrics.go:25-32` and mirrored at
+`internal/component/bgp/reactor/reactor.go:1022-1027`, and it is load-bearing:
+the AttrMod handlers register at init() and run during the progressive build
+whether or not the owning plugin is running, so a plugin `ConfigureMetrics` hook
+would leave the counter dead in exactly the configuration where the violation is
+reachable.
+
+## Review Follow-Up (2026-07-28, session 63608781)
+
+Three INDEPENDENT reviewers (logic, security, tests) were run over the shipped
+commit plus a candidate follow-up fix. RF-2 and RF-3 are fixed here. **RF-1 is
+NOT fixed**: a fix was written, the reviewers found it traded one peer-driven
+cost for another, and it was reverted on owner direction because this code is
+being replaced wholesale by `plan/spec-wire-edit-2-edit-apply.md`.
+
+### RF-1 (BLOCKER, NOT FIXED): the arity fix removed an accidental O(1) short-circuit and exposed a peer-controlled quadratic
+
+`removeValues` called `containsValue` once per retained value, a nested scan over
+two operands that are BOTH peer-controlled on the route-server path: `data` is
+the peer's own COMMUNITY attribute, and `toRemove` is derived from that same
+attribute by `wireu.StripControlCommunities`
+(`internal/component/bgp/wireu/community.go:158`), not from local configuration.
+A BGP attribute value reaches 65535 octets, so each side reaches 16383 four-byte
+values.
+
+The old `len(toRemove) != valueSize` guard returned immediately for exactly the
+multi-value input that now does the work, so the defect this spec fixed was also,
+accidentally, the cost cap. Removing it exposed the quadratic.
+
+**This is a live property of the code as committed.** Two reviewers measured it
+independently, per destination peer, for a 16383-value all-control COMMUNITY
+attribute (65,532 octets, the RFC 4271 ceiling):
+
+| Peer-chosen input | shipped code | candidate set-based fix |
+|-------------------|--------------|-------------------------|
+| 16383 distinct `0:X` | 874-889 ms, ~0 B | 2.7-6.2 ms, 1,004,810 B, 16,449 allocs |
+| 16383 identical `0:0` | **118 us, 0 B** | **1,948 us, 1,004,865 B** |
+
+Reachability was verified, not assumed. `StripControlCommunities` matches on
+`high == 0` (`internal/component/bgp/wireu/community.go:202-209`), so a repeated
+`0:0` is a trivially constructible all-control payload, and it leaves
+`BlacklistASNs` empty (`community.go:123`) so `ShouldForwardTo` returns true for
+every client and the fan-out is maximal. No cap exists anywhere on received
+community count. The 4 KB message case needs no capability negotiation.
+
+**Why the candidate fix was reverted.** It is 326x better against an attacker who
+picks the worst shape, but 16.5x worse and 0 to 1 MB on the duplicate-heavy shape,
+because `newValueSet` sized and populated the map from the raw byte length rather
+than the distinct count. The reviewers also proved its regression guard was
+decorative: reordering `valueSet.contains` to scan the raw bytes first restores
+the quadratic with the whole suite green, because the struct held both
+representations at once despite a comment claiming it held one. The benchmark
+that was supposed to catch this is never executed by any gate
+(`mk/alloc-gate.mk` covers only `./internal/component/bgp/reactor/...` and
+enforces only names registered in `internal/perf/allocgate.go`).
+
+The work is preserved at `backups/work-20260728-valueset-fix.patch`.
+
+**What the replacement must do** (for `plan/spec-wire-edit-2-edit-apply.md`):
+deduplicate at the producer, since `StripControlCommunities` already walks the
+payload once per UPDATE and duplicates are what make the map pathological; hoist
+the set construction out of the per-destination loop, since
+`communityStripBytes` is fan-out-invariant (computed once at
+`reactor_api_forward.go:614-616`) while `buildModifiedPayload` runs per peer at
+`reactor_api_forward.go:793`; and bound the threshold on `min(|data|, |set|)`
+rather than on set size alone.
+
+### RF-2 (ISSUE): eleven stale citations in the commit's own artefacts
+
+The commit moved lines in six files and left citations at pre-move positions in
+three artefacts it authored: the `removeValues` doc comment and both `.ci`
+headers. The `.ci` ones are re-pointed here (`community.go:141` to `:158`,
+`reactor_api_forward.go:635` to `:643`, `forward_rs.go:342` to `:347`, and
+`reactor_api_forward.go:634` to `:642` in four places). `community.go:128-133`
+and the learned summary were already correct.
+
+The three inside the `handler.go` doc comment are NOT fixed: they lived in the
+same hunk as the reverted RF-1 change. They are `internal/component/bgp/plugins/filter_community/handler.go:159`
+(`community.go:141`, now `:158`) and `:161` (`reactor_api_forward.go:635` and
+`forward_rs.go:342`, now `:643` and `:347`). Whoever rewrites this function
+should correct them rather than carry them forward.
+
+No gate catches this class: `scripts/dev/spec-citation-check.py` scans only
+`plan/` and `plan/learned/`, and `scripts/dev/check_doc_links.py --design-only`
+follows only `// Design:` references. Comments in `.go` and `.ci` files are
+unchecked. Recorded as a gap, not fixed here.
+
+### RF-3 (ISSUE): the new metric was never documented
+
+`ze_bgp_attr_mod_remove_buffer_refused_total` was registered but appeared nowhere
+under `docs/`, despite row 14 of this spec's own Documentation Update Checklist
+naming `docs/plugin-development/metrics.md`. Added to the Full Inventory with a
+source anchor pointing at `internal/component/bgp/filterapi/metrics.go`.
+
+### Other findings the reviewers recorded, carried forward unfixed
+
+These were found against the shipped code or the reverted candidate. None is
+fixed here; they belong to whoever rewrites this function.
+
+| Finding | Where | Note |
+|---------|-------|------|
+| The refusal-message test is vacuous | `handler_test.go:362` | `assert.Contains(t, out, "3")` matches the `slog` RFC 3339 timestamp regardless of the message. Deleting `"buffer-length", len(op.Buf)` from the handler leaves it green. `assert.Contains(t, out, "buffer-length=3")` is the real check. |
+| The map path had no coverage at widths 8 and 12 | `handler_test.go` | `TestRemoveValuesAllWidths` only ever passes two-value sets, below any threshold. A mutation truncating the lookup key to 4 bytes survived the suite, which at widths 8 and 12 would silently remove nothing: the same failure shape this spec exists to fix. |
+| `removeValues` drops a trailing partial value | `handler.go:170` | Loop bound `i+valueSize <= len(data)`. A COMMUNITY attribute of length 4k+3 reaches the handler (the RFC 7606 validator has no length check for code 8) and is silently normalised. Pre-existing. |
+| `data = data[:65535]` truncates mid-value | `handler.go:128-130` | 65535 is divisible by none of 4, 8, 12, so the cap can emit a malformed attribute. Reachable only when Add ops push past the ceiling. Pre-existing. |
+| Empty `toRemove` is untested | `handler.go:165` | `len(nil) % 4 == 0` passes the guard. Unreachable from today's three producers, all of which gate on non-empty. |
+
+## Mistake Log
+
+| # | What happened | Root cause | Rule that would have caught it |
+|---|---------------|------------|--------------------------------|
+| 1 | The arity fix introduced a peer-controlled quadratic (RF-1). | The replacement was designed against the correctness defect only. The removed guard's second, accidental role as a cost cap was never asked about. | `ai/rules/critical-review.md`: the Review Gate is what surfaces this, and it was never run before the commit landed. |
+| 2 | Eleven citations in the commit's own artefacts pointed at lines the same commit moved (RF-2). | Citations were written against the pre-edit file and not re-resolved after the edit. | `ai/rules/no-fabrication.md` mandates the citation form, but no gate covers comments in `.go` or `.ci`. |
+| 3 | The Documentation checklist promised a metrics entry that was never written (RF-3). | The checklist was filled at design time and never re-verified at closure. | The Pre-Commit Verification "Documentation Verified" table, unreached because the closure template was never appended. |
+| 4 | Commit A landed without the closure template, so there was no Review Gate, Implementation Audit or Pre-Commit Verification section to fail. | The two-commit closure was started and abandoned mid-way; the session moved to another spec. | `ai/rules/planning.md` Spec Closure, enforced by `scripts/dev/spec-closure-check.py --spec` (exit 3), which was not run. |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A Remove buffer of N values removes all N | done | `handler.go` `removeValues` | Option B as chosen |
+| A non-multiple length is refused loudly | done | `handler.go` refusal branch, warning plus counter | `filterapi/metrics.go:46` |
+| The arity obligation documented on `ModAccumulator.Op` | done | `internal/component/bgp/filterapi/filterapi.go` | |
+| The route-server convention documented | done | `docs/guide/bgp-policy.md` | |
+| The refusal is observable | done | `ze_bgp_attr_mod_remove_buffer_refused_total`, now also in `docs/plugin-development/metrics.md` | RF-3 |
+| No peer-controlled quadratic on the strip path | **NOT DONE** | - | RF-1. A fix was written and then reverted; see the RF-1 section. Deferred to `plan/spec-wire-edit-2-edit-apply.md`. |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1, AC-2 | done | `test/plugin/bgp-rs-community-strip-multi.ci` | |
+| AC-3 | done | `TestRemoveValuesSingleUnchanged`, `TestStripControlCommunitiesSingleValue` | |
+| AC-4 | done | `TestRemoveValuesMultiRemovingEverythingOmitsAttribute` | |
+| AC-5 | done | `TestRemoveValuesNonMultipleRefusedLoudly`, `TestGenericCommunityHandlerWarnsOnNonMultiple` | |
+| AC-6 | done | `test/plugin/bgp-rs-community-strip-multi-fastpath.ci` | |
+| AC-7 | done | `TestRemoveValuesAllWidths` | widths 4, 8, 12 |
+| AC-8 | done | `TestShouldForwardToUnaffectedByStrip` | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| The nine unit tests named in the TDD plan | present | `wireu/community_test.go`, `filter_community/handler_test.go` | plus seven beyond the plan |
+| `TestRSStripEndToEndBothRails` | superseded | both `.ci` files | the two functional tests cover both rails end to end, stronger than the planned Go test |
+| `bgp-rs-community-strip-multi` | present | `test/plugin/` | |
+| `bgp-rs-community-strip-multi-fastpath` | present | `test/plugin/` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/plugins/filter_community/handler.go` | done | arity fix only; the RF-1 change was reverted |
+| `internal/component/bgp/filterapi/filterapi.go` | done | `Op` documents the arity obligation |
+| `internal/component/bgp/wireu/community.go` | done | doc comment states the multi-value return |
+| `internal/component/bgp/reactor/reactor_api_forward.go` and `forward_rs.go` | done | comments naming the contract at both emission sites |
+| `docs/guide/bgp-policy.md` | done | the convention documented |
+| `docs/plugin-development/metrics.md` | done | RF-3 |
+| `internal/component/bgp/filterapi/metrics.go` and `metrics_test.go` | done | beyond plan: the counter |
+
+### Audit Summary
+Every AC is demonstrated. Two files were added beyond the plan (the metrics pair)
+and one planned Go test was superseded by stronger functional coverage. The review
+pass found one BLOCKER-severity defect (RF-1) that is NOT fixed here, plus two
+documentation fixes that are.
+
+## Goal Validation (BLOCKING)
+
+| Goal | Evidence |
+|------|----------|
+| A route carrying two or more control communities has all of them stripped | Both `.ci` files pass, and the implementing session mutation-verified that restoring the original guard turns both red with the leak visible: `COMMUNITIES: 0:64998 65001:100 0:64999 65000:65002 65001:200` |
+| The single-value path is unchanged | `test/plugin/community-strip.ci` and `TestRemoveValuesSingleUnchanged` green |
+| A contract violation is visible in production | warning plus `ze_bgp_attr_mod_remove_buffer_refused_total`, documented |
+| The strip cannot be turned into a denial of service by a peer | **NOT MET.** Measured on the shipped code: 874-889 ms of CPU per destination peer for a 16383-value all-control COMMUNITY attribute. See RF-1. |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none | n-a | The metadata table records `Deferral shard: -`; no shard was created, and no file under `plan/deferrals/` names this spec. |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | NOT RECORDED |
+| `review_gate.py check` | not run |
+| Reviewer lenses used | none qualifying |
+
+**This gate is NOT satisfied. The spec MUST NOT be closed until it is.**
+
+`scripts/dev/review_gate.py` requires an artifact written by INDEPENDENT
+reviewers, "subagents / a fresh session, never the author's own inline
+reasoning", hash-pinned to the exact file contents being committed.
+`scripts/dev/commit_helper.py` refuses a closure commit without a fresh, clean,
+matching artifact, and any edit after the review invalidates it.
+
+Session 63608781 wrote code in this spec (an RF-1 fix, since reverted), so its own
+pass did not qualify; three independent reviewers were run instead and their
+findings are recorded above. The findings recorded under Review Follow-Up came from
+that pass and are real, but they do not substitute for the artifact.
+
+To satisfy: run an independent review over the five changed files listed in
+Pre-Commit Verification, then record the artifact with `scripts/dev/review_gate.py
+record --spec fixit-rs-community-strip-arity --verdict clean --files ...`.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| RF-1 | BLOCKER | peer-controlled quadratic on the strip path | `filter_community/handler.go` `removeValues` | **NOT FIXED.** Deferred, see the RF-1 section |
+| RF-2 | ISSUE | eleven stale self-citations | `handler.go`, both `.ci` files | re-pointed to current positions |
+| RF-3 | ISSUE | new metric undocumented | `docs/plugin-development/metrics.md` | inventory row plus source anchor |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/bgp-rs-community-strip-multi.ci` | yes | listing reports 7826 bytes |
+| `test/plugin/bgp-rs-community-strip-multi-fastpath.ci` | yes | listing reports 8051 bytes |
+| `internal/component/bgp/plugins/filter_community/handler_test.go` | yes | 26 `func Test` |
+| `internal/component/bgp/wireu/community_test.go` | yes | 6 `func Test` |
+| `internal/component/bgp/filterapi/metrics.go` and `metrics_test.go` | yes | 4 `func Test` |
+| `docs/plugin-development/metrics.md` | yes | inventory row present |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2, AC-6 | all control communities stripped on both rails | functional runner: `pass 2/2 100.0% 2.4s`, tests 86 and 87 |
+| AC-3, AC-4, AC-5, AC-7 | single-value unchanged, empty omits, refusal loud, all widths | `go test ./internal/component/bgp/plugins/filter_community/` ok, 27 tests including all four |
+| AC-8 | forwarding decision unaffected | `go test ./internal/component/bgp/wireu/` ok, includes `TestShouldForwardToUnaffectedByStrip` |
+| RF-1 | NOT satisfied | the quadratic is live in the shipped code; measured 874-889 ms per destination peer at the attribute ceiling |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| RS client route with several control communities, general rail | `test/plugin/bgp-rs-community-strip-multi.ci` | yes: read the file; it announces five interleaved communities covering both strip forms and asserts survivor order |
+| Same, fast-path rail | `test/plugin/bgp-rs-community-strip-multi-fastpath.ci` | yes: identical scenario with `rs-fast-path enable` on the source |
+| Configured per-peer egress strip, unchanged | `test/plugin/community-strip.ci` | yes: existing test, still green |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | A tree-wide search for `AttrModRemove` over `internal/`: `filter_delta.go:221-224` splits, `filter_community/egress.go:29` is per value, only `reactor_api_forward.go` and `forward_rs.go` pass a multi-value buffer |
+| A-2 | confirmed | `TestRemoveValuesSingleUnchanged` green; `test/plugin/community-strip.ci` unchanged and green |
+| A-3 | confirmed | `TestShouldForwardToUnaffectedByStrip` green; the strip and the policy parse are independent walks |
+| A-4 | confirmed | `TestRemoveValuesAllWidths` covers 4, 8 and 12 through the one shared handler |
+| A-5 | confirmed | at authoring time a tree-wide search for `StripControlCommunities` returned four hits, none a test; neither `.ci` file existed |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/guide/bgp-policy.md` documents the control-community convention | 29 lines added by the commit | yes |
+| `docs/plugin-development/metrics.md` lists the counter | inventory row plus a source anchor naming `internal/component/bgp/filterapi/metrics.go`; the doc-anchor validator resolves it | yes |
+| No RFC compliance claim attached to the strip | a search for `RFC 7947` in `internal/component/bgp/plugins/filter_community/handler.go` is empty, as the spec's Required Reading required | yes |
+| Row 9 answered No (no RFC behaviour changed) | RFC 7947 places no requirement on control-community stripping; its compliance checklist has no matching row | yes |
+
+## Core Insight
+
+The arity rule joining `StripControlCommunities` to `removeValues` lived in a
+comment inside one helper, and two of its four producers broke it silently for
+months. Making the rule explicit fixed the leak, but the same edit removed a
+guard that had been doing a second, undocumented job: bounding the cost. A guard
+that rejects an input is also, by construction, a limit on the work that input
+can cause, so replacing "reject" with "handle" transfers that limit onto the
+handler. That is the general lesson for
+`plan/spec-wire-edit-2-edit-apply.md`, which replaces this whole contract with a
+typed slot: the type must carry the bound, not just the shape.

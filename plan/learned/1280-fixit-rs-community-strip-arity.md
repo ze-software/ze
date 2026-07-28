@@ -48,11 +48,18 @@ violators.
   filter author reads it, not only on the handler. `Op` does NOT validate: it has no
   attribute-width table and runs per forwarded UPDATE, so the check belongs at the
   handler that already knows its own value width.
-- **No refusal counter.** The spec listed one as a design decision, but it is not an AC,
-  and this package has no metrics surface at all. Introducing one for a path that should
-  never fire was left as an owner decision; the warning names the attribute code, the
-  expected width and the actual length, which is enough to identify the producer from a
-  single line.
+- **A refusal counter, in `filterapi` rather than in this plugin.** An earlier draft of
+  this summary said the counter was not implemented and was left as an owner decision.
+  That is superseded: it shipped in this same commit as
+  `ze_bgp_attr_mod_remove_buffer_refused_total` (`filterapi/metrics.go`), wired from the
+  reactor's metrics-enable block (`reactor/reactor.go`), not from a plugin
+  `ConfigureMetrics` hook. The objection that raised the question (this plugin has no
+  metrics surface) was resolved rather than accepted, by putting the counter in the
+  package that owns the violated contract. The placement is load-bearing: AttrMod
+  handlers register at init() and run during the progressive build whether or not the
+  owning plugin is running, so a `ConfigureMetrics` hook would leave the counter dead in
+  exactly the configuration where the violation is reachable. A log line alone is easy to
+  miss in a soak; the counter makes the frequency observable.
 
 ## Consequences
 
@@ -124,3 +131,58 @@ violators.
 - `test/plugin/bgp-rs-community-strip-multi.ci`,
   `test/plugin/bgp-rs-community-strip-multi-fastpath.ci` -- NEW, one per rail.
 - `docs/guide/bgp-policy.md` -- new "Route-server control communities" section.
+- `docs/plugin-development/metrics.md` -- inventory row plus source anchor for
+  `ze_bgp_attr_mod_remove_buffer_refused_total` (added by the review follow-up below).
+
+## Review Follow-Up (2026-07-28)
+
+Three INDEPENDENT reviewers (logic, security, tests) were run over this commit
+afterwards, and the most reusable thing they found is that **the arity fix left a
+peer-controlled quadratic in the shipped code**, which is still there.
+
+`removeValues` scans the removal set once per retained value. Both operands are
+peer-controlled on the route-server path: `data` is the peer's own COMMUNITY
+attribute, and `toRemove` is derived from that same attribute by
+`StripControlCommunities`, not from local configuration. A BGP attribute value
+reaches 65535 octets, so each side reaches 16383 four-byte values. Measured, per
+destination peer, for an all-control attribute at that ceiling: **874-889 ms** of
+CPU. At a route-server fan-out of 200 that is over a second of CPU for one
+crafted UPDATE. Reachability was verified: `high == 0` matching means a repeated
+`0:0` is trivially constructible, and it leaves `BlacklistASNs` empty so every
+client still receives the route and the fan-out is maximal.
+
+The cause is the reusable part. The old `len(toRemove) != valueSize` guard was
+the defect, and it was ALSO the cost cap: it returned in O(1) for exactly the
+multi-value input the fix taught the function to process. Removing the guard
+removed the bound with it.
+
+**A guard that rejects an input is also a limit on the work that input can
+cause.** Replacing "reject" with "handle" transfers that limit onto the handler,
+and nothing in the correctness tests can notice. That generalises well beyond
+communities and is why `plan/spec-wire-edit-2-edit-apply.md` must have its typed
+slot carry a bound and not only a shape.
+
+**A candidate fix was written and reverted** (owner direction: this code is being
+replaced wholesale). It is preserved at
+`backups/work-20260728-valueset-fix.patch`. It swapped the nested scan for a
+size-chosen representation, which is 326x better against an attacker who picks
+the worst shape but 16.5x worse and 0 to 1 MB on a duplicate-heavy attribute,
+because the map was sized and populated from the raw byte length rather than the
+distinct count. Its regression guard was also decorative: reordering the
+membership test to consult the raw bytes first restores the quadratic with the
+whole suite green, because the struct held both representations at once despite a
+comment claiming it held one, and the benchmark meant to catch it is executed by
+no gate at all.
+
+What a replacement must do: deduplicate at the producer (`StripControlCommunities`
+already walks the payload once per UPDATE, and duplicates are what make a map
+pathological); hoist the set out of the per-destination loop, since
+`communityStripBytes` is fan-out-invariant while `buildModifiedPayload` runs per
+peer; and threshold on `min(|data|, |set|)` rather than on set size alone.
+
+Two smaller findings, also unfixed: the only test of the refusal message is
+vacuous (`assert.Contains(t, out, "3")` matches the slog timestamp), and no gate
+catches stale `file:line` citations inside `.go` or `.ci` comments, because
+`spec-citation-check.py` scans only `plan/` and `plan/learned/` and
+`check_doc_links.py --design-only` follows only `// Design:` references. This
+commit's own doc comments contain three such stale references.
