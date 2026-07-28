@@ -414,6 +414,29 @@ type peerOutput struct {
 	waited bool
 }
 
+// collectPeerStreams concatenates every peer's capture in process start order,
+// returning the joined stdout and the joined stderr separately (the save-output
+// path writes them to different files).
+//
+// A function rather than an inline loop because the await=stderr fence's timeout
+// path returns early and must report the same capture the normal tail does;
+// duplicating the loop is how the two drift.
+func collectPeerStreams(peers []peerOutput) (stdout, stderr string) {
+	var out, errOut strings.Builder
+	for i := range peers {
+		out.WriteString(peers[i].stdout.String())
+		errOut.WriteString(peers[i].stderr.String())
+	}
+	return out.String(), errOut.String()
+}
+
+// collectPeerOutput is the rec.PeerOutput shape: all peer stdout followed by all
+// peer stderr (extractReceivedMessages parses it).
+func collectPeerOutput(peers []peerOutput) string {
+	stdout, stderr := collectPeerStreams(peers)
+	return stdout + stderr
+}
+
 // drainPeers waits every launched peer process that has not been waited yet, so
 // os/exec's per-stream copy goroutines have finished and combined() returns the
 // peer's COMPLETE output.

@@ -1096,6 +1096,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// under test aborts startup and no in-daemon observer can run. On timeout
 		// the helper tears the daemon down and records the failure.
 		if !r.awaitDaemonStderr(testCtx, rec, awaitStderrSW, bgProcs, peerProcs, testBudget) {
+			// The fence expired, and this early return skips the output collection
+			// at the bottom of the function -- so the report used to print "expected
+			// 0 / received 0" and NOTHING the daemon said, which is the one thing
+			// that explains why the needle never arrived (a daemon that died in
+			// startup looks identical to one that is merely slow).
+			// ai/rules/fail-closed-guards.md: the guard must speak.
+			rec.ClientOutput = clientStdout.String() + clientStderr.String()
+			rec.PeerOutput = collectPeerOutput(peerOutputs)
+			rec.Duration = time.Since(rec.StartTime)
 			return false
 		}
 	case rec.ExpectExitCode != nil && fgProc != nil:
@@ -1134,13 +1143,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// the daemon alone, and ~290 .ci files pair a check peer with expect=exit.
 	drainPeers(peerOutputs, peerDrainGrace)
 
-	// Combine per-peer outputs (concatenated in process start order).
-	var allPeerStdout, allPeerStderr strings.Builder
-	for i := range peerOutputs {
-		allPeerStdout.WriteString(peerOutputs[i].stdout.String())
-		allPeerStderr.WriteString(peerOutputs[i].stderr.String())
-	}
-	rec.PeerOutput = allPeerStdout.String() + allPeerStderr.String()
+	allPeerStdout, allPeerStderr := collectPeerStreams(peerOutputs)
+	rec.PeerOutput = allPeerStdout + allPeerStderr
 	rec.ClientOutput = clientStdout.String() + clientStderr.String()
 	rec.Duration = time.Since(rec.StartTime)
 	logger().Debug("collected output", "peerOutput", rec.PeerOutput, "clientOutput", rec.ClientOutput)
@@ -1151,8 +1155,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// Save outputs if requested
 	if opts.SaveDir != "" {
 		out := &testOutput{
-			peerStdout:   allPeerStdout.String(),
-			peerStderr:   allPeerStderr.String(),
+			peerStdout:   allPeerStdout,
+			peerStderr:   allPeerStderr,
 			clientStdout: clientStdout.String(),
 			clientStderr: clientStderr.String(),
 		}

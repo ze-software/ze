@@ -49,12 +49,39 @@ const featureGatesFile = "feature-gates.txt"
 // functional-test ze binary exercises the same feature set as `make ze`
 // (ZE_FEATURES) without a hand-maintained list. See plan/spec-feature-gate-0-umbrella.md.
 func TestBuildTags() string {
-	tags := strings.FieldsFunc(env.Get("ze.tags"), func(r rune) bool {
-		return r == ',' || r == ' ' || r == '\t' || r == '\n'
-	})
+	tags := zeTagsFromEnv()
 	tags = append(tags, TestPluginBuildTag, "ze_core", "ze_distro", "ze_setup")
 	tags = append(tags, featureGateTags()...)
 	return textbuf.Join(tags, ",")
+}
+
+// TestHelperBuildTags returns the tags for the ze-test helper binary, mirroring
+// the Makefile's `ze_test $(ZE_FEATURES) $(ZE_TAGS)`.
+//
+// The feature-gate tags are NOT optional decoration here. ze-test links the
+// engine's own plugin registry so `ze-test plugin-external <name>` can run a
+// registered plugin's RunEngine over a real TLS connect-back
+// (internal/test/cli/cmd_plugin_external.go). Registration happens in each
+// plugin package's init(), which a feature gate compiles out: built with a bare
+// `ze_test`, the helper's registry.Lookup misses every gated plugin and the
+// launcher exits 1 with "unknown registered plugin" before the plugin under test
+// can say anything. The daemon, built from TestBuildTags, then reports only a
+// TLS connect-back failure -- so as112-external-refuses and
+// flowexport-external-refuses waited out their await=stderr fence for a refusal
+// that no process was ever alive to emit. Two build recipes for one binary is
+// what drifted; both now derive their feature set from feature-gates.txt.
+func TestHelperBuildTags() string {
+	tags := append([]string{"ze_test"}, featureGateTags()...)
+	tags = append(tags, zeTagsFromEnv()...)
+	return textbuf.Join(tags, ",")
+}
+
+// zeTagsFromEnv splits the ze.tags knob (comma or whitespace separated) into
+// individual build tags.
+func zeTagsFromEnv() []string {
+	return strings.FieldsFunc(env.Get("ze.tags"), func(r rune) bool {
+		return r == ',' || r == ' ' || r == '\t' || r == '\n'
+	})
 }
 
 // featureGateTags reads the default-on feature tags from feature-gates.txt (the
@@ -310,8 +337,8 @@ func (r *Runner) Build(ctx context.Context) error {
 		return fmt.Errorf("build ze: %w", err)
 	}
 
-	// Build ze-test (provides peer subcommand)
-	cmd = exec.CommandContext(ctx, "go", "build", "-tags", "ze_test", "-o", r.testPath, "./cmd/ze") //nolint:gosec // paths from internal runner
+	// Build ze-test (provides peer subcommand, and plugin-external's registry)
+	cmd = exec.CommandContext(ctx, "go", "build", "-tags", TestHelperBuildTags(), "-o", r.testPath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = r.baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {
