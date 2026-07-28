@@ -1,0 +1,563 @@
+
+
+
+
+
+
+Internet Engineering Task Force (IETF)                  L. Ginsberg, Ed.
+Request for Comments: 8571                           Cisco Systems, Inc.
+Category: Standards Track                                     S. Previdi
+ISSN: 2070-1721                                                    Q. Wu
+                                                                  Huawei
+                                                             J. Tantsura
+                                                            Apstra, Inc.
+                                                             C. Filsfils
+                                                     Cisco Systems, Inc.
+                                                              March 2019
+
+
+               BGP - Link State (BGP-LS) Advertisement of
+         IGP Traffic Engineering Performance Metric Extensions
+
+Abstract
+
+   This document defines new BGP - Link State (BGP-LS) TLVs in order to
+   carry the IGP Traffic Engineering Metric Extensions defined in the
+   IS-IS and OSPF protocols.
+
+Status of This Memo
+
+   This is an Internet Standards Track document.
+
+   This document is a product of the Internet Engineering Task Force
+   (IETF).  It represents the consensus of the IETF community.  It has
+   received public review and has been approved for publication by the
+   Internet Engineering Steering Group (IESG).  Further information on
+   Internet Standards is available in Section 2 of RFC 7841.
+
+   Information about the current status of this document, any errata,
+   and how to provide feedback on it may be obtained at
+   https://www.rfc-editor.org/info/rfc8571.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Ginsberg, et al.             Standards Track                    [Page 1]
+
+RFC 8571    BGP-LS Advertisement of IGP TE Metric Extensions  March 2019
+
+
+Copyright Notice
+
+   Copyright (c) 2019 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (https://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.  Code Components extracted from this document must
+   include Simplified BSD License text as described in Section 4.e of
+   the Trust Legal Provisions and are provided without warranty as
+   described in the Simplified BSD License.
+
+Table of Contents
+
+   1. Introduction ....................................................2
+   2. Link Attribute TLVs for TE Metric Extensions ....................3
+      2.1. Unidirectional Link Delay TLV ..............................3
+      2.2. Min/Max Unidirectional Link Delay TLV ......................4
+      2.3. Unidirectional Delay Variation TLV .........................4
+      2.4. Unidirectional Link Loss TLV ...............................5
+      2.5. Unidirectional Residual Bandwidth TLV ......................5
+      2.6. Unidirectional Available Bandwidth TLV .....................6
+      2.7. Unidirectional Utilized Bandwidth TLV ......................6
+      2.8. Mappings to IGP Source Sub-TLVs ............................7
+   3. Security Considerations .........................................7
+   4. IANA Considerations .............................................8
+   5. References ......................................................8
+      5.1. Normative References .......................................8
+      5.2. Informative References .....................................9
+   Acknowledgements ...................................................9
+   Contributors .......................................................9
+   Authors' Addresses ................................................10
+
+1.  Introduction
+
+   BGP - Link State (BGP-LS) [RFC7752] defines Network Layer
+   Reachability Information (NLRI) and attributes in order to carry
+   link-state information.  New BGP-LS Link Attribute TLVs are required
+   in order to carry the Traffic Engineering Metric Extensions defined
+   in [RFC8570] and [RFC7471].
+
+
+
+
+
+
+
+
+Ginsberg, et al.             Standards Track                    [Page 2]
+
+RFC 8571    BGP-LS Advertisement of IGP TE Metric Extensions  March 2019
+
+
+2.  Link Attribute TLVs for TE Metric Extensions
+
+   The following new Link Attribute TLVs are defined:
+
+       TLV Code Point                 Value
+      --------------------------------------------------------
+       1114              Unidirectional Link Delay
+
+       1115              Min/Max Unidirectional Link Delay
+
+       1116              Unidirectional Delay Variation
+
+       1117              Unidirectional Link Loss
+
+       1118              Unidirectional Residual Bandwidth
+
+       1119              Unidirectional Available Bandwidth
+
+       1120              Unidirectional Utilized Bandwidth
+
+   TLV formats are described in detail in the following subsections.
+   TLV formats follow the rules defined in [RFC7752].
+
+2.1.  Unidirectional Link Delay TLV
+
+   This TLV advertises the average link delay between two directly
+   connected IGP link-state neighbors.  The semantics and values of the
+   fields in the TLV are described in [RFC8570] and [RFC7471].
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |   Type                        |           Length              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |A|  RESERVED   |                   Delay                       |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                                 Figure 1
+
+   where:
+
+   Type:  1114
+
+   Length:  4
+
+
+
+
+
+
+
+Ginsberg, et al.             Standards Track                    [Page 3]
+
+RFC 8571    BGP-LS Advertisement of IGP TE Metric Extensions  March 2019
+
+
+2.2.  Min/Max Unidirectional Link Delay TLV
+
+   This TLV advertises the minimum and maximum delay values between two
+   directly connected IGP link-state neighbors.  The semantics and
+   values of the fields in the TLV are described in [RFC8570] and
+   [RFC7471].
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |   Type                        |           Length              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |A| RESERVED    |                   Min Delay                   |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |   RESERVED    |                   Max Delay                   |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                                 Figure 2
+
+   where:
+
+   Type:  1115
+
+   Length:  8
+
+2.3.  Unidirectional Delay Variation TLV
+
+   This TLV advertises the average link delay variation between two
+   directly connected IGP link-state neighbors.  The semantics and
+   values of the fields in the TLV are described in [RFC8570] and
+   [RFC7471].
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |   Type                        |           Length              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |  RESERVED     |               Delay Variation                 |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                                 Figure 3
+
+   where:
+
+   Type:  1116
+
+   Length:  4
+
+
+
+
+Ginsberg, et al.             Standards Track                    [Page 4]
+
+RFC 8571    BGP-LS Advertisement of IGP TE Metric Extensions  March 2019
+
+
+2.4.  Unidirectional Link Loss TLV
+
+   This TLV advertises the loss (as a packet percentage) between two
+   directly connected IGP link-state neighbors.  The semantics and
+   values of the fields in the TLV are described in [RFC8570] and
+   [RFC7471].
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |   Type                        |           Length              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |A|  RESERVED   |                  Link Loss                    |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                                 Figure 4
+
+   where:
+
+   Type:  1117
+
+   Length:  4
+
+2.5.  Unidirectional Residual Bandwidth TLV
+
+   This TLV advertises the residual bandwidth between two directly
+   connected IGP link-state neighbors.  The semantics and values of the
+   fields in the TLV are described in [RFC8570] and [RFC7471].
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |   Type                        |           Length              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                          Residual Bandwidth                   |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                                 Figure 5
+
+   where:
+
+   Type:  1118
+
+   Length:  4
+
+
+
+
+
+
+
+Ginsberg, et al.             Standards Track                    [Page 5]
+
+RFC 8571    BGP-LS Advertisement of IGP TE Metric Extensions  March 2019
+
+
+2.6.  Unidirectional Available Bandwidth TLV
+
+   This TLV advertises the available bandwidth between two directly
+   connected IGP link-state neighbors.  The semantics and values of the
+   fields in the TLV are described in [RFC8570] and [RFC7471].
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |   Type                        |           Length              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                      Available Bandwidth                      |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                                 Figure 6
+
+   where:
+
+   Type:  1119
+
+   Length:  4
+
+2.7.  Unidirectional Utilized Bandwidth TLV
+
+   This TLV advertises the bandwidth utilization between two directly
+   connected IGP link-state neighbors.  The semantics and values of the
+   fields in the TLV are described in [RFC8570] and [RFC7471].
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |   Type                        |           Length              |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                     Utilized Bandwidth                        |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                                 Figure 7
+
+   where:
+
+   Type:  1120
+
+   Length:  4
+
+
+
+
+
+
+
+
+Ginsberg, et al.             Standards Track                    [Page 6]
+
+RFC 8571    BGP-LS Advertisement of IGP TE Metric Extensions  March 2019
+
+
+2.8.  Mappings to IGP Source Sub-TLVs
+
+   This section documents the mappings between the Link Attribute TLVs
+   defined in this document and the corresponding advertisements sourced
+   by the IGPs.
+
+   For OSPFv2 and OSPFv3, the advertisements are defined in [RFC7471].
+   For IS-IS, the advertisements are defined in [RFC8570].
+
+   +---------------------------------------+----------+----------------+
+   | Attribute Name                        |  IS-IS   | OSPFv2/OSPFv3  |
+   |                                       | Sub-TLV  |   Sub-TLV      |
+   +---------------------------------------+----------+----------------+
+   | Unidirectional Link Delay             |   33     |     27         |
+   +---------------------------------------+----------+----------------+
+   | Min/Max Unidirectional Link Delay     |   34     |     28         |
+   +---------------------------------------+----------+----------------+
+   | Unidirectional Delay Variation        |   35     |     29         |
+   +---------------------------------------+----------+----------------+
+   | Unidirectional Link Loss              |   36     |     30         |
+   +---------------------------------------+----------+----------------+
+   | Unidirectional Residual Bandwidth     |   37     |     31         |
+   +---------------------------------------+----------+----------------+
+   | Unidirectional Available Bandwidth    |   38     |     32         |
+   +---------------------------------------+----------+----------------+
+   | Unidirectional Utilized Bandwidth     |   39     |     33         |
+   +---------------------------------------+----------+----------------+
+
+                                 Figure 8
+
+3.  Security Considerations
+
+   Procedures and protocol extensions defined in this document do not
+   affect the BGP security model.  See the "Security Considerations"
+   section of [RFC4271] for a discussion of BGP security.  Also, refer
+   to [RFC4272] and [RFC6952] for analyses of security issues for BGP.
+   Security considerations for acquiring and distributing BGP-LS
+   information are discussed in [RFC7752].
+
+   The TLVs introduced in this document are used to propagate the
+   Traffic Engineering Metric Extensions defined in [RFC8570] and
+   [RFC7471].  These TLVs represent the state and resource availability
+   of the IGP link.  It is assumed that the IGP instances originating
+   these TLVs will support all the required security and authentication
+   mechanisms (as described in [RFC8570] and [RFC7471]) in order to
+   prevent any security issues when propagating the TLVs into BGP-LS.
+
+
+
+
+
+Ginsberg, et al.             Standards Track                    [Page 7]
+
+RFC 8571    BGP-LS Advertisement of IGP TE Metric Extensions  March 2019
+
+
+   The advertisement of the link attribute information defined in this
+   document presents no additional risk beyond that associated with the
+   existing link attribute information already supported in [RFC7752].
+
+4.  IANA Considerations
+
+   IANA has made assignments in the "BGP-LS Node Descriptor, Link
+   Descriptor, Prefix Descriptor, and Attribute TLVs" registry for the
+   new Link Attribute TLVs as listed below:
+
+       TLV Code Point    Description
+      --------------------------------------------------------
+       1114              Unidirectional Link Delay
+
+       1115              Min/Max Unidirectional Link Delay
+
+       1116              Unidirectional Delay Variation
+
+       1117              Unidirectional Link Loss
+
+       1118              Unidirectional Residual Bandwidth
+
+       1119              Unidirectional Available Bandwidth
+
+       1120              Unidirectional Utilized Bandwidth
+
+5.  References
+
+5.1.  Normative References
+
+   [RFC7471]  Giacalone, S., Ward, D., Drake, J., Atlas, A., and S.
+              Previdi, "OSPF Traffic Engineering (TE) Metric
+              Extensions", RFC 7471, DOI 10.17487/RFC7471, March 2015,
+              <https://www.rfc-editor.org/info/rfc7471>.
+
+   [RFC7752]  Gredler, H., Ed., Medved, J., Previdi, S., Farrel, A., and
+              S. Ray, "North-Bound Distribution of Link-State and
+              Traffic Engineering (TE) Information Using BGP", RFC 7752,
+              DOI 10.17487/RFC7752, March 2016,
+              <https://www.rfc-editor.org/info/rfc7752>.
+
+   [RFC8570]  Ginsberg, L., Ed., Previdi, S., Ed., Giacalone, S., Ward,
+              D., Drake, J., and Q. Wu, "IS-IS Traffic Engineering (TE)
+              Metric Extensions", RFC 8570, DOI 10.17487/RFC8570,
+              March 2019, <https://www.rfc-editor.org/info/rfc8570>.
+
+
+
+
+
+
+Ginsberg, et al.             Standards Track                    [Page 8]
+
+RFC 8571    BGP-LS Advertisement of IGP TE Metric Extensions  March 2019
+
+
+5.2.  Informative References
+
+   [RFC4271]  Rekhter, Y., Ed., Li, T., Ed., and S. Hares, Ed., "A
+              Border Gateway Protocol 4 (BGP-4)", RFC 4271,
+              DOI 10.17487/RFC4271, January 2006,
+              <https://www.rfc-editor.org/info/rfc4271>.
+
+   [RFC4272]  Murphy, S., "BGP Security Vulnerabilities Analysis",
+              RFC 4272, DOI 10.17487/RFC4272, January 2006,
+              <https://www.rfc-editor.org/info/rfc4272>.
+
+   [RFC6952]  Jethanandani, M., Patel, K., and L. Zheng, "Analysis of
+              BGP, LDP, PCEP, and MSDP Issues According to the Keying
+              and Authentication for Routing Protocols (KARP) Design
+              Guide", RFC 6952, DOI 10.17487/RFC6952, May 2013,
+              <https://www.rfc-editor.org/info/rfc6952>.
+
+Acknowledgements
+
+   The authors wish to acknowledge comments from Ketan Talaulikar.
+
+Contributors
+
+   The following people have contributed substantially to this document
+   and should be considered coauthors:
+
+      Saikat Ray
+      Individual
+      Email: raysaikat@gmail.com
+
+      Hannes Gredler
+      RtBrick Inc.
+      Email: hannes@rtbrick.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Ginsberg, et al.             Standards Track                    [Page 9]
+
+RFC 8571    BGP-LS Advertisement of IGP TE Metric Extensions  March 2019
+
+
+Authors' Addresses
+
+   Les Ginsberg (editor)
+   Cisco Systems, Inc.
+   United States of America
+
+   Email: ginsberg@cisco.com
+
+
+   Stefano Previdi
+   Huawei
+   Italy
+
+   Email: stefano@previdi.net
+
+
+   Qin Wu
+   Huawei
+   101 Software Avenue, Yuhua District
+   Nanjing, Jiangsu  210012
+   China
+
+   Email: bill.wu@huawei.com
+
+
+   Jeff Tantsura
+   Apstra, Inc.
+   United States of America
+
+   Email: jefftant.ietf@gmail.com
+
+
+   Clarence Filsfils
+   Cisco Systems, Inc.
+   Brussels
+   Belgium
+
+   Email: cfilsfil@cisco.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+Ginsberg, et al.             Standards Track                   [Page 10]
+
