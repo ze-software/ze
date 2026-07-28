@@ -12,4 +12,3 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/ospf/v3/transport"
 	_ "github.com/ze-software/ze/internal/plugins/ospf/yang"
 )
-

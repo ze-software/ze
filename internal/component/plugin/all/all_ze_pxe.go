@@ -12,4 +12,3 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/tftpserver"
 	_ "github.com/ze-software/ze/internal/plugins/tftpserver/yang"
 )
-

@@ -10,4 +10,3 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/cos"
 	_ "github.com/ze-software/ze/internal/plugins/cos/yang"
 )
-

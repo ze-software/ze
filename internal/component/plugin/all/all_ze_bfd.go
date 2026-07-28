@@ -11,4 +11,3 @@ import (
 	_ "github.com/ze-software/ze/internal/component/bfd/cmd"
 	_ "github.com/ze-software/ze/internal/component/bfd/yang"
 )
-

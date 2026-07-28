@@ -551,10 +551,19 @@ ze-ci: ze-smoke
 
 # ─── Utilities ──────────────────────────────────────────────────────────────
 
+# gofmt and goimports take FILESYSTEM paths, not the `./...` package pattern, so
+# a bare `.` walks into vendor/ and rewrites third-party code -- it churned 79
+# vendored files (//go:build tags added beside legacy // +build, doc comments
+# reflowed, imports regrouped) purely because the vendored code predates the
+# current toolchain's formatting rules. Enumerate our own Go files instead. The
+# root tools.go is included, which a list of source directories would miss.
+ZE_GO_SRC = find . -name '*.go' \
+	-not -path './vendor/*' -not -path './.git/*' -not -path './tmp/*' -print0
+
 fmt:
 	@echo "Formatting code..."
-	gofmt -w .
-	goimports -w .
+	$(ZE_GO_SRC) | xargs -0 -r gofmt -w
+	$(ZE_GO_SRC) | xargs -0 -r goimports -w -local $(ZE_MODULE)
 
 vet:
 	@echo "Running go vet..."
@@ -933,7 +942,7 @@ help-dev:
 	@echo "    (rename the module path)  python3 scripts/dev/rename_module_path.py --to <module> --apply"
 	@echo ""
 	@echo "  Code:"
-	@echo "    fmt                      Format code (gofmt + goimports)"
+	@echo "    fmt                      Format code (gofmt + goimports, excludes vendor/)"
 	@echo "    vet                      Run go vet"
 	@echo "    tidy                     Tidy go.mod"
 	@echo "    check                    Quick check (fmt + vet)"

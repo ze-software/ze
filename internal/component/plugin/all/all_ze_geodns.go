@@ -10,4 +10,3 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/geodns"
 	_ "github.com/ze-software/ze/internal/plugins/geodns/yang"
 )
-

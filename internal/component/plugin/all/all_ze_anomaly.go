@@ -14,4 +14,3 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/anomaly/shape/cmd/yang"
 	_ "github.com/ze-software/ze/internal/plugins/anomaly/shape/yang"
 )
-

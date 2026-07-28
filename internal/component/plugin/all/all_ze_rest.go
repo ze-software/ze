@@ -9,4 +9,3 @@ package all
 import (
 	_ "github.com/ze-software/ze/internal/component/api/rest/yang"
 )
-

@@ -9,8 +9,9 @@ import (
 	"github.com/mdlayher/netlink"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/ze-software/ze/internal/component/firewall"
 	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/component/firewall"
 )
 
 // TestNftApplyDeadlineSurfacesError proves the deadline reaches a real netlink

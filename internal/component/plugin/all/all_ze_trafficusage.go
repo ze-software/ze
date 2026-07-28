@@ -10,4 +10,3 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/trafficusage"
 	_ "github.com/ze-software/ze/internal/plugins/trafficusage/yang"
 )
-

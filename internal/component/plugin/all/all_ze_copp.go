@@ -10,4 +10,3 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/copp"
 	_ "github.com/ze-software/ze/internal/plugins/copp/yang"
 )
-

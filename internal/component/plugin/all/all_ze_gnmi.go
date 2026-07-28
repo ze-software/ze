@@ -11,4 +11,3 @@ import (
 	_ "github.com/ze-software/ze/internal/component/gnmi/yang"
 	_ "github.com/ze-software/ze/internal/plugins/gnmi-cmd/yang"
 )
-

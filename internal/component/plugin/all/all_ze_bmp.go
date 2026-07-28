@@ -10,4 +10,3 @@ import (
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/bmp"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/bmp/yang"
 )
-

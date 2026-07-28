@@ -813,7 +813,10 @@ func writeTaggedGo(w *bufio.Writer, tag, constraint string, imports []string) er
 		b.WriteString(imp)
 		b.WriteString("\"\n")
 	}
-	b.WriteString(")\n\n")
+	// ")\n", not ")\n\n": a trailing blank line is not gofmt-clean, and `make fmt`
+	// strips it right back off, so emitting one puts the generator and the
+	// formatter in a loop where each undoes the other on every run.
+	b.WriteString(")\n")
 	if _, err := w.WriteString(b.String()); err != nil {
 		return err
 	}
@@ -979,8 +982,9 @@ func writeAllGo(w *bufio.Writer, plugins, schemas, rpcs, namespaces []string) er
 			fmt.Fprintf(w, "\t_ \"%s\"\n", imp) //nolint:errcheck // output
 		}
 	}
+	// No blank line after ")": see writeTaggedGo -- a trailing blank line is not
+	// gofmt-clean, so `make fmt` and `make generate` would each undo the other.
 	fmt.Fprintln(w, ")") //nolint:errcheck // output
-	fmt.Fprintln(w)      //nolint:errcheck // output
 
 	return w.Flush()
 }

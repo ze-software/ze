@@ -11,4 +11,3 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/vrrp/transport"
 	_ "github.com/ze-software/ze/internal/plugins/vrrp/yang"
 )
-

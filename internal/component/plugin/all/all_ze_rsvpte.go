@@ -10,4 +10,3 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/rsvpte"
 	_ "github.com/ze-software/ze/internal/plugins/rsvpte/yang"
 )
-

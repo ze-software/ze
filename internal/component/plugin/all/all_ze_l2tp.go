@@ -23,4 +23,3 @@ import (
 	_ "github.com/ze-software/ze/internal/component/l2tp/subscriber/cmd/yang"
 	_ "github.com/ze-software/ze/internal/component/l2tp/yang"
 )
-

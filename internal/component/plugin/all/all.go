@@ -119,4 +119,3 @@ import (
 	_ "github.com/ze-software/ze/internal/component/trafficfeature/cmd"
 	_ "github.com/ze-software/ze/internal/component/trafficstat/cmd"
 )
-

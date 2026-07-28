@@ -16,4 +16,3 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/iface/vpp/yang"
 	_ "github.com/ze-software/ze/internal/plugins/traffic/vpp"
 )
-

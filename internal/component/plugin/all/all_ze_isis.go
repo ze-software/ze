@@ -11,4 +11,3 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/isis/transport"
 	_ "github.com/ze-software/ze/internal/plugins/isis/yang"
 )
-

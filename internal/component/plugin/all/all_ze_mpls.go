@@ -10,4 +10,3 @@ import (
 	_ "github.com/ze-software/ze/internal/component/mpls"
 	_ "github.com/ze-software/ze/internal/plugins/mpls-cmd/yang"
 )
-

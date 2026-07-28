@@ -11,4 +11,3 @@ import (
 	_ "github.com/ze-software/ze/internal/component/ike/ipsec/yang"
 	_ "github.com/ze-software/ze/internal/component/ike/yang"
 )
-

@@ -132,7 +132,9 @@ func generatedAllGoFixture(imports ...string) string {
 		b.WriteString(imp)
 		b.WriteString("\"\n")
 	}
-	b.WriteString(")\n\n")
+	// Mirrors writeAllGo's terminator exactly: ")\n" with no trailing blank line,
+	// or --check reports the fixture stale and TestClusterPluginDiscovery fails.
+	b.WriteString(")\n")
 	return b.String()
 }
 

@@ -10,4 +10,3 @@ import (
 	_ "github.com/ze-software/ze/internal/component/l2tp/plugins/authradius"
 	_ "github.com/ze-software/ze/internal/component/l2tp/plugins/authradius/yang"
 )
-

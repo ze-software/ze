@@ -21,4 +21,3 @@ import (
 	_ "github.com/ze-software/ze/internal/plugins/ddos/observe/cmd/yang"
 	_ "github.com/ze-software/ze/internal/plugins/ddos/observe/yang"
 )
-
