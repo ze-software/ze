@@ -119,6 +119,17 @@ func enrichRouteMapFromEntry(routeMap map[string]any, entry storage.RouteEntry) 
 			routeMap["next-hop"] = formatNextHop(data)
 		}
 	}
+	// RFC 5549 / RFC 8950: an IPv6 next-hop can only travel in MP_REACH_NLRI,
+	// because NEXT_HOP (type 3) is IPv4-only. attrparse.go interns type 3 alone
+	// into Bundle.NextHop and routes MP_REACH to OtherAttrs, so the branch above
+	// renders nothing for a native IPv6 route or an IPv4 NLRI with an extended
+	// next-hop. Recover it from the stored MP_REACH exactly as the forward path
+	// does in bestCandidateNextHopAddr (rib_bestchange.go).
+	if _, shown := routeMap["next-hop"]; !shown && b.HasOtherAttrs() {
+		if addr := extractMPNextHopAddr(b); addr.IsValid() {
+			routeMap["next-hop"] = textbuf.StringAddr(addr)
+		}
+	}
 	if b.HasOrigin() {
 		if data, err := pool.Origin.Get(b.Origin); err == nil {
 			if origin := formatOrigin(data); origin != "" {

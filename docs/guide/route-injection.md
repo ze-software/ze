@@ -40,11 +40,14 @@ ze cli -c "show bgp rib best prefix 198.51.100.0/24"
 ```
 
 Ze stores the MP_REACH attribute with the synthetic candidate and recovers the
-next hop when selecting and forwarding it. `show bgp rib best` displays the
-recovered next hop. `show bgp rib received` currently renders only the legacy
-IPv4 NEXT_HOP attribute, so it omits MP next hops.
+next hop when selecting and forwarding it. `show bgp rib best` and
+`show bgp rib received` both display the recovered next hop: the attribute
+renderer falls back to the stored MP_REACH_NLRI whenever the legacy IPv4-only
+NEXT_HOP attribute (type 3) is absent, which is the case for every IPv6 next
+hop, native or extended.
 
 <!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- injectRoute MP_REACH emission -->
+<!-- source: internal/component/bgp/plugins/rib/rib_attr_format.go -- enrichRouteMapFromEntry MP_REACH next-hop fallback -->
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- extractMPNextHopAddr -->
 <!-- source: internal/component/bgp/rib/commit.go -- extended next-hop encoding -->
 

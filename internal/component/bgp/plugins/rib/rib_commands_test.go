@@ -502,6 +502,108 @@ func TestInjectIPv6NextHopNativeFamily(t *testing.T) {
 	assert.Equal(t, "2001:db8::2", nh.String(), "stored MP_REACH must carry the IPv6 next-hop")
 }
 
+// requireFirstBestPath runs the best-path pipeline and returns the first entry's
+// rendered attribute map. The two tests below assert what an OPERATOR sees, not
+// what the storage helper returns: TestInjectRFC5549ExtendedNextHop above proves
+// the bytes are stored, and passed for months while `show bgp rib best` rendered
+// no next-hop at all.
+func requireFirstBestPathAttrs(t *testing.T, r *RIBManager) map[string]any {
+	t.Helper()
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal(mustMarshal(t, r.bestPipeline("*", nil)), &parsed))
+
+	bestPath, ok := parsed["best-path"].([]any)
+	require.True(t, ok, "expected best-path array")
+	require.Len(t, bestPath, 1, "expected exactly one best path")
+
+	entry, ok := bestPath[0].(map[string]any)
+	require.True(t, ok, "expected best-path entry map")
+	attrs, ok := entry["attributes"].(map[string]any)
+	require.True(t, ok, "expected rendered attributes")
+	return attrs
+}
+
+// TestBestShowRendersExtendedNextHop verifies `show bgp rib best` renders an
+// RFC 5549 extended next-hop.
+//
+// VALIDATES: enrichRouteMapFromEntry recovers an IPv6 next-hop from the stored
+// MP_REACH_NLRI when Bundle.NextHop is empty, so the operator sees the next-hop.
+// PREVENTS: rendering only Bundle.NextHop (interned from the IPv4-only NEXT_HOP
+// type 3 by storage/attrparse.go), which silently omitted the next-hop key from
+// every route whose next-hop arrived in MP_REACH.
+// RFC 5549: IPv4 NLRI with an IPv6 next-hop. RFC 8950: encoding.
+func TestBestShowRendersExtendedNextHop(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "nexthop", "2001:db8::1",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "done", status)
+
+	attrs := requireFirstBestPathAttrs(t, r)
+	assert.Equal(t, "2001:db8::1", attrs["next-hop"], "best show must render the extended next-hop")
+}
+
+// TestBestShowRendersNativeIPv6NextHop verifies the same recovery for ordinary
+// MP-BGP, where an IPv6 NLRI's next-hop also lives only in MP_REACH_NLRI.
+//
+// VALIDATES: the MP_REACH fallback is not RFC-5549-specific; a native IPv6 route
+// renders its next-hop too.
+// PREVENTS: fixing only the cross-family case and leaving every ipv6/unicast
+// route in `show bgp rib best` with no next-hop.
+func TestBestShowRendersNativeIPv6NextHop(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
+		"10.0.0.1", "ipv6/unicast", "2001:db8:1::/48", "nexthop", "2001:db8::2",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "done", status)
+
+	attrs := requireFirstBestPathAttrs(t, r)
+	assert.Equal(t, "2001:db8::2", attrs["next-hop"], "best show must render the IPv6 next-hop")
+}
+
+// TestBestShowRendersLegacyNextHop pins the primary branch the MP_REACH fallback
+// sits behind: an IPv4 next-hop still comes from the interned NEXT_HOP attribute.
+//
+// VALIDATES: enrichRouteMapFromEntry prefers Bundle.NextHop when it is present.
+// PREVENTS: the fallback shadowing or replacing the type-3 rendering path.
+func TestBestShowRendersLegacyNextHop(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "nexthop", "10.0.0.2",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "done", status)
+
+	attrs := requireFirstBestPathAttrs(t, r)
+	assert.Equal(t, "10.0.0.2", attrs["next-hop"], "best show must still render the legacy NEXT_HOP")
+}
+
+// TestReceivedShowRendersExtendedNextHop covers the second caller of
+// enrichRouteMapFromEntry: the general show pipeline behind
+// `show bgp rib received` (rib_pipeline.go), not just the best-path terminal.
+//
+// VALIDATES: the received view renders an MP_REACH next-hop too.
+// PREVENTS: fixing only the best-path terminal, which docs/guide/route-injection.md
+// documented as the split ("show bgp rib received currently renders only the
+// legacy IPv4 NEXT_HOP attribute, so it omits MP next hops").
+func TestReceivedShowRendersExtendedNextHop(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
+		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "nexthop", "2001:db8::1",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "done", status)
+
+	route := requireFirstRoute(t, anyToJSONStr(t, r.showPipeline("*", []string{"received"})), "adj-rib-in", "10.0.0.1")
+	assert.Equal(t, "2001:db8::1", route["next-hop"], "received show must render the extended next-hop")
+}
+
 // TestWithdrawUsesProtocolSlot verifies request bgp rib withdraw reads from bgpPeers.
 func TestWithdrawUsesProtocolSlot(t *testing.T) {
 	r := newTestRIBManager(t)
