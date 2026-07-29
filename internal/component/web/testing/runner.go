@@ -212,18 +212,25 @@ func (b *Browser) PressOnID(id, key string) error {
 
 // Click finds an element by visible text in the snapshot, then clicks its @ref.
 func (b *Browser) Click(text string) error {
-	snap, err := b.Snapshot()
-	if err != nil {
-		return fmt.Errorf("snapshot before click: %w", err)
-	}
+	// Retried as a whole: the element may not be in the snapshot yet, which is
+	// the same wait an expectation needs. See retryCommand (expect.go).
+	if err := retryCommand(func() error {
+		snap, snapErr := b.Snapshot()
+		if snapErr != nil {
+			return fmt.Errorf("snapshot before click: %w", snapErr)
+		}
 
-	ref := findRefByText(snap, text)
-	if ref == "" {
-		return fmt.Errorf("no element with text containing %q in snapshot:\n%s", text, snap)
-	}
+		ref := findRefByText(snap, text)
+		if ref == "" {
+			return fmt.Errorf("no element with text containing %q in snapshot:\n%s", text, snap)
+		}
 
-	if err := b.runAgent("click", ref); err != nil {
-		return fmt.Errorf("click %s (text=%q): %w", ref, text, err)
+		if clickErr := b.runAgent("click", ref); clickErr != nil {
+			return fmt.Errorf("click %s (text=%q): %w", ref, text, clickErr)
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	return b.WaitLoad()
 }
@@ -232,7 +239,10 @@ func (b *Browser) Click(text string) error {
 func (b *Browser) ClickID(id string) error {
 	var tb textbuf.Buffer
 	sel := tb.Byte('#').Str(id).String()
-	if err := b.runAgent("click", sel); err != nil {
+	// agent-browser reports a missing element as a non-zero exit, so a control
+	// the previous step produced asynchronously (an htmx out-of-band swap, say)
+	// is a race unless the click waits for it. See retryCommand (expect.go).
+	if err := retryCommand(func() error { return b.runAgent("click", sel) }); err != nil {
 		return fmt.Errorf("click #%s: %w", id, err)
 	}
 	return b.WaitLoad()

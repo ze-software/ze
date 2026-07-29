@@ -42,9 +42,27 @@ const (
 // pass by sampling earlier; the preceding wait is what makes the absence
 // meaningful.
 func retryPositive(check func() error) error {
+	return retryCommand(check)
+}
+
+// retryCommand re-runs anything that reports failure as an error until it
+// succeeds or expectDeadline expires, returning the LAST error. retryPositive is
+// its assertion use; Browser.Click and Browser.ClickID are its command use.
+//
+// A click needs it for the same reason a positive expectation does, and the
+// suite proved it: `click #commit-review-btn: exit status 1` on commit-flow.wb
+// line 17, one full-suite run in five, while line 15 had just found that same
+// button's text. agent-browser reports a missing element as a non-zero exit, so
+// clicking a control the previous step produced asynchronously is a race unless
+// the click waits for it.
+//
+// Retrying a click cannot double-submit the failure mode this exists for: an
+// element that is not there was not clicked. A command that acted and THEN
+// reported an error would be re-run, which is the accepted residual.
+func retryCommand(run func() error) error {
 	deadline := time.Now().Add(expectDeadline)
 	for {
-		err := check()
+		err := run()
 		if err == nil {
 			return nil
 		}
