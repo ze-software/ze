@@ -55,6 +55,29 @@ func retryPositive(check func() error) error {
 	}
 }
 
+// retryFetch re-runs a browser QUERY until it succeeds, and is not an assertion
+// retry: it loops on the command erroring, never on what the command returned.
+//
+// `agent-browser html` exits non-zero from time to time under the suite's
+// four-way concurrency against one shared daemon, and a negative expectation
+// then fails on `html: exit status 1` -- a tool failure wearing an assertion's
+// clothes, and one that says nothing about the page. Negatives cannot use
+// retryPositive (retrying an absence would only ever turn a real failure into a
+// pass), but they can insist on getting a usable answer before judging it.
+func retryFetch(fetch func() (string, error)) (string, error) {
+	deadline := time.Now().Add(expectDeadline)
+	for {
+		out, err := fetch()
+		if err == nil {
+			return out, nil
+		}
+		if !time.Now().Before(deadline) {
+			return "", err
+		}
+		time.Sleep(expectPoll)
+	}
+}
+
 // checkExpectation validates a single expectation against the current browser state.
 func checkExpectation(b *Browser, e *WBExpectation) error {
 	switch e.Kind {
@@ -73,7 +96,7 @@ func checkExpectation(b *Browser, e *WBExpectation) error {
 }
 
 func checkElement(b *Browser, e *WBExpectation) error {
-	snap, err := b.Snapshot()
+	snap, err := retryFetch(b.Snapshot)
 	if err != nil {
 		return fmt.Errorf("snapshot: %w", err)
 	}
@@ -101,7 +124,7 @@ func checkElement(b *Browser, e *WBExpectation) error {
 	}
 
 	if id, ok := e.Values["not-id"]; ok {
-		html, htmlErr := b.GetHTML()
+		html, htmlErr := retryFetch(b.GetHTML)
 		if htmlErr != nil {
 			return fmt.Errorf("html: %w", htmlErr)
 		}
@@ -127,7 +150,7 @@ func checkElement(b *Browser, e *WBExpectation) error {
 	}
 
 	if text, ok := e.Values["not-text"]; ok {
-		fullSnap, textErr := b.FullSnapshot()
+		fullSnap, textErr := retryFetch(b.FullSnapshot)
 		if textErr != nil {
 			return fmt.Errorf("full snapshot: %w", textErr)
 		}
@@ -140,7 +163,7 @@ func checkElement(b *Browser, e *WBExpectation) error {
 }
 
 func checkHTML(b *Browser, e *WBExpectation) error {
-	html, err := b.GetHTML()
+	html, err := retryFetch(b.GetHTML)
 	if err != nil {
 		return fmt.Errorf("html: %w", err)
 	}
