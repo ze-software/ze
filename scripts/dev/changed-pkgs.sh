@@ -20,6 +20,16 @@
 # in this repository; otherwise we have no trusted green point and fall back
 # to the working-tree-only set (no worse than the historical behaviour).
 #
+# Non-Go inputs that a Go test EXECUTES are collected too, and map to the
+# package that runs them (see PYTHON_TEST_PKG below). Filtering every query on
+# '*.go' meant a Python-only or corpus-only change selected ZERO packages and
+# `make ze-verify-changed` exited 0 having tested nothing -- including for a
+# change to scripts/dev/rfc_requirements.py itself, whose 295-test suite is run
+# by scripts/dev/python_tests_test.go. Enrolling an RFC, committing an
+# extraction sign-off or arming the drain rate had the same hole: those files
+# are read by the tests at run time, so a corpus change can red them while the
+# scoped verify looks only at .go paths and reports green.
+#
 # Output: one `./`-prefixed, existing package directory per line, sorted and
 # de-duplicated. Empty output means there is nothing to verify.
 #
@@ -29,10 +39,29 @@
 
 STATUS_FILE="${ZE_VERIFY_STATUS_FILE:-tmp/ze-verify.status}"
 
+# The Go package holding python_tests_test.go, which globs and runs every
+# *_test.py under its pythonTestRoots (scripts/dev, test/scripts, test/perf).
+# It is the only package that executes Python, so every .py maps here whatever
+# root it lives in -- a test/scripts/*.py has no Go package of its own.
+PYTHON_TEST_PKG="./scripts/dev"
+
+# Pathspecs for the file kinds that can change what a test does.
+#   *.go      the package's own sources
+#   *.py      run by PYTHON_TEST_PKG
+#   rfc       the RFC corpus the rfc_requirements suite reads live (enrolled.txt,
+#             short/*.md, extraction/*.json, drain-budget.txt)
+#
+# An ARRAY, expanded as "${PATHSPECS[@]}". A single space-separated string
+# expanded unquoted is word-split AND glob-expanded by the shell before git sees
+# it, so `*.go` matched the repo-root tools.go and git was handed one literal
+# path instead of the pattern -- silently narrowing the whole selection to that
+# file. The globs must reach git verbatim; only git knows the whole tree.
+PATHSPECS=('*.go' '*.py' 'rfc')
+
 collect_files() {
-	git diff --name-only -- '*.go' 2>/dev/null || true
-	git diff --cached --name-only -- '*.go' 2>/dev/null || true
-	git ls-files --others --exclude-standard -- '*.go' 2>/dev/null || true
+	git diff --name-only -- "${PATHSPECS[@]}" 2>/dev/null || true
+	git diff --cached --name-only -- "${PATHSPECS[@]}" 2>/dev/null || true
+	git ls-files --others --exclude-standard -- "${PATHSPECS[@]}" 2>/dev/null || true
 
 	# Committed-since-last-green: only with a trusted green baseline.
 	if [ -f "$STATUS_FILE" ]; then
@@ -40,7 +69,7 @@ collect_files() {
 		last_sha=$(sed -n 's/^git_sha=//p' "$STATUS_FILE" | head -1)
 		if [ "$last_exit" = "0" ] && [ -n "$last_sha" ] && [ "$last_sha" != "unknown" ] &&
 			git cat-file -e "${last_sha}^{commit}" 2>/dev/null; then
-			git diff --name-only "$last_sha" HEAD -- '*.go' 2>/dev/null || true
+			git diff --name-only "$last_sha" HEAD -- "${PATHSPECS[@]}" 2>/dev/null || true
 		fi
 	fi
 }
@@ -54,6 +83,15 @@ changed_dirs=$(
 			# makes `go mod vendor` write many untracked files, but they are not
 			# ours to verify (the full ze-lint/ze-unit-test skip vendor too).
 			case "$file" in vendor/*) continue ;; esac
+			# A Python file or an RFC corpus file is INPUT to a Go test rather
+			# than a package member, so its own directory is not a Go package
+			# (test/scripts, rfc/short). Map it to the package that runs it.
+			case "$file" in
+			*.py | rfc/*)
+				printf '%s\n' "$PYTHON_TEST_PKG"
+				continue
+				;;
+			esac
 			dir=$(dirname "$file")
 			[ -d "$dir" ] && printf './%s\n' "$dir"
 		done |

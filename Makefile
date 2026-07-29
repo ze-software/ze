@@ -442,6 +442,24 @@ ze-rfc-check:
 ze-rfc-index:
 	@python3 scripts/dev/rfc_requirements.py --write
 
+# Write an UNCLASSIFIED extraction skeleton for one RFC
+# (plan/spec-rfcgate-1-extraction.md): every normative site and every section of
+# rfc/full/<stem>.txt, with each disposition null. A reviewer then classifies each one by
+# hand in rfc/extraction/<stem>.json. Generation alone can never produce a passing
+# sign-off -- an unclassified site FAILS `make ze-rfc-check` -- so mass-generating
+# skeletons makes the gate redder, never greener.
+#   make ze-rfc-extract STEM=rfc7296
+ze-rfc-extract:
+	@test -n "$(STEM)" || { echo "usage: make ze-rfc-extract STEM=<rfc-stem>"; exit 2; }
+	@python3 scripts/dev/rfc_requirements.py --extract-skeleton $(STEM)
+
+# The machine-readable extraction counts the umbrella's drain quota consumes
+# (plan/spec-rfcgate-0-umbrella.md, "Where the counter lives"): signed and enrolled
+# counts, the per-register split, and the unsigned backlog. Always JSON -- that envelope
+# is the mode's only consumer.
+ze-rfc-extraction-status:
+	@python3 scripts/dev/rfc_requirements.py --extraction-status --json
+
 # No-direct-resolution gate (plan/spec-iface-resolve-0-umbrella.md AC-U1,
 # sub-spec 7): interface consumers must resolve logical names via the shared
 # iface resolver, not the kernel directly. scripts/checks/iface_resolution.go

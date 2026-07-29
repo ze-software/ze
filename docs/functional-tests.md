@@ -686,6 +686,32 @@ Rules the gate enforces:
 
 <!-- source: scripts/dev/rfc_requirements.py -- scan_go_tags/scan_ci_tags -->
 
+### What the tags do not cover
+
+Tags bind the requirements a summary **lists**. Nothing in the paragraphs above
+can see an obligation nobody wrote down, so a green gate is bounded by what was
+extracted. That boundary is closed separately, by a per-RFC **extraction
+sign-off** at `rfc/extraction/<stem>.json`: every normative site of the RFC's own
+text is mapped to a requirement id or excluded with a reason, and the gate
+re-derives the site inventory from the source and re-checks the arithmetic on
+every run.
+
+```
+make ze-rfc-extract STEM=rfcNNNN     # unclassified skeleton; classify it by hand
+make ze-rfc-check                    # re-derives and judges
+make ze-rfc-extraction-status        # JSON counts, per register, plus the backlog
+```
+
+Only dispositions are authored: sites, sections, quotes and the register are
+derived, so a hand-typed count cannot exist and an unclassified site cannot be
+hidden. The skeleton writer emits only unclassified entries, so generating
+artifacts makes the gate redder rather than greener. A sign-off is required
+before enrolling a stem that was not enrolled at HEAD; RFCs enrolled earlier are
+grandfathered and published as a counted backlog in `ai/RFC-REQUIREMENTS.md`.
+Contract: `rfc/extraction/README.md`.
+
+<!-- source: scripts/dev/rfc_requirements.py -- check_extraction_signoff/run_extract_skeleton -->
+
 Full authoring guidance: `ai/skills/ze-rfc.md` (id allocation and annotations),
 `ai/skills/ze-rfc-audit.md` (letter-and-spirit audit), and
 `docs/contributing/rfc-implementation-guide.md`.
@@ -775,53 +801,71 @@ Dynamic route tests - routes injected via scripts using the process API.
 - `*.conf` - Ze configuration (includes `process` block)
 - `*.run` - Script that sends API commands
 
-### 3b. MCP Tests (`test/plugin/mcp-*.ci`, `test/plugin/elicitation-*.ci`)
+### 3b. MCP Tests (`test/plugin/mcp-*.ci`)
 
 End-to-end scenarios for the MCP transport. The runner launches a ze
 daemon with `--mcp <port>` in the background and `ze-test mcp` in the
 foreground; assertions come from `expect=exit:code=...` and
 `expect=stdout|stderr:contains=...`.
 
-| File | What it covers |
-|------|----------------|
-| `mcp-announce.ci` | `ze_execute` dispatches a BGP UPDATE via the MCP endpoint, `ze-peer` verifies the wire bytes |
-| `elicitation-accept.ci` | Client declares `capabilities.elicitation={}`, queues an accept reply, `ze_execute` with empty command triggers `elicitation/create` over SSE, accepted command is dispatched |
-| `elicitation-decline.ci` | Same setup, queued decline surfaces as a tool error containing "declined" |
-| `elicitation-no-capability.ci` | Client does NOT declare the capability; the server fails fast with "missing required argument" instead of hanging on an elicit |
+`ze-test mcp` speaks MCP revision `2026-07-28`. Every message it sends is its
+own HTTP POST to `/mcp` carrying the `MCP-Protocol-Version`, `Mcp-Method` and
+(where required) `Mcp-Name` headers plus a `params._meta` block: there is no
+handshake, no session id, and no GET stream to set up.
 
-The `ze-test mcp` client understands these extra stdin directives for
-elicitation scenarios: `elicit-accept <json>`, `elicit-decline`,
-`elicit-cancel`. Each queues one reply; the client auto-cancels when an
-elicit frame arrives with nothing queued.
+<!-- source: internal/test/cli/cmd_mcp.go -- ze-test mcp driver -->
+
+Driver flags:
+
+| Flag | Purpose |
+|------|---------|
+| `--port <port>` | MCP server port (required) |
+| `--token <token>` | Bearer token, sent on every request |
+| `--timeout <duration>` | Connection timeout (default 10s) |
+| `--tasks` | Declare the `io.modelcontextprotocol/tasks` extension in every request's `_meta.clientCapabilities` |
+| `--resources` | Declare the `resources` capability in every request's `_meta.clientCapabilities` |
 
 ### 3c. Task Tests (`test/plugin/task-*.ci`)
 
 Task-augmented `tools/call` scenarios using the `--tasks` flag on
-`ze-test mcp`. The client declares `capabilities.tasks={}` at
-initialize and uses task-specific directives.
-
-| File | What it covers |
-|------|----------------|
-| `task-rib-routes.ci` | `show bgp rib` as a task: createTask -> poll -> tasks/result returns route data |
-| `task-cancel.ci` | Create a long-running task, cancel it, verify state is cancelled |
-| `task-forbidden.ci` | `clear bgp rib in` (forbidden) with `task:{}` is rejected with -32602 |
-| `task-identity-scope.ci` | Two bearer-list identities each create tasks; `tasks/list` returns only own tasks |
+`ze-test mcp`, which declares task support in every request's
+`_meta.clientCapabilities`.
 
 Task directives: `task-call <tool> <args>`, `task-get <id>`,
 `task-result <id>`, `task-cancel <id>`, `task-list`,
 `task-wait <id> <state>`. `$LAST` substitutes the most recent directive
 output (typically the taskId from `task-call`).
 
-### 3d. GET-Stream Tests (`test/plugin/mcp-get-sse.ci`)
+Tasks are polled, never pushed: `2026-07-28` has no server-to-client stream on
+this transport, so `task-wait` polls `tasks/get` rather than waiting on a
+notification.
 
-Server-initiated frames over the standalone `GET /mcp` SSE stream (MCP
-2025-06-18 Streamable HTTP). `sse-listen` opens the GET stream
-(`Accept: text/event-stream` + `Mcp-Session-Id`) on a background reader;
-`sse-expect <method>` blocks until a server-initiated frame with that
-JSON-RPC method arrives and prints it. `mcp-get-sse.ci` drives a
-`task-call` whose completion notification (`notifications/tasks/status`)
-is delivered on the GET stream, not the POST response.
-<!-- source: internal/test/cli/cmd_mcp.go -- startSSE/sseExpect directives -->
+### 3d. Conformance Probes (`probe-*` directives)
+
+The conformance surface -- header validation, version rejection, malformed
+`_meta`, and the 405 on GET and DELETE -- is driven with the driver's
+`probe-*` directives, which build deliberately-malformed requests that the
+ordinary directives cannot express.
+
+Each `probe-*` line queues one deviation; the next `probe` applies every queued
+deviation, prints one result line, then clears the queue. A `probe` with nothing
+queued sends a fully conformant request, which is how a test asserts the success
+shape (`resultType`, `serverInfo`).
+
+| Directive | Purpose |
+|-----------|---------|
+| `probe-header <name> <value\|->` | Set a request header verbatim, with no sentinel encoding; `-` omits the header |
+| `probe-meta <key> <value\|->` | Set a `params._meta` field; `-` omits it. Short keys expand to their `io.modelcontextprotocol/` names |
+| `probe-method <verb>` | HTTP verb for the next probe (default POST) |
+| `probe-body <json\|->` | Send this exact request body; `-` sends an empty body |
+| `probe <method> [<json params>]` | Send one request; prints `probe status=<http> code=<jsonrpc\|ok\|none> [data=<json>] [result=<json>] message=<text>` |
+
+`MCP-Protocol-Version` is derived from the `_meta` protocolVersion value, so
+`probe-meta protocolVersion <old>` sends a consistent pair that tests version
+rejection (`-32022`), while `probe-header MCP-Protocol-Version <old>` sends a
+header/body mismatch that tests `-32020`.
+
+<!-- source: internal/test/cli/cmd_mcp.go -- probe-* stdin directives -->
 
 ### Forward-Path Claims
 

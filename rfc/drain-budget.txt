@@ -1,0 +1,31 @@
+# Drain policy for the RFC extraction backlog.
+#
+# Read by check_drain_floor (scripts/dev/rfc_requirements.py) on every `make ze-rfc-check`.
+# Owned by plan/spec-rfcgate-0-umbrella.md and ultimately by Thomas.
+#
+# THIS FILE CARRIES POLICY ONLY: a start date and a rate. Two fields, nothing else.
+# It may NEVER gain a per-stem row, a count, a stem list, or a register column. The moment
+# it names an RFC it has become the hand-kept registry the 2026-07-29 resolution rejected,
+# and a reviewer should treat such a row as a defect rather than an extension. Who has
+# been signed off is DERIVED from rfc/extraction/*.json and published by
+# `make ze-rfc-extraction-status`; it is never written down twice.
+#
+#   start  YYYY-MM-DD the drain clock begins counting from.
+#   rate   Entries per calendar month. The required floor is
+#          ceil(rate x whole calendar months since start), CAPPED at the WHOLE ENROLLED
+#          SET -- never at the remaining backlog. A remainder cap counts every sign-off
+#          twice (it raises the cumulative total AND lowers the bar that total is measured
+#          against), which collapses the whole comparison to `signed >= enrolled / 2`.
+#          The check still retires itself once the backlog is drained, by a different
+#          route: a drained corpus has signed == enrolled, and the floor can never exceed
+#          enrolled, so the comparison is satisfied from then on without a removal commit.
+#
+# The rate SHIPS AT 0, so the comparison lands inert (owner decision D5). Arming it is a
+# one-line commit that sets a non-zero rate, taken after the first fleet batch has
+# measured real throughput -- and Thomas takes it. Guessing a rate now would either be so
+# low it forces nothing or so high it reds the tree on unrelated work, and
+# ai/rules/rfc-compliance.md:114-116 records what happens to a rule in the second
+# category: it gets removed rather than obeyed.
+
+start 2026-07-29
+rate 0

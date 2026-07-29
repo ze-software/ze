@@ -560,6 +560,8 @@ Full rules: `ai/skills/ze-rfc.md`; audit method: `ai/skills/ze-rfc-audit.md`.
 [ ] Add Ze implementation notes section
 [ ] Cross-reference related RFCs
 [ ] Every MUST-level line has a stable id (see 9.7); disclose any {gap} in docs/features/rfc-status.md
+[ ] Extraction sign-off recorded: make ze-rfc-extract STEM=rfcNNNN, then classify
+    every derived site and section in rfc/extraction/rfcNNNN.json (see 10.4)
 ```
 
 ### 10.3 Config Examples
@@ -568,6 +570,37 @@ Full rules: `ai/skills/ze-rfc.md`; audit method: `ai/skills/ze-rfc-audit.md`.
 [ ] Add example configs showing feature usage
 [ ] Document in relevant architecture docs
 ```
+
+### 10.4 Extraction Sign-Off
+
+The checklist above proves the requirements you WROTE DOWN are enforced. Nothing
+in it bounds what the summary MISSED, and a green `make ze-rfc-check` is bounded
+by what was extracted. Record the walk in an artifact the gate re-checks:
+
+```
+make ze-rfc-extract STEM=rfcNNNN     # writes an UNCLASSIFIED skeleton
+                                      # classify every site and section by hand
+make ze-rfc-check                     # re-derives the inventory and judges it
+```
+
+Each derived site (`<section>:<n>`, with the sentence it came from) is `mapped`
+to a requirement id or `excluded` with a kind from a closed set and a reason;
+each section is `walked` or `skipped`. An unclassified site fails the gate, so
+generating the skeleton cannot produce a sign-off, only the walk can. Enrolling
+a stem that was not enrolled at HEAD REQUIRES this artifact. Contract and field
+reference: `rfc/extraction/README.md`.
+
+<!-- source: scripts/dev/rfc_requirements.py -- run_extract_skeleton/check_extraction_signoff -->
+
+The counts machine-readably (signed, enrolled, the per-register split, and the
+unsigned backlog): `make ze-rfc-extraction-status`. Do NOT spell it
+`make ze-rfc-extraction-status --json` -- GNU make reads `--json` as one of its own
+options and exits 2 before the recipe runs. The target always emits JSON.
+
+<!-- source: Makefile -- ze-rfc-extraction-status -->
+<!-- source: scripts/dev/rfc_requirements.py -- run_extraction_status -->
+
+
 
 ---
 

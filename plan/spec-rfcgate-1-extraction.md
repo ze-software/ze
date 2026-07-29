@@ -2,20 +2,26 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
-| Scope | tooling (phases 1 to 7) + protocol (phase 8, the rfc7296 pilot) |
+| Status | in-progress |
+| Scope | ~~tooling (phases 1 to 7) + protocol (phase 8, the rfc7296 pilot)~~ (superseded 2026-07-29 by owner ruling 3) **tooling only: phases 1 to 7** |
 | Depends | - |
-| Phase | - |
+| Phase | ~~7/8 (phases 1-7 implemented and green; phase 8 NOT started)~~ (superseded 2026-07-29 by owner ruling 3) **7/7 -- phases 1 to 7 complete and green; phase 8 re-homed to `plan/spec-rfcgate-1b-rfc7296-pilot.md`** |
 | Deferral shard | `plan/deferrals/rfcgate-1-extraction.md` |
 | Updated | 2026-07-29 |
 
 Umbrella: `plan/spec-rfcgate-0-umbrella.md`. This is program ONE of the set, the highest
 priority child, and the first of four that the umbrella's "Sequencing Constraint" requires
-to be merged strictly serially (1, then 2, then 3, then 4). It builds the machinery, plus
-ONE pilot sign-off: ~~performing the 166 sign-offs is fleet work owned by the umbrella and
+to be merged strictly serially (1, then 2, then 3, then 4). ~~It builds the machinery, plus
+ONE pilot sign-off:~~ ~~performing the 166 sign-offs is fleet work owned by the umbrella and
 by `plan/spec-followup-rfc-enrollment.md`~~ (superseded 2026-07-29 by owner ruling 2, below)
-performing the other 165 sign-offs is fleet work owned by the umbrella and by
-`plan/spec-followup-rfc-enrollment.md`; rfc7296 is performed HERE and is not grandfathered.
+~~performing the other 165 sign-offs is fleet work owned by the umbrella and by
+`plan/spec-followup-rfc-enrollment.md`; rfc7296 is performed HERE and is not grandfathered.~~
+
+**Superseded again 2026-07-29 by owner ruling 3 (below).** This spec builds the MACHINERY
+and nothing else. The rfc7296 pilot is not abandoned and not grandfathered: it moved intact
+to `plan/spec-rfcgate-1b-rfc7296-pilot.md`, which carries all 214 walked obligations and
+this spec's AC-23 to AC-26. Performing the other 165 sign-offs remains fleet work owned by
+the umbrella and by `plan/spec-followup-rfc-enrollment.md`.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -129,6 +135,27 @@ surface an unknown number of new obligations, and each one is owed working code 
 positive and a negative tagged test. That tail cannot be sized before the walk runs and
 must be scoped with the owner once the real count is known (R-10). Pretending the number
 is knowable now would be the fabrication this spec exists to remove.
+
+### Ruling 3: the rfc7296 pilot becomes its own spec, and all 108 unimplemented MUSTs are fixed there
+
+| Field | Value |
+|-------|-------|
+| Question raised | Phase 8a ran the walk exactly as ruling 2 and the Failure Routing table require ("Phase 8a's count is larger than this spec can carry -> STOP and take the COUNT to Thomas for scoping"). The count came back at **214 distinct obligations** against the 18 gated MUST rows the summary holds today, triaged 63 `implemented-and-testable`, 25 `implemented-untested`, **108 NOT IMPLEMENTED**, 18 `uncertain`. What happens to 108 unimplemented IKEv2 MUSTs, and does the machinery set wait for them? |
+| Ruling (Thomas, 2026-07-29, two halves that compose) | **OR-A: fix all 108 inside the spec that owns them.** Not annotated, not deferred, not written off. **OR-B: phase 8 becomes its own spec**, so the rfcgate machinery set is not serialized behind an IKEv2 compliance workstream |
+| Rationale accepted | The two halves answer two different questions and neither weakens the other. OR-A keeps `ai/rules/rfc-compliance.md:53` intact: `{gap}` / `{not-applicable}` / `partial` are void as authority, and 108 confirmed unextracted obligations escape the grandfather by definition (umbrella D7, "found means owed"). OR-B is a change of HOME, not of scope: serializing four machinery children behind an IKEv2 workstream of unknown length is what would actually have reduced delivery, and the debt is paid in full in the destination spec |
+| Scope taken OUT of this spec | Implementation phase 8 in full (8a to 8e), AC-23 to AC-26, the four `TestRealTree.test_rfc7296_*` rows of the TDD plan, and the rfc7296 row of the Wiring Test table. Nothing under `rfc/short/rfc7296.md`, `rfc/extraction/rfc7296.json`, `rfc/enrolled.txt`, `docs/features/rfc-status.md` or `internal/component/ike/` was touched by this spec |
+| Where it went | `plan/spec-rfcgate-1b-rfc7296-pilot.md` (Status `design`, `Depends \| spec-rfcgate-4-ledger`, so the extraction bar is on HEAD when its sign-off artifact is judged). It carries all 214 obligations in its Appendix A and maps this spec's ACs one-for-one: AC-23 -> its AC-1, AC-24 -> its AC-5, AC-25 -> its AC-4, AC-26 -> its AC-3 (`plan/spec-rfcgate-1b-rfc7296-pilot.md:422-427`) |
+| Recorded as a deferral | `plan/deferrals/rfcgate-1-extraction.md:8`, Status `deferred`, Destination `plan/spec-rfcgate-1b-rfc7296-pilot.md`. A live row with a real destination, which is what a change of home looks like; a terminal status here would have said the work was done |
+| One narrowing the destination spec applied | AC-25's annotation branch does NOT survive the move. Its successor (`plan/spec-rfcgate-1b-rfc7296-pilot.md` AC-4) removes the annotation escape entirely: the only surviving path to a non-proven row is Thomas's recorded answer to the STOP-and-ask escalation. The obligation got stricter in transit, never looser |
+
+**What this spec's delivered scope therefore is: phases 1 to 7, and only those.** The
+machinery -- site and section derivation, register derivation, the artifact parser and
+skeleton writer, `check_extraction_signoff`, `check_extraction_ratchet`,
+`check_drain_floor`, the `check_enrolment` precondition, the ledger table, the status
+envelope, and the discovery surfaces. AC-1 to AC-22 and AC-27 to AC-32 are this spec's and
+are audited below. AC-23 to AC-26 are struck in the Acceptance Criteria table and re-homed;
+they are not dropped, and the strikethrough carries the destination so a reader can follow
+them.
 
 ## Required Reading
 
@@ -445,17 +472,17 @@ is knowable now would be the fabrication this spec exists to remove.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The sizing is robust to extractor methodology. | Two independent derivations 2026-07-29: brief said 3940 sites / 0.69 / 60 RFCs / deficit 1646; independent re-run gave 3988 / 0.68 / 61 / 1683 | The scale of the hole is misjudged and the drain quota is set against a wrong denominator | Implementation re-derives and publishes the real numbers in the ledger; compare against both estimates | unvalidated |
-| A-2 | A capitalised-keyword inventory is the WRONG oracle for a large minority of enrolled RFCs. | Measured: 53 of 166 enrolled RFCs declare more gated requirements than the capitalised-keyword site scan finds sites for. rfc2181 declares 23 from 1 site; `rfc/full/rfc2181.txt` Section 3 says the memo does not use the 2119 expressions | A single-register design ships and is vacuously green for a third of the tree | Re-derive the register split during implementation; assert the counts in a test over the live tree | unvalidated |
-| A-3 | 22 enrolled RFCs have zero capitalised MUST-level keywords in their source. | Measured 2026-07-29 over `rfc/enrolled.txt`: rfc1071, rfc1332, rfc1350, rfc1877, rfc2205, rfc2328, rfc2347, rfc2348, rfc2349, rfc2918, rfc2966, rfc3101, rfc3623, rfc5701, rfc6286, rfc7534, rfc7535, rfc792, rfc8050, rfc8571, rfc905, sflow-v5. They declare 164 gated MUSTs between them | The pre-2119 fail-open is mis-sized | `test_pre2119_register_is_derived_over_live_tree` asserts the live count is non-zero and every such stem derives the prose register | unvalidated |
-| A-4 | A case-insensitive modal scan gives those 22 a non-empty inventory. | Measured: 688 lowercase normative sites across the 22 (rfc905 229, rfc2328 159, rfc2205 102) | The prose register is as vacuous as the keyword one and only a manual walk remains | Re-derive during implementation; the prose-register test asserts a non-empty inventory for a fixture built from a keyword-free source | unvalidated |
-| A-5 | At least one enrolled RFC has an empty inventory under BOTH registers while declaring gated MUSTs. | Measured: rfc1877 has 0 capitalised and 0 lowercase modal occurrences in 10591 chars, and declares 4 gated MUSTs | Only the live `manual-walk` COUNT is wrong; the register itself stays either way. Owner ruling 1 makes an undrainable remainder unacceptable, so an RFC with no mechanical inventory must still have a route to a sign-off, and `manual-walk` is that route. If the live set turns out empty, the ledger's `manual-walk` column reads 0 and the register remains the terminal escape AC-10 needs | Implementation enumerates the live set and records the real count in the ledger. The register is NOT dropped on a zero count (superseding the earlier "drop it and record the deviation" plan, 2026-07-29 owner ruling 1) | unvalidated |
-| A-6 | Site granularity is required; section granularity is not sufficient. | Measured over the 166: 1671 hole-sites sit in wholly-unanchored sections but 558 sit in sections that already carry ids, and 618 of 1502 sections have sites and no ids. rfc4271 is 9 unanchored against 48 partial | A far cheaper section-only design would do, and the site machinery is over-built | Re-derive the unanchored/partial split during implementation and record it in the learned summary | unvalidated |
-| A-7 | Published RFC source texts do not change, so `source-sha` staleness fires almost never for `rfc/full/` and occasionally for `rfc/drafts/` (7 files). | RFCs are immutable once published; `_ID_RE`'s section anchor rests on the same immutability (`rfc_requirements.py:110-113`) | Sign-offs stale in bulk and the ratchet becomes noise | Implementation records the sha; any staleness observed in the first release is a signal to revisit | unvalidated |
+| A-1 | The sizing is robust to extractor methodology. | Two independent derivations 2026-07-29: brief said 3940 sites / 0.69 / 60 RFCs / deficit 1646; independent re-run gave 3988 / 0.68 / 61 / 1683 | The scale of the hole is misjudged and the drain quota is set against a wrong denominator | Implementation re-derives and publishes the real numbers in the ledger; compare against both estimates | confirmed (2026-07-29, phase 2) |
+| A-2 | A capitalised-keyword inventory is the WRONG oracle for a large minority of enrolled RFCs. | Measured: 53 of 166 enrolled RFCs declare more gated requirements than the capitalised-keyword site scan finds sites for. rfc2181 declares 23 from 1 site; `rfc/full/rfc2181.txt` Section 3 says the memo does not use the 2119 expressions | A single-register design ships and is vacuously green for a third of the tree | Re-derive the register split during implementation; assert the counts in a test over the live tree | confirmed (2026-07-29, phase 2) |
+| A-3 | 22 enrolled RFCs have zero capitalised MUST-level keywords in their source. | Measured 2026-07-29 over `rfc/enrolled.txt`: rfc1071, rfc1332, rfc1350, rfc1877, rfc2205, rfc2328, rfc2347, rfc2348, rfc2349, rfc2918, rfc2966, rfc3101, rfc3623, rfc5701, rfc6286, rfc7534, rfc7535, rfc792, rfc8050, rfc8571, rfc905, sflow-v5. They declare 164 gated MUSTs between them | The pre-2119 fail-open is mis-sized | `test_pre2119_register_is_derived_over_live_tree` asserts the live count is non-zero and every such stem derives the prose register | confirmed (2026-07-29, phase 2) |
+| A-4 | A case-insensitive modal scan gives those 22 a non-empty inventory. | Measured: 688 lowercase normative sites across the 22 (rfc905 229, rfc2328 159, rfc2205 102) | The prose register is as vacuous as the keyword one and only a manual walk remains | Re-derive during implementation; the prose-register test asserts a non-empty inventory for a fixture built from a keyword-free source | confirmed (2026-07-29, phase 2) |
+| A-5 | At least one enrolled RFC has an empty inventory under BOTH registers while declaring gated MUSTs. | Measured: rfc1877 has 0 capitalised and 0 lowercase modal occurrences in 10591 chars, and declares 4 gated MUSTs | Only the live `manual-walk` COUNT is wrong; the register itself stays either way. Owner ruling 1 makes an undrainable remainder unacceptable, so an RFC with no mechanical inventory must still have a route to a sign-off, and `manual-walk` is that route. If the live set turns out empty, the ledger's `manual-walk` column reads 0 and the register remains the terminal escape AC-10 needs | Implementation enumerates the live set and records the real count in the ledger. The register is NOT dropped on a zero count (superseding the earlier "drop it and record the deviation" plan, 2026-07-29 owner ruling 1) | confirmed (2026-07-29, phase 2) |
+| A-6 | Site granularity is required; section granularity is not sufficient. | Measured over the 166: 1671 hole-sites sit in wholly-unanchored sections but 558 sit in sections that already carry ids, and 618 of 1502 sections have sites and no ids. rfc4271 is 9 unanchored against 48 partial | A far cheaper section-only design would do, and the site machinery is over-built | Re-derive the unanchored/partial split during implementation and record it in the learned summary | confirmed (2026-07-29, phase 2) |
+| A-7 | Published RFC source texts do not change, so `source-sha` staleness fires almost never for `rfc/full/` and occasionally for `rfc/drafts/` (7 files). | RFCs are immutable once published; `_ID_RE`'s section anchor rests on the same immutability (`rfc_requirements.py:110-113`) | Sign-offs stale in bulk and the ratchet becomes noise | Implementation records the sha; any staleness observed in the first release is a signal to revisit | ~~unvalidated -- see Phase Results~~ **deferred with a destination (2026-07-29), NOT left unvalidated.** It is a claim about FUTURE churn in the RFC source texts and no evidence available inside one session can settle it. What IS established: the sha is recorded, is re-derived deterministically from the single two-location lookup, and `_evaluate_extraction` (`scripts/dev/rfc_requirements.py:2498-2508`) fails an artifact the moment its source moves -- so the risk A-7 names is DETECTED rather than silently absorbed. What remains open is whether that detection RATE is tolerable once the fleet drain signs off at volume, and only measured throughput answers it. Homed at `plan/deferrals/rfcgate-1-extraction.md:9`, Status `deferred`, Destination `plan/spec-followup-rfc-enrollment.md` (the spec that owns the fleet drain, i.e. the first activity that produces the volume A-7 is a claim about) |
 | A-8 | The umbrella's drain quota consumes a per-register count that this spec publishes, and credits a sign-off in ANY register. | Owner ruling 1 (2026-07-29): a `prose` or `manual-walk` sign-off counts toward the quota exactly as `rfc2119` does, provided each register is published in its own column. `plan/spec-rfcgate-0-umbrella.md` "Drain Schedule Design (D2)" owns the value of N and the cadence | Only the TRANSPORT would be wrong (the umbrella hand-parsing the rendered table instead of the JSON envelope). The counting semantics are settled and do not move | `TestExtractionStatus.test_every_register_counts_toward_the_signed_total` and `TestExtractionLedger.test_registers_are_published_in_separate_columns`; the envelope is cheap either way | confirmed |
-| A-10 | The number of obligations the rfc7296 walk newly extracts is NOT estimable before the walk runs. | 263 derived sites against 18 captured is a SITE count, and per-RFC false-positive calibration does not exist. The corpus-wide 1200-1500 estimate is calibrated across 166 RFCs and says nothing reliable about one of them | Nothing breaks: the scoping conversation with the owner simply happens earlier and against a better prior | Phase 8a produces the real count BEFORE phase 8c writes any implementation, and the count is taken to the owner (R-10) | unvalidated |
-| A-11 | Neither §2.2 obligation is proven today by a test that merely lacks a tag. | `grep -c "RFC7296-2\.2-" rfc/short/rfc7296.md` returns 0, so no tag can name them. An untagged test may still exercise the behavior, which the grep cannot see | The phase-8 work for those two is a summary row plus a tag rather than an implementation, which is cheaper, not different in kind | Phase 8c reads the producing functions in `internal/component/ike/engine/msgid.go` and `sa.go` and cites `file:line` for the verdict, per `ai/rules/no-fabrication.md` | unvalidated |
-| A-9 | Adding these checks inside `--check` keeps `ze-rfc-check` fast enough to stay in both verify branches. | `_git_cat_blobs:899` records the measured budget: 1.7s at HEAD, 2.2s with the batched baseline, and states that a gate which doubles verify time "is a gate people learn to skip" | The extraction check makes verify slow enough to be bypassed | Time `make ze-rfc-check` before and after; the delta budget is stated as a Deliverable | unvalidated |
+| A-10 | The number of obligations the rfc7296 walk newly extracts is NOT estimable before the walk runs. | 263 derived sites against 18 captured is a SITE count, and per-RFC false-positive calibration does not exist. The corpus-wide 1200-1500 estimate is calibrated across 166 RFCs and says nothing reliable about one of them | Nothing breaks: the scoping conversation with the owner simply happens earlier and against a better prior | Phase 8a produces the real count BEFORE phase 8c writes any implementation, and the count is taken to the owner (R-10) | **confirmed (2026-07-29, phase 8a).** The walk ran and returned **214 distinct obligations** (63 `implemented-and-testable`, 25 `implemented-untested`, 108 NOT IMPLEMENTED, 18 `uncertain`), reached by reading 289 keyword lines in context, collapsing 43 restatements and judging 8 non-normative. No pre-walk figure predicted it: this spec's own estimate was 263 derived SITES, a different unit at a different denominator, and the corpus-wide 1200-1500 calibration says nothing about one RFC. The count went to the owner exactly as R-10 required, and it is what produced owner ruling 3. Evidence: `plan/deferrals/rfcgate-1-extraction.md:8`; the 214 rows are enumerated in `plan/spec-rfcgate-1b-rfc7296-pilot.md` Appendix A |
+| A-11 | Neither §2.2 obligation is proven today by a test that merely lacks a tag. | `grep -c "RFC7296-2\.2-" rfc/short/rfc7296.md` returns 0, so no tag can name them. An untagged test may still exercise the behavior, which the grep cannot see | The phase-8 work for those two is a summary row plus a tag rather than an implementation, which is cheaper, not different in kind | Phase 8c reads the producing functions in `internal/component/ike/engine/msgid.go` and `sa.go` and cites `file:line` for the verdict, per `ai/rules/no-fabrication.md` | ~~unvalidated~~ **MOVED 2026-07-29 with phase 8 (owner ruling 3) to `plan/spec-rfcgate-1b-rfc7296-pilot.md`.** Its validation method IS phase 8c, which is that spec's work, so it cannot be settled here without doing the work this spec was ruled out of. Not left dangling: the destination spec already records what the walk established about IMPLEMENTATION status (`:181-182`) -- `RFC7296-2.2-1` is implemented by construction because retransmission resends `sa.LastSentMsg` byte-identically (`internal/component/ike/engine/fsm.go:138-142`), and `RFC7296-2.2-2` is NOT, since `NextMsgID` is a bare `uint32` (`sa.go:83`) whose every mutation is an unchecked `++`. Those are that spec's citations, relayed here with their source rather than re-asserted as this spec's own reading (`ai/rules/no-fabrication.md`). What A-11 actually claims -- that no UNTAGGED test already proves either -- is a proof-side question its phase 8c answers |
+| A-9 | Adding these checks inside `--check` keeps `ze-rfc-check` fast enough to stay in both verify branches. | `_git_cat_blobs:899` records the measured budget: 1.7s at HEAD, 2.2s with the batched baseline, and states that a gate which doubles verify time "is a gate people learn to skip" | The extraction check makes verify slow enough to be bypassed | Time `make ze-rfc-check` before and after; the delta budget is stated as a Deliverable | confirmed (2026-07-29, phase 7) |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -473,7 +500,156 @@ is knowable now would be the fabrication this spec exists to remove.
 | R-11 | Re-authoring adds a gated MUST row that is unproven at the moment it is written, reddening `ze-rfc-check` for an enrolled RFC | `make ze-rfc-check` fails naming a new `RFC7296-*` id with no tag and no annotation | The commit that ADDS a row is the commit that proves it, or that carries Thomas's authorised annotation. Never two commits. This is a sequencing obligation on phase 8, not a reason to write the row later: writing obligations down and gating none of them is the rot `check_new_summaries` exists to stop, and hiding one to stay green is worse than a red |
 | R-12 | Phase 8 must change an EXISTING rfc7296-tagged test (a correction to a misquoted requirement re-points what the test must assert) | The `rfc-tagged-test` edit-time guard rejects the edit | Correct outcome, not an obstacle. Only the user may authorise it, via `// rfc-test-change-approved: <date> <what was approved>`; `// test-relax:` explicitly does NOT satisfy that guard. Phase 8 never self-authorises, and an authorisation it did not receive is a STOP |
 | R-13 | Cross-child collision with `plan/spec-rfcgate-4-ledger.md`, which arms a gate that is RED by design on four stems (its R-6, superseded there by R-6a and OC-1) | A `make ze-verify` red on rfcgate-1's landing commit that names `unproven support` for rfc1035, rfc3765, rfc4486 or rfc5301 | The umbrella's Sequencing Constraint puts this spec first and forbids two children in flight. Independently: an armed red leaves `make ze-verify` non-green and `commit_helper.py create` refuses a script over that, so rfcgate-4's gate may arm ONLY in the commit that clears its four stems, or later. ~~A deterministic structural gate is never a permitted known-red (`ai/rules/git-safety.md:229`, and `--structural-red-ok` is owner-only)~~ (corrected 2026-07-29: `ze-rfc-check` is not in `STRUCTURAL_GATES`, `scripts/dev/commit_helper.py:512-523`; the binding rule is `ai/rules/fix-dont-record.md`, which forbids logging a deterministic reproducible red, leaving no legal bypass short of an owner ruling per commit). This spec lands green in both phases (AC-19, AC-24) and must never inherit that red |
-| ~~R-14~~ | ~~The umbrella's child-1 row names `rfc/recertified.txt`; this spec ships `rfc/extraction/<stem>.json` plus a derived `--extraction-status --json`~~ | ~~The umbrella's drain check looks for a file this spec never creates~~ | **CLOSED 2026-07-29 by the umbrella, which was the right place to decide it.** The resolution: the `rfc/extraction/<stem>.json` set IS the record, and the quota is DERIVED from it through `make ze-rfc-extraction-status --json`; no per-stem ledger file is created, by this spec or any other. A second hand-kept list of who has been signed off is the rotting registry `ai/rules/derive-not-hardcode.md` forbids, and the 2026-07-20 ruling in `plan/deferrals/rfc-gate-regression-ratchets.md` already refused that artifact shape. What remains authored is POLICY only: a start date and a rate, in `rfc/drain-budget.txt`, which this spec creates and which may never name an RFC. See `plan/spec-rfcgate-0-umbrella.md` "Where the counter lives" and "What is still authored" |
+| ~~R-14~~ | ~~The umbrella's child-1 row names `rfc/recertified.txt`; this spec ships `rfc/extraction/<stem>.json` plus a derived `--extraction-status --json`~~ | ~~The umbrella's drain check looks for a file this spec never creates~~ | **CLOSED 2026-07-29 by the umbrella, which was the right place to decide it.** The resolution: the `rfc/extraction/<stem>.json` set IS the record, and the quota is DERIVED from it through ~~`make ze-rfc-extraction-status --json`~~ `make ze-rfc-extraction-status` (corrected 2026-07-29; see "Two spec corrections found by implementing it"); no per-stem ledger file is created, by this spec or any other. A second hand-kept list of who has been signed off is the rotting registry `ai/rules/derive-not-hardcode.md` forbids, and the 2026-07-20 ruling in `plan/deferrals/rfc-gate-regression-ratchets.md` already refused that artifact shape. What remains authored is POLICY only: a start date and a rate, in `rfc/drain-budget.txt`, which this spec creates and which may never name an RFC. See `plan/spec-rfcgate-0-umbrella.md` "Where the counter lives" and "What is still authored" |
+
+## Phase Results (phases 1 to 7, implemented 2026-07-29)
+
+Phases 1 to 7 are implemented and green. **Phase 8 (the rfc7296 pilot) is NOT started**:
+8a requires taking the walk's real count to the owner for scoping (R-10), which only the
+main thread can do. Nothing under `rfc/short/rfc7296.md`, `rfc/extraction/rfc7296.json`,
+`rfc/enrolled.txt`, `docs/features/rfc-status.md` or `internal/component/ike/` was touched.
+
+### Measured register split over the live tree (A-2 to A-6)
+
+Derived over the 166 enrolled RFCs by `derive_inventory`, the shipped code, not a probe:
+
+| Figure | Measured | Spec estimate | Verdict |
+|--------|----------|---------------|---------|
+| Register split | `rfc2119` **101**, `prose` **64**, `manual-walk` **1** | 113 / 52+ / 1 | A-2 confirmed |
+| Cannot take the `rfc2119` grade | **65 of 166** (23 keyword-free + 42 undercount) | 53 | A-2 confirmed, minority LARGER than estimated |
+| Zero capitalised MUST-level **sites** | **23** | 22 | A-3 confirmed; see the denominator note below |
+| Prose sites over those stems | **777** | 688 | A-4 confirmed |
+| Empty under BOTH registers | **rfc1877 only**, 4 gated MUSTs | rfc1877 | A-5 confirmed exactly |
+| Capitalised sites, all 166 | **4208** | 3988 | A-1 confirmed (+5.5%) |
+| RFCs with more sites than captured | **69** | 61 | A-1 confirmed |
+| Raw deficit | **1845** | 1683 | A-1 confirmed (+10%) |
+| Sites in wholly-unanchored sections | **3048** | 1671 | A-6 confirmed |
+| Sites in sections that ALREADY carry ids | **2862** | 558 | A-6 confirmed MORE strongly: section-only granularity would miss **48%** of hole-sites, not 25% |
+| rfc7296 | **261** sites, 104 sections, register `rfc2119` | 263 sites, 92 numbered sections | corroborates A-1 within 1% |
+
+**A-3's count differs from the spec's 22 for a reason worth recording, not a defect.** The
+spec measured raw uppercase *occurrences*; the implementation measures normative *sites*
+(sentences) after excluding the RFC 2119 boilerplate. `rfc5443` is the whole difference:
+its 5 uppercase occurrences are all inside its own "Conventions Used in This Document"
+boilerplate, which the site scan correctly refuses to count as an obligation. Both figures
+are right at their own denominator -- this is a fourth entry for the umbrella's "three
+pre-2119 measurements", not a correction of any of them.
+
+**A-3's validation wording is wrong in one particular, and A-5 is why.** It says "every
+such stem derives the prose register". `rfc1877` does not: it derives `manual-walk`,
+because it is empty under both scans -- exactly what A-5 predicts. The implemented test
+(`test_keyword_free_sources_never_derive_rfc2119`) asserts the property that actually
+matters: no keyword-free stem may derive `rfc2119`.
+
+### Cost (A-9)
+
+| Measurement | HEAD | With extraction | Delta |
+|-------------|------|-----------------|-------|
+| `--check` on the live tree (best of 3) | 2.52-2.55s | 2.54-2.65s | **+0.07s (+3%)** |
+| `--selftest` | ~6.3s (217 tests) | 8.56s (252 tests) | +2.2s |
+| `make ze-rfc-check` end to end | ~8.8s | **11.7s** | +2.9s (+33%) |
+
+`--check` is flat because the derivation is scoped to stems that HAVE an artifact (zero
+today). That scoping was **forced by measurement, not chosen for elegance**: deriving the
+inventory for all 166 enrolled RFCs costs 1.94s (read 0.02, strip 0.11, sha 0.07, keyword
+scan 0.76, prose scan 0.97), and `check_ledger_fresh` re-renders on every `--check`, so a
+ledger row carrying a derived register for an UNSIGNED stem would have put that 1.94s on
+every verify -- a +76% gate, against `_git_cat_blobs:899`'s recorded budget. The extraction
+table therefore leaves the derived columns blank for unsigned stems, which is also the
+honest rendering: a register derived for a stem nobody has walked is not a fact this
+repository has established.
+
+The `--selftest` growth is the live-tree class (`TestRealTreeExtraction`), which derives
+all 166 once per run. It is the only test that would catch a derivation that passes every
+fixture and returns nothing on real RFC formatting, so the 2.2s buys the corpus-level
+guarantee. 2.9s sits inside a `ze-verify` measured in minutes.
+
+### Two spec corrections found by implementing it
+
+| Where | Correction |
+|-------|-----------|
+| ~~AC-16, AC-22, the Wiring Test row and the Deliverables row~~ **Eleven sites across two specs** (amended 2026-07-29, see below) all spell the command `make ze-rfc-extraction-status --json` | **Not runnable.** GNU make parses `--json` as a make option and exits 2 with `unrecognized option '--json'` before any recipe runs (verified). The target therefore ALWAYS emits the JSON envelope -- that envelope is the mode's only consumer, so a second human-readable shape would be a mode to keep in step for nothing -- and the runnable command is `make ze-rfc-extraction-status`. The script still accepts `--json` and ignores it, so the documented spelling works at the script level. |
+| The artifact's top-level field table (Design, "The artifact") | AC-10 requires a `manual-walk` sign-off to carry "a stated reason why no mechanical inventory exists", and no field in the table could hold it. Added `register-reason`, required only when `register` is `manual-walk` -- the same conditionally-required shape `resign-reason` already has. |
+
+**Amendment 2026-07-29 (review finding): recording a correction is not applying
+it.** Both rows above were written and then NEITHER was applied. Row 1's spelling
+was left standing at every site it names, so every consumer of this spec still read
+the unrunnable command; row 2's field was implemented in code but never added to the
+Design field table, which is the contract a future implementer reads.
+
+Row 1 -- eleven sites carried the unrunnable spelling: in THIS spec the R-14
+resolution, the Wiring Test row, AC-16, AC-22, user story 4, and **both**
+Deliverables Checklist rows ("Every register earns credit", "Status envelope"), the
+last two being the ones that instruct this spec's own closer to run a command that
+exits 2 and to record its output as verification; and in
+`plan/spec-rfcgate-0-umbrella.md` five more (the D2 interface row, the child-1 row,
+"Where the counter lives", "Who implements the floor", and the Goal Validation row).
+All eleven are now struck and corrected in place. A twelfth sits in
+`plan/spec-rfcgate-1b-rfc7296-pilot.md` ("The sign-off validates" row) and is left
+for that spec's owner.
+
+Row 2 -- `register-reason` is now in the Design field table, and the omission is
+recorded in Deviations.
+
+The general lesson: a correction written into a Phase Results table has changed
+nothing until the sites it names are edited (`ai/rules/fix-dont-record.md`).
+
+### Design decisions taken during implementation
+
+| Decision | Why |
+|----------|-----|
+| `signed-off`, `reviewer` and `register-reason` are required at CHECK time, not PARSE time | A freshly generated skeleton has no date and no reviewer. Requiring them to parse meant either the skeleton did not parse (so the gate reported a missing field instead of the unclassified sites, and a reviewer could not run the check mid-walk) or the writer had to INVENT a date and a reviewer -- fabricating a sign-off record for a walk nobody performed, which is R-2's failure mode exactly. |
+| `duplicate-of` names its target in `mapped-to` | AC-8 is only checkable if the duplicate NAMES the id it duplicates. `mapped-to` reads as "the requirement id this site relates to": for a mapping, the id this site proves; for a duplicate, the id already captured elsewhere. No new field, and the closed set stays closed. |
+| `check_enrolment` takes `newly_enrolled` from the CALLER rather than computing `current - baseline` itself | Every existing use of `baseline` in that function is `baseline - current`, where `_git_baseline_enrolment:698` returning an empty set on git failure accuses nobody. `current - baseline` against that same empty set would accuse all 166 enrolled RFCs of being new. Same trap `_git_baseline_summary_stems:763` documents, opposite direction. `None` means "could not tell" and the precondition is skipped. |
+| `extraction_status` counts `signed` INDEPENDENTLY of the register split | Mutation testing caught this: with `signed` defined as `sum(counts.values())`, AC-22's "the keys sum to the published total" was a tautology that no test could ever fail. Two derivations that must agree is a real cross-check. |
+| `source_keyword_count` now reads through `source_text` | It inlined its own two-location lookup, so the spec's Architectural Verification row ("the source text is read only through the same two-location lookup `source_keyword_count:1329` uses") was not actually true of the code. One reader now; behaviour identical (None for absent, None for unreadable). |
+
+### Mutation verification (Critical Review Checklist, "Vacuity")
+
+Every new check was disabled in turn and the tests that exist to prove it were re-run. All
+eight went fully RED and all restored green (`tmp/rfcgate-mutation.py`, in-memory only).
+Two survivors were found and are recorded above and below: the tautological sum (fixed in
+the code) and two tests that passed with their producing code disabled
+(`test_keyword_free_sources_never_derive_rfc2119`, which needed an upper bound because a
+totally broken scan makes every stem `manual-walk`; and
+`test_registers_are_published_in_separate_columns`, which asserted register NAMES while
+the table's own explanatory prose already names all three -- now asserts the rendered
+counts).
+
+### Not done in this run
+
+- Phase 8 in full (8a to 8e). AC-23 to AC-26 are untouched.
+- A-7 (source texts do not change) cannot be validated inside one session: it is a claim
+  about future churn. What IS established is that the sha is recorded, re-derived
+  deterministically, and read through the single two-location lookup. It needs a closure
+  decision rather than a phase-7 verdict.
+- `make ze-doc-test` and `make ze-verify-wiring-docs` are RED on this tree from 29 stale
+  anchors in `ai/digests/mcp.md`, caused by a CONCURRENT session having deleted
+  `internal/component/mcp/{session,elicit,reply_sink}.go` in the working tree without yet
+  updating that digest. Not this spec's work, and in a directory this run was told not to
+  touch. Every other gate in both targets passed: "Wiring check PASSED", "No documentation
+  drift detected", "All commands validated", "all corpus path references resolve",
+  "ai/RFC-REQUIREMENTS.md up to date".
+
+## Deviations
+
+Added 2026-07-29 after an independent review of phases 1 to 7. Every row was
+reproduced by the reviewer and re-verified against the producing code before being
+recorded here (`ai/rules/no-fabrication.md`). DEV-1 to DEV-3 are deviations from the
+spec as written; DEV-4 to DEV-7 are defects the review found in what was implemented,
+kept here rather than only in a report because a report is not a record
+(`ai/rules/fix-dont-record.md`).
+
+| # | Deviation | Why, and what it changes |
+|---|-----------|--------------------------|
+| DEV-1 | The artifact carries an eleventh top-level field, `register-reason`, which the spec's Design field table did not list | AC-10 requires a `manual-walk` sign-off to carry "a stated reason why no mechanical inventory exists", and none of the ten listed fields could hold it. Enforced in code: `_evaluate_extraction` fails a `manual-walk` artifact with no `register-reason`, and `parse_extraction_artifact` accepts the key and reads it as optional at parse time so a mid-walk skeleton still parses. The FIELD was right from the start; what was missing is that only the Phase Results correction row recorded it, never the Design table a future implementer reads as the contract. That table is now amended in place. **No approval needed** -- the field is required BY an AC, so adding it implements the spec rather than departing from it; only the spec's own table was behind |
+| DEV-2 | **AC-21's literal wording is not met.** It requires the extraction table to render "one column per register (`rfc2119`, `prose`, `manual-walk`) with its own signed count". What ships is one `Register` column per RFC ROW, plus a prose summary line above the table reading `Signed off by register: rfc2119 0, prose 0, manual-walk 0.` | The AC's INTENT -- owner ruling 1's mandatory counterweight, that no signed count is ever published without its register split -- is fully met, verified by reading every publishing site: `render_extraction_table`'s summary line (via `_register_phrase`), `run_check`'s success line, and `extraction_status`'s `signed-by-register` key. `register_counts` returns all three registers even at zero, so a register can never go missing and read as "not a thing" rather than as zero. There is verifiably NO bare signed total anywhere. The substitution is a rendering choice: the table already has one row per stem, so a three-column cross-tab would be one populated cell per row and two blanks. **Recorded rather than resolved by editing AC-21**: `ai/rules/planning.md` makes specs append-only, and silently relaxing an AC to match the code is the exact failure this spec set exists to correct. The AC text stands as written; accepting the substitution or rendering the cross-tab is a closure decision, not an implementer's |
+| DEV-3 | The command correction in "Two spec corrections found by implementing it" was recorded and then applied at none of the eleven sites it named | See the amendment under that heading. Fixed 2026-07-29: all eleven struck and corrected in place |
+| DEV-4 | **Defect: the drain floor double-counts every sign-off, so an armed schedule goes permanently green at HALF the corpus.** `check_drain_floor` computes `backlog = len(enrolled - set(signed))` and passes that as `required_floor`'s cap, while comparing it against the CUMULATIVE `total = len(signed)`. Each sign-off therefore both raises `total` by one and lowers the cap by one | Reproduced 2026-07-29 by driving `required_floor` directly: enrolled 166, rate 100/calendar month, 12 months elapsed (a schedule demanding the whole corpus), and the comparison flips red-to-green at exactly `signed = 83`. Whenever the owed count reaches the remaining backlog the condition collapses to `total >= enrolled - total`, i.e. `total >= enrolled/2`, and no rate however aggressive demands more. AC-28's stated intent ("capped at the backlog size ... so the check goes permanently green once the backlog is DRAINED") wants the cap over the FULL enrolled set: with `min(len(enrolled), owed)` the floor is 166, `total = 83` stays red, and the check still self-retires at `total = 166`. **The fix belongs in `scripts/dev/rfc_requirements.py` and is not made by this documentation pass.** Recorded so the closer cannot reach green on the shipped rate of 0 without seeing it: AC-30 calls a floor that can never fail "the vacuity this spec exists to remove", and at any rate above the backlog this floor cannot fail past halfway. **RESOLVED 2026-07-29, same day**: `required_floor`'s third parameter is now `drainable` (renamed from `backlog`, because its meaning changed and the old name would have preserved the bug in the reader's head), and `check_drain_floor` passes `len(enrolled)` rather than the remainder. Re-measured on the same input: 166 enrolled at rate 100/month over 12 months now flips green at **166**, not 83. Self-retirement is preserved by a different route, stated in the function's own docstring: a drained corpus has `signed == enrolled` and the floor can never exceed `enrolled`, so the comparison is permanently satisfied without a removal commit. AC-28's literal phrase "capped at the backlog size" therefore now reads as the DRAINABLE set rather than the residual one; the AC text is unchanged and this row is the correction, per the append-only rule |
+| DEV-5 | **Defect found and fixed during implementation: `_SECTION_HEADING_RE` over-matches, and the naive splitter bricked four enrolled stems' skeletons.** A repeated section id emitted a duplicate `sections` row, which `parse_extraction_artifact` refuses (`duplicate section`), so `make ze-rfc-extract` wrote an artifact that could not be read back. Each duplicate body also restarted `_sites_for`'s per-section counter at 1, so two different sentences both became site `7:1` and one was silently dropped | Reproduced 2026-07-29 by running the heading regex over every enrolled source: exactly four stems match an id more than once -- `rfc1195` (id `7`, 20 times), `rfc2865` (id `1`, twice), `rfc2869` (id `0`, 8 times) and `sflow-v5` (ids `1` through `6`, twice each). Fixed in `_section_bodies`: a repeated id EXTENDS the section it already opened instead of starting a second one, and the matched heading line's title stays in its body so a FALSE heading match never deletes a live obligation. Recorded because the dropped-site half failed in the worse direction (a false green), and because those four stems are the regression fixtures anyone touching that regex needs |
+| DEV-6 | **Hazard: a live-corpus test contradicts the grandfathering principle its own sibling cites.** `TestRealTreeExtraction.test_the_machinery_accuses_nobody_with_zero_signoffs` asserts `R.extraction_stems() == set()` against the real tree, so it reds the moment anyone commits the first `rfc/extraction/*.json` -- including this spec's own phase-8 rfc7296 pilot | Reproduced 2026-07-29 by pointing `EXTRACTION_DIR` at a directory holding one artifact and re-running the class: that assertion is the single clean failure. Its sibling `test_preexisting_enrolment_without_signoff_passes` cites `ai/rules/rfc-compliance.md:114-116` for the rule this breaks -- "a rule that reds the gate on unrelated work gets removed rather than obeyed" -- and this assertion reds the gate on precisely the work the machinery exists to enable. `test_the_shipped_budget_parses_and_is_inert` is the same shape pinned to the shipped rate of 0 and reds on the arming commit; the reviewer counted both, and only the first reproduces as a first-sign-off red. Both should assert the PROPERTY (no stem is accused for lacking a sign-off it never had) rather than the corpus's current census. The cited line range has itself already drifted: `114-116` is now the keyword-visible-sites bullet, and the grandfathering paragraph sits below it |
+| DEV-7 | **`make ze-verify-changed` did not run one of this diff's own tests, and could not have.** `scripts/dev/changed-pkgs.sh` collects `*.go` paths only, so a diff whose entire test surface is `scripts/dev/rfc_requirements_test.py` (1444 new lines) never puts `./scripts/dev` in the changed-package set, and `TestPythonUnitTests` -- the Go test that discovers and runs every `scripts/**/*_test.py` -- is therefore never selected | Reproduced 2026-07-29: `bash scripts/dev/changed-pkgs.sh` on this tree emits seven packages (`./cmd/ze`, `./cmd/ze/hub`, `./internal/chaos/mcp`, `./internal/chaos/orchestrator`, `./internal/component/mcp`, `./internal/test/cli`, `./internal/test/runner`), every one of them a CONCURRENT session's MCP work, and `./scripts/dev` is absent. The hole is general, not specific to this spec: any change to a Python tool under `scripts/` is invisible to scoped verification, which then reports green having tested none of it. `python3 scripts/dev/rfc_requirements.py --selftest` and a full `make ze-verify` do run these tests; only the scoped path does not. ~~**The fix belongs in `scripts/dev/changed-pkgs.sh` and is not made by this documentation pass**~~ **RESOLVED 2026-07-29, same day.** `PATHSPECS` is now `('*.go' '*.py' 'rfc')` and both `*.py` and `rfc/*` map to `PYTHON_TEST_PKG="./scripts/dev"` -- the one Go package that executes Python, since `python_tests_test.go` globs every `*_test.py` under its roots and a `test/scripts/*.py` has no Go package of its own (`scripts/dev/changed-pkgs.sh:42-90`). The comment at `:25-28` records the defect so the pathspec is not narrowed back. `scripts/dev/changed-pkgs.sh` is consequently in this diff and is hash-pinned by the review artifact. Fixed rather than recorded, per `ai/rules/fix-dont-record.md` -- the same rule DEV-3 exists to illustrate |
+| DEV-8 | **Phase 8 and AC-23 to AC-26 were removed from this spec entirely, after phase 8a had run.** The spec was written to deliver machinery AND the rfc7296 pilot (owner ruling 2); it delivers machinery only | Owner ruling 3, 2026-07-29 (see Owner Rulings above). Phase 8a executed exactly as ruling 2 and the Failure Routing table required and returned **214 distinct obligations**, 108 of them NOT IMPLEMENTED. Taken to Thomas for scoping per R-10; he ruled twice: fix all 108 (OR-A), in a spec of its own (OR-B). **Not a scope reduction and not self-authorized**: the destination `plan/spec-rfcgate-1b-rfc7296-pilot.md` exists, carries all 214 rows, maps AC-23..AC-26 onto its own AC-1/5/4/3 (`:422-427`), and NARROWED the inherited AC-25 by removing its annotation escape. The move is a live deferral row with a real destination (`plan/deferrals/rfcgate-1-extraction.md:8`), never a `done` or a `cancelled`. Nothing under `rfc/short/rfc7296.md`, `rfc/extraction/`, `rfc/enrolled.txt`, `docs/features/rfc-status.md` or `internal/component/ike/` was touched, so no half-performed pilot is left behind |
 
 ## Blast Radius
 
@@ -491,12 +667,12 @@ is knowable now would be the fabrication this spec exists to remove.
 | `make ze-rfc-check` on a tree with an unclassified site in a sign-off | → | `check_extraction_signoff` via `run_check` | `TestExtractionSignoffWiring.test_run_check_fails_on_unclassified_site` |
 | `make ze-rfc-check` on a tree whose HEAD sign-off was deleted | → | `check_extraction_ratchet` via `run_check` | `TestExtractionRatchetWiring.test_run_check_fails_when_a_signoff_disappears` |
 | `make ze-rfc-extract STEM=<stem>` | → | `run_extract_skeleton` | `TestSkeletonWriter.test_skeleton_writes_every_site_unclassified` |
-| `make ze-rfc-extraction-status --json` | → | `run_extraction_status` | `TestExtractionStatus.test_json_envelope_carries_counts_and_registers` |
+| ~~`make ze-rfc-extraction-status --json`~~ `make ze-rfc-extraction-status` (corrected 2026-07-29; see "Two spec corrections found by implementing it") | → | `run_extraction_status` | `TestExtractionStatus.test_json_envelope_carries_counts_and_registers` |
 | `make ze-rfc-check` on a tree whose `rfc/drain-budget.txt` names a rate putting the floor above the signed count | → | `check_drain_floor` via `run_check` | `TestDrainFloorWiring.test_run_check_fails_when_signed_count_is_below_the_floor` |
 | `make ze-rfc-check` with `rfc/drain-budget.txt` deleted | → | `check_drain_floor`'s fail-closed guard on the POLICY input, mirroring `check_enrolment:660-664` | `TestDrainFloor.test_missing_drain_budget_is_error_not_empty` |
 | `make ze-rfc-index` then `make ze-rfc-check` | → | extraction table in `render_ledger`, guarded by `check_ledger_fresh:1578` | `TestExtractionLedger.test_stale_extraction_table_fails_check_fresh` |
 | `make ze-rfc-index` on a tree with sign-offs in more than one register | → | per-register columns in `render_ledger` (ruling 1) | `TestExtractionLedger.test_registers_are_published_in_separate_columns` |
-| `make ze-rfc-check` on the tree after the rfc7296 pilot lands | → | `check_extraction_signoff` over `rfc/extraction/rfc7296.json`, 165 stems still unsigned | `TestRealTree.test_rfc7296_signoff_is_valid_and_the_rest_stay_grandfathered` |
+| ~~`make ze-rfc-check` on the tree after the rfc7296 pilot lands~~ | ~~→~~ | ~~`check_extraction_signoff` over `rfc/extraction/rfc7296.json`, 165 stems still unsigned~~ | ~~`TestRealTree.test_rfc7296_signoff_is_valid_and_the_rest_stay_grandfathered`~~ **MOVED 2026-07-29 (owner ruling 3) to `plan/spec-rfcgate-1b-rfc7296-pilot.md` with AC-24. The machinery-side wiring it would have exercised is proved by `TestGrandfatheredBacklog.test_an_unsigned_backlog_is_accused_by_nothing` and `TestExtractionSignoffWiring.test_run_check_clean_on_a_fully_classified_signoff`, both delivered here** |
 
 No `.ci` row for the machinery: it is developer tooling with no daemon surface, so a
 functional `.ci` is N/A and the driving surface is the Python suite named in the Functional
@@ -527,17 +703,17 @@ convention (`test_run_check_clean_when_coverage_held`, `:1365`).
 | AC-13 | A stem whose exclusion count is higher than at HEAD, with no `resign-reason` | Exit 2. With a `resign-reason` plus a bumped `signed-off` date and reviewer, it passes |
 | AC-14 | Any tree | `make ze-rfc-check`'s success line reports signed-off count, enrolled count, and the grandfathered backlog count. Zero signed off is stated out loud, never silent |
 | AC-15 | `make ze-rfc-index` | `ai/RFC-REQUIREMENTS.md` carries an extraction table: per enrolled RFC the register, site count, mapped, excluded, exclusion ratio, and sign-off date or `UNSIGNED (grandfathered)`. A stale table fails `--check-fresh` through the existing `check_ledger_fresh:1578` |
-| AC-16 | `make ze-rfc-extraction-status --json` | A JSON envelope with `schema-version`, signed and enrolled counts, per-register counts, and the unsigned backlog list. Lower kebab-case keys per `ai/rules/json-format.md` |
+| AC-16 | ~~`make ze-rfc-extraction-status --json`~~ `make ze-rfc-extraction-status` (corrected 2026-07-29; see "Two spec corrections found by implementing it") | A JSON envelope with `schema-version`, signed and enrolled counts, per-register counts, and the unsigned backlog list. Lower kebab-case keys per `ai/rules/json-format.md` |
 | AC-17 | Git unavailable or `rfc/extraction/` absent at HEAD | The ratchet judges nothing and says so; it never accuses every stem of having lost a sign-off. The empty-versus-None distinction `_git_baseline_summary_stems:763-776` documents is restated for this consumer's polarity |
 | AC-18 | A malformed or unreadable `rfc/extraction/<stem>.json` | Exit 2 with a clean `cannot run` message through the existing handler (`run_check:1688-1694`), never an uncaught traceback |
 | AC-19 | The tree as it stands when the MACHINERY lands (166 enrolled, zero sign-offs, phases 1 to 7 complete) | `make ze-rfc-check` exits 0. Grandfathering is scope, not an allowlist file |
 | AC-20 | An artifact whose derived field (`quote`, per-section site count, register) was hand-edited away from what the source re-derives | Exit 2 naming the field and the locator |
 | AC-21 | `make ze-rfc-index` on a tree carrying sign-offs in more than one register | The extraction table renders one column per register (`rfc2119`, `prose`, `manual-walk`) with its own signed count. A signed total rendered WITHOUT the three component columns beside it is a failure of this AC, not a formatting preference (owner ruling 1's mandatory counterweight) |
-| AC-22 | `make ze-rfc-extraction-status --json` on the same tree | The envelope carries `signed-by-register` with a key per register; the keys sum to the published signed total; and no register is excluded from that total. A consumer can compute quota credit and read evidence strength from the same document without either being inferred |
-| AC-23 | `rfc/short/rfc7296.md` after phase 8 | It carries `RFC7296-2.2-1` and `RFC7296-2.2-2`, each quoting its RFC text verbatim and citing `(§2.2)`, so the id's section matches its citation as `make ze-rfc-check` already requires. At minimum these two; the walk's other findings are additional, never a substitute |
-| AC-24 | The tree after phase 8 (166 enrolled, exactly one sign-off) | `make ze-rfc-check` exits 0, `rfc/extraction/rfc7296.json` validates with every site and section classified and its register derived, and the other 165 stems remain unsigned and unaccused. A non-empty artifact set changes nothing for a stem that has no artifact |
-| AC-25 | Any requirement the phase-8 walk newly extracts | It carries a positive AND a negative `RFC requirement:` tagged test, OR an annotation whose authorisation by Thomas is recorded in this spec's Deviations with the date, the requirement id and his answer. An annotation present WITHOUT that record fails this AC. Nothing in this spec pre-authorises an annotation |
-| AC-26 | `rfc/short/rfc7296.md` before and after phase 8 | Every one of the 23 existing ids is still present and still carries at least the polarities it held at HEAD. `check_retired_requirements` and `check_coverage_ratchet` stay green across the re-authoring, and no id is renumbered or reused |
+| AC-22 | ~~`make ze-rfc-extraction-status --json`~~ `make ze-rfc-extraction-status` (corrected 2026-07-29; see "Two spec corrections found by implementing it") on the same tree | The envelope carries `signed-by-register` with a key per register; the keys sum to the published signed total; and no register is excluded from that total. A consumer can compute quota credit and read evidence strength from the same document without either being inferred |
+| ~~AC-23~~ | ~~`rfc/short/rfc7296.md` after phase 8~~ | ~~It carries `RFC7296-2.2-1` and `RFC7296-2.2-2`, each quoting its RFC text verbatim and citing `(§2.2)`, so the id's section matches its citation as `make ze-rfc-check` already requires. At minimum these two; the walk's other findings are additional, never a substitute~~ **MOVED 2026-07-29 (owner ruling 3, OR-B) to `plan/spec-rfcgate-1b-rfc7296-pilot.md` AC-1, carried verbatim in substance (`:424`). NOT dropped: `plan/deferrals/rfcgate-1-extraction.md:8` homes it, Status `deferred`** |
+| ~~AC-24~~ | ~~The tree after phase 8 (166 enrolled, exactly one sign-off)~~ | ~~`make ze-rfc-check` exits 0, `rfc/extraction/rfc7296.json` validates with every site and section classified and its register derived, and the other 165 stems remain unsigned and unaccused. A non-empty artifact set changes nothing for a stem that has no artifact~~ **MOVED 2026-07-29 (owner ruling 3) to `plan/spec-rfcgate-1b-rfc7296-pilot.md` AC-5, no substantive change (`:425`). The half of it that belongs to the MACHINERY -- green with zero artifacts -- is AC-19 and is delivered and audited here** |
+| ~~AC-25~~ | ~~Any requirement the phase-8 walk newly extracts~~ | ~~It carries a positive AND a negative `RFC requirement:` tagged test, OR an annotation whose authorisation by Thomas is recorded in this spec's Deviations with the date, the requirement id and his answer. An annotation present WITHOUT that record fails this AC. Nothing in this spec pre-authorises an annotation~~ **MOVED 2026-07-29 (owner ruling 3) to `plan/spec-rfcgate-1b-rfc7296-pilot.md` AC-4, and NARROWED there (`:426`): OR-1 removes the annotation branch entirely, so the only surviving path to a non-proven row is Thomas's recorded answer to the escalation. The obligation got stricter in transit** |
+| ~~AC-26~~ | ~~`rfc/short/rfc7296.md` before and after phase 8~~ | ~~Every one of the 23 existing ids is still present and still carries at least the polarities it held at HEAD. `check_retired_requirements` and `check_coverage_ratchet` stay green across the re-authoring, and no id is renumbered or reused~~ **MOVED 2026-07-29 (owner ruling 3) to `plan/spec-rfcgate-1b-rfc7296-pilot.md` AC-3, no substantive change (`:427`). Vacuously true here: this spec never edited `rfc/short/rfc7296.md`, which `git status` confirms unmodified** |
 | AC-27 | `rfc/drain-budget.txt` carrying the shipped rate of `0`, any signed count | The required floor computes to 0, `check_drain_floor` passes, and `make ze-rfc-check` exits 0 while the backlog is still published. The comparison ships INERT by design (umbrella D5); its first real exercise is the arming commit, which is Thomas's. Satisfies the umbrella's AC-13 |
 | AC-28 | A budget whose rate times the calendar months elapsed since `start` exceeds the current backlog size | The floor is CAPPED at the backlog size and never exceeds it, so the check goes permanently green once the backlog is drained and needs no removal commit. Satisfies the umbrella's self-retirement row and its Required-floor boundary |
 | AC-29 | `rfc/drain-budget.txt` missing, empty, or unparseable | Exit 2 naming the file. It does NOT compute a floor of 0 and report nothing owed: an absent policy is the zero-value trap `ai/rules/fail-closed-guards.md` names, and the guard is the same shape as `check_enrolment:660-664`, which refuses to report clean while enforcing nothing. The ARTIFACT side needs no such guard because its polarity is already safe: an absent `rfc/extraction/` yields zero signed stems, so the backlog reads at its maximum. Satisfies the umbrella's AC-4 |
@@ -552,9 +728,9 @@ convention (`test_run_check_clean_when_coverage_held`, `:1365`).
 | 1 | Signs off the extraction of a new RFC before enrolling it | `make ze-rfc-extract STEM=x` → classify every site → `make ze-rfc-check` red until complete → add stem to `rfc/enrolled.txt` → green | `TestExtractionSignoffWiring.test_run_check_fails_on_new_enrolment_without_signoff` plus its clean twin |
 | 2 | Reads how much of the standards claim is bounded | `make ze-rfc-index` → extraction table in `ai/RFC-REQUIREMENTS.md` | `TestExtractionLedger.test_table_reports_unsigned_backlog` |
 | 3 | Drains one RFC from the grandfathered backlog | classify → `make ze-rfc-check` green → signed count rises and cannot fall again | `TestExtractionRatchet.test_signoff_count_is_monotonic` |
-| 4 | Runs the umbrella's per-release drain check | `make ze-rfc-extraction-status --json` → counts consumed by the umbrella's quota gate | `TestExtractionStatus.test_json_envelope_carries_counts_and_registers` |
+| 4 | Runs the umbrella's per-release drain check | ~~`make ze-rfc-extraction-status --json`~~ `make ze-rfc-extraction-status` (corrected 2026-07-29; see "Two spec corrections found by implementing it") → counts consumed by the umbrella's quota gate | `TestExtractionStatus.test_json_envelope_carries_counts_and_registers` |
 | 5 | Drains a pre-2119 RFC and gets credit for it without overstating the evidence | classify under the derived `prose` or `manual-walk` register → signed total rises by one → the ledger shows which column it landed in | `TestExtractionStatus.test_every_register_counts_toward_the_signed_total` plus `TestExtractionLedger.test_registers_are_published_in_separate_columns` |
-| 6 | Reads what the gate was blind to in rfc7296 and finds it discharged | `rfc/short/rfc7296.md` §2.2 rows → tagged tests via `ai/RFC-REQUIREMENTS.md` → `rfc/extraction/rfc7296.json` showing every §2.2 site mapped | `TestRealTree.test_rfc7296_signoff_is_valid_and_the_rest_stay_grandfathered` |
+| ~~6~~ | ~~Reads what the gate was blind to in rfc7296 and finds it discharged~~ | ~~`rfc/short/rfc7296.md` §2.2 rows → tagged tests via `ai/RFC-REQUIREMENTS.md` → `rfc/extraction/rfc7296.json` showing every §2.2 site mapped~~ | ~~`TestRealTree.test_rfc7296_signoff_is_valid_and_the_rest_stay_grandfathered`~~ **MOVED 2026-07-29 (owner ruling 3) to `plan/spec-rfcgate-1b-rfc7296-pilot.md` with AC-23 to AC-26. Stories 1 to 5 are this spec's and are audited below** |
 
 ## 🧪 TDD Test Plan
 
@@ -610,10 +786,10 @@ rows beside its existing source-text rows; `TestRealTree:1813` gains live-tree a
 | `TestEnrolment.test_preexisting_enrolment_without_signoff_passes` | same (extends `:603`) | AC-19, grandfathering | |
 | `TestRealTree.test_every_enrolled_rfc_derives_a_register` | same (extends `:1813`) | A-2, A-3 on the live tree | |
 | `TestRealTree.test_live_tree_is_green_with_zero_signoffs` | same (extends `:1813`) | AC-19, the machinery landing | |
-| `TestRealTree.test_rfc7296_signoff_is_valid_and_the_rest_stay_grandfathered` | same (extends `:1813`) | AC-24: the live tree is green with exactly one artifact, and the 165 unsigned stems are not accused | |
-| `TestRealTree.test_rfc7296_summary_carries_the_section_2_2_requirements` | same (extends `:1813`) | AC-23: `RFC7296-2.2-1` and `RFC7296-2.2-2` exist, cite `(§2.2)`, and their text matches the source sentences at `rfc/full/rfc7296.txt:1397` and `:1439` | |
-| `TestRealTree.test_rfc7296_new_requirements_are_proven_or_authorised` | same (extends `:1813`) | AC-25: every `RFC7296-*` id added since HEAD carries a positive and a negative tag, or an annotation. The test proves the mechanical half; the Deviations record proves the authorisation half, which no test can check | |
-| `TestRealTree.test_rfc7296_ids_are_neither_retired_nor_demoted` | same (extends `:1813`) | AC-26, driving `check_retired_requirements` and `check_coverage_ratchet` across the re-authoring | |
+| ~~`TestRealTree.test_rfc7296_signoff_is_valid_and_the_rest_stay_grandfathered`~~ | ~~same (extends `:1813`)~~ | ~~AC-24: the live tree is green with exactly one artifact, and the 165 unsigned stems are not accused~~ **MOVED 2026-07-29 with AC-24 (owner ruling 3) to `plan/spec-rfcgate-1b-rfc7296-pilot.md`. Never written here; `grep -c` in `scripts/dev/rfc_requirements_test.py` returns 0** | |
+| ~~`TestRealTree.test_rfc7296_summary_carries_the_section_2_2_requirements`~~ | ~~same (extends `:1813`)~~ | ~~AC-23: `RFC7296-2.2-1` and `RFC7296-2.2-2` exist, cite `(§2.2)`, and their text matches the source sentences at `rfc/full/rfc7296.txt:1397` and `:1439`~~ **MOVED 2026-07-29 with AC-23 (owner ruling 3) to `plan/spec-rfcgate-1b-rfc7296-pilot.md`** | |
+| ~~`TestRealTree.test_rfc7296_new_requirements_are_proven_or_authorised`~~ | ~~same (extends `:1813`)~~ | ~~AC-25: every `RFC7296-*` id added since HEAD carries a positive and a negative tag, or an annotation. The test proves the mechanical half; the Deviations record proves the authorisation half, which no test can check~~ **MOVED 2026-07-29 with AC-25 (owner ruling 3) to `plan/spec-rfcgate-1b-rfc7296-pilot.md`, where OR-1 removed the annotation branch the second clause allowed** | |
+| ~~`TestRealTree.test_rfc7296_ids_are_neither_retired_nor_demoted`~~ | ~~same (extends `:1813`)~~ | ~~AC-26, driving `check_retired_requirements` and `check_coverage_ratchet` across the re-authoring~~ **MOVED 2026-07-29 with AC-26 (owner ruling 3) to `plan/spec-rfcgate-1b-rfc7296-pilot.md`** | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -796,9 +972,26 @@ paragraph.
      `docs/functional-tests.md`, `docs/contributing/rfc-implementation-guide.md`
    - Verify: `make ze-ai-sync` regenerates the three skill trees; the ratchet table reads
      five, not four; timing delta for `ze-rfc-check` recorded against A-9
-8. **Phase: The rfc7296 pilot** (owner ruling 2). This phase is the only one that touches
+8. ~~**Phase: The rfc7296 pilot** (owner ruling 2). This phase is the only one that touches
    protocol content, and it is not optional: two CONFIRMED unextracted MUSTs escape the
-   grandfather, and the finder is the entry point (`ai/rules/no-parking.md`).
+   grandfather, and the finder is the entry point (`ai/rules/no-parking.md`).~~
+
+   **MOVED 2026-07-29 in full (8a to 8e) by owner ruling 3 to
+   `plan/spec-rfcgate-1b-rfc7296-pilot.md`.** Step 8a RAN and is what produced the ruling:
+   the walk read 289 MUST/MUST NOT/SHALL keyword lines in context across all 92 numbered
+   sections, collapsed 43 restatement sites, judged 8 non-normative, and returned **214
+   distinct obligations** (63 `implemented-and-testable`, 25 `implemented-untested`, 108 NOT
+   IMPLEMENTED, 18 `uncertain`) against the 18 gated MUST rows the summary holds today. That
+   count went to Thomas exactly as the Failure Routing table requires, and he ruled: fix all
+   108, and do it in a spec of its own. Steps 8b to 8e were NOT performed here -- nothing
+   under `rfc/short/rfc7296.md`, `rfc/extraction/rfc7296.json`, `rfc/enrolled.txt`,
+   `docs/features/rfc-status.md` or `internal/component/ike/` was touched, which `git
+   status` confirms. The 214 rows are carried in the destination spec's Appendix A and the
+   move is recorded at `plan/deferrals/rfcgate-1-extraction.md:8`, Status `deferred`.
+   The original step text stands below UNCHANGED rather than struck, because it is exactly
+   what the destination spec inherited and rewriting it here would lose the provenance. Read
+   every one of 8a to 8e as `plan/spec-rfcgate-1b-rfc7296-pilot.md`'s work, not this spec's.
+
    - 8a. **Walk and count.** Re-author `rfc/short/rfc7296.md` against
      `rfc/full/rfc7296.txt` section by section per `ai/skills/ze-rfc.md`, across all 92
      numbered sections rather than the 14 currently anchored. Produce the real count of
@@ -864,12 +1057,12 @@ paragraph.
 | Live tree green when the machinery lands | `make ze-rfc-check` exits 0 with zero `*.json` files under `rfc/extraction/` (phases 1 to 7) |
 | Live tree green after the pilot | `make ze-rfc-check` exits 0 with exactly one, `rfc/extraction/rfc7296.json`, and `ls rfc/extraction/*.json \| wc -l` reads 1 |
 | Registers published apart | `make ze-rfc-index`, then read the extraction table: one column per register, and no signed total rendered without them |
-| Every register earns credit | `make ze-rfc-extraction-status --json`, then confirm `signed-by-register` has a key per register and its values sum to the published total |
+| Every register earns credit | ~~`make ze-rfc-extraction-status --json`~~ `make ze-rfc-extraction-status` (corrected 2026-07-29; the `--json` spelling exits 2 before the recipe runs, so a closer following it verifies nothing -- see "Two spec corrections found by implementing it"), then confirm `signed-by-register` has a key per register and its values sum to the published total |
 | rfc7296 §2.2 extracted | `grep -c "RFC7296-2\.2-" rfc/short/rfc7296.md` is at least 2, having been 0 on 2026-07-29 |
 | rfc7296 §2.2 proven | `grep -rn "RFC requirement: RFC7296-2.2-" internal/` shows a positive AND a negative tag for each of the two ids, or Deviations records Thomas's authorisation for what is missing |
 | Nothing was retired to reach green | `check_retired_requirements` and `check_coverage_ratchet` green across the re-authoring: all 23 pre-existing rfc7296 ids still present, none demoted |
 | Backlog published | `grep -n "UNSIGNED" ai/RFC-REQUIREMENTS.md` after `make ze-rfc-index` |
-| Status envelope | `make ze-rfc-extraction-status --json` output parses as JSON (pipe it into `python3 -c` with `json.load`) |
+| Status envelope | ~~`make ze-rfc-extraction-status --json`~~ `make ze-rfc-extraction-status` (corrected 2026-07-29; the `--json` spelling exits 2 before the recipe runs, so a closer following it verifies nothing -- see "Two spec corrections found by implementing it") output parses as JSON (pipe it into `python3 -c` with `json.load`) |
 | Skeleton cannot pass | write a skeleton for one stem, run `make ze-rfc-check`, observe exit 2 naming unclassified sites, then delete it |
 | Verify cost | `time make ze-rfc-check` before and after; the delta is under the budget `_git_cat_blobs:899` documents (a gate that doubles verify time is one people skip) |
 | Five ratchets documented | count the data rows of the ratchet table in `ai/rules/rfc-compliance.md`: five, not four |
@@ -917,6 +1110,7 @@ questions, two lifecycles, two freshness keys, two files.
 | `schema-version` | integer | authored | 1 |
 | `stem` | string | authored | must equal the filename stem |
 | `register` | enum | authored, cross-checked | `rfc2119`, `prose`, or `manual-walk`; may never be stronger than the derived register |
+| `register-reason` | string | authored | **Added 2026-07-29 during implementation; see Deviations.** Required only when `register` is `manual-walk`: the stated reason why no mechanical inventory exists. AC-10 demands it and no other field could hold it. Same conditionally-required shape as `resign-reason` below, and like it, required at CHECK time rather than PARSE time so a mid-walk skeleton still parses |
 | `source-path` | string | derived | `rfc/full/<stem>.txt` or `rfc/drafts/<stem>.txt` |
 | `source-sha` | string | derived | sha256[:16] of the normalized source, using the existing `_normalize`/`requirement_sha:1214-1220` pair |
 | `signed-off` | date | authored | when the walk was performed |
@@ -1333,6 +1527,38 @@ reopening it.
 - **SHOULD/MAY-level sites are outside the inventory**, matching `GATED_LEVELS:69` and the
   existing scope decision that advisory levels are listed and may be tagged but never gate.
 
+The two below were surfaced by the 2026-07-29 independent review and are ACCEPTED
+design limits, not defects. They are recorded so the next reader does not rediscover
+them as bugs and spend the diagnosis again. The defects that review found are in
+Deviations (DEV-4 to DEV-7) and are a different thing entirely.
+
+- **A FIRST sign-off may exclude 100% of its sites and no ratchet can see it.**
+  `check_extraction_ratchet` compares a stem's exclusion count against the same stem's
+  count at HEAD, so it can only judge stems present in BOTH the baseline and the
+  current tree. A stem signing off for the first time has no baseline row, so its
+  exclusion count has nothing to rise above and every site could be excluded with a
+  shrug on the way in. The ratchet is shrink-only BY DESIGN -- a cap on the exclusion
+  ratio is gamed by rewording and picks a number nobody can defend -- so the mitigation
+  is publication rather than a threshold: the per-RFC exclusion ratio is a column of
+  the extraction table in `ai/RFC-REQUIREMENTS.md`, which makes an all-excluded
+  sign-off loud in review even though it is green in the gate. This is umbrella R-1
+  ("the pressure is directional and the state is visible"), and it is the accepted
+  trade, not an oversight. The reviewer is the control on the first sign-off; the
+  ratchet is the control on every one after it.
+- **A zero-site inventory yields a valid sign-off that classifies nothing, and the
+  artifact cannot say why.** `rfc1877` is the only live case: it is empty under both
+  the keyword and the prose scan, derives `manual-walk`, and signs off on
+  `register-reason` plus whatever `unsourced-ids` its sections declare. That is exactly
+  AC-10's designed path and the alternative is worse -- refusing the sign-off outright
+  would leave a keyword-free RFC permanently undrainable, which is the backlog-with-no-
+  exit that owner ruling 1 rejected. The limit is that nothing in the artifact
+  distinguishes "the walk genuinely found no obligation in this text" from "the
+  derivation found nothing to walk and the reviewer signed the empty result". Both
+  render identically: `manual-walk`, zero sites, a reason string. The reason string is
+  the only place the difference can live, so it is load-bearing prose that no gate
+  reads, and a reviewer of a `manual-walk` sign-off should read it as the whole
+  evidence.
+
 ## RFC Documentation (Scope: protocol)
 
 **Machinery (phases 1 to 7):** N-A for enforcing code. It adds no protocol behavior, so no
@@ -1403,3 +1629,379 @@ by what the walk actually finds.
       (`ai/rules/rfc-compliance.md:19-20`)
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-rfcgate-1-extraction.md` only
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+Phases 1 to 7, the whole machinery, and nothing else (owner ruling 3).
+
+- **Derivation** (`scripts/dev/rfc_requirements.py:1717-1967`): `source_path` /
+  `source_text` (one two-location lookup, now also used by `source_keyword_count:1366`),
+  `_strip_page_furniture`, `_section_bodies`, `_sentences`, `_sites_for`,
+  `derive_register`, `derive_inventory` with a sha-keyed memo.
+- **Artifact** (`:1970-2251`): `Extraction` / `ExtractionSite` / `ExtractionSection`,
+  `parse_extraction_artifact` with closed enums (`REGISTERS:1624`,
+  `EXCLUSION_KINDS:1629`, `SECTION_SKIP_KINDS`), `_reject_unknown_keys`, and the
+  eleventh top-level field `register-reason` (DEV-1).
+- **Skeleton writer** (`:2253-2450`): `_artifact_document`, `_validated_stem`,
+  `_sweep_stale_staging`, `run_extract_skeleton` -- which round-trips its own output
+  through the real parser in a staging dir before `os.replace`, so a derivation defect
+  can never land a file the gate cannot read.
+- **The two arithmetics** (`_evaluate_extraction:2469-2633`, `evaluate_extractions:2636`,
+  `check_extraction_signoff:2673`): forward (every derived site classified, every derived
+  field re-derived and compared) and reverse (every gated requirement backed by a site or
+  declared `unsourced-ids`), plus the site-level-vs-row-level check at `:2566-2587`.
+- **Ratchets** (`_git_baseline_extractions:2689`, `check_extraction_ratchet:2754`) and the
+  **enrolment precondition** (`check_enrolment:706-716`, driven from `run_check:3233-3238`).
+- **Publication** (`credited:2818`, `register_counts:2839`, `_register_phrase:2851`,
+  `extraction_status:2855`, `run_extraction_status:2883`, `render_extraction_table:2894`)
+  and the **floor comparison** (`parse_drain_budget:2974`, `required_floor:3050`,
+  `check_drain_floor:3091`), all wired at `run_check:3293-3295` inside the existing `try`.
+- **Entry points**: `Makefile:452` (`ze-rfc-extract`), `Makefile:460`
+  (`ze-rfc-extraction-status`), dispatched from `main:3389-3410`. `ze-rfc-check`
+  (`Makefile:437`) is unchanged, so `stagesForMode` and its golden were untouched.
+- **Created**: `rfc/extraction/README.md`, `rfc/drain-budget.txt` (`start 2026-07-29`,
+  `rate 0`), `plan/deferrals/rfcgate-1-extraction.md`.
+- **Tests**: `scripts/dev/rfc_requirements_test.py` grew from 217 to **301** tests.
+- **Discovery**: `ai/rules/rfc-compliance.md` (Extraction Completeness rewritten; the
+  ratchet table now reads **five** rows, `:124-128`), `ai/skills/ze-rfc.md` (the
+  two-grep honour-system coverage self-check replaced by the recorded sign-off),
+  `ai/INDEX.md:214-215` and `:375`, `docs/functional-tests.md:693-713`,
+  `docs/contributing/rfc-implementation-guide.md:563-601`, `ai/RFC-REQUIREMENTS.md`
+  (regenerated, gains the Extraction sign-off table at `:182`).
+
+### Bugs Found/Fixed
+
+Six, all found by independent review or by mutation, none by the implementer. Each is a
+Deviations row (DEV-4 to DEV-7) or a Phase Results entry, and each now has a test.
+
+| Bug | Fix | Test that now covers it |
+|-----|-----|------------------------|
+| `_SECTION_HEADING_RE` matched column-0 table rows and TOC lines, so four ENROLLED stems (rfc1195, rfc2865, rfc2869, sflow-v5) derived a duplicate section id; the skeleton their own parser refused, and rfc1195 silently lost 6 sentences to locator collision | `_section_bodies:1783-1820` merges a repeated id and keeps the matched line's title in the body; `derive_inventory:1941-1953` asserts uniqueness at the producer; `run_extract_skeleton:2417-2438` stages and round-trips before writing | `TestRealTreeExtraction.test_every_enrolled_stem_round_trips_through_the_parser`, `test_no_enrolled_stem_derives_a_duplicate_locator`, `TestSkeletonWriter.test_a_skeleton_the_parser_would_refuse_is_never_written` |
+| The drain floor capped at the RESIDUAL backlog while comparing a CUMULATIVE total, collapsing the condition to `signed >= enrolled/2` (DEV-4) | `required_floor:3050-3088` takes `drainable` and `check_drain_floor:3120` passes `len(enrolled)` | `TestDrainFloor.test_half_the_corpus_does_not_satisfy_an_armed_schedule`, `test_the_floor_can_demand_the_whole_enrolled_set`, `test_a_fully_drained_corpus_is_permanently_green` |
+| An un-enrolled sign-off raised drain credit without lowering the backlog, publishing `signed + backlog > enrolled` | `credited:2818-2836`, read by the floor, the envelope and the ledger | `TestDrainFloor.test_an_unenrolled_signoff_earns_no_drain_credit`, `test_a_signoff_counts_the_moment_its_stem_enrols` |
+| `signed` defined as `sum(counts.values())` made AC-22 a tautology no test could fail (found by mutation) | `extraction_status:2876` counts the total independently of the split | `TestExtractionStatus.test_signed_by_register_sums_to_total` |
+| Two tests asserted the live corpus's current census (`extraction_stems() == set()`, the shipped rate of 0), so the first sign-off and the arming commit would each have redded one (DEV-6) | Both re-expressed as properties over FIXTURE trees | `TestGrandfatheredBacklog` (whole class, `:4331-4360`), `TestDrainFloor.test_a_rate_of_zero_reads_off_disk_as_an_inert_floor` |
+| `scripts/dev/changed-pkgs.sh` filtered every git query on `*.go`, so a Python-only or corpus-only change selected zero packages and `make ze-verify-changed` could not run this diff's own tests (DEV-7) | `PATHSPECS=('*.go' '*.py' 'rfc')` with `*.py` and `rfc/*` mapped to `PYTHON_TEST_PKG="./scripts/dev"` (`changed-pkgs.sh:46-90`) | the mapping is exercised by `go test ./scripts/dev/ -run TestPythonUnitTests`, which now gets selected |
+| `errs.extend(parse_errs)` was the only line turning an unparseable ENROLLED summary into a violation, and nothing drove it: deleting it left all 295 tests green while an unparseable summary exited 0 with every MUST of that RFC unchecked | The line is unchanged (`:3273`); the gap was the missing test | `TestSummaryParseErrorWiring` (`:1806-...`), driven through the real parser over a real temporary `SUMMARY_DIR` |
+
+### Documentation Updates
+
+Every row of the Documentation Update Checklist that was answered Yes for the MACHINERY,
+each with a source anchor, verified in the Documentation Verified table below.
+
+- `ai/rules/rfc-compliance.md` -- Extraction Completeness rewritten; ratchet table five rows.
+- `ai/skills/ze-rfc.md:30`, `:51`, `:65`, `:69` -- canonical source; `make ze-ai-sync`
+  regenerates `.claude/`, `.codex/`, `.agents/` skill trees.
+- `ai/INDEX.md:214-215` (Dev Tools) and `:375` (keyword row).
+- `docs/functional-tests.md:693-713`, anchored to
+  `check_extraction_signoff`/`run_extract_skeleton`.
+- `docs/contributing/rfc-implementation-guide.md:563-601`, anchored to
+  `run_extract_skeleton`/`check_extraction_signoff`, `Makefile -- ze-rfc-extraction-status`
+  and `run_extraction_status`.
+- `ai/RFC-REQUIREMENTS.md:182-186` -- generated, never hand-edited, kept fresh by
+  `check_ledger_fresh`.
+- Row 9 (RFC behavior implemented/changed/newly proven) was answered Yes FOR PHASE 8 ONLY.
+  It moves with phase 8: `docs/features/rfc-status.md` and `rfc/enrolled.txt` are unmodified
+  in this diff, and the obligation is now
+  `plan/spec-rfcgate-1b-rfc7296-pilot.md`'s. Rows 1, 7 and 11 were to be RE-ANSWERED after
+  phase 8; that re-answer moves with it for the same reason and for the same evidence.
+- `make ze-doc-test`: reported exit 0 by the implementation phase. The tree currently also
+  carries a CONCURRENT session's uncommitted MCP work (`ai/digests/mcp.md` and the deleted
+  `internal/component/mcp/*.go`), which is why the doc gate is re-verified here per-claim
+  by grep rather than by a whole-tree re-run this spec does not own.
+
+### Deviations from Plan
+
+See the `## Deviations` section: DEV-1 (`register-reason` absent from the Design field
+table), DEV-2 (AC-21's literal column shape), DEV-3 (a correction recorded but not
+applied), DEV-4 to DEV-7 (the four review-found defects, all now fixed). Added at closure:
+owner ruling 3 removed phase 8 and AC-23 to AC-26 from this spec entirely.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | A correction was written into the Phase Results table (`make ze-rfc-extraction-status --json` is not runnable) and then applied at NONE of the eleven sites that carried the wrong spelling -- including the two Deliverables rows instructing this spec's own closer to run a command that exits 2 | Recording a correction changes nothing until the sites it names are edited (`ai/rules/fix-dont-record.md`) | Independent review, 2026-07-29 | All eleven struck and corrected in place; DEV-3 |
+| approach | Two tests were written against the LIVE corpus census (`extraction_stems() == set()`, and the shipped rate of 0) inside the very machinery whose purpose is to make the first sign-off possible | A ratchet that reds on the work it demands gets deleted rather than obeyed -- the exact failure `ai/rules/rfc-compliance.md` records, built into the thing meant to prevent it | Independent review, 2026-07-29 | Both re-expressed as properties over fixture trees (`TestGrandfatheredBacklog`, `TestDrainFloor.test_a_rate_of_zero_reads_off_disk_as_an_inert_floor`); DEV-6 |
+| approach | The drain floor's credit and its denominator described two different sets (cumulative total against residual backlog), and separately credit counted un-enrolled sign-offs the backlog did not | A quota whose two sides measure different sets can be satisfied without draining anything | Independent review driving `required_floor` directly, 2026-07-29 | `drainable` parameter + `credited()`; DEV-4 and the `credited` bug row above |
+| approach | 252 fixture tests were green over a skeleton writer that bricked four enrolled stems, and 295 were green over a `run_check` line whose deletion stopped every MUST of an unparseable summary being checked | Fixture coverage says nothing about real RFC formatting, and a line no test drives is unproven however obvious it looks | Live-corpus round-trip test + mutation testing, 2026-07-29 | `TestRealTreeExtraction` round-trip and locator tests; `TestSummaryParseErrorWiring` |
+| assumption | A-3 was stated as "22 enrolled RFCs have zero capitalised MUST-level keywords" and its validation wording said every such stem derives the `prose` register | The live figure is **23** at the SITE denominator (`rfc5443`'s five uppercase occurrences are all inside its own 2119 boilerplate), and `rfc1877` derives `manual-walk`, not `prose` -- exactly what A-5 predicts | Phase 2 re-derivation over the live tree | Recorded in Phase Results; the shipped test asserts the property that matters (`test_keyword_free_sources_never_derive_rfc2119`) |
+
+## Implementation Audit
+
+Scope of this audit: **phases 1 to 7 only**. AC-23 to AC-26 were removed from this spec by
+owner ruling 3 and are audited by `plan/spec-rfcgate-1b-rfc7296-pilot.md`.
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Bound the gate's blind spot with a per-RFC extraction sign-off a machine can re-check | Done | `_evaluate_extraction:2469-2633`, `check_extraction_signoff:2673`, wired `run_check:3293` | Both arithmetics implemented; every derived field re-derived and compared |
+| Gate a NEW enrolment on that sign-off | Done | `check_enrolment:706-716`, caller `run_check:3233-3238` | `newly_enrolled` computed by the caller so an unavailable baseline accuses nobody |
+| Grandfather the remaining corpus as an explicitly counted and PUBLISHED backlog | Done | `render_extraction_table:2894`, `run_check:3329-3333` | Live: 166 unsigned, published in the ledger and on the success line |
+| Ratchet the signed-off count so it can only rise | Done | `check_extraction_ratchet:2754-2815` | Plus exclusions shrink-only per stem |
+| Publish the per-register numbers the drain policy is read against | Done | `extraction_status:2855-2880`, `run_extraction_status:2883` | `signed-by-register` with every register present at zero |
+| Implement the floor COMPARISON that reads that policy | Done | `parse_drain_budget:2974`, `required_floor:3050`, `check_drain_floor:3091` | Ships inert at `rate 0`; no rate, date or cadence is defaulted in code |
+| Do NOT author the drain POLICY | Done | `rfc/drain-budget.txt` (authored, two fields), `parse_drain_budget:2982-2984` | The closed key set makes a per-stem row a parse error |
+| ~~Perform the rfc7296 pilot sign-off~~ | Changed | -- | **MOVED by owner ruling 3** to `plan/spec-rfcgate-1b-rfc7296-pilot.md`. Phase 8a RAN (214 obligations counted, taken to the owner); 8b to 8e are the destination spec's. `plan/deferrals/rfcgate-1-extraction.md:8` |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `check_enrolment:706-716`; `TestEnrolmentSignoffPrecondition.test_new_enrolment_without_signoff_fails`; grandfather twin `test_preexisting_enrolment_without_signoff_passes`; end-to-end `TestExtractionSignoffWiring.test_run_check_fails_on_new_enrolment_without_signoff` | Both arms proven: a new stem fails, a pre-HEAD stem passes |
+| AC-2 | Done | `run_extract_skeleton:2385-2450`, `_artifact_document:2253`; `TestSkeletonWriter.test_skeleton_writes_every_site_unclassified`, `test_a_generated_skeleton_fails_the_check` | Every site and section null; the writer prints the unclassified counts |
+| AC-3 | Done | `_evaluate_extraction:2553-2558` (site) and `:2611-2615` (section); `TestExtractionSignoff.test_unclassified_site_fails`, `test_unclassified_section_fails` | Error names the locator and quotes the sentence |
+| AC-4 | Done | `_evaluate_extraction:2498-2508`; `TestExtractionSignoff.test_source_sha_mismatch_fails`, `test_source_sha_mismatch_reports_once_not_per_site` | Returns early with one accurate error, on `verdict_is_fresh`'s over-trigger bias |
+| AC-5 | Done | `_evaluate_extraction:2559-2564`; `TestExtractionSignoff.test_mapped_to_unknown_requirement_fails` | |
+| AC-6 | Done | `_evaluate_extraction:2623-2632`, `unsourced-ids` escape `:2617-2622`; `TestExtractionSignoff.test_gated_requirement_with_no_site_fails`, `test_unsourced_id_recorded_on_a_section_passes`, `test_unsourced_ids_naming_an_unknown_requirement_fails` | The reverse arithmetic; advisory rows exempt (`test_advisory_requirement_needs_no_site`) |
+| AC-7 | Done | `parse_extraction_artifact:2184-2188` (kind) and `:2189-2193` (reason); `TestExtractionArtifact.test_unknown_exclusion_kind_fails`, `test_missing_reason_on_exclusion_fails`, `test_empty_reason_on_exclusion_fails` | `ParseError`, same shape as `_parse_annotation` |
+| AC-8 | Done | `_evaluate_extraction:2588-2596`; `TestExtractionSignoff.test_duplicate_of_must_name_a_mapped_id`, `test_duplicate_of_needs_the_id_it_duplicates`, twin `test_duplicate_of_passes_when_another_site_maps_the_id` | |
+| AC-9 | Done | `derive_register:1853-1864` + refusal `_evaluate_extraction:2515-2523`; `TestPre2119FailsClosed.test_keyword_free_source_cannot_claim_rfc2119`, permissive twin `test_a_weaker_claim_than_the_derivation_is_allowed` | |
+| AC-10 | Done | `derive_register:1862-1864`, `_evaluate_extraction:2491-2496`; `TestPre2119FailsClosed.test_empty_inventory_with_gated_musts_is_refused`, `TestExtractionSignoff.test_manual_walk_without_a_register_reason_is_refused`, `TestPre2119FailsClosed.test_manual_walk_passes_when_every_gated_must_is_declared_unsourced` | The `register-reason` field is DEV-1 |
+| AC-11 | Done | Credit: `register_counts:2839-2848`, `extraction_status:2876`; counterweight: `_register_phrase:2851`, `render_extraction_table:2925-2930`, `run_check:3329-3333`. `TestExtractionStatus.test_every_register_counts_toward_the_signed_total` + `TestExtractionLedger.test_registers_are_published_in_separate_columns`, `test_no_bare_signed_total_is_rendered` | Both halves of owner ruling 1 proven separately |
+| AC-12 | Done | `check_extraction_ratchet:2779-2784`; `TestExtractionRatchet.test_signoff_count_is_monotonic`, twins `test_a_retained_signoff_passes`, `test_a_new_signoff_is_not_a_violation` | |
+| AC-13 | Done | `check_extraction_ratchet:2786-2814`; `test_exclusions_are_shrink_only`, `test_resign_reason_permits_a_rise`, `test_a_carried_over_resign_reason_does_not_license_a_second_rise`, `test_resign_reason_without_a_bumped_date_still_fails` | The carried-forward-reason case is a review addition |
+| AC-14 | Done | `run_check:3324-3333`; `TestSuccessLine.test_a_clean_run_publishes_the_extraction_bound`, `test_a_clean_run_with_nothing_signed_still_says_so`. Live: `extraction: rfc2119 0, prose 0, manual-walk 0 signed off of 166 enrolled; 166 unsigned (grandfathered backlog).` | Zero is stated out loud |
+| AC-15 | Done | `render_extraction_table:2894-2967`, freshness via `check_ledger_fresh:3153`; `TestExtractionLedger.test_table_reports_unsigned_backlog`, `test_signed_rows_carry_their_derived_counts`, `test_stale_extraction_table_fails_check_fresh`, `test_extraction_table_is_in_the_rendered_ledger`. Live: `ai/RFC-REQUIREMENTS.md:182`, 166 `UNSIGNED (grandfathered)` rows | Derived columns blank for unsigned stems: honest, and the measured reason is the 1.94s cost |
+| AC-16 | Done | `extraction_status:2855-2880`, `run_extraction_status:2883-2891`, dispatch `main:3389-3395`, `Makefile:460`; `TestExtractionStatus.test_json_envelope_carries_counts_and_registers`, `TestExtractionStatusWiring.test_extraction_status_dispatches_from_main`. Live envelope pasted below | Spelling corrected to `make ze-rfc-extraction-status` (DEV-3) |
+| AC-17 | Done | `check_extraction_ratchet:2763-2765`, `_git_baseline_extractions:2689`; `TestExtractionRatchet.test_git_failure_judges_nothing`, `test_no_extraction_dir_at_head_accuses_nobody`; enrolment side `TestExtractionSignoffWiring.test_an_unavailable_enrolment_baseline_accuses_nobody` with discriminating twin `test_an_available_baseline_still_accuses_a_new_enrolment` | The empty-versus-None polarity is restated in `check_enrolment`'s docstring `:668-678` |
+| AC-18 | Done | `parse_extraction_artifact:2068` and the other `ParseError` sites, caught at `run_check:3298-3304`; `TestExtractionArtifact.test_unreadable_artifact_raises_parse_error`, `test_missing_file_raises_parse_error` | Clean `cannot run`, exit 2, never a traceback |
+| AC-19 | Done | Scope, not an allowlist: `evaluate_extractions:2657` iterates `load_extractions()` only. `TestGrandfatheredBacklog.test_an_unsigned_backlog_is_accused_by_nothing`, `TestEnrolmentSignoffPrecondition.test_preexisting_enrolment_without_signoff_passes`. Live: `make ze-rfc-check` exit 0 with zero `rfc/extraction/*.json` | |
+| AC-20 | Done | quote `_evaluate_extraction:2547-2552`, section count `:2606-2610`, register `:2515-2523`, site set `:2527-2537`; `TestExtractionSignoff.test_hand_edited_quote_fails`, `test_hand_edited_section_count_fails`, `test_an_invented_site_fails`, `test_a_site_missing_from_the_artifact_fails` | |
+| AC-21 | **Changed** | `render_extraction_table:2925-2930` renders ONE `Register` column per RFC row plus a per-register summary line above the table (`ai/RFC-REQUIREMENTS.md:186`), not a three-column cross-tab. `TestExtractionLedger.test_registers_are_published_in_separate_columns`, `test_no_bare_signed_total_is_rendered` | **DEV-2. The AC's literal wording is not met; its INTENT is, and is mechanically enforced.** `register_counts:2845` seeds every register at zero so none can go missing. Verified by reading all three publishing sites that there is NO bare signed total anywhere. The AC text is unchanged (append-only); accepting this substitution is a CLOSURE decision and is flagged, not self-approved |
+| AC-22 | Done | `extraction_status:2869-2880` (total counted independently of the split); `TestExtractionStatus.test_signed_by_register_sums_to_total`, `test_every_register_key_is_present_even_at_zero`, `test_the_envelope_arithmetic_is_self_consistent`. Live envelope below | The tautology this once was is the mutation-found bug above |
+| ~~AC-23~~ | Moved | `plan/spec-rfcgate-1b-rfc7296-pilot.md` AC-1 (`:424`) | Owner ruling 3; `plan/deferrals/rfcgate-1-extraction.md:8` |
+| ~~AC-24~~ | Moved | `plan/spec-rfcgate-1b-rfc7296-pilot.md` AC-5 (`:425`) | Its machinery half is AC-19, delivered here |
+| ~~AC-25~~ | Moved | `plan/spec-rfcgate-1b-rfc7296-pilot.md` AC-4 (`:426`) | NARROWED there: the annotation branch is removed |
+| ~~AC-26~~ | Moved | `plan/spec-rfcgate-1b-rfc7296-pilot.md` AC-3 (`:427`) | `rfc/short/rfc7296.md` unmodified in this diff |
+| AC-27 | Done | `check_drain_floor:3091-3130`, `required_floor:3088`; shipped `rfc/drain-budget.txt` `rate 0`; `TestDrainFloor.test_rate_zero_computes_a_zero_floor`, `test_a_rate_of_zero_reads_off_disk_as_an_inert_floor`, `TestDrainFloorWiring.test_run_check_clean_at_the_shipped_rate_of_zero`. Live: exit 0 with the backlog still published | |
+| AC-28 | **Changed** | `required_floor:3088` is `min(drainable, ceil(rate x months))` with `check_drain_floor:3120` passing `len(enrolled)`; `TestDrainFloor.test_required_floor_never_exceeds_the_drainable_set`, `test_a_fully_drained_corpus_is_permanently_green`, `test_the_floor_can_demand_the_whole_enrolled_set`, `test_half_the_corpus_does_not_satisfy_an_armed_schedule` | **DEV-4.** The AC's phrase "capped at the backlog size" now reads as the DRAINABLE set, not the residual one -- capping at the residual double-counted every sign-off and collapsed the check to `signed >= enrolled/2` (measured: green at 83 of 166). Self-retirement is preserved by a different route and is tested |
+| AC-29 | Done | `parse_drain_budget:2986-2995` (missing), `:3004-3046` (malformed, duplicate key, non-finite, negative), surfaced as a violation at `check_drain_floor:3100-3103`; `TestDrainFloor.test_missing_drain_budget_is_error_not_empty`, `test_unparseable_drain_budget_is_an_error`, `test_a_non_finite_rate_is_refused_at_parse_time`, `test_a_duplicate_budget_key_is_refused`, `test_a_budget_naming_an_rfc_is_refused` | The NaN case is a review addition: it would have reached `math.ceil` outside `run_check`'s `try` |
+| AC-30 | Done | `check_drain_floor:3121-3130`; `TestDrainFloor.test_signed_below_armed_floor_fails`, `test_the_failure_message_names_the_registers_it_summed`, `test_the_failure_message_names_a_zero_register_too`, end-to-end `TestDrainFloorWiring.test_run_check_fails_when_signed_count_is_below_the_floor` | The floor can actually fail: this is the discriminating case for AC-27 to AC-29 |
+| AC-31 | Done | `parse_extraction_artifact:2086-2092`; `TestExtractionArtifact.test_unknown_register_is_hard_error`, `test_a_register_outside_the_closed_set_is_still_a_parse_error` | Does not default to the strong grade |
+| AC-32 | Done | `derive_register:1860-1863` (undercount clause) + refusal `_evaluate_extraction:2515-2523`; `TestPre2119FailsClosed.test_rfc2119_register_below_source_count_is_rejected`; corroborated live by `TestRealTreeExtraction.test_a_large_minority_cannot_take_the_rfc2119_grade` | The rfc2181 shape lands here |
+
+### Tests from TDD Plan
+
+Every planned test exists under its planned name except the four phase-8 rows (moved) and
+the three below, which are recorded rather than quietly renamed.
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestSiteInventory.*` (5 planned) | Done | `rfc_requirements_test.py:2162-2400` | Shipped with 17 more, including the memo-key and determinism cases |
+| `TestExtractionArtifact.*` (4 planned) | Done | `:2402-2531` | `test_duplicate_of_must_name_a_mapped_id` lives in `TestExtractionSignoff` instead: it is a CHECK-time cross-site rule, not a parse-time one |
+| `TestExtractionSignoff.*` (7 planned) | Done | `:2784-3085` | 25 shipped |
+| `TestPre2119FailsClosed.*` | Changed | `:3087-3173` | 4 of the 5 planned names shipped. `test_manual_walk_is_published_in_its_own_column` was NOT written: it is a LEDGER assertion, and the property it names is proved by `TestExtractionLedger.test_registers_are_published_in_separate_columns` and `test_no_bare_signed_total_is_rendered`. Verified absent: `grep -c` returns 0 |
+| `TestExtractionStatus.*` (3 planned) | Done | `:3441-3547` | |
+| `TestExtractionLedger.*` (3 planned) | Done | `:3549-3674` | Plus `test_no_bare_signed_total_is_rendered` and `test_extraction_table_render_is_independent_of_input_order` |
+| `TestDrainFloor.*` | Changed | `:3676-3986` | `test_drain_floor_caps_at_backlog_size` was NOT written under that name: DEV-4 changed the cap's meaning from the residual backlog to the drainable set, and a test asserting the old name would assert the bug. Shipped as `test_required_floor_never_exceeds_the_drainable_set` plus `test_a_fully_drained_corpus_is_permanently_green`. Verified absent: `grep -c` returns 0 |
+| `TestExtractionRatchet.*` (4 planned) | Done | `:3175-3328` | 11 shipped |
+| `TestSkeletonWriter.*` (2 planned) | Done | `:2533-2782` | 12 shipped, including the staging and round-trip cases |
+| `TestEnrolment.test_new_enrolment_without_signoff_fails` / `..._passes` | Changed | `TestEnrolmentSignoffPrecondition:3330-3372` | Class renamed rather than extending `TestEnrolment`; both planned tests exist verbatim |
+| `TestRealTree.test_every_enrolled_rfc_derives_a_register` | Changed | `TestRealTreeExtraction.test_every_enrolled_rfc_derives_a_register:4265` | Live-tree extraction class split out from `TestRealTree` |
+| `TestRealTree.test_live_tree_is_green_with_zero_signoffs` | Changed | `TestGrandfatheredBacklog:4331-4360` | DEV-6: re-expressed as a property over a fixture tree. The live-census form would have redded on the first sign-off. Verified absent under the old name: `grep -c` returns 0 |
+| `TestRealTree.test_rfc7296_*` (4 planned) | Moved | `plan/spec-rfcgate-1b-rfc7296-pilot.md` | Owner ruling 3. All four verified absent: `grep -c` returns 0 |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| `scripts/dev/rfc_requirements.py` | Done | Modified; all new code `:1617-3130` plus the `run_check` wiring |
+| `scripts/dev/rfc_requirements_test.py` | Done | Modified; 217 to 301 tests |
+| `Makefile` | Done | `ze-rfc-extract:452`, `ze-rfc-extraction-status:460`; `ze-rfc-check:437` unchanged |
+| `ai/RFC-REQUIREMENTS.md` | Done | Regenerated; Extraction sign-off table `:182` |
+| `ai/rules/rfc-compliance.md` | Done | Five ratchets `:124-128`; Extraction Completeness rewritten `:82-98` |
+| `ai/skills/ze-rfc.md` | Done | `:30`, `:51`, `:65`, `:69` |
+| `ai/INDEX.md` | Done | `:214-215`, `:375` |
+| `docs/contributing/rfc-implementation-guide.md` | Done | `:563-601` |
+| `rfc/extraction/README.md` | Done | Created |
+| `plan/deferrals/rfcgate-1-extraction.md` | Done | Created; two rows, both `deferred` with destinations |
+| `rfc/drain-budget.txt` | Done | Created; `start 2026-07-29`, `rate 0` |
+| `scripts/dev/changed-pkgs.sh` | Changed | NOT in the plan. Added during review: DEV-7's fix, without which scoped verification could not run this diff's tests |
+| `docs/functional-tests.md` | Done | `:693-713` (planned via Documentation checklist row 10) |
+| `rfc/extraction/rfc7296.json` | Moved | Owner ruling 3; `plan/spec-rfcgate-1b-rfc7296-pilot.md` |
+| `rfc/short/rfc7296.md`, `rfc/enrolled.txt`, `docs/features/rfc-status.md`, `internal/component/ike/**` | Moved | Owner ruling 3; all four unmodified in this diff per `git status` |
+
+### Audit Summary
+- **Total items:** 28 delivered ACs (AC-1..AC-22, AC-27..AC-32), 8 Task requirements,
+  13 test groups, 15 file rows.
+- **Done:** 26 of 28 ACs; 7 of 8 Task requirements; 9 of 13 test groups; 13 of 15 file rows.
+- **Partial:** none.
+- **Skipped:** none.
+- **Changed:** AC-21 (DEV-2, rendering shape -- flagged as a closure decision, not
+  self-approved), AC-28 (DEV-4, cap semantics corrected), 4 test groups (renames and one
+  deliberate non-write), 2 file rows. All recorded in Deviations or in the rows above.
+- **Moved by owner ruling 3:** AC-23..AC-26, 4 test rows, 5 file rows, 1 Task requirement,
+  1 user story, 1 wiring row. Homed at `plan/deferrals/rfcgate-1-extraction.md:8`.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Bound the gate's blind spot with a sign-off a machine can re-check | functional (the gate itself) | `make ze-rfc-check` exit 0, and the discriminating proof that it is not vacuous: `TestExtractionSignoffWiring.test_run_check_fails_on_unclassified_site` reds `run_check` end-to-end on an unclassified site, with `test_run_check_clean_on_a_fully_classified_signoff` as its twin. Every one of the eight new checks was mutation-verified: disabled in turn, all eight went fully RED and all restored green |
+| Make an unearned sign-off structurally impossible rather than discouraged | functional | `TestSkeletonWriter.test_a_generated_skeleton_fails_the_check`: generating skeletons makes the gate REDDER. There is no `--sign-off` mode, no default disposition, and no bulk classifier -- verified by reading `main:3382-3414`, which dispatches only `--selftest`, `--write`, `--check-fresh`, `--extraction-status`, `--extract-skeleton`, `--check` |
+| Gate a NEW enrolment on a sign-off without redding the existing 166 | functional, both arms | RED arm: `TestEnrolmentSignoffPrecondition.test_new_enrolment_without_signoff_fails`. GREEN arm: `test_preexisting_enrolment_without_signoff_passes`, plus the live tree -- `make ze-rfc-check` exit 0 over 166 enrolled RFCs with zero artifacts present |
+| Publish the backlog rather than claim it away | rendered artifact | `ai/RFC-REQUIREMENTS.md:182` (`## Extraction sign-off`), `:186` (`Signed off by register: rfc2119 0, prose 0, manual-walk 0. Unsigned (grandfathered) backlog: 166 of 166 enrolled.`), and 166 rows reading `UNSIGNED (grandfathered)` (`grep -c` = 166). Kept fresh by `check_ledger_fresh`, proved by `TestExtractionLedger.test_stale_extraction_table_fails_check_fresh` |
+| Ratchet the count so it can only rise | functional | `TestExtractionRatchet.test_signoff_count_is_monotonic` + `test_exclusions_are_shrink_only`, each with a passing twin so neither is an "always fails" check; wired through `run_check` by `TestExtractionRatchetWiring.test_run_check_fails_when_a_signoff_disappears` |
+| Close the pre-2119 fail-open (the reason a keyword-only design was rejected) | measured over the live corpus | `TestRealTreeExtraction.test_a_large_minority_cannot_take_the_rfc2119_grade` and `test_keyword_free_sources_never_derive_rfc2119` run over all 166 enrolled RFCs. Measured split: `rfc2119` 101, `prose` 64, `manual-walk` 1; **65 of 166** cannot take the strong grade, against a spec estimate of 53 |
+| Implement the floor COMPARISON, inert, without authoring policy | functional, with the discriminating case | Inert: `TestDrainFloorWiring.test_run_check_clean_at_the_shipped_rate_of_zero` and the live exit 0. Can actually fail: `TestDrainFloorWiring.test_run_check_fails_when_signed_count_is_below_the_floor` and `TestDrainFloor.test_half_the_corpus_does_not_satisfy_an_armed_schedule`. No policy in code: `parse_drain_budget` defaults nothing (`:2982-2984`) and refuses a file naming an RFC (`test_a_budget_naming_an_rfc_is_refused`) |
+| Owner ruling 1 held on BOTH halves | functional, split deliberately | Credit: `TestExtractionStatus.test_every_register_counts_toward_the_signed_total`. Counterweight: `TestExtractionLedger.test_registers_are_published_in_separate_columns` and `test_no_bare_signed_total_is_rendered`. A reviewer who saw only one has verified only one |
+| Keep `ze-rfc-check` cheap enough to stay in both verify branches (A-9) | benchmark | `--check` on the live tree 2.52-2.55s to 2.54-2.65s, **+0.07s (+3%)**; `make ze-rfc-check` end to end ~8.8s to 11.7s. Re-measured at closure: 301 tests in 8.685s, whole target exit 0. Inside `_git_cat_blobs:942`'s recorded budget |
+| ~~Discharge the two confirmed rfc7296 obligations~~ | -- | **MOVED by owner ruling 3.** Phase 8a's walk DID run and is what produced the ruling: 214 obligations, 108 unimplemented. The goal is not abandoned and not annotated away -- it is `plan/spec-rfcgate-1b-rfc7296-pilot.md`'s, with all 108 to be fixed there (OR-A), and `plan/deferrals/rfcgate-1-extraction.md:8` is the live row that holds it |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| The rfc7296 pilot in full: re-author `rfc/short/rfc7296.md` with the 214 walked obligations, prove the 88 already implemented, IMPLEMENT the 108 that are not, resolve the 18 uncertain, sign off `rfc/extraction/rfc7296.json` (`plan/deferrals/rfcgate-1-extraction.md:8`) | **deferred** (live, homed) | `plan/spec-rfcgate-1b-rfc7296-pilot.md` -- exists on disk, Status `design`, `Depends \| spec-rfcgate-4-ledger`, carries all 214 rows in Appendix A (`:875`) and maps AC-23..AC-26 to its AC-1/5/4/3 (`:422-427`). Owner ruling 3 (OR-A + OR-B). Stays LIVE because the work is outstanding: filing work in a spec is not finishing it |
+| A closure decision on A-7 (whether derived-site inventories stay stable against future churn in the RFC source texts) (`:9`) | **deferred** (live, homed) | `plan/spec-followup-rfc-enrollment.md` -- owns the fleet drain, the first activity producing the sign-off volume A-7 is a claim about. Not a machinery gap: `_evaluate_extraction:2498-2508` fails an artifact the moment its source moves, so the risk is detected rather than absorbed |
+
+Both rows carry an existing `plan/` destination, so `deferral_unassigned_problems` has
+nothing to flag. The shard is deleted by commit B with the spec, per
+`ai/rules/deferral-tracking.md`; its rows live on in the two destination specs.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfcgate-1-extraction-6aa27893-1bd2-42e1-9e68-879943aa8740.md` |
+| `review_gate.py check` | clean (`verdict=clean`, 5 files hash-pinned: `rfc/drain-budget.txt`, `rfc/extraction/README.md`, `scripts/dev/changed-pkgs.sh`, `scripts/dev/rfc_requirements.py`, `scripts/dev/rfc_requirements_test.py`) |
+| Reviewer lenses used | Four independent subagent passes: (1) fail-closed / vacuity, (2) spec conformance with its own 11-mutation battery, (3) test quality with a 30-mutation battery, (4) second-pass adversarial re-review of the 19 fixes with a 14-mutation battery |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The skeleton writer emitted a file its own parser refused for four ENROLLED stems; one such artifact committed makes every later `--check` print `cannot run` and hide every other RFC violation in the repo | `_SECTION_HEADING_RE`, `_section_bodies` | `_section_bodies:1783-1820` merges a repeated id and keeps the heading line's title; `run_extract_skeleton:2417-2438` stages and round-trips before `os.replace`; `TestRealTreeExtraction.test_every_enrolled_stem_round_trips_through_the_parser` |
+| 2 | BLOCKER | Locator collision silently dropped obligations (rfc1195 lost 6 sentences) | `derive_inventory`, `_sites_for` | Producer-side uniqueness guard `derive_inventory:1941-1953`; `test_no_enrolled_stem_derives_a_duplicate_locator` |
+| 3 | BLOCKER | The drain floor double-counted every sign-off, going permanently green at half the corpus at any armed rate (DEV-4) | `required_floor`, `check_drain_floor` | `drainable` parameter `:3050-3088`; `check_drain_floor:3120` passes `len(enrolled)`; `test_half_the_corpus_does_not_satisfy_an_armed_schedule` |
+| 4 | BLOCKER | Credit and denominator described different sets: an un-enrolled sign-off satisfied the floor without draining anything, publishing `signed + backlog > enrolled` | `check_drain_floor`, `extraction_status`, `render_extraction_table` | `credited:2818-2836`, read by all three; `test_an_unenrolled_signoff_earns_no_drain_credit` |
+| 5 | ISSUE | Two live-corpus census assertions would red on the first sign-off and on the arming commit -- the machinery reddening the work it exists to enable (DEV-6) | `TestRealTreeExtraction`, `TestDrainFloor` | `TestGrandfatheredBacklog:4331-4360`; `TestDrainFloor.test_a_rate_of_zero_reads_off_disk_as_an_inert_floor` |
+| 6 | ISSUE | `signed` defined as `sum(counts.values())` made AC-22 unfalsifiable (mutation-found) | `extraction_status` | Independent count `:2876`; `test_signed_by_register_sums_to_total` |
+| 7 | ISSUE | A site quoting a capitalised MUST could be mapped to a SHOULD row and reported as captured, while `evaluate` never gates a SHOULD -- the RFC's own MUST downgraded to advice inside the artifact meant to prevent exactly that | `_evaluate_extraction` | `:2566-2587`; `test_a_must_bearing_site_mapped_to_an_advisory_row_fails` with twins |
+| 8 | ISSUE | A carried-forward `resign-reason` let exclusions climb indefinitely behind one sentence written years earlier | `check_extraction_ratchet` | `:2803-2814`; `test_a_carried_over_resign_reason_does_not_license_a_second_rise` |
+| 9 | ISSUE | `float("nan")` passed every rate guard and reached `math.ceil` OUTSIDE `run_check`'s `try`, i.e. a traceback where AC-18 requires exit 2 | `parse_drain_budget` | `:3040-3044`; `test_a_non_finite_rate_is_refused_at_parse_time` |
+| 10 | ISSUE | `errs.extend(parse_errs)` -- the only line turning an unparseable ENROLLED summary into a violation -- was driven by nothing; deleting it left 295 tests green while every MUST of that RFC stopped being checked | `run_check:3273` | Line unchanged; `TestSummaryParseErrorWiring:1806` drives it through the real parser over a real file |
+| 11 | ISSUE | `make ze-verify-changed` could not select this diff's own tests: `changed-pkgs.sh` filtered every git query on `*.go` (DEV-7) | `scripts/dev/changed-pkgs.sh` | `PATHSPECS=('*.go' '*.py' 'rfc')` with `*.py`/`rfc/*` mapped to `./scripts/dev` (`:46-90`) |
+| 12 | ISSUE | The inventory memo keyed on the stem alone would hand a second body the first body's inventory, silently and toward green | `derive_inventory` | Four-part key over stem, gated count, RAW bytes and resolved path `:1867-1913`; `test_the_memo_is_keyed_on_the_source_not_the_stem` and three siblings |
+| 13 | ISSUE | The `--json` spelling recorded as a correction was applied at none of the eleven sites naming it, including the two Deliverables rows telling this spec's closer to run a command that exits 2 (DEV-3) | this spec and `plan/spec-rfcgate-0-umbrella.md` | All eleven struck and corrected in place |
+
+Run 2 through run 4 each re-reviewed the fixes as new code. The final pass reports
+**0 BLOCKER, 0 ISSUE**, 6/6 mutations killed, 301 selftests OK, `make ze-rfc-check` exit 0.
+
+## Pre-Commit Verification
+
+Re-verified at closure, independently of the audit above. Every command below was run in
+this session; nothing in this section is copied from the Implementation Audit.
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `rfc/extraction/README.md` | yes | `ls -la` -> `-rw-rw-r-- 1 thomas thomas 9118 Jul 29 13:20 rfc/extraction/README.md` |
+| `rfc/drain-budget.txt` | yes | `ls -la` -> `-rw-rw-r-- 1 thomas thomas 1943 Jul 29 14:10 rfc/drain-budget.txt`; `cat` shows `start 2026-07-29` and `rate 0` and no per-stem row |
+| `plan/deferrals/rfcgate-1-extraction.md` | yes | `ls -la` -> `-rw-rw-r-- 1 thomas thomas 3952 Jul 29 12:39`; two rows, both `deferred` with `plan/` destinations |
+| `plan/spec-rfcgate-1b-rfc7296-pilot.md` (the destination created by owner ruling 3) | yes | `ls -la` -> `-rw-rw-r-- 1 thomas thomas 135256 Jul 29 13:25`; `Status \| design`, `Depends \| spec-rfcgate-4-ledger` |
+| `rfc/extraction/*.json` | **none, deliberately** | `ls rfc/extraction/` lists `README.md` only. Phase 8 moved, so this spec ships zero artifacts and the machinery lands on the AC-19 shape |
+| `scripts/dev/rfc_requirements.py`, `rfc_requirements_test.py`, `changed-pkgs.sh`, `Makefile` | yes, modified | `git status --porcelain` shows ` M` for each |
+| `rfc/short/rfc7296.md`, `rfc/enrolled.txt`, `docs/features/rfc-status.md`, `internal/component/ike/**` | untouched | absent from `git status --porcelain`, which is the proof phase 8 was not partially performed |
+
+### AC Verified (grep/test)
+
+Two `python3 -m unittest -v` runs over named tests, executed now, plus live command output.
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | A new enrolment without a sign-off fails; a pre-HEAD one does not | Run A: `TestEnrolmentSignoffPrecondition.test_new_enrolment_without_signoff_fails` ok. Run B: `test_preexisting_enrolment_without_signoff_passes` ok ("AC-19: the 166 stay green when the machinery lands") |
+| AC-2, AC-3 | A skeleton is all-null and CANNOT pass | Run A: `TestSkeletonWriter.test_skeleton_writes_every_site_unclassified` ok, `test_a_generated_skeleton_fails_the_check` ok, `TestExtractionSignoff.test_unclassified_site_fails` ok |
+| AC-4, AC-5, AC-6 | sha mismatch, unknown id, and the reverse arithmetic all red | Run A: `test_source_sha_mismatch_fails`, `test_mapped_to_unknown_requirement_fails`, `test_gated_requirement_with_no_site_fails` -- all ok |
+| AC-7, AC-8 | Closed exclusion set, mandatory reason, duplicate chain refused | Run A: `TestExtractionArtifact.test_missing_reason_on_exclusion_fails`, `test_unknown_exclusion_kind_fails`, `TestExtractionSignoff.test_duplicate_of_must_name_a_mapped_id` -- all ok |
+| AC-9, AC-10, AC-32 | The pre-2119 fail-open is closed at both arms | Run A: `TestPre2119FailsClosed.test_keyword_free_source_cannot_claim_rfc2119` ok ("the register is a property of the SOURCE"), `test_empty_inventory_with_gated_musts_is_refused` ok. Run B: `test_rfc2119_register_below_source_count_is_rejected` ok |
+| AC-11, AC-21, AC-22 | Every register credits the total, and no bare total is published | Run A: `TestExtractionStatus.test_every_register_counts_toward_the_signed_total` ok, `test_signed_by_register_sums_to_total` ok, `TestExtractionLedger.test_registers_are_published_in_separate_columns` ok, `test_no_bare_signed_total_is_rendered` ok |
+| AC-12, AC-13, AC-17 | Monotonic sign-off, shrink-only exclusions, git failure judges nothing | Run A: `TestExtractionRatchet.test_signoff_count_is_monotonic`, `test_exclusions_are_shrink_only`, `test_git_failure_judges_nothing` -- all ok |
+| AC-14 | The bound is stated out loud, including at zero | Live `make ze-rfc-check`: `extraction: rfc2119 0, prose 0, manual-walk 0 signed off of 166 enrolled; 166 unsigned (grandfathered backlog).` Run B: `TestSuccessLine.test_a_clean_run_with_nothing_signed_still_says_so` ok |
+| AC-15 | The ledger publishes the backlog and a stale table reds | `grep -n '## Extraction sign-off' ai/RFC-REQUIREMENTS.md` -> `182`; `grep -c 'UNSIGNED (grandfathered)'` -> `166`. Run B: `TestExtractionLedger.test_table_reports_unsigned_backlog`, `test_stale_extraction_table_fails_check_fresh` -- ok |
+| AC-16 | The status envelope is emitted and parses | Live `make ze-rfc-extraction-status` exit 0, emitting `{"backlog": 166, "enrolled": 166, "schema-version": 1, "signed": 0, "signed-by-register": {"manual-walk": 0, "prose": 0, "rfc2119": 0}, "unsigned": [...166 stems...]}`. Run B: `TestExtractionStatus.test_json_envelope_carries_counts_and_registers` ok |
+| AC-18 | A malformed artifact is a clean exit 2 | Run A: `TestExtractionArtifact.test_unreadable_artifact_raises_parse_error` ok ("malformed JSON is a clean exit-2, never a traceback") |
+| AC-19 | The live tree is green with zero artifacts | `make ze-rfc-check` -> `EXIT=0`, `rfc-requirements OK: 2720 gated MUST-level requirement(s) across 166 enrolled RFC(s); 2575 test tag(s) resolved.` with `ls rfc/extraction/` showing no `.json`. Run A: `TestGrandfatheredBacklog.test_an_unsigned_backlog_is_accused_by_nothing` ok |
+| AC-20 | A hand-edited derived field reds | Run A: `TestExtractionSignoff.test_hand_edited_quote_fails` ok ("every derived field is re-derived and compared") |
+| AC-27, AC-28 | Inert at rate 0; the cap is the drainable set, not the residual | Run B: `test_rate_zero_computes_a_zero_floor`, `test_a_rate_of_zero_reads_off_disk_as_an_inert_floor`, `TestDrainFloorWiring.test_run_check_clean_at_the_shipped_rate_of_zero`, `test_required_floor_never_exceeds_the_drainable_set`, `test_a_fully_drained_corpus_is_permanently_green`, `test_the_floor_can_demand_the_whole_enrolled_set`, `test_half_the_corpus_does_not_satisfy_an_armed_schedule` -- all ok |
+| AC-29, AC-30 | An absent policy errors; an armed floor can actually fail | Run B: `test_missing_drain_budget_is_error_not_empty`, `test_unparseable_drain_budget_is_an_error`, `test_signed_below_armed_floor_fails`, `TestDrainFloorWiring.test_run_check_fails_when_signed_count_is_below_the_floor` -- all ok |
+| AC-31 | An unknown register is a hard parse error | Run B: `TestExtractionArtifact.test_unknown_register_is_hard_error`, `test_a_register_outside_the_closed_set_is_still_a_parse_error` -- ok |
+| AC-23..AC-26 | not this spec's | `grep -c test_rfc7296_signoff_is_valid_and_the_rest_stay_grandfathered scripts/dev/rfc_requirements_test.py` -> `0`; `git status` shows `rfc/short/rfc7296.md` unmodified. Owned by `plan/spec-rfcgate-1b-rfc7296-pilot.md` |
+
+Totals for the two runs, pasted: `Ran 22 tests in 0.029s / OK` and
+`Ran 20 tests in 0.671s / OK`. Whole suite at closure: `Ran 301 tests in 8.685s / OK`
+(inside `make ze-rfc-check`), and `Ran 301 tests in 8.948s / OK` under
+`python3 -m unittest scripts.dev.rfc_requirements_test`.
+
+### Wiring Verified (end-to-end)
+
+No `.ci` row exists or should: this is developer tooling with no daemon surface. The driving
+surface is the Python suite, and every row below was re-read in
+`scripts/dev/rfc_requirements_test.py` to confirm it drives `run_check` or the CLI entry
+point through `_ExtractionDrive` / `_patched`, never the helper alone.
+
+| Entry Point | Test file / class (read, not inferred) | Verified |
+|-------------|----------------------------------------|----------|
+| `make ze-rfc-check` on a new enrolment with no sign-off | `TestExtractionSignoffWiring(_ExtractionDrive):4015-4082` -- drives `run_check`, has the grandfather twin AND the baseline-unavailable pair | yes; ran ok |
+| `make ze-rfc-check` on an unclassified site | `TestExtractionSignoffWiring.test_run_check_fails_on_unclassified_site:4064` with clean twin `:4075` | yes |
+| `make ze-rfc-check` on a deleted HEAD sign-off | `TestExtractionRatchetWiring:4112-4136`, twin `test_run_check_clean_when_the_signoff_is_still_there` | yes |
+| `make ze-rfc-extract STEM=<stem>` | `TestSkeletonWriterWiring:4157-4177` -- dispatches from `main`, plus `test_extract_skeleton_without_a_stem_fails_closed` | yes |
+| `make ze-rfc-extraction-status` | `TestExtractionStatusWiring.test_extraction_status_dispatches_from_main:4180`; live run exit 0 with valid JSON | yes |
+| `make ze-rfc-check` with an armed rate above the signed count | `TestDrainFloorWiring.test_run_check_fails_when_signed_count_is_below_the_floor:4139`, twin `:4148` | yes |
+| `make ze-rfc-check` with `rfc/drain-budget.txt` deleted | `TestDrainFloor.test_missing_drain_budget_is_error_not_empty:3888` -- asserts the message names `drain-budget.txt` | yes |
+| `make ze-rfc-index` then `make ze-rfc-check` | `TestExtractionLedger.test_stale_extraction_table_fails_check_fresh:3631` -- through the EXISTING `check_ledger_fresh` | yes |
+| `make ze-rfc-index` with sign-offs in more than one register | `TestExtractionLedger.test_registers_are_published_in_separate_columns:3561` + `test_no_bare_signed_total_is_rendered:3580` | yes |
+| The Python suite is actually discovered and run by Go | `go test ./scripts/dev/ -run TestPythonUnitTests -count=1` -> `ok github.com/ze-software/ze/scripts/dev 57.747s`, EXIT=0 | yes |
+| ~~`make ze-rfc-check` after the rfc7296 pilot lands~~ | -- | MOVED with AC-24 to `plan/spec-rfcgate-1b-rfc7296-pilot.md` |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Live derivation over 166 RFCs: 4208 capitalised sites (est. 3988), 69 RFCs with more sites than captured (est. 61), raw deficit 1845 (est. 1683). Every figure within ~10% and in the same direction |
+| A-2 | confirmed, minority LARGER than estimated | Measured register split `rfc2119` 101 / `prose` 64 / `manual-walk` 1; **65 of 166** cannot take the strong grade against an estimate of 53. Gated live by `TestRealTreeExtraction.test_a_large_minority_cannot_take_the_rfc2119_grade` |
+| A-3 | confirmed, at a stated denominator | **23**, not 22, at the SITE denominator; `rfc5443` is the whole difference (its 5 uppercase occurrences sit inside its own 2119 boilerplate). Both figures right at their own denominator. `test_keyword_free_sources_never_derive_rfc2119` |
+| A-4 | confirmed | 777 prose sites over those stems (est. 688), so the prose register rescues almost all of them: `test_the_prose_register_rescues_almost_all_of_them` |
+| A-5 | confirmed exactly | `rfc1877` is the sole live `manual-walk` stem, 4 gated MUSTs, empty under both scans. The register is retained regardless of the count, per owner ruling 1 |
+| A-6 | confirmed MORE strongly | 2862 hole-sites sit in sections that ALREADY carry ids (est. 558), so section-only granularity would miss **48%** of them, not 25%. Site granularity is required by evidence |
+| A-7 | **deferred with a destination** | A claim about FUTURE churn; no evidence inside one session settles it. Detected rather than absorbed: `_evaluate_extraction:2498-2508` fails an artifact the moment its source moves. Homed at `plan/deferrals/rfcgate-1-extraction.md:9` -> `plan/spec-followup-rfc-enrollment.md`. NOT left `unvalidated` |
+| A-8 | confirmed | The envelope is emitted and consumed as designed (live `make ze-rfc-extraction-status`), and the counting RULE is owner ruling 1, not a child's design choice |
+| A-9 | confirmed | `--check` +0.07s (+3%); `make ze-rfc-check` 11.7s end to end, re-measured green at closure. Well inside `_git_cat_blobs:942`'s budget |
+| A-10 | confirmed by the walk | The phase-8a walk returned 214 distinct obligations; no pre-walk figure predicted it (this spec's own estimate was 263 SITES, a different unit). `plan/deferrals/rfcgate-1-extraction.md:8` |
+| A-11 | **moved with phase 8** | Its validation method IS phase 8c, which owner ruling 3 assigned to `plan/spec-rfcgate-1b-rfc7296-pilot.md`. That spec already records the implementation-side finding at `:181-182`; the proof-side question A-11 asks is its phase 8c work |
+
+No assumption is left `unvalidated`: nine are confirmed, one is deferred with a named
+destination spec, one moved with the phase that owns its validation method.
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 10 (test infrastructure): `docs/functional-tests.md` documents the extraction sign-off | `grep -n` -> `:693-711` describes the artifact and the two make targets; `:713` carries `<!-- source: scripts/dev/rfc_requirements.py -- check_extraction_signoff/run_extract_skeleton -->`, and both symbols exist (`:2673`, `:2385`) | yes |
+| Row 10: `docs/contributing/rfc-implementation-guide.md` carries the sign-off step | `grep -n` -> `:563-564` (checklist), `:581` (command), `:591` (contract), anchors at `:593`, `:600`, `:601`. `:596-597` warns that `make ze-rfc-extraction-status --json` is unrunnable -- the DEV-3 correction actually applied | yes |
+| Row 16 (existing anchors naming changed files): `ai/INDEX.md` Dev Tools and keyword rows | `grep -n` -> `:214`, `:215`, `:375`; both make targets exist (`Makefile:452`, `:460`) and the described behavior matches `run_extract_skeleton` / `run_extraction_status` | yes |
+| Row 17 (existing docs showing the superseded method): `ai/skills/ze-rfc.md` two-grep self-check replaced | `grep -n` -> `:30` (the enrolment precondition), `:51` (`make ze-rfc-extract STEM=$ARGUMENTS`), `:65` (contract), `:69` (backlog + status target). Canonical source, so `make ze-ai-sync` regenerates the three skill trees | yes |
+| `ai/rules/rfc-compliance.md` ratchet table reads FIVE | `grep -n` -> rows at `:124`, `:125`, `:126`, `:127`, `:128`, the fifth being `check_extraction_ratchet`. Also `:82` (the recorded walk) and `:98` (the first-sign-off limitation) | yes |
+| `ai/RFC-REQUIREMENTS.md` extraction table is generated and current | `grep -n '## Extraction sign-off'` -> `:182`; `:186` carries the register split; `grep -c 'UNSIGNED (grandfathered)'` -> `166`. `make ze-rfc-check` exit 0 includes `check_ledger_fresh`, which re-renders and compares, so a stale table would have redded | yes |
+| Row 9 (RFC behavior) and the re-answers of rows 1, 7, 11 | `git status --porcelain` shows `docs/features/rfc-status.md`, `rfc/enrolled.txt` and `rfc/short/rfc7296.md` ABSENT, i.e. unmodified. The machinery changes no protocol behavior, so all four are No for this spec; the Yes moved with phase 8 to `plan/spec-rfcgate-1b-rfc7296-pilot.md` | yes |
+| Rows 2, 3, 4, 5, 8, 12, 13, 14, 15 (config, CLI, API/RPC, plugin, SDK, architecture, route metadata, metrics, registry inventory) | No `ze` subcommand, RPC, YANG, plugin or metric was added: the new entry points are two make targets on a dev script (`Makefile:452`, `:460`) and two flags on `main:3389-3403`. `git status` shows no `internal/`, `pkg/` or `cmd/` file in this diff except the concurrent session's MCP work | yes |
+
+## Core Insight
+
+A gate that checks whether every listed obligation is proven cannot see an obligation
+nobody listed, and no amount of strengthening that comparison ever will: the missing oracle
+is the RFC's own text. The whole design follows from taking that seriously -- derive the
+inventory from the source at check time so a hand-typed number cannot lie, derive the
+REGISTER too so the RFCs that would most benefit from claiming strong evidence are exactly
+the ones that cannot, and make the skeleton writer emit only UNCLASSIFIED entries so that
+mass-generating artifacts turns the gate redder rather than greener. That last one is the
+transferable part: when the failure mode is social (declare instead of prove), the durable
+answer is a structure in which the cheap move is also the losing move, not a policy telling
+people not to make it.

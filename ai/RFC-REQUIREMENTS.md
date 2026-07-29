@@ -179,6 +179,183 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `rfc9830` | 96 | 60 | 0 | 36 | 0 | 0 | **enrolled** |
 | `sflow-v5` | 16 | 1 | 0 | 15 | 0 | 0 | **enrolled** |
 
+## Extraction sign-off
+
+Every other table here judges the requirements a summary LISTS. None of them can see an obligation nobody wrote down, so a green gate is bounded by what was extracted (`ai/rules/rfc-compliance.md`, Extraction Completeness). A sign-off (`rfc/extraction/<stem>.json`) bounds the MISS: every normative site of the RFC's own text is mapped to a requirement id or excluded with a reason, and the gate re-derives the inventory and re-checks the arithmetic on every run.
+
+Signed off by register: rfc2119 0, prose 0, manual-walk 0. Unsigned (grandfathered) backlog: 166 of 166 enrolled. Every register counts toward the drain quota; each is published apart so a count can never be read as stronger evidence than it is.
+
+`Register` is DERIVED from the source text and refused when an artifact claims a stronger grade than the derivation supports: `rfc2119` (capitalised keywords, at least as many sites as the summary declares gated rows), `prose` (lowercase indicative modals), `manual-walk` (no mechanical inventory exists at all -- an assertion the gate cannot verify). Derived columns are blank for an unsigned stem: nobody has walked it, so there is nothing established to publish.
+
+| RFC | Register | Sites | Mapped | Excluded | Exclusion ratio | Gated rows | Signed off |
+|---|---|---|---|---|---|---|---|
+| `draft-abraitis-idr-addpath-paths-limit` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `draft-ietf-bess-mup-safi` | -- | -- | -- | -- | -- | 40 | UNSIGNED (grandfathered) |
+| `draft-ietf-sidrops-aspa-verification` | -- | -- | -- | -- | -- | 8 | UNSIGNED (grandfathered) |
+| `rfc1071` | -- | -- | -- | -- | -- | 8 | UNSIGNED (grandfathered) |
+| `rfc1195` | -- | -- | -- | -- | -- | 10 | UNSIGNED (grandfathered) |
+| `rfc1332` | -- | -- | -- | -- | -- | 6 | UNSIGNED (grandfathered) |
+| `rfc1334` | -- | -- | -- | -- | -- | 7 | UNSIGNED (grandfathered) |
+| `rfc1350` | -- | -- | -- | -- | -- | 11 | UNSIGNED (grandfathered) |
+| `rfc1661` | -- | -- | -- | -- | -- | 65 | UNSIGNED (grandfathered) |
+| `rfc1877` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `rfc1994` | -- | -- | -- | -- | -- | 17 | UNSIGNED (grandfathered) |
+| `rfc1997` | -- | -- | -- | -- | -- | 5 | UNSIGNED (grandfathered) |
+| `rfc2003` | -- | -- | -- | -- | -- | 13 | UNSIGNED (grandfathered) |
+| `rfc2131` | -- | -- | -- | -- | -- | 64 | UNSIGNED (grandfathered) |
+| `rfc2132` | -- | -- | -- | -- | -- | 34 | UNSIGNED (grandfathered) |
+| `rfc2181` | -- | -- | -- | -- | -- | 23 | UNSIGNED (grandfathered) |
+| `rfc2205` | -- | -- | -- | -- | -- | 6 | UNSIGNED (grandfathered) |
+| `rfc2328` | -- | -- | -- | -- | -- | 25 | UNSIGNED (grandfathered) |
+| `rfc2347` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `rfc2348` | -- | -- | -- | -- | -- | 5 | UNSIGNED (grandfathered) |
+| `rfc2349` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `rfc2473` | -- | -- | -- | -- | -- | 11 | UNSIGNED (grandfathered) |
+| `rfc2516` | -- | -- | -- | -- | -- | 21 | UNSIGNED (grandfathered) |
+| `rfc2661` | -- | -- | -- | -- | -- | 18 | UNSIGNED (grandfathered) |
+| `rfc2759` | -- | -- | -- | -- | -- | 12 | UNSIGNED (grandfathered) |
+| `rfc2782` | -- | -- | -- | -- | -- | 7 | UNSIGNED (grandfathered) |
+| `rfc2784` | -- | -- | -- | -- | -- | 11 | UNSIGNED (grandfathered) |
+| `rfc2865` | -- | -- | -- | -- | -- | 10 | UNSIGNED (grandfathered) |
+| `rfc2866` | -- | -- | -- | -- | -- | 5 | UNSIGNED (grandfathered) |
+| `rfc2869` | -- | -- | -- | -- | -- | 5 | UNSIGNED (grandfathered) |
+| `rfc2890` | -- | -- | -- | -- | -- | 7 | UNSIGNED (grandfathered) |
+| `rfc2918` | -- | -- | -- | -- | -- | 6 | UNSIGNED (grandfathered) |
+| `rfc2966` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `rfc3031` | -- | -- | -- | -- | -- | 7 | UNSIGNED (grandfathered) |
+| `rfc3032` | -- | -- | -- | -- | -- | 17 | UNSIGNED (grandfathered) |
+| `rfc3101` | -- | -- | -- | -- | -- | 15 | UNSIGNED (grandfathered) |
+| `rfc3209` | -- | -- | -- | -- | -- | 13 | UNSIGNED (grandfathered) |
+| `rfc3623` | -- | -- | -- | -- | -- | 13 | UNSIGNED (grandfathered) |
+| `rfc3630` | -- | -- | -- | -- | -- | 5 | UNSIGNED (grandfathered) |
+| `rfc3748` | -- | -- | -- | -- | -- | 20 | UNSIGNED (grandfathered) |
+| `rfc3768` | -- | -- | -- | -- | -- | 39 | UNSIGNED (grandfathered) |
+| `rfc3786` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `rfc3787` | -- | -- | -- | -- | -- | 3 | UNSIGNED (grandfathered) |
+| `rfc3948` | -- | -- | -- | -- | -- | 8 | UNSIGNED (grandfathered) |
+| `rfc3954` | -- | -- | -- | -- | -- | 9 | UNSIGNED (grandfathered) |
+| `rfc4035` | -- | -- | -- | -- | -- | 108 | UNSIGNED (grandfathered) |
+| `rfc4090` | -- | -- | -- | -- | -- | 11 | UNSIGNED (grandfathered) |
+| `rfc4213` | -- | -- | -- | -- | -- | 23 | UNSIGNED (grandfathered) |
+| `rfc4271` | -- | -- | -- | -- | -- | 83 | UNSIGNED (grandfathered) |
+| `rfc4301` | -- | -- | -- | -- | -- | 15 | UNSIGNED (grandfathered) |
+| `rfc4303` | -- | -- | -- | -- | -- | 17 | UNSIGNED (grandfathered) |
+| `rfc4360` | -- | -- | -- | -- | -- | 6 | UNSIGNED (grandfathered) |
+| `rfc4364` | -- | -- | -- | -- | -- | 8 | UNSIGNED (grandfathered) |
+| `rfc4456` | -- | -- | -- | -- | -- | 6 | UNSIGNED (grandfathered) |
+| `rfc4552` | -- | -- | -- | -- | -- | 27 | UNSIGNED (grandfathered) |
+| `rfc4555` | -- | -- | -- | -- | -- | 6 | UNSIGNED (grandfathered) |
+| `rfc4576` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `rfc4577` | -- | -- | -- | -- | -- | 36 | UNSIGNED (grandfathered) |
+| `rfc4578` | -- | -- | -- | -- | -- | 5 | UNSIGNED (grandfathered) |
+| `rfc4659` | -- | -- | -- | -- | -- | 16 | UNSIGNED (grandfathered) |
+| `rfc4684` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `rfc4724` | -- | -- | -- | -- | -- | 26 | UNSIGNED (grandfathered) |
+| `rfc4760` | -- | -- | -- | -- | -- | 6 | UNSIGNED (grandfathered) |
+| `rfc4761` | -- | -- | -- | -- | -- | 18 | UNSIGNED (grandfathered) |
+| `rfc4862` | -- | -- | -- | -- | -- | 16 | UNSIGNED (grandfathered) |
+| `rfc5036` | -- | -- | -- | -- | -- | 14 | UNSIGNED (grandfathered) |
+| `rfc5072` | -- | -- | -- | -- | -- | 15 | UNSIGNED (grandfathered) |
+| `rfc5176` | -- | -- | -- | -- | -- | 5 | UNSIGNED (grandfathered) |
+| `rfc5187` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `rfc5216` | -- | -- | -- | -- | -- | 14 | UNSIGNED (grandfathered) |
+| `rfc5250` | -- | -- | -- | -- | -- | 9 | UNSIGNED (grandfathered) |
+| `rfc5286` | -- | -- | -- | -- | -- | 6 | UNSIGNED (grandfathered) |
+| `rfc5303` | -- | -- | -- | -- | -- | 18 | UNSIGNED (grandfathered) |
+| `rfc5304` | -- | -- | -- | -- | -- | 9 | UNSIGNED (grandfathered) |
+| `rfc5305` | -- | -- | -- | -- | -- | 8 | UNSIGNED (grandfathered) |
+| `rfc5308` | -- | -- | -- | -- | -- | 7 | UNSIGNED (grandfathered) |
+| `rfc5310` | -- | -- | -- | -- | -- | 9 | UNSIGNED (grandfathered) |
+| `rfc5340` | -- | -- | -- | -- | -- | 23 | UNSIGNED (grandfathered) |
+| `rfc5392` | -- | -- | -- | -- | -- | 12 | UNSIGNED (grandfathered) |
+| `rfc5443` | -- | -- | -- | -- | -- | 8 | UNSIGNED (grandfathered) |
+| `rfc5492` | -- | -- | -- | -- | -- | 9 | UNSIGNED (grandfathered) |
+| `rfc5549` | -- | -- | -- | -- | -- | 6 | UNSIGNED (grandfathered) |
+| `rfc5561` | -- | -- | -- | -- | -- | 5 | UNSIGNED (grandfathered) |
+| `rfc5575` | -- | -- | -- | -- | -- | 12 | UNSIGNED (grandfathered) |
+| `rfc5701` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `rfc5709` | -- | -- | -- | -- | -- | 15 | UNSIGNED (grandfathered) |
+| `rfc5838` | -- | -- | -- | -- | -- | 16 | UNSIGNED (grandfathered) |
+| `rfc5880` | -- | -- | -- | -- | -- | 94 | UNSIGNED (grandfathered) |
+| `rfc5881` | -- | -- | -- | -- | -- | 23 | UNSIGNED (grandfathered) |
+| `rfc5882` | -- | -- | -- | -- | -- | 3 | UNSIGNED (grandfathered) |
+| `rfc5883` | -- | -- | -- | -- | -- | 8 | UNSIGNED (grandfathered) |
+| `rfc6071` | -- | -- | -- | -- | -- | 8 | UNSIGNED (grandfathered) |
+| `rfc6138` | -- | -- | -- | -- | -- | 2 | UNSIGNED (grandfathered) |
+| `rfc6286` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `rfc6396` | -- | -- | -- | -- | -- | 13 | UNSIGNED (grandfathered) |
+| `rfc6397` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `rfc6482` | -- | -- | -- | -- | -- | 9 | UNSIGNED (grandfathered) |
+| `rfc6549` | -- | -- | -- | -- | -- | 1 | UNSIGNED (grandfathered) |
+| `rfc6608` | -- | -- | -- | -- | -- | 3 | UNSIGNED (grandfathered) |
+| `rfc6793` | -- | -- | -- | -- | -- | 30 | UNSIGNED (grandfathered) |
+| `rfc6810` | -- | -- | -- | -- | -- | 39 | UNSIGNED (grandfathered) |
+| `rfc6811` | -- | -- | -- | -- | -- | 5 | UNSIGNED (grandfathered) |
+| `rfc6996` | -- | -- | -- | -- | -- | 1 | UNSIGNED (grandfathered) |
+| `rfc7011` | -- | -- | -- | -- | -- | 19 | UNSIGNED (grandfathered) |
+| `rfc7012` | -- | -- | -- | -- | -- | 11 | UNSIGNED (grandfathered) |
+| `rfc7166` | -- | -- | -- | -- | -- | 17 | UNSIGNED (grandfathered) |
+| `rfc7296` | -- | -- | -- | -- | -- | 18 | UNSIGNED (grandfathered) |
+| `rfc7311` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `rfc7313` | -- | -- | -- | -- | -- | 10 | UNSIGNED (grandfathered) |
+| `rfc7427` | -- | -- | -- | -- | -- | 2 | UNSIGNED (grandfathered) |
+| `rfc7432` | -- | -- | -- | -- | -- | 82 | UNSIGNED (grandfathered) |
+| `rfc7440` | -- | -- | -- | -- | -- | 9 | UNSIGNED (grandfathered) |
+| `rfc7474` | -- | -- | -- | -- | -- | 10 | UNSIGNED (grandfathered) |
+| `rfc7534` | -- | -- | -- | -- | -- | 3 | UNSIGNED (grandfathered) |
+| `rfc7535` | -- | -- | -- | -- | -- | 1 | UNSIGNED (grandfathered) |
+| `rfc7606` | -- | -- | -- | -- | -- | 52 | UNSIGNED (grandfathered) |
+| `rfc7611` | -- | -- | -- | -- | -- | 5 | UNSIGNED (grandfathered) |
+| `rfc7684` | -- | -- | -- | -- | -- | 8 | UNSIGNED (grandfathered) |
+| `rfc7752` | -- | -- | -- | -- | -- | 26 | UNSIGNED (grandfathered) |
+| `rfc7770` | -- | -- | -- | -- | -- | 11 | UNSIGNED (grandfathered) |
+| `rfc7854` | -- | -- | -- | -- | -- | 12 | UNSIGNED (grandfathered) |
+| `rfc7858` | -- | -- | -- | -- | -- | 19 | UNSIGNED (grandfathered) |
+| `rfc7871` | -- | -- | -- | -- | -- | 38 | UNSIGNED (grandfathered) |
+| `rfc7911` | -- | -- | -- | -- | -- | 9 | UNSIGNED (grandfathered) |
+| `rfc792` | -- | -- | -- | -- | -- | 6 | UNSIGNED (grandfathered) |
+| `rfc7947` | -- | -- | -- | -- | -- | 3 | UNSIGNED (grandfathered) |
+| `rfc7950` | -- | -- | -- | -- | -- | 9 | UNSIGNED (grandfathered) |
+| `rfc8050` | -- | -- | -- | -- | -- | 6 | UNSIGNED (grandfathered) |
+| `rfc8092` | -- | -- | -- | -- | -- | 7 | UNSIGNED (grandfathered) |
+| `rfc8097` | -- | -- | -- | -- | -- | 5 | UNSIGNED (grandfathered) |
+| `rfc8203` | -- | -- | -- | -- | -- | 5 | UNSIGNED (grandfathered) |
+| `rfc8210` | -- | -- | -- | -- | -- | 56 | UNSIGNED (grandfathered) |
+| `rfc8277` | -- | -- | -- | -- | -- | 34 | UNSIGNED (grandfathered) |
+| `rfc8414` | -- | -- | -- | -- | -- | 7 | UNSIGNED (grandfathered) |
+| `rfc8484` | -- | -- | -- | -- | -- | 16 | UNSIGNED (grandfathered) |
+| `rfc8571` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `rfc8654` | -- | -- | -- | -- | -- | 12 | UNSIGNED (grandfathered) |
+| `rfc8665` | -- | -- | -- | -- | -- | 47 | UNSIGNED (grandfathered) |
+| `rfc8666` | -- | -- | -- | -- | -- | 31 | UNSIGNED (grandfathered) |
+| `rfc8669` | -- | -- | -- | -- | -- | 25 | UNSIGNED (grandfathered) |
+| `rfc8671` | -- | -- | -- | -- | -- | 3 | UNSIGNED (grandfathered) |
+| `rfc8707` | -- | -- | -- | -- | -- | 7 | UNSIGNED (grandfathered) |
+| `rfc8907` | -- | -- | -- | -- | -- | 11 | UNSIGNED (grandfathered) |
+| `rfc8950` | -- | -- | -- | -- | -- | 6 | UNSIGNED (grandfathered) |
+| `rfc8955` | -- | -- | -- | -- | -- | 22 | UNSIGNED (grandfathered) |
+| `rfc8956` | -- | -- | -- | -- | -- | 9 | UNSIGNED (grandfathered) |
+| `rfc9003` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `rfc9012` | -- | -- | -- | -- | -- | 75 | UNSIGNED (grandfathered) |
+| `rfc905` | -- | -- | -- | -- | -- | 9 | UNSIGNED (grandfathered) |
+| `rfc9069` | -- | -- | -- | -- | -- | 7 | UNSIGNED (grandfathered) |
+| `rfc9072` | -- | -- | -- | -- | -- | 9 | UNSIGNED (grandfathered) |
+| `rfc9085` | -- | -- | -- | -- | -- | 12 | UNSIGNED (grandfathered) |
+| `rfc9086` | -- | -- | -- | -- | -- | 12 | UNSIGNED (grandfathered) |
+| `rfc9136` | -- | -- | -- | -- | -- | 14 | UNSIGNED (grandfathered) |
+| `rfc9234` | -- | -- | -- | -- | -- | 19 | UNSIGNED (grandfathered) |
+| `rfc9252` | -- | -- | -- | -- | -- | 19 | UNSIGNED (grandfathered) |
+| `rfc9256` | -- | -- | -- | -- | -- | 22 | UNSIGNED (grandfathered) |
+| `rfc9319` | -- | -- | -- | -- | -- | 4 | UNSIGNED (grandfathered) |
+| `rfc9494` | -- | -- | -- | -- | -- | 25 | UNSIGNED (grandfathered) |
+| `rfc9514` | -- | -- | -- | -- | -- | 13 | UNSIGNED (grandfathered) |
+| `rfc9552` | -- | -- | -- | -- | -- | 42 | UNSIGNED (grandfathered) |
+| `rfc9568` | -- | -- | -- | -- | -- | 59 | UNSIGNED (grandfathered) |
+| `rfc9582` | -- | -- | -- | -- | -- | 10 | UNSIGNED (grandfathered) |
+| `rfc9728` | -- | -- | -- | -- | -- | 7 | UNSIGNED (grandfathered) |
+| `rfc9830` | -- | -- | -- | -- | -- | 96 | UNSIGNED (grandfathered) |
+| `sflow-v5` | -- | -- | -- | -- | -- | 16 | UNSIGNED (grandfathered) |
+
 ## DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT -- enrolled (gated)
 
 | Requirement | Level | § | Positive test | Negative test | Note |
@@ -4094,7 +4271,7 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 | `RFC8414-2-6` | RECOMMENDED | 2 | -- | -- |  |
 | `RFC8414-3-1` | MUST | 3 | -- | -- | {not-applicable} this is an authorization-server publishing obligation; ze is an OAuth resource server that only consumes AS metadata (internal/component/mcp/as_metadata.go fetches and reads issuer/jwks_uri) and publishes no RFC 8414 metadata endpoint |
 | `RFC8414-3.3-1` | MUST | 3.3 | -- | -- | {gap} ze does not force the RFC 8414 authorization-server metadata fetch URL to https; internal/component/mcp/streamable_auth.go:122-123 admits an http:// scheme, leaving transport security to the operator-configured scheme |
-| `RFC8414-3.3-2` | MUST | 3.3 | `internal/component/mcp/oauth_e2e_test.go:141` | `internal/component/mcp/oauth_e2e_test.go:130` |  |
+| `RFC8414-3.3-2` | MUST | 3.3 | `internal/component/mcp/oauth_e2e_test.go:151` | `internal/component/mcp/oauth_e2e_test.go:130` |  |
 
 ## RFC8484 -- enrolled (gated)
 
@@ -4372,12 +4549,12 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 |---|---|---|---|---|---|
 | `RFC8707-2-1` | MUST | 2 | -- | -- | {not-applicable} this governs the canonical resource URI a client forms and sends as the resource request parameter; ze is a resource server that never emits or consumes that parameter (internal/component/mcp validates the token audience only) |
 | `RFC8707-2-2` | MUST | 2 | -- | -- | {not-applicable} this governs the client-formed canonical resource URI; ze (resource server) never emits or consumes the resource request parameter, validating only the token audience |
-| `RFC8707-2-3` | MUST | 2 | `internal/component/mcp/oauth_e2e_test.go:345`, `internal/component/mcp/oauth_e2e_test.go:397` | `internal/component/mcp/oauth_e2e_test.go:359` |  |
+| `RFC8707-2-3` | MUST | 2 | `internal/component/mcp/oauth_e2e_test.go:371`, `internal/component/mcp/oauth_e2e_test.go:431` | `internal/component/mcp/oauth_e2e_test.go:385` |  |
 | `RFC8707-2-4` | MAY | 2 | -- | -- |  |
 | `RFC8707-2-5` | MAY | 2 | -- | -- |  |
 | `RFC8707-3-1` | MUST | 3 | -- | -- | {not-applicable} setting the token audience is an authorization-server obligation performed when minting a token; ze is an OAuth resource server (internal/component/mcp) and never issues or signs tokens, so it has no audience-setting code path |
 | `RFC8707-3-2` | MUST | 3 | -- | -- | {not-applicable} the invalid_target error is an authorization-server token-endpoint behavior; ze has no token or authorization endpoint (grep for invalid_target in internal/component/mcp finds none) |
-| `RFC8707-5-1` | MUST | 5 | `internal/component/mcp/oauth_e2e_test.go:396` | `internal/component/mcp/jwt_test.go:268` |  |
+| `RFC8707-5-1` | MUST | 5 | `internal/component/mcp/oauth_e2e_test.go:430` | `internal/component/mcp/jwt_test.go:268` |  |
 | `RFC8707-5-2` | MUST | 5 | `internal/component/mcp/jwt_test.go:278` | `internal/component/mcp/jwt_test.go:482` |  |
 
 ## RFC8907 -- enrolled (gated)
@@ -5104,17 +5281,17 @@ An RFC is **enrolled** (`rfc/enrolled.txt`) when every MUST-level requirement it
 
 | Requirement | Level | § | Positive test | Negative test | Note |
 |---|---|---|---|---|---|
-| `RFC9728-2-1` | MUST | 2 | `internal/component/mcp/oauth_e2e_test.go:279`, `internal/component/mcp/oauth_test.go:212` | -- | {single-polarity} the resource field is emitted unconditionally by writeResourceMetadata (internal/component/mcp/oauth.go:170-171,184-192), so no input can make it absent and there is no negative to assert |
-| `RFC9728-2-2` | MUST | 2 | `internal/component/mcp/oauth_e2e_test.go:283`, `internal/component/mcp/oauth_test.go:216` | -- | {single-polarity} authorization_servers is emitted unconditionally by writeResourceMetadata (internal/component/mcp/oauth.go:172,190), so no input can make it absent and there is no negative to assert |
+| `RFC9728-2-1` | MUST | 2 | `internal/component/mcp/oauth_e2e_test.go:305`, `internal/component/mcp/oauth_test.go:212` | -- | {single-polarity} the resource field is emitted unconditionally by writeResourceMetadata (internal/component/mcp/oauth.go:170-171,184-192), so no input can make it absent and there is no negative to assert |
+| `RFC9728-2-2` | MUST | 2 | `internal/component/mcp/oauth_e2e_test.go:309`, `internal/component/mcp/oauth_test.go:216` | -- | {single-polarity} authorization_servers is emitted unconditionally by writeResourceMetadata (internal/component/mcp/oauth.go:172,190), so no input can make it absent and there is no negative to assert |
 | `RFC9728-2-3` | MUST | 2 | -- | -- | {not-applicable} this obligation binds an OAuth client consuming the metadata to ignore unrecognized members; ze is the protected-resource-metadata publisher (internal/component/mcp/oauth.go:169-179 emits only defined fields) and does not consume the document |
 | `RFC9728-2-4` | MAY | 2 | -- | -- |  |
 | `RFC9728-2-5` | MAY | 2 | -- | -- |  |
 | `RFC9728-3-1` | MUST | 3 | -- | -- | {not-applicable} the metadata endpoint is served by the same http.Server as the protected resource (internal/component/mcp/streamable.go), so its transport scheme is identical to the resource's by construction; TLS is operator listener configuration (cmd/ze/hub/service_mcp.go:207-224), not an internal/component/mcp producer |
-| `RFC9728-3.1-1` | MUST | 3.1 | `internal/component/mcp/oauth_e2e_test.go:271` | `internal/component/mcp/oauth_test.go:278` |  |
+| `RFC9728-3.1-1` | MUST | 3.1 | `internal/component/mcp/oauth_e2e_test.go:297` | `internal/component/mcp/oauth_test.go:278` |  |
 | `RFC9728-3.2-1` | SHOULD | 3.2 | -- | -- |  |
 | `RFC9728-3.2-2` | MAY | 3.2 | -- | -- |  |
-| `RFC9728-5.1-1` | MUST | 5.1 | `internal/component/mcp/oauth_e2e_test.go:208`, `internal/component/mcp/oauth_test.go:48` | -- | {single-polarity} every challengeError sets ResourceMetadata (internal/component/mcp/oauth.go:122) and WWWAuthenticate always appends it when set (internal/component/mcp/auth.go:177), so the 401 carries resource_metadata by construction and there is no negative to assert |
-| `RFC9728-5.1-2` | MUST | 5.1 | `internal/component/mcp/oauth_e2e_test.go:801` | `internal/component/mcp/oauth_e2e_test.go:792` |  |
+| `RFC9728-5.1-1` | MUST | 5.1 | `internal/component/mcp/oauth_e2e_test.go:231`, `internal/component/mcp/oauth_test.go:48` | -- | {single-polarity} every challengeError sets ResourceMetadata (internal/component/mcp/oauth.go:122) and WWWAuthenticate always appends it when set (internal/component/mcp/auth.go:177), so the 401 carries resource_metadata by construction and there is no negative to assert |
+| `RFC9728-5.1-2` | MUST | 5.1 | `internal/component/mcp/oauth_e2e_test.go:847` | `internal/component/mcp/oauth_e2e_test.go:838` |  |
 
 ## RFC9830 -- enrolled (gated)
 

@@ -26,7 +26,9 @@ Generate a structured implementation summary from an RFC text file.
    MUST is met — classify each honestly as tested, `{single-polarity}`, `{gap}` (with a
    non-"Supported" `docs/features/rfc-status.md` row) or `{not-applicable}`. The gate also
    fails a new summary that does not parse, or that captures zero requirements while
-   `rfc/full/<stem>.txt` contains MUST-level keywords.
+   `rfc/full/<stem>.txt` contains MUST-level keywords. **Enrolling a stem that was not
+   enrolled at HEAD also requires an extraction sign-off** (`rfc/extraction/<stem>.json`);
+   see "Extraction sign-off" below.
 7. VERIFY: Re-read RFC and summary, check:
    - ALL wire formats captured with ASCII diagrams?
    - ALL MUST requirements listed?
@@ -40,18 +42,37 @@ Generate a structured implementation summary from an RFC text file.
    - Checklist entries grouped by keyword level (MUST > SHOULD > MAY)?
    - EVERY line has a unique requirement ID, and no ID was renumbered or reused?
 
-**Coverage self-check (BLOCKING).** Before finishing, count the normative keywords in the
-source and compare against your checklist:
+**Extraction sign-off (BLOCKING before enrolling).** The old two-grep, eyeball-the-ratio
+coverage check is superseded: it was an honour-system count that nothing recorded and
+nothing re-checked. Record the walk instead, in an artifact a machine re-checks on every
+`make ze-rfc-check`:
 
 ```
-grep -oE '\b(MUST NOT|MUST|SHALL NOT|SHALL|SHOULD NOT|SHOULD|MAY)\b' rfc/full/$ARGUMENTS.txt | sort | uniq -c
-grep -cE '^- \[ \] \[' rfc/short/$ARGUMENTS.md
+make ze-rfc-extract STEM=$ARGUMENTS     # writes an UNCLASSIFIED skeleton
+                                        # then classify every site and section by hand
+make ze-rfc-check                       # re-derives the inventory and judges it
 ```
 
-The counts will not match exactly (one requirement can span several keyword occurrences, and
-duplicates merge into one line). But an order-of-magnitude gap means you under-captured. This
-check exists because it caught real failures: `rfc5303`, `rfc5304`, and `rfc5310` shipped
-summaries with 23, 13, and 12 normative keywords in the source and **zero** captured.
+The skeleton lists every normative site of the source (`<section>:<n>` plus the derived
+sentence) and every section, with each disposition `null`. Classify each site `mapped` to
+a requirement id or `excluded` with a kind and a reason, and each section `walked` or
+`skipped`. **An unclassified site fails the check**, so generating the skeleton makes the
+gate redder, never greener; only the walk makes it green.
+
+Two arithmetics run: FORWARD (every derived site is accounted for) catches an obligation
+you missed, and REVERSE (every gated requirement is some site's target, or is listed in a
+section's `unsourced-ids`) catches one you invented. Contract:
+`rfc/extraction/README.md`.
+
+For a stem enrolled since HEAD the sign-off is a PRECONDITION of enrolment
+(`check_enrolment`). RFCs enrolled before the gate existed are grandfathered and published
+as a counted backlog in `ai/RFC-REQUIREMENTS.md`; `make ze-rfc-extraction-status` emits the
+same counts as JSON.
+
+This replaces a check that had caught real failures and would have caught more: `rfc5303`,
+`rfc5304` and `rfc5310` shipped summaries with 23, 13 and 12 normative keywords in the
+source and **zero** captured. A ratio you eyeball says "roughly enough"; a classified site
+list says which sentence, by name.
 
 ## Keep the ledger committed (BLOCKING)
 

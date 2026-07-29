@@ -39,12 +39,18 @@ Exit 2 = violations found, or the gate could not run (unparseable input, nothing
          and found nothing", never "I compared nothing" (ai/rules/fail-closed-guards.md).
 """
 
+import calendar
+import datetime
 import hashlib
 import json
+import math
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
+import time
 from typing import Dict, List, NamedTuple, Optional, Sequence, Set, Tuple
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -653,9 +659,24 @@ def evaluate(
 # Enrolment ratchet
 # --------------------------------------------------------------------------
 def check_enrolment(
-    current: Set[str], baseline: Set[str], summaries: Set[str]
+    current: Set[str],
+    baseline: Set[str],
+    summaries: Set[str],
+    newly_enrolled: Optional[Set[str]] = None,
+    signed: Optional[Set[str]] = None,
 ) -> List[str]:
-    """Enrolment grows only, and never names an RFC we have no summary for."""
+    """Enrolment grows only, never names an RFC we have no summary for, and -- for a
+    stem enrolled since HEAD -- requires a valid extraction sign-off.
+
+    `newly_enrolled` is computed by the CALLER rather than as `current - baseline` here,
+    because the two have opposite failure polarities. Every other use of `baseline` in
+    this function is `baseline - current`, where _git_baseline_enrolment:698 returning an
+    empty set on git failure accuses nobody. `current - baseline` against that same empty
+    set would accuse all 166 enrolled RFCs of being new -- a wall of violations no
+    developer can act on, which teaches people to bypass the gate
+    (_git_baseline_summary_stems:763 documents the same trap). None means "could not
+    tell", and the precondition is then not evaluated.
+    """
     errs: List[str] = []
     if not current:
         errs.append(
@@ -682,6 +703,17 @@ def check_enrolment(
                 f"(https://www.rfc-editor.org/rfc/{rfc}.txt for an RFC; the datatracker "
                 f"archive for a draft) before enrolling"
             )
+    for rfc in sorted(newly_enrolled or ()):
+        if rfc in (signed or set()):
+            continue
+        errs.append(
+            f"{rfc} is newly enrolled with no valid extraction sign-off at "
+            f"rfc/extraction/{rfc}.json. Enrolling gates the requirements the summary "
+            f"LISTS; nothing bounds what it MISSED until the source text has been walked "
+            f"site by site (ai/rules/rfc-compliance.md, Extraction Completeness). Run: "
+            f"make ze-rfc-extract STEM={rfc}, then classify every site and section. "
+            f"RFCs enrolled before this gate existed are grandfathered and unaffected"
+        )
     return errs
 
 
@@ -695,7 +727,18 @@ def parse_enrolled(text: str) -> Set[str]:
     return out
 
 
-def _git_baseline_enrolment() -> Set[str]:
+def _git_baseline_enrolment() -> Optional[Set[str]]:
+    """The RFCs enrolled at HEAD, or None when git could not answer.
+
+    None, not set(), and for the same reason as _git_baseline_summary_stems:791: this
+    baseline feeds TWO consumers with OPPOSITE polarities. check_enrolment reads it as
+    `baseline - current` (the un-enrolment ratchet), where an empty set accuses nobody and
+    is safe; run_check derives `current - baseline` from it for the new-enrolment sign-off
+    precondition, where an empty set accuses EVERY enrolled RFC of being new -- 166
+    violations no developer can act on, which is exactly the wall that teaches people to
+    bypass a gate. Only this reader knows which case it is in, so it must not hand both
+    consumers the same answer. Each caller says what it does with the unknown.
+    """
     try:
         res = subprocess.run(
             ["git", "show", "HEAD:rfc/enrolled.txt"],
@@ -705,9 +748,9 @@ def _git_baseline_enrolment() -> Set[str]:
             check=False,
         )
     except OSError:
-        return set()
+        return None
     if res.returncode != 0:
-        return set()
+        return None
     return parse_enrolled(res.stdout)
 
 
@@ -1212,8 +1255,8 @@ def check_status_agreement(
 # Fingerprints (drive /ze-rfc-audit staleness)
 # --------------------------------------------------------------------------
 def _normalize(src: str) -> str:
-    lines = [l.strip() for l in src.split("\n")]
-    return "\n".join(l for l in lines if l)
+    lines = [line.strip() for line in src.split("\n")]
+    return "\n".join(line for line in lines if line)
 
 
 def requirement_sha(text: str) -> str:
@@ -1325,16 +1368,16 @@ def source_keyword_count(stem: str) -> Optional[int]:
 
     This is the ground truth the summary is supposed to capture. Comparing it against the
     captured count is what exposes a summary that quietly captured nothing.
+
+    Reads through source_text, which owns the two-location lookup this function used to
+    inline. One reader, so a source the keyword count can see and the extraction inventory
+    cannot (or the reverse) is impossible by construction. Behaviour is unchanged: None
+    for an absent file and None for an unreadable one, exactly as before.
     """
-    for sub in ("full", "drafts"):
-        path = os.path.join(PROJECT_DIR, "rfc", sub, stem + ".txt")
-        if os.path.exists(path):
-            try:
-                with open(path, encoding="utf-8", errors="replace") as fh:
-                    return len(_SRC_KEYWORD_RE.findall(fh.read()))
-            except OSError:
-                return None
-    return None
+    text = source_text(stem)
+    if text is None:
+        return None
+    return len(_SRC_KEYWORD_RE.findall(text))
 
 
 def unconverted_summaries(captured: Set[str]) -> List[Dict[str, object]]:
@@ -1499,6 +1542,7 @@ def render_ledger(
     )
     out.append("")
     out.extend(_render_rollup(by_rfc, by_rid, enrolled))
+    out.extend(render_extraction_table(requirements, enrolled))
 
     for rfc in sorted(by_rfc):
         reqs = by_rfc[rfc]
@@ -1557,6 +1601,1537 @@ def render_ledger(
             out.append(f"| `{row['stem']}` | {srctxt} | {verdict} |")
         out.append("")
     return "\n".join(out)
+
+
+# --------------------------------------------------------------------------
+# Extraction sign-off (plan/spec-rfcgate-1-extraction.md)
+# --------------------------------------------------------------------------
+# Every check above judges the requirements a summary LISTS. None of them can see an
+# obligation nobody wrote down, so a green gate is bounded by what was extracted
+# (ai/rules/rfc-compliance.md, "Extraction Completeness"). This half bounds the MISS: a
+# per-RFC sign-off that a machine re-checks against the RFC's own text.
+#
+# Only DISPOSITIONS are authored. Sites, sections, quotes, the register and every
+# published count are derived at check time, so an unclassified site cannot be hidden and
+# a hand-typed "seen" count cannot exist (ai/rules/derive-not-hardcode.md).
+EXTRACTION_DIR = os.path.join(PROJECT_DIR, "rfc", "extraction")
+DRAIN_BUDGET_FILE = os.path.join(PROJECT_DIR, "rfc", "drain-budget.txt")
+
+EXTRACTION_SCHEMA_VERSION = 1
+
+# Strongest first. A sign-off may declare the DERIVED register or a WEAKER one; a stronger
+# claim than the source supports is refused (AC-9, AC-32).
+REGISTERS = ("rfc2119", "prose", "manual-walk")
+_REGISTER_STRENGTH = {name: len(REGISTERS) - i for i, name in enumerate(REGISTERS)}
+
+# Closed sets, validated at parse time exactly as ANNOTATION_KINDS:77 is. Anything outside
+# them is a ParseError, never a silently tolerated novel value.
+EXCLUSION_KINDS = frozenset(
+    {
+        "not-a-requirement",
+        "binds-another-role",
+        "duplicate-of",
+        "cross-document",
+        "advisory-in-context",
+    }
+)
+SECTION_SKIP_KINDS = frozenset(
+    {"front-matter", "references", "iana", "acknowledgements", "appendix-non-normative"}
+)
+
+SITE_DISPOSITIONS = frozenset({"mapped", "excluded"})
+SECTION_DISPOSITIONS = frozenset({"walked", "skipped"})
+
+# The section a site is attributed to when it precedes the first numbered heading. A site
+# must never be DROPPED for living in the preamble: that would be a silent hole in the
+# very bound this artifact exists to provide.
+FRONT_SECTION = "front"
+
+# Site scans. The capitalised set matches GATED_LEVELS:69 (SHOULD/MAY are listed in the
+# ledger and may be tagged, but never gate, so they are outside the inventory too). The
+# prose set is the same words case-insensitively: it is a strict superset, which is why an
+# RFC with capitalised keywords can never derive an EMPTY prose inventory.
+_SITE_KEYWORD_RE = re.compile(r"\b(?:MUST NOT|MUST|SHALL NOT|SHALL|REQUIRED)\b")
+_SITE_PROSE_RE = re.compile(
+    r"\b(?:must not|must|shall not|shall|required)\b", re.IGNORECASE
+)
+
+# The RFC 2119 / RFC 8174 key-words paragraph is not an obligation on a speaker; it is the
+# document saying how to read its other sentences. Counting it as a site would give every
+# RFC in the corpus one guaranteed site to classify as `not-a-requirement`, which is noise
+# that teaches a reviewer to skim.
+_BOILERPLATE_RE = re.compile(
+    r"key\s+words.{0,600}?(?:interpreted|RFC\s*2119|BCP\s*14)"
+    r"|interpreted\s+as\s+described\s+in\s+\[?(?:RFC\s*2119|BCP\s*14)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+# A heading sits at column 0. The numeric form tolerates a missing dot ("2 Requirements");
+# the alpha form (appendices) REQUIRES it, because "A speaker MUST ..." at column 0 would
+# otherwise read as appendix A.
+#
+# This pattern OVER-MATCHES, deliberately and unavoidably. RFCs put column-0 attribute
+# tables, packet diagrams and tables of contents in the same text stream: rfc2865:2893
+# ("1     Exactly one instance of this attribute MUST be present in packet."),
+# rfc2869:1742, rfc1195:2625 and sflow-v5:36 all match it, and no pattern can separate
+# "3.1  Route Selection" from a table row numbered 3.1 by shape alone. So the derivation is
+# built to survive a false match rather than to prevent one: _section_bodies keeps the
+# matched line's own text in the body (a false heading never ERASES its sentence) and
+# merges a repeated id into one section (a false heading never emits a duplicate the
+# artifact parser would refuse, and never restarts the per-section site numbering).
+_SECTION_HEADING_RE = re.compile(
+    r"^(?:Appendix\s+)?(?:(?P<num>\d+(?:\.\d+)*)\.?|(?P<alpha>[A-Z](?:\.\d+)*)\.)"
+    r"[ \t]+(?P<title>\S.*)$"
+)
+
+# Page furniture: "<author> <status> [Page N]", a form feed, then the running header.
+# Left in place it would land inside any quote whose sentence crosses a page boundary.
+_PAGE_FOOTER_RE = re.compile(r"\[Page\s+\d+\]\s*$")
+
+# Sentence boundary: end punctuation, whitespace, then something that starts a sentence.
+# Demanding the follower rules out "e.g. the" and "Fig. 3" without an abbreviation list.
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-Z\"(\[])")
+
+
+class Site(NamedTuple):
+    id: str  # "<section>:<n>"
+    quote: str
+    section: str
+
+
+class SectionEntry(NamedTuple):
+    id: str
+    sites: int
+
+
+class Inventory(NamedTuple):
+    stem: str
+    register: str
+    source_path: str
+    source_sha: str
+    sections: List[SectionEntry]
+    sites: List[Site]
+    keyword_sites: int  # sites the capitalised scan alone would have found
+
+
+def source_path(stem: str) -> Optional[str]:
+    """The repo-relative path of the RFC's own text, or None.
+
+    The SAME two locations, in the same order, that source_keyword_count:1329 searches.
+    One lookup, so a source the keyword count can see and the inventory cannot (or the
+    reverse) is impossible by construction.
+    """
+    for sub in ("full", "drafts"):
+        rel = os.path.join("rfc", sub, stem + ".txt")
+        if os.path.exists(os.path.join(PROJECT_DIR, rel)):
+            return rel
+    return None
+
+
+def source_text(stem: str) -> Optional[str]:
+    rel = source_path(stem)
+    if rel is None:
+        return None
+    try:
+        with open(
+            os.path.join(PROJECT_DIR, rel), encoding="utf-8", errors="replace"
+        ) as fh:
+            return fh.read()
+    except OSError:
+        return None
+
+
+def _strip_page_furniture(text: str) -> str:
+    """Remove the whole page break: the blank run before the "[Page N]" footer, the footer,
+    the form feed, the running header, and the blank run after it.
+
+    Removing only the three furniture LINES is not enough. RFCs break pages mid-sentence,
+    and the blank lines bracketing the break would still read as a paragraph boundary to
+    _sentences, truncating the quote at "A speaker MUST do the first" and losing the rest
+    of the obligation. Collapsing the entire break rejoins the paragraph as it was written.
+
+    The cost, stated rather than hidden: when a page happens to break BETWEEN paragraphs,
+    those two paragraphs are joined. _sentences still splits them correctly at the sentence
+    punctuation between them; only a paragraph ending without terminal punctuation (a
+    figure line, a list item) merges with its successor. That is a far smaller and more
+    deterministic loss than truncating every page-crossing obligation.
+    """
+    out: List[str] = []
+    # None = ordinary text; "header" = inside the break, still owed the running header;
+    # "blanks" = header consumed, still swallowing the blank run before the text resumes.
+    state: Optional[str] = None
+    for raw in text.split("\n"):
+        line = raw.replace("\f", "")
+        if _PAGE_FOOTER_RE.search(line):
+            # Rewind over the blank run that separated this footer from the text.
+            while out and not out[-1].strip():
+                out.pop()
+            state = "header"
+            continue
+        if state is not None:
+            if not line.strip():
+                continue  # the form-feed line, and the blanks bracketing the header
+            if state == "header":
+                # ("RFC 7296   IKEv2bis   October 2014") -- exactly one line.
+                state = "blanks"
+                continue
+            state = None  # first real line of the new page: the text resumes here
+        out.append(line)
+    return "\n".join(out)
+
+
+def _section_bodies(text: str) -> List[Tuple[str, str]]:
+    """[(section id, body)] in first-appearance order, with a leading FRONT_SECTION entry.
+
+    Every id appears EXACTLY ONCE and every input line lands in exactly one body. Both are
+    load-bearing, because _SECTION_HEADING_RE over-matches (see its comment):
+
+    * The heading's own TITLE stays in its section's body. Dropping the matched line drops
+      whatever it said, and for a false match that is a live obligation deleted from the
+      inventory without a word. A real heading's title ("Requirements") carries no
+      normative keyword, so keeping it costs nothing; a real heading that DOES ("5.1
+      Attributes that MUST be present") yields one site a reviewer excludes, which is the
+      safe direction -- an extra site is noise, a missing one is a false green.
+
+    * A repeated id EXTENDS the section it already opened rather than starting a second
+      one. Two entries sharing an id emit a duplicate `sections` row that
+      parse_extraction_artifact:2000 refuses -- so the generated skeleton could not be
+      re-read -- and each body restarted _sites_for's per-section counter at 1, so both
+      produced a site "7:1" and _evaluate_extraction's dict silently kept one of them.
+    """
+    order: List[str] = [FRONT_SECTION]
+    bodies: Dict[str, List[str]] = {FRONT_SECTION: []}
+    current = FRONT_SECTION
+    for line in text.split("\n"):
+        m = _SECTION_HEADING_RE.match(line)
+        if not m:
+            bodies[current].append(line)
+            continue
+        current = m.group("num") or m.group("alpha")
+        if current not in bodies:
+            order.append(current)
+            bodies[current] = []
+        elif bodies[current]:
+            # A blank line, so the resumed run is a fresh paragraph to _sentences rather
+            # than a continuation of a sentence written elsewhere in the document.
+            bodies[current].append("")
+        bodies[current].append(m.group("title"))
+        bodies[current].append("")
+    return [(sid, "\n".join(bodies[sid])) for sid in order]
+
+
+def _sentences(body: str) -> List[str]:
+    """Every sentence of a section body, paragraph by paragraph, whitespace collapsed.
+
+    Paragraph-at-a-time so a sentence never runs across a blank line, and whitespace
+    collapsed so the derived quote is stable no matter how the source wrapped it.
+    """
+    out: List[str] = []
+    for para in re.split(r"\n\s*\n", body):
+        flat = " ".join(para.split())
+        if not flat:
+            continue
+        out.extend(s.strip() for s in _SENTENCE_SPLIT_RE.split(flat) if s.strip())
+    return out
+
+
+def _sites_for(text: str, pattern: "re.Pattern[str]") -> List[Site]:
+    """Every normative sentence, located as <section>:<n> in document order."""
+    out: List[Site] = []
+    for sid, body in _section_bodies(text):
+        n = 0
+        for sentence in _sentences(body):
+            if not pattern.search(sentence):
+                continue
+            if _BOILERPLATE_RE.search(sentence):
+                continue
+            n += 1
+            out.append(Site(id=f"{sid}:{n}", quote=sentence, section=sid))
+    return out
+
+
+def derive_register(keyword_sites: int, prose_sites: int, gated: int) -> str:
+    """Which keyword register the SOURCE is written in, and therefore what a sign-off can
+    be graded against (umbrella D6).
+
+    Derived from the text, never authored: the RFCs that would most benefit from claiming
+    the strong grade are exactly the ones whose source cannot support it.
+    """
+    if keyword_sites and keyword_sites >= gated:
+        return "rfc2119"
+    if prose_sites:
+        return "prose"
+    return "manual-walk"
+
+
+# Keyed on the SOURCE SHA, never on the stem alone. run_check derives the inventory of
+# every signed stem three times (signed_extractions for the shared set,
+# check_extraction_signoff for the violations, and the ledger render), at ~8.5ms mean and
+# ~90ms worst (rfc2328) per RFC -- so a fully drained 166-RFC corpus would add about 4.2s
+# to every --check, and _git_cat_blobs:927 records what happens to a gate that doubles
+# verify time: people learn to skip it.
+#
+# The key is every input the derivation reads: the stem, the declared gated count (it
+# picks the register), the RAW source bytes, and the RESOLVED source path. A stem-keyed
+# memo would hand a second body the first body's inventory -- silently, and in the
+# direction of a green gate -- and the tests patch `source_text` to serve different bodies
+# for the same stem.
+#
+# RAW bytes, NOT `requirement_sha`. That fingerprint runs `_normalize`, which strips every
+# line and drops blank ones, and the derivation depends on exactly those two things:
+# `_SECTION_HEADING_RE` anchors at `^`, so leading whitespace decides whether a line is a
+# heading at all, and `_sentences` splits paragraphs on blank lines. "1. Rules\n\n..." and
+# "   1. Rules\n\n..." share one normalized sha (9daecc1f191899eb) and derive different
+# section sets, so a normalized key served the indented body the flush body's inventory.
+#
+# The path is in the key because it is not a function of the bytes: the same text found at
+# rfc/full/<stem>.txt and at rfc/drafts/<stem>.txt is two different sources, and
+# `source-path` is a field of the artifact that `_evaluate_extraction` compares.
+#
+# What the key does NOT cover, stated rather than implied: the memo is never cleared, so
+# it is only sound while the derivation is a pure function of these four. Production reads
+# each file once per run; the whole test suite shares one process, which is where a
+# too-narrow key shows up first.
+_INVENTORY_MEMO: Dict[Tuple[str, int, str, str], Inventory] = {}
+
+
+def derive_inventory(stem: str, gated: int) -> Optional[Inventory]:
+    """The full derived inventory for one stem, or None when we have no source text.
+
+    None is NOT an empty inventory. An empty inventory says "the source states no
+    obligations"; None says "I could not look", and the two must never render alike
+    (ai/rules/fail-closed-guards.md, the zero-value trap).
+    """
+    raw = source_text(stem)
+    if raw is None:
+        return None
+    source_sha = requirement_sha(raw)
+    rel = source_path(stem) or ""
+    # The memo key fingerprints the RAW bytes; `source_sha` is the artifact's freshness
+    # key and is deliberately normalized (reflowing an RFC must not invalidate a
+    # sign-off). They answer different questions, so they are two different digests.
+    memo_key = (stem, gated, hashlib.sha256(raw.encode("utf-8")).hexdigest(), rel)
+    memoized = _INVENTORY_MEMO.get(memo_key)
+    if memoized is not None:
+        return memoized
+    stripped = _strip_page_furniture(raw)
+
+    keyword = _sites_for(stripped, _SITE_KEYWORD_RE)
+    register = derive_register(len(keyword), 0, gated)
+    if register == "rfc2119":
+        sites = keyword
+    else:
+        prose = _sites_for(stripped, _SITE_PROSE_RE)
+        register = derive_register(len(keyword), len(prose), gated)
+        sites = prose if register == "prose" else []
+
+    counts: Dict[str, int] = {}
+    for s in sites:
+        counts[s.section] = counts.get(s.section, 0) + 1
+    sections = [
+        SectionEntry(id=sid, sites=counts.get(sid, 0))
+        for sid, _ in _section_bodies(stripped)
+    ]
+
+    # Asserted at the PRODUCER, not left for a downstream dict to swallow. A locator is the
+    # only handle a reviewer's decision has on a sentence, so two sentences sharing one is
+    # an obligation nobody judges: _evaluate_extraction:2315 builds {site.id: site} and the
+    # second simply disappears, and parse_extraction_artifact refuses the artifact outright.
+    # _section_bodies makes both impossible by construction; this says so if it ever stops.
+    for label, ids in (
+        ("site locator", [s.id for s in sites]),
+        ("section id", [s.id for s in sections]),
+    ):
+        seen: Set[str] = set()
+        for one in ids:
+            if one in seen:
+                raise ParseError(
+                    f"{rel}: the derivation produced duplicate {label} {one!r}. Every "
+                    f"derived {label} is unique or the sign-off cannot address the "
+                    f"sentence it names -- see _section_bodies"
+                )
+            seen.add(one)
+
+    inv = Inventory(
+        stem=stem,
+        register=register,
+        source_path=rel,
+        source_sha=source_sha,
+        sections=sections,
+        sites=sites,
+        keyword_sites=len(keyword),
+    )
+    # Memoised only on the way OUT, so a derivation that raised the duplicate-locator guard
+    # above is never cached as an answer.
+    _INVENTORY_MEMO[memo_key] = inv
+    return inv
+
+
+class ExtractionSite(NamedTuple):
+    id: str
+    quote: str
+    disposition: Optional[str]
+    mapped_to: str
+    excluded_kind: str
+    reason: str
+
+
+class ExtractionSection(NamedTuple):
+    id: str
+    sites: int
+    disposition: Optional[str]
+    skip_kind: str
+    reason: str
+    unsourced_ids: List[str]
+
+
+class Extraction(NamedTuple):
+    stem: str
+    register: str
+    source_path: str
+    source_sha: str
+    signed_off: str
+    reviewer: str
+    resign_reason: str
+    register_reason: str
+    sections: List[ExtractionSection]
+    sites: List[ExtractionSite]
+    path: str
+
+    @property
+    def excluded(self) -> int:
+        return sum(1 for s in self.sites if s.disposition == "excluded")
+
+    @property
+    def mapped(self) -> int:
+        return sum(1 for s in self.sites if s.disposition == "mapped")
+
+
+_ARTIFACT_KEYS = frozenset(
+    {
+        "schema-version",
+        "stem",
+        "register",
+        "register-reason",
+        "source-path",
+        "source-sha",
+        "signed-off",
+        "reviewer",
+        "resign-reason",
+        "sections",
+        "sites",
+    }
+)
+_SITE_KEYS = frozenset(
+    {"id", "quote", "disposition", "mapped-to", "excluded-kind", "reason"}
+)
+_SECTION_KEYS = frozenset(
+    {"id", "sites", "disposition", "skip-kind", "reason", "unsourced-ids"}
+)
+
+
+def _str_field(obj: Dict, key: str, where: str, required: bool = True) -> str:
+    """A string field. `required=False` accepts absent-or-empty as "", but still refuses a
+    wrong TYPE: "not filled in yet" is a legal state, `42` never is."""
+    val = obj.get(key)
+    if not required and (val is None or (isinstance(val, str) and not val.strip())):
+        return ""
+    if not isinstance(val, str) or not val.strip():
+        raise ParseError(f"{where}: {key!r} must be a non-empty string, got {val!r}")
+    return val.strip()
+
+
+def _reject_unknown_keys(obj: Dict, allowed: Set[str], where: str) -> None:
+    """A typo'd key would otherwise read as an ABSENT field, and every field here is
+    authored: an absent authored field must never pass silently."""
+    unknown = sorted(set(obj) - set(allowed))
+    if unknown:
+        raise ParseError(
+            f"{where}: unknown key(s) {unknown}; expected one of {sorted(allowed)}"
+        )
+
+
+def parse_extraction_artifact(path: str) -> Extraction:
+    """Read and validate one rfc/extraction/<stem>.json.
+
+    Every enum is closed and every authored field is required, so a malformed artifact is
+    a ParseError -- which run_check turns into a clean exit 2, never a traceback (AC-18).
+    An UNCLASSIFIED disposition is NOT a parse error: it is a legal skeleton state that
+    the CHECK refuses (AC-3), which is what makes generation unable to produce a pass.
+    """
+    rel = os.path.relpath(path, PROJECT_DIR)
+    want_stem = os.path.basename(path)[: -len(".json")]
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError) as exc:
+        raise ParseError(f"{rel}: cannot read: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ParseError(f"{rel}: expected a JSON object, got {type(data).__name__}")
+    _reject_unknown_keys(data, _ARTIFACT_KEYS, rel)
+
+    version = data.get("schema-version")
+    if version != EXTRACTION_SCHEMA_VERSION:
+        raise ParseError(
+            f"{rel}: schema-version must be {EXTRACTION_SCHEMA_VERSION}, got {version!r}"
+        )
+
+    stem = _str_field(data, "stem", rel)
+    if stem != want_stem:
+        raise ParseError(
+            f"{rel}: stem {stem!r} does not match the filename ({want_stem!r}). The "
+            f"artifact names the RFC it signs off; the two can never drift apart"
+        )
+
+    register = data.get("register")
+    if register not in REGISTERS:
+        raise ParseError(
+            f"{rel}: register {register!r} is missing, empty or unknown; expected one of "
+            f"{list(REGISTERS)}. It does NOT default to the strong grade: that would "
+            f"publish the weakest sign-off as the strongest"
+        )
+    # `signed-off`, `reviewer` and `register-reason` are required to SIGN OFF, not to
+    # parse: an unsigned skeleton is a legal intermediate state, and the alternative --
+    # having the writer invent a date and a reviewer so its own output parses -- would
+    # fabricate a sign-off record for a walk nobody performed, which is R-2's failure mode
+    # exactly. _evaluate_extraction reports them, so a skeleton still FAILS the check, and
+    # fails it with the message that helps (which sites are unclassified).
+    register_reason = _str_field(data, "register-reason", rel, required=False)
+    signed_off = _str_field(data, "signed-off", rel, required=False)
+    reviewer = _str_field(data, "reviewer", rel, required=False)
+    resign_reason = _str_field(data, "resign-reason", rel, required=False)
+
+    sections: List[ExtractionSection] = []
+    seen_sections: Set[str] = set()
+    raw_sections = data.get("sections")
+    if not isinstance(raw_sections, list):
+        raise ParseError(f"{rel}: 'sections' must be a list")
+    for entry in raw_sections:
+        if not isinstance(entry, dict):
+            raise ParseError(f"{rel}: each section must be an object, got {entry!r}")
+        _reject_unknown_keys(entry, _SECTION_KEYS, rel)
+        sid = _str_field(entry, "id", rel)
+        if sid in seen_sections:
+            raise ParseError(f"{rel}: duplicate section {sid!r}")
+        seen_sections.add(sid)
+        where = f"{rel}: section {sid}"
+        count = entry.get("sites")
+        if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+            raise ParseError(f"{where}: 'sites' must be a non-negative integer")
+        disp = entry.get("disposition")
+        if disp is not None and disp not in SECTION_DISPOSITIONS:
+            raise ParseError(
+                f"{where}: disposition {disp!r} is not one of "
+                f"{sorted(SECTION_DISPOSITIONS)} (null means unclassified)"
+            )
+        skip_kind = ""
+        reason = _str_field(entry, "reason", where, required=False)
+        if disp == "skipped":
+            skip_kind = entry.get("skip-kind") or ""
+            if skip_kind not in SECTION_SKIP_KINDS:
+                raise ParseError(
+                    f"{where}: skipped needs a 'skip-kind' from "
+                    f"{sorted(SECTION_SKIP_KINDS)}, got {skip_kind!r}"
+                )
+            if not reason:
+                raise ParseError(f"{where}: skipped needs a non-empty 'reason'")
+        unsourced = entry.get("unsourced-ids") or []
+        if not isinstance(unsourced, list) or not all(
+            isinstance(u, str) and u.strip() for u in unsourced
+        ):
+            raise ParseError(
+                f"{where}: 'unsourced-ids' must be a list of requirement ids"
+            )
+        sections.append(
+            ExtractionSection(
+                id=sid,
+                sites=count,
+                disposition=disp,
+                skip_kind=skip_kind,
+                reason=reason,
+                unsourced_ids=[u.strip() for u in unsourced],
+            )
+        )
+
+    sites: List[ExtractionSite] = []
+    seen_sites: Set[str] = set()
+    raw_sites = data.get("sites")
+    if not isinstance(raw_sites, list):
+        raise ParseError(f"{rel}: 'sites' must be a list")
+    for entry in raw_sites:
+        if not isinstance(entry, dict):
+            raise ParseError(f"{rel}: each site must be an object, got {entry!r}")
+        _reject_unknown_keys(entry, _SITE_KEYS, rel)
+        sid = _str_field(entry, "id", rel)
+        if sid in seen_sites:
+            raise ParseError(f"{rel}: duplicate site locator {sid!r}")
+        seen_sites.add(sid)
+        where = f"{rel}: site {sid}"
+        quote = _str_field(entry, "quote", where)
+        disp = entry.get("disposition")
+        if disp is not None and disp not in SITE_DISPOSITIONS:
+            raise ParseError(
+                f"{where}: disposition {disp!r} is not one of "
+                f"{sorted(SITE_DISPOSITIONS)} (null means unclassified)"
+            )
+        mapped_to = ""
+        excluded_kind = ""
+        reason = _str_field(entry, "reason", where, required=False)
+        if disp == "mapped":
+            mapped_to = _str_field(entry, "mapped-to", where)
+        elif disp == "excluded":
+            excluded_kind = entry.get("excluded-kind") or ""
+            if excluded_kind not in EXCLUSION_KINDS:
+                raise ParseError(
+                    f"{where}: excluded needs an 'excluded-kind' from "
+                    f"{sorted(EXCLUSION_KINDS)}, got {excluded_kind!r}"
+                )
+            if not reason:
+                raise ParseError(
+                    f"{where}: excluded needs a non-empty 'reason'. A bare exclusion is "
+                    f"an escape hatch; say why this sentence binds nothing"
+                )
+            if excluded_kind == "duplicate-of":
+                # `mapped-to` means "the requirement id this site relates to": for a
+                # mapping, the id this site PROVES; for a duplicate, the id already
+                # captured elsewhere. Naming it is what makes AC-8 checkable at all -- a
+                # duplicate that names nothing cannot be compared against anything, and a
+                # chain of such could cover an RFC in which nothing is actually mapped.
+                mapped_to = _str_field(entry, "mapped-to", where)
+        sites.append(
+            ExtractionSite(
+                id=sid,
+                quote=quote,
+                disposition=disp,
+                mapped_to=mapped_to,
+                excluded_kind=excluded_kind,
+                reason=reason,
+            )
+        )
+
+    return Extraction(
+        stem=stem,
+        register=register,
+        source_path=_str_field(data, "source-path", rel),
+        source_sha=_str_field(data, "source-sha", rel),
+        signed_off=signed_off,
+        reviewer=reviewer,
+        resign_reason=resign_reason,
+        register_reason=register_reason,
+        sections=sections,
+        sites=sites,
+        path=rel,
+    )
+
+
+def extraction_stems() -> Set[str]:
+    if not os.path.isdir(EXTRACTION_DIR):
+        return set()
+    return {
+        n[: -len(".json")] for n in os.listdir(EXTRACTION_DIR) if n.endswith(".json")
+    }
+
+
+def load_extractions() -> Dict[str, Extraction]:
+    """Every artifact under rfc/extraction/, parsed. Raises on the first malformed one."""
+    out: Dict[str, Extraction] = {}
+    for stem in sorted(extraction_stems()):
+        out[stem] = parse_extraction_artifact(
+            os.path.join(EXTRACTION_DIR, stem + ".json")
+        )
+    return out
+
+
+def gated_counts(requirements: Sequence[Requirement]) -> Dict[str, int]:
+    out: Dict[str, int] = {}
+    for req in requirements:
+        if req.gated:
+            out[req.rfc] = out.get(req.rfc, 0) + 1
+    return out
+
+
+def _artifact_document(
+    inv: Inventory, previous: Optional[Extraction]
+) -> Dict[str, object]:
+    """The skeleton document: every derived field filled, every disposition UNCLASSIFIED
+    unless a previous artifact classified the SAME locator carrying the SAME sentence.
+
+    Matching on locator alone would silently re-point a reviewer's decision at a sentence
+    they never read when the source moved under it -- the same hazard check_id_allocation
+    (:427) exists to stop for requirement ids.
+    """
+    prev_sites = {s.id: s for s in (previous.sites if previous else [])}
+    prev_sections = {s.id: s for s in (previous.sections if previous else [])}
+
+    sites: List[Dict[str, object]] = []
+    for site in inv.sites:
+        keep = prev_sites.get(site.id)
+        if keep is not None and keep.quote != site.quote:
+            keep = None
+        entry: Dict[str, object] = {
+            "id": site.id,
+            "quote": site.quote,
+            "disposition": keep.disposition if keep else None,
+        }
+        if keep and keep.disposition == "mapped":
+            entry["mapped-to"] = keep.mapped_to
+        if keep and keep.disposition == "excluded":
+            entry["excluded-kind"] = keep.excluded_kind
+            entry["reason"] = keep.reason
+        sites.append(entry)
+
+    sections: List[Dict[str, object]] = []
+    for sec in inv.sections:
+        keep = prev_sections.get(sec.id)
+        entry = {
+            "id": sec.id,
+            "sites": sec.sites,
+            "disposition": keep.disposition if keep else None,
+        }
+        if keep and keep.disposition == "skipped":
+            entry["skip-kind"] = keep.skip_kind
+            entry["reason"] = keep.reason
+        if keep and keep.unsourced_ids:
+            entry["unsourced-ids"] = keep.unsourced_ids
+        sections.append(entry)
+
+    doc: Dict[str, object] = {
+        "schema-version": EXTRACTION_SCHEMA_VERSION,
+        "stem": inv.stem,
+        # The DERIVED register unless a previous artifact declared a WEAKER one. Declaring
+        # weaker is legal (AC-9) and a refresh must not silently promote it back.
+        "register": (
+            previous.register
+            if previous
+            and _REGISTER_STRENGTH.get(previous.register, 0)
+            <= _REGISTER_STRENGTH[inv.register]
+            else inv.register
+        ),
+        "source-path": inv.source_path,
+        "source-sha": inv.source_sha,
+        "signed-off": previous.signed_off if previous else "",
+        "reviewer": previous.reviewer if previous else "",
+    }
+    if previous and previous.register_reason:
+        doc["register-reason"] = previous.register_reason
+    if previous and previous.resign_reason:
+        doc["resign-reason"] = previous.resign_reason
+    doc["sections"] = sections
+    doc["sites"] = sites
+    return doc
+
+
+# Every source stem in the corpus (179 of them, RFCs and drafts alike) matches this.
+# Validated because `stem` reaches os.path.join for BOTH the source lookup and the artifact
+# path, and the Makefile passes $(STEM) unquoted: `--extract-skeleton '../full/rfc4271'`
+# resolves a real source and would write outside rfc/extraction/.
+#
+# `\Z`, never `$`: Python's `$` matches BEFORE a trailing newline, so `^...$` under
+# re.match accepted "rfc4271\n" and wrote a file literally named "rfc4271\n.json". Not a
+# traversal -- that is the one shape `$` lets through -- but a validator for a filename
+# that admits a line terminator is not one. `^` is kept beside it so the pattern stays
+# anchored at BOTH ends under `.search()` as well as `.match()`.
+_STEM_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*\Z")
+
+
+def _validated_stem(stem: str) -> str:
+    if not _STEM_RE.match(stem) or ".." in stem:
+        raise ParseError(
+            f"stem {stem!r} is not an RFC or draft stem (lowercase letters, digits, "
+            f"'.', '-', '_'; no path separator). The stem names the source text and the "
+            f"artifact file, so it may never carry a path"
+        )
+    return stem
+
+
+# The writer stages beside its target (see run_extract_skeleton) so `os.replace` is an
+# atomic same-filesystem rename. The cost is litter: a kill between `mkdtemp` and the
+# `finally` leaves a `.staging-*` directory inside TRACKED rfc/extraction/, which the next
+# `git add` would commit. Staging somewhere gitignored instead is not the fix -- `tmp/`
+# becomes a symlink to $TMPDIR under `make ze-migrate-scratch`, so the rename could cross
+# a filesystem and raise EXDEV -- so the litter is swept by the next run.
+_STAGING_PREFIX = ".staging-"
+
+# Why the sweep is AGE-GATED rather than unconditional. An unconditional sweep would
+# delete a CONCURRENT run's in-flight staging directory, and that run's
+# `parse_extraction_artifact` would then raise FileNotFoundError -- an OSError, outside
+# run_extract_skeleton's ParseError handler, i.e. a traceback where the shipped code exits
+# cleanly. A live staging directory exists for milliseconds; an abandoned one is minutes
+# old before anyone runs the writer again, so the gate separates the two with room to
+# spare and never trades one defect for a worse one.
+_STAGING_STALE_SECONDS = 3600
+
+
+def _sweep_stale_staging(directory: str) -> None:
+    """Remove abandoned `.staging-*` directories left by a killed run. Best-effort: this
+    is hygiene, and a sweep that cannot read the directory must never stop a write."""
+    cutoff = time.time() - _STAGING_STALE_SECONDS
+    try:
+        names = os.listdir(directory)
+    except OSError:
+        return
+    for name in names:
+        if not name.startswith(_STAGING_PREFIX):
+            continue
+        candidate = os.path.join(directory, name)
+        try:
+            if not os.path.isdir(candidate) or os.path.getmtime(candidate) > cutoff:
+                continue
+        except OSError:
+            continue
+        shutil.rmtree(candidate, ignore_errors=True)
+
+
+def run_extract_skeleton(stem: str) -> int:
+    stem = _validated_stem(stem)
+    inv = derive_inventory(stem, gated_counts(_summary_requirements(stem)).get(stem, 0))
+    if inv is None:
+        print(
+            f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {stem} has no source text "
+            f"at rfc/full/{stem}.txt or rfc/drafts/{stem}.txt. Fetch it "
+            f"(https://www.rfc-editor.org/rfc/{stem}.txt) before extracting: with no "
+            f"source there is no inventory to derive and no register to sign under"
+        )
+        return 2
+
+    path = os.path.join(EXTRACTION_DIR, stem + ".json")
+    previous = parse_extraction_artifact(path) if os.path.exists(path) else None
+    doc = _artifact_document(inv, previous)
+
+    os.makedirs(EXTRACTION_DIR, exist_ok=True)
+    # Round-trip through the REAL parser before the file lands, and stage it beside the
+    # target so a refusal leaves the reviewer's existing artifact untouched
+    # (ai/rules/never-destroy-work.md).
+    #
+    # Re-validating with a second, hand-written checker would only prove the copy agrees
+    # with itself. The one question that matters is whether parse_extraction_artifact will
+    # accept this file, and the honest way to answer it is to run it. Without this, a
+    # derivation defect made `make ze-rfc-extract STEM=rfc2865` print success over a file
+    # that could not be re-read, and one such artifact committed makes every later --check
+    # exit "cannot run", hiding every other RFC violation in the repository.
+    #
+    # Swept before staging, never after: the litter this clears is what a KILLED run left,
+    # and a killed run never reaches its own cleanup by definition (_STAGING_PREFIX).
+    _sweep_stale_staging(EXTRACTION_DIR)
+    staging = tempfile.mkdtemp(prefix=_STAGING_PREFIX, dir=EXTRACTION_DIR)
+    try:
+        staged = os.path.join(staging, stem + ".json")
+        with open(staged, "w", encoding="utf-8") as fh:
+            json.dump(doc, fh, indent=2)
+            fh.write("\n")
+        try:
+            parse_extraction_artifact(staged)
+        except ParseError as exc:
+            reason = str(exc).replace(
+                os.path.relpath(staged, PROJECT_DIR), os.path.relpath(path, PROJECT_DIR)
+            )
+            print(
+                f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: the skeleton derived for "
+                f"{stem} does not satisfy the artifact schema, so it was NOT written: "
+                f"{reason}\n"
+                f"This is a defect in the derivation, not in the source text. Nothing was "
+                f"changed on disk; fix scripts/dev/rfc_requirements.py and re-run"
+            )
+            return 2
+        os.replace(staged, path)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+    unclassified = sum(1 for s in doc["sites"] if s["disposition"] is None)
+    unwalked = sum(1 for s in doc["sections"] if s["disposition"] is None)
+    print(
+        f"{GREEN}wrote{RESET} {os.path.relpath(path, PROJECT_DIR)}: "
+        f"register {doc['register']}, {len(inv.sites)} site(s) in "
+        f"{len(inv.sections)} section(s).\n"
+        f"{YELLOW}{unclassified} site(s) and {unwalked} section(s) are UNCLASSIFIED{RESET} "
+        f"-- `make ze-rfc-check` fails until every one is classified by hand. Generation "
+        f"cannot produce a sign-off; only a walk can."
+    )
+    return 0
+
+
+def _summary_requirements(stem: str) -> List[Requirement]:
+    """One summary's requirements, or none when it is absent or does not parse.
+
+    A parse failure is reported by run_check against the same file, so swallowing it here
+    only affects the skeleton's declared-gated count -- which lands the register on the
+    WEAKER side (gated 0 makes rfc2119 easier to derive, so re-check governs).
+    """
+    path = os.path.join(SUMMARY_DIR, stem + ".md")
+    if not os.path.exists(path):
+        return []
+    try:
+        return list(parse_summary_file(path))
+    except ParseError:
+        return []
+
+
+def _evaluate_extraction(
+    art: Extraction, inv: Inventory, reqs: Sequence[Requirement]
+) -> List[str]:
+    """Judge ONE sign-off against the freshly re-derived inventory.
+
+    Forward (catches a MISSED obligation): every derived site is mapped or excluded, and
+    every derived field still matches what the source re-derives.
+    Reverse (catches an INVENTED one): every gated requirement of the summary is the
+    target of some site, or declared unsourced on some section.
+    """
+    errs: List[str] = []
+    where = art.path
+
+    if not art.signed_off:
+        errs.append(
+            f"{where}: 'signed-off' is empty. A skeleton is not a sign-off: record the "
+            f"date the walk was performed once every site and section is classified"
+        )
+    if not art.reviewer:
+        errs.append(
+            f"{where}: 'reviewer' is empty. A sign-off names who performed the walk"
+        )
+    if art.register == "manual-walk" and not art.register_reason:
+        errs.append(
+            f"{where}: a manual-walk sign-off needs a 'register-reason' stating why no "
+            f"mechanical inventory exists for this source. The gate cannot verify a "
+            f"manual walk, so the assertion must at least say what it rests on"
+        )
+
+    if art.source_sha != inv.source_sha:
+        # One accurate error, not a wall. With the source moved, every site and every
+        # section would mismatch too, and the only useful message is this one. Same bias
+        # verdict_is_fresh:1231 records: a false stale costs a re-read, a false fresh
+        # ships an unbounded summary.
+        return errs + [
+            f"{where}: source-sha no longer matches {inv.source_path}. The source text "
+            f"changed under this sign-off, so the walk no longer bounds what the summary "
+            f"missed. Re-run: make ze-rfc-extract STEM={art.stem}, re-classify any site "
+            f"that moved, and bump signed-off"
+        ]
+    if art.source_path != inv.source_path:
+        errs.append(
+            f"{where}: source-path {art.source_path!r} is not where the source text lives "
+            f"({inv.source_path!r})"
+        )
+
+    claimed = _REGISTER_STRENGTH[art.register]
+    if claimed > _REGISTER_STRENGTH[inv.register]:
+        errs.append(
+            f"{where}: register {art.register!r} is STRONGER than the source supports "
+            f"({inv.register!r}: {inv.keyword_sites} capitalised keyword site(s) against "
+            f"{sum(1 for r in reqs if r.gated)} gated requirement(s) declared). The "
+            f"register is a property of the source, not a claim the signer may assert. "
+            f"Sign under {inv.register!r} or weaker"
+        )
+
+    derived_sites = {s.id: s for s in inv.sites}
+    art_sites = {s.id: s for s in art.sites}
+    for sid in sorted(set(derived_sites) - set(art_sites)):
+        errs.append(
+            f"{where}: derived site {sid} is absent from the sign-off "
+            f"({derived_sites[sid].quote[:80]!r}). Re-run make ze-rfc-extract "
+            f"STEM={art.stem} and classify it"
+        )
+    for sid in sorted(set(art_sites) - set(derived_sites)):
+        errs.append(
+            f"{where}: site {sid} is not in the derived inventory. Sites are DERIVED from "
+            f"the source text; a hand-added locator classifies nothing"
+        )
+
+    by_id = {r.rid: r for r in reqs}
+    known_ids = set(by_id)
+    mapped_targets = {
+        s.mapped_to for s in art.sites if s.disposition == "mapped" and s.mapped_to
+    }
+
+    for sid in sorted(set(derived_sites) & set(art_sites)):
+        site, derived = art_sites[sid], derived_sites[sid]
+        if site.quote != derived.quote:
+            errs.append(
+                f"{where}: site {sid} quote does not match the source. Derived: "
+                f"{derived.quote[:90]!r}. Recorded: {site.quote[:90]!r}. The quote is a "
+                f"DERIVED field; editing it hides what the reviewer is meant to judge"
+            )
+        if site.disposition is None:
+            errs.append(
+                f"{where}: site {sid} is UNCLASSIFIED: {derived.quote[:110]!r}. Every "
+                f"derived site is mapped to a requirement id or excluded with a reason"
+            )
+            continue
+        if site.mapped_to and site.mapped_to not in known_ids:
+            errs.append(
+                f"{where}: site {sid} names {site.mapped_to}, which does not exist in "
+                f"rfc/short/{art.stem}.md"
+            )
+            continue  # every check below reads by_id[site.mapped_to]
+
+        if site.disposition == "mapped":
+            # The site's LEVEL against the row's. Both facts were already here and neither
+            # was compared: `known_ids` holds every level, so a sentence quoting a
+            # capitalised MUST could be mapped to a SHOULD row and reported as captured --
+            # while evaluate() never gates a SHOULD, so the obligation was bound by nobody.
+            # That is the RFC's own MUST downgraded to advice inside the artifact whose
+            # whole purpose is to bound what the summary understated.
+            #
+            # Only a CAPITALISED keyword triggers it, and the DERIVED quote is what is
+            # read, never the recorded one. A `prose` site's lowercase modal asserts
+            # nothing about level, and demanding a gated target there would refuse that
+            # register's ordinary output.
+            req = by_id[site.mapped_to]
+            if _SITE_KEYWORD_RE.search(derived.quote) and not req.gated:
+                errs.append(
+                    f"{where}: site {sid} quotes a MUST-level keyword but maps to "
+                    f"{site.mapped_to} [{req.level}], which is advisory and never gates: "
+                    f"{derived.quote[:90]!r}. Either the summary row understates the "
+                    f"source and its level is wrong, or this site belongs to a different "
+                    f"row -- an obligation recorded as captured but proven by nothing is "
+                    f"the miss this sign-off exists to make impossible"
+                )
+        elif (
+            site.excluded_kind == "duplicate-of"
+            and site.mapped_to not in mapped_targets
+        ):
+            errs.append(
+                f"{where}: site {sid} is excluded duplicate-of {site.mapped_to}, but no "
+                f"other site MAPS that id. A chain of duplicates cannot cover an RFC in "
+                f"which nothing is actually mapped"
+            )
+
+    derived_sections = {s.id: s.sites for s in inv.sections}
+    art_sections = {s.id: s for s in art.sections}
+    for sid in sorted(set(derived_sections) - set(art_sections)):
+        errs.append(f"{where}: derived section {sid} is absent from the sign-off")
+    for sid in sorted(set(art_sections) - set(derived_sections)):
+        errs.append(f"{where}: section {sid} is not in the derived section list")
+    for sid in sorted(set(derived_sections) & set(art_sections)):
+        sec = art_sections[sid]
+        if sec.sites != derived_sections[sid]:
+            errs.append(
+                f"{where}: section {sid} records {sec.sites} site(s); the source derives "
+                f"{derived_sections[sid]}. The count is a DERIVED field"
+            )
+        if sec.disposition is None:
+            errs.append(
+                f"{where}: section {sid} is UNCLASSIFIED. Every section of the source is "
+                f"walked, or skipped with a kind and a reason"
+            )
+
+    unsourced = {u for s in art.sections for u in s.unsourced_ids}
+    for u in sorted(unsourced - known_ids):
+        errs.append(
+            f"{where}: unsourced-ids names {u}, which does not exist in "
+            f"rfc/short/{art.stem}.md"
+        )
+    backed = mapped_targets | unsourced
+    for req in reqs:
+        if not req.gated or req.rid in backed:
+            continue
+        errs.append(
+            f"{where}: {req.rid} [{req.level}] is declared by rfc/short/{art.stem}.md but "
+            f"no source site maps to it and no section lists it in unsourced-ids: "
+            f"{req.text[:70]}. Either it is backed by a site the walk should map, or it "
+            f"was read from indicative prose -- say which"
+        )
+    return errs
+
+
+def evaluate_extractions(
+    requirements: Sequence[Requirement],
+) -> Tuple[Dict[str, Extraction], List[str]]:
+    """(valid sign-offs by stem, violations).
+
+    Only an artifact with ZERO violations counts as signed. A stale or contradicted
+    sign-off must not keep earning drain credit while the basis under it has moved
+    (umbrella "How it fails closed").
+    """
+    by_rfc: Dict[str, List[Requirement]] = {}
+    for req in requirements:
+        by_rfc.setdefault(req.rfc, []).append(req)
+
+    # run_check evaluates this THREE times (signed_extractions for the shared set,
+    # check_extraction_signoff for the violations, and check_ledger_fresh's render), and
+    # each evaluation re-derives the inventory of every SIGNED stem. derive_inventory is
+    # memoised on (stem, gated, source sha) for exactly this: the repeats are free, and the
+    # sha in the key is what lets the tests keep serving different bodies for one stem.
+    signed: Dict[str, Extraction] = {}
+    errs: List[str] = []
+    gated = gated_counts(requirements)
+    for stem, art in load_extractions().items():
+        inv = derive_inventory(stem, gated.get(stem, 0))
+        if inv is None:
+            errs.append(
+                f"{art.path}: {stem} has no source text at rfc/full/{stem}.txt or "
+                f"rfc/drafts/{stem}.txt, so the sign-off cannot be re-derived and the "
+                f"bound it claims cannot be re-checked"
+            )
+            continue
+        found = _evaluate_extraction(art, inv, by_rfc.get(stem, []))
+        errs.extend(found)
+        if not found:
+            signed[stem] = art
+    return signed, errs
+
+
+def check_extraction_signoff(requirements: Sequence[Requirement]) -> List[str]:
+    return evaluate_extractions(requirements)[1]
+
+
+def signed_extractions(requirements: Sequence[Requirement]) -> Dict[str, Extraction]:
+    return evaluate_extractions(requirements)[0]
+
+
+class BaselineExtraction(NamedTuple):
+    """One artifact as it stands at HEAD: what the ratchets compare the working tree to."""
+
+    excluded: int
+    signed_off: str
+    resign_reason: str
+
+
+def _git_baseline_extractions() -> Optional[Dict[str, BaselineExtraction]]:
+    """{stem: BaselineExtraction} at HEAD, or None when git could not answer.
+
+    `resign_reason` is carried because a rise in exclusions must be justified by a reason
+    written for THAT rise. _artifact_document copies the field forward on every refresh, so
+    once set it is permanently non-empty and comparing it against "" proves nothing;
+    comparing it against HEAD is what makes "this walk was redone" checkable.
+
+    Reads through `git ls-tree` plus _git_cat_blobs:899, the same batch path
+    _git_baseline_ids:714 uses -- one git process for every artifact rather than one per
+    file. No second git reader is introduced.
+
+    Returns None on git failure, and the distinction matters less here than it does at
+    _git_baseline_summary_stems:763 -- but it is stated rather than assumed. This
+    baseline is consumed as `baseline - current`, where an EMPTY baseline accuses nobody,
+    so an empty set would also have been safe. None is used anyway so the two cases stay
+    distinguishable to a future consumer whose polarity might be the other one.
+    """
+    try:
+        listing = subprocess.run(
+            ["git", "ls-tree", "-r", "-z", "--name-only", "HEAD", "rfc/extraction"],
+            cwd=PROJECT_DIR,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if listing.returncode != 0:
+        return None
+
+    paths = [
+        p.strip()
+        for p in listing.stdout.split("\0")
+        if p.strip().endswith(".json") and "\n" not in p
+    ]
+    if not paths:
+        return {}
+
+    out: Dict[str, BaselineExtraction] = {}
+    for rel, blob in _git_cat_blobs(paths).items():
+        stem = os.path.basename(rel)[: -len(".json")]
+        try:
+            data = json.loads(blob)
+            sites = data.get("sites") or []
+            excluded = sum(
+                1
+                for s in sites
+                if isinstance(s, dict) and s.get("disposition") == "excluded"
+            )
+            signed_off = data.get("signed-off") or ""
+            resign_reason = data.get("resign-reason") or ""
+        except (ValueError, AttributeError, TypeError):
+            # A committed artifact that no longer parses contributes no baseline for its
+            # stem, exactly as _git_baseline_ids:756 skips an unparseable summary. The
+            # working-tree copy is judged by check_extraction_signoff either way.
+            continue
+        out[stem] = BaselineExtraction(
+            excluded=excluded,
+            signed_off=signed_off if isinstance(signed_off, str) else "",
+            resign_reason=resign_reason if isinstance(resign_reason, str) else "",
+        )
+    return out
+
+
+def check_extraction_ratchet() -> List[str]:
+    """The signed set only grows, and a signed stem's exclusions only shrink.
+
+    Without the first, a sign-off could be deleted the moment it became inconvenient and
+    the bound would silently un-bound. Without the second, R-1's failure arrives: every
+    unmapped site excluded with a shrug, until the exclusion list is a 1600-slot escape
+    hatch. The pressure is directional and the state is published, rather than a numeric
+    threshold that rewording would game.
+    """
+    baseline = _git_baseline_extractions()
+    if baseline is None:
+        return []  # git could not answer: judge nothing rather than accuse everything
+
+    errs: List[str] = []
+    current: Dict[str, Extraction] = {}
+    for stem in sorted(extraction_stems()):
+        try:
+            current[stem] = parse_extraction_artifact(
+                os.path.join(EXTRACTION_DIR, stem + ".json")
+            )
+        except ParseError:
+            # Reported by check_extraction_signoff against the same file; the gate is red
+            # either way, and one accurate message beats two.
+            continue
+
+    for stem in sorted(set(baseline) - set(current)):
+        errs.append(
+            f"{stem} had an extraction sign-off at HEAD and has none now. Extraction "
+            f"sign-off is monotonic: an RFC whose source walk bounded its summary cannot "
+            f"stop being bounded. Restore rfc/extraction/{stem}.json"
+        )
+
+    for stem in sorted(set(baseline) & set(current)):
+        was = baseline[stem]
+        art = current[stem]
+        if art.excluded <= was.excluded:
+            continue
+        if not art.resign_reason:
+            errs.append(
+                f"{art.path}: exclusions rose from {was.excluded} to {art.excluded} with "
+                f"no 'resign-reason'. Exclusions are shrink-only: a rise means the walk "
+                f"was redone, so record why, name the reviewer, and bump signed-off"
+            )
+        elif art.signed_off == was.signed_off:
+            errs.append(
+                f"{art.path}: exclusions rose from {was.excluded} to {art.excluded} with "
+                f"a resign-reason but the same signed-off date ({art.signed_off}). A "
+                f"re-sign is a new walk; reusing the old date says it did not happen"
+            )
+        elif art.resign_reason == was.resign_reason:
+            # The reason must be written for THIS rise. `_artifact_document` carries the
+            # field forward on every refresh, so once set it is permanently non-empty and
+            # a mere presence test guards nothing: exclusions could climb indefinitely
+            # behind one sentence written years earlier, with only the date to edit.
+            errs.append(
+                f"{art.path}: exclusions rose from {was.excluded} to {art.excluded}, but "
+                f"'resign-reason' is unchanged from the previous sign-off "
+                f"({was.resign_reason[:60]!r}). It is carried forward automatically by "
+                f"make ze-rfc-extract, so an unchanged reason justifies the EARLIER walk, "
+                f"not this one. Say what this walk found that raised the exclusions"
+            )
+    return errs
+
+
+def credited(
+    signed: Dict[str, Extraction], enrolled: Set[str]
+) -> Dict[str, Extraction]:
+    """The sign-offs that COUNT: the ones whose stem is enrolled.
+
+    Every published figure and every comparison is derived from this, never from `signed`
+    directly, so credit and backlog always describe the same set. They did not: the drain
+    floor compared `len(signed)` (every valid artifact) against a backlog of
+    `enrolled - signed` (enrolled only), so a sign-off for a stem nobody enrolled raised
+    the credit without lowering the backlog. Measured on 8 enrolled with 6 un-enrolled
+    sign-offs: floor satisfied, backlog still 8 of 8, envelope publishing
+    `signed + backlog > enrolled` -- a figure no set can have. Eleven un-enrolled source
+    texts already sit in rfc/full and rfc/drafts.
+
+    Signing BEFORE enrolling stays the normal workflow (AC-1 makes the sign-off a
+    precondition of enrolment). Such an artifact is still parsed, still ratcheted, and
+    starts counting the moment its stem enrols -- it simply is not credit yet.
+    """
+    return {stem: art for stem, art in signed.items() if stem in enrolled}
+
+
+def register_counts(signed: Dict[str, Extraction]) -> Dict[str, int]:
+    """{register: count}, with EVERY register present even at zero.
+
+    A register missing from the split reads as "not a thing" rather than as "zero", and
+    the split is the counterweight that keeps owner ruling 1's credit half honest.
+    """
+    counts = {name: 0 for name in REGISTERS}
+    for art in signed.values():
+        counts[art.register] = counts.get(art.register, 0) + 1
+    return counts
+
+
+def _register_phrase(counts: Dict[str, int]) -> str:
+    return ", ".join(f"{name} {counts[name]}" for name in REGISTERS)
+
+
+def extraction_status(
+    requirements: Sequence[Requirement], enrolled: Set[str]
+) -> Dict[str, object]:
+    """The counts the umbrella's drain quota consumes (umbrella "Where the counter lives").
+
+    Every figure is DERIVED from rfc/extraction/ plus the live summaries. There is no
+    second hand-kept list of who has been signed off: that is the rotting registry
+    ai/rules/derive-not-hardcode.md forbids, and the 2026-07-20 ruling in
+    plan/deferrals/rfc-gate-regression-ratchets.md already refused that artifact shape.
+    """
+    signed = credited(signed_extractions(requirements), enrolled)
+    counts = register_counts(signed)
+    unsigned = sorted(enrolled - set(signed))
+    return {
+        "schema-version": EXTRACTION_SCHEMA_VERSION,
+        "enrolled": len(enrolled),
+        # Counted INDEPENDENTLY of the split, not as sum(counts.values()). Defining the
+        # total as the sum makes AC-22's "the keys sum to the published total" a tautology
+        # that no test could ever fail -- mutation-verified: zeroing register_counts left
+        # that assertion green. Two derivations that must agree is a real cross-check, and
+        # a register dropped from the split now disagrees with the total out loud.
+        "signed": len(signed),
+        "signed-by-register": counts,
+        "backlog": len(unsigned),
+        "unsigned": unsigned,
+    }
+
+
+def run_extraction_status() -> int:
+    try:
+        enrolled, reqs, _, _, _ = _collect_for_check()
+        env = extraction_status(reqs, enrolled)
+    except (ParseError, OSError) as exc:
+        print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")
+        return 2
+    print(json.dumps(env, indent=2, sort_keys=True))
+    return 0
+
+
+def render_extraction_table(
+    requirements: Sequence[Requirement], enrolled: Set[str]
+) -> List[str]:
+    """The published backlog: how much of the standards claim is BOUNDED (AC-15, AC-21).
+
+    Derived columns are shown only for a stem that HAS a sign-off. That is both honest and
+    affordable. Honest, because a register derived for a stem nobody has walked is not a
+    fact this repository has established. Affordable, because deriving the inventory for
+    all 166 enrolled RFCs costs 1.9s measured, on top of a 2.6s gate, on EVERY --check
+    (check_ledger_fresh re-renders to compare) -- and _git_cat_blobs:899 records what
+    happens to a gate that doubles verify time: people learn to skip it.
+    """
+    signed = credited(signed_extractions(requirements), enrolled)
+    counts = register_counts(signed)
+    gated = gated_counts(requirements)
+    unsigned = sorted(enrolled - set(signed))
+
+    out: List[str] = []
+    out.append("## Extraction sign-off")
+    out.append("")
+    out.append(
+        "Every other table here judges the requirements a summary LISTS. None of them can "
+        "see an obligation nobody wrote down, so a green gate is bounded by what was "
+        "extracted (`ai/rules/rfc-compliance.md`, Extraction Completeness). A sign-off "
+        "(`rfc/extraction/<stem>.json`) bounds the MISS: every normative site of the RFC's "
+        "own text is mapped to a requirement id or excluded with a reason, and the gate "
+        "re-derives the inventory and re-checks the arithmetic on every run."
+    )
+    out.append("")
+    # NEVER a bare total: umbrella D6's publishing half. Reading "N signed off" as
+    # "N keyword-verified" is the category error this whole spec set exists to correct.
+    out.append(
+        f"Signed off by register: {_register_phrase(counts)}. "
+        f"Unsigned (grandfathered) backlog: {len(unsigned)} of {len(enrolled)} enrolled. "
+        f"Every register counts toward the drain quota; each is published apart so a "
+        f"count can never be read as stronger evidence than it is."
+    )
+    out.append("")
+    out.append(
+        "`Register` is DERIVED from the source text and refused when an artifact claims a "
+        "stronger grade than the derivation supports: `rfc2119` (capitalised keywords, at "
+        "least as many sites as the summary declares gated rows), `prose` (lowercase "
+        "indicative modals), `manual-walk` (no mechanical inventory exists at all -- an "
+        "assertion the gate cannot verify). Derived columns are blank for an unsigned "
+        "stem: nobody has walked it, so there is nothing established to publish."
+    )
+    out.append("")
+    out.append(
+        "| RFC | Register | Sites | Mapped | Excluded | Exclusion ratio | Gated rows | Signed off |"
+    )
+    out.append("|---|---|---|---|---|---|---|---|")
+    for stem in sorted(signed):
+        art = signed[stem]
+        total = len(art.sites)
+        ratio = f"{art.excluded / total:.2f}" if total else "--"
+        out.append(
+            f"| `{stem}` | {art.register} | {total} | {art.mapped} | {art.excluded} | "
+            f"{ratio} | {gated.get(stem, 0)} | {art.signed_off} ({art.reviewer}) |"
+        )
+    for stem in unsigned:
+        out.append(
+            f"| `{stem}` | -- | -- | -- | -- | -- | {gated.get(stem, 0)} | "
+            f"UNSIGNED (grandfathered) |"
+        )
+    out.append("")
+    return out
+
+
+# --------------------------------------------------------------------------
+# Drain floor: the COMPARISON. The POLICY it reads is authored in
+# rfc/drain-budget.txt and owned by the umbrella, and ultimately by Thomas.
+# --------------------------------------------------------------------------
+_BUDGET_KEYS = ("start", "rate")
+
+
+class DrainBudget(NamedTuple):
+    start: "datetime.date"
+    rate: float
+
+
+def parse_drain_budget(path: str) -> DrainBudget:
+    """Read rfc/drain-budget.txt: a start date and a rate, and NOTHING else.
+
+    The key set is closed, so the file cannot grow a per-stem row, a count, a stem list or
+    a register column. The moment it named an RFC it would have become the hand-kept
+    registry the 2026-07-29 resolution rejected, and a reviewer should treat such a row as
+    a defect rather than an extension.
+
+    No rate, date or cadence is defaulted here. A hardcoded one would be this module
+    quietly authoring policy that belongs to the owner.
+    """
+    rel = os.path.relpath(path, PROJECT_DIR)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            raw = fh.read()
+    except OSError as exc:
+        raise ParseError(
+            f"{rel}: cannot read the drain policy: {exc}. An absent budget does NOT mean "
+            f"'nothing owed' -- a zero value must never be a valid-looking answer "
+            f"(ai/rules/fail-closed-guards.md). Create it with a 'start' date and a "
+            f"'rate' in entries per calendar month"
+        ) from exc
+
+    seen: Dict[str, str] = {}
+    for i, line in enumerate(raw.split("\n"), start=1):
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        parts = line.split()
+        if len(parts) != 2 or parts[0] not in _BUDGET_KEYS:
+            raise ParseError(
+                f"{rel}:{i}: expected '<key> <value>' with key in {list(_BUDGET_KEYS)}, "
+                f"got {line!r}. This file carries POLICY ONLY: it may never name an RFC, "
+                f"hold a count, or list stems"
+            )
+        if parts[0] in seen:
+            raise ParseError(f"{rel}:{i}: {parts[0]!r} is set twice")
+        seen[parts[0]] = parts[1]
+
+    missing = [k for k in _BUDGET_KEYS if k not in seen]
+    if missing:
+        raise ParseError(
+            f"{rel}: missing {missing}. Both are required: 'start' is when the drain clock "
+            f"begins, 'rate' is entries per calendar month (it ships at 0, and only the "
+            f"owner arms it)"
+        )
+
+    try:
+        year, month, day = (int(p) for p in seen["start"].split("-"))
+        start = datetime.date(year, month, day)
+    except ValueError as exc:
+        raise ParseError(
+            f"{rel}: start {seen['start']!r} is not a YYYY-MM-DD date: {exc}"
+        ) from exc
+    try:
+        rate = float(seen["rate"])
+    except ValueError as exc:
+        raise ParseError(
+            f"{rel}: rate {seen['rate']!r} is not a number of entries per calendar month"
+        ) from exc
+    # float() accepts "nan", "inf" and "-inf", and NaN compares FALSE against every
+    # operator -- so `rate < 0` below and `rate > len(enrolled)` in check_drain_floor both
+    # miss it, and it reaches math.ceil(nan * months) as an uncaught ValueError raised
+    # OUTSIDE run_check's try, i.e. a traceback where AC-18 requires a clean exit 2.
+    # Refused where every other malformed value is refused, so no caller has to defend
+    # against a number that is not one.
+    if not math.isfinite(rate):
+        raise ParseError(
+            f"{rel}: rate {seen['rate']!r} is not a finite number of entries per calendar "
+            f"month. A schedule needs a rate arithmetic can compare against a count"
+        )
+    if rate < 0:
+        raise ParseError(f"{rel}: rate {rate} is negative; a backlog cannot un-drain")
+    return DrainBudget(start=start, rate=rate)
+
+
+def required_floor(
+    start: "datetime.date",
+    rate: float,
+    drainable: int,
+    today: Optional["datetime.date"] = None,
+) -> int:
+    """ceil(rate x whole calendar months since start), capped at the DRAINABLE set size.
+
+    `drainable` is the whole enrolled set, NOT the remaining backlog. Capping at the
+    remainder double-counts every sign-off -- once by raising the cumulative signed total,
+    once by lowering the cap it is compared against -- and the comparison collapses to
+    `signed >= enrolled / 2`. Measured: 166 enrolled at rate 100/month over 12 months
+    flipped red-to-green at exactly 83 sign-offs, so NO rate Thomas could arm would ever
+    demand more than half the corpus.
+
+    The cap still retires the check without a removal commit (AC-28), by a different route:
+    a fully drained corpus has `signed == enrolled`, and the floor can never exceed
+    `enrolled`, so the comparison is permanently satisfied from then on.
+
+    The clock is the committed start date and the current date, and nothing else. A rate
+    or date overridable by flag or environment variable is a forcing function the caller
+    can silence, which is not a forcing function (umbrella "How it fails closed").
+
+    "Whole calendar month" is counted to the start day CLAMPED to the current month's
+    length. Comparing the raw day numbers drops a month whenever the target month is
+    shorter than the start day -- 2026-03-31 to 2026-04-30 counted as zero months elapsed,
+    and the SHIPPED policy starts on the 29th, so it would have lost a month every February
+    for as long as the drain ran. The floor decides whether the gate is red, so a dropped
+    month is a sign-off nobody is asked for.
+    """
+    now = today or datetime.date.today()
+    months = (now.year - start.year) * 12 + (now.month - start.month)
+    anniversary = min(start.day, calendar.monthrange(now.year, now.month)[1])
+    if now.day < anniversary:
+        months -= 1
+    months = max(0, months)
+    # ceil, never floor or round: at 0.5/month the FIRST month already owes one sign-off,
+    # and a schedule owing nothing for its first period is not a schedule.
+    return min(drainable, math.ceil(rate * months))
+
+
+def check_drain_floor(enrolled: Set[str], signed: Dict[str, Extraction]) -> List[str]:
+    """Judge the derived sign-off count against the authored drain policy.
+
+    Ships INERT: with the rate at 0 the floor is 0 and this passes on every tree it will
+    see before the owner arms it (umbrella D5). The arming commit is his, not this spec's.
+    """
+    # Returned as a violation rather than raised, so it composes with the other checks the
+    # way check_enrolment:660 does. Raising would abort run_check at the first problem and
+    # hide every other violation behind "cannot run". Exit 2 either way (AC-29).
+    try:
+        budget = parse_drain_budget(DRAIN_BUDGET_FILE)
+    except ParseError as exc:
+        return [str(exc)]
+    # Credit and backlog are read off the SAME set. Counting `len(signed)` here while the
+    # backlog counted only enrolled stems let an un-enrolled sign-off satisfy the floor
+    # without draining anything -- see credited().
+    signed = credited(signed, enrolled)
+    counts = register_counts(signed)
+    total = len(signed)  # independent of the split; see extraction_status
+    backlog = len(enrolled - set(signed))
+    if budget.rate > len(enrolled):
+        return [
+            f"{os.path.relpath(DRAIN_BUDGET_FILE, PROJECT_DIR)}: rate {budget.rate} "
+            f"exceeds the whole enrolled set ({len(enrolled)}); no schedule can be met"
+        ]
+    # Capped at the WHOLE enrolled set, never at the remaining backlog. `total` is
+    # cumulative, so a remainder cap makes every sign-off count twice -- raising the total
+    # and lowering the bar it is measured against -- and the whole comparison degenerates
+    # to `signed >= enrolled / 2`. See required_floor.
+    floor = required_floor(budget.start, budget.rate, len(enrolled))
+    if total >= floor:
+        return []
+    return [
+        f"{os.path.relpath(DRAIN_BUDGET_FILE, PROJECT_DIR)}: the drain schedule requires "
+        f"{floor} extraction sign-off(s) by now (rate {budget.rate}/calendar month since "
+        f"{budget.start.isoformat()}, capped at the {len(enrolled)} enrolled RFC(s)), and "
+        f"there are {total} ({_register_phrase(counts)}; every register counts, umbrella "
+        f"D6), leaving {backlog} unsigned. Walk another RFC: make ze-rfc-extract "
+        f"STEM=<stem>, then classify every site"
+    ]
+
+
+# WIRING STUBS -- replaced phase by phase. They exist first so run_check calls them
+# and the CLI dispatches to them before any of them can do anything.
 
 
 # --------------------------------------------------------------------------
@@ -1630,20 +3205,45 @@ def run_check() -> int:
     try:
         enrolled, reqs, parse_errs, tags, parse_by_stem = _collect_for_check()
         stems = summary_stems()
+        # None means git could not answer. The `baseline - current` consumers below take
+        # the empty set (an unknown baseline must accuse nobody); the ONE consumer with the
+        # opposite polarity takes the None itself.
         baseline_enrolled = _git_baseline_enrolment()
+        base_enrolled = baseline_enrolled if baseline_enrolled is not None else set()
         baseline_ids = _git_baseline_ids()  # read once: it costs a git show per summary
 
+        # Read once and shared by three consumers below. None means git could not answer.
+        baseline_stems = _git_baseline_summary_stems()
+
         errs: List[str] = []
-        errs.extend(check_enrolment(enrolled, baseline_enrolled, stems))
+        # The sign-off set is derived once and shared: check_enrolment gates a NEW
+        # enrolment on it, and check_drain_floor counts it. Only an artifact with zero
+        # violations counts, so a stale sign-off cannot keep earning credit.
+        signed = signed_extractions(reqs)
+        # `current - baseline` needs a baseline that distinguishes "nothing was enrolled at
+        # HEAD" from "git could not answer" -- see check_enrolment's docstring for why the
+        # opposite polarity makes the empty set unsafe HERE and safe everywhere else.
+        #
+        # Gated on the availability of the baseline it is COMPUTED FROM, not on a different
+        # git call's. It used to read `baseline_stems is None` -- a `git ls-tree` over
+        # rfc/short -- while subtracting a `git show` of rfc/enrolled.txt. Drive the state
+        # where the first succeeds and the second fails (a shallow clone, a grafted
+        # worktree, an rfc/enrolled.txt new in this commit) and every enrolled RFC is
+        # accused of being newly enrolled without a sign-off.
+        newly_enrolled = (
+            None if baseline_enrolled is None else enrolled - baseline_enrolled
+        )
+        errs.extend(
+            check_enrolment(enrolled, base_enrolled, stems, newly_enrolled, set(signed))
+        )
 
         # Adding a summary must add checking, and evidence that existed must keep
         # existing. Both compare against HEAD: the working tree alone cannot tell a
         # backlog item from a regression (spec-rfc-gate-regression-ratchets.md).
-        baseline_stems = _git_baseline_summary_stems()
         errs.extend(
             check_new_summaries(stems, baseline_stems, enrolled, reqs, parse_by_stem)
         )
-        if enrolled & baseline_enrolled:
+        if enrolled & base_enrolled:
             # Both ratchets are no-ops with nothing enrolled on both sides, and the tag
             # baseline costs a git grep plus a batch read of every tagged blob. Do not pay
             # for an answer that cannot change the verdict.
@@ -1652,7 +3252,7 @@ def run_check() -> int:
                     reqs,
                     enrolled,
                     baseline_ids,
-                    baseline_enrolled,
+                    base_enrolled,
                     stems,
                     baseline_stems,
                     parse_by_stem,
@@ -1664,7 +3264,7 @@ def run_check() -> int:
                     tags,
                     enrolled,
                     _git_baseline_tag_polarities(),
-                    baseline_enrolled,
+                    base_enrolled,
                 )
             )
         # parse_errs holds only the errors for enrolled summaries; the migration to IDs
@@ -1684,6 +3284,16 @@ def run_check() -> int:
             rows = parse_status_ledger(fh.read())
         errs.extend(check_status_agreement(reqs, rows, enrolled))
         errs.extend(check_audit_freshness(reqs, tags, enrolled))
+
+        # Extraction sign-off: bounds what the summary MISSED, which every check above is
+        # blind to -- they all judge the requirements a summary LISTS
+        # (plan/spec-rfcgate-1-extraction.md). Inside the same try, so a malformed artifact
+        # or an unparseable budget exits 2 through the handler below rather than as a
+        # traceback (AC-18).
+        errs.extend(check_extraction_signoff(reqs))
+        errs.extend(check_extraction_ratchet())
+        errs.extend(check_drain_floor(enrolled, signed))
+
         errs.extend(check_ledger_fresh(reqs, tags, enrolled))
     except (ParseError, OSError) as exc:
         # OSError too: an unreadable rfc/enrolled.txt or a missing docs/features/rfc-status.md
@@ -1705,16 +3315,34 @@ def run_check() -> int:
         return 2
 
     gated = sum(1 for r in reqs if r.gated and r.rfc in enrolled)
+    signed = credited(signed, enrolled)  # the same set the floor and the ledger publish
+    counts = register_counts(signed)
     print(
         f"{GREEN}rfc-requirements OK{RESET}: {gated} gated MUST-level requirement(s) "
         f"across {len(enrolled)} enrolled RFC(s); {len(tags)} test tag(s) resolved."
+    )
+    # AC-14 / R-6: state the extraction bound OUT LOUD on every run, including when it is
+    # zero. A check that is quietly satisfied by nothing reproduces the failure it exists
+    # to fix, and check_enrolment:661 already sets the precedent of refusing to report
+    # clean while enforcing nothing. Never a bare total: the register split is on the same
+    # line (umbrella D6).
+    print(
+        f"{GREEN}extraction{RESET}: {_register_phrase(counts)} signed off of "
+        f"{len(enrolled)} enrolled; {len(enrolled - set(signed))} unsigned "
+        f"(grandfathered backlog)."
     )
     return 0
 
 
 def run_write() -> int:
-    enrolled, reqs, _, tags, _ = _collect_for_check()
-    body = render_ledger(reqs, tags, enrolled)
+    try:
+        enrolled, reqs, _, tags, _ = _collect_for_check()
+        body = render_ledger(reqs, tags, enrolled)
+    except (ParseError, OSError) as exc:
+        # The render now reads rfc/extraction/*.json, so a malformed artifact reaches this
+        # path too. Same clean exit-2 the other three drivers give, never a traceback.
+        print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")
+        return 2
     os.makedirs(os.path.dirname(LEDGER_FILE), exist_ok=True)
     with open(LEDGER_FILE, "w", encoding="utf-8") as fh:
         fh.write(body + "\n")
@@ -1759,6 +3387,27 @@ def main(argv: Sequence[str]) -> int:
         return run_write()
     if "--check-fresh" in args:
         return run_check_fresh()
+    if "--extraction-status" in args:
+        # Always the JSON envelope: it is the only consumer this mode has (the umbrella's
+        # drain quota), and a second human-readable shape nobody reads would be a mode to
+        # keep in step for nothing. `--json` is accepted and inert so the documented
+        # spelling works.
+        return run_extraction_status()
+    if "--extract-skeleton" in args:
+        i = args.index("--extract-skeleton")
+        stem = args[i + 1] if i + 1 < len(args) else ""
+        if not stem or stem.startswith("-"):
+            print(
+                f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: --extract-skeleton "
+                f"needs a stem, e.g. --extract-skeleton rfc7296 "
+                f"(make ze-rfc-extract STEM=rfc7296)"
+            )
+            return 2
+        try:
+            return run_extract_skeleton(stem)
+        except (ParseError, OSError) as exc:
+            print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")
+            return 2
     if "--check" in args:
         return run_check()
     print(__doc__)

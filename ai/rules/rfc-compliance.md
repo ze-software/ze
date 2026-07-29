@@ -63,12 +63,7 @@ Rationale: `ai/rationale/rfc-compliance.md`
 
 ## RFC Summaries (`rfc/short/`)
 
-RFC summaries are protocol-only reference documents. They must NOT contain
-Ze-specific information: no Ze implementation notes, no Ze file paths, no
-"Ze does/does not" statements, no "for ze" sections. Implementation
-decisions belong in specs (`plan/`), architecture docs (`docs/architecture/`),
-or code comments. A reader should be able to use any `rfc/short/` file
-as a standalone protocol reference with no knowledge of Ze.
+**RFC summaries are protocol-only reference documents: they must NOT contain Ze-specific information -- no Ze implementation notes, no Ze file paths, no "Ze does/does not" statements, no "for ze" sections.** Implementation decisions belong in specs (`plan/`), architecture docs (`docs/architecture/`), or code comments. A reader should be able to use any `rfc/short/` file as a standalone protocol reference with no knowledge of Ze.
 
 ## Extraction Completeness (BLOCKING when enrolling a summary)
 
@@ -84,6 +79,26 @@ REQUIRED has a checklist row. Fetch the source first if it is absent:
 claim of "verified against the RFC" is not reproducible when `rfc/full/` lacks
 the file.
 
+**The walk is RECORDED, not asserted.** Since 2026-07-29 that record is a sign-off artifact a machine re-checks, `rfc/extraction/<stem>.json`, and it is a **precondition of a new enrolment** (`check_enrolment`).
+
+| Step | Command / file |
+|------|----------------|
+| Write the unclassified skeleton | `make ze-rfc-extract STEM=<stem>` |
+| Classify every derived site and section by hand | `rfc/extraction/<stem>.json` |
+| Re-check the arithmetic | `make ze-rfc-check` |
+| Read the published backlog | `ai/RFC-REQUIREMENTS.md`, "Extraction sign-off" |
+| Read the counts machine-readably | `make ze-rfc-extraction-status` |
+
+**The contract is `rfc/extraction/README.md`.** Five properties are worth knowing before you meet one.
+
+- **Only dispositions are authored.** Sites, sections, quotes, the register and every published count are DERIVED from the source text at check time. A hand-typed "sites seen" is a claim, and claims are what this removes.
+- **A generated skeleton can never pass.** The writer emits only UNCLASSIFIED dispositions and an unclassified site fails the check, so mass-generating artifacts makes the gate redder rather than greener.
+- **The register is derived and a stronger claim is refused.** `rfc2119`, `prose`, or `manual-walk`. Measured over the 166 enrolled RFCs on 2026-07-29: 101 / 64 / 1. 23 have no capitalised MUST-level keyword SITE at all while declaring 172 gated MUSTs between them, so a keyword-only check would have been vacuously green for a large minority of the corpus.
+- **The bound is over keyword-visible sites, not over obligations.** Recall can be near zero for an indicative-prose section (RFC 4271 §8.2.2: 35168 characters, one capitalised keyword). `unsourced-ids` records an obligation the extractor cannot see. This raises a floor from zero; it does not reach a ceiling.
+- **A FIRST sign-off is reviewed, not ratcheted.** `check_extraction_ratchet` compares a stem against its own HEAD row, so a stem signing off for the first time has no baseline and could exclude every site. The published per-RFC exclusion ratio is the control; read it before you approve one.
+
+**Summaries enrolled before the gate existed are grandfathered and published as a counted backlog.** Grandfathering is implemented as SCOPE (new-since-HEAD), never as an allowlist file, so nothing is added to a list of exceptions when an RFC stops being one.
+
 Two signals that an extraction is missing, both seen in practice:
 
 | Signal | Why it matters |
@@ -97,10 +112,10 @@ receives** a route with ATOMIC_AGGREGATE, and recording it as an aggregator rule
 let the readvertisement path be cited as evidence of non-applicability when it is
 the bound path.
 
-## What Keeps RFC Testing Valid (the four ratchets)
+## What Keeps RFC Testing Valid (the five ratchets)
 
 `make ze-rfc-check` reads the WORKING TREE to judge coverage, and a tree cannot tell
-"never proven" from "stopped being proven". Four comparisons against HEAD supply that
+"never proven" from "stopped being proven". Five comparisons against HEAD supply that
 difference. Each fires only on a real downgrade, so a green run means the evidence held,
 not that nobody looked.
 
@@ -110,10 +125,13 @@ not that nobody looked.
 | **Proof is monotonic** | `check_coverage_ratchet` | a requirement loses a polarity it had at HEAD. `{gap}` is NOT an escape: it is the move being blocked |
 | **Requirements do not vanish** | `check_retired_requirements` | a requirement id of an enrolled RFC disappears from its summary. Without this, deleting the checklist line is the CHEAPEST route from red to green, cheaper than `{gap}` which costs a public disclosure row, and the ratchet would be pressuring people to hide obligations rather than declare them. Correcting a misquote means editing the TEXT under the same id, which is allowed |
 | **Adding an RFC adds checking** | `check_new_summaries` | a summary that is NEW since HEAD declares gated MUSTs and is not in `rfc/enrolled.txt`, fails to parse, or captures zero requirements while `rfc/full/<stem>.txt` has MUST-level keywords |
+| **Extraction is monotonic** | `check_extraction_ratchet` | a stem that carried a sign-off at HEAD carries none now, or a signed stem's exclusion count RISES without a `resign-reason` and a bumped `signed-off` date. The first stops the bound being un-bound by deleting a file; the second stops the exclusion list becoming an escape hatch where every unmapped site is excluded with a shrug |
 
 Summaries that predate HEAD are the existing backlog and are deliberately grandfathered:
 a rule that reds the gate on unrelated work gets removed rather than obeyed. Where git
 cannot answer, every ratchet judges nothing rather than judging everything.
+
+**Beside the five, `check_drain_floor` compares the derived sign-off count against the drain policy in `rfc/drain-budget.txt` (a start date and a rate, and nothing else).** It is a schedule rather than a ratchet, and it ships INERT at rate 0: arming it is a one-line commit only the owner takes.
 
 At edit time the `rfc-tagged-test` guard (`_rfc_tagged_change_err`) blocks a behavior
 change to any test carrying an `RFC requirement:` tag, and separately blocks REMOVING the
@@ -123,11 +141,7 @@ buys any later weakening. Scope is the enclosing test function, not the edited h
 sits on the doc comment, so a hunk-scoped guard misses exactly the edit it exists to stop)
 and not the whole file (which blocked 331 of 3220 untagged helper functions).
 
-**What none of this catches:** a tagged test whose assertions are weakened *in place*
-while keeping the same shape. That is `c_test_weakening` and
-`scripts/dev/audit-test-relaxation.py`, plus the SHA ratchet
-(`check_audit_freshness`) wherever `/ze-rfc-audit` has recorded a verdict. The SHA ratchet
-is armed only for RFCs that have an `rfc/audit/<rfc>.json`.
+**What none of this catches: a tagged test whose assertions are weakened *in place* while keeping the same shape.** That is `c_test_weakening` and `scripts/dev/audit-test-relaxation.py`, plus the SHA ratchet (`check_audit_freshness`) wherever `/ze-rfc-audit` has recorded a verdict. The SHA ratchet is armed only for RFCs that have an `rfc/audit/<rfc>.json`.
 
 ## Before Implementing BGP Features
 
