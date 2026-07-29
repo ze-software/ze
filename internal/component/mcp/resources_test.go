@@ -385,3 +385,41 @@ func postWithSession(t *testing.T, hs *httptest.Server, sid, body string) *http.
 	}
 	return resp
 }
+
+// TestResources_NilSessionDeniesRatherThanPanics covers the Provider-mode
+// (ze-chaos) path, where handlePOST dispatches runMethod with a nil *session
+// because such clients POST without an Mcp-Session-Id.
+//
+// VALIDATES: resources/list and resources/read deny with -32601 when the
+// session is nil, matching the fail-closed contract the tasks/* handlers
+// already honor and the comment above the Provider branch in streamable.go.
+// PREVENTS: a remote client panicking the handler goroutine by POSTing
+// resources/list to a Provider-mode listener. ClientSupportsResources
+// dereferences its receiver unconditionally, so an unguarded call on a nil
+// session is a nil-pointer dereference, not a denial.
+func TestResources_NilSessionDeniesRatherThanPanics(t *testing.T) {
+	s, err := NewStreamable(StreamableConfig{})
+	if err != nil {
+		t.Fatalf("NewStreamable: %v", err)
+	}
+	defer s.Close()
+
+	for _, tc := range []struct {
+		method string
+		run    func(*request) *response
+	}{
+		{"resources/list", func(r *request) *response { return s.resourcesList(nil, r) }},
+		{"resources/read", func(r *request) *response { return s.resourcesRead(nil, r) }},
+	} {
+		t.Run(tc.method, func(t *testing.T) {
+			id := json.RawMessage(`1`)
+			resp := tc.run(&request{JSONRPC: "2.0", ID: &id, Method: tc.method})
+			if resp == nil || resp.Error == nil {
+				t.Fatalf("%s with nil session: want a JSON-RPC error, got %+v", tc.method, resp)
+			}
+			if resp.Error.Code != -32601 {
+				t.Errorf("%s with nil session: error code = %d, want -32601", tc.method, resp.Error.Code)
+			}
+		})
+	}
+}

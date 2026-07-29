@@ -134,14 +134,21 @@ func readResource(uri string) (map[string]any, error) {
 }
 
 func (s *Streamable) resourcesList(sess *session, req *request) *response {
-	if !sess.ClientSupportsResources() {
+	// Nil session is the Provider-mode (ze-chaos) path (streamable.go handlePOST),
+	// which POSTs without Mcp-Session-Id. A nil client never declared
+	// capabilities.resources, so the capability gate denies exactly as it does
+	// for a session that omitted it. Guarding here rather than dereferencing
+	// keeps the fail-closed contract the task handlers already honor.
+	if sess == nil || !sess.ClientSupportsResources() {
 		return s.fail(req.ID, -32601, "method not found: resources/list")
 	}
 	return s.ok(req.ID, map[string]any{"resources": s.cachedResources})
 }
 
 func (s *Streamable) resourcesRead(sess *session, req *request) *response {
-	if !sess.ClientSupportsResources() {
+	// Nil session: same Provider-mode path and same fail-closed reasoning as
+	// resourcesList above.
+	if sess == nil || !sess.ClientSupportsResources() {
 		return s.fail(req.ID, -32601, "method not found: resources/read")
 	}
 	var params struct {
