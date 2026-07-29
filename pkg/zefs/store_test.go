@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"testing/fstest"
@@ -4854,4 +4855,97 @@ func TestInPlaceMultipleEntries(t *testing.T) {
 	if err := s2.Close(); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// VALIDATES: no code in this package replaces the store by writing over the SAME
+// inode. Every on-disk replacement goes through atomicWrite (temp + rename).
+// PREVENTS: SIGBUS in another process. ze daemons map the store
+// PROT_READ|MAP_PRIVATE (mmap_unix.go) and read config nodes as zero-copy slices
+// into it, and zefs's lock is an in-process sync.RWMutex (lock.go) that cannot
+// exclude them. Any truncating write reuses the inode, so a live mapping's pages
+// go invalid and the reader's next access faults with "unexpected fault address /
+// fatal error: fault" -- how test/ospf/ospf-ldp-sync-restore.ci died in the
+// 2026-07-29 verify, with 64 daemons sharing one etc/ze/database.zefs.
+//
+// Asserted structurally on purpose: the damage is a TRANSIENT window (flushFull's
+// atomicWrite replaces the file microseconds later either way), so an end-to-end
+// test cannot observe it -- and one that did would do so by taking the SIGBUS
+// itself and killing the test binary.
+//
+// The banned set is every way to shorten or rewrite an existing path in place,
+// not just the one call that caused this bug: os.WriteFile, os.Create and
+// os.Truncate all imply O_TRUNC, and O_TRUNC/Truncate can be reached directly.
+// atomicWrite is unaffected -- it uses os.CreateTemp on a fresh path, then rename.
+func TestNoTruncatingWriteToTheStoreFile(t *testing.T) {
+	banned := []string{"os.WriteFile(", "os.Create(", "os.Truncate(", ".Truncate(", "O_TRUNC"}
+
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		src, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		checked++
+		for i, line := range strings.Split(string(src), "\n") {
+			code := stripGoComment(line)
+			for _, bad := range banned {
+				if !strings.Contains(code, bad) {
+					continue
+				}
+				t.Errorf("%s:%d rewrites a path in place (%s), which invalidates any "+
+					"mapping other processes hold:\n\t%s\n"+
+					"use s.atomicWrite (temp + rename) so the replacement gets a NEW inode",
+					name, i+1, bad, strings.TrimSpace(line))
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("scanned no source files; the test cannot be gating anything")
+	}
+}
+
+// stripGoComment removes a trailing // comment, ignoring one inside a string or
+// rune literal. A naive Cut on "//" lets `if strings.HasPrefix(p, "//") { ... }`
+// hide a real call on the same line -- verified: that exact shape defeated the
+// first version of the check above.
+func stripGoComment(line string) string {
+	var inStr, inRune, inRaw, esc bool
+	for i := range len(line) {
+		c := line[i]
+		switch {
+		case esc:
+			esc = false
+		case c == '\\' && (inStr || inRune):
+			esc = true
+		case inRaw:
+			if c == '`' {
+				inRaw = false
+			}
+		case inStr:
+			if c == '"' {
+				inStr = false
+			}
+		case inRune:
+			if c == '\'' {
+				inRune = false
+			}
+		case c == '"':
+			inStr = true
+		case c == '\'':
+			inRune = true
+		case c == '`':
+			inRaw = true
+		case c == '/' && i+1 < len(line) && line[i+1] == '/':
+			return line[:i]
+		}
+	}
+	return line
 }

@@ -503,8 +503,17 @@ func (s *BlobStore) flush() error {
 			return nil
 		}
 		// In-place failed (may have partially written). Restore clean file before fallback.
+		//
+		// atomicWrite, NOT os.WriteFile: os.WriteFile opens O_TRUNC on the SAME
+		// inode, and other ze processes hold this file mapped PROT_READ|MAP_PRIVATE
+		// (mmap_unix.go) with config nodes as zero-copy slices into it. zefs's lock
+		// is an in-process sync.RWMutex (lock.go), so nothing excludes them.
+		// Truncating under a live mapping invalidates its pages and the next read
+		// takes SIGBUS -- "unexpected fault address / fatal error: fault", which is
+		// how test/ospf/ospf-ldp-sync-restore.ci died in the 2026-07-29 verify.
+		// os.Rename installs a NEW inode, so existing mappings stay valid.
 		if len(preSnapshot) > 0 {
-			_ = os.WriteFile(s.path, preSnapshot, 0o600) //nolint:gosec // restoring pre-pwrite state
+			_ = s.atomicWrite(preSnapshot) //nolint:errcheck // best-effort restore before the flushFull fallback
 		}
 	}
 	return s.flushFull()

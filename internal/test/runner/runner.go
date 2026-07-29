@@ -331,7 +331,7 @@ func (r *Runner) Build(ctx context.Context) error {
 	ldflags := tb.Str("-X main.version=").Str(now.Format("06.01.02")).Str(" -X main.buildDate=").Str(now.UTC().Format("2006-01-02T15:04:05Z")).String()
 	cmd := exec.CommandContext(ctx, "go", "build", "-tags", TestBuildTags(), "-ldflags", ldflags, "-o", r.zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = r.baseDir
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+	cmd.Env = childEnv("CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		r.display.buildStatus(false, fmt.Errorf("%w: %s", err, output))
 		return fmt.Errorf("build ze: %w", err)
@@ -340,7 +340,7 @@ func (r *Runner) Build(ctx context.Context) error {
 	// Build ze-test (provides peer subcommand, and plugin-external's registry)
 	cmd = exec.CommandContext(ctx, "go", "build", "-tags", TestHelperBuildTags(), "-o", r.testPath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = r.baseDir
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+	cmd.Env = childEnv("CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		r.display.buildStatus(false, fmt.Errorf("%w: %s", err, output))
 		return fmt.Errorf("build ze-test: %w", err)
@@ -356,7 +356,7 @@ func (r *Runner) Build(ctx context.Context) error {
 		buildArgs = append(buildArgs, "-o", outPath, spec.Pkg)
 		cmd = exec.CommandContext(ctx, "go", buildArgs...) //nolint:gosec // paths from internal runner
 		cmd.Dir = r.baseDir
-		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+		cmd.Env = childEnv("CGO_ENABLED=0")
 		if output, err := cmd.CombinedOutput(); err != nil {
 			r.display.buildStatus(false, fmt.Errorf("%w: %s", err, output))
 			return fmt.Errorf("build %s: %w", name, err)
@@ -432,6 +432,15 @@ func (r *Runner) verifyPrebuilt() error {
 // Runner keeps .ci-specific concerns (Build, process orchestration via runTest,
 // PrintAllFailures). Scheduling is the single ParallelRunner engine.
 func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
+	// Set on the RUNNER, so every child inherits it -- childEnv covers only the
+	// sites that build an explicit env, and a site that leaves Cmd.Env nil hands
+	// the child this process's environment instead. Measured before this line
+	// existed: 72 ze samples in one ze-ospf-test run, 7 with the variable.
+	// A caller's own value wins; see childEnv for what the variable does and,
+	// more importantly, does not buy.
+	if os.Getenv("GOTRACEBACK") == "" { //nolint:forbidigo // Go runtime var, not a ze.* setting
+		os.Setenv("GOTRACEBACK", "all") //nolint:errcheck,gosec // best-effort diagnostic
+	}
 	r.display.SetQuiet(opts.Quiet)
 	r.display.SetTimeout(opts.Timeout)
 

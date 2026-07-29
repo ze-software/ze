@@ -136,6 +136,31 @@ func zeRepoRootEnv(baseDir string) string {
 	return tb.Str("ZE_REPO_ROOT=").Str(baseDir).String()
 }
 
+// childEnv is the base environment for every process the runner execs: the
+// parent's, plus GOTRACEBACK=all, plus whatever the caller adds.
+//
+// What this does and does NOT buy, measured rather than assumed:
+//
+//   - A user-level runtime panic defaults to printing only the panicking
+//     goroutine. GOTRACEBACK=all prints every stack, which is what identifies the
+//     goroutine racing on the other side of a corrupt buffer. That is the case it
+//     buys, and why scripts/dev/stress-repro.py:224 sets it.
+//   - A runtime THROW ("fatal error: ...", e.g. the SIGBUS behind
+//     test/ospf/ospf-ldp-sync-restore.ci on 2026-07-29) already dumps every
+//     goroutine regardless: runtime1.go's gotraceback() forces all=true and
+//     level=2 whenever m.throwing is set. Setting the variable changes nothing
+//     there. Do not reach for it to explain a "fatal error": if such a crash
+//     reaches the failure index without stacks, the loss is in this runner's
+//     capture, not in what the child printed.
+//
+// Cost is zero until something crashes: the variable only changes what the Go
+// runtime prints on the way down.
+func childEnv(extra ...string) []string {
+	env := os.Environ()
+	env = append(env, "GOTRACEBACK=all")
+	return append(env, extra...)
+}
+
 // parallelFactor is the multiplier withParallelHeadroom applies:
 // ParallelTimeoutHeadroom under concurrent execution, 1 for a serial run.
 // Exposed so COUNT-based budgets (an HTTP readiness poll's retry attempts)

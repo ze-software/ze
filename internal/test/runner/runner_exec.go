@@ -133,7 +133,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	peerArgs = append(peerArgs, expectFile)
 
 	// Start peer (server)
-	peerEnv := append(os.Environ(),
+	peerEnv := childEnv(
 		textbuf.StrInt("ze_test_bgp_port=", int64(rec.Port)),
 	)
 	peerCmd := exec.CommandContext(testCtx, r.testPath, peerArgs...) //nolint:gosec // test runner, paths from temp dir
@@ -197,7 +197,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	// Put the bare-name shim dir on PATH so child processes (like "ze bgp
 	// persist") resolve THIS run's ze, not a stale or wrong-architecture one
 	// left in bin/ (see Runner.setupBinShims).
-	clientEnv := append(os.Environ(),
+	clientEnv := childEnv(
 		textbuf.StrInt("ze_test_bgp_port=", int64(rec.Port)),
 		// NOTE: ze_bgp_tcp_bind removed - listeners now derived from peer LocalAddress
 		r.childPathEnv(),
@@ -765,7 +765,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// Put the bare-name shim dir on PATH so child processes resolve THIS
 		// run's ze for "ze plugin ..." commands, not a stale or
 		// wrong-architecture one left in bin/ (see Runner.setupBinShims).
-		proc.Env = append(os.Environ(),
+		proc.Env = childEnv(
 			"PYTHONPATH="+filepath.Join(r.baseDir, "test", "scripts"),
 			r.childPathEnv(),
 			// Repo root for shell-script tests that must run repo-anchored

@@ -604,9 +604,9 @@ func (r *parsingRunner) runOneCommand(ctx context.Context, test *parsingTest, ci
 
 	cmd := exec.CommandContext(ctx, parts[0], parts[1:]...) //nolint:gosec // Test runner
 	cmd.Dir = workDir
-	if len(test.EnvVars) > 0 {
-		cmd.Env = append(os.Environ(), test.EnvVars...)
-	}
+	// Always set: childEnv adds GOTRACEBACK=all so a daemon that dies on a
+	// runtime fault names the goroutine that faulted instead of just "fault".
+	cmd.Env = childEnv(test.EnvVars...)
 
 	if ci.StdinName != "" && !containsDash(parts) {
 		if block, ok := test.StdinBlocks[ci.StdinName]; ok {

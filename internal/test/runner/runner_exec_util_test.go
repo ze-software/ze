@@ -13,6 +13,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -366,5 +367,73 @@ func TestResolveOrchestratedTimeout(t *testing.T) {
 				t.Errorf("resolveOrchestratedTimeout(%v, %q, %v) = %v, want %v", suggested, tc.record, tc.cmds, got, tc.want)
 			}
 		})
+	}
+}
+
+// VALIDATES: childEnv carries GOTRACEBACK=all and preserves caller entries, AND
+// that every exec site in this package routes through it -- the helper being
+// correct is worth nothing if a launch path bypasses it.
+// PREVENTS: the bypass this test was added without and did not catch. The first
+// version wired childEnv into runTest's two sites only; every .ci carrying `cmd=`
+// directives (all of test/ospf, including the ospf-ldp-sync-restore crash this
+// came from) returns early to runOrchestrated, whose exec site was still building
+// its own env. 82 ze daemons in one ze-ospf-test run, none with the variable set.
+//
+// NOTE on what the variable is for: a runtime THROW ("fatal error: ...") already
+// dumps every goroutine without it. It matters for a user-level runtime panic,
+// which otherwise prints only the panicking goroutine. See childEnv's doc.
+func TestChildEnvCarriesGotraceback(t *testing.T) {
+	env := childEnv()
+	if !slices.Contains(env, "GOTRACEBACK=all") {
+		t.Fatalf("childEnv() must set GOTRACEBACK=all, got %d entries without it", len(env))
+	}
+
+	// Caller entries come AFTER, so a caller that sets its own GOTRACEBACK wins:
+	// os/exec dedups its Env keeping the LAST occurrence (exec.go, dedupEnvCase).
+	env = childEnv("ze_test_bgp_port=1179", "GOTRACEBACK=single")
+	last := ""
+	for _, kv := range env {
+		if strings.HasPrefix(kv, "GOTRACEBACK=") {
+			last = kv
+		}
+	}
+	if last != "GOTRACEBACK=single" {
+		t.Errorf("caller override must win, last GOTRACEBACK entry = %q", last)
+	}
+	if !slices.Contains(env, "ze_test_bgp_port=1179") {
+		t.Error("childEnv dropped a caller entry")
+	}
+}
+
+// VALIDATES: no exec site in this package builds a child environment by hand.
+// PREVENTS: a launch path silently opting out of childEnv, which is exactly how
+// runOrchestrated -- the path every `cmd=`-driven .ci takes -- was missed.
+func TestEveryExecSiteUsesChildEnv(t *testing.T) {
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked := 0
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		src, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatalf("read %s: %v", name, err)
+		}
+		checked++
+		for i, line := range strings.Split(string(src), "\n") {
+			if !strings.Contains(line, "append(os.Environ()") {
+				continue
+			}
+			t.Errorf("%s:%d builds a child environment by hand:\n\t%s\n"+
+				"use childEnv(...) so the child inherits the runner's standard env",
+				name, i+1, strings.TrimSpace(line))
+		}
+	}
+	if checked == 0 {
+		t.Fatal("scanned no source files; the test cannot be gating anything")
 	}
 }
