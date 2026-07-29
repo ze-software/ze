@@ -14,7 +14,7 @@
 >   `ze /etc/ze/config.conf`.
 > - The `local-as` / `peer-as` / `peer-group` config grammar shown here has been
 >   removed; local AS is now `session { asn { local ... } }` and peer groups are
->   `group` blocks (see [deprecated config options](config/deprecated-options.md)
+>   `group` blocks (see [configuration syntax changes](config/deprecated-options.md)
 >   and [config syntax](config/syntax.md)).
 > - Shipped plugins (bgp, rib, gr) run in-process today rather than being forked
 >   as separate `external ... { run "ze bgp" }` processes; the `external` block

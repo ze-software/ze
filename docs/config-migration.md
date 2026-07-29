@@ -1,101 +1,105 @@
 # Configuration Migration
 
-ZeBGP migrates configurations using named transformations. Each transformation has a specific purpose and can be previewed before applying.
+Ze migrates older pre-release or ExaBGP-shaped configuration files using named
+transformations. These transformation names are implementation labels, not
+public config version numbers. Ze has not shipped a stable configuration release
+yet, so compatibility is date-based and tied to the schema stamp written by the
+current binary.
 
 <!-- source: internal/component/config/cli/cmd_migrate.go -- ze config migrate command -->
 <!-- source: internal/component/config/cli/cmd_fmt.go -- ze config fmt command -->
 <!-- source: internal/component/config/cli/cmd_validate.go -- ze config validate command -->
+<!-- source: internal/component/config/migration/migrate.go -- transformation registry -->
 
 ## Quick Start
 
 ```bash
-# Check config version and what needs migration
+# Check whether the file matches the current binary
 ze config validate myconfig.conf
 
 # Preview migration changes
 ze config migrate --dry-run myconfig.conf
 
-# Migrate to new file
-ze config migrate -o myconfig-v3.conf myconfig.conf
+# Convert to a new file
+ze config migrate -o myconfig-current.conf myconfig.conf
 
-# Format/normalize a v3 config
-ze config fmt myconfig.conf
+# Format and normalize current syntax
+ze config fmt myconfig-current.conf
 
 # Format in place
-ze config fmt -w myconfig.conf
+ze config fmt -w myconfig-current.conf
 
-# Check if formatting needed (for CI)
-ze config fmt --check myconfig.conf
+# Check if formatting is needed
+ze config fmt --check myconfig-current.conf
 ```
 
 ## Available Transformations
 
-View available transformations with:
+View the transformation list in the binary you are running:
 
 ```bash
 $ ze config migrate --list
 
 Available transformations (in order):
-  neighbor->peer            Rename 'neighbor' blocks to 'peer'
-  peer-glob->template.match Move glob patterns (10.0.0.0/8) to template.match
-  template.neighbor->group  Rename template.neighbor to template.group
-  static->announce          Convert 'static' route blocks to 'announce'
-  api->new-format           Convert old api syntax (processes, format flags) to named blocks
-  remove-bgp-listen         Remove ExaBGP legacy bgp listen leaf
-  remove-tcp-port           Remove environment tcp port (per-peer config)
-  remove-env-bgp-connect    Remove environment bgp connect (per-peer config)
-  remove-env-bgp-accept     Remove environment bgp accept (per-peer config)
-  hub-server-host-to-ip     Rename plugin hub server host to ip
+  neighbor->peer             Rename 'neighbor' blocks to 'peer'
+  peer-glob->template.match  Move glob patterns (10.0.0.0/8) to template.match
+  template.neighbor->group   Rename template.neighbor to template.group
+  static->announce           Convert 'static' route blocks to 'announce'
+  api->new-format            Convert old api syntax to named blocks
+  remove-bgp-listen          Remove ExaBGP legacy bgp listen leaf
+  remove-tcp-port            Remove environment tcp port
+  remove-env-bgp-connect     Remove environment bgp connect
+  remove-env-bgp-accept      Remove environment bgp accept
+  hub-server-host-to-ip      Rename plugin hub server host to ip
   log-booleans-to-subsystems Convert boolean log topics to subsystem levels
-  listener-to-list          Convert flat host+port to server list format
-  wrap-bgp-block            Wrap BGP elements in bgp {} block
-  template->group           Convert template block to bgp peer-groups
+  listener-to-list           Convert flat host+port to server list format
+  wrap-bgp-block             Wrap BGP elements in bgp {} block
+  template->group            Convert template block to bgp peer-groups
 ```
-
-<!-- source: internal/component/config/migration/migrate.go -- transformation registry -->
-<!-- source: internal/component/config/migration/listener.go -- listener/log transformations -->
 
 ## Migration Detection
 
-ZeBGP detects what needs migration automatically:
+`ze config migrate --dry-run` reports which named transformations would apply.
 
-**Deprecated patterns (triggers migration):**
+Older shapes that trigger migration include:
+
 - `neighbor <IP> { }` at root level
-- `peer <glob>` at root level (e.g., `peer * { }`)
+- `peer <glob> { }` at root level, for example `peer * { }`
 - `template { neighbor <name> { } }`
-- `static { }` blocks (should use `announce { }`)
-- Old-style `api { processes [...] }` syntax
+- `static { }` route blocks
+- old-style `api { processes [...] }` syntax
+- ExaBGP environment leaves that Ze does not model as native config
 
-**Current patterns (no migration needed):**
-- `peer <IP> { }` at root level (non-glob)
-- `template { group <name> { } }`
-- `template { match <glob> { } }`
-- `announce { ipv4 { unicast { } } }` blocks
-- Named `api <name> { }` blocks
+Current syntax uses:
 
-## Transformations
+- `bgp { peer <name> { ... } }`
+- `bgp { group <name> { ... } }`
+- `bgp { group <name> { peer <name> { ... } } }`
+- `connection { remote { ip ... } }` for transport
+- `session { asn { local ...; remote ...; } }` for BGP ASNs
+- `announce { ... }` blocks for local routes
+- named API blocks
 
-Migration performs these transformations in order:
+## Common Transformations
 
-| v2 Syntax | v3 Syntax |
-|-----------|-----------|
-| `neighbor <IP> { }` | `peer <IP> { }` |
-| `peer * { }` (root glob) | `template { match * { } }` |
-| `peer 192.*.*.* { }` | `template { match 192.*.*.* { } }` |
-| `template { neighbor <name> { } }` | `template { group <name> { } }` |
+| Older shape | Current shape |
+|-------------|---------------|
+| `neighbor <IP> { }` | `bgp { peer <name> { } }` |
+| `peer * { }` or other root glob | `bgp { group <name> { ... } }` defaults |
+| `template { neighbor <name> { } }` | `bgp { group <name> { } }` |
+| `local-as` / `peer-as` leaves | `session { asn { local ...; remote ...; } }` |
+| flat remote address leaves | `connection { remote { ip ...; } }` |
+| `static { }` | `announce { }` |
 
-### Example
+## Example
 
-**Before (v2):**
+Older local file:
+
 ```
 template {
     neighbor defaults {
         hold-time 90;
     }
-}
-
-peer * {
-    capability { route-refresh; }
 }
 
 neighbor 192.0.2.1 {
@@ -105,32 +109,32 @@ neighbor 192.0.2.1 {
 }
 ```
 
-**After (v3):**
+Current native shape:
+
 ```
-template {
+bgp {
+    session { asn { local 65000; } }
+
     group defaults {
-        hold-time 90;
-    }
-    match * {
-        capability { route-refresh; }
-    }
-}
+        timer { receive-hold-time 90; }
 
-peer upstream1 {
-    inherit defaults;
-    remote {
-        ip 192.0.2.1;
-        as 65001;
+        peer upstream1 {
+            connection {
+                remote { ip 192.0.2.1; }
+            }
+            session {
+                asn { remote 65001; }
+            }
+        }
     }
-    local-as 65000;
 }
 ```
 
-## CLI Commands
+## Commands
 
-### ze config migrate --dry-run
+### `ze config migrate --dry-run`
 
-Shows if migration is needed:
+Shows what would be converted:
 
 ```bash
 $ ze config migrate --dry-run old.conf
@@ -143,9 +147,38 @@ Transformation analysis:
 Result: 2 transformation(s) would apply. All would succeed.
 ```
 
-### ze config fmt
+### `ze config migrate`
 
-Formats and normalizes v3 config files:
+Converts a file to the current syntax:
+
+```bash
+# List transforms
+$ ze config migrate --list
+
+# Preview conversion
+$ ze config migrate --dry-run old.conf
+
+# Convert to stdout
+$ ze config migrate old.conf
+
+# Write to a new file
+$ ze config migrate -o current.conf old.conf
+
+# Read from stdin
+cat old.conf | ze config migrate -
+```
+
+Flags:
+
+- `--list` shows available transformations.
+- `--dry-run` reports what would happen without applying changes.
+- `--format <fmt>` sets output format, `set` by default or `hierarchical`.
+- `-o <file>` writes to the specified file.
+- `-` reads from stdin and, for `migrate -o -`, writes the result to stdout.
+
+### `ze config fmt`
+
+Formats and normalizes current config syntax:
 
 ```bash
 # Print formatted config to stdout
@@ -154,85 +187,43 @@ $ ze config fmt config.conf
 # Write back to file
 $ ze config fmt -w config.conf
 
-# Check if formatting needed (for CI)
+# Check if formatting is needed
 $ ze config fmt --check config.conf
-# Exit 0 = no changes needed
-# Exit 1 = changes needed
 
 # Show diff of changes
 $ ze config fmt --diff config.conf
 ```
 
-**Flags:**
-- (none) - Print to stdout
-- `-w` - Write result to source file (writes to stdout when the input is `-`)
-- `--check` - Exit 1 if changes needed (CI use)
-- `--diff` - Show unified diff
-- `-` - Read from stdin (and, for `migrate -o -`, write the result to stdout)
+Flags:
 
-**Note:** `fmt` only works on v3 configs. Run `migrate` first for v2 configs.
+- no flag prints to stdout.
+- `-w` writes the result to the source file, or to stdout when the input is `-`.
+- `--check` exits 1 if formatting is needed.
+- `--diff` shows a unified diff.
 
-### ze config migrate
+## Unsupported ExaBGP Features
 
-Converts config to current format:
+Some ExaBGP features are detected but not implemented in Ze:
 
-```bash
-# List available transformations
-$ ze config migrate --list
+| Feature | Location | Result |
+|---------|----------|--------|
+| `multi-session` | `capability { }` | Warning |
+| `operational` | `capability { }` | Warning |
+| `operational` block | `peer { }` | Warning |
 
-# Preview what would happen
-$ ze config migrate --dry-run old.conf
-Transformation analysis:
-  [done] peer-glob->template.match
-  [done] template.neighbor->group
-  [pending] neighbor->peer
-  [pending] api->new-format
-
-Result: 2 transformation(s) would apply. All would succeed.
-
-# Migrate to stdout (config to stdout, progress to stderr)
-$ ze config migrate old.conf
-Transformations:
-  + neighbor->peer
-  - peer-glob->template.match (not needed)
-  ...
-2 applied, 3 skipped.
-
-# Write to new file
-$ ze config migrate -o new.conf old.conf
-
-# Pipe from stdin
-cat old.conf | ze config migrate -
-```
-
-**Flags:**
-- `--list` - Show available transformations
-- `--dry-run` - Show what would happen without applying
-- `--format <fmt>` - Output format: `set` (default) or `hierarchical`
-- `-o <file>` - Write to specified file
-
-<!-- source: internal/component/config/migration/migrate.go -- Migrate, transformations -->
-
-## Unsupported Features
-
-Some ExaBGP features are detected but not supported in ZeBGP:
-
-| Feature | Location | Notes |
-|---------|----------|-------|
-| `multi-session` | `capability { }` | Non-standard extension |
-| `operational` | `capability { }` | ExaBGP-specific |
-| `operational` block | `peer { }` | ExaBGP-specific messaging |
-
-These features generate warnings but don't block migration or loading.
+Warnings do not make the file loadable by themselves. Validate the migrated
+output with the same binary that will run it.
 
 ## Error Handling
 
 If migration fails:
-1. Original file is unchanged
-2. Error message describes the issue
-3. Fix the issue and retry
 
-Common errors:
-- Invalid syntax in source config
-- Conflicting definitions after migration
-- File permission issues
+1. The original file is unchanged.
+2. The error names the transformation or syntax that failed.
+3. Fix the source file and rerun `ze config migrate --dry-run`.
+
+Common causes:
+
+- invalid syntax in the source config
+- conflicting definitions after migration
+- file permission errors

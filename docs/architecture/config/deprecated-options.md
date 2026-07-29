@@ -1,16 +1,36 @@
-# Deprecated Configuration Options
+# Configuration Syntax Changes
 
 <!-- source: internal/component/config/cli/cmd_migrate.go -- migration implementation -->
+<!-- source: internal/component/config/migration/migrate.go -- transformation registry -->
 
-This document lists configuration syntax that has been deprecated and the migration path for each.
+Ze has not shipped a stable configuration release yet. There is no public
+deprecation lifecycle for old config versions, and Ze does not promise a
+numbered generation ladder for config syntax.
 
-## v2 Syntax (Deprecated)
+Config compatibility is date-based. A config file records the schema stamp that
+wrote it, and recovery chooses the newest rollback file that the running binary
+can parse. For pre-release files or old examples, `ze config migrate` converts
+known older shapes to the syntax expected by the current tree.
 
-The following v2 syntax is deprecated and should be migrated to v3:
+## Compatibility rules
 
-### neighbor keyword
+| Case | What Ze does |
+|------|--------------|
+| Current config | `ze config validate <file>` checks it directly. |
+| Older pre-release Ze syntax | `ze config migrate` applies named transforms, then emits current syntax. |
+| ExaBGP-shaped syntax | The migrator converts supported shapes and reports unsupported extensions. |
+| Newer schema stamp after downgrade | Startup tries rollback files newest-first and writes back the first one this binary can parse. |
 
-**Deprecated:**
+The transform names are descriptive implementation names, not public config
+version numbers. Use `ze config migrate --list` to see the current list in the
+binary you are running.
+
+## Older shapes the migrator recognizes
+
+### Root-level `neighbor`
+
+Older examples sometimes used root-level `neighbor` blocks:
+
 ```
 neighbor 192.0.2.1 {
     local-as 65000;
@@ -18,53 +38,57 @@ neighbor 192.0.2.1 {
 }
 ```
 
-**Current (v3):**
+Current native config puts BGP under `bgp {}` and separates transport from BGP
+session state:
+
 ```
-peer upstream1 {
-    remote {
-        ip 192.0.2.1;
-        as 65001;
+bgp {
+    session { asn { local 65000; } }
+
+    peer upstream1 {
+        connection {
+            remote { ip 192.0.2.1; }
+        }
+        session {
+            asn { remote 65001; }
+        }
     }
-    local { as 65000; }
 }
 ```
 
-**Migration:** `ze config migrate -o config-v3.conf config.conf`
-
----
-
 ### Root-level peer globs
 
-**Deprecated:**
+Older configs could use root-level peer globs for shared defaults:
+
 ```
 peer * {
     hold-time 90;
 }
+```
 
-peer 192.168.*.* {
-    hold-time 180;
+Current config uses named groups and concrete peers:
+
+```
+bgp {
+    group default {
+        timer { receive-hold-time 90; }
+
+        peer upstream1 {
+            connection {
+                remote { ip 192.0.2.1; }
+            }
+            session {
+                asn { remote 65001; }
+            }
+        }
+    }
 }
 ```
 
-**Current (v3):**
-```
-template {
-    match * {
-        timer { hold-time 90; }
-    }
-    match 192.168.*.* {
-        timer { hold-time 180; }
-    }
-}
-```
+### `template { neighbor }`
 
-**Why:** Glob patterns now live in `template { match }` blocks, keeping peer definitions for actual peers only.
+Older template neighbors became peer groups:
 
----
-
-### template { neighbor }
-
-**Deprecated:**
 ```
 template {
     neighbor ibgp-rs {
@@ -73,70 +97,44 @@ template {
 }
 ```
 
-**Current (v3):**
+Current config expresses the same default as a BGP group:
+
 ```
-template {
+bgp {
     group ibgp-rs {
-        peer-as 65000;
+        session { asn { remote 65000; } }
     }
 }
 ```
 
-**Why:** `neighbor` renamed to `group` for clarity - these are named template groups, not neighbors.
+## Unsupported ExaBGP extensions
 
----
+These ExaBGP extensions are recognized during migration, but Ze does not
+implement their behavior:
 
-## Unsupported Features
+| Syntax | Result |
+|--------|--------|
+| `capability { multi-session; }` | Warning. Ze uses standard BGP session handling. |
+| `capability { operational; }` | Warning. ExaBGP operational messages are not implemented. |
+| `operational { ... }` under a peer | Warning. The block is not applied. |
 
-These ExaBGP features are parsed but ignored:
-
-### multi-session capability
-
-```
-capability {
-    multi-session;  # Ignored - ExaBGP-specific
-}
-```
-
-ZeBGP uses standard BGP session handling.
-
-### operational capability
-
-```
-capability {
-    operational;  # Ignored - ExaBGP-specific
-}
-```
-
-### operational block
-
-```
-peer upstream1 {
-    remote {
-        ip 192.0.2.1;
-        as 65001;
-    }
-    operational {
-        # All operational messages ignored
-    }
-}
-```
-
-ExaBGP operational messages (ASM, ADM, RPCQ, etc.) are not supported.
-
----
-
-## Migration Commands
+## Commands
 
 ```bash
-# Check what needs migration
+# Check whether a file already matches the current binary
 ze config validate config.conf
 
-# Preview changes
+# Preview conversion without writing a new file
 ze config migrate --dry-run config.conf
 
-# Apply migration to new file
-ze config migrate -o config-v3.conf config.conf
+# Convert to stdout
+ze config migrate config.conf
+
+# Convert to a new file
+ze config migrate -o config-current.conf config.conf
+
+# List transforms in this binary
+ze config migrate --list
 ```
 
-See [config-migration.md](../../config-migration.md) for full details.
+See [Configuration Migration](../../config-migration.md) for command details.
