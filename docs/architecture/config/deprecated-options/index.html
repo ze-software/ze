@@ -3,9 +3,9 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Deprecated Configuration Options - Ze</title>
+        <title>Configuration Syntax Changes - Ze</title>
         <meta name="description" content="Ze documentation: architecture/config/deprecated-options.md" />
-        <meta property="og:title" content="Deprecated Configuration Options - Ze" />
+        <meta property="og:title" content="Configuration Syntax Changes - Ze" />
         <meta property="og:description" content="Ze documentation: architecture/config/deprecated-options.md" />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
@@ -13,163 +13,186 @@
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open, programmable network OS for Linux" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Deprecated Configuration Options - Ze" />
+        <meta name="twitter:title" content="Configuration Syntax Changes - Ze" />
         <meta name="twitter:description" content="Ze documentation: architecture/config/deprecated-options.md" />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&amp;family=Lato:wght@400;700&amp;display=swap"
+            href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700;800&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
         />
-        <link rel="canonical" href="https://ze-software.net/docs/architecture/config/deprecated-options/" />
-        <meta property="og:url" content="https://ze-software.net/docs/architecture/config/deprecated-options/" />
-        <link rel="stylesheet" href="../../../../assets/site.css" />
-        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+        <link rel="stylesheet" href="../../../../assets/site.css?v=1211addb1c" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open, programmable network OS for Linux with BGP, IS-IS, OSPF, telemetry, operator interfaces, and plugins.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source network OS for Linux, built around native routing engines and operator automation.","codeRepository":"https://codeberg.org/thomas-mangin/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
     <body>
         <a class="skip-link" href="#top">Skip to main content</a>
-        <div id="site-header-mount" data-header-src="../../../../assets/header.html" data-site-root="../../../../">
-            <noscript>
-                <nav class="site-header-fallback" aria-label="Site navigation">
-                    <a class="brand" href="../../../../#top">Ze</a>
-                    <a href="../../../../#top">Home</a>
-                    <a href="../../../../docs/">Docs</a>
-                    <a href="../../../../features/">Features</a>
-                    <a href="../../../../compare/">Compare</a>
-                    <a href="../../../../roadmap/">Roadmap</a>
-                    <a href="../../../../changes/">Changes</a>
-                    <a href="../../../../faq/">FAQ</a>
-                    <a href="../../../../contribute/">Contribute</a>
-                </nav>
-            </noscript>
-        </div>
+        <div id="site-header-mount" data-header-src="../../../../assets/header.html" data-site-root="../../../../"></div>
 
         <main id="top" tabindex="-1">
             <section class="md-content reveal cat-operate">
 <!-- source: internal/component/config/cli/cmd_migrate.go -- migration implementation -->
+<!-- source: internal/component/config/migration/migrate.go -- transformation registry -->
 
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Architecture</span>
-    <h1 id="deprecated-configuration-options">Deprecated Configuration Options</h1>
-    <p>This document lists configuration syntax that has been deprecated and the migration path for each.</p>
+    <h1 id="configuration-syntax-changes">Configuration Syntax Changes</h1>
+    <p>Ze has not shipped a stable configuration release yet. There is no public
+deprecation lifecycle for old config versions, and Ze does not promise a
+numbered generation ladder for config syntax.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
-<li><a href="#v2-syntax-deprecated">v2 Syntax (Deprecated)</a>
+<li><a href="#compatibility-rules">Compatibility rules</a></li>
+<li><a href="#older-shapes-the-migrator-recognizes">Older shapes the migrator recognizes</a>
 <ol>
-<li><a href="#neighbor-keyword">neighbor keyword</a></li>
+<li><a href="#root-level-neighbor">Root-level neighbor</a></li>
 <li><a href="#root-level-peer-globs">Root-level peer globs</a></li>
 <li><a href="#template-neighbor">template { neighbor }</a></li>
 </ol></li>
-<li><a href="#unsupported-features">Unsupported Features</a>
-<ol>
-<li><a href="#multi-session-capability">multi-session capability</a></li>
-<li><a href="#operational-capability">operational capability</a></li>
-<li><a href="#operational-block">operational block</a></li>
-</ol></li>
-<li><a href="#migration-commands">Migration Commands</a></li>
+<li><a href="#unsupported-exabgp-extensions">Unsupported ExaBGP extensions</a></li>
+<li><a href="#commands">Commands</a></li>
 </ol></nav>
-<h2 id="v2-syntax-deprecated">v2 Syntax (Deprecated)</h2>
-<p>The following v2 syntax is deprecated and should be migrated to v3:</p>
-<h3 id="neighbor-keyword">neighbor keyword</h3>
-<p><strong>Deprecated:</strong></p>
+<p>Config compatibility is date-based. A config file records the schema stamp that
+wrote it, and recovery chooses the newest rollback file that the running binary
+can parse. For pre-release files or old examples, <code>ze config migrate</code> converts
+known older shapes to the syntax expected by the current tree.</p>
+<h2 id="compatibility-rules">Compatibility rules</h2>
+<table>
+<thead>
+<tr>
+<th>Case</th>
+<th>What Ze does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Current config</td>
+<td><code>ze config validate &lt;file&gt;</code> checks it directly.</td>
+</tr>
+<tr>
+<td>Older pre-release Ze syntax</td>
+<td><code>ze config migrate</code> applies named transforms, then emits current syntax.</td>
+</tr>
+<tr>
+<td>ExaBGP-shaped syntax</td>
+<td>The migrator converts supported shapes and reports unsupported extensions.</td>
+</tr>
+<tr>
+<td>Newer schema stamp after downgrade</td>
+<td>Startup tries rollback files newest-first and writes back the first one this binary can parse.</td>
+</tr>
+</tbody>
+</table>
+<p>The transform names are descriptive implementation names, not public config
+version numbers. Use <code>ze config migrate --list</code> to see the current list in the
+binary you are running.</p>
+<h2 id="older-shapes-the-migrator-recognizes">Older shapes the migrator recognizes</h2>
+<h3 id="root-level-neighbor">Root-level <code>neighbor</code></h3>
+<p>Older examples sometimes used root-level <code>neighbor</code> blocks:</p>
 <pre><code>neighbor 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
 }
 </code></pre>
-<p><strong>Current (v3):</strong></p>
-<pre><code>peer upstream1 {
-    remote {
-        ip 192.0.2.1;
-        as 65001;
+<p>Current native config puts BGP under <code>bgp {}</code> and separates transport from BGP
+session state:</p>
+<pre><code>bgp {
+    session { asn { local 65000; } }
+
+    peer upstream1 {
+        connection {
+            remote { ip 192.0.2.1; }
+        }
+        session {
+            asn { remote 65001; }
+        }
     }
-    local { as 65000; }
 }
 </code></pre>
-<p><strong>Migration:</strong> <code>ze config migrate -o config-v3.conf config.conf</code></p>
-<hr />
 <h3 id="root-level-peer-globs">Root-level peer globs</h3>
-<p><strong>Deprecated:</strong></p>
+<p>Older configs could use root-level peer globs for shared defaults:</p>
 <pre><code>peer * {
     hold-time 90;
 }
+</code></pre>
+<p>Current config uses named groups and concrete peers:</p>
+<pre><code>bgp {
+    group default {
+        timer { receive-hold-time 90; }
 
-peer 192.168.*.* {
-    hold-time 180;
-}
-</code></pre>
-<p><strong>Current (v3):</strong></p>
-<pre><code>template {
-    match * {
-        timer { hold-time 90; }
-    }
-    match 192.168.*.* {
-        timer { hold-time 180; }
+        peer upstream1 {
+            connection {
+                remote { ip 192.0.2.1; }
+            }
+            session {
+                asn { remote 65001; }
+            }
+        }
     }
 }
 </code></pre>
-<p><strong>Why:</strong> Glob patterns now live in <code>template { match }</code> blocks, keeping peer definitions for actual peers only.</p>
-<hr />
-<h3 id="template-neighbor">template { neighbor }</h3>
-<p><strong>Deprecated:</strong></p>
+<h3 id="template-neighbor"><code>template { neighbor }</code></h3>
+<p>Older template neighbors became peer groups:</p>
 <pre><code>template {
     neighbor ibgp-rs {
         peer-as 65000;
     }
 }
 </code></pre>
-<p><strong>Current (v3):</strong></p>
-<pre><code>template {
+<p>Current config expresses the same default as a BGP group:</p>
+<pre><code>bgp {
     group ibgp-rs {
-        peer-as 65000;
+        session { asn { remote 65000; } }
     }
 }
 </code></pre>
-<p><strong>Why:</strong> <code>neighbor</code> renamed to <code>group</code> for clarity - these are named template groups, not neighbors.</p>
-<hr />
-<h2 id="unsupported-features">Unsupported Features</h2>
-<p>These ExaBGP features are parsed but ignored:</p>
-<h3 id="multi-session-capability">multi-session capability</h3>
-<pre><code>capability {
-    multi-session;  # Ignored - ExaBGP-specific
-}
-</code></pre>
-<p>ZeBGP uses standard BGP session handling.</p>
-<h3 id="operational-capability">operational capability</h3>
-<pre><code>capability {
-    operational;  # Ignored - ExaBGP-specific
-}
-</code></pre>
-<h3 id="operational-block">operational block</h3>
-<pre><code>peer upstream1 {
-    remote {
-        ip 192.0.2.1;
-        as 65001;
-    }
-    operational {
-        # All operational messages ignored
-    }
-}
-</code></pre>
-<p>ExaBGP operational messages (ASM, ADM, RPCQ, etc.) are not supported.</p>
-<hr />
-<h2 id="migration-commands">Migration Commands</h2>
-<pre><code class="language-bash"># Check what needs migration
+<h2 id="unsupported-exabgp-extensions">Unsupported ExaBGP extensions</h2>
+<p>These ExaBGP extensions are recognized during migration, but Ze does not
+implement their behavior:</p>
+<table>
+<thead>
+<tr>
+<th>Syntax</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>capability { multi-session; }</code></td>
+<td>Warning. Ze uses standard BGP session handling.</td>
+</tr>
+<tr>
+<td><code>capability { operational; }</code></td>
+<td>Warning. ExaBGP operational messages are not implemented.</td>
+</tr>
+<tr>
+<td><code>operational { ... }</code> under a peer</td>
+<td>Warning. The block is not applied.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="commands">Commands</h2>
+<pre><code class="language-bash"># Check whether a file already matches the current binary
 ze config validate config.conf
 
-# Preview changes
+# Preview conversion without writing a new file
 ze config migrate --dry-run config.conf
 
-# Apply migration to new file
-ze config migrate -o config-v3.conf config.conf
+# Convert to stdout
+ze config migrate config.conf
+
+# Convert to a new file
+ze config migrate -o config-current.conf config.conf
+
+# List transforms in this binary
+ze config migrate --list
 </code></pre>
-<p>See <a href="https://github.com/ze-software/ze/blob/main/docs/config-migration.md" target="_blank" rel="noopener">config-migration.md</a> for full details.</p>
+<p>See <a href="https://github.com/ze-software/ze/blob/main/docs/config-migration.md" target="_blank" rel="noopener">Configuration Migration</a> for command details.</p>
             </section>
         </main>
 
-        <script src="../../../../assets/site.js" defer></script>
+        <script src="../../../../assets/site.js?v=8f166ca02d" defer></script>
 
         <footer>
             <div class="footer-inner">
