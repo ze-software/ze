@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -66,19 +67,27 @@ class TestIndexPending(unittest.TestCase):
             self.assertTrue(ch.index_pending(root, rel))  # modified -> pending
 
 
+# Stands in for a real discovery generator, so it MUST honour the same contract:
+# `--root DIR` selects the tree, and a stale output exits STALE_EXIT (3) -- 1 means
+# "the generator itself failed" and callers must not read that as drift.
 FAKEGEN = textwrap.dedent("""\
     import sys
     from pathlib import Path
-    root = Path(__file__).resolve().parents[2]
+    argv = sys.argv
+    root = (
+        Path(argv[argv.index("--root") + 1]).resolve()
+        if "--root" in argv
+        else Path(__file__).resolve().parents[2]
+    )
     out = root / "ai" / "FAKE.md"
     src = root / "src"
     names = sorted(p.name for p in src.glob("*.txt")) if src.is_dir() else []
     content = ",".join(names)
-    if "--check" in sys.argv:
+    if "--check" in argv:
         cur = out.read_text() if out.exists() else ""
         if cur != content:
             print("is stale")
-            sys.exit(1)
+            sys.exit(3)
         sys.exit(0)
     out.write_text(content)
 """)
@@ -121,6 +130,93 @@ class TestHeadStatus(unittest.TestCase):
             root = Path(tmp)
             _git(root, "init", "-q")
             self.assertEqual(ch.discovery_index_head_status(root)[0], "unknown")
+
+
+def _seed_fake_index_repo(root: Path) -> None:
+    """A repo whose single committed index matches its single committed source."""
+    _git(root, "init", "-q")
+    _git(root, "config", "user.email", "t@example.com")
+    _git(root, "config", "user.name", "t")
+    _git(root, "config", "commit.gpgsign", "false")
+    (root / "scripts" / "dev").mkdir(parents=True)
+    (root / "src").mkdir()
+    (root / "ai").mkdir()
+    (root / "scripts" / "dev" / "fakegen.py").write_text(FAKEGEN)
+    (root / "src" / "a.txt").write_text("a\n")
+    (root / "ai" / "FAKE.md").write_text("a.txt")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", "init")
+
+
+class TestVerdictOrdering(unittest.TestCase):
+    """The HEAD pass must be judged BEFORE the commit overlay is applied.
+
+    Both verdicts come from one materialized tree, so the order is load-bearing:
+    overlay first and the commit's own not-yet-committed files would be counted as
+    already committed, turning the HEAD verdict into a verdict on nothing (it
+    would report the very drift THIS commit is about to introduce as a prior
+    commit's bypass, and go quiet about a real one).
+    """
+
+    def test_head_verdict_excludes_this_commits_overlay(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _seed_fake_index_repo(root)
+            # A new source this commit adds, WITHOUT the matching index update.
+            (root / "src" / "b.txt").write_text("b\n")
+
+            saved = (ch.DISCOVERY_INDEX_GENERATORS, ch.DISCOVERY_INDEX_OUTPUTS)
+            ch.DISCOVERY_INDEX_GENERATORS = ("scripts/dev/fakegen.py",)
+            ch.DISCOVERY_INDEX_OUTPUTS = ("ai/FAKE.md",)
+            try:
+                v = ch.discovery_index_verdicts(root, ("src/b.txt",), ())
+            finally:
+                ch.DISCOVERY_INDEX_GENERATORS, ch.DISCOVERY_INDEX_OUTPUTS = saved
+            # HEAD itself is coherent: src/b.txt is not committed yet.
+            self.assertEqual(v.head_state, "fresh")
+            self.assertEqual(v.head_stale, [])
+            # The tree this commit PRODUCES is not: the index misses src/b.txt.
+            self.assertTrue(v.view_judged)
+            self.assertEqual(v.view_stale, ["ai/FAKE.md"])
+
+
+class TestCommitViewSweep(unittest.TestCase):
+    """Leftover commit views are reaped; live ones are never touched.
+
+    Each view is a ~98MB tree plus a ~90MB tar, and a SIGKILL runs no `finally`.
+    """
+
+    def test_reaps_only_aged_leftovers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            scratch = root / "tmp"
+            scratch.mkdir()
+            old_dir = scratch / "commit-view-old"
+            old_dir.mkdir()
+            (old_dir / "nested").mkdir()
+            (old_dir / "nested" / "f.txt").write_text("x")
+            old_tar = scratch / "commit-view-old.tar"
+            old_tar.write_text("tar bytes")
+            fresh_dir = scratch / "commit-view-live"
+            fresh_dir.mkdir()
+            unrelated = scratch / "commit-abcdef.sh"
+            unrelated.write_text("#!/bin/sh\n")
+
+            aged = time.time() - (ch.COMMIT_VIEW_TTL_SECONDS + 60)
+            os.utime(old_dir, (aged, aged))
+            os.utime(old_tar, (aged, aged))
+            os.utime(unrelated, (aged, aged))
+
+            ch._sweep_stale_commit_views(root)
+
+            self.assertFalse(old_dir.exists())  # aged tree: gone
+            self.assertFalse(old_tar.exists())  # its tar too
+            self.assertTrue(fresh_dir.exists())  # a live run's view: untouched
+            self.assertTrue(unrelated.exists())  # not a commit view: untouched
+
+    def test_no_scratch_dir_is_not_an_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ch._sweep_stale_commit_views(Path(tmp))  # must not raise
 
 
 DEFERRALS_HEADER = (

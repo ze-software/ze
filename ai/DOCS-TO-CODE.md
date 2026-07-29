@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 301 design docs, 3129 files
+Total: 301 design docs, 3131 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -217,6 +217,7 @@ Total: 301 design docs, 3129 files
 | `cmd/ze/hub/statestore.go` | runtime state persists in the managed |
 | `internal/component/bfd/auth/persist.go` | runtime state lives in the managed zefs |
 | `internal/core/statestore/statestore.go` | runtime state persists in the managed |
+| `internal/plugins/ospf/state_store_gate_test.go` | runtime state persists in the managed |
 | `scripts/checks/direct_fs_persistence.go` | runtime state belongs in the zefs store |
 
 ## `docs/architecture/api/architecture.md`
@@ -621,6 +622,7 @@ Total: 301 design docs, 3129 files
 | `internal/component/plugin/cli/cli.go` | plugin CLI framework |
 | `internal/core/subdispatch/subdispatch.go` | shared action-first dispatch for install/uninstall |
 | `internal/plugins/local/cmd_install.go` | ze local install: binary copy + config scaffold |
+| `internal/plugins/local/cmd_install_atomic_test.go` | ze local install: binary copy is inode-replacing |
 | `internal/plugins/local/cmd_install_test.go` | tests for local install |
 | `internal/plugins/local/cmd_uninstall.go` | ze local uninstall: remove binary + config |
 | `internal/plugins/local/main.go` | local install/uninstall implementation |

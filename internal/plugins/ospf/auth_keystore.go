@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config/secret"
+	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/paths"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
@@ -132,16 +133,41 @@ func loadOSPFBootCount(store bootCountStore) uint32 {
 	return next
 }
 
-// openBootCountStore opens the shared ZeFS database for boot-count persistence,
-// returning nil when no store can be located (e.g. stdin/temp config, or a fresh
-// appliance before its database exists). The OSPF engine runs as a separate plugin
-// process and is not handed the host's storage handle, so it resolves the same
-// binary-relative database.zefs the rest of Ze uses. A nil return makes
-// loadOSPFBootCount fall back to the hashed clock seed. The store is closed by the
-// caller path implicitly at process exit; the boot count is a single read+write at
-// startup so holding it open is unnecessary -- close it here.
+// pinnedStateDir returns the config directory ONLY when the operator pinned one
+// with ze.config.dir, and "" otherwise.
+//
+// This mirrors the gate the daemon applies to runtime-state persistence
+// (cmd/ze/hub/main.go: the `else if env.Get("ze.config.dir") != ""` branch, whose
+// comment spells out why). Without an explicit pin, paths.DefaultConfigDir falls
+// back to the binary-relative etc/ze, which EVERY `ze` invocation on the host
+// shares. The OSPF engine runs as its own process, and zefs's lock is an
+// in-process sync.RWMutex (pkg/zefs/lock.go) that cannot serialize across
+// processes -- so opening that shared database.zefs put 64 functional-test
+// daemons on one file. That contention is what produced the SIGBUS behind
+// test/ospf/ospf-ldp-sync-restore.ci (plan/learned/1293).
+//
+// Unpinned, both callers degrade exactly as they already do when no store can be
+// found: the boot count falls back to the hashed clock seed, and GR restart facts
+// are not persisted across a restart.
+// resolve is passed in rather than called directly so a test can observe the
+// gate: under `go test` the binary lives in a build temp dir, so
+// paths.DefaultConfigDir returns "" on its own and a gate that did nothing would
+// look identical to one that works.
+func pinnedStateDir(resolve func() string) string {
+	if env.Get("ze.config.dir") == "" {
+		return ""
+	}
+	return resolve()
+}
+
+// openBootCountStore opens the pinned ZeFS database for boot-count persistence,
+// returning nil when the operator pinned no config dir (pinnedStateDir) or no
+// store can be opened there (a fresh appliance before its database exists). A nil
+// return makes loadOSPFBootCount fall back to the hashed clock seed. The boot
+// count is a single read+write at startup, so the store is closed immediately
+// rather than held for the engine's lifetime.
 func openBootCountStore() bootCountStore {
-	dir := paths.DefaultConfigDir()
+	dir := pinnedStateDir(paths.DefaultConfigDir)
 	if dir == "" {
 		return nil
 	}

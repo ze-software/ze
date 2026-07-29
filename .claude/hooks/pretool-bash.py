@@ -171,6 +171,37 @@ LAUNCHERS = {
     "timeout",
 }
 LOSSY_FILTER = re.compile(r"^\s*(head|tail|grep|egrep|fgrep|awk|sed|cat|less|more)\b")
+# `timeout` and `nice` are the two launchers that take operands of their OWN before
+# the real command word, so reaching the command means consuming those first.
+# Options that take a SEPARATE argument (`timeout -k 5 30 make ...`,
+# `nice -n 5 make ...`): the flag and its value both sit in front.
+LAUNCHER_OPT_WITH_ARG = {"-k", "--kill-after", "-s", "--signal", "-n", "--adjustment"}
+# The duration/niceness operand itself. `timeout` accepts a unit suffix, and
+# ai/rules/git-safety.md tells every session to write exactly that (`timeout 240s
+# make ze-verify`) -- the old bare-`isdigit()` test did not match it, so the
+# repo's own documented invocation slipped straight past this gate. A bare
+# negative niceness (`nice -5 make ...`) is a flag and the operand at once, hence
+# the optional leading `-`.
+LAUNCHER_OPERAND = re.compile(r"^-?\d+(?:\.\d+)?[smhd]?$")
+
+
+def _strip_launcher_operands(tokens):
+    """Drop a `timeout`/`nice` launcher's own flags and duration/niceness operand.
+
+    Returns `tokens` positioned at the command word the launcher will run.
+    """
+    while tokens:
+        head = tokens[0]
+        if head in LAUNCHER_OPT_WITH_ARG:
+            tokens = tokens[2:] if len(tokens) > 1 else tokens[1:]
+            continue
+        if LAUNCHER_OPERAND.match(head):
+            return tokens[1:]  # exactly one operand, then the command word
+        if head.startswith("-"):
+            tokens = tokens[1:]  # a valueless flag (--preserve-status, -v, ...)
+            continue
+        return tokens  # already at the command word
+    return tokens
 
 
 def _is_expensive(segment):
@@ -181,15 +212,10 @@ def _is_expensive(segment):
         or "=" in tokens[0].split("/")[0]
         and not tokens[0].startswith("-")
     ):
-        # `timeout 30 make ...` carries a numeric argument before the command.
-        if (
-            tokens[0] in ("timeout", "nice")
-            and len(tokens) > 1
-            and tokens[1].lstrip("-").isdigit()
-        ):
-            tokens = tokens[2:]
-            continue
+        launcher = tokens[0]
         tokens = tokens[1:]
+        if launcher in ("timeout", "nice"):
+            tokens = _strip_launcher_operands(tokens)
     while tokens and tokens[0].startswith("-"):
         tokens = tokens[1:]
     if not tokens:

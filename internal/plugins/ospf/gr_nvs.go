@@ -14,9 +14,11 @@ import (
 	"encoding/json"
 	"io/fs"
 	"path/filepath"
+
 	"time"
 
 	"github.com/ze-software/ze/internal/core/paths"
+
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
@@ -69,7 +71,9 @@ type grBlobStore interface {
 // the GR path can perform multiple operations (write on prepare, read on resume, clear on
 // exit) rather than the single-write closing wrapper the boot count uses.
 func openGRStore() (*zefs.BlobStore, bool) {
-	dir := paths.DefaultConfigDir()
+	// pinnedStateDir, not paths.DefaultConfigDir: unpinned, that resolves the
+	// binary-relative etc/ze every `ze` on the host shares. See its doc.
+	dir := pinnedStateDir(paths.DefaultConfigDir)
 	if dir == "" {
 		return nil, false
 	}

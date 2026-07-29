@@ -9,7 +9,7 @@ document you can list every file that implements it without grepping the tree.
 
 Usage:
     python3 scripts/dev/docs_to_code.py          # regenerate ai/DOCS-TO-CODE.md
-    python3 scripts/dev/docs_to_code.py --check   # exit 1 if the index is stale
+    python3 scripts/dev/docs_to_code.py --check   # exit 3 if the index is stale
     python3 scripts/dev/docs_to_code.py --root DIR   # run against another tree
 
 `--root` exists so commit_helper.py can point this generator at a materialized
@@ -23,7 +23,7 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-from discovery_sources import root_from_argv
+from discovery_sources import STALE_EXIT, root_from_argv
 
 
 DESIGN_RE = re.compile(r"^//\s*Design:\s*(\S+)\s*(.*)$")
@@ -133,7 +133,9 @@ def main() -> int:
                 "run: make ze-discovery-index",
                 file=sys.stderr,
             )
-            return 1
+            # STALE_EXIT, not 1: callers must distinguish drift from a crash. The
+            # text above is what a human reads; the code is what a gate reads.
+            return STALE_EXIT
         print(f"checked {len(index)} design docs, ai/DOCS-TO-CODE.md up to date")
         return 0
 

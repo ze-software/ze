@@ -85,7 +85,7 @@ func cmdInstall(args []string) int {
 	_, existErr := os.Stat(binPath)
 	replacing := existErr == nil
 
-	if err := copyFile(resolved, binPath, 0o755); err != nil {
+	if err := copyFile(resolved, binPath); err != nil {
 		fmt.Fprintf(os.Stderr, "error: copying binary to %s: %v\n", binPath, err)
 		return exitError
 	}
@@ -153,23 +153,61 @@ func promptPrefix(r io.Reader, w io.Writer) (string, error) {
 	return prefixChoices[n-1].path, nil
 }
 
-func copyFile(src, dst string, perm os.FileMode) error {
+// copyFile copies src to dst via a temp file in dst's own directory, then
+// renames it into place. os.Rename installs a NEW inode, so a process already
+// executing dst keeps its old mapping intact and the swap is atomic: a reader
+// sees either the whole old binary or the whole new one, never a partial copy.
+//
+// Writing onto dst in place (O_WRONLY|O_CREATE|O_TRUNC) is the hazard fixed in
+// pkg/zefs/store.go: the kernel maps a running executable, so truncating the
+// same inode invalidates its text pages and the running process takes SIGBUS.
+// Linux usually refuses with ETXTBSY instead; macOS does not protect it at all.
+// Same filesystem is guaranteed because the temp file is created in filepath.Dir(dst).
+// installedBinaryMode is the mode an installed `ze` must end up with. Applied
+// explicitly because os.CreateTemp makes the staging file 0600.
+const installedBinaryMode = 0o755
+
+func copyFile(src, dst string) error {
 	in, err := os.Open(src) // #nosec G304 - src is our own resolved binary path
 	if err != nil {
 		return err
 	}
 	defer in.Close() //nolint:errcheck // read-only source
 
-	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm) // #nosec G304 - dst is derived from user-selected prefix
+	tmp, err := os.CreateTemp(filepath.Dir(dst), ".ze-install-*.tmp")
 	if err != nil {
 		return err
 	}
+	tmpName := tmp.Name()
+	committed := false
+	defer func() {
+		if !committed {
+			os.Remove(tmpName) //nolint:errcheck // best-effort cleanup of temp file
+		}
+	}()
 
-	if _, err := io.Copy(out, in); err != nil {
-		out.Close() //nolint:errcheck // already returning copy error
+	if _, err := io.Copy(tmp, in); err != nil {
+		tmp.Close() //nolint:errcheck // already returning copy error
 		return err
 	}
-	return out.Close()
+	if err := tmp.Sync(); err != nil {
+		tmp.Close() //nolint:errcheck // already failing on sync path
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+
+	// os.CreateTemp creates the file 0600; an installed binary must be executable.
+	if err := os.Chmod(tmpName, installedBinaryMode); err != nil { // #nosec G302 - an installed binary must be executable
+		return err
+	}
+
+	if err := os.Rename(tmpName, dst); err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }
 
 func dryRunInstall(src, binPath, configDir string) int {

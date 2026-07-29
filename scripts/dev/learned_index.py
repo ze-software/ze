@@ -9,7 +9,7 @@ the curated index; it does not replace it.
 
 Usage:
     python3 scripts/dev/learned_index.py          # regenerate ai/LEARNED-FULL-INDEX.md
-    python3 scripts/dev/learned_index.py --check   # exit 1 if the index is stale
+    python3 scripts/dev/learned_index.py --check   # exit 3 if the index is stale
     python3 scripts/dev/learned_index.py --root DIR   # run against another tree
 
 `--root` exists so commit_helper.py can point this generator at a materialized
@@ -21,7 +21,7 @@ import re
 import sys
 from pathlib import Path
 
-from discovery_sources import root_from_argv
+from discovery_sources import STALE_EXIT, root_from_argv
 
 
 NUM_RE = re.compile(r"^(\d+)-")
@@ -100,14 +100,18 @@ def main() -> int:
     content = render(items)
 
     if check_mode:
-        current = output_file.read_text(encoding="utf-8") if output_file.exists() else ""
+        current = (
+            output_file.read_text(encoding="utf-8") if output_file.exists() else ""
+        )
         if current != content:
             print(
                 f"WARNING: {output_file.relative_to(root)} is stale -- "
                 "run: make ze-discovery-index",
                 file=sys.stderr,
             )
-            return 1
+            # STALE_EXIT, not 1: callers must distinguish drift from a crash. The
+            # text above is what a human reads; the code is what a gate reads.
+            return STALE_EXIT
         print(f"checked {len(items)} summaries, ai/LEARNED-FULL-INDEX.md up to date")
         return 0
 

@@ -149,6 +149,13 @@ ze-rules-lint:
 # Generated discovery indexes: what each package does (PACKAGE-MAP), which files
 # implement a design doc (DOCS-TO-CODE), and every learned summary by number
 # (LEARNED-FULL-INDEX). Sourced from the tree; a stale index fails ze-doc-test.
+#
+# `--check` exit codes: 0 = fresh, 3 = STALE (discovery_sources.STALE_EXIT),
+# 1 = the generator itself failed. Every caller here only needs pass/fail, so
+# plain `make` semantics and the `|| FAIL=1` form above are both correct. The
+# distinction exists for commit_helper.py, which BLOCKS on 3 and must stay
+# warn-only on 1 -- do not "simplify" a caller into one that cannot tell them
+# apart, and do not reintroduce matching on the warning TEXT.
 ze-discovery-index:
 	@python3 scripts/dev/package_map.py
 	@python3 scripts/dev/docs_to_code.py

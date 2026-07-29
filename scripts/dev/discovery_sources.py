@@ -42,6 +42,17 @@ OUTPUTS = (
 
 HEADER_MARKERS = ("// Package", "// Design:")
 
+# `--check` exit code meaning "the committed output no longer matches its sources".
+# Distinct from 1 (the generator itself failed: missing dir, minimal checkout,
+# crash) because the commit gate must tell those apart -- it BLOCKS on drift and
+# stays warn-only on a broken generator. It used to tell them apart by matching the
+# human-facing warning text ("is stale"), which made a wording change silently
+# degrade a BLOCKING gate to warn-only: the nonzero exit reads as "generator
+# failed", the index becomes unjudgeable, and the commit passes. The exit code is
+# the contract; the warning text is for humans and may be reworded freely.
+# Declared once here so generators and callers cannot drift (derive-not-hardcode).
+STALE_EXIT = 3
+
 
 def root_from_argv(script_file: str, argv: list[str] | None = None) -> Path:
     """Repo root for a generator: `--root <dir>` when given, else its own repo.

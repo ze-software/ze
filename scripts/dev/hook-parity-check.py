@@ -75,6 +75,15 @@ BASH_CMDS = [
     "rm tmp/x",
     "make ze-verify | grep X",
     "make ze-verify 2>&1 | tee tmp/v.log",
+    # `timeout`/`nice` carry operands of their own before the real command word.
+    # A bare-integer test missed every one of these -- including `timeout 240s`,
+    # the exact form ai/rules/git-safety.md tells sessions to use.
+    "timeout 240s make ze-verify | tail -5",
+    "timeout -k 5 30 make ze-verify | tail -5",
+    "nice -n 5 make ze-verify | head -20",
+    # ... and the launcher must still resolve to the REAL command word: a cheap
+    # command behind the same operands stays allowed.
+    "timeout 240s ls | head -5",
 ]
 
 CLEAN_GO = "package foo\n\nfunc Hello() string {\n\treturn greeting\n}\n"
@@ -525,6 +534,13 @@ BASH_GOLDEN = {
     "ls -la": 0,
     "make ze-verify 2>&1 | tee tmp/v.log": 0,
     "make ze-verify | grep X": 2,
+    # A launcher's own operands (a suffixed duration, a flag with an argument)
+    # sit in front of the command word; the producer behind them is still `make`.
+    "timeout 240s make ze-verify | tail -5": 2,
+    "timeout -k 5 30 make ze-verify | tail -5": 2,
+    "nice -n 5 make ze-verify | head -20": 2,
+    # Same launcher shape, cheap producer: nothing to block.
+    "timeout 240s ls | head -5": 0,
     "rm internal/foo_test.go": 2,
     "rm tmp/x": 0,
 }

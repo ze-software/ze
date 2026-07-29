@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -24,6 +25,7 @@ from pathlib import Path
 # so the commit gate here and the router cannot drift apart.
 from discovery_sources import GENERATORS as DISCOVERY_INDEX_GENERATORS
 from discovery_sources import OUTPUTS as DISCOVERY_INDEX_OUTPUTS
+from discovery_sources import STALE_EXIT as DISCOVERY_STALE_EXIT
 from discovery_sources import indexes_fed_by as _indexes_fed_by
 from discovery_sources import is_discovery_source as _is_discovery_source
 
@@ -592,7 +594,12 @@ def discovery_index_freshness(repo: Path) -> tuple[str, list[str]]:
             continue
         if proc.returncode == 0:
             confirmed = True
-        elif "is stale" in (proc.stdout or "") + (proc.stderr or ""):
+        elif proc.returncode == DISCOVERY_STALE_EXIT:
+            # The generators' documented "output no longer matches its sources"
+            # code. Matching on the warning TEXT here (the old form) meant any
+            # rewording downgraded this BLOCKING gate to warn-only: the nonzero
+            # exit would read as "generator failed", the index would be treated as
+            # unjudgeable, and the commit would pass.
             confirmed = True
             stale.append(out)
         # any other nonzero exit: generator error, treat as unknown (skip)
@@ -609,13 +616,13 @@ def index_pending(repo: Path, path: str) -> bool:
     return result.returncode != 0
 
 
-def build_commit_view(
-    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...], dest: Path
-) -> None:
-    """Materialize the tree this commit will PRODUCE: HEAD + adds - removes.
+def extract_head_into(repo: Path, dest: Path) -> None:
+    """Materialize HEAD (minus `vendor/`) into `dest`.
 
-    `vendor/` is excluded: every discovery generator skips it, and it is a third
-    of the archive. `dest` MUST be empty -- `tar -x` overwrites archived paths but
+    `vendor/` is excluded: every discovery generator skips it (`SKIP_DIRS` in
+    package_map.py and docs_to_code.py; learned_index.py only reads
+    plan/learned/), and it is a third of the archive -- ~138MB of extraction
+    becomes ~98MB. `dest` MUST be empty -- `tar -x` overwrites archived paths but
     never removes extras, so anything already there survives into the view and can
     make an incoherent index look coherent.
     """
@@ -641,6 +648,17 @@ def build_commit_view(
         )
     finally:
         tar_path.unlink(missing_ok=True)
+
+
+def apply_commit_overlay(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...], dest: Path
+) -> None:
+    """Turn an extracted HEAD tree into the tree this commit will PRODUCE.
+
+    Split from extract_head_into so the SAME tree can be judged twice: once
+    pristine (what HEAD already committed) and once with this overlay applied
+    (what this commit produces). See discovery_index_verdicts.
+    """
     for rel in add_paths:
         src = repo / rel
         if not src.is_file():
@@ -664,90 +682,229 @@ def rev_parse_head_exists(repo: Path) -> bool:
     )
 
 
-def stale_in_commit_view(
-    repo: Path,
-    candidates: list[str],
-    add_paths: tuple[str, ...],
-    remove_paths: tuple[str, ...],
-) -> tuple[list[str], bool]:
-    """Check `candidates` against the tree this commit produces.
+def _judge_indexes(
+    root: Path, candidates: list[str], verbose: bool
+) -> tuple[list[str], list[str]]:
+    """Run each candidate index's generator against the materialized tree `root`.
 
-    Returns (still_stale, judged). `judged` is False when the view could not be
-    built at all, so the caller can say that rather than assert a direction of
-    drift it has not established.
+    Returns (stale, unjudged). A generator missing from `root`, one that wedges,
+    and one that exits nonzero for any reason OTHER than DISCOVERY_STALE_EXIT are
+    all UNJUDGED: the index is neither confirmed stale nor confirmed coherent, and
+    "the generator broke" must never be read as "the index drifted".
 
-    A working-tree check cannot tell an index THIS commit leaves stale from one a
-    CONCURRENT session dirtied with uncommitted sources -- and the remediation it
-    prints for the second case ("regenerate and include it") is actively wrong:
-    it would commit an index row pointing at a file absent from HEAD, which is
-    red for everyone else. This check answers the question that actually matters,
-    by running the real generators against HEAD plus this commit's own files.
-
-    The generator is taken from the VIEW, not the working tree: `add_paths`
-    already overwrites it when the commit changes a generator, so the view is the
-    code the commit ships. Running the working tree's copy would judge this commit
-    with a concurrent session's uncommitted generator edits.
+    The generator is taken from `root`, not the working tree: for the commit view
+    `add_paths` already overwrote it when the commit changes a generator, so the
+    tree judges this commit with the code the commit ships, not with a concurrent
+    session's uncommitted generator edits.
     """
     gen_for = dict(zip(DISCOVERY_INDEX_OUTPUTS, DISCOVERY_INDEX_GENERATORS))
-    # Inside the try: creating the scratch dir is itself a step that can fail (a
-    # root-owned tmp/ left by `sudo make ze-netns-test`, ENOSPC, read-only FS), and
-    # outside it that failure escaped as an uncaught traceback instead of degrading.
-    dest = None
-    try:
-        dest = Path(tempfile.mkdtemp(prefix="commit-view-", dir=_scratch_dir(repo)))
-        build_commit_view(repo, add_paths, remove_paths, dest)
-        still: list[str] = []
-        unjudged: list[str] = []
-        for out in candidates:
-            gen = gen_for.get(out)
-            if gen is None or not (dest / gen).exists():
-                unjudged.append(out)  # nothing in this commit's tree can judge it
-                continue
-            try:
-                proc = subprocess.run(
-                    [sys.executable, str(dest / gen), "--check", "--root", str(dest)],
-                    cwd=dest,
-                    capture_output=True,
-                    text=True,
-                    timeout=120,
-                )
-            except subprocess.TimeoutExpired:
-                # Caught here, not by the view-build handler below: the view was
-                # built fine, this ONE generator wedged. Reporting it as "could not
-                # build the commit view" would send the reader to the wrong place.
+    stale: list[str] = []
+    unjudged: list[str] = []
+    for out in candidates:
+        gen = gen_for.get(out)
+        if gen is None or not (root / gen).exists():
+            unjudged.append(out)  # nothing in this tree can judge it
+            continue
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(root / gen), "--check", "--root", str(root)],
+                cwd=root,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+        except subprocess.TimeoutExpired:
+            # Caught here, not by the view-build handler in the caller: the tree
+            # was built fine, this ONE generator wedged. Reporting it as "could not
+            # build the commit view" would send the reader to the wrong place.
+            if verbose:
                 print(
                     f"warning: {gen} timed out judging {out} in the commit view; "
                     "treating it as unjudgeable.",
                     file=sys.stderr,
                 )
-                unjudged.append(out)
-                continue
-            if proc.returncode == 0:
-                continue
-            output = (proc.stdout or "") + (proc.stderr or "")
-            if "is stale" in output:
-                still.append(out)
-                continue
-            # Any other nonzero exit is the generator failing, not the index
-            # drifting. Mirror discovery_index_freshness: unjudgeable, not stale.
-            # Show what it said -- the "run make ze-regen" advice cannot fix a crash.
+            unjudged.append(out)
+            continue
+        if proc.returncode == 0:
+            continue
+        if proc.returncode == DISCOVERY_STALE_EXIT:
+            stale.append(out)
+            continue
+        # Any other nonzero exit is the generator failing, not the index drifting.
+        # Mirror discovery_index_freshness: unjudgeable, not stale. Show what it
+        # said -- the "run make ze-regen" advice cannot fix a crash.
+        if verbose:
+            output = ((proc.stdout or "") + (proc.stderr or "")).strip()[:400]
             print(
                 f"warning: {gen} could not judge {out} in the commit view "
-                f"(exit {proc.returncode}): {output.strip()[:400]}",
+                f"(exit {proc.returncode}): {output}",
                 file=sys.stderr,
             )
-            unjudged.append(out)
-        return still, unjudged, True
-    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
-        print(
-            f"warning: could not build the commit view ({exc}); "
-            "falling back to the working-tree verdict.",
-            file=sys.stderr,
+        unjudged.append(out)
+    return stale, unjudged
+
+
+@dataclass(frozen=True)
+class DiscoveryVerdicts:
+    """Both discovery-index questions, answered from ONE materialization of HEAD.
+
+    `head_*` is HEAD's committed indexes vs HEAD's committed sources (did a prior
+    commit bypass the gate?); `view_*` is the tree THIS commit produces. The two
+    trees differ only by the commit's own overlay, so extracting the repo twice --
+    which is what two independent functions used to do, once WITHOUT the `vendor/`
+    exclusion and into the system temp dir -- bought nothing but ~7s and ~236MB of
+    I/O on every `create`.
+    """
+
+    candidates: list[str]
+    head_state: str  # "fresh" | "stale" | "unknown"
+    head_stale: list[str]
+    view_stale: list[str]
+    view_unjudged: list[str]
+    view_judged: bool
+    view_error: str | None
+
+
+COMMIT_VIEW_TTL_SECONDS = 24 * 60 * 60
+
+
+def _sweep_stale_commit_views(repo: Path) -> None:
+    """Reap `tmp/commit-view-*` trees and tars a killed run left behind.
+
+    Each view is a ~98MB extracted tree plus the ~90MB tar it came from. The
+    `finally` in discovery_index_verdicts removes them on every normal AND
+    exceptional exit, but SIGKILL, an OOM kill, and power loss run no `finally`,
+    and nothing else in the repo reaps them: they accumulate in the project tmp/
+    at ~190MB apiece.
+
+    Deliberately HERE rather than beside the other stale-marker sweeps in
+    `_cleanup_stale_markers` (.claude/hooks/lib/state-file.sh): that function runs
+    only from Claude Code session hooks and only knows tmp/session/ markers, while
+    commit_helper.py is a standalone tool that humans, CI, and the fixture tests
+    also run. Sweeping in the producer means whatever next reaches the code that
+    creates these directories also collects them, with no harness required.
+
+    One day old, so a concurrent session's LIVE view (which lasts seconds) can
+    never be in scope.
+    """
+    scratch = repo / "tmp"
+    if not scratch.is_dir():
+        return
+    cutoff = time.time() - COMMIT_VIEW_TTL_SECONDS
+    for leftover in scratch.glob("commit-view-*"):
+        try:
+            if leftover.stat().st_mtime >= cutoff:
+                continue
+            if leftover.is_dir():
+                shutil.rmtree(leftover, ignore_errors=True)
+            else:
+                leftover.unlink(missing_ok=True)
+        except OSError:
+            continue  # a permission wall or a racing sweep: not ours to fix
+
+
+def discovery_index_verdicts(
+    repo: Path,
+    add_paths: tuple[str, ...] = (),
+    remove_paths: tuple[str, ...] = (),
+    candidates: list[str] | None = None,
+) -> DiscoveryVerdicts:
+    """Judge HEAD and the tree this commit produces, from ONE extracted tree.
+
+    Order is load-bearing: the HEAD pass MUST run BEFORE the overlay is applied,
+    or the commit's own not-yet-committed files would be counted as committed and
+    the HEAD verdict would be a verdict on nothing.
+
+    A working-tree check cannot tell an index THIS commit leaves stale from one a
+    CONCURRENT session dirtied with uncommitted sources -- and the remediation it
+    prints for the second case ("regenerate and include it") is actively wrong: it
+    would commit an index row pointing at a file absent from HEAD, which is red for
+    everyone else. The view pass answers the question that actually matters, by
+    running the real generators against HEAD plus this commit's own files.
+    """
+    if candidates is None:
+        gen_for = dict(zip(DISCOVERY_INDEX_OUTPUTS, DISCOVERY_INDEX_GENERATORS))
+        candidates = sorted(
+            out for out in DISCOVERY_INDEX_OUTPUTS if (repo / gen_for[out]).exists()
         )
-        return [], list(candidates), False
+    # Inside the try: creating the scratch dir is itself a step that can fail (a
+    # root-owned tmp/ left by `sudo make ze-netns-test`, ENOSPC, read-only FS), and
+    # outside it that failure escaped as an uncaught traceback instead of degrading.
+    dest = None
+    try:
+        _sweep_stale_commit_views(repo)
+        dest = Path(tempfile.mkdtemp(prefix="commit-view-", dir=_scratch_dir(repo)))
+        extract_head_into(repo, dest)
+        # 1. HEAD exactly as committed. Quiet: discovery_index_head_status only
+        #    WARNS on its result and has never reported a broken generator.
+        head_stale, head_unjudged = _judge_indexes(
+            dest, list(DISCOVERY_INDEX_OUTPUTS), verbose=False
+        )
+        confirmed = len(DISCOVERY_INDEX_OUTPUTS) > len(head_unjudged)
+        head_state = (
+            "unknown" if not confirmed else ("stale" if head_stale else "fresh")
+        )
+        # 2. The same tree, now carrying this commit's own files.
+        apply_commit_overlay(repo, add_paths, remove_paths, dest)
+        view_stale, view_unjudged = _judge_indexes(dest, candidates, verbose=True)
+        return DiscoveryVerdicts(
+            candidates=candidates,
+            head_state=head_state,
+            head_stale=head_stale if confirmed else [],
+            view_stale=view_stale,
+            view_unjudged=view_unjudged,
+            view_judged=True,
+            view_error=None,
+        )
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        # No HEAD, or git/tar unavailable: nothing about drift was established in
+        # either direction. Both halves degrade, neither blocks.
+        return DiscoveryVerdicts(
+            candidates=candidates,
+            head_state="unknown",
+            head_stale=[],
+            view_stale=[],
+            view_unjudged=list(candidates),
+            view_judged=False,
+            view_error=str(exc),
+        )
     finally:
         if dest is not None:
             shutil.rmtree(dest, ignore_errors=True)
+
+
+def _consume_view(verdicts: DiscoveryVerdicts) -> tuple[list[str], list[str], bool]:
+    """The commit-view half of a verdict, reporting a build failure exactly once.
+
+    The print lives here, not in discovery_index_verdicts, so that a caller that
+    only wants the HEAD half (discovery_index_head_status, which has always been
+    silent about a tree it could not build) does not start emitting a commit-view
+    warning it never asked for.
+    """
+    if verdicts.view_error is not None:
+        print(
+            f"warning: could not build the commit view ({verdicts.view_error}); "
+            "falling back to the working-tree verdict.",
+            file=sys.stderr,
+        )
+    return verdicts.view_stale, verdicts.view_unjudged, verdicts.view_judged
+
+
+def stale_in_commit_view(
+    repo: Path,
+    candidates: list[str],
+    add_paths: tuple[str, ...],
+    remove_paths: tuple[str, ...],
+) -> tuple[list[str], list[str], bool]:
+    """Check `candidates` against the tree this commit produces.
+
+    Returns (still_stale, unjudged, judged). `judged` is False when the view could
+    not be built at all, so the caller can say that rather than assert a direction
+    of drift it has not established.
+    """
+    return _consume_view(
+        discovery_index_verdicts(repo, add_paths, remove_paths, candidates)
+    )
 
 
 def _scratch_dir(repo: Path) -> Path:
@@ -758,9 +915,15 @@ def _scratch_dir(repo: Path) -> Path:
 
 
 def discovery_index_problems(
-    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...] = ()
+    repo: Path,
+    add_paths: tuple[str, ...],
+    remove_paths: tuple[str, ...] = (),
+    verdicts: DiscoveryVerdicts | None = None,
 ) -> list[str]:
     """Reasons this commit would leave a generated discovery index incoherent.
+
+    `verdicts` lets a caller that ALSO needs the HEAD verdict (create) pay for one
+    materialization of HEAD instead of two; omitted, this computes its own.
 
     The question is always the same: after this commit, does regenerating from the
     COMMITTED tree reproduce the committed index? Both directions matter, and the
@@ -811,15 +974,11 @@ def discovery_index_problems(
     # DOCS-TO-CODE. Narrowing the check to `fed` therefore let that commit land
     # and leave HEAD incoherent. The view is already built; checking all three
     # costs ~3.6s against ~1.9s for one. `fed` still decides the `missing` message.
-    gen_present = dict(zip(DISCOVERY_INDEX_OUTPUTS, DISCOVERY_INDEX_GENERATORS))
-    to_check = sorted(
-        out for out in DISCOVERY_INDEX_OUTPUTS if (repo / gen_present[out]).exists()
-    )
-    if not to_check:
+    if verdicts is None:
+        verdicts = discovery_index_verdicts(repo, add_paths, remove_paths)
+    if not verdicts.candidates:
         return []
-    still, unjudged, judged = stale_in_commit_view(
-        repo, to_check, add_paths, remove_paths
-    )
+    still, unjudged, judged = _consume_view(verdicts)
     if not judged:
         # The view could not be built, so nothing about drift was established.
         # Fall back to the working tree, which is the only verdict in evidence.
@@ -878,43 +1037,13 @@ def discovery_index_head_status(repo: Path) -> tuple[str, list[str]]:
     that landed a feeding-source change without its index update even when the
     working tree carries unrelated uncommitted changes. "unknown" (no HEAD, or
     git/tar unavailable) surfaces nothing.
+
+    This is the HEAD half of discovery_index_verdicts: the tree is extracted and
+    judged BEFORE any commit overlay is applied. `create` gets both halves from a
+    single call, so the repo is materialized once per commit script, not twice.
     """
-    if run_git(repo, "rev-parse", "--verify", "-q", "HEAD", check=False).returncode:
-        return "unknown", []
-    stale: list[str] = []
-    confirmed = False
-    try:
-        with tempfile.TemporaryDirectory() as tmp:
-            archive = subprocess.Popen(
-                ["git", "archive", "HEAD"], cwd=repo, stdout=subprocess.PIPE
-            )
-            extract = subprocess.run(["tar", "-x", "-C", tmp], stdin=archive.stdout)
-            if archive.stdout:
-                archive.stdout.close()
-            archive.wait()
-            if archive.returncode or extract.returncode:
-                return "unknown", []
-            tmp_path = Path(tmp)
-            for gen, out in zip(DISCOVERY_INDEX_GENERATORS, DISCOVERY_INDEX_OUTPUTS):
-                script = tmp_path / gen
-                if not script.exists():
-                    continue
-                proc = subprocess.run(
-                    [sys.executable, str(script), "--check"],
-                    cwd=tmp_path,
-                    capture_output=True,
-                    text=True,
-                )
-                if proc.returncode == 0:
-                    confirmed = True
-                elif "is stale" in (proc.stdout or "") + (proc.stderr or ""):
-                    confirmed = True
-                    stale.append(out)
-    except OSError:
-        return "unknown", []
-    if not confirmed:
-        return "unknown", []
-    return ("stale" if stale else "fresh"), stale
+    verdicts = discovery_index_verdicts(repo)
+    return verdicts.head_state, verdicts.head_stale
 
 
 # --------------------------------------------------------------------------- #
@@ -1659,8 +1788,15 @@ def create(args: argparse.Namespace) -> int:
     # Discovery-index gate: the generated maps (ai/PACKAGE-MAP.md,
     # ai/DOCS-TO-CODE.md, ai/LEARNED-FULL-INDEX.md) must match the committed
     # sources. With no CI, this is the only place the freshness is enforced.
+    #
+    # ONE materialization of HEAD answers both index questions asked in this
+    # function: this gate (does the tree this commit PRODUCES still regenerate to
+    # the committed indexes?) and the HEAD warning printed further down (did a
+    # prior commit already break them?). They used to extract the repo twice.
+    verdicts: DiscoveryVerdicts | None = None
     if not args.stale_index_ok:
-        problems = discovery_index_problems(repo, add_paths, remove_paths)
+        verdicts = discovery_index_verdicts(repo, add_paths, remove_paths)
+        problems = discovery_index_problems(repo, add_paths, remove_paths, verdicts)
         if problems:
             raise UsageError(
                 "\n".join(problems)
@@ -1722,7 +1858,11 @@ def create(args: argparse.Namespace) -> int:
             print(f"verify={vstate.upper()} ({detail})")
         if args.review_override and spec_closure_stem(add_paths, remove_paths):
             print(f"review=OVERRIDDEN ({args.review_override})")
-    head_state, head_stale = discovery_index_head_status(repo)
+    if verdicts is None:
+        # --stale-index-ok skipped the gate above, so nothing has been materialized
+        # yet. The HEAD warning is independent of that override and still applies.
+        verdicts = discovery_index_verdicts(repo)
+    head_state, head_stale = verdicts.head_state, verdicts.head_stale
     if head_state == "stale":
         print(
             "warning: HEAD's committed discovery index does not match HEAD's "

@@ -13,7 +13,7 @@ directory can be mapped to the name a plugin registers under (and back).
 
 Usage:
     python3 scripts/dev/package_map.py          # regenerate ai/PACKAGE-MAP.md
-    python3 scripts/dev/package_map.py --check   # exit 1 if the map is stale
+    python3 scripts/dev/package_map.py --check   # exit 3 if the map is stale
     python3 scripts/dev/package_map.py --root DIR   # run against another tree
 
 `--root` exists so commit_helper.py can point this generator at a materialized
@@ -26,7 +26,7 @@ import re
 import sys
 from pathlib import Path
 
-from discovery_sources import root_from_argv
+from discovery_sources import STALE_EXIT, root_from_argv
 
 
 ROOTS = ("internal", "pkg", "cmd")
@@ -198,14 +198,18 @@ def main() -> int:
     content = render(packages)
 
     if check_mode:
-        current = output_file.read_text(encoding="utf-8") if output_file.exists() else ""
+        current = (
+            output_file.read_text(encoding="utf-8") if output_file.exists() else ""
+        )
         if current != content:
             print(
                 f"WARNING: {output_file.relative_to(root)} is stale -- "
                 "run: make ze-discovery-index",
                 file=sys.stderr,
             )
-            return 1
+            # STALE_EXIT, not 1: callers must distinguish drift from a crash. The
+            # text above is what a human reads; the code is what a gate reads.
+            return STALE_EXIT
         print(f"checked {len(packages)} packages, ai/PACKAGE-MAP.md up to date")
         return 0
 
