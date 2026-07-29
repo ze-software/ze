@@ -118,7 +118,9 @@ ospf {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=20s
+# 60s to match the rest of test/ospf. A harness backstop, not a behavioural
+# deadline: wait_state's own 6s bound is what this test asserts on.
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=LDP session-down re-forces LSInfinity
 reject=stderr:pattern=panic

@@ -93,7 +93,10 @@ ospf {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=15s
+# 60s to match the rest of test/ospf. A harness backstop, not a behavioural
+# deadline: this test's assertions are the show-output checks below, none of
+# which is a wall-clock bound.
+cmd=foreground:seq=1:exec=ze -:stdin=ze-conf:timeout=60s
 expect=exit:code=0
 expect=stderr:contains=show ospf ldp-sync reports not-synchronized/LSInfinity
 reject=stderr:pattern=panic
