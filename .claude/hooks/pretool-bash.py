@@ -125,16 +125,81 @@ def check_root_build(cmd, _ctx):
 # command through `head`, `tail`, `grep`, `awk`, `sed`, `cat`." The reason is
 # specific to those: their output is the evidence, truncating it fakes a green,
 # and re-running to see the rest costs minutes.
-EXPENSIVE_PRODUCER = re.compile(
-    r"(^|[\s;&(])("
-    r"make\s|"
-    r"go\s+(test|build|vet)\b|"
-    r"golangci-lint\b|"
-    r"bin/ze[\w-]*\b|"
-    r"ze-test\b"
-    r")"
+# Matched against a COMMAND WORD, never against the whole statement. Matching
+# anywhere made `git diff scripts/dev/foo-check.py | head` an "expensive command",
+# so merely READING ABOUT a gate was blocked -- the same false-positive tax the
+# per-statement scoping was introduced to remove.
+EXPENSIVE_COMMAND = re.compile(
+    r"^("
+    r"make|"
+    r"golangci-lint|"
+    r"pytest|"
+    r"ze-test|"
+    r"(\./)?bin/ze[\w-]*|"
+    # "or any test/verify/build command" (ai/rules/bash-output.md): the repo's own
+    # gates, whose output IS the verdict. Everything under scripts/evidence/ counts
+    # (QEMU boots, docker interop labs); elsewhere it is by role in the filename, so
+    # cheap utilities (spec-session.sh, session-scratch.sh) stay usable.
+    r"(\./)?scripts/evidence/[\w./-]+|"
+    r"(\./)?scripts/(dev|checks|docvalid|status)/[\w./-]*"
+    r"(check|verify|test|audit|lint|stress|repro)[\w./-]*\.(py|sh|go)"
+    r")$"
 )
+# Cheap probes that the role-in-filename heuristic would otherwise catch. These
+# are status readers, not gates: `verify-status.sh check` is one line in ~0.00s and
+# CLAUDE.md tells every session to run it before committing.
+CHEAP_SCRIPTS = {
+    "scripts/dev/verify-status.sh",
+    "scripts/dev/verify-lock.sh",
+    "scripts/dev/verify-summary.sh",
+    "scripts/dev/spec-closure-check.py",
+}
+# `go`/`cargo`-style: expensive only for certain subcommands.
+EXPENSIVE_SUBCOMMAND = {"go": {"test", "build", "vet", "run"}}
+# Wrappers that delegate to the real command word.
+LAUNCHERS = {
+    "python3",
+    "python",
+    "bash",
+    "sh",
+    "perl",
+    "ruby",
+    "sudo",
+    "time",
+    "nice",
+    "env",
+    "timeout",
+}
 LOSSY_FILTER = re.compile(r"^\s*(head|tail|grep|egrep|fgrep|awk|sed|cat|less|more)\b")
+
+
+def _is_expensive(segment):
+    """True when this pipeline segment's COMMAND is an expensive producer."""
+    tokens = segment.split()
+    while tokens and (
+        tokens[0] in LAUNCHERS
+        or "=" in tokens[0].split("/")[0]
+        and not tokens[0].startswith("-")
+    ):
+        # `timeout 30 make ...` carries a numeric argument before the command.
+        if (
+            tokens[0] in ("timeout", "nice")
+            and len(tokens) > 1
+            and tokens[1].lstrip("-").isdigit()
+        ):
+            tokens = tokens[2:]
+            continue
+        tokens = tokens[1:]
+    while tokens and tokens[0].startswith("-"):
+        tokens = tokens[1:]
+    if not tokens:
+        return False
+    cmd = tokens[0]
+    if cmd.lstrip("./") in CHEAP_SCRIPTS:
+        return False
+    if cmd in EXPENSIVE_SUBCOMMAND:
+        return len(tokens) > 1 and tokens[1] in EXPENSIVE_SUBCOMMAND[cmd]
+    return bool(EXPENSIVE_COMMAND.match(cmd))
 
 
 def check_pipe_tail(cmd, _ctx):
@@ -146,22 +211,35 @@ def check_pipe_tail(cmd, _ctx):
     `go test ./... | head -50` through, which is the exact case the rule exists
     to stop: a truncated test log reads as a pass.
     """
-    if not EXPENSIVE_PRODUCER.search(cmd):
-        return None
-    # Split on single pipes only: `||` is control flow, not a pipeline.
-    segments = re.split(r"(?<!\|)\|(?!\|)", cmd)
-    for segment in segments[1:]:
-        if not LOSSY_FILTER.match(segment):
-            continue  # `| tee`, `| tr`, ... keep the whole stream
-        return (
-            2,
-            "❌ Blocked: piping an expensive command's output through a lossy "
-            f"filter ({segment.strip().split()[0]})\n"
-            "  -- The truncated output is what you would judge the run by.\n"
-            "  -- Use: make ze-verify ZE_VERIFY_LOG=tmp/ze-verify-$$.log\n"
-            "  -- Or:  <command> 2>&1 | tee tmp/out-$$.log\n"
-            "  -- Then: Read the log with offset/limit",
-        )
+    # A newline is a statement boundary ONLY when it is not a continuation. Bash
+    # continues a pipeline across lines after a trailing `|` or a backslash, and
+    # splitting those apart puts the producer in one statement and the filter in
+    # the next, so neither half trips the check. Flatten both first.
+    flat = re.sub(r"\\\n", " ", cmd)
+    flat = re.sub(r"\|[ \t]*\n", "| ", flat)
+    # Judge each STATEMENT separately. A compound command routinely mixes a cheap
+    # pipeline with an expensive command (`git status | grep x; make ze-foo`), and
+    # scanning the whole string would reject it for a pipeline that has nothing to
+    # do with the expensive part.
+    for statement in re.split(r"&&|\|\||;|\n", flat):
+        # `|&` is bash shorthand for `2>&1 |`: a real pipeline, and splitting on
+        # a bare `|` leaves the filter segment starting with `&`, which the
+        # anchored LOSSY_FILTER never matches.
+        segments = re.split(r"\|&?", statement)
+        if not any(_is_expensive(seg) for seg in segments[:-1]):
+            continue  # nothing expensive is FEEDING a pipe in this statement
+        for segment in segments[1:]:
+            if not LOSSY_FILTER.match(segment):
+                continue  # `| tee`, `| tr`, ... keep the whole stream
+            return (
+                2,
+                "❌ Blocked: piping an expensive command's output through a lossy "
+                f"filter ({segment.strip().split()[0]})\n"
+                "  -- The truncated output is what you would judge the run by.\n"
+                "  -- Use: make ze-verify ZE_VERIFY_LOG=tmp/ze-verify-$$.log\n"
+                "  -- Or:  <command> 2>&1 | tee tmp/out-$$.log\n"
+                "  -- Then: Read the log with offset/limit",
+            )
     return None
 
 

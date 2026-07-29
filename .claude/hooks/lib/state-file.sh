@@ -85,6 +85,13 @@ _cleanup_stale_markers() {
     # cache fresh (session_id.py touches it on every hit), so only a dead session's
     # cache ages out here -- after which PID reuse can no longer alias its id.
     find tmp/session/ -maxdepth 1 -name '.sid-by-pid-*' -mmin +1440 -delete 2>/dev/null
+    # Freshness markers written by the PostToolUse mark-*.sh hooks. Every reader
+    # of these checks a window far tighter than 24h (the design-without-lsp gate
+    # uses 30 minutes), so ageing them out here can never widen a gate; it only
+    # stops one marker per session accumulating forever.
+    find tmp/session/ -maxdepth 1 -name '.agent-spawned-*' -mmin +1440 -delete 2>/dev/null
+    find tmp/session/ -maxdepth 1 -name '.source-read-*' -mmin +1440 -delete 2>/dev/null
+    find tmp/session/ -maxdepth 1 -name '.lsp-invoked-*' -mmin +1440 -delete 2>/dev/null
     # Also clean legacy .claude/ location
     find .claude/ -maxdepth 1 -name '.session-*' -mmin +1440 -delete 2>/dev/null
     find .claude/ -maxdepth 1 -name '.compaction-detected-*' -mmin +1440 -delete 2>/dev/null

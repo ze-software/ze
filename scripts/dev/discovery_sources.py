@@ -17,6 +17,9 @@ Description), ai/DOCS-TO-CODE.md (from `// Design:` headers), ai/LEARNED-FULL-IN
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 # Named index outputs. Kept as constants (not bare tuple positions) so the
 # per-index source map below reads as data, not as a coincidence of ordering.
 PACKAGE_MAP = "ai/PACKAGE-MAP.md"  # from `// Package` docs + register.go Description
@@ -38,6 +41,26 @@ OUTPUTS = (
 )
 
 HEADER_MARKERS = ("// Package", "// Design:")
+
+
+def root_from_argv(script_file: str, argv: list[str] | None = None) -> Path:
+    """Repo root for a generator: `--root <dir>` when given, else its own repo.
+
+    Every generator derives its root from `__file__` so it can be run from
+    anywhere. That makes the WORKING TREE the only tree it can describe, which is
+    wrong at commit time: the question a commit gate must answer is whether the
+    index will match the tree the commit PRODUCES, and a concurrent session's
+    uncommitted sources are not part of that tree. `--root` lets the gate point
+    the real generator at a materialized commit view instead of reimplementing
+    (and drifting from) its input-gathering.
+    """
+    args = sys.argv if argv is None else argv
+    if "--root" in args:
+        i = args.index("--root")
+        if i + 1 >= len(args):
+            raise SystemExit("error: --root needs a directory argument")
+        return Path(args[i + 1]).resolve()
+    return Path(script_file).resolve().parents[2]
 
 
 def indexes_fed_by(path: str, header_text: str = "") -> frozenset[str]:

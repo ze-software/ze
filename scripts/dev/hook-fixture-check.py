@@ -555,8 +555,47 @@ _DEFERRALS_HEADER = (
 )
 
 
+def _seed_learned_repo(repo: str, extra_generators: tuple[str, ...] = ()) -> None:
+    """A fixture repo the discovery-index gate can actually run in.
+
+    By default only ONE generator is copied (learned_index.py, plus
+    discovery_sources.py which it imports): every consumer skips a generator that
+    is not present, so PACKAGE-MAP and DOCS-TO-CODE stay out and the fixture needs
+    no Go tree. Pass `extra_generators` when a case must distinguish "verify every
+    index" from "verify the ones this commit feeds" -- one generator cannot.
+    """
+    gens = (
+        "scripts/dev/learned_index.py",
+        "scripts/dev/discovery_sources.py",
+    ) + extra_generators
+    for rel in gens:
+        dst = os.path.join(repo, rel)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.copyfile(os.path.join(DEV, os.path.basename(rel)), dst)
+    _write(repo, "plan/learned/0001-a.md", "# 0001 -- a\n")
+    os.makedirs(os.path.join(repo, "ai"), exist_ok=True)
+    _regen_learned_index(repo)
+    _git(repo, "add", "scripts", "plan", "ai")
+    _git(repo, "commit", "-q", "-m", "seed learned index")
+
+
+def _regen(repo: str, generator: str) -> None:
+    subprocess.run(
+        [sys.executable, os.path.join(repo, "scripts/dev", generator)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _regen_learned_index(repo: str) -> None:
+    _regen(repo, "learned_index.py")
+
+
 def run_commit_gate(results: Results) -> None:
     print("commit-gate:")
+    import contextlib
+    import io
     from pathlib import Path
 
     ch = _load_commit_helper()
@@ -750,9 +789,6 @@ def run_commit_gate(results: Results) -> None:
         )
         # create() prints its UsageError to stderr; capture it so a passing run
         # is not polluted by the (expected) block message.
-        import contextlib
-        import io
-
         with contextlib.redirect_stderr(io.StringIO()):
             rc = ch.main(
                 [
@@ -772,6 +808,185 @@ def run_commit_gate(results: Results) -> None:
         script_exists = os.path.isfile(os.path.join(repo, "tmp", "commit-abcd1234.sh"))
         results.check(
             "commit-gate-create-blocks-deferral",
+            rc == 2 and not script_exists,
+            f"rc={rc} script={script_exists}",
+        )
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+    # --- discovery-index: own staleness blocks, a concurrent session's does not ---
+    # The gate judges the tree the commit PRODUCES (HEAD + adds - removes), not the
+    # working tree, so an untracked summary belonging to another session cannot
+    # force a commit to either block or cross-commit that session's index row.
+    repo = _init_repo()
+    try:
+        _seed_learned_repo(repo)
+        # The cases below run in sequence against ONE repo and each depends on the
+        # state the previous one left. The order is load-bearing; inserting a case
+        # changes what the ones after it test.
+        #
+        # A: this commit adds a summary and omits the regenerated index -> block.
+        # Asserts the MESSAGE, not merely that something blocked: the pre-change
+        # implementation also blocked here, by a different branch.
+        _write(repo, "plan/learned/0002-b.md", "# 0002 -- b\n")
+        with contextlib.redirect_stderr(io.StringIO()):
+            problems = ch.discovery_index_problems(
+                Path(repo), ("plan/learned/0002-b.md",)
+            )
+        results.check(
+            "commit-gate-index-own-staleness-blocks",
+            bool(problems) and "omitted:" in "".join(problems),
+            repr(problems),
+        )
+
+        # D (runs here deliberately): at THIS state the working tree is stale from
+        # the summary A left, so an unrelated commit is the case that proves a
+        # concurrent session's staleness does not block. Run after B or C, where
+        # the tree is fresh again, it would assert on a branch that returns early
+        # and would pass with the whole change reverted.
+        _write(repo, "docs/unrelated.md", "# unrelated\n")
+        with contextlib.redirect_stderr(io.StringIO()):
+            problems = ch.discovery_index_problems(Path(repo), ("docs/unrelated.md",))
+        results.check(
+            "commit-gate-index-unrelated-commit-passes", not problems, repr(problems)
+        )
+
+        # B: same commit, index regenerated to match HEAD + its own summary, while a
+        # concurrent session leaves an UNTRACKED summary in the tree -> no block.
+        _regen_learned_index(repo)
+        _write(repo, "plan/learned/0003-foreign.md", "# 0003 -- foreign\n")
+        with contextlib.redirect_stderr(io.StringIO()):
+            problems = ch.discovery_index_problems(
+                Path(repo),
+                ("plan/learned/0002-b.md", "ai/LEARNED-FULL-INDEX.md"),
+            )
+        results.check(
+            "commit-gate-index-foreign-staleness-passes", not problems, repr(problems)
+        )
+
+        # C: the index is regenerated WITH the concurrent session's untracked
+        # summary and then committed -> it would publish a row for a file absent
+        # from HEAD. This is how plan/learned/1282-*.md reached HEAD's committed
+        # index, and a working-tree check calls this state "fresh".
+        _regen_learned_index(repo)
+        with contextlib.redirect_stderr(io.StringIO()):
+            problems = ch.discovery_index_problems(
+                Path(repo),
+                ("plan/learned/0002-b.md", "ai/LEARNED-FULL-INDEX.md"),
+            )
+        results.check(
+            "commit-gate-index-foreign-row-included-blocks",
+            bool(problems) and "included but wrong" in "".join(problems),
+            repr(problems),
+        )
+
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+    # --- discovery-index: an index the commit does not visibly FEED is still
+    # verified. `indexes_fed_by` recognises a PACKAGE-MAP source by a `// Package`
+    # header or a register.go name, but package_map keys its rows on DIRECTORY
+    # existence, so a new .go carrying only `// Design:` drifts PACKAGE-MAP while
+    # feeding DOCS-TO-CODE alone. Needs TWO generators: with one, "verify every
+    # index" and "verify the fed ones" are indistinguishable.
+    repo = _init_repo()
+    try:
+        _seed_learned_repo(repo, extra_generators=("scripts/dev/package_map.py",))
+        _write(
+            repo,
+            "internal/existing/a.go",
+            "// Package existing does a thing.\npackage existing\n",
+        )
+        _regen(repo, "package_map.py")
+        _git(repo, "add", "internal", "ai")
+        _git(repo, "commit", "-q", "-m", "seed package map")
+
+        # The new file feeds DOCS-TO-CODE only (no `// Package`), yet it adds a
+        # PACKAGE-MAP row. The author regenerated PACKAGE-MAP but did not --file it,
+        # so the working tree is FRESH and only the commit view can see the drift.
+        _write(
+            repo,
+            "internal/newpkg/thing.go",
+            "// Design: docs/x.md -- thing\npackage newpkg\n",
+        )
+        _regen(repo, "package_map.py")
+        with contextlib.redirect_stderr(io.StringIO()):
+            problems = ch.discovery_index_problems(
+                Path(repo), ("internal/newpkg/thing.go",)
+            )
+        results.check(
+            "commit-gate-index-unfed-index-still-verified",
+            bool(problems) and "PACKAGE-MAP" in "".join(problems),
+            repr(problems),
+        )
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+    # --- discovery-index: a REMOVAL drifts the index too (fresh repo) ---
+    # `--remove` is how a spec closes (commit B) and how a package is deleted. If
+    # the view does not apply removals it keeps a file HEAD will not have, the
+    # generator calls the index coherent, and a stale index ships.
+    repo = _init_repo()
+    try:
+        _seed_learned_repo(repo)
+        _write(repo, "plan/learned/0002-b.md", "# 0002 -- b\n")
+        _regen_learned_index(repo)
+        _git(repo, "add", "plan", "ai")
+        _git(repo, "commit", "-q", "-m", "add 0002")
+        os.remove(os.path.join(repo, "plan/learned/0002-b.md"))
+
+        # E1: removal committed, index left listing the removed summary -> block.
+        with contextlib.redirect_stderr(io.StringIO()):
+            problems = ch.discovery_index_problems(
+                Path(repo), (), ("plan/learned/0002-b.md",)
+            )
+        results.check(
+            "commit-gate-index-removal-stale-blocks", bool(problems), repr(problems)
+        )
+
+        # E2: same removal with the regenerated index riding along -> passes.
+        _regen_learned_index(repo)
+        with contextlib.redirect_stderr(io.StringIO()):
+            problems = ch.discovery_index_problems(
+                Path(repo), ("ai/LEARNED-FULL-INDEX.md",), ("plan/learned/0002-b.md",)
+            )
+        results.check(
+            "commit-gate-index-removal-regenerated-passes", not problems, repr(problems)
+        )
+    finally:
+        shutil.rmtree(repo, ignore_errors=True)
+
+    # --- discovery-index: the ENTRY POINT passes remove_paths through ---
+    # E1/E2 above call discovery_index_problems directly, so dropping the argument
+    # at create()'s call site leaves them green. Drive the guard from where a user
+    # reaches it (ai/rules/fail-closed-guards.md).
+    repo = _init_repo()
+    try:
+        _seed_learned_repo(repo)
+        _write(repo, "plan/learned/0002-b.md", "# 0002 -- b\n")
+        _regen_learned_index(repo)
+        _git(repo, "add", "plan", "ai")
+        _git(repo, "commit", "-q", "-m", "add 0002")
+        os.remove(os.path.join(repo, "plan/learned/0002-b.md"))
+        with contextlib.redirect_stderr(io.StringIO()):
+            rc = ch.main(
+                [
+                    "--repo",
+                    repo,
+                    "create",
+                    "--session",
+                    "beef1234",
+                    "--subject",
+                    "remove a summary without refreshing the index",
+                    "--remove",
+                    "plan/learned/0002-b.md",
+                    "--lesson-not-needed",
+                    "fixture for the removal path of the discovery-index gate",
+                ]
+            )
+        script_exists = os.path.isfile(os.path.join(repo, "tmp", "commit-beef1234.sh"))
+        results.check(
+            "commit-gate-index-removal-blocks-via-create",
             rc == 2 and not script_exists,
             f"rc={rc} script={script_exists}",
         )
@@ -1487,6 +1702,157 @@ def run_mark_source_read(results: Results) -> None:
         )
 
 
+# --------------------------------------------------------------------------- #
+# delegation: mark-agent-spawned + the stop-hook nudge + subagent context
+# --------------------------------------------------------------------------- #
+
+_DELEG_SID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
+
+def _deleg_project(spec: str | None, status: str = "ready", spawned: bool = False):
+    """Build a fixture project: hook libs, an optional claimed spec, an optional
+    agent-spawned marker. Returns the project dir (caller removes it)."""
+    work = tempfile.mkdtemp(prefix="delegation-", dir=_fixture_root())
+    libdst = os.path.join(work, ".claude", "hooks", "lib")
+    os.makedirs(libdst, exist_ok=True)
+    shutil.copytree(os.path.join(HOOKS, "lib"), libdst, dirs_exist_ok=True)
+    os.makedirs(os.path.join(work, "tmp", "session"), exist_ok=True)
+    if spec:
+        os.makedirs(os.path.join(work, "plan"), exist_ok=True)
+        with open(os.path.join(work, "plan", spec), "w") as fh:
+            fh.write(f"# Spec: fixture\n\n| Status | {status} |\n")
+        with open(
+            os.path.join(work, "tmp", "session", f".session-{_DELEG_SID}"), "w"
+        ) as fh:
+            fh.write(spec + "\n")
+    if spawned:
+        with open(
+            os.path.join(work, "tmp", "session", f".agent-spawned-{_DELEG_SID}"), "w"
+        ) as fh:
+            fh.write("2026-07-28T00:00:00+00:00\n")
+    return work
+
+
+def _deleg_env(work: str) -> dict:
+    return dict(os.environ, CLAUDE_PROJECT_DIR=work, CLAUDE_CODE_SESSION_ID=_DELEG_SID)
+
+
+def _run_stop_hook(work: str) -> tuple[int, str]:
+    """Drive block-premature-stop.sh with a message carrying no stop phrases, so
+    only the STATE reasons can fire."""
+    payload = json.dumps(
+        {"last_assistant_message": "Implemented the change and ran the tests."}
+    )
+    r = subprocess.run(
+        ["bash", os.path.join(HOOKS, "block-premature-stop.sh")],
+        input=payload,
+        text=True,
+        capture_output=True,
+        env=_deleg_env(work),
+        timeout=60,
+    )
+    return r.returncode, r.stderr
+
+
+def run_delegation(results: Results) -> None:
+    """ai/rules/spec-delegation.md: a session that claimed a spec and never
+    spawned an agent ran the phase inline instead of supervising it. The nudge
+    must fire on exactly that, WARN rather than block, and stay silent once a
+    subagent was spawned or when no spec is claimed."""
+    print("delegation:")
+
+    # mark-agent-spawned.sh writes the marker the nudge reads.
+    work = _deleg_project(spec=None)
+    try:
+        subprocess.run(
+            ["bash", os.path.join(HOOKS, "mark-agent-spawned.sh")],
+            input="{}",
+            text=True,
+            capture_output=True,
+            env=_deleg_env(work),
+            timeout=30,
+        )
+        results.check(
+            "delegation-marker-written",
+            os.path.isfile(
+                os.path.join(work, "tmp", "session", f".agent-spawned-{_DELEG_SID}")
+            ),
+            "mark-agent-spawned.sh did not write the marker",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # MUST FIRE: spec claimed, no agent ever spawned. Warn (1), never block (2).
+    work = _deleg_project(spec="spec-fixture.md", spawned=False)
+    try:
+        rc, err = _run_stop_hook(work)
+        results.check("delegation-nudge-fires", "Delegation:" in err, err)
+        results.check("delegation-nudge-warns-not-blocks", rc == 1, f"rc={rc} {err}")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # MUST NOT FIRE: the session delegated at least once.
+    work = _deleg_project(spec="spec-fixture.md", spawned=True)
+    try:
+        rc, err = _run_stop_hook(work)
+        results.check(
+            "delegation-nudge-silent-when-spawned", "Delegation:" not in err, err
+        )
+        results.check("delegation-spawned-allows-stop", rc == 0, f"rc={rc} {err}")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # MUST NOT FIRE: no spec claimed at all -- the rule is about spec phases.
+    work = _deleg_project(spec=None, spawned=False)
+    try:
+        rc, err = _run_stop_hook(work)
+        results.check("delegation-no-spec-no-nudge", "Delegation:" not in err, err)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # subagent-context.sh names the parent's claimed spec, so the main thread does
+    # not have to paste it into every prompt (the friction this rule died on).
+    work = _deleg_project(spec="spec-fixture.md")
+    try:
+        r = subprocess.run(
+            ["bash", os.path.join(HOOKS, "subagent-context.sh")],
+            text=True,
+            capture_output=True,
+            env=_deleg_env(work),
+            timeout=30,
+        )
+        results.check(
+            "delegation-context-names-spec",
+            "plan/spec-fixture.md" in r.stdout,
+            r.stdout,
+        )
+        results.check(
+            "delegation-context-carries-contract",
+            "spec-delegation.md" in r.stdout and "no-fabrication.md" in r.stdout,
+            r.stdout,
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # No spec claimed: the context still loads, minus the spec block.
+    work = _deleg_project(spec=None)
+    try:
+        r = subprocess.run(
+            ["bash", os.path.join(HOOKS, "subagent-context.sh")],
+            text=True,
+            capture_output=True,
+            env=_deleg_env(work),
+            timeout=30,
+        )
+        results.check(
+            "delegation-context-no-spec-block",
+            "Spec claimed by" not in r.stdout and r.returncode == 0,
+            r.stdout,
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 SECTIONS = {
     "format-alloc": run_format_alloc,
     "validate-spec": run_validate_spec,
@@ -1494,6 +1860,7 @@ SECTIONS = {
     "session-id": run_session_id,
     "rfc-test-guard": run_rfc_test_guard,
     "mark-source-read": run_mark_source_read,
+    "delegation": run_delegation,
 }
 
 

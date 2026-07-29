@@ -118,7 +118,7 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/subagent-context.sh",
-            "timeout": 3
+            "timeout": 5
           }
         ]
       }
@@ -140,6 +140,16 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/mark-source-read.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Task|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/mark-agent-spawned.sh",
             "timeout": 5
           }
         ]

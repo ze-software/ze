@@ -14,12 +14,19 @@ directory can be mapped to the name a plugin registers under (and back).
 Usage:
     python3 scripts/dev/package_map.py          # regenerate ai/PACKAGE-MAP.md
     python3 scripts/dev/package_map.py --check   # exit 1 if the map is stale
+    python3 scripts/dev/package_map.py --root DIR   # run against another tree
+
+`--root` exists so commit_helper.py can point this generator at a materialized
+commit view (HEAD plus a commit's own files) instead of the working tree. In
+write mode it writes into that tree, not the repo.
 """
 
 import os
 import re
 import sys
 from pathlib import Path
+
+from discovery_sources import root_from_argv
 
 
 ROOTS = ("internal", "pkg", "cmd")
@@ -179,7 +186,7 @@ def render(packages: dict[str, tuple[str, str]]) -> str:
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parents[2]
+    root = root_from_argv(__file__)
     output_file = root / "ai" / "PACKAGE-MAP.md"
     check_mode = "--check" in sys.argv
 

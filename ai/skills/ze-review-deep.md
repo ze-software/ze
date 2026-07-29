@@ -9,6 +9,18 @@ Multi-agent code review. Spawns parallel focused agents, each reviewing a differ
 
 See also: `/ze-review` (quick single-pass), `/ze-review-spec` (spec completeness), `/ze-review-docs` (documentation only)
 
+## Delegation
+
+`ai/rules/spec-delegation.md`: this skill runs in the MAIN THREAD and does its
+own fan-out. Do not wrap the whole skill in a single agent. That buries the
+parallel lenses one level down and costs exactly the independence they exist to
+provide (`ai/rules/critical-review.md`).
+
+Launch the agents this skill defines, all in ONE message, on `model: opus`.
+Never trade their model down for cost; cut their NUMBER instead
+(`ai/rules/model-selection.md`). You do not need to ask permission to spawn them
+(`ai/INSTRUCTIONS.md`, STANDING REQUEST).
+
 The user may optionally specify a scope and/or agent selection:
 - `/ze-review-deep` -- all uncommitted changes, ask which agents to run
 - `/ze-review-deep internal/plugin/` -- path scope

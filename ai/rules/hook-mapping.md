@@ -70,7 +70,7 @@ Blocks those tools until `ToolSearch query="select:LSP"` has run this session. B
 | destructive-git | `CLAUDE.md` prohibitions | Bash | Blocks git commit/push/reset/restore/clean/merge. Allows `git restore --staged`. BLOCKING. |
 | worktree-copy | `CLAUDE.md` prohibitions | Bash | Blocks cp/mv/rsync from `.claude/worktrees/` to main repo. BLOCKING. | <!-- doc-links: ignore (.claude/worktrees/ exists only while a worktree agent is active) -->
 | root-build | (build hygiene) | Bash | Blocks `go build` without `-o bin/`. Allows `go build ./...` (check-only). BLOCKING. |
-| pipe-tail | `bash-output.md` | Bash | Blocks a lossy filter (`head`/`tail`/`grep`/`awk`/`sed`/`cat`/`less`/`more`) piped from an EXPENSIVE producer (`make`, `go test\|build\|vet`, `golangci-lint`, `bin/ze*`, `ze-test`). `\| tee` passes. Cheap commands (`git log \| tail`) are not its business: it used to block every `\| tail` while letting `go test ./... \| head` through, which is the case the rule exists to stop. BLOCKING. |
+| pipe-tail | `bash-output.md` | Bash | Blocks a lossy filter (`head`/`tail`/`grep`/`awk`/`sed`/`cat`/`less`/`more`) piped from an EXPENSIVE producer: `make`, `go test\|build\|vet\|run`, `golangci-lint`, `bin/ze*` (with or without `./`), `ze-test`, `pytest`, everything under `scripts/evidence/` (QEMU boots, docker interop labs), and the repo's own gates under `scripts/{dev,checks,docvalid,status}/` whose filename contains check/verify/test/audit/lint/stress/repro -- minus a small cheap-probe set (`verify-status.sh`, `verify-lock.sh`, `verify-summary.sh`, `spec-closure-check.py`), which are status readers CLAUDE.md tells you to run. `\| tee` passes, and cheap commands (`git log \| tail`, `scripts/dev/spec-session.sh wip \| head`) are not its business. Judged **per statement** (`;`, `&&`, `\|\|`, newline), so a cheap pipeline beside an expensive command is fine; a trailing `\|` or a `\\` at end of line is a CONTINUATION, not a boundary, and is flattened first (splitting there put the producer in one statement and the filter in the next, so neither tripped). Quote- and `$( )`-blind by design: a `;` inside quotes or a command substitution splits a statement, and a producer inside `bash -c "..."` is not seen. BLOCKING. |
 | system-tmp | `testing.md` | Bash | Blocks access to `/tmp`; must use project `tmp/`. BLOCKING. |
 | test-deletion | `no-test-deletion.md` | Bash | Blocks `rm`/`git checkout` of test files. BLOCKING. |
 
@@ -144,6 +144,7 @@ wiring-at-commit, doc-drift) used to sit here but gated on the literal
 |---|---|---|---|---|
 | mark-lsp-invoked | `mark-lsp-invoked.sh` | `session-start.md` | LSP | Writes `.lsp-invoked` freshness marker for the design-without-lsp gate. |
 | mark-source-read | `mark-source-read.sh` | `no-fabrication.md` | Read | Writes `.source-read` freshness marker when a `.go` under `internal/`/`pkg/`/`cmd/` is read, so reading the producing code satisfies the design-without-lsp gate. Non-blocking. |
+| mark-agent-spawned | `mark-agent-spawned.sh` | `spec-delegation.md` | Agent, Task | Writes `.agent-spawned-<sid>` so the Stop hook can tell a supervising main thread from one that ran the phase inline. Fires in the PARENT (subagents inherit its session id), so the marker always lands on the supervising session. Non-blocking. |
 | auto-lint | `posttool-writeedit.py` | `go-standards.md` | `.go` Write/Edit | `gofmt`/`goimports -w`, then **one** `golangci-lint --new-from-rev=HEAD` pass (flags only issues this edit introduced). BLOCKING on lint failure. |
 | auto-py-format | `posttool-writeedit.py` | (code style) | `.py` Write/Edit | `ruff format` + `ruff check`. Non-blocking. |
 | validate-spec | `validate-spec.sh` | `planning.md` | `plan/spec-*.md` | Validates required sections/format. Exit 2 blocks a structurally invalid spec; both `→` and `->` wiring rows accepted. |
@@ -193,7 +194,7 @@ written); WARN gates print to stderr and let the script be written.
 | Gate | Enforces | Severity | What it does |
 |---|---|---|---|
 | verify-status / structural-gate | `git-safety.md` | BLOCK | Refuses a script over a non-green `ze-verify` (structural reds are unbypassable). |
-| discovery-index | `discovery-updates.md` | BLOCK | Refuses when a generated index (PACKAGE-MAP / DOCS-TO-CODE / LEARNED-FULL-INDEX) would be left stale. |
+| discovery-index | `discovery-updates.md` | BLOCK | Refuses when a generated index (PACKAGE-MAP / DOCS-TO-CODE / LEARNED-FULL-INDEX) would be left incoherent. Judged on the tree the COMMIT PRODUCES (HEAD + adds - removes), materialized under `tmp/commit-view-*` and checked with the commit's OWN generators via `--root`, never on the working tree: a concurrent session's uncommitted sources must neither block your commit nor be swept into your index. **Every** index whose generator exists is verified, not just the ones the commit visibly feeds -- `package_map` keys its rows on directory existence, so a new `.go` can drift PACKAGE-MAP while feeding only DOCS-TO-CODE. Cost: the view is built on EVERY commit the gate examines, not only ones touching an index source, because the candidate set comes from generator existence -- about 5.5s total (~2s working-tree freshness, ~3.6s to materialize and check). If the view cannot be built it does NOT fail closed: it warns on stderr and falls back to the working-tree verdict, which is the only evidence left. BLOCKING. |
 | deferral-unassigned | `deferral-tracking.md` | BLOCK | Folds over every shard in `plan/deferrals/` and flags an open row with no Destination. |
 | deferral-in-diff | `deferral-tracking.md` | BLOCK | Blocks when the commit's added lines contain deferral language and no `plan/deferrals/` shard is part of the commit (diff computed in a throwaway git index). |
 | spec-audit | `planning.md` | BLOCK | Blocks the closure commit (the one adding the claimed spec's `plan/learned/NNN-<stem>.md`) when that spec's `## Pre-Commit Verification` section is unfilled. Keyed to `spec-session.sh current`; no claim → skips. |
@@ -205,7 +206,7 @@ written); WARN gates print to stderr and let the script be written.
 | Runner | Covers |
 |---|---|
 | `scripts/dev/hook-parity-check.py` | Golden exit-code regression for the three consolidated dispatchers. `--bless` regenerates the golden; re-bless only intentionally changed cases. Fixture dirs live under `~/.cache` (a `/tmp` or in-repo path trips `system-tmp`/`throwaway-tests` or the module lint and diverges from the golden). |
-| `scripts/dev/hook-fixture-check.py` | Behaviour the golden table cannot isolate: `c_format_alloc` (called directly), `validate-spec.sh` (ASCII/Unicode/malformed specs), and the `commit_helper.py` commit-time gates (git-initialized fixtures). Sections selectable with `--only`. |
+| `scripts/dev/hook-fixture-check.py` | Behaviour the golden table cannot isolate: `c_format_alloc` (called directly), `validate-spec.sh` (ASCII/Unicode/malformed specs), the `commit_helper.py` commit-time gates (git-initialized fixtures), and `delegation` (`mark-agent-spawned.sh`, the Stop-hook nudge, and the `subagent-context.sh` spec injection, over fixture projects). Sections selectable with `--only`. |
 
 ## Session Lifecycle Hooks
 
@@ -213,11 +214,11 @@ written); WARN gates print to stderr and let the script be written.
 |---|---|---|
 | `session-start.sh` | SessionStart | Prints status summary. Creates session marker. |
 | `compaction-reminder.sh` | UserPromptSubmit | Detects compaction; reminds to read `post-compaction.md`. |
-| `block-premature-stop.sh` | Stop | Blocks stop on ownership-dodging phrases. Also runs `scripts/dev/spec-closure-check.py --spec` on the session's claimed spec and blocks (exit 2) if it is completed-but-not-closed. BLOCKING. See `ai/rules/planning.md` "Closure Enforcement". |
+| `block-premature-stop.sh` | Stop | Blocks stop on ownership-dodging phrases. Also runs `scripts/dev/spec-closure-check.py --spec` on the session's claimed spec and blocks (exit 2) if it is completed-but-not-closed. BLOCKING. See `ai/rules/planning.md` "Closure Enforcement". Additionally WARNS (exit 1) when a claimed spec was worked with no `.agent-spawned-<sid>` marker, i.e. the phase ran inline instead of being supervised (`ai/rules/spec-delegation.md`). Warn, never block: a session may legitimately claim a spec for one mechanical edit, and trapping it would be the worse failure. |
 | `session-end-summary.sh` | Stop | Writes session state snapshot. Cleans up marker. |
 | `session-end-deferrals.sh` | Stop | Prints open deferral count. Advisory. |
 | `pre-compact-save.sh` | PreCompact | Saves session state before compaction. |
-| `subagent-context.sh` | SubagentStart | Injects project context into spawned agents. |
+| `subagent-context.sh` | SubagentStart | Injects project context into spawned agents, PLUS the parent session's claimed spec (with its Status) and the subagent contract from `ai/rules/spec-delegation.md`. This exists to make delegating cheap: the rule requires the main thread to hand every agent its spec, phase, and rules, and when that is manual per-spawn work, delegating costs more than working inline and the rule loses. |
 
 ## Pre-Flight Checklist by File Type
 

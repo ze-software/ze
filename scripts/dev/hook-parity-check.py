@@ -45,6 +45,25 @@ BASH_CMDS = [
     "go test ./... | head -50",
     "go test ./... 2>&1 | tee tmp/t.log",
     "bin/ze-test bgp plugin | grep FAIL",
+    "git status | grep foo; make ze-rules-index",
+    "ls | head; go test ./... | grep FAIL",
+    # A newline is a statement boundary only when it is NOT a continuation:
+    # bash continues a pipeline after a trailing `|` or a backslash.
+    "go test ./... 2>&1 |\n  grep -c FAIL",
+    "make ze-verify \\\n  | tail -40",
+    "./bin/ze-test bgp plugin | grep FAIL",
+    # "any test/verify/build command" (bash-output.md): the repo's own gates count,
+    # cheap utilities in the same directory do not.
+    "python3 scripts/dev/hook-parity-check.py | tail -25",
+    "python3 scripts/dev/spec-session.sh wip | head -5",
+    # Naming a gate script is not running it: the producer is matched in COMMAND
+    # position, so reading ABOUT a check stays allowed.
+    "git diff scripts/dev/hook-fixture-check.py | head -60",
+    # `|&` is bash shorthand for `2>&1 |`, i.e. a real pipeline.
+    "make ze-verify |& tail -5",
+    # A status reader CLAUDE.md tells every session to run before committing: the
+    # role-in-filename heuristic would otherwise call it an expensive gate.
+    "scripts/dev/verify-status.sh check | tail -1",
     "cat /tmp/x",
     "cat tmp/x",
     "git reset --hard",
@@ -193,6 +212,10 @@ WE_CASES = [
     ("design absent", "internal/component/bgp/g2.go", "package g\nvar x int\n"),
     ("utils pkg", "internal/utils/u.go", "package utils\nvar x int\n"),
     ("generated claude", "CLAUDE.md", "# anything\n"),
+    # Only the PROJECT ROOT's CLAUDE.md/AGENTS.md are generated. A basename match
+    # also caught ~/.claude/CLAUDE.md and any nested one, telling their author to
+    # edit an ai/INSTRUCTIONS.md that does not govern them.
+    ("nested claude not generated", "docs/CLAUDE.md", "# anything\n"),
     ("claude plans", ".claude/plans/x.md", "plan\n"),
     ("observer sysexit ci", "test/parse/o.ci", "tmpfs=x.run\nsys.exit(1)\n"),
     (
@@ -487,6 +510,18 @@ BASH_GOLDEN = {
     "go test ./... | head -50": 2,
     "go test ./... 2>&1 | tee tmp/t.log": 0,
     "bin/ze-test bgp plugin | grep FAIL": 2,
+    # Each STATEMENT is judged on its own: a cheap pipeline beside an expensive
+    # command is fine, the expensive command's own lossy pipe is not.
+    "git status | grep foo; make ze-rules-index": 0,
+    "ls | head; go test ./... | grep FAIL": 2,
+    "go test ./... 2>&1 |\n  grep -c FAIL": 2,
+    "make ze-verify \\\n  | tail -40": 2,
+    "./bin/ze-test bgp plugin | grep FAIL": 2,
+    "python3 scripts/dev/hook-parity-check.py | tail -25": 2,
+    "python3 scripts/dev/spec-session.sh wip | head -5": 0,
+    "git diff scripts/dev/hook-fixture-check.py | head -60": 0,
+    "make ze-verify |& tail -5": 2,
+    "scripts/dev/verify-status.sh check | tail -1": 0,
     "ls -la": 0,
     "make ze-verify 2>&1 | tee tmp/v.log": 0,
     "make ze-verify | grep X": 2,
@@ -508,6 +543,7 @@ WE_GOLDEN = {
     "Edit|errorf ok": 2,
     "Edit|exabgp": 2,
     "Edit|generated claude": 2,
+    "Edit|nested claude not generated": 0,
     "Edit|go func cold ok": 2,
     "Edit|go func hot": 2,
     "Edit|hardcoded cmds": 2,
@@ -549,6 +585,7 @@ WE_GOLDEN = {
     "Write|errorf ok": 2,
     "Write|exabgp": 2,
     "Write|generated claude": 2,
+    "Write|nested claude not generated": 0,
     "Write|go func cold ok": 2,
     "Write|go func hot": 2,
     "Write|hardcoded cmds": 2,

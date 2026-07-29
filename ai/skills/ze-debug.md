@@ -11,6 +11,18 @@ The user will paste failing test output as context.
 
 See also: `/ze-verify` (re-verify after fix)
 
+## Delegation
+
+`ai/rules/spec-delegation.md`: this skill runs in the MAIN THREAD and does its
+own fan-out. Do not wrap the whole skill in a single agent. That buries the
+parallel lenses one level down and costs exactly the independence they exist to
+provide (`ai/rules/critical-review.md`).
+
+Launch the agents this skill defines, all in ONE message, on `model: opus`.
+Never trade their model down for cost; cut their NUMBER instead
+(`ai/rules/model-selection.md`). You do not need to ask permission to spawn them
+(`ai/INSTRUCTIONS.md`, STANDING REQUEST).
+
 ## Steps
 
 1. **Read the failing test output** provided by the user

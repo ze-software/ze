@@ -10,6 +10,7 @@ import os
 import re
 import secrets
 import shlex
+import shutil
 import stat
 import subprocess
 import sys
@@ -608,44 +609,264 @@ def index_pending(repo: Path, path: str) -> bool:
     return result.returncode != 0
 
 
-def discovery_index_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
-    """Reasons this commit would leave a generated discovery index stale."""
+def build_commit_view(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...], dest: Path
+) -> None:
+    """Materialize the tree this commit will PRODUCE: HEAD + adds - removes.
+
+    `vendor/` is excluded: every discovery generator skips it, and it is a third
+    of the archive. `dest` MUST be empty -- `tar -x` overwrites archived paths but
+    never removes extras, so anything already there survives into the view and can
+    make an incoherent index look coherent.
+    """
+    if not rev_parse_head_exists(repo):
+        raise FileNotFoundError("HEAD does not exist (repository has no commits)")
+    dest.mkdir(parents=True, exist_ok=True)
+    tar_path = dest.parent / (dest.name + ".tar")
+    try:
+        with open(tar_path, "wb") as fh:
+            proc = subprocess.run(
+                ["git", "archive", "--format=tar", "HEAD", ":(exclude)vendor"],
+                cwd=repo,
+                stdout=fh,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+        if proc.returncode != 0:
+            raise OSError(f"git archive failed: {(proc.stderr or '').strip()}")
+        subprocess.run(
+            ["tar", "-xf", str(tar_path), "-C", str(dest)],
+            check=True,
+            capture_output=True,
+        )
+    finally:
+        tar_path.unlink(missing_ok=True)
+    for rel in add_paths:
+        src = repo / rel
+        if not src.is_file():
+            continue
+        target = dest / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(src.read_bytes())
+    for rel in remove_paths:
+        target = dest / rel
+        if target.is_dir():
+            shutil.rmtree(target, ignore_errors=True)
+        else:
+            target.unlink(missing_ok=True)
+
+
+def rev_parse_head_exists(repo: Path) -> bool:
+    """True when HEAD names a commit. A fresh `git init` has none."""
+    return (
+        run_git(repo, "rev-parse", "--verify", "-q", "HEAD", check=False).returncode
+        == 0
+    )
+
+
+def stale_in_commit_view(
+    repo: Path,
+    candidates: list[str],
+    add_paths: tuple[str, ...],
+    remove_paths: tuple[str, ...],
+) -> tuple[list[str], bool]:
+    """Check `candidates` against the tree this commit produces.
+
+    Returns (still_stale, judged). `judged` is False when the view could not be
+    built at all, so the caller can say that rather than assert a direction of
+    drift it has not established.
+
+    A working-tree check cannot tell an index THIS commit leaves stale from one a
+    CONCURRENT session dirtied with uncommitted sources -- and the remediation it
+    prints for the second case ("regenerate and include it") is actively wrong:
+    it would commit an index row pointing at a file absent from HEAD, which is
+    red for everyone else. This check answers the question that actually matters,
+    by running the real generators against HEAD plus this commit's own files.
+
+    The generator is taken from the VIEW, not the working tree: `add_paths`
+    already overwrites it when the commit changes a generator, so the view is the
+    code the commit ships. Running the working tree's copy would judge this commit
+    with a concurrent session's uncommitted generator edits.
+    """
+    gen_for = dict(zip(DISCOVERY_INDEX_OUTPUTS, DISCOVERY_INDEX_GENERATORS))
+    # Inside the try: creating the scratch dir is itself a step that can fail (a
+    # root-owned tmp/ left by `sudo make ze-netns-test`, ENOSPC, read-only FS), and
+    # outside it that failure escaped as an uncaught traceback instead of degrading.
+    dest = None
+    try:
+        dest = Path(tempfile.mkdtemp(prefix="commit-view-", dir=_scratch_dir(repo)))
+        build_commit_view(repo, add_paths, remove_paths, dest)
+        still: list[str] = []
+        unjudged: list[str] = []
+        for out in candidates:
+            gen = gen_for.get(out)
+            if gen is None or not (dest / gen).exists():
+                unjudged.append(out)  # nothing in this commit's tree can judge it
+                continue
+            try:
+                proc = subprocess.run(
+                    [sys.executable, str(dest / gen), "--check", "--root", str(dest)],
+                    cwd=dest,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                )
+            except subprocess.TimeoutExpired:
+                # Caught here, not by the view-build handler below: the view was
+                # built fine, this ONE generator wedged. Reporting it as "could not
+                # build the commit view" would send the reader to the wrong place.
+                print(
+                    f"warning: {gen} timed out judging {out} in the commit view; "
+                    "treating it as unjudgeable.",
+                    file=sys.stderr,
+                )
+                unjudged.append(out)
+                continue
+            if proc.returncode == 0:
+                continue
+            output = (proc.stdout or "") + (proc.stderr or "")
+            if "is stale" in output:
+                still.append(out)
+                continue
+            # Any other nonzero exit is the generator failing, not the index
+            # drifting. Mirror discovery_index_freshness: unjudgeable, not stale.
+            # Show what it said -- the "run make ze-regen" advice cannot fix a crash.
+            print(
+                f"warning: {gen} could not judge {out} in the commit view "
+                f"(exit {proc.returncode}): {output.strip()[:400]}",
+                file=sys.stderr,
+            )
+            unjudged.append(out)
+        return still, unjudged, True
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        print(
+            f"warning: could not build the commit view ({exc}); "
+            "falling back to the working-tree verdict.",
+            file=sys.stderr,
+        )
+        return [], list(candidates), False
+    finally:
+        if dest is not None:
+            shutil.rmtree(dest, ignore_errors=True)
+
+
+def _scratch_dir(repo: Path) -> Path:
+    """Project `tmp/` (ai/rules/testing.md), created if missing."""
+    scratch = repo / "tmp"
+    scratch.mkdir(parents=True, exist_ok=True)
+    return scratch
+
+
+def discovery_index_problems(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...] = ()
+) -> list[str]:
+    """Reasons this commit would leave a generated discovery index incoherent.
+
+    The question is always the same: after this commit, does regenerating from the
+    COMMITTED tree reproduce the committed index? Both directions matter, and the
+    working tree answers neither reliably in a shared checkout:
+
+      - working tree stale, commit coherent -- a concurrent session's uncommitted
+        sources. Blocking here is a false positive, and the old remediation
+        ("regenerate and include it") would cross-commit their rows.
+      - working tree fresh, commit INCOHERENT -- the index on disk was regenerated
+        WITH those uncommitted sources, so committing it publishes rows pointing at
+        files absent from HEAD. This is how `plan/learned/1282-*.md` reached HEAD's
+        committed index without ever being committed itself.
+    """
     state, stale = discovery_index_freshness(repo)
     if state == "unknown":
         return []
-    if state == "stale":
-        return [
-            "discovery indexes are stale: " + ", ".join(stale) + ".\n"
-            "  Run `make ze-regen` (or `make ze-discovery-index`) and include the\n"
-            "  regenerated files in this commit."
-        ]
-    # Fresh on disk: a regenerated index must ride along when a source that feeds
-    # it is part of this commit, or the committed tree drifts out of sync. Demand
-    # ONLY the indexes THIS commit's sources actually feed -- an index left dirty
-    # by a concurrent session (one this commit does not feed) must not be demanded,
-    # or the remediation is "cross-commit someone else's index row" (T-6).
+
+    # Indexes this commit touches, either as a source or as the index itself.
     fed: set[str] = set()
-    for p in add_paths:
+    for p in (*add_paths, *remove_paths):
         header = (
             _read_head(repo / p, 40)
             if p.endswith(".go") and not p.endswith("_test.go")
             else ""
         )
         fed |= _indexes_fed_by(p, header)
-    if not fed:
-        return []
+
+    # Generator-free rule, kept because it is the only one a minimal checkout can
+    # apply (T-6): a dirty index this commit FEEDS but omits must ride along, and
+    # one it does not feed must never be demanded.
     missing = [
         out
         for out in DISCOVERY_INDEX_OUTPUTS
         if out in fed and out not in add_paths and index_pending(repo, out)
     ]
-    if not missing:
+    if missing:
+        return [
+            "this commit changes sources that feed the discovery indexes but omits\n"
+            "  the regenerated index(es): " + ", ".join(missing) + ".\n"
+            "  Add them: " + " ".join("--file " + m for m in missing) + "."
+        ]
+
+    # Verify EVERY index the repo can judge, not just the ones `fed` names.
+    # `indexes_fed_by` recognizes a PACKAGE-MAP source by a `// Package` header or
+    # a register.go filename, but package_map.build keys its rows on DIRECTORY
+    # existence (scripts/dev/package_map.py build()): a new `internal/x/thing.go`
+    # carrying only `// Design:` adds a PACKAGE-MAP row while feeding only
+    # DOCS-TO-CODE. Narrowing the check to `fed` therefore let that commit land
+    # and leave HEAD incoherent. The view is already built; checking all three
+    # costs ~3.6s against ~1.9s for one. `fed` still decides the `missing` message.
+    gen_present = dict(zip(DISCOVERY_INDEX_OUTPUTS, DISCOVERY_INDEX_GENERATORS))
+    to_check = sorted(
+        out for out in DISCOVERY_INDEX_OUTPUTS if (repo / gen_present[out]).exists()
+    )
+    if not to_check:
         return []
-    return [
-        "this commit changes sources that feed the discovery indexes but omits\n"
-        "  the regenerated index(es): " + ", ".join(missing) + ".\n"
-        "  Add them: " + " ".join("--file " + m for m in missing) + "."
-    ]
+    still, unjudged, judged = stale_in_commit_view(
+        repo, to_check, add_paths, remove_paths
+    )
+    if not judged:
+        # The view could not be built, so nothing about drift was established.
+        # Fall back to the working tree, which is the only verdict in evidence.
+        if not stale:
+            return []
+        return [
+            "discovery indexes are stale in the working tree and the commit view\n"
+            "  could not be built to check them: " + ", ".join(stale) + ".\n"
+            "  Run `make ze-regen` (or `make ze-discovery-index`) and include the\n"
+            "  regenerated files in this commit."
+        ]
+    if not still:
+        # Only an index that actually got a clean verdict may be called coherent.
+        # One the generator could not judge (crash, timeout) is neither stale nor
+        # coherent, and claiming "a concurrent session has uncommitted sources"
+        # about it invents a cause the run never established.
+        cleared = [out for out in stale if out not in unjudged]
+        if cleared:
+            print(
+                "note: "
+                + ", ".join(cleared)
+                + " is stale in the WORKING TREE but coherent in the tree this\n"
+                "  commit produces; a concurrent session has uncommitted sources."
+                " Not blocking.",
+                file=sys.stderr,
+            )
+        return []
+    omitted = [out for out in still if out not in add_paths]
+    included = [out for out in still if out in add_paths]
+    lines = ["discovery indexes will not match the tree this commit produces:"]
+    if omitted:
+        lines.append(
+            "  omitted: "
+            + ", ".join(omitted)
+            + "\n  Run `make ze-regen` (or `make ze-discovery-index`) and add them: "
+            + " ".join("--file " + m for m in omitted)
+        )
+    if included:
+        lines.append(
+            "  included but wrong: "
+            + ", ".join(included)
+            + "\n  Regenerated from a working tree holding sources this commit does"
+            "\n  NOT contain, so it carries rows for files that will be absent from"
+            "\n  HEAD. Regenerate from HEAD plus this commit's own files"
+            "\n  (see ai/rules/rule-format.md, the concurrent-session recipe)."
+        )
+    return ["\n".join(lines)]
 
 
 def discovery_index_head_status(repo: Path) -> tuple[str, list[str]]:
@@ -1439,7 +1660,7 @@ def create(args: argparse.Namespace) -> int:
     # ai/DOCS-TO-CODE.md, ai/LEARNED-FULL-INDEX.md) must match the committed
     # sources. With no CI, this is the only place the freshness is enforced.
     if not args.stale_index_ok:
-        problems = discovery_index_problems(repo, add_paths)
+        problems = discovery_index_problems(repo, add_paths, remove_paths)
         if problems:
             raise UsageError(
                 "\n".join(problems)

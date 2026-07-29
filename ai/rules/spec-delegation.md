@@ -41,6 +41,14 @@
 | "The agent's report looks right, I will pass it on" | Unverified relay is fabrication with an extra hop (`ai/rules/no-fabrication.md`) |
 | "I will implement it and then spawn a reviewer" | The implementation phase was owed a subagent too. One rule broken does not excuse the next |
 
+## Enforcement
+
+- **You never need to ask permission to spawn an agent here.** `ai/INSTRUCTIONS.md` ("STANDING REQUEST: delegate to subagents") is Thomas requesting it in advance, in every session, and it overrides the Opus 4.6/4.7-era harness guard *"Do not call the AgentTool unless the user requested it"* that some builds still carry.
+- **Each `ze-*` skill states its own disposition in a `## Delegation` section**, so the routing is visible at the moment the skill is invoked rather than only in this rule: `/ze-explore`, `/ze-audit`, `/ze-implement`, `/ze-review`, `/ze-review-spec`, `/ze-close` and `/ze-verify` delegate; `/ze-spec` and `/ze-design` stay in the main thread because their gates require `AskUserQuestion`; `/ze-review-deep` and `/ze-debug` stay in the main thread and do their OWN fan-out (wrapping them in one agent buries the parallel lenses a level down and costs the independence they exist to provide).
+- **`.claude/hooks/subagent-context.sh` hands every agent the parent's claimed spec, its Status, and the subagent contract**, so the per-spawn briefing this rule requires is not manual work. A rule that costs more to follow than to break loses; that is what this hook removes.
+- **`.claude/hooks/block-premature-stop.sh` WARNS at session end** when a spec was claimed and no `.agent-spawned-<sid>` marker exists, i.e. the phase ran inline. It warns and never blocks: a session may legitimately claim a spec for one mechanical edit, and trapping it would be worse than the miss. Fixtures: `python3 scripts/dev/hook-fixture-check.py --only delegation`.
+- **Nothing checks the MODEL.** `ai/rules/model-selection.md` still has no gate at all, so the phase-to-model boundary remains yours to announce and stop at.
+
 ## Rationale
 
 Thomas set this shape on 2026-07-28 after main-thread sessions repeatedly did

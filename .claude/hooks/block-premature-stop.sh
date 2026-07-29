@@ -89,6 +89,17 @@ if [ -n "$SID" ]; then
             if grep -qE "^\| Status \|.*in-progress" "plan/$SPEC" 2>/dev/null; then
                 REASONS+=("Spec '$SPEC' still in-progress")
             fi
+            # Delegation nudge: this session claimed a spec and worked it without
+            # ever spawning an agent, so it ran the phase inline instead of
+            # supervising it (ai/rules/spec-delegation.md). mark-agent-spawned.sh
+            # writes the marker on every Agent/Task call.
+            #
+            # Warn, never block. A session can legitimately claim a spec and do
+            # one mechanical edit, and a Stop hook that traps such a session is a
+            # worse failure than the one it is catching.
+            if [ ! -f "tmp/session/.agent-spawned-${SID}" ]; then
+                REASONS+=("Delegation: spec '$SPEC' worked with no subagent spawned")
+            fi
         fi
     fi
 fi
@@ -105,6 +116,7 @@ for r in "${REASONS[@]}"; do
     case "$r" in
         "Stop phrase:"*) HAS_PHRASE=true ;;
         "Spec "*) HAS_STATE=true ;;
+        "Delegation:"*) HAS_STATE=true ;;
     esac
 done
 
@@ -120,10 +132,13 @@ if [ "$HAS_PHRASE" = true ]; then
     exit 2
 fi
 
-# Spec in-progress without stop phrases: warn, don't block
+# State reasons without stop phrases: warn, don't block.
+# The header stays generic because more than one state reason can fire (spec
+# still in-progress, phase never delegated) and they are listed individually
+# below; naming only one of them in the header misreports the other.
 if [ "$HAS_STATE" = true ]; then
     {
-        echo "Warning: stopping with in-progress spec."
+        echo "Warning: stopping with open session state."
         for r in "${REASONS[@]}"; do
             echo "  - $r"
         done

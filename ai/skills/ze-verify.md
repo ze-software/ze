@@ -9,6 +9,23 @@ Run `make ze-verify` and report results clearly.
 
 See also: `/ze-debug` (investigate failures), `/ze-commit` (prepare commit after passing)
 
+## Delegation
+
+`ai/rules/spec-delegation.md`: the main thread supervises, it does not run this
+phase itself.
+
+- **If you are the main thread:** spawn an agent to run this skill, hand it the
+  spec path and the phase, then stop. Do not run the steps below inline. You do
+  not need to ask permission first (`ai/INSTRUCTIONS.md`, STANDING REQUEST).
+  Independent work goes out in ONE message with parallel `Agent` calls.
+- **If you are that agent:** run the steps below. You have no LSP tool and cannot
+  ask the user, so when you hit a STOP-and-ask condition, halt and put the
+  question in your report for the main thread to carry.
+- **Either way:** every claim in the report cites `file:line` for the function
+  that PRODUCES the behavior (`ai/rules/no-fabrication.md`). The main thread
+  verifies each one against source before acting; relaying a report unverified
+  is fabrication with an extra hop.
+
 ## Steps
 
 1. **Check for running verify:** If `tmp/.ze-verify.lock` exists and the PID inside is alive, another session is already running verify. Do NOT start a second run. Instead:

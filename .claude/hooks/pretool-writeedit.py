@@ -1058,17 +1058,32 @@ def c_direct_fs_state(ctx):
 
 
 def c_generated_files(ctx):
+    """Block edits to THIS project's generated CLAUDE.md / AGENTS.md.
+
+    Matched by full path, not basename: only the two at the project root are
+    generated from ai/INSTRUCTIONS.md. A basename match also caught the user's
+    hand-maintained ~/.claude/CLAUDE.md and any CLAUDE.md in another checkout,
+    telling their author to edit an ai/INSTRUCTIONS.md that does not govern them.
+    """
     if ctx["tool"] not in ("Write", "Edit"):
         return None
     base = os.path.basename(ctx["fp"])
-    if base in ("CLAUDE.md", "AGENTS.md"):
-        fix = (
-            f"\n  {base} is auto-generated. Edit the canonical source instead:\n"
-            "    ai/INSTRUCTIONS.md  (then run the sync script)\n"
-            "  See ai/rules/canonical-sources.md"
-        )
-        return (2, f"BLOCKED: {base} is generated{fix}")
-    return None
+    if base not in ("CLAUDE.md", "AGENTS.md"):
+        return None
+    generated = os.path.realpath(os.path.join(PROJECT_DIR, base))
+    # A relative file_path resolves against the CWD, which is not the project dir
+    # for every caller; join it to PROJECT_DIR so the check cannot fail OPEN there.
+    given = (
+        ctx["fp"] if os.path.isabs(ctx["fp"]) else os.path.join(PROJECT_DIR, ctx["fp"])
+    )
+    if os.path.realpath(given) != generated:
+        return None
+    fix = (
+        f"\n  {base} is auto-generated. Edit the canonical source instead:\n"
+        "    ai/INSTRUCTIONS.md  (then run the sync script)\n"
+        "  See ai/rules/canonical-sources.md"
+    )
+    return (2, f"BLOCKED: {base} is generated{fix}")
 
 
 def c_utils_package(ctx):

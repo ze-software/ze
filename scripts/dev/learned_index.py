@@ -10,11 +10,18 @@ the curated index; it does not replace it.
 Usage:
     python3 scripts/dev/learned_index.py          # regenerate ai/LEARNED-FULL-INDEX.md
     python3 scripts/dev/learned_index.py --check   # exit 1 if the index is stale
+    python3 scripts/dev/learned_index.py --root DIR   # run against another tree
+
+`--root` exists so commit_helper.py can point this generator at a materialized
+commit view (HEAD plus a commit's own files) instead of the working tree. In
+write mode it writes into that tree, not the repo.
 """
 
 import re
 import sys
 from pathlib import Path
+
+from discovery_sources import root_from_argv
 
 
 NUM_RE = re.compile(r"^(\d+)-")
@@ -80,7 +87,7 @@ def render(items: list[tuple[int, str, str]]) -> str:
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parents[2]
+    root = root_from_argv(__file__)
     learned_dir = root / "plan" / "learned"
     output_file = root / "ai" / "LEARNED-FULL-INDEX.md"
     check_mode = "--check" in sys.argv

@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1257 summaries
+Total: 1260 summaries
 
 ## 000-099
 
@@ -1331,3 +1331,6 @@ Total: 1257 summaries
 | 1284 | test-draft-workflow | `plan/learned/1284-test-draft-workflow.md` |
 | 1285 | bgp-attribute-order-one-convention | `plan/learned/1285-bgp-attribute-order-one-convention.md` |
 | 1287 | Rule routing, severity honesty, and a WIP cap | `plan/learned/1287-rule-routing-severity-and-wip-cap.md` |
+| 1288 | The discovery-index gate judges the commit, not the working tree | `plan/learned/1288-commit-view-discovery-index.md` |
+| 1289 | Delegation by default: overriding a harness guard from inside the repo | `plan/learned/1289-delegation-by-default.md` |
+| 1291 | The pipe gate: what counts as a producer, and which shapes it can see | `plan/learned/1291-pipe-gate-producer-and-shapes.md` |

@@ -10,6 +10,11 @@ document you can list every file that implements it without grepping the tree.
 Usage:
     python3 scripts/dev/docs_to_code.py          # regenerate ai/DOCS-TO-CODE.md
     python3 scripts/dev/docs_to_code.py --check   # exit 1 if the index is stale
+    python3 scripts/dev/docs_to_code.py --root DIR   # run against another tree
+
+`--root` exists so commit_helper.py can point this generator at a materialized
+commit view (HEAD plus a commit's own files) instead of the working tree. In
+write mode it writes into that tree, not the repo.
 """
 
 import os
@@ -17,6 +22,8 @@ import re
 import sys
 from collections import defaultdict
 from pathlib import Path
+
+from discovery_sources import root_from_argv
 
 
 DESIGN_RE = re.compile(r"^//\s*Design:\s*(\S+)\s*(.*)$")
@@ -105,7 +112,7 @@ def render(index: dict[str, set[tuple[str, str]]]) -> str:
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parents[2]
+    root = root_from_argv(__file__)
     output_file = root / "ai" / "DOCS-TO-CODE.md"
     check_mode = "--check" in sys.argv
 
