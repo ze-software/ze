@@ -15,6 +15,7 @@
 package hub
 
 import (
+	"slices"
 	"strings"
 	"sync"
 
@@ -91,36 +92,83 @@ func commandMetaSource(s *pluginserver.Server) func() []commandMeta {
 
 		initMeta()
 
-		var infos []commandMeta
-		for _, cmd := range d.Commands() {
-			info := commandMeta{
-				Name:          cmd.Name,
-				Help:          cmd.Help,
-				ReadOnly:      cmd.ReadOnly,
-				Params:        paramsByPath[cmd.Name],
-				TaskSupport:   taskSupportByPath[cmd.Name],
-				TakesSelector: cmd.TakesInlineSelector(),
-			}
-			if ui, ok := lookupUIResource(cmd.Name, uiResourceByPath); ok {
-				info.UIResource = &commandUIResource{
-					Path:        ui.Path,
-					Permissions: ui.Permissions,
-					CSP:         ui.CSP,
-				}
-			}
-			infos = append(infos, info)
-		}
-
-		// Plugin-registered commands carry only name + description.
-		for _, cmd := range d.Registry().All() {
-			infos = append(infos, commandMeta{
-				Name: cmd.Name,
-				Help: cmd.Description,
-			})
-		}
-
-		return infos
+		return buildCommandMeta(d.Commands(), d.Registry().All(),
+			paramsByPath, taskSupportByPath, uiResourceByPath)
 	}
+}
+
+// buildCommandMeta merges the dispatcher's builtin commands with the plugin
+// command registry into one deduplicated, name-ordered list.
+//
+// A plugin-proxied command is registered in BOTH sources on purpose:
+// Dispatcher.RegisterWithOptions skips AddBuiltin when opts.PluginProxy is set,
+// precisely so the plugin can register the same name in the CommandRegistry for
+// ForwardToPlugin routing. The two entries describe one command, so a plain
+// union shows it twice to every consumer.
+//
+// Pure so the merge can be tested without standing up a plugin server; the
+// caller supplies the YANG-derived maps, any of which may be nil.
+func buildCommandMeta(
+	dispatcherCmds []*pluginserver.Command,
+	pluginCmds []*pluginserver.RegisteredCommand,
+	paramsByPath map[string][]commandParam,
+	taskSupportByPath map[string]string,
+	uiResourceByPath map[string]yangloader.UIResourceEntry,
+) []commandMeta {
+	// byName indexes into infos by the same lowercase key both sources store
+	// their commands under (Dispatcher.commands and CommandRegistry.commands).
+	infos := make([]commandMeta, 0, len(dispatcherCmds)+len(pluginCmds))
+	byName := make(map[string]int, len(dispatcherCmds)+len(pluginCmds))
+
+	for _, cmd := range dispatcherCmds {
+		info := commandMeta{
+			Name:          cmd.Name,
+			Help:          cmd.Help,
+			ReadOnly:      cmd.ReadOnly,
+			Params:        paramsByPath[cmd.Name],
+			TaskSupport:   taskSupportByPath[cmd.Name],
+			TakesSelector: cmd.TakesInlineSelector(),
+		}
+		if ui, ok := lookupUIResource(cmd.Name, uiResourceByPath); ok {
+			info.UIResource = &commandUIResource{
+				Path:        ui.Path,
+				Permissions: ui.Permissions,
+				CSP:         ui.CSP,
+			}
+		}
+		byName[strings.ToLower(cmd.Name)] = len(infos)
+		infos = append(infos, info)
+	}
+
+	// Plugin-registered commands carry only name + description. The dispatcher
+	// entry wins on every field it has, because it is a strict superset: YANG
+	// help, read-only, params, task-support, ui-resource and selector handling.
+	// The one thing the plugin can supply that the dispatcher may lack is help
+	// text, when the YANG node carries no description (dispatcher Help comes
+	// from pathToDesc in LoadBuiltins), so fill that gap rather than drop it.
+	for _, cmd := range pluginCmds {
+		if i, dup := byName[strings.ToLower(cmd.Name)]; dup {
+			if infos[i].Help == "" {
+				infos[i].Help = cmd.Description
+			}
+			continue
+		}
+		byName[strings.ToLower(cmd.Name)] = len(infos)
+		infos = append(infos, commandMeta{
+			Name: cmd.Name,
+			Help: cmd.Description,
+		})
+	}
+
+	// Both sources range over Go maps, so without this the order differs
+	// between two calls describing identical state. Consumers cache and diff
+	// this list (MCP tools/list is cacheable and wants a stable tool order),
+	// and names are unique after the dedupe above, so name is a total order.
+	slices.SortFunc(infos, func(a, b commandMeta) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+
+	return infos
 }
 
 // buildParamMeta extracts all RPC metadata from the YANG loader and builds a
