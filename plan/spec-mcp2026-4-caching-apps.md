@@ -184,6 +184,7 @@ Umbrella AC covered: AC-8.
 
 **Behavior to change:**
 - Everything in the two items above, plus the command-list deduplication that AC-6 turns out to require (A-4).
+- **Hidden plugin commands must stop reaching the tool list.** Found 2026-07-29 while landing the A-4 dedupe, and homed here because this phase already owns what `tools/list` contains. `CommandRegistry.All` returns every registration including hidden ones (`RegisteredCommand.Hidden`, `internal/component/plugin/server/command_registry.go:147`), and `Hidden` is referenced nowhere in the command-metadata path (`cmd/ze/hub/command_meta.go`, `cmd/ze/hub/api.go`, `internal/component/mcp/tools.go`). The registry's own `VisibleCommandEntries` skips them (`command_registry.go:445-447`) but feeds only the interactive completion tree (`cmd/ze/hub/main.go:972`, `cmd/ze/hub/session_factory.go:167`). So a command marked `Hidden: true` is suppressed from completion and help while still being advertised as an MCP tool and an API command, the opposite of what `ai/rules/cli-patterns.md` documents `Hidden` to mean. Decide during implementation whether the filter belongs in `buildCommandMeta`, fixing both surfaces at the shared source as the A-4 dedupe did, or whether either surface has a reason to keep seeing hidden commands. Deliberately NOT folded into the A-4 fix, which was scoped to the duplicate.
 
 ## Data Flow (MANDATORY - see `ai/rules/data-flow-tracing.md`)
 
