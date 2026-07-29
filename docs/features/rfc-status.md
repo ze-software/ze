@@ -4,6 +4,10 @@ This page is the public standards ledger for Ze. It lists RFCs that Ze implement
 
 Reference summaries under `rfc/short/` are not implementation claims by themselves. A row belongs here only when current docs, source code, tests, or learned closure notes tie the RFC to a Ze feature.
 
+**How strong the proof behind a row is.** Every requirement's evidence is listed in `ai/RFC-REQUIREMENTS.md` with a `kind/tier` cell per test link. `kind` is the layer the test exercises (`unit`, `functional`, `editor`, `interop`); `tier` is whether anything executes it. `verify` means it runs in `make ze-verify` on every push. `interop/nightly` runs only in the scheduled, advisory `evidence-nightly` workflow -- so a requirement whose evidence is entirely nightly-tier is marked `**nightly-only**` on its ledger row and counted in its own rollup column, and a row here backed only by such evidence is not proven on the merge path. A tag in a suite no pipeline runs is refused outright rather than published with a caveat.
+<!-- source: scripts/dev/rfc_requirements.py -- CARRIERS, evidence_label, is_nightly_only -->
+
+
 ## BGP base protocol, capabilities, and session safety
 
 | RFC | Area | Status | Implemented coverage | Remaining if not complete |

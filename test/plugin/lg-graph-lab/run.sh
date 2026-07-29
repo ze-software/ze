@@ -30,12 +30,13 @@ chmod 755 "$WORKDIR/lg-lab.py"
 # Substitute port into config
 sed -e "s/\${LG_PORT}/$LG_PORT/" -e "s/\${LG_IP}/0.0.0.0/" "$SCRIPT_DIR/ze-bgp.conf" > "$WORKDIR/ze-bgp.conf"
 
-# Start ze
+# Start ze. `start <config>`: the bare `ze <config>` launch form was removed from
+# the CLI (learned 1248), so a positional path dies with "unknown command".
 cd "$WORKDIR"
 PYTHONPATH="$REPO_ROOT/test/scripts" \
 PATH="$REPO_ROOT/bin:$PATH" \
 ze_test_bgp_port="$BGP_PORT" \
-"$REPO_ROOT/bin/ze" "$WORKDIR/ze-bgp.conf" &
+"$REPO_ROOT/bin/ze" start "$WORKDIR/ze-bgp.conf" &
 ZE_PID=$!
 cd "$REPO_ROOT"
 

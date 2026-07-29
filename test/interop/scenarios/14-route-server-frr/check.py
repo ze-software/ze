@@ -1,7 +1,25 @@
 #!/usr/bin/env python3
-"""Scenario 14: Ze as route server -- routes forwarded without Ze's ASN."""
+"""Scenario 14: Ze as route server -- routes forwarded without Ze's ASN.
 
-import os, sys, time
+FRR originates 10.99.0.0/24, Ze relays it to BIRD, and BIRD's own AS_PATH view is asserted.
+Two foreign implementations, so the transparency claim is not read back out of Ze.
+"""
+
+# RFC requirement: RFC7947-x-1 positive -- a route server does not prepend its own AS to a
+# relayed route. Asserted at BIRD, a foreign daemon parsing the wire Ze emitted, rather than
+# from Ze's own RIB view: an AS-path transparency claim read back out of the speaker that
+# built the path proves the least interesting half of it.
+#
+# `session/rs-client true` in ze.conf is load-bearing and defaults to FALSE. It is the ONLY
+# thing that selects the non-prepending path (reactor_api_forward.go:711 gates on
+# `facts.isEBGP && !facts.rsClient`; facts.rsClient comes only from that leaf via
+# peer_forward_facts.go:111 <- reactor/config.go:266). Without it this scenario asserts
+# route-server transparency of two plain eBGP peers and fails on Ze behaving correctly --
+# which is exactly what it did until 2026-07-29.
+
+import os
+import sys
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 from interop import FRR, BIRD, log_pass, log_info

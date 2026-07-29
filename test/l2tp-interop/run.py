@@ -118,7 +118,17 @@ def main():
     except (FileNotFoundError, subprocess.TimeoutExpired):
         docker_ok = False
     if not docker_ok:
-        print("Docker unavailable, cannot run L2TP interop lab")
+        # FAIL CLOSED, and say so on STDERR with the remediation, matching
+        # test/interop/run.py. Every scenario runs in containers, so an unreachable
+        # Docker means nothing was verified -- and a runner that reports an absence
+        # on stdout with no next step leaves the reader to guess whether the lab was
+        # skipped or broken (ai/rules/error-messages.md: what / why / next).
+        print(
+            "error: Docker unavailable, cannot run the L2TP interop lab -- every "
+            "scenario runs in containers. Start Docker (or install it), then re-run: "
+            "make ze-deployment-l2tp-ppp-docker-test",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     scenarios_dir = os.path.join(SCRIPT_DIR, "scenarios")

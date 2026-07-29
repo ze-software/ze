@@ -3,7 +3,10 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    command: ["/etc/ze/ze.conf"]
+    # The image ENTRYPOINT is ["/ze"], so this is `ze start /etc/ze/ze.conf`. The
+    # bare `ze <config>` launch form was removed from the CLI (learned 1248) and
+    # now dies with "unknown command".
+    command: ["start", "/etc/ze/ze.conf"]
     ports:
       - "179:179"
       - "1790:1790"

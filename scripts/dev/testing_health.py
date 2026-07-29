@@ -83,11 +83,16 @@ TEST_ROOTS = ("internal", "cmd", "pkg", "scripts", "test")
 
 # The RFC ledger's coverage table. Pinned exactly: it is generated, and a column
 # change must fail loudly rather than silently yield zero (spec AC-17).
+# Tracks render_ledger's rollup header (scripts/dev/rfc_requirements.py _render_rollup).
+# `Nightly-only` was added by plan/spec-rfcgate-2-evidence.md: requirements whose only
+# evidence runs in the scheduled advisory workflow rather than in ze-verify. It is a
+# SUBSET marker, not a partition member, so it is parsed but never summed with the others.
 RFC_TABLE_HEADER = (
-    "| RFC | Gated | Both | One polarity | Annotated | No test | Outstanding | State |"
+    "| RFC | Gated | Both | One polarity | Annotated | No test | Outstanding | "
+    "Nightly-only | State |"
 )
 RFC_ROW = re.compile(
-    r"^\| `([^`]+)` \| (\d+) \| (\d+) \| (\d+) \| (\d+) \| (\d+) \| (\d+) \| (.*?) \|$"
+    r"^\| `([^`]+)` \| (\d+) \| (\d+) \| (\d+) \| (\d+) \| (\d+) \| (\d+) \| (\d+) \| (.*?) \|$"
 )
 # A requirement line in rfc/short/*.md: "- [ ] [RFC1234-1-1] [MUST] text {gap: ...}"
 RFC_LEVEL = re.compile(r"^- \[[ x]\] \[[^\]]+\] \[([A-Z ]+)\]")
@@ -303,6 +308,7 @@ def collect_rfc(root: Path) -> tuple[Metric, Metric]:
                     "annotated": int(m.group(5)),
                     "notest": int(m.group(6)),
                     "outstanding": int(m.group(7)),
+                    "nightly_only": int(m.group(8)),
                 }
             )
     if not rows:

@@ -34,7 +34,8 @@ name: evidence-nightly
 # kernel-integration evidence this workflow exists to produce.
 #
 # scripts/dev/github_workflows_test.go pins this shape (scheduled-only, runs fuzz
-# AND integration by make-target name, never the QEMU target, every job advisory).
+# AND integration AND interop by make-target name, never the QEMU target, every job
+# advisory).
 
 on:
   schedule:
@@ -92,3 +93,37 @@ jobs:
       # build-essential.
       - name: make ze-integration-test
         run: sudo -E env "PATH=$PATH" make ze-integration-test
+
+  # The 104 BGP interop scenarios had NO automated caller: ze-interop-test's only
+  # invoker was ze-release-evidence (mk/test-release.mk), a manual release-time
+  # target behind run_if_docker. So the one suite that proves Ze against FRR, BIRD
+  # and GoBGP ran when somebody remembered to run it.
+  #
+  # That is why this job is a prerequisite of letting an interop scenario carry an
+  # `RFC requirement:` tag at all (plan/spec-rfcgate-2-evidence.md): the scanner
+  # refuses a tag in a carrier nothing executes, and without this job every interop
+  # tag would be evidence with no pipeline behind it -- strictly weaker than the
+  # unit binding it replaced, which runs on every push.
+  #
+  # Its own job rather than a step on `integration`: a flaky Docker pull must not be
+  # attributed to the kernel suite, and the two need different system packages
+  # (this one needs none -- ubuntu-latest ships Docker).
+  #
+  # Advisory like its siblings. Ze-verify keeps NOT running it: that would put a
+  # multi-image Docker lab in front of every merge and demand Docker on every
+  # developer machine (owner decision, umbrella D3).
+  interop:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: make ze-interop-test
+        run: make ze-interop-test

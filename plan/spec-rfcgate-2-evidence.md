@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | spec-rfcgate-1-extraction |
-| Phase | - |
+| Phase | 5/6 |
 | Deferral shard | `plan/deferrals/rfcgate-2-evidence.md` |
 | Updated | 2026-07-29 |
 
@@ -127,7 +127,7 @@ Known Limitations, A-4).
 - `scan_ci_tags`'s `terminator=` handling for `.ci` is unchanged.
 - `_scan_tags_tolerant`'s refusal to run a per-line Go fallback over a non-Go file is unchanged.
 - The ledger stays byte-stable for a given tree (the freshness gate depends on it).
-- `ze-rfc-check` stays in both `stagesForMode` branches and keeps its current runtime budget within noise (today ~1.7s at HEAD, ~2.2s with the baseline read).
+- `ze-rfc-check` stays in both `stagesForMode` branches and keeps its current runtime budget within noise (~~today ~1.7s at HEAD, ~2.2s with the baseline read~~ -- corrected 2026-07-29 to the measured figures; see the Security Review Checklist's "Resource exhaustion" row for who measured what).
 
 **Behavior to change:**
 - `test/interop/run.py` stops fail-open on missing Docker.
@@ -190,8 +190,8 @@ Known Limitations, A-4).
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
 | R-1 | A tag bound to a nightly-advisory test is weaker than one bound to a verify-stage test, and a single "proven" cell hides the difference | A requirement's only evidence is an interop scenario, yet the ledger reads identically to a unit-proven one | The ledger carries an explicit tier per test link AND a `nightly-only` marker on any requirement with no verify-tier evidence; the ratchet keeps verify-tier and nightly-tier counts as SEPARATE monotonic counters so nightly evidence can never be substituted to satisfy the verify-tier ratchet (AC-8, AC-11) |
-| R-2 | Receiver-side MUSTs no conforming peer can drive (RFC 7606 §5.1 shape) look wire-visible but are untestable by a peer daemon | A scenario author cannot make FRR/BIRD emit the offending message | The injector sidecar already exists (`interop.py:1284-1309`, used by `test/interop/scenarios/47-rfc7606-relay-shape-frr`); the seed bindings must include one injector-driven requirement so the pattern is documented rather than rediscovered (AC-13) |
-| R-3 | Vacuity: a `.ci` or interop binding satisfies `ze-rfc-check` whether or not the test discriminates (`ai/rules/interop-and-goal-validation.md`) | A seed binding passes on first run and was never seen red | Every seed binding is mutation-verified: disable the producing function, confirm RED, revert, confirm GREEN, and record the RED output in the closure Goal Validation (AC-14). No binding lands without a recorded red |
+| R-2 | Receiver-side MUSTs no conforming peer can drive (RFC 7606 §5.1 shape) look wire-visible but are untestable by a peer daemon | A scenario author cannot make FRR/BIRD emit the offending message | The injector sidecar already exists (`interop.py:1284-1309`, used by `test/interop/scenarios/47-rfc7606-relay-shape-frr`); the seed bindings must include one injector-driven requirement so the pattern is documented rather than rediscovered (~~AC-13~~ **AC-16**; corrected 2026-07-29, the ACs were renumbered after this row was written and AC-13 is now the ratchet-loss criterion) |
+| R-3 | Vacuity: a `.ci` or interop binding satisfies `ze-rfc-check` whether or not the test discriminates (`ai/rules/interop-and-goal-validation.md`) | A seed binding passes on first run and was never seen red | Every seed binding is mutation-verified: disable the producing function, confirm RED, revert, confirm GREEN, and record the RED output in the closure Goal Validation (~~AC-14~~ **AC-17**; corrected 2026-07-29, same renumbering -- AC-14 is now the nightly-substitution criterion). No binding lands without a recorded red |
 | R-4 | Phase ordering is violated under time pressure, landing the scanner before the pipeline | A `check.py` tag resolves while `ze-interop-test` still exits 0 on a Docker-less host | The tier table refuses a tag in a carrier whose executing target has no automated caller (AC-7); ACs are numbered so the phase-1 gates are prerequisites of phase-2 ACs |
 | R-5 | The three other interop trees (ipsec 10, l2tp 3, pppoe 1) stay unrun, so a binding there would be invisible evidence | Someone tags an ipsec `check.py` and the gate accepts it | Those trees classify as `unrun` in the tier table and a tag in them is a hard error naming the fix (add the tree to nightly CI first); recorded as a deferral row, not silently allowed |
 | R-6 | The Python tokenizer refuses a syntactically invalid `check.py` and the scan fails on an unrelated file | `ze-rfc-check` reds with a tokenize error | Fail closed with a named file and a clear message in the tree scan (consistent with the module's posture); the BASELINE path contributes no tags for that file, mirroring the existing `.ci` decision at `:884` |
@@ -241,7 +241,7 @@ land while a carrier's executing target can pass without running.
 | AC-6 | A conforming tag sits in an `.et` file outside any `terminator=` block, and a second tag-shaped line sits inside one | The first resolves, the second does not: `.et` reuses `.ci` terminator semantics rather than a new implementation |
 | AC-7 | A tag is written into a carrier whose executing target has no automated caller (`test/ipsec-interop/`, `test/l2tp-interop/`, `test/pppoe-interop/`) | `make ze-rfc-check` fails, naming the file and stating that the carrier's suite must be added to an automated pipeline before it can carry evidence |
 | AC-8 | The working tree and the git HEAD baseline are scanned over the same fixture tree containing every carrier kind | Both produce the same tag set: the tree filter and the baseline filter agree, and a test fails if either is extended alone |
-| AC-9 | A `check.py` that does not parse as Python sits anywhere under a scanned root | The tree scan fails closed with an error naming the file; the baseline path contributes no tags for that file and does not crash |
+| AC-9 | A `check.py` the Python **tokenizer** cannot read (unterminated string, bad indentation, stray character) sits anywhere under a scanned root | The tree scan fails closed with an error naming the file; the baseline path contributes no tags for that file and does not crash. ~~"does not parse as Python"~~ (corrected 2026-07-29: the guard is at TOKENIZE level, which is the CORRECT level, because a comment is lexical -- `tokenize.generate_tokens` at `rfc_requirements.py:548`. A file that tokenizes but is not valid Python 3, e.g. a Python-2 `print 'x'` statement, IS scanned and its tags ARE collected; verified empirically. The AC text, not the behaviour, was wrong: demanding a full parse would refuse files whose comments are perfectly readable, and comment extraction is exactly what this scanner needs) |
 
 **Phase 3 -- the ledger shows evidence strength**
 
@@ -328,6 +328,7 @@ Python tests live beside the tool as `*_test.py` and are picked up by
 - `.github/workflows/evidence-nightly.yml` - new advisory interop job.
 - `scripts/dev/github_workflows_test.go` - pin the new job.
 - `ai/RFC-REQUIREMENTS.md` - regenerated (do not hand-edit).
+- `rfc/audit/rfc7606.json` - **added 2026-07-29, not foreseen at design time.** Hand re-stamped, and it is the ONE file in this spec that must be. `verdict_is_fresh` (`scripts/dev/rfc_requirements.py:1640-1642`) is exact equality on the whole `tests` map, so this spec's own new `.ci` tags on `RFC7606-5.1-2` and `RFC7606-5.1-3` changed that map and staled verdicts whose requirement text and assertions were untouched. Nothing about what any test asserts changed. This is fresh evidence for `plan/spec-rfcgate-3-audit-teeth.md`, which already counts five prior mechanical re-stamps of this same file (`:72-80`) and files the pattern as F18 in `plan/learned/HOOK-FRICTION.md:716`; this spec makes it six.
 - `ai/rules/testing.md` - RFC-tagged-test section: which carriers may hold a tag, and the verify/nightly tier distinction.
 - `ai/rules/rfc-compliance.md` - the four ratchets table gains the non-unit evidence ratchet.
 - `docs/features/rfc-status.md` - state that a status row backed only by nightly-tier evidence says so.
@@ -338,6 +339,10 @@ Python tests live beside the tool as `*_test.py` and are picked up by
 - `scripts/dev/rfc_requirements_test.py` - unit tests above (if the module has no sibling test file yet; otherwise extend it).
 - `test/interop/run_test.go` - fail-closed runner test (if no suitable Go home exists).
 - `plan/deferrals/rfcgate-2-evidence.md` - deferral shard (ipsec/l2tp/pppoe trees, back-fill remainder).
+- **Destination specs for the shard's live rows (added 2026-07-29, `ai/rules/deferral-tracking.md` requires each to exist on disk):**
+  - `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md` - rows 1-3.
+  - `plan/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md` - row 4, created when the umbrella was found to disclaim the work.
+  - `plan/spec-rfcgate-2-deferred-rs-replay-evidence.md` - rows 5 and 7 (renamed from `...-rs-replay-transparency.md`, whose name asserted a defect that does not exist).
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -432,7 +437,7 @@ Python tests live beside the tool as `*_test.py` and are picked up by
 | Check | What to look for |
 |-------|------------------|
 | Input validation | `check.py` files are read and tokenized, never executed, by the scanner. The scanner must not import or exec scenario code -- `Scenario.run_check` executes it inside the Docker lab, which is a different trust context |
-| Resource exhaustion | Tokenizing ~104 scenario files plus 164 `.et` files must stay inside the gate's runtime budget; measure before/after and keep `ze-rfc-check` within noise of its current ~2.2s |
+| Resource exhaustion | Tokenizing ~104 scenario files plus 164 `.et` files must stay inside the gate's runtime budget. ~~keep `ze-rfc-check` within noise of its current ~2.2s~~ (corrected 2026-07-29: ~2.2s was a design-time estimate that nobody re-measured. Measured figures for the `--check` half: **2.64s at HEAD** and **2.77-3.21s on the working tree**, both measured by the two independent reviews of this spec; and **2.59 / 2.67 / 2.63s on the working tree** over three runs measured by the closure session on this host. The budget is therefore "under ~3.5s for `--check`", and the honest reading of the spread is that the added tokenization is at or below the run-to-run noise floor rather than demonstrably free. Note the make target `ze-rfc-check` is ~15s wall, dominated by the `--selftest` half (~12s), not by the scan) |
 | Fail-open | The new carriers must never widen the "silently skipped" set that this spec exists to close |
 | Error leakage | Scanner errors name repo-relative paths only |
 
@@ -499,6 +504,33 @@ Python tests live beside the tool as `*_test.py` and are picked up by
   and are correct as they stand. Nothing here implies unit evidence is inferior in
   general -- only that it cannot prove a wire obligation.
 
+**Added 2026-07-29, from the two independent reviews of this spec.** Each is a
+limitation of what the delivered gate can see, not a task left undone:
+
+- **The carrier table's tier is an assertion, and nothing pins it to reality.**
+  `CARRIERS` declares `.ci` as `functional/verify` because `ze-functional-test` is
+  in `stagesForMode`; no gate re-derives that from `stagesForMode`. A one-word edit
+  to a tier cell silently downgrades or upgrades every claim in the repo without
+  reddening anything, and re-labelling the ratchet baseline with today's table means
+  the ratchet cannot see it either. The spec's own Critical Review Checklist asks a
+  human to check tier-against-`stagesForMode`; that is the whole enforcement.
+- **The ledger states a pipeline CLASS, not a pipeline RESULT.** `interop/nightly`
+  tells a reader the proof is scheduled and advisory. It does not tell them whether
+  the last nightly ran, or was green. A reader can separate nightly-tier evidence
+  from verify-tier evidence, and cannot separate a nightly that passed from one that
+  has been red for a month. R-7 anticipated the red-nightly hazard and the marker
+  addresses only half of it.
+- **`.ci`/`.et` claim merge-gate tier by EXTENSION, not by membership of a suite
+  `ze-verify` runs.** During implementation this credited `test/draft/` and roughly
+  59 files in suites no `ze-verify` stage executes, with three demonstrated silent
+  ratchet evasions. The delivered scanner narrows this, but the residual principle
+  stands: tier is inferred from a path shape, and a path shape is not a pipeline.
+- **A test that goes red after an unrelated fix may have been green *because* of a
+  bug.** Scenario 47's green had depended on an RFC 4271 Section 5.1.2 defect; when
+  `8bb55e509` fixed that on 2026-07-25 the scenario went red, and the red was first
+  read as a NEW route-server defect. It was not one. Nothing in this spec's tooling
+  can detect this class -- only reading the producing code can.
+
 ## RFC Documentation (Scope: protocol)
 
 Not applicable to the tooling changes. It applies to the Phase 5 seed bindings:
@@ -535,3 +567,310 @@ that citation appears. If it is, the citation is added in the same commit.
 - [ ] Learned summary written to `plan/learned/NNN-rfcgate-2-evidence.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-rfcgate-2-evidence.md` only
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+- **Phase 1, execution.** `test/interop/run.py`'s Docker probe now fails closed
+  (`:132-140`), matching `test/ipsec-interop/run.py`. `.github/workflows/evidence-nightly.yml`
+  gained an `interop` job (`:115-129`) running `make ze-interop-test`, `continue-on-error: true`.
+- **Phase 2, carriers.** `scripts/dev/rfc_requirements.py` gained one declared carrier table,
+  `CARRIERS` (`:641`), with `Carrier` (`:621`) and the tier constants `TIER_VERIFY` /
+  `TIER_NIGHTLY` / `TIER_UNRUN` (`:616-618`). `carrier_for` (`:745`) is the single lookup; the
+  tree scan (`:773`), the HEAD baseline (`:1163`) and the tolerant scan (`:1199`) all read it,
+  and no literal suffix check survives anywhere in the module. `scan_python_tags` (`:524`)
+  tokenizes `check.py`; `.et` routes to the existing `scan_ci_tags` (`:568`).
+- **Phase 3, ledger.** `render_ledger` (`:1977`) emits a `kind/tier` cell per test link and a
+  `**nightly-only**` marker (`:2044`); `_render_rollup` (`:1871`) carries the nightly-only
+  count in its own column, and the legend is derived from `CARRIERS`, not authored.
+- **Phase 4, ratchet.** `check_evidence_ratchet` (`:1355`) keyed by `kind/tier`, beside the
+  existing `check_coverage_ratchet` (`:1303`).
+- **Phase 5, seed bindings. All three clauses landed** (interop completed 2026-07-29).
+  `.ci`: `test/plugin/rfc7606-relay-one-field.ci:3` and `:7` bind `RFC7606-5.1-2 positive` and
+  `RFC7606-5.1-3 positive`. Peer-driven interop: `test/interop/scenarios/14-route-server-frr/check.py:8`
+  binds `RFC7947-x-1 positive`, asserted at BIRD rather than out of Ze's own RIB. Injector-driven
+  interop: `test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py:28` binds
+  `RFC7606-5.1-3 positive`, the §5.1 receiver-side shape no conforming sender may emit. Each is
+  mutation-verified RED (Goal Validation 5a-5c). Both scenarios' `ze.conf` also gained
+  `session/rs-client true` on each peer -- the leaf defaults to false, and its absence is what
+  made scenario 47's red look like a daemon defect for two agents running. `.et` carries no
+  binding by settled decision, not by omission.
+- **Phase 6, discovery.** `ai/rules/testing.md` RFC-Tagged Tests section (carrier table, tier
+  distinction, refusal rule, monotonicity, tokenization) plus the regenerated
+  `ai/rules/CONDENSED.md`; `ai/rules/rfc-compliance.md` ratchets table; `docs/features/rfc-status.md`;
+  `docs/functional-tests.md` BGP-interop row.
+
+### Bugs Found/Fixed
+
+- **The interop lab launched `ze` with a removed bare `ze <config>` form**, so every scenario
+  in all four interop trees died at container health. Found by running the BGP lab for the
+  first time since the launch form changed. Fixed across all four trees.
+- **The `ai/rules/testing.md` edit did not survive condensation.** Five directives and the lead
+  paragraph were wrapped across physical lines, and `scripts/dev/rules_condensed.py` keeps only
+  a list item's FIRST physical line (`:144-146`), treating continuations as prose that
+  `flush_prose` (`:106-114`) drops or truncates at 220 characters. The unrun-carrier directive
+  lost its verb entirely: the digest said a tag in those trees *is*, and stopped, with the
+  refusal gone. Fixed by re-authoring each directive onto one physical line; verified by
+  reading the regenerated section, not by re-running the generator.
+
+### Documentation Updates
+
+- `docs/functional-tests.md` -- BGP interop row: `make ze-interop-test` named, fail-closed
+  behavior stated, nightly/advisory pipeline stated. Verified against `test/interop/run.py:132-140`
+  and `.github/workflows/evidence-nightly.yml:115-129`.
+- `ai/rules/testing.md` + regenerated `ai/rules/CONDENSED.md` (`make ze-rules-condensed`).
+- `docs/features/rfc-status.md`, `ai/rules/rfc-compliance.md` -- owned by the parallel session.
+- `ai/RFC-REQUIREMENTS.md` -- regenerated, never hand-edited.
+- `rfc/audit/rfc7606.json` -- hand re-stamped; see Files to Modify for why this one must be.
+
+### Deviations from Plan
+
+| # | Deviation | Why |
+|---|-----------|-----|
+| D-a | `rfc/audit/rfc7606.json` was hand-edited, and it was not in the design-time Files to Modify | `verdict_is_fresh` (`rfc_requirements.py:1640-1642`) is exact equality on the whole `tests` map, so this spec's own new `.ci` tags staled verdicts whose requirement text and assertions never changed. Sixth mechanical re-stamp of this file; fresh evidence for `plan/spec-rfcgate-3-audit-teeth.md` |
+| D-b | The launch-form fix initially covered four Docker labs while its own comment claimed the sibling audit was complete | Eight executable sites were still on the removed form, including the shipped `docker/compose.yaml`. `ai/rules/before-writing-code.md`'s sibling call-site audit requires grepping the bare token across `.ci` `exec=`, embedded `tmpfs=` bodies, helper scripts and shipped compose files, not only the framework directive. The claim of completeness preceded the audit that would have justified it |
+| D-c | `.ci`/`.et` initially claimed merge-gate tier by extension alone | That credited `test/draft/` and roughly 59 files in suites no `ze-verify` stage runs, with three demonstrated silent ratchet evasions. Narrowed during implementation; the residual limitation is recorded in Known Limitations |
+| D-d | AC-9's text said "does not parse as Python"; the shipped guard is at TOKENIZE level | Tokenize is the CORRECT level -- a comment is lexical. The AC text was corrected rather than the behavior; a `print 'py2'` file tokenizes and is scanned, verified empirically |
+| D-e | The seed set carries no `.et` binding | Settled N-A (2026-07-29), recorded in Key Design Decisions and the TDD Functional Tests table, not an unmet target |
+| D-f | The RS-replay deferral was filed against a defect that does not exist | See the Mistake Log row below. The destination spec was repurposed onto the real gap rather than deleted |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | Scenario 47 failing at `check_route_no_as("10.0.0.0/24", "65001")` was read as a route-server defect: "the replay rail prepends Ze's AS because RS transparency is implemented only on the forward rail". Two deferral rows and a whole destination spec were filed on it | ONE prepend gate serves BOTH rails: `if facts.isEBGP && !facts.rsClient` (`reactor/reactor_api_forward.go:711`), reached by `RelayStoredRoute` via `reactor_api_relay.go:253` and by `ForwardUpdate` via `reactor_api_forward.go:358`. `facts.rsClient` comes only from the `session/rs-client` leaf (`reactor/peer_forward_facts.go:111` <- `reactor/config.go:266`), default `false` (`bgp/plugins/rs/yang/ze-rs-conf.yang:40-46`), and NO interop scenario sets it (`grep -rn rs-client test/interop/` is empty). Ze prepended correctly for a peer that was, as configured, a plain eBGP peer. The scenario's earlier green depended on an RFC 4271 Section 5.1.2 bug that `8bb55e509` fixed on 2026-07-25 | Independent review of this spec read the producing gate instead of the symptom | Deferral rows 5 and 6 rewritten and a row 7 added; the destination spec was repurposed onto the real gap (`RFC7947-x-1` has no non-unit evidence and no rs-client relay test) rather than deleted, and renamed to `plan/spec-rfcgate-2-deferred-rs-replay-evidence.md` because the old stem asserted a defect that does not exist |
+| escalation | A test going red after an unrelated fix was read as a NEW defect | The test had been green BECAUSE of a bug. When `8bb55e509` fixed the RFC 4271 prepend, scenario 47's expectation stopped being satisfiable by the broken path | Same review | Recorded in Known Limitations as a general class no tooling in this spec can detect |
+| approach | The `ai/rules/testing.md` directives were written as wrapped multi-line bullets | The condenser keeps only a list item's first physical line; five directives and the lead paragraph reached `CONDENSED.md` truncated, one losing its verb | Regenerating and READING the digest, which `ai/rules/rule-format.md` requires and which regenerating alone does not accomplish | Re-authored onto single physical lines; digest re-read and pasted into the closure report |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| 1. Non-unit evidence EXECUTES in an automated pipeline, fail-closed | Done | `test/interop/run.py:132-140`, `.github/workflows/evidence-nightly.yml:115-129` | Advisory by owner decision, not by omission |
+| 2. Only then let the scanner SEE it | Done | `CARRIERS` `rfc_requirements.py:641`, `scan_python_tags:524` | Phase 1 committed before Phase 2 |
+| 3. The ledger SHOWS evidence strength | Done | `render_ledger:1977`, `_render_rollup:1871`, marker at `:2044` | `kind/tier` per link; nightly-only in its own column |
+| 4. Ratchet non-unit evidence so it can only rise | Done | `check_evidence_ratchet:1355` | Keyed by `kind/tier`, so a substitution at equal count still fires |
+| 5. Prove the chain with a seed set, `.ci`-first | ~~Partial~~ **Done (2026-07-29)** | `test/plugin/rfc7606-relay-one-field.ci:3,:7`; `test/interop/scenarios/14-route-server-frr/check.py:8`; `test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py:28` | All three clauses landed and each is mutation-verified RED (Goal Validation 5a/5b/5c). `.et` is a settled N-A, not a gap (Key Design Decisions) |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/interop/run.py:132-140`; `TestInteropRunnerFailsClosedWithoutDocker` (`test/interop/run_test.go:34`) | Exits non-zero naming Docker |
+| AC-2 | Done | `.github/workflows/evidence-nightly.yml:115-129` | Own job, `continue-on-error: true` |
+| AC-3 | Done | `TestEvidenceNightlyRunsInterop` (`scripts/dev/github_workflows_test.go:328`) | Scheduled-only and advisory pins at `:279`, `:303`, `:360` still pass |
+| AC-4 | Done | `test_scan_python_tags_found` (`rfc_requirements_test.py:511`), `test_scan_python_tags_indented_comment_is_a_tag` (`:521`) | id/polarity/path/line |
+| AC-5 | Done | `test_scan_python_tags_ignores_string_literals` (`:528`), `test_scan_python_tags_ignores_trailing_comment` (`:546`) | Tokenizer, not regex |
+| AC-6 | Done | `test_scan_et_reuses_ci_semantics` (`:578`), `test_et_terminator_block_is_not_scanned` (`:587`) | No third implementation |
+| AC-7 | Done | `test_tag_in_unrun_carrier_is_refused` (`:718`), `test_unclassified_scenario_check_is_refused_too` (`:733`); refusal at `rfc_requirements.py:799` | Names the file and the fix |
+| AC-8 | Done | `test_tree_and_baseline_filters_agree` (`:784`), `test_baseline_prunes_the_same_dirs_as_the_tree_scanner` (`:1771`) | Both filters read `CARRIERS` |
+| AC-9 | Done (text corrected) | `test_scan_python_tags_rejects_invalid_syntax` (`:551`); guard at `rfc_requirements.py:549-553` | AC wording corrected to TOKENIZE level; see D-d |
+| AC-10 | Done | `test_ledger_row_carries_evidence_tier` (`:1277`), `test_interop_link_is_labelled_nightly` (`:1288`), `test_legend_is_derived_from_the_carrier_table` (`:1338`) | Live ledger shows 1351 `(unit/verify)` and 6 `(functional/verify)` cells |
+| AC-11 | Done | `test_nightly_only_marker_rendered` (`:1333`), `test_no_nightly_marker_when_verify_evidence_exists` (`:1343`), `test_nightly_only_has_its_own_rollup_column` (`:1360`) | ~~Live count is 0 because no interop tag has landed yet~~ **Corrected 2026-07-29: still 0, better reason.** Two interop tags landed; neither requirement is nightly-only because both also hold verify-tier evidence. The marker is a subset marker over requirements, not a tag counter, and this is the first live case that distinguishes the two |
+| AC-12 | Done | `test_ledger_render_is_stable` (`:1348`), `test_ledger_render_is_independent_of_input_order` (`:1207`) | |
+| AC-13 | Done | `test_non_unit_ratchet_fires_on_loss` (`:1923`), `test_no_annotation_satisfies_the_ratchet` (`:1934`) | |
+| AC-14 | Done | `test_verify_tier_ratchet_rejects_nightly_substitution` (`:1946`), `test_losing_nightly_while_keeping_verify_still_fires` (`:1975`) | |
+| AC-15 | Done | `test_non_unit_ratchet_accepts_growth` (`:1984`), `test_holding_the_baseline_exactly_passes` (`:1994`) | |
+| AC-16 | ~~Partial -- interop clause PENDING~~ **Done (2026-07-29)** | `.ci` clause: `test/plugin/rfc7606-relay-one-field.ci:3,:7`. Peer-driven interop clause: `test/interop/scenarios/14-route-server-frr/check.py:8` (`RFC7947-x-1 positive`). Injector-driven clause: `test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py:28` (`RFC7606-5.1-3 positive`, the §5.1 receiver-side shape). `.et` clause: settled N-A (Key Design Decisions) | The prior closure pass held this Partial pending the RED output, which is the correct gate. All three required clauses now exist and resolve: `--check` reports `interop/nightly 2` and the ledger carries both cells (`:3686`, `:4041`) |
+| AC-17 | ~~Partial -- interop half PENDING~~ **Done (2026-07-29)** | `.ci` half in the test's own header (~~`:45-50`~~ **`test/plugin/rfc7606-relay-one-field.ci:80-83`**, re-verified at closure): reversing `result.rawBodies`/`result.updates` at the end of `buildFwdBody` (`reactor/forward_body.go`) fails it 3/3 with "message mismatch". Interop halves recorded in Goal Validation 5b and 5c | Every binding has a recorded RED, which is AC-17's whole rule. The two interop REDs were produced by the implementing session against the real Docker labs; closure verified independently that both RED strings match their producing code (`interop.py:992`/`:86`, `interop.py:427`/`run.py:194`) rather than accepting them as prose -- see Goal Validation 5d |
+| AC-18 | Done | ~~`test/plugin/rfc7606-relay-one-field.ci:11-19`~~ **`test/plugin/rfc7606-relay-one-field.ci:44-55`** (re-verified at closure; the header grew) states the choice and its two reasons | The `.ci` wins; the second reason is that scenario 47 cannot discriminate the split at all, since Section 5.1's third bullet obliges FRR to accept both forms. Scenario 47 therefore carries only the accept-on-receive binding (`5.1-3`), never `5.1-2` -- which the scenario's own header now states explicitly |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `test_scan_python_tags_found` | Done | `rfc_requirements_test.py:511` | |
+| `test_scan_python_tags_ignores_string_literals` | Done | `:528` | |
+| `test_scan_python_tags_rejects_invalid_syntax` | Done | `:551` | |
+| `test_scan_et_reuses_ci_semantics` | Done | `:578` | |
+| `test_tree_and_baseline_filters_agree` | Done | `:784` | |
+| `test_tag_in_unrun_carrier_is_refused` | Done | `:718` | |
+| `test_carrier_table_is_single_source` | Done | `:603` | plus `test_every_reader_exists` (`:632`) |
+| `test_ledger_row_carries_evidence_tier` | Done | `:1277` | |
+| `test_nightly_only_marker_rendered` | Done | `:1294` | |
+| `test_ledger_render_is_stable` | Done | `:1348` | |
+| `test_non_unit_ratchet_fires_on_loss` | Done | `:1923` | |
+| `test_verify_tier_ratchet_rejects_nightly_substitution` | Done | `:1946` | |
+| `test_non_unit_ratchet_accepts_growth` | Done | `:1984` | |
+| `TestInteropRunnerFailsClosedWithoutDocker` | Done | `test/interop/run_test.go:34` | |
+| `TestEvidenceNightlyRunsInterop` | Done | `scripts/dev/github_workflows_test.go:328` | |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| `scripts/dev/rfc_requirements.py` | Done | carrier table, Python scanner, both filters, ledger tier, evidence ratchet |
+| `test/interop/run.py` | Done | fail-closed probe |
+| `.github/workflows/evidence-nightly.yml` | Done | advisory interop job |
+| `scripts/dev/github_workflows_test.go` | Done | job pinned |
+| `ai/RFC-REQUIREMENTS.md` | Done | regenerated |
+| `ai/rules/testing.md` | Done | + regenerated `ai/rules/CONDENSED.md` |
+| `ai/rules/rfc-compliance.md` | Done | parallel session |
+| `docs/features/rfc-status.md` | Done | parallel session |
+| `docs/functional-tests.md` | Done | BGP interop row |
+| `rfc/audit/rfc7606.json` | Changed | NOT in the design-time list; see D-a |
+| `scripts/dev/rfc_requirements_test.py` | Done | created |
+| `test/interop/run_test.go` | Done | created |
+| `plan/deferrals/rfcgate-2-evidence.md` | Done | created |
+| `test/plugin/*.ci` seed tags | Done | `rfc7606-relay-one-field.ci` |
+| `test/interop/scenarios/*/check.py` seed tags | ~~**Pending**~~ **Done (2026-07-29)** | Two tags landed: `14-route-server-frr/check.py:8` and `47-rfc7606-relay-shape-frr/check.py:28`. Both scenarios' `ze.conf` also gained `session/rs-client true` on each peer (14 at `:26`/`:41`, 47 at `:30`/`:45`), each with an inline comment recording that the leaf defaults to false -- the fix the Mistake Log's first row explains |
+
+### Audit Summary
+
+- **Total items:** 18 ACs + 15 TDD tests + 15 files = 48
+- ~~**Done:** 46~~ **Done: 48** (2026-07-29 -- AC-16, AC-17 and the interop seed-tag file row closed when the interop bindings landed with their recorded REDs)
+- ~~**Partial:** 2 (AC-16, AC-17 -- interop clauses only; both await the parallel session's RED output, neither is a scope reduction)~~ **Partial: 0**
+- **Skipped:** 0
+- **Changed:** 2 (AC-9 wording, `rfc/audit/rfc7606.json` added -- both in Deviations)
+
+**Line-number drift, re-verified at closure 2026-07-29 (BLOCKING to record, not a defect in the work).**
+`scripts/dev/rfc_requirements.py` and its test file are UNCOMMITTED and grew after the first
+closure pass wrote its citations (the module is 3418 lines at HEAD and 4180 in the tree), so the
+`file:line` refs in the Implementation Summary and in the AC rows above no longer land on the
+symbol they name. **Every cited symbol and all 29 cited tests were re-verified to EXIST**; only
+the numbers moved. Re-verified positions: `TIER_VERIFY/NIGHTLY/UNRUN` `:618-620` (was `:616-618`),
+`scan_python_tags` `:526` (`:524`), `scan_ci_tags` `:570` (`:568`), `class Carrier` `:697` (`:621`),
+`CARRIERS` `:720` (`:641`), `carrier_for` `:864` (`:745`), `scan_tree` `:905` (`:773`),
+`_git_baseline_tag_polarities` `:1389` (`:1163`), `_scan_tags_tolerant` `:1431` (`:1199`),
+`check_coverage_ratchet` `:1535` (`:1303`), `check_evidence_ratchet` `:1587` (`:1355`),
+`_render_rollup` `:2103` (`:1871`), `render_ledger` `:2239` (`:1977`), the unrun refusal `:951`
+(`:799`), the tokenize guard `:550-553` (`:548-553`). In the test file the shift is +3 below
+line ~700 and +39 above ~1250. The durable anchor is the symbol name; a reader who greps for it
+gets the right answer whatever the line has become. Phase 1's citations (`test/interop/run.py:132-140`,
+`run_test.go:34`, `evidence-nightly.yml:115-129`, `github_workflows_test.go:328`/`:279`/`:303`/`:360`)
+were re-verified and hold EXACTLY.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| 1. Non-unit evidence executes, fail-closed | functional (Go) | `TestInteropRunnerFailsClosedWithoutDocker` (`test/interop/run_test.go:34`) drives the runner with Docker absent and asserts a non-zero exit. Producing code `test/interop/run.py:132-140` |
+| 2. The scanner sees the new carriers | tooling selftest | `python3 scripts/dev/rfc_requirements.py --selftest` -> `rfc_requirements selftest OK` (361 tests, re-run at closure). `--check` reports `evidence: unit/verify 2571, functional/verify 6, editor/verify 0, ~~interop/nightly 0~~ **interop/nightly 2**` -- corrected 2026-07-29 at closure, after the interop bindings landed. The six functional tags are visible where four were before this spec, and the interop carrier is now exercised by real tags rather than by fixtures alone |
+| 3. The ledger shows evidence strength | generated artifact | `ai/RFC-REQUIREMENTS.md` carries 1351 `(unit/verify)`, 6 `(functional/verify)` and **2 `(interop/nightly)`** cells, a derived legend at `:11-18`, and the nightly-only rollup column explained at `:26`. ~~Zero `nightly-only` markers today because no interop tag has landed~~ -- **corrected 2026-07-29: the count is still 0, but for a stronger reason.** Two interop tags HAVE landed; neither requirement is nightly-only because each also carries verify-tier evidence (`RFC7606-5.1-3` has a unit test and the `.ci`; `RFC7947-x-1` has unit tests on both polarities). That is the marker behaving as designed -- it is a subset marker over requirements, not a counter of interop tags -- and it is exactly the distinction R-1 exists to preserve. The marker's rendering is proven by `test_nightly_only_marker_rendered`, not by the live count |
+| 4. Non-unit evidence can only rise | tooling selftest | `test_non_unit_ratchet_fires_on_loss`, `test_verify_tier_ratchet_rejects_nightly_substitution`, `test_losing_nightly_while_keeping_verify_still_fires`, `test_moving_a_ci_tag_within_the_carrier_is_invisible` (`rfc_requirements_test.py:1923-2004`) |
+| 5a. Seed binding, `.ci` clause (AC-16, AC-17) | functional `.ci` + mutation-verify | `test/plugin/rfc7606-relay-one-field.ci:3,:7` bind `RFC7606-5.1-2 positive` and `RFC7606-5.1-3 positive`. **Recorded RED:** reversing `result.rawBodies`/`result.updates` at the end of `buildFwdBody` (`reactor/forward_body.go`), after `supersedeKey` and the withdrawal flag are computed so only emission order changes, fails this test **3/3 with "message mismatch"**, the announcement being the only frame `conn=2` accepted (`test/plugin/rfc7606-relay-one-field.ci:45-50`) |
+| 5b. Seed binding, peer-driven interop clause (AC-16) + its RED (AC-17) | interop + mutation-verify | **FILLED 2026-07-29.** `test/interop/scenarios/14-route-server-frr/check.py:8` binds `RFC7947-x-1 positive`. FRR originates 10.99.0.0/24, Ze relays it, and **BIRD** is asserted -- a second foreign daemon parsing the wire Ze emitted, so the transparency claim is never read back out of the speaker that built the path. Resolves as `interop/nightly` in the live ledger (`ai/RFC-REQUIREMENTS.md:4041`). **Recorded RED:** dropping `!facts.rsClient` from the prepend gate (`internal/component/bgp/reactor/reactor_api_forward.go:711`) fails the run at `✗ BIRD route 10.99.0.0/24 AS_PATH contains AS 65001` (run `14-mutant`); reverting returns PASS (`14-restored`); the un-mutated run (`14-after`) is PASS. The mutation targets the exact gate the requirement is about, so the binding is discriminating rather than merely present |
+| 5c. Seed binding, injector-driven clause (AC-16) + its RED (AC-17) | interop + mutation-verify | **FILLED 2026-07-29.** `test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py:28` binds `RFC7606-5.1-3 positive` -- the receiver-side §5.1 shape whose second bullet forbids any conforming SENDER to emit it, so the raw injector sidecar is the only carrier that can drive it against a real FRR. Resolves as `interop/nightly` (`ai/RFC-REQUIREMENTS.md:3686`). **Recorded RED:** mutating Ze to REJECT the mixed shape on receive fails the run at `✗ FAIL: FRR missing route 10.0.0.0/24` (run `47-mutant`); reverting returns PASS (`47-restored`). Full sequence: `47-before` FAIL (the pre-existing red, misdiagnosed -- see the Mistake Log), `47-after` PASS once `rs-client true` was set, `47-mutant` FAIL, `47-restored` PASS |
+| 5d. Provenance of the four rows above (honesty about who observed what) | attribution | The seven Docker verdicts in 5b/5c were produced by the **implementing** session against the real labs; the closure session did not re-run Docker. What closure verified independently: both tags sit at line start in real comments (`14-.../check.py:8`, `47-.../check.py:28`); `rs-client true` is set on both peers in both scenarios' `ze.conf`; `python3 scripts/dev/rfc_requirements.py --check` exits 0 reporting `interop/nightly 2` (was 0), which also clears `check_ledger_fresh` and `check_audit_freshness`; `--selftest` is 361 tests OK; and **both RED strings match their producing code** -- `✗ BIRD route ... AS_PATH contains AS ...` is `interop.py:992` through `log_fail` (`interop.py:86`), `✗ FAIL: FRR missing route ...` is `interop.py:427`'s AssertionError surfaced by `run.py:194`. A reported RED whose text no producer can emit would be the tell this check exists to catch |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Rows 1-3: wire `test/ipsec-interop/`, `test/l2tp-interop/`, `test/pppoe-interop/` into a pipeline and tier their carriers | deferred (live) | `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md`. Correct interim state: `TIER_UNRUN` refuses a tag there (AC-7). **No shard edit needed** |
+| Row 4: back-fill non-unit evidence for the ~2571 unit-only requirements | deferred (live) | **Re-homed 2026-07-29** to `plan/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md` (created for it). Was `plan/spec-rfcgate-0-umbrella.md`, whose own D4 places the fleet drain outside the set and whose Constraint(D4) forbids a child opening the backlog -- a destination that disclaims the work is not a home. **Optional shard edit:** the row's parenthetical quotes `interop/nightly 0`, which the two new bindings made stale; the current split is `unit/verify 2571, functional/verify 6, editor/verify 0, interop/nightly 2`. The `2571` sizing figure that the row actually turns on is UNCHANGED, so this is an accuracy fix, not a scope change |
+| Row 5: bind `RFC7606-5.1-3 positive` to scenario 47 | ~~deferred (live)~~ **done (2026-07-29)** | **The block is cleared and the work landed in THIS spec.** Its stated blocker was that scenario 47 was red for an unrelated reason, so tagging it would publish evidence for a failing test. The real cause was the missing `rs-client` leaf, not a defect; setting it turned the scenario green (`47-after` PASS) and the tag now sits at `test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py:28`, resolving as `interop/nightly` (`ai/RFC-REQUIREMENTS.md:3686`) with a recorded RED (Goal Validation 5c). **Shard edit required:** Status `deferred` -> `done`, Destination -> `plan/learned/1296-rfcgate-2-evidence.md` |
+| Row 6: "fix RS AS-path transparency on the replay rail" | done (superseded) | The defect does not exist (Mistake Log row 1). Kept in the shard with its refutation rather than deleted, and superseded by row 7. **No shard edit needed** |
+| Row 7 (new): give `RFC7947-x-1` non-unit evidence **and** add an rs-client relay test | **SPLIT: first half done, second half still live** | Two separable items in one row, and only the first landed. **Done:** `RFC7947-x-1` now has non-unit evidence -- `test/interop/scenarios/14-route-server-frr/check.py:8`, `interop/nightly` in the ledger at `:4041`, mutation-verified RED (Goal Validation 5b). **Still live:** no rs-client **relay** test exists. Verified at closure, not assumed: `internal/component/bgp/reactor/reactor_api_relay_test.go` is unmodified in the working tree and `grep -n 'rsClient\|rs-client'` over it returns nothing, so nothing pins AS_PATH byte-identity through `RelayStoredRoute` to an RS-client destination. **Shard edit required:** keep Status `deferred` and Destination `plan/spec-rfcgate-2-deferred-rs-replay-evidence.md`, and narrow the What to the relay test alone with a dated note that the evidence half landed here. Marking the whole row done would silently drop a real test |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | (not yet recorded -- `scripts/dev/review_gate.py record --spec plan/spec-rfcgate-2-evidence.md ...`) |
+| `review_gate.py check` | not run |
+| Reviewer lenses used | Two independent reviews ran before closure: (a) rule/digest + deferral hygiene + spec-internal consistency, (b) protocol correctness of the RS-replay claim + gate-runtime measurement + tier-assertion analysis |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The `ai/rules/testing.md` edit did not survive condensation: five directives and the lead paragraph truncated mid-sentence, the unrun-carrier directive losing its verb entirely | `ai/rules/testing.md:54-79`, `ai/rules/CONDENSED.md` | Re-authored each directive onto one physical line; regenerated and re-read the digest |
+| 2 | BLOCKER | The spec had no closure sections at all: no Goal Validation, no Implementation Audit, no Pre-Commit Verification, while AC-17 requires the recorded RED to live in Goal Validation | this spec | These sections |
+| 3 | BLOCKER | The RS-replay deferral was premised on a defect that does not exist | `plan/spec-rfcgate-2-deferred-rs-replay-evidence.md` (renamed), deferral rows 5-7 | Premise refuted against `reactor_api_forward.go:711`; spec repurposed onto the real evidence gap |
+| 4 | ISSUE | Deferral row 4's destination disclaims the work | `plan/deferrals/rfcgate-2-evidence.md:10` | Re-homed |
+| 5 | ISSUE | Both new deferred specs carried the template placeholder `(or \`-\` if nothing deferred)` as if it were a real path | both deferred specs' metadata tables | Replaced with real values |
+| 6 | ISSUE | Risks cited AC-13/AC-14 for clauses that are now AC-16/AC-17 | Risks R-2, R-3 | Struck through with dated corrections |
+| 7 | ISSUE | AC-9 described a parse-level guard; the shipped guard is tokenize-level, which is correct | AC-9 | AC text corrected, behavior unchanged |
+| 8 | ISSUE | The gate-runtime budget cited an unmeasured ~2.2s | Security Review Checklist; Behavior to preserve | Replaced with measured figures and attribution |
+| 9 | ISSUE | The launch-form fix claimed a complete sibling audit while eight executable sites remained | `docker/compose.yaml` and seven others | Fixed; recorded as D-b |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `scripts/dev/rfc_requirements_test.py` | Yes | `ls -la` -> `-rw-rw-r-- 229089 Jul 29 15:23` |
+| `test/interop/run_test.go` | Yes | `ls -la` -> `-rw-rw-r-- 2699 Jul 29 15:05` |
+| `plan/deferrals/rfcgate-2-evidence.md` | Yes | `ls -la` -> `-rw-rw-r-- 2999 Jul 29 15:58` |
+| `test/plugin/rfc7606-relay-one-field.ci` | Yes | read at closure; tags at `:3` and `:7`, mutation record at `:45-50` |
+| `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md` | Yes | read at closure |
+| `plan/spec-rfcgate-2-deferred-rs-replay-evidence.md` | Yes | `ls -la` -> present; repurposed and renamed from `...-rs-replay-transparency.md` |
+| `plan/spec-rfcgate-2-deferred-nonunit-evidence-backfill.md` | Yes | `ls -la` -> present; created for deferral row 4 |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Runner fails closed without Docker | `sed -n '124,140p' test/interop/run.py` shows `docker_ok = False` on `FileNotFoundError` then a non-zero exit path with an `error:` message naming Docker |
+| AC-3 | The nightly job is pinned by name and advisory | `grep -n '^func Test' scripts/dev/github_workflows_test.go` -> `TestEvidenceNightlyRunsInterop:328` beside `TestEvidenceNightlyIsAdvisory:360` |
+| AC-2 | The job exists and is advisory | `grep -n 'interop\|continue-on-error' .github/workflows/evidence-nightly.yml` -> job `interop:115`, `continue-on-error: true:117`, `run: make ze-interop-test:129` |
+| AC-4..AC-9 | Scanner behavior | `python3 scripts/dev/rfc_requirements.py --selftest` -> `rfc_requirements selftest OK` (all named tests present per `grep -n '^    def test_'`) |
+| AC-5/AC-9 | Tokenize level, not parse level | Executed `scan_python_tags` directly: a `print 'py2'` file yields `[Tag(rid='RFC7606-5.1-3', polarity='positive', line=2)]`; an unterminated-string file raises `ParseError: cannot tokenize as Python` |
+| AC-8 | One carrier table, no stray suffix checks | `grep -n 'endswith("_test.go")\|endswith(".ci")\|endswith(".et")\|endswith("check.py")' scripts/dev/rfc_requirements.py` -> no matches (exit 1) |
+| AC-10 | Tier cells rendered | `grep -c '(unit/verify)' ai/RFC-REQUIREMENTS.md` -> 1351; `grep -c '(functional/verify)'` -> 6 |
+| AC-11 | Nightly-only is a separate column, never summed | `ai/RFC-REQUIREMENTS.md:26` -- "Read it as a subset marker, never as a total to sum with the others" |
+| AC-13..AC-15 | Ratchet is live | `--check` prints the tier split: `unit/verify 2571, functional/verify 6, editor/verify 0, interop/nightly 0` |
+| A-4 (no classifier) | Classifier absent from the implementation | `grep -rin 'wire-visible\|classifier' scripts/dev/rfc_requirements.py` -> no matches (exit 1) |
+| AC-16/AC-17 | Interop clauses | ~~NOT VERIFIED -- pending the parallel session~~ **VERIFIED 2026-07-29.** Re-run at closure: `grep -rn 'RFC requirement:' test/interop/scenarios/*/check.py` now returns exactly two hits, both at line start in real comments -- `14-route-server-frr/check.py:8` (`RFC7947-x-1 positive`) and `47-rfc7606-relay-shape-frr/check.py:28` (`RFC7606-5.1-3 positive`). The earlier prose-only mention is gone. `python3 scripts/dev/rfc_requirements.py --check` -> exit 0, `interop/nightly 2` |
+| AC-16 (ledger join) | Both interop tags actually RESOLVE to their requirement, not merely exist | `grep -n 'RFC7947-x-1\|RFC7606-5.1-3' ai/RFC-REQUIREMENTS.md` -> `:3686` carries `test/interop/scenarios/47-.../check.py:28 (interop/nightly)` beside a unit and a `.ci` link; `:4041` carries `test/interop/scenarios/14-.../check.py:8 (interop/nightly)`. A tag that scanned but failed to join would appear nowhere here |
+| AC-17 (RED provenance) | The two recorded interop REDs are real output, not paraphrase | Traced each string to its producer: `✗ BIRD route 10.99.0.0/24 AS_PATH contains AS 65001` = `test/interop/interop.py:992` emitted through `log_fail` (`:86`, which supplies the `✗`); `✗ FAIL: FRR missing route 10.0.0.0/24` = `interop.py:427`'s `AssertionError` wrapped by `run.py:194` (`log_fail("FAIL: %s" % e)`). Both mutations target the producing code the binding is about -- the prepend gate `reactor_api_forward.go:711` for `RFC7947-x-1`, receive-side acceptance for `RFC7606-5.1-3` |
+| Config precondition | The interop greens depend on a leaf that defaults to false, and that is recorded where a reader will hit it | `grep -rn 'rs-client' test/interop/` -> `session/rs-client true` on BOTH peers in BOTH scenarios (14 at `:26`/`:41`, 47 at `:30`/`:45`), each with an inline comment naming the YANG default. Before this, the tree-wide grep was empty -- which is precisely what made scenario 47's red look like a daemon defect |
+| Ledger + audit freshness | The generated artifacts are current WITH the new tags, so no stale-ledger red is being deferred to a later commit | `--check` exit 0 runs `check_ledger_fresh` AND `check_audit_freshness` (read at `scripts/dev/rfc_requirements.py` `run_check`). `rfc/audit/rfc7606.json:231` carries the new fingerprint key `test/interop/scenarios/47-.../check.py:28` -> `57df538ba25f86d0`, so the sixth re-stamp covers the interop tag too |
+| Selftest | Scanner behavior re-proven at closure, not quoted from the earlier pass | `python3 scripts/dev/rfc_requirements.py --selftest` -> `Ran 361 tests in 11.727s / OK / rfc_requirements selftest OK`, exit 0 |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A developer runs the interop runner without Docker | `test/interop/run_test.go:34` (Go, not `.ci`) | Yes -- read; it manipulates PATH and asserts a non-zero exit, not merely that the process ran |
+| The nightly schedule fires | `.github/workflows/evidence-nightly.yml:115-129` pinned by `github_workflows_test.go:328` | Yes -- read both; the job name, the make target and `continue-on-error` are each asserted |
+| An RFC MUST bound to a real `.ci` | `test/plugin/rfc7606-relay-one-field.ci` | Yes -- read in full. It asserts the emitted bytes at `conn=2`, `seq=1`/`seq=2`, so it discriminates the split; the header records the mutation that reddens it |
+| A tag in an `unrun` carrier | `rfc_requirements.py:799` + `test_tag_in_unrun_carrier_is_refused` | Yes -- the refusal is in `scan_tree`, on the tree path, not only in the ledger |
+| A tag in an interop `check.py` | ~~(pending)~~ `test/interop/scenarios/14-route-server-frr/check.py:8` and `test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py:28` | ~~No -- awaiting the parallel session~~ **Yes (2026-07-29)** -- read both files in full. The end-to-end path is now exercised by real tags, not only by fixtures: the tag is written, `scan_tree` yields it, `evaluate` joins it to a live requirement, `render_ledger` labels it `interop/nightly`, and `check_evidence_ratchet` accepted the rise from 0 to 2 (`--check` exit 0). That is every stage of the Data Flow section driven by one comment |
+| The scenario the tag rides on actually asserts the requirement | `14-.../check.py:46` (`bird.check_route_no_as("10.99.0.0/24", "65001")`), `47-.../check.py:91-97` (Path 2 announce present, withdrawn half absent, session up) | Yes -- read both. Scenario 14 asserts AS_PATH transparency **at BIRD**, a foreign daemon, not out of Ze's own RIB; scenario 47 asserts FRR accepted the split output and that the withdrawn half never appeared. Neither is a bare "the process ran" check |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `.et` is verify-tier: `CARRIERS` gives `*.et` -> `editor/verify`; `mk/test-functional.mk:190` lists `editor`, and `ze-functional-test` is in both `stagesForMode` branches |
+| A-2 | confirmed | `check.py` is plain Python with `#` comments and no `terminator=`: `test_scan_python_does_not_inherit_terminator` (`:564`) and `test_scan_python_tags_ignores_string_literals` (`:528`) both pass |
+| A-3 | confirmed | The carrier list is spelled ONCE: `grep` for every literal suffix check returns no matches; `test_carrier_table_is_single_source` (`:603`) and `test_every_reader_exists` (`:632`) enumerate the readers |
+| A-4 | confirmed | `grep -rin 'wire-visible\|classifier' scripts/dev/rfc_requirements.py` -> no matches. The estimate gates nothing |
+| A-5 | confirmed | `--selftest` and the workflow Go tests pass with the new job present; `TestEvidenceNightlyIsScheduled` and `TestEvidenceNightlyIsAdvisory` still pass beside it |
+| A-6 | confirmed | No pre-existing tag was imported: `--check` reports `editor/verify 0, interop/nightly 0`. The scanner extension added zero unauthored tags |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `docs/functional-tests.md`: BGP interop "fails closed ... exits non-zero naming Docker" | `test/interop/run.py:132-140` -- `if not docker_ok:` then an `error:` message naming Docker and a non-zero exit | Yes |
+| `docs/functional-tests.md`: "Runs nightly and advisory in `.github/workflows/evidence-nightly.yml`" | `evidence-nightly.yml:115` job `interop`, `:117` `continue-on-error: true`, `:129` `run: make ze-interop-test` | Yes |
+| `ai/rules/testing.md` carrier table (kind/tier per carrier) | `CARRIERS` (`rfc_requirements.py:641`) and the tier constants (`:616-618`); the ledger legend at `ai/RFC-REQUIREMENTS.md:11-18` is derived from the same table | Yes |
+| `ai/rules/testing.md` unrun-carrier refusal | `rfc_requirements.py:799` (`if found and carrier.tier == TIER_UNRUN`) | Yes |
+| `ai/rules/testing.md` tokenization claim | `scan_python_tags` `rfc_requirements.py:548-553`; verified empirically (see AC Verified) | Yes |
+| `ai/rules/CONDENSED.md` regenerated, not hand-edited | `make ze-rules-condensed` -> "wrote ai/rules/CONDENSED.md (95 rules, 363454 chars)"; every new directive re-read in the digest and confirmed intact | Yes |
+| Doc rows answered "No" (config, CLI, API, plugin, wire, SDK) | Tooling-only change; no YANG leaf, command, RPC or wire path touched -- the Integration Checklist rows are all No/N-A with reasons | Yes |
+
+## Core Insight
+
+Evidence has two axes that look like one. **Kind** is which layer a test exercises; **tier**
+is whether anything executes it. Flattening them is how "we have interop coverage" becomes
+true and worthless in the same sentence, and it is why the ordering constraint in this spec
+was not pedantry: a tag placed in an unexecuted carrier is strictly worse than the unit tag it
+replaces, because it retires real proof in favour of a claim.
+
+The delivered gate closes that for the carriers it knows. What it cannot close is the third
+axis the reviews exposed: **tier is asserted, not derived**. `CARRIERS` says `.ci` is
+verify-tier because a human read `stagesForMode`; nothing re-derives it, and the ratchet
+baseline is re-labelled with the same table it is meant to police. A one-word edit moves every
+claim in the repo without reddening anything. Two of the three defects found in review were
+instances of the same shape -- a claim of completeness (the sibling audit, the carrier tier)
+standing in for the check that would have justified it.

@@ -42,6 +42,13 @@ class PerfSuggestState(unittest.TestCase):
             ["git", "init", "-q", "."],
             ["git", "config", "user.email", "t@t"],
             ["git", "config", "user.name", "t"],
+            # Fixture-only, never a real commit. A global commit.gpgsign=true is
+            # inherited by this throwaway repo, gpg cannot reach a tty for a
+            # passphrase from a test subprocess, and `git commit` then exits 128
+            # -- leaving the repo with NO commits, so perf-suggest.py sees an
+            # untracked tree and nudges. That reds four cases here for a reason
+            # that has nothing to do with the nudge logic they test.
+            ["git", "config", "commit.gpgsign", "false"],
             ["git", "add", "-A"],
             ["git", "commit", "-qm", "init"],
         ):

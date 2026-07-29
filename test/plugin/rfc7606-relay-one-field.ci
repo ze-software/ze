@@ -1,5 +1,58 @@
 # rfc7606-relay-one-field -- a relayed UPDATE carries one NLRI-bearing field
 #
+# RFC requirement: RFC7606-5.1-2 positive -- a received UPDATE mixing Withdrawn Routes with
+# NLRI is SPLIT before being relayed, so every UPDATE this daemon puts on the wire carries at
+# most one NLRI-bearing field. The unit tests pin the two splitters; this is the whole-daemon
+# proof, wire-receive through the route server to the wire again.
+# RFC requirement: RFC7606-5.1-3 positive -- the mixed shape is ACCEPTED on receive rather than
+# answered with a NOTIFICATION (reject=stderr:pattern=notification at the foot of this file,
+# plus the source peer staying up long enough for the forward to complete).
+#
+# THAT REJECT RULE WAS VACUOUS UNTIL 2026-07-29, and the gap was in the DAEMON, not here.
+# The only route from a refused UPDATE to a NOTIFICATION is rfc7606SessionReset
+# (reactor/session_validation.go:325) -> logNotifyErr -> sendNotification, and a SUCCESSFUL
+# send logged NOTHING: it incremented a counter, a Prometheus label and a report-bus entry,
+# none of which reach stderr. Injecting a forbidden rejection into enforceRFC7606 left the
+# reject rule with no line to match at all. The fix was to give the daemon the log line an
+# operator was already missing -- session_write.go now logs `notification sent` at WARN with
+# peer/code/subcode -- not to retune the assertion to whatever the code happened to print.
+#
+# BE PRECISE ABOUT WHAT THAT BOUGHT. Re-running the same mutation now, ze DOES emit
+# `level=WARN msg="notification sent" ... code=3 subcode=1`, so the rule has a real signal to
+# match instead of matching nothing by construction. It does NOT make this mutation fail
+# faster: that mutation also stops the forward, so the conn=2 expectation below times out at
+# 15s and the runner reports the timeout first. What the rule uniquely catches is the case the
+# expectations CANNOT: ze forwarding the split correctly AND still answering the source with a
+# NOTIFICATION. Before the daemon fix, that case passed silently.
+#
+# The rule is also safe against a false red. `Session.Close` (session_connection.go:378) sends
+# Cease/AdminShutdown, which would match `notification` on a green run -- but measured, not
+# assumed: SIGTERM to a ze with an Established peer produced ZERO type-03 messages at the peer
+# and zero `notification sent` lines, and this file is green 6/6 with the daemon fix in place.
+# (Whether ze SHOULD send that Cease is a separate question, unexamined here.)
+#
+# WHICH BRANCH THIS PROVES. buildFwdBody (reactor/forward_body.go:37) forks on `sameCtx` at :51,
+# and the two arms compute the same verdict from different types. This file drives the PARSED
+# arm (:74-112, verdict at :101 via message.Update.MixesNLRIFields): the two peers negotiate
+# different encoding contexts, so the relay re-encodes rather than forwarding raw bytes.
+# Verified by mutation, not by reading: disabling wireu.WireUpdate.MixesNLRIFields leaves this
+# file GREEN, disabling message.Update.MixesNLRIFields turns it RED. The zero-copy arm at :60 is
+# never reached here; it is covered by the unit test TestForwardSplitsMixedShapeSameContextThatFits
+# (reactor/forward_body_rfc7606_test.go:53), which builds a same-context WireUpdate directly and
+# carries the same RFC7606-5.1-2 tag. Read "whole-daemon proof" above as "of the parsed arm".
+#
+# THE 5.1-2 BINDING IS .ci-ONLY. Interop scenario 47 drives the same §5.1 shape through a real
+# FRR and, since 2026-07-29, carries the 5.1-3 tag as a SECOND, nightly-tier binding -- accept-
+# on-receive is exactly what a foreign peer can corroborate. It does not and cannot carry 5.1-2
+# (spec-rfcgate-2-evidence AC-18, umbrella D3). Two reasons, and the second is the load-bearing
+# one:
+#   1. a .ci runs inside `ze-verify` on every push; interop is nightly and advisory.
+#   2. scenario 47 CANNOT discriminate the split. §5.1's third bullet obliges every receiver to
+#      accept any combination of those fields, so a conforming FRR installs the route whether Ze
+#      splits the UPDATE or relays it whole -- the scenario's own docstring says so. Only an
+#      assertion over the exact bytes Ze emits can tell the two apart, which is what this file
+#      does at conn=2 seq=1.
+#
 # VALIDATES: AC-1 -- a mixed-shape UPDATE received from a route-server client is split before
 # it is relayed, so each UPDATE the receiver sees carries at most one of the four fields named
 # by RFC 7606 Section 5.1's second bullet: "An UPDATE message MUST NOT contain more than one

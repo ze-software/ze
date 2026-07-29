@@ -51,6 +51,21 @@ that proof. Editing it to match the code retires the evidence while the claim st
 | Reformat / comment / re-tag | Allowed; behavior must be unchanged |
 | You added, moved, deleted, or re-tagged a tagged test (or an edit shifted its line) | Run `make ze-rfc-index` and commit `ai/RFC-REQUIREMENTS.md` in the SAME commit. The ledger records each test's `file:line`, and `ze-rfc-check` (both verify modes) fails on a stale ledger, so a skipped regen lands on the next session as a cross-commit diff |
 
+**Where a tag may live, and what it is worth: four carriers, declared once in `CARRIERS` (`scripts/dev/rfc_requirements.py`) and derived by the scanner, the HEAD baseline, the ledger and the ratchets. Evidence has two axes: KIND (which layer the test exercises) and TIER (whether anything executes it).**
+
+| Carrier | Cell in the ledger | Executed by | Tier |
+|---------|--------------------|-------------|------|
+| `*_test.go` | `unit/verify` | `make ze-unit-test` | runs on every push |
+| `*.ci` | `functional/verify` | `make ze-functional-test` | runs on every push, but ONLY from a suite that target actually runs: the tier is derived per-suite from `mk/test-functional.mk`'s own `all_suites=` line, so a `.ci` in a suite outside it (traffic, vrrp, ipsec, flow-export, static, vpp, chaos) earns no verify tier, and `test/draft/` is skipped entirely |
+| `*.et` | `editor/verify` | `make ze-editor-test` | runs on every push, on the same earned-per-suite basis as `*.ci` |
+| `test/interop/scenarios/*/check.py` | `interop/nightly` | `make ze-interop-test` | scheduled, ADVISORY |
+
+- **Prefer a `.ci` over an interop binding** when a behavior is reachable from both: a `.ci` runs inside `ze-verify` on every push, interop does not (owner decision, umbrella D3).
+- A requirement whose ONLY evidence is nightly-tier is marked `**nightly-only**` on its ledger row and counted in its own rollup column: it is not merge-gate-proven, and the rollup deliberately never sums the two.
+- **A tag in `test/ipsec-interop/`, `test/l2tp-interop/`, `test/pppoe-interop/`, or any other `check.py` tree is REFUSED** with an error naming the file, because nothing runs those suites automatically and a tag nothing executes is an absence of evidence rather than weak evidence: wire the suite into a pipeline first, then give its carrier a tier in `CARRIERS`.
+- **Non-unit evidence is monotonic, per requirement and per tier.** Replacing a `.ci` binding with a unit tag, or with a nightly interop tag, fails `make ze-rfc-check`, and no annotation satisfies it.
+- A `check.py` is TOKENIZED, not line-scanned: a `#` inside a docstring or string literal is not a comment and is not a tag, and an untokenizable `check.py` fails the scan closed.
+
 `// test-relax:` does **not** authorize changing a tagged test: it is your own
 justification, not the user's approval. Enforced by the `rfc-tagged-test` hook, which runs
 before `test-weakening` precisely so the relax token cannot pre-empt it
@@ -292,7 +307,7 @@ component group -> whole suite or `ze-verify`.
 | Single functional test | `ze-test bgp plugin N` or `ze-test ui N` | seconds |
 | Resume functional suite | `ze-test bgp plugin --start N` or `ze-test ui --start N` | seconds to remaining suite |
 | Single encode test | `ze-test bgp encode N` | seconds |
-| Single editor test | `ze-test editor N` or `ze-test editor -p pattern` | seconds |
+| Single editor test | `ze-test editor N` or `ze-test editor --pattern <name>` | seconds |
 | Single ExaBGP compatibility test | `ze-test exabgp N` or `ze-test exabgp --start N` | seconds |
 | Single Go test | `go test -race -run TestName ./pkg/...` | seconds |
 | Single package | `go test -race ./internal/component/bgp/reactor/...` | seconds |
@@ -314,7 +329,7 @@ tests it never ran.
 | Use | Form |
 |-----|------|
 | Iterating right now, from a failure index you just read | `ze-test bgp plugin 145` |
-| A script, a gate subset, a handover, a claim of evidence | `ze-test bgp plugin -p <name>` (`--pattern`) |
+| A script, a gate subset, a handover, a claim of evidence | `ze-test bgp plugin --pattern <name>` |
 
 A positional selector matches a record's Nick, Name, or CIFile EXACTLY
 (`indexRecordSelector`, `internal/test/runner/selection.go`), so passing names as
@@ -324,6 +339,8 @@ name for exactly this reason, and its `assert_named` guard refuses to run a
 subset that still carries a numeric selector -- a nick had already drifted there,
 with firewall `"17"` resolving to `command-owner-firewall-root.ci` rather than to
 any `017-*.ci`.
+
+**Always spell `--pattern` in full: `-p` is a DIFFERENT flag in most suites.** `-p` is `--parallel` (an int) for `ze-test bgp <type>`, `ze-test exabgp`, `ze-test vpp` and every `.ci` suite on the shared runner (`internal/test/cli/cmd_bgp.go:560`, `cmd_exabgp.go:201`, `cmd_vpp.go:148`, `ci_runner.go:47`), and `--pattern` (a string) only for `ze-test editor` and `ze-test web` (`cmd_editor.go:31`, `cmd_web.go:80`); `--pattern` itself has no short form anywhere. So `ze-test bgp plugin -p rfc7606-relay-one-field` is not a filtered run, it is a parse failure -- exit 2, no output, no tests -- and it reads as "nothing to report" rather than as an error.
 
 **A `ze.log.<subsystem>` key in a `.ci` test must name a real slog subsystem.**
 An internal plugin's logger name is `CanonicalSubsystemName` of its registry name
@@ -440,7 +457,7 @@ line plus fresh artifacts. Never `| tail`.
 
 `.et` files in `test/editor/` test the interactive TUI editor via headless simulation.
 Infrastructure: `internal/component/cli/testing/` (parser, expect, headless, input, runner).
-Run: `make ze-editor-test` or `bin/ze-test editor --all`; select by id/name with `bin/ze-test editor N`, and filter with `bin/ze-test editor -p pattern`.
+Run: `make ze-editor-test` or `bin/ze-test editor --all`; select by id/name with `bin/ze-test editor N`, and filter with `bin/ze-test editor --pattern <name>`.
 
 ### Directives
 

@@ -180,7 +180,11 @@ def start_ze(ze_binary, config_path):
     cmd = ["ip", "netns", "exec", ZE_NS, ze_binary]
     if os.environ.get("ZE_PPROF"):
         cmd.extend(["--pprof", "127.0.0.1:6060"])
-    cmd.append(config_path)
+    # `start <config>`: the bare `ze <config>` launch form was removed from the CLI
+    # (learned 1248), so a positional path now dies with "unknown command". Global
+    # flags such as --pprof are consumed before the command keyword, so they stay
+    # ahead of `start`.
+    cmd.extend(["start", config_path])
     proc = subprocess.Popen(
         cmd,
         stdout=ze_logfile,

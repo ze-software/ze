@@ -10,8 +10,9 @@
 > accurate, but several concrete details have changed and its examples no longer
 > match the shipping system:
 >
-> - The daemon is started with `ze start`, not `ze config.conf` or
->   `ze /etc/ze/config.conf`.
+> - The daemon is started with `ze start <config-file>`. The bare `ze <config-file>`
+>   launch form was removed from the CLI; the examples below have been corrected to
+>   the surviving form.
 > - The `local-as` / `peer-as` / `peer-group` config grammar shown here has been
 >   removed; local AS is now `session { asn { local ... } }` and peer groups are
 >   `group` blocks (see [configuration syntax changes](config/deprecated-options.md)
@@ -60,7 +61,7 @@ strings do not carry or override identity metadata.
 
 ```
                            ┌─────────────────────┐
-                           │    ze config.conf   │
+                           │ ze start config.conf│
                            │      (hub)          │
                            └──────────┬──────────┘
                                       │
@@ -97,7 +98,7 @@ When running, you'll see these processes:
 
 ```
 $ ps aux | grep ze
-user  1234  ze config.conf          # Hub process
+user  1234  ze start config.conf    # Hub process
 user  1235  ze bgp                  # BGP protocol handler
 user  1236  ze rib                  # Adj-RIB tracking
 user  1237  ze gr                   # Graceful Restart
@@ -351,7 +352,7 @@ ze config reload
 ```
 
 **Same binary, two modes:**
-- `ze config.conf` → starts as daemon, listens on SSH port
+- `ze start config.conf` → starts as daemon, listens on SSH port
 - `ze bgp peer list` → connects to running daemon as SSH client
 
 SSH target configurable via env vars `ze_ssh_host` and `ze_ssh_port`
@@ -758,7 +759,7 @@ $ ze config reload
 [hub] Reload complete
 
 # Graceful shutdown
-$ kill -TERM $(pgrep -f "ze config.conf")
+$ kill -TERM $(pgrep -f "ze start config.conf")
 [hub] Received SIGTERM, shutting down
 [hub] Notifying plugins...
 [bgp] Sending NOTIFICATION to peers

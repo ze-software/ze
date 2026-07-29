@@ -579,9 +579,11 @@ def main() -> int:
         for key in ["ZE_L2TP_SKIP_KERNEL_PROBE", "ze.l2tp.skip-kernel-probe"]:
             env.pop(key, None)
 
+        # `start <config>`: the bare `ze <config>` launch form was removed from the
+        # CLI (learned 1248), so a positional path now dies with "unknown command".
         ze_proc = ns_popen(
             ZE_NS,
-            [str(ze), str(work / "ze.conf")],
+            [str(ze), "start", str(work / "ze.conf")],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,

@@ -79,7 +79,7 @@ must be run manually:
 | L2TP wire | `bin/ze-test l2tp-wire --all` | Wire-level fixture separate from release-gate L2TP daemon scenarios |
 | OSPFv2 wire | `bin/ze-test ospf-wire --all` | Wire-level codec fixture separate from release-gate OSPF runtime scenarios |
 | IS-IS wire | `bin/ze-test isis-wire --all` | Wire-level codec fixture separate from release-gate IS-IS runtime scenarios |
-| BGP interop | `python3 test/interop/run.py [scenario]` | Requires Docker peer daemons and image builds |
+| BGP interop | `make ze-interop-test` or `python3 test/interop/run.py [scenario]` | Requires Docker peer daemons and image builds. **Fails closed**: with Docker unreachable the runner exits non-zero naming Docker, it does not report success over a lab it never started. Runs nightly and advisory in `.github/workflows/evidence-nightly.yml`, which is what lets an interop scenario carry an `RFC requirement:` tag at all -- a tag in a suite nothing executes is refused by `make ze-rfc-check` |
 | IPsec interop | `make ze-ipsec-interop-test` or `python3 test/ipsec-interop/run.py [scenario]` | strongSwan peer via Docker (privileged). Ze as initiator (`01`-`05`) and responder (`07-responder-psk`, `08-responder-eap-mschapv2`, `09-responder-ike-rekey`). Dataplane checks gate on XFRM availability; control plane verified from strongSwan logs. |
 | Chaos web | `bin/ze-test bgp chaos-web --all` | Chaos dashboard scenarios live under the BGP runner |
 
@@ -823,7 +823,16 @@ Driver flags:
 | `--token <token>` | Bearer token, sent on every request |
 | `--timeout <duration>` | Connection timeout (default 10s) |
 | `--tasks` | Declare the `io.modelcontextprotocol/tasks` extension in every request's `_meta.clientCapabilities` |
-| `--resources` | Declare the `resources` capability in every request's `_meta.clientCapabilities` |
+
+<!-- source: internal/test/cli/cmd_mcp.go — cmdMcp flag set -->
+
+There is no `--resources` flag. `resources` is a `ServerCapabilities` member,
+not one of the five `ClientCapabilities` members (`experimental`, `roots`,
+`sampling`, `elicitation`, `extensions`), so a conformant client never declares
+it and the daemon serves `resources/list` and `resources/read` to every caller.
+
+<!-- source: internal/component/mcp/resources.go — resourcesList, resourcesRead -->
+
 
 ### 3c. Task Tests (`test/plugin/task-*.ci`)
 

@@ -786,9 +786,12 @@ var ErrPolicyTeardown = errors.New("session teardown requested by import policy"
 // Used on error/shutdown paths where the connection may already be dead.
 func (s *Session) logNotifyErr(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte) {
 	if err := s.sendNotification(conn, code, subcode, data); err != nil {
+		// Same rendering as the success WARN in session_write.go: the line an operator
+		// reads when the NOTIFICATION could NOT be sent must not be the less readable of
+		// the two (ai/rules/error-messages.md).
 		sessionLogger().Debug("notification send failed",
 			"peer", s.settings.Address,
-			"code", uint8(code), "subcode", subcode,
+			"code", code, "subcode", notifySubcodeValue(code, subcode),
 			"error", err,
 		)
 	}

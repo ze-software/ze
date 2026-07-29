@@ -1339,7 +1339,14 @@ class Scenario:
             volumes=volumes,
             caps=["NET_ADMIN"],
             extra_args=_IPV6_SYSCTLS,
-            cmd=["/etc/ze/bgp.conf"],
+            # `start <config>`, not the bare `<config>`. The bare launch form was removed
+            # from the CLI (`ze - ` for stdin, `ze start <config>` for a file); the image's
+            # ENTRYPOINT is `tini -- ze`, so cmd=["/etc/ze/bgp.conf"] became
+            # `ze /etc/ze/bgp.conf` and died with "unknown command: /etc/ze/bgp.conf".
+            # EVERY scenario failed at wait_containers_healthy, and nothing noticed because
+            # ze-interop-test had no automated caller (learned 1248: a removed launch form
+            # hides in call sites a directive-level grep never sees).
+            cmd=["start", "/etc/ze/bgp.conf"],
         )
 
         # Start the minimal Python speaker sidecar if the scenario provides one. It dials Ze
@@ -1490,6 +1497,14 @@ class Scenario:
 
 def global_cleanup():
     """Remove all containers and network on exit."""
+    # No docker binary means no container of ours can exist, so there is nothing to
+    # remove -- a complete answer, not a swallowed error. Without this the atexit hook
+    # raises FileNotFoundError on every Docker-less run and Python prints "Exception
+    # ignored in atexit callback" plus a traceback AFTER the runner's own message. That
+    # path is routine now that run.py exits 1 there and a Go test exercises it on every
+    # `go test ./...` (test/interop/run_test.go).
+    if shutil.which("docker") is None:
+        return
     for name in [
         ZE_CONTAINER,
         FRR_CONTAINER,

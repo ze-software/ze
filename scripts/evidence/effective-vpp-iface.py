@@ -170,6 +170,9 @@ def ze_env(container: str, ze: Path, root: Path, config_path: Path) -> list[str]
         "ZE_CONFIG_DIR=/run/vpp/ze",
         container,
         f"/src/{ze.relative_to(root)}",
+        # `start <config>`: the bare `ze <config>` launch form was removed from the
+        # CLI (learned 1248), so a positional path now dies with "unknown command".
+        "start",
         str(config_path),
     ]
 

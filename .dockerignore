@@ -1,6 +1,13 @@
 tmp/
 .git/
 bin/
+# Local Go build cache (/cache in .gitignore). Untracked and unbounded -- 29GB on the
+# machine this was found on, which the daemon transferred as build context on EVERY
+# interop image build: >10 minutes, blowing test/interop/run.py's own 600s build timeout
+# and saturating the host. Nothing in any Dockerfile reads it. Now that
+# .github/workflows/evidence-nightly.yml runs ze-interop-test, a context this size would
+# also make the nightly job a permanent red.
+cache/
 docs/
 plan/
 rfc/

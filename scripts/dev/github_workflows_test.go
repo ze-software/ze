@@ -313,6 +313,44 @@ func TestEvidenceNightlyRunsFuzzAndIntegration(t *testing.T) {
 	}
 }
 
+// TestEvidenceNightlyRunsInterop
+//
+// VALIDATES: the nightly invokes `make ze-interop-test` by name, from its OWN
+// job, and that job is advisory (plan/spec-rfcgate-2-evidence.md AC-2, AC-3).
+// PREVENTS: the interop suite going back to having no automated caller at all.
+// Until this landed its only caller was ze-release-evidence, a manual
+// release-time target -- so the 104 BGP scenarios ran when somebody remembered.
+// That is the condition that makes an interop `RFC requirement:` tag inadmissible
+// (rfc_requirements.py CARRIERS, tier `unrun`): a tag is only evidence if
+// something executes the test. Its own job, not a step bolted onto `integration`,
+// because Docker-lab failures must not be attributed to the kernel suite, and
+// because jobBlocks reads `continue-on-error` as a DIRECT job key.
+func TestEvidenceNightlyRunsInterop(t *testing.T) {
+	targets := makeTargetsInWorkflow(t, "evidence-nightly.yml")
+	if !slices.Contains(targets, "ze-interop-test") {
+		t.Errorf("evidence-nightly.yml must run `make ze-interop-test`; targets found: %v", targets)
+	}
+	jobs := jobBlocks(t, "evidence-nightly.yml")
+	var found *jobBlock
+	for i, j := range jobs {
+		if j.name == "interop" {
+			found = &jobs[i]
+			break
+		}
+	}
+	if found == nil {
+		names := make([]string, 0, len(jobs))
+		for _, j := range jobs {
+			names = append(names, j.name)
+		}
+		t.Fatalf("evidence-nightly.yml has no `interop` job; jobs found: %v", names)
+	}
+	if !found.advisory {
+		t.Error("the interop job must carry job-level `continue-on-error: true`: it ships advisory-first, " +
+			"like every other job in this workflow")
+	}
+}
+
 // TestEvidenceNightlyIsAdvisory
 //
 // VALIDATES: every job is non-blocking (`continue-on-error: true`).

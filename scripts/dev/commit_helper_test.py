@@ -494,6 +494,13 @@ class TestDeferralInDiff(unittest.TestCase):
         _git(root, "init")
         _git(root, "config", "user.email", "t@e.st")
         _git(root, "config", "user.name", "t")
+        # Disable commit signing for this THROWAWAY fixture repo, matching every
+        # sibling commit test in this file. A global commit.gpgsign=true (this
+        # repo's owner has one) is inherited here, and gpg cannot reach a tty for
+        # a passphrase from a test subprocess, so `git commit` exits 128 and all
+        # six TestDeferralInDiff cases error in setUp. Fixture-only: it never
+        # touches a real commit, which ai/rules/git-safety.md forbids unsigning.
+        _git(root, "config", "commit.gpgsign", "false")
         (root / "README.md").write_text("seed\n")
         _git(root, "add", "README.md")
         _git(root, "commit", "-q", "-m", "seed")

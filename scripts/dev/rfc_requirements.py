@@ -42,6 +42,7 @@ Exit 2 = violations found, or the gate could not run (unparseable input, nothing
 import calendar
 import datetime
 import hashlib
+import io
 import json
 import math
 import os
@@ -51,6 +52,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import tokenize
 from typing import Dict, List, NamedTuple, Optional, Sequence, Set, Tuple
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -153,7 +155,15 @@ _ANNOTATION_RE = re.compile(r"\{(?P<body>[^{}]*)\}\s*$")
 
 _GO_TAG_RE = re.compile(r"^\s*//\s*RFC requirement:\s*(?P<rest>.*)$")
 _CI_TAG_RE = re.compile(r"^#\s*RFC requirement:\s*(?P<rest>.*)$")
+_PY_TAG_RE = re.compile(r"^#\s*RFC requirement:\s*(?P<rest>.*)$")
 _TERMINATOR_RE = re.compile(r"terminator=(?P<name>[A-Za-z0-9_]+)")
+
+# Every tag, in every carrier, contains this literal. It is the cheap pre-filter that
+# tells "this file certainly holds no tag" from "this file might", so the expensive answer
+# is only computed where it can change the verdict: scan_tree tests it before handing a
+# file to a reader, and _read_git_baseline_tags hands it to `git grep -F`. Both call sites
+# read the constant; neither re-spells the string (ai/rules/derive-not-hardcode.md).
+TAG_MARKER = "RFC requirement:"
 
 # Rows the status ledger uses to say "nothing missing here". A `{gap}` requirement whose
 # RFC row says this is a contradiction the gate refuses (AC-10).
@@ -513,6 +523,50 @@ def scan_go_tags(src: str, path: str) -> List[Tag]:
     return out
 
 
+def scan_python_tags(src: str, path: str) -> List[Tag]:
+    """Find `# RFC requirement: <ID> <polarity>` in an interop scenario's check.py.
+
+    Tokenized, never regex-scanned. A scenario check is full of quoted protocol text --
+    prefixes, vtysh output, JSON bodies -- and a `#` inside a string or a docstring is not
+    a comment. Only the Python tokenizer can tell the two apart, which is the same
+    principle scan_ci_tags applies with `terminator=`: a comment is only a comment where
+    the real parser says so.
+
+    `terminator=` semantics are deliberately NOT inherited. That construct models the .ci
+    runner's tmpfs blocks (internal/test/runner/parsing.go:264-268), whose bodies are raw
+    file content. A check.py has no such construct -- interop.py:1468-1488 hands the whole
+    file to importlib -- so every line is Python and skipping "block bodies" would drop
+    real comments.
+
+    Requires the comment to be the first thing on its line, mirroring _GO_TAG_RE's `^\\s*//`
+    and _CI_TAG_RE's post-strip `^#`. A trailing comment is not a tag in any carrier.
+
+    Fails closed on a file the tokenizer cannot read (AC-9). That is exactly the condition
+    under which comment extraction is untrustworthy, so reporting "no tags" would be a
+    zero that looks like an answer (ai/rules/fail-closed-guards.md).
+    """
+    out: List[Tag] = []
+    try:
+        toks = list(tokenize.generate_tokens(io.StringIO(src).readline))
+    except (tokenize.TokenError, IndentationError, SyntaxError) as exc:
+        raise ParseError(
+            f"{path}: cannot tokenize as Python ({exc}); a file whose comments cannot be "
+            f"read cannot be reported as carrying no RFC requirement tags"
+        ) from exc
+    for tok in toks:
+        if tok.type != tokenize.COMMENT:
+            continue
+        if tok.line[: tok.start[1]].strip():
+            continue  # trailing comment, not a line-start tag
+        m = _PY_TAG_RE.match(tok.string.strip())
+        if not m:
+            continue
+        line = tok.start[0]
+        t = _parse_tag_rest(m.group("rest"), f"{path}:{line}")
+        out.append(t._replace(file=path, line=line))
+    return out
+
+
 def scan_ci_tags(src: str, path: str) -> List[Tag]:
     """Find `# RFC requirement: <ID> <polarity>` in a .ci file.
 
@@ -543,6 +597,323 @@ def scan_ci_tags(src: str, path: str) -> List[Tag]:
     return out
 
 
+# --------------------------------------------------------------------------
+# Carrier table (plan/spec-rfcgate-2-evidence.md)
+# --------------------------------------------------------------------------
+# Evidence has TWO independent axes, and conflating them is how "we have interop
+# coverage" becomes true and worthless at once:
+#
+#   kind -- which layer the test exercises (a unit table test proves the algorithm; a
+#           .ci proves the daemon exposes it; an interop scenario proves a foreign peer
+#           accepts it).
+#   tier -- whether anything EXECUTES it. A tag in a suite no pipeline runs is not weaker
+#           evidence, it is the absence of evidence wearing evidence's clothes.
+#
+# This table is the ONE place either axis is spelled. scan_tree, the HEAD baseline filter,
+# the tolerant baseline scanner, the ledger render and the evidence ratchet all read it
+# (ai/rules/derive-not-hardcode.md). The two extension filters used to be independent
+# literal `endswith` chains in scan_tree and _git_baseline_tag_polarities; extending one
+# and not the other desynchronizes the ratchet baseline and manufactures phantom polarity
+# losses, silently and in the green direction.
+TIER_VERIFY = "verify"  # runs in a ze-verify stage, i.e. on every push
+TIER_NIGHTLY = "nightly"  # runs in a scheduled advisory workflow
+TIER_UNRUN = "unrun"  # nothing runs it automatically: a tag here is refused
+
+# Functional tests under development live here. Gitignored, and SKIPPED (not refused) by
+# every repo-wide scanner: a draft must be able neither to claim evidence nor to redden
+# someone else's run. Same exclusion `real_ci_files` applies in the ci-sleep ratchet
+# (scripts/dev/verify_wiring_docs.py:215); the registry of scanners that owe it is
+# internal/test/runner/draft_dir_test.go's TestDraftDirIsInvisibleToRepoGates.
+DRAFT_PREFIX = "test/draft/"
+
+# `ze-functional-test` names the suites it runs in ONE place, and a suite name is also the
+# test/<suite>/ directory the runner walks (internal/test/runner/draft_dir.go:40). Reading
+# that line is what keeps a `.ci`'s tier tied to whether anything executes it, instead of
+# to its extension (ai/rules/derive-not-hardcode.md).
+FUNCTIONAL_MK = os.path.join(PROJECT_DIR, "mk", "test-functional.mk")
+_ALL_SUITES_RE = re.compile(r'all_suites="(?P<names>[^"]*)"')
+EDITOR_SUITE = "editor"
+
+
+def functional_suites(path: str = FUNCTIONAL_MK) -> Tuple[str, ...]:
+    """The suites `make ze-functional-test` runs, read from its own recipe.
+
+    Fails closed. An unreadable or unrecognizable recipe means we do not know what runs,
+    and a gate that answers "everything runs" in that state is the exact zero-that-looks-
+    like-an-answer this module refuses elsewhere (ai/rules/fail-closed-guards.md).
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+    except OSError as exc:
+        raise ParseError(
+            f"{path}: cannot read the functional-test recipe, so the set of suites that "
+            f"run inside ze-verify is unknown: {exc}"
+        ) from exc
+    found = _ALL_SUITES_RE.findall(src)
+    if not found:
+        raise ParseError(
+            f'{path}: no `all_suites="..."` assignment found. That line is where '
+            f"ze-functional-test declares which suites it runs, and the .ci/.et evidence "
+            f"tier is derived from it; without it no tier can be justified"
+        )
+    if len(found) > 1:
+        # Taking the first match is a fail-OPEN, and the quiet kind. A second recipe in
+        # this file (a `ze-functional-list`, a `-quick` subset) would decide the tier of
+        # every `.ci` in the repo without touching ze-functional-test, upgrading suites
+        # nothing runs to merge-gate evidence. Two answers is not an answer: refuse and
+        # make a human say which line is the definition (ai/rules/fail-closed-guards.md).
+        raise ParseError(
+            f'{path}: {len(found)} `all_suites="..."` assignments found, so which one '
+            f"ze-functional-test runs is ambiguous. The .ci/.et evidence tier is derived "
+            f"from that line, and picking one of several would grant merge-gate tier on a "
+            f"guess. Declare the suite list exactly once"
+        )
+    names = tuple(n for n in found[0].split() if n)
+    if not names:
+        raise ParseError(
+            f'{path}: `all_suites=""` is empty; no suite runs in ze-verify'
+        )
+    return names
+
+
+def _suite_carriers(
+    kind: str,
+    suffix: str,
+    reader: str,
+    runner: str,
+    stage: str,
+    suites: Sequence[str],
+) -> Tuple["Carrier", ...]:
+    """One verify-tier row per suite, so the prefix carries the execution claim.
+
+    A single `prefix=""` row is what let a `.ci` claim merge-gate tier by extension alone;
+    per-suite prefixes make the claim checkable against the recipe that produces them.
+    """
+    return tuple(
+        Carrier(
+            f"{kind}-{s}",
+            kind,
+            TIER_VERIFY,
+            f"test/{s}/",
+            suffix,
+            reader,
+            runner,
+            f"{stage}, {s} suite)",
+            True,
+        )
+        for s in suites
+    )
+
+
+class Carrier(NamedTuple):
+    """One recognized evidence carrier: its shape, its reader, and what executes it."""
+
+    name: str  # stable identity, used in errors
+    kind: str  # evidence kind published in the ledger
+    tier: str  # execution tier, one of TIER_*
+    prefix: str  # repo-relative path prefix ("" matches anywhere under TEST_ROOTS)
+    suffix: str  # path suffix selecting this carrier
+    reader: str  # which scanner parses this shape: "go" | "ci" | "python"
+    runner: str  # the make target that executes it
+    pipeline: str  # where that target runs, named in errors and in the ledger legend
+    # True for a row _suite_carriers generated from a recipe's suite list, rather than one
+    # declared literally. The HEAD table swaps exactly these out (_build_head_carriers).
+    derived: bool = False
+
+    @property
+    def label(self) -> str:
+        """`kind/tier`, the cell the ledger prints beside every test link."""
+        return f"{self.kind}/{self.tier}"
+
+
+# Ordered: the first entry whose prefix AND suffix match wins, so the specific scenario
+# trees are declared before the unclassified catch-all.
+CARRIERS: Tuple[Carrier, ...] = (
+    Carrier(
+        "unit",
+        "unit",
+        TIER_VERIFY,
+        "",
+        "_test.go",
+        "go",
+        "make ze-unit-test",
+        "ze-verify (unit stage)",
+    ),
+    # ONE verify-tier row per suite ze-functional-test actually names, derived from its
+    # recipe. A single `prefix=""` row credited ANY .ci anywhere under internal/, pkg/ or
+    # test/ as merge-gate evidence, which made three silent evasions possible: move a
+    # tagged .ci out of a run suite (test/traffic/), into the gitignored incubator
+    # (test/draft/), or into a tree whose sibling check.py the SAME table refuses as unrun
+    # (test/ipsec-interop/). ~59 .ci live in suites the recipe does not list.
+    *_suite_carriers(
+        "functional",
+        ".ci",
+        "ci",
+        "make ze-functional-test",
+        "ze-verify (functional stage",
+        functional_suites(),
+    ),
+    # .et is the cheapest verify-tier NON-unit carrier available, and it costs one row:
+    # 163 of 164 .et files use terminator= blocks, so it is .ci semantics exactly, and
+    # mk/test-functional.mk lists `editor` in ze-functional-test, which is in both
+    # stagesForMode branches. Supported and currently unbound: no editor-visible RFC
+    # obligation exists to bind, and manufacturing one to exercise the plumbing would be
+    # a test written for the gate (settled 2026-07-29, spec Key Design Decisions). Only
+    # test/editor/ is walked for .et, so only that suite earns the row.
+    *_suite_carriers(
+        "editor",
+        ".et",
+        "ci",
+        "make ze-editor-test",
+        "ze-verify (functional stage",
+        [s for s in functional_suites() if s == EDITOR_SUITE],
+    ),
+    # test/exabgp-compat is NOT one of ze-functional-test's suites: it has its own stage,
+    # `ze-exabgp-test`, which stagesForMode lists in BOTH verify modes. A separate target
+    # is a separate fact, so it is a declared row rather than a second suite list.
+    Carrier(
+        "functional-exabgp",
+        "functional",
+        TIER_VERIFY,
+        "test/exabgp-compat/",
+        ".ci",
+        "ci",
+        "make ze-exabgp-test",
+        "ze-verify (exabgp stage)",
+    ),
+    # Catch-alls for the two extensions. Reached by a .ci/.et under a suite no ze-verify
+    # stage runs, under internal/ or pkg/ (TEST_ROOTS includes both and no suite walks
+    # either), or under an interop tree beside a check.py this table already refuses.
+    Carrier(
+        "functional-unrun",
+        "functional",
+        TIER_UNRUN,
+        "",
+        ".ci",
+        "ci",
+        "no ze-verify stage walks this directory",
+        "no automated caller; ze-functional-test runs "
+        + ", ".join(functional_suites()),
+    ),
+    Carrier(
+        "editor-unrun",
+        "editor",
+        TIER_UNRUN,
+        "",
+        ".et",
+        "ci",
+        "no ze-verify stage walks this directory",
+        "no automated caller; only test/" + EDITOR_SUITE + "/ is walked for .et",
+    ),
+    Carrier(
+        "interop-bgp",
+        "interop",
+        TIER_NIGHTLY,
+        "test/interop/scenarios/",
+        "/check.py",
+        "python",
+        "make ze-interop-test",
+        ".github/workflows/evidence-nightly.yml (advisory)",
+    ),
+    # The other three interop trees have runners but NO automated caller, so a tag in
+    # them would be evidence nothing executes. Declared rather than omitted: an omitted
+    # tree falls to the catch-all with a vaguer message, and naming the runner is what
+    # makes the error actionable. Wiring them into CI is tracked in the deferral shard.
+    Carrier(
+        "interop-ipsec",
+        "interop",
+        TIER_UNRUN,
+        "test/ipsec-interop/",
+        "/check.py",
+        "python",
+        "make ze-ipsec-interop-test",
+        "no automated caller",
+    ),
+    Carrier(
+        "interop-l2tp",
+        "interop",
+        TIER_UNRUN,
+        "test/l2tp-interop/",
+        "/check.py",
+        "python",
+        "the L2TP interop runner",
+        "no automated caller",
+    ),
+    Carrier(
+        "interop-pppoe",
+        "interop",
+        TIER_UNRUN,
+        "test/pppoe-interop/",
+        "/check.py",
+        "python",
+        "make ze-deployment-pppoe-accel-docker-test",
+        "no automated caller",
+    ),
+    # Catch-all. test/stress/scenarios/ and test/l2tp-scale/ also hold check.py files, and
+    # any future tree will too. Refusing a tag there by DEFAULT is the fail-closed shape:
+    # a carrier whose pipeline nobody has declared is exactly the case where silence would
+    # be indistinguishable from proof (ai/rules/fail-closed-guards.md).
+    Carrier(
+        "scenario-check",
+        "unknown",
+        TIER_UNRUN,
+        "",
+        "/check.py",
+        "python",
+        "no declared runner",
+        "no automated caller",
+    ),
+)
+
+_READERS = {
+    "go": scan_go_tags,
+    "ci": scan_ci_tags,
+    "python": scan_python_tags,
+}
+
+
+def carrier_for(rel: str) -> Optional[Carrier]:
+    """The carrier a repo-relative path belongs to, or None when the shape carries no tags.
+
+    The single predicate behind BOTH extension filters. `rel` is always slash-separated:
+    every caller normalizes before asking, so this never has to know about os.sep.
+
+    test/draft/ yields None -- SKIPPED, never refused. The incubator is gitignored and
+    invisible to every repo-wide gate (ai/rules/testing.md; test/draft/README.md), so a
+    draft must be able neither to claim evidence nor to fail this gate for a session that
+    has nothing to do with it. Refusing it would do the latter.
+    """
+    if rel.startswith(DRAFT_PREFIX):
+        return None
+    return _lookup(rel, CARRIERS)
+
+
+def _lookup(rel: str, carriers: Sequence["Carrier"]) -> Optional["Carrier"]:
+    """First carrier whose prefix AND suffix match. Shared by the tree and HEAD tables."""
+    for c in carriers:
+        if rel.startswith(c.prefix) and rel.endswith(c.suffix):
+            return c
+    return None
+
+
+def _refuse_unrun(carrier: Carrier, tag: Tag) -> ParseError:
+    """The message an `unrun` carrier's tag gets. A refusal, not a marker: a ledger note
+    would decorate evidence that never executes, and a decorated absence still reads as
+    presence."""
+    return ParseError(
+        f"{tag.file}:{tag.line}: RFC requirement tag for {tag.rid} sits in carrier "
+        f"'{carrier.name}', which nothing executes automatically "
+        f"(runner: {carrier.runner}; pipeline: {carrier.pipeline}). "
+        f"A tag is only evidence if something runs the test, so this "
+        f"one is refused rather than counted. Fix it by adding that suite to an automated "
+        f"pipeline (the BGP interop tree's own advisory job in "
+        f".github/workflows/evidence-nightly.yml is the pattern) and giving its carrier a "
+        f"real tier in CARRIERS -- or bind the requirement to a .ci instead, which runs "
+        f"inside ze-verify on every push"
+    )
+
+
 def scan_tree(root: str = PROJECT_DIR) -> List[Tag]:
     tags: List[Tag] = []
     for sub in TEST_ROOTS:
@@ -559,16 +930,27 @@ def scan_tree(root: str = PROJECT_DIR) -> List[Tag]:
             )
             for name in sorted(filenames):
                 path = os.path.join(dirpath, name)
-                rel = os.path.relpath(path, root)
+                rel = os.path.relpath(path, root).replace(os.sep, "/")
+                carrier = carrier_for(rel)
+                if carrier is None:
+                    continue
                 try:
-                    if name.endswith("_test.go"):
-                        with open(path, encoding="utf-8", errors="replace") as fh:
-                            tags.extend(scan_go_tags(fh.read(), rel))
-                    elif name.endswith(".ci"):
-                        with open(path, encoding="utf-8", errors="replace") as fh:
-                            tags.extend(scan_ci_tags(fh.read(), rel))
+                    with open(path, encoding="utf-8", errors="replace") as fh:
+                        src = fh.read()
                 except OSError as exc:
                     raise ParseError(f"{rel}: cannot read: {exc}") from exc
+                # THE pre-filter TAG_MARKER exists for. Every tag in every carrier contains
+                # this literal, so a file without it certainly holds none and the expensive
+                # answer -- a per-line regex, or a full Python tokenize for a check.py --
+                # never has to be computed. 4383 files match a carrier here; 373 hold the
+                # marker. Skipping is safe precisely BECAUSE the readers only ever report a
+                # tag whose line contains it, so no reachable verdict can change.
+                if TAG_MARKER not in src:
+                    continue
+                found = _READERS[carrier.reader](src, rel)
+                if found and carrier.tier == TIER_UNRUN:
+                    raise _refuse_unrun(carrier, found[0])
+                tags.extend(found)
     return tags
 
 
@@ -837,21 +1219,126 @@ def _git_baseline_summary_stems() -> Optional[Set[str]]:
     return stems
 
 
-def _git_baseline_tag_polarities() -> Dict[str, Set[str]]:
-    """Which polarities proved each requirement at HEAD: {rid: {"positive", "negative"}}.
+_BASELINE_TAGS_CACHE: Optional[List[Tag]] = None
 
-    The baseline is re-parsed with the SAME scan_go_tags/scan_ci_tags the working tree
-    goes through, never with a regex over `git grep` output. A .ci `terminator=` block is
-    raw file content that can contain a line looking exactly like a tag
-    (scan_ci_tags:510), so a regex baseline would invent tags that were never there and
-    then report their "loss".
+
+def reset_baseline_cache() -> None:
+    """Drop the memoized HEAD baseline. For tests that swap the git layer underneath it."""
+    global _BASELINE_TAGS_CACHE, _HEAD_CARRIERS_CACHE
+    _BASELINE_TAGS_CACHE = None
+    _HEAD_CARRIERS_CACHE = None
+
+
+_HEAD_CARRIERS_CACHE: Optional[Tuple[Carrier, ...]] = None
+
+
+def _head_carriers() -> Tuple[Carrier, ...]:
+    """The carrier table as of git HEAD, for labelling the HEAD baseline.
+
+    The evidence ratchet compares what each requirement proved at HEAD with what it proves
+    now. Labelling BOTH sides with today's table makes a tier DOWNGRADE symmetric and
+    therefore invisible: drop a suite from ze-functional-test and every tag in it is
+    relabelled on both sides at once, so nothing reds even though evidence that used to
+    run on the merge path no longer does. Reading HEAD's own recipe is what makes that a
+    loss instead of a wash.
+
+    Falls back to today's table when HEAD cannot be read (no git, shallow checkout, a fresh
+    repo with no commit). That is the same degradation `_git_baseline_tags` already takes,
+    and it is stated rather than silent: with no baseline there is nothing to compare, so
+    the ratchet reports nothing either way.
+    """
+    global _HEAD_CARRIERS_CACHE
+    if _HEAD_CARRIERS_CACHE is not None:
+        return _HEAD_CARRIERS_CACHE
+    _HEAD_CARRIERS_CACHE = _build_head_carriers()
+    return _HEAD_CARRIERS_CACHE
+
+
+def _build_head_carriers() -> Tuple[Carrier, ...]:
+    """The uncached read. HEAD's suite list swapped into today's table shape."""
+    try:
+        proc = subprocess.run(
+            ["git", "show", f"HEAD:{os.path.relpath(FUNCTIONAL_MK, PROJECT_DIR)}"],
+            cwd=PROJECT_DIR,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return CARRIERS
+    if proc.returncode != 0:
+        return CARRIERS
+    m = _ALL_SUITES_RE.search(proc.stdout)
+    if not m:
+        return CARRIERS
+    head_suites = tuple(n for n in m.group("names").split() if n)
+    if not head_suites:
+        return CARRIERS
+    if head_suites == functional_suites():
+        return CARRIERS
+    # Only the derived rows differ; every declared row is identical by construction. The
+    # shapes (suffix, reader, runner, stage text) are READ OFF today's derived rows rather
+    # than re-spelled, so CARRIERS stays the one place an extension is written down.
+    out: List[Carrier] = [c for c in CARRIERS if not c.derived]
+    shapes: Dict[str, Carrier] = {}
+    for c in CARRIERS:
+        if c.derived:
+            shapes.setdefault(c.kind, c)
+    rebuilt: List[Carrier] = []
+    for kind, shape in shapes.items():
+        # Only test/editor/ is walked for .et, so the editor shape covers exactly the
+        # suite of that name; every other shape covers each suite directory.
+        covered = [s for s in head_suites if kind != EDITOR_SUITE or s == EDITOR_SUITE]
+        stage = shape.pipeline.rsplit(",", 1)[0]
+        rebuilt.extend(
+            shape._replace(
+                name=f"{kind}-{s}",
+                prefix=f"test/{s}/",
+                pipeline=f"{stage}, {s} suite)",
+            )
+            for s in covered
+        )
+    # Derived rows first: they are the specific prefixes, and the catch-alls must stay last.
+    return tuple(rebuilt + out)
+
+
+def _head_carrier_for(rel: str) -> Optional[Carrier]:
+    """carrier_for, evaluated against HEAD's table. Same draft exclusion."""
+    if rel.startswith(DRAFT_PREFIX):
+        return None
+    return _lookup(rel, _head_carriers())
+
+
+def _git_baseline_tags() -> List[Tag]:
+    """Every RFC requirement tag present at git HEAD, as Tags.
+
+    Memoized for the process. Two ratchets now read this baseline -- polarity and evidence
+    kind -- and each uncached call is a `git grep` plus a batch read of every tagged blob,
+    measured at ~0.6s on this tree. Paying that twice took `ze-rfc-check` from 2.6s to
+    3.2s, and this module already treats gate runtime as a condition of the gate being
+    kept rather than skipped (see _git_cat_blobs). HEAD does not change inside one run, so
+    the second answer cannot legitimately differ from the first.
+
+    The baseline is re-parsed with the SAME scanners the working tree goes through, never
+    with a regex over `git grep` output. A .ci `terminator=` block is raw file content that
+    can contain a line looking exactly like a tag (scan_ci_tags:510), so a regex baseline
+    would invent tags that were never there and then report their "loss".
 
     Only files git already told us contain the marker are read, so the cost tracks the
     number of tagged files, not the size of the repository.
     """
+    global _BASELINE_TAGS_CACHE
+    if _BASELINE_TAGS_CACHE is not None:
+        return _BASELINE_TAGS_CACHE
+    _BASELINE_TAGS_CACHE = _read_git_baseline_tags()
+    return _BASELINE_TAGS_CACHE
+
+
+def _read_git_baseline_tags() -> List[Tag]:
+    """The uncached read. Split out so the memo above is one readable branch."""
     try:
         listing = subprocess.run(
-            ["git", "grep", "-l", "-z", "-F", "RFC requirement:", "HEAD", "--"]
+            ["git", "grep", "-l", "-z", "-F", TAG_MARKER, "HEAD", "--"]
             + list(TEST_ROOTS),
             cwd=PROJECT_DIR,
             capture_output=True,
@@ -859,23 +1346,37 @@ def _git_baseline_tag_polarities() -> Dict[str, Set[str]]:
             check=False,
         )
     except OSError:
-        return {}
+        return []
     # git grep exits 1 when nothing matched, which is a real answer ("no tags at HEAD");
     # any other non-zero is a failure and yields no baseline.
     if listing.returncode not in (0, 1):
-        return {}
+        return []
     paths = []
     for entry in listing.stdout.split("\0"):
         # NOT stripped: `-z` emits the path verbatim, and stripping would silently rename
         # a path with leading or trailing spaces into one that does not exist.
         # Honest note: no test pins this, because it is not observable here. A path with a
-        # leading or trailing space fails the `_test.go` suffix check with or without the
-        # strip, so both spellings return the same empty baseline. It is kept as
-        # correctness by construction, not as a behaviour someone verified.
+        # leading or trailing space matches no carrier with or without the strip, so both
+        # spellings return the same empty baseline. It is kept as correctness by
+        # construction, not as a behaviour someone verified.
         if not entry.startswith("HEAD:"):
             continue
         rel = entry[len("HEAD:") :]
-        if not (rel.endswith("_test.go") or rel.endswith(".ci")):
+        # THE SECOND EXTENSION FILTER. It reads the same carrier_for the tree scan reads,
+        # which is the whole point: these were two independent literal `endswith` chains,
+        # and widening one alone leaves the baseline blind to a carrier the tree now sees.
+        # The ratchet then compares two differently-shaped sets and reports losses that
+        # never happened -- or, worse, misses ones that did.
+        carrier = _head_carrier_for(rel)
+        if carrier is None or carrier.tier == TIER_UNRUN:
+            # An unrun carrier cannot contribute a baseline: the tree scan REFUSES its
+            # tags outright, so crediting one at HEAD would make the ratchet demand
+            # evidence the tree is forbidden to supply.
+            #
+            # Judged against HEAD's table, not today's: a suite dropped from
+            # ze-functional-test in THIS change was runnable at HEAD, so its tags were
+            # real evidence then. Filtering them out with today's table would erase the
+            # very baseline the downgrade has to be measured against.
             continue
         # A newline in a path would split one request into two inside the newline-delimited
         # cat-file protocol and desync every following blob. Excluding it costs a baseline
@@ -889,13 +1390,54 @@ def _git_baseline_tag_polarities() -> Dict[str, Set[str]]:
             continue
         paths.append(rel)
     if not paths:
-        return {}
+        return []
 
-    out: Dict[str, Set[str]] = {}
+    out: List[Tag] = []
     for rel, blob in _git_cat_blobs(paths).items():
-        for t in _scan_tags_tolerant(blob, rel):
-            out.setdefault(t.rid, set()).add(t.polarity)
+        out.extend(_scan_tags_tolerant(blob, rel))
     return out
+
+
+def _git_baseline_tag_polarities() -> Dict[str, Set[str]]:
+    """Which polarities proved each requirement at HEAD: {rid: {"positive", "negative"}}.
+
+    A derivation over _git_baseline_tags, which does the git work. Kept as its own name
+    because check_coverage_ratchet's contract is polarity sets and nothing else, and
+    because the two ratchets must not accidentally share a shape: proof-of-polarity and
+    proof-of-evidence-strength answer different questions about the same tags.
+    """
+    out: Dict[str, Set[str]] = {}
+    for t in _git_baseline_tags():
+        out.setdefault(t.rid, set()).add(t.polarity)
+    return out
+
+
+def nonunit_evidence(tags: Sequence[Tag], lookup=None) -> Dict[str, Set[str]]:
+    """{rid: {"functional/verify", "interop/nightly", ...}} -- unit evidence excluded.
+
+    Keyed by the carrier LABEL, which carries the tier, so verify-tier and nightly-tier
+    evidence are different members of the set rather than the same one. That is what makes
+    swapping a `.ci` binding for an interop binding a LOSS instead of a wash (AC-14): the
+    two are not interchangeable, because only one of them runs before a merge.
+
+    `lookup` selects WHICH carrier table answers. The tree side uses today's; the HEAD
+    baseline uses HEAD's (_head_carrier_for), because labelling both sides with today's
+    table makes a tier downgrade symmetric and therefore invisible.
+    """
+    if lookup is None:
+        lookup = carrier_for
+    out: Dict[str, Set[str]] = {}
+    for t in tags:
+        c = lookup(t.file)
+        if c is None or c.kind == "unit":
+            continue
+        out.setdefault(t.rid, set()).add(c.label)
+    return out
+
+
+def _git_baseline_evidence() -> Dict[str, Set[str]]:
+    """The non-unit evidence each requirement carried at HEAD, labelled with HEAD's tiers."""
+    return nonunit_evidence(_git_baseline_tags(), lookup=_head_carrier_for)
 
 
 def _scan_tags_tolerant(blob: str, rel: str) -> List[Tag]:
@@ -913,18 +1455,25 @@ def _scan_tags_tolerant(blob: str, rel: str) -> List[Tag]:
     phantom-tag hazard the shared scanner exists to avoid. A .ci with a malformed tag
     therefore contributes no baseline, and says so.
 
-    The .ci guard is load-bearing, not defensive decoration: the Go fallback matches
+    The non-Go guard is load-bearing, not defensive decoration: the Go fallback matches
     `// RFC requirement:` (_GO_TAG_RE, :148), and a .ci records shell and config content
     where such a line can appear without being a tag at all. Running the Go fallback over a
     .ci would invent exactly the phantom tags this function exists to avoid, and the
-    ratchet would then report the "loss" of a tag that never existed.
+    ratchet would then report the "loss" of a tag that never existed. A check.py is the
+    same case one step further: a `#` inside a docstring is not a comment, so a per-line
+    rescan of an untokenizable file would invent tags from quoted protocol text (R-6).
+
+    Reader chosen from CARRIERS, never from a literal suffix here -- this was the module's
+    THIRD spelling of the extension list (A-3).
     """
-    scan = scan_go_tags if rel.endswith("_test.go") else scan_ci_tags
+    carrier = carrier_for(rel)
+    if carrier is None:
+        return []
     try:
-        return scan(blob, rel)
+        return _READERS[carrier.reader](blob, rel)
     except ParseError:
         pass
-    if not rel.endswith("_test.go"):
+    if carrier.reader != "go":
         return []
     out: List[Tag] = []
     for i, line in enumerate(blob.split("\n"), start=1):
@@ -1043,6 +1592,64 @@ def check_coverage_ratchet(
             f"that existed cannot quietly stop existing. Restore the test, or retire the "
             f"requirement id if the obligation itself is gone. An annotation does not "
             f"substitute for proof that was already there"
+        )
+    return errs
+
+
+def check_evidence_ratchet(
+    requirements: Sequence[Requirement],
+    tags: Sequence[Tag],
+    enrolled: Set[str],
+    baseline_evidence: Dict[str, Set[str]],
+    baseline_enrolled: Set[str],
+) -> List[str]:
+    """Non-unit evidence is monotonic, and each TIER ratchets independently.
+
+    check_coverage_ratchet already makes proof monotonic, but it compares polarity sets and
+    is blind to what KIND of test supplied them: replacing a `.ci` binding with a unit tag
+    of the same polarity is invisible to it. That is the exact regression this gate exists
+    to stop, because a unit test proves the algorithm and only a functional or interop test
+    proves the daemon or a peer (`ai/rules/integration-completeness.md`).
+
+    Keyed by carrier LABEL (`kind/tier`), so the two counters R-1 asks for fall out of one
+    comparison rather than being maintained as two: converting a verify-tier `.ci` binding
+    into a nightly-tier interop binding LOSES `functional/verify` and is refused, even
+    though the requirement still has "some" non-unit evidence and the total is unchanged
+    (AC-14). Nightly evidence is additive, never a substitute.
+
+    Deliberately no annotation escape, for the same reason check_coverage_ratchet has none:
+    `{gap}` is the move being blocked, not a way through it. The honest exits are to
+    restore the test or retire the requirement id.
+
+    Scoped like its sibling to RFCs enrolled on BOTH sides, so an RFC enrolled in this very
+    change is judged by evaluate()'s ordinary rules instead of being accused of losing
+    evidence it never had.
+    """
+    current = nonunit_evidence(tags)
+    errs: List[str] = []
+    seen: Set[str] = set()
+    for req in requirements:
+        if req.rfc not in enrolled or req.rfc not in baseline_enrolled:
+            continue
+        was = baseline_evidence.get(req.rid)
+        if not was:
+            continue
+        lost = was - current.get(req.rid, set())
+        if not lost or req.rid in seen:
+            continue
+        seen.add(req.rid)
+        kept = current.get(req.rid, set())
+        still = ", ".join(sorted(kept)) if kept else "nothing but unit tests"
+        where = f"{req.source}:{req.line}" if req.source else req.rid
+        errs.append(
+            f"{where}: {req.rid} has lost its {'/'.join(sorted(lost))} evidence -- the "
+            f"test(s) of that kind that proved it at HEAD are gone, leaving {still}. "
+            f"Non-unit evidence is monotonic and each tier ratchets on its own: a unit "
+            f"test proves the algorithm, a functional test proves the daemon exposes the "
+            f"behavior, an interop test proves a peer accepts it, and a nightly-tier "
+            f"binding never substitutes for a verify-tier one. Restore the test, or retire "
+            f"the requirement id if the obligation itself is gone. No annotation satisfies "
+            f"this"
         )
     return errs
 
@@ -1397,6 +2004,55 @@ def unconverted_summaries(captured: Set[str]) -> List[Dict[str, object]]:
     return out
 
 
+def evidence_label(rel: str) -> str:
+    """The `kind/tier` cell printed beside a test link, derived from CARRIERS.
+
+    A path with no carrier can only arrive from a synthetic tag (nothing in the tree can
+    produce one), and it is labelled visibly wrong rather than plausibly right: an
+    unrecognized carrier must never render as though something proved something.
+    """
+    c = carrier_for(rel)
+    return c.label if c is not None else "unknown/unrun"
+
+
+def evidence_tier(rel: str) -> str:
+    c = carrier_for(rel)
+    return c.tier if c is not None else TIER_UNRUN
+
+
+def is_nightly_only(found: Sequence[Tag]) -> bool:
+    """A requirement HAS evidence, and none of it runs inside ze-verify.
+
+    The distinction R-1 exists for: a nightly-advisory scenario and a merge-gate unit test
+    are both "a tag", and flattening them into one 'proven' cell is how a claim nothing
+    blocks on gets read as a claim every merge enforces.
+    """
+    return bool(found) and all(evidence_tier(t.file) != TIER_VERIFY for t in found)
+
+
+def tag_kind_counts(tags: Sequence[Tag]) -> Dict[str, int]:
+    """Tag totals per `kind/tier` label: {"unit/verify": 2571, "functional/verify": 4}."""
+    out: Dict[str, int] = {}
+    for t in tags:
+        label = evidence_label(t.file)
+        out[label] = out.get(label, 0) + 1
+    return out
+
+
+def _evidence_phrase(counts: Dict[str, int]) -> str:
+    """Every executable label, INCLUDING the zeros.
+
+    A label omitted when it is zero reads as "not applicable here" rather than "we have
+    none of this", which is the whole point of publishing the split. Same reasoning as
+    _register_phrase and as check_enrolment's refusal to report clean while enforcing
+    nothing.
+    """
+    known = list(dict.fromkeys(c.label for c in CARRIERS if c.tier != TIER_UNRUN))
+    parts = [f"{label} {counts.get(label, 0)}" for label in known]
+    parts.extend(f"{k} {counts[k]}" for k in sorted(counts) if k not in known)
+    return ", ".join(parts)
+
+
 class RFCCoverage(NamedTuple):
     rfc: str
     gated: int
@@ -1404,6 +2060,11 @@ class RFCCoverage(NamedTuple):
     one: int
     annotated: int
     missing: int  # gated requirements with no tag and no annotation
+    # Gated requirements whose evidence exists but runs in NO ze-verify stage. Its own
+    # column, never folded into `both`/`one`: those two are the merge-gate view, and a
+    # nightly-only requirement is not merge-gate-proven (AC-11). Defaulted so the
+    # positional construction in rfc_coverage stays readable at the call site.
+    nightly_only: int = 0
 
     @property
     def outstanding(self) -> int:
@@ -1420,9 +2081,9 @@ def rfc_coverage(
     forgot the list (ai/rules/derive-not-hardcode.md). Counting the tags is the only
     version that cannot lie.
     """
-    by_rid: Dict[str, Set[str]] = {}
+    by_rid: Dict[str, List[Tag]] = {}
     for t in tags:
-        by_rid.setdefault(t.rid, set()).add(t.polarity)
+        by_rid.setdefault(t.rid, []).append(t)
 
     by_rfc: Dict[str, List[Requirement]] = {}
     for r in requirements:
@@ -1433,9 +2094,12 @@ def rfc_coverage(
         gated = [r for r in reqs if r.gated]
         if not gated:
             continue
-        both = one = ann = missing = 0
+        both = one = ann = missing = nightly = 0
         for r in gated:
-            pol = by_rid.get(r.rid, set())
+            found = by_rid.get(r.rid, [])
+            pol = {t.polarity for t in found}
+            if is_nightly_only(found):
+                nightly += 1
             if r.annotation:
                 ann += 1
             elif pol == POLARITIES:
@@ -1444,7 +2108,7 @@ def rfc_coverage(
                 one += 1
             else:
                 missing += 1
-        out.append(RFCCoverage(rfc, len(gated), both, one, ann, missing))
+        out.append(RFCCoverage(rfc, len(gated), both, one, ann, missing, nightly))
     return out
 
 
@@ -1487,10 +2151,22 @@ def _render_rollup(
             + ("..." if len(ready) > 12 else "")
         )
         out.append("")
+    nightly_total = sum(c.nightly_only for c in cov)
     out.append(
-        "| RFC | Gated | Both | One polarity | Annotated | No test | Outstanding | State |"
+        f"**Nightly-only** ({nightly_total} requirement(s)) counts what is proven ONLY by "
+        f"evidence no `ze-verify` stage runs -- today, interop scenarios, which are "
+        f"scheduled and advisory. **Both** and **One polarity** are the polarity view: "
+        f"they answer which polarities exist, not which pipeline runs them, so a "
+        f"nightly-only requirement is counted there too. **Nightly-only** is the tier view "
+        f"over the same rows -- an overlapping subset marker naming which of them no "
+        f"merge-gate stage proves, never a total to sum with the others."
     )
-    out.append("|---|---|---|---|---|---|---|---|")
+    out.append("")
+    out.append(
+        "| RFC | Gated | Both | One polarity | Annotated | No test | Outstanding | "
+        "Nightly-only | State |"
+    )
+    out.append("|---|---|---|---|---|---|---|---|---|")
     for c in cov:
         state = (
             "**enrolled**"
@@ -1499,8 +2175,75 @@ def _render_rollup(
         )
         out.append(
             f"| `{c.rfc}` | {c.gated} | {c.both} | {c.one} | {c.annotated} | "
-            f"{c.missing} | {c.outstanding} | {state} |"
+            f"{c.missing} | {c.outstanding} | {c.nightly_only} | {state} |"
         )
+    out.append("")
+    return out
+
+
+def _render_evidence_legend() -> List[str]:
+    """What each `kind/tier` cell means, derived from CARRIERS rather than restated.
+
+    Without this the ledger prints a vocabulary it never defines, and a reader has to open
+    the scanner to learn whether `interop/nightly` is stronger or weaker than
+    `functional/verify` (ai/rules/derive-not-hardcode.md).
+    """
+    out: List[str] = []
+    out.append("## Evidence kinds")
+    out.append("")
+    out.append(
+        "Every test link below carries a `kind/tier` cell. **kind** is the layer the test "
+        "exercises; **tier** is whether anything executes it. A unit test proves the "
+        "algorithm, a `.ci` proves the daemon exposes the behavior to a user, an interop "
+        "scenario proves a foreign peer accepts it -- and a tier of `nightly` means the "
+        "proof does not run on the merge path."
+    )
+    out.append("")
+    out.append("| Cell | Carrier | Executed by | Pipeline |")
+    out.append("|---|---|---|---|")
+    # Collapsed by (label, suffix, runner). The .ci and .et carriers are one row PER SUITE
+    # now -- that is what ties a tier to something that runs -- but printing 20-odd rows
+    # differing only in a suite name is an inventory, not a legend. The suites are listed
+    # in the collapsed row's Pipeline cell instead, still derived, still complete.
+    groups: Dict[Tuple[str, str, str], List[Carrier]] = {}
+    order: List[Tuple[str, str, str]] = []
+    for c in CARRIERS:
+        if c.tier == TIER_UNRUN:
+            continue
+        key = (c.label, c.suffix, c.runner)
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(c)
+    for key in order:
+        rows = groups[key]
+        label, suffix, runner = key
+        if len(rows) == 1 and not rows[0].derived:
+            pipeline = rows[0].pipeline
+        else:
+            suites = ", ".join(f"`{c.prefix.split('/')[1]}`" for c in rows)
+            stage = rows[0].pipeline.rsplit(",", 1)[0] + ")"
+            pipeline = f"{stage} -- suites: {suites}"
+        out.append(f"| `{label}` | `*{suffix}` | `{runner}` | {pipeline} |")
+    out.append("")
+    # A catch-all row has no prefix to name, so describe it by shape instead. No inner
+    # backticks: the caller wraps each entry in backticks, and nesting them renders as
+    # literal characters.
+    unrun = sorted(
+        {
+            c.prefix or f"any *{c.suffix} the table above does not cover"
+            for c in CARRIERS
+            if c.tier == TIER_UNRUN
+        }
+    )
+    out.append(
+        "A tag in a carrier nothing executes is REFUSED by `make ze-rfc-check`, not listed "
+        "here with a caveat. These have no automated caller: "
+        + ", ".join(f"`{r}`" for r in unrun)
+        + ". A tag in one of them would be an absence of evidence wearing evidence's "
+        "clothes, so the scanner denies it and names the fix "
+        "(`ai/rules/fail-closed-guards.md`)."
+    )
     out.append("")
     return out
 
@@ -1541,6 +2284,7 @@ def render_ledger(
         "(`ai/rules/testing.md`, Back-Fill New Test Types)."
     )
     out.append("")
+    out.extend(_render_evidence_legend())
     out.extend(_render_rollup(by_rfc, by_rid, enrolled))
     out.extend(render_extraction_table(requirements, enrolled))
 
@@ -1558,14 +2302,23 @@ def render_ledger(
             # defeats the freshness gate (AC-20).
             found = sorted(by_rid.get(r.rid, []), key=lambda t: (t.file, t.line))
             pos = ", ".join(
-                f"`{t.file}:{t.line}`" for t in found if t.polarity == "positive"
+                f"`{t.file}:{t.line}` ({evidence_label(t.file)})"
+                for t in found
+                if t.polarity == "positive"
             )
             neg = ", ".join(
-                f"`{t.file}:{t.line}`" for t in found if t.polarity == "negative"
+                f"`{t.file}:{t.line}` ({evidence_label(t.file)})"
+                for t in found
+                if t.polarity == "negative"
             )
-            note = ""
+            marks: List[str] = []
+            # AC-11: the marker is on the ROW, so a reader scanning one requirement sees
+            # the weakness without reconstructing it from the per-link tiers.
+            if is_nightly_only(found):
+                marks.append("**nightly-only**")
             if r.annotation:
-                note = f"{{{r.annotation.kind}}} {r.annotation.reason}"
+                marks.append(f"{{{r.annotation.kind}}} {r.annotation.reason}")
+            note = " ".join(marks)
             out.append(
                 f"| `{r.rid}` | {r.level} | {r.section} | {pos or '--'} | "
                 f"{neg or '--'} | {note} |"
@@ -3267,6 +4020,19 @@ def run_check() -> int:
                     base_enrolled,
                 )
             )
+            # And one level further down: proof can hold its polarity while quietly
+            # dropping from a running functional test to a unit table test, or from a
+            # verify-tier binding to a nightly-tier one. Both are downgrades the polarity
+            # comparison above cannot see.
+            errs.extend(
+                check_evidence_ratchet(
+                    reqs,
+                    tags,
+                    enrolled,
+                    _git_baseline_evidence(),
+                    base_enrolled,
+                )
+            )
         # parse_errs holds only the errors for enrolled summaries; the migration to IDs
         # is per-RFC and un-enrolled summaries have not been converted, so their parse
         # failures are expected and not reported.
@@ -3320,6 +4086,14 @@ def run_check() -> int:
     print(
         f"{GREEN}rfc-requirements OK{RESET}: {gated} gated MUST-level requirement(s) "
         f"across {len(enrolled)} enrolled RFC(s); {len(tags)} test tag(s) resolved."
+    )
+    # Never a bare non-unit total. Verify-tier and nightly-tier evidence ratchet
+    # independently (AC-14), so reporting them summed on one line would hand a reader the
+    # exact conflation the separate counters exist to prevent (R-1).
+    print(
+        f"{GREEN}evidence{RESET}: {_evidence_phrase(tag_kind_counts(tags))} "
+        f"(unit evidence proves the algorithm; only a running non-unit test proves the "
+        f"daemon or a peer)."
     )
     # AC-14 / R-6: state the extraction bound OUT LOUD on every run, including when it is
     # zero. A check that is quietly satisfied by nothing reproduces the failure it exists

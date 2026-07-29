@@ -29,8 +29,13 @@ The image is ~89 MB: a static binary on a scratch base with no shell, no libc, n
 Ze needs a config file. Mount one from the host:
 
 ```bash
-docker run --rm -v ./example.conf:/etc/ze/ze.conf ze:latest /etc/ze/ze.conf
+docker run --rm -v ./example.conf:/etc/ze/ze.conf ze:latest start /etc/ze/ze.conf
 ```
+
+The image `ENTRYPOINT` is `/ze`, so everything after the image name is passed to `ze`. The config path goes behind the `start` keyword: a bare `ze /etc/ze/ze.conf` is rejected with `unknown command`.
+
+<!-- source: docker/Dockerfile — ENTRYPOINT; cmd/ze/ze_core_dispatch.go — zeDispatch, "start" root handler -->
+
 
 Expose the ports you need:
 
@@ -48,7 +53,7 @@ docker run -d \
   -p 8080:8080 \
   -v ./myconfig.conf:/etc/ze/ze.conf \
   -v ./ze-data:/etc/ze \
-  ze:latest /etc/ze/ze.conf
+  ze:latest start /etc/ze/ze.conf
 ```
 
 ## Initialize credentials
@@ -75,7 +80,7 @@ docker run -d \
   -p 8080:8080 \
   -v ./ze-data:/etc/ze \
   -v ./myconfig.conf:/etc/ze/ze.conf \
-  ze:latest /etc/ze/ze.conf
+  ze:latest start /etc/ze/ze.conf
 ```
 
 ## Compose
@@ -106,7 +111,7 @@ For BGP peering without interface management (route server, looking glass, polic
 
 ## Troubleshooting
 
-**Container exits immediately:** Ze needs a config file argument. Check `docker logs ze`.
+**Container exits immediately:** Ze needs `start` plus a config path. A bare path (`ze:latest /etc/ze/ze.conf`) exits 1 with `unknown command: /etc/ze/ze.conf`. Check `docker logs ze`.
 
 **Cannot connect to CLI:** Make sure you ran `ze init` first (see above) and that port 1790 is published.
 

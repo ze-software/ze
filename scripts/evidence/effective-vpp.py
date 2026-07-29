@@ -295,7 +295,9 @@ def ze_env(
     ]
     if port is not None:
         env.extend(["--env", f"ZE_TEST_BGP_PORT={port}"])
-    env.extend([container, f"/src/{ze.relative_to(root)}", str(config_path)])
+    # `start <config>`: the bare `ze <config>` launch form was removed from the CLI
+    # (learned 1248), so a positional path now dies with "unknown command".
+    env.extend([container, f"/src/{ze.relative_to(root)}", "start", str(config_path)])
     return env
 
 

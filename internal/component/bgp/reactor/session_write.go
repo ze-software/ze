@@ -27,6 +27,24 @@ func (s *Session) sendKeepalive(conn net.Conn) error {
 	return s.writeMessage(conn, message.NewKeepalive())
 }
 
+// notifySubcodeValue renders a NOTIFICATION subcode for a log line: the RFC name when the
+// message package exports a table for that error code, the wire number otherwise.
+//
+// Only Cease exports one (message.CeaseSubcodeString), and it is already the reactor's
+// spelling for Cease subcodes at session_handlers.go:294 and session_connection.go:441, so
+// this reads the same table rather than growing a second one. The header/OPEN/UPDATE/FSM/
+// ROUTE-REFRESH subcode tables are unexported in message, and copying them here is exactly
+// the duplicated enumeration ai/rules/derive-not-hardcode.md forbids -- those stay numeric
+// until message exports a lookup.
+//
+// Cold path: at most one call per session teardown.
+func notifySubcodeValue(code message.NotifyErrorCode, subcode uint8) any {
+	if code == message.NotifyCease {
+		return message.CeaseSubcodeString(subcode)
+	}
+	return subcode
+}
+
 // sendNotification sends a NOTIFICATION message.
 // Increments the notification counter only after a successful write.
 func (s *Session) sendNotification(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte) error {
@@ -36,8 +54,28 @@ func (s *Session) sendNotification(conn net.Conn, code message.NotifyErrorCode, 
 		Data:         data,
 	}
 	err := s.writeMessage(conn, notif)
-	if err == nil && s.onNotifSent != nil {
-		s.onNotifSent(uint8(code), subcode)
+	if err == nil {
+		// A NOTIFICATION is the only wire signal that ZE, rather than the peer or the
+		// network, ended this session -- and it produced a counter, a Prometheus label and
+		// a report-bus entry, but no log line at all. An operator tailing stderr saw the
+		// session go down with no reason, and a test asserting "ze did not answer this
+		// UPDATE with a NOTIFICATION" had nothing on stderr to match, so it could only
+		// fail later by timeout (test/plugin/rfc7606-relay-one-field.ci).
+		//
+		// WARN because a NOTIFICATION is always an abnormal end, and cold enough to afford
+		// it: at most one per session teardown. The code/subcode are the two fields that
+		// say WHY, and `ze explain` has no entry for a raw BGP error code -- which is an
+		// argument for emitting the name that DOES exist, not for `code=3`. Both are
+		// logged as their RFC names (ai/rules/error-messages.md leg 2, the evidence;
+		// ai/rules/derive-not-hardcode.md, since message already owns the tables).
+		sessionLogger().Warn("notification sent",
+			"peer", s.settings.Address,
+			"code", code,
+			"subcode", notifySubcodeValue(code, subcode),
+		)
+		if s.onNotifSent != nil {
+			s.onNotifSent(uint8(code), subcode)
+		}
 	}
 	return err
 }

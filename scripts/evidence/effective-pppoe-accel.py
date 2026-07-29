@@ -443,9 +443,11 @@ def main() -> int:
         for key in ["ZE_PPPOE_SKIP_KERNEL_PROBE", "ze.pppoe.skip-kernel-probe"]:
             env.pop(key, None)
 
+        # `start <config>`: the bare `ze <config>` launch form was removed from the
+        # CLI (learned 1248), so a positional path now dies with "unknown command".
         ze_proc = ns_popen(
             ZE_NS,
-            [str(ze), str(ze_conf)],
+            [str(ze), "start", str(ze_conf)],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,

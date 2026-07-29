@@ -130,8 +130,24 @@ def main():
     except (FileNotFoundError, subprocess.TimeoutExpired):
         docker_ok = False
     if not docker_ok:
-        print("Docker unavailable, skipping interop tests")
-        sys.exit(0)
+        # FAIL CLOSED, and say so on stderr with the remediation. This is the model the
+        # three sibling lab runners (ipsec/l2tp/pppoe) were aligned to on 2026-07-29 --
+        # they already exited 1, but printed a bare line to stdout with no next step, so
+        # the set this pattern was meant to unify stayed divergent on the observable
+        # half.
+        #
+        # Every scenario runs in containers, so an unreachable Docker means nothing was
+        # verified -- and a runner that exits 0 over an absence reports success for work it
+        # never did (ai/rules/fail-closed-guards.md). This is load-bearing beyond tidiness: an
+        # interop scenario may now carry an `RFC requirement:` tag, and a tag is only
+        # evidence if something executes the test (plan/spec-rfcgate-2-evidence.md AC-1).
+        print(
+            "error: Docker unavailable, cannot run the BGP interop lab -- every "
+            "scenario runs in containers. Start Docker (or install it), then re-run: "
+            "make ze-interop-test",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     build_images(frr_image, no_build)
 

@@ -25,6 +25,29 @@ The independent-speaker scenario 48 exercises the NEXT_HOP dedup directly and un
 the adj-rib-in delta-replay; this scenario's Path 2 is a corroborating FRR check.
 """
 
+# RFC requirement: RFC7606-5.1-3 positive -- ONE UPDATE mixing Withdrawn Routes with NLRI is
+# ACCEPTED on receive, relayed, and installed by a real FRR. Section 5.1's second bullet forbids
+# any conforming SENDER to produce that shape, so a raw injector is the only carrier that can
+# drive the third bullet's "MUST still be prepared to receive these fields in any position or
+# combination" clause against a foreign peer. The existing unit binding
+# (message/rfc7606_test.go) proves the "any position" clause only; its own audit note says so.
+#
+# There is NO rail split. An earlier revision of this header claimed the replay path prepends
+# Ze's AS while the forward path does not, and withheld the tag on that basis. That was a
+# misdiagnosis: there is ONE prepend gate, `facts.isEBGP && !facts.rsClient`
+# (reactor/reactor_api_forward.go:711), and BOTH rails reach it -- RelayStoredRoute through
+# reactor_api_relay.go:253, ForwardUpdate through reactor_api_forward.go:358. `facts.rsClient`
+# is populated ONLY from the `session/rs-client` leaf (peer_forward_facts.go:111 <-
+# reactor/config.go:266), whose YANG default is false. No scenario in this tree set it, so Ze
+# was correctly prepending for what was, as configured, a plain eBGP peer. ze.conf now sets it,
+# which is what RFC 7947 route-server semantics require of a route server's clients.
+#
+# Whatever is tagged here, RFC7606-5.1-2 (the sender-side MUST NOT) must NOT be: §5.1's third
+# bullet obliges FRR to accept the mixed form too, so FRR installs the route whether or not Ze
+# splits, and no assertion below can tell the two apart. That binding lives on
+# test/plugin/rfc7606-relay-one-field.ci, which asserts the emitted bytes (AC-18: when a
+# behavior is reachable from both, the .ci wins).
+
 import os
 import sys
 import time

@@ -20,11 +20,7 @@ plan/spec-fixit-ddos-test-infra.md
 plan/spec-fixit-parser-fuzz-gaps.md
 plan/spec-fixit-private-asn-leak.md
 plan/spec-fixit-qemu-artifact-cache.md
-plan/spec-fixit-radius-empty-profile-mapping.md
 plan/spec-fixit-reject-fence-observability.md
-plan/spec-fixit-static-interface-nexthops.md
-plan/spec-fixit-supply-chain-hardening.md
-plan/spec-fixit-tacacs-empty-profile-mapping.md
 plan/spec-fixit-tombstone-code-point-split.md
 plan/spec-fixit-tombstone-ebgp-transitive.md
 plan/spec-fixit-vpp-lcp-netns-default.md
@@ -47,10 +43,10 @@ plan/spec-release-audit-6-system-linux.md
 plan/spec-release-audit-7-resilience-security.md
 plan/spec-rfc-requirement-coverage.md
 plan/spec-rfc7606-close-gaps.md
+plan/spec-rfcgate-1-extraction.md
 plan/spec-rib-arch-8-nlri-rewrite.md
 plan/spec-startup-resilience.md
 plan/spec-static-routes.md
-plan/spec-vpp-fib-query.md
 plan/spec-vpp-host-tuning.md
 plan/spec-vrrp-0-umbrella.md
 plan/spec-vrrp-5-plugin.md

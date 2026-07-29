@@ -1050,9 +1050,11 @@ class Lab:
         conf_path.write_text(conf, encoding="utf-8")
 
         started = time.time()
+        # `start <config>`: the bare `ze <config>` launch form was removed from the
+        # CLI (learned 1248), so a positional path now dies with "unknown command".
         self.ze_proc = ns_popen(
             ZE_NS,
-            [str(self.ze_bin), str(conf_path)],
+            [str(self.ze_bin), "start", str(conf_path)],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,

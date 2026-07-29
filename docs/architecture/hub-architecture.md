@@ -114,7 +114,7 @@ ze start config.conf
 
 ### 1. Single Entry Point
 
-`ze config.conf` starts everything. The config file determines what gets started.
+`ze start <config-file>` starts everything. The config file determines what gets started. (A bare `ze <config-file>` was removed from the CLI and is rejected with `unknown command`.)
 
 ### 2. Plugins Define Their Own Schema
 
@@ -217,7 +217,7 @@ The existing 5-stage protocol is **extended**, not replaced. Schema declarations
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ 1. ze config.conf                                                        │
+│ 1. ze start config.conf                                                  │
 │    Hub starts, reads config file (minimal parse - just plugin blocks)   │
 └─────────────────────────────────────────────────────────────────────────┘
                                 │

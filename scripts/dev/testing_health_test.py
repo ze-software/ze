@@ -26,8 +26,8 @@ LEDGER_HEAD = textwrap.dedent(
 
     ## Coverage by RFC
 
-    | RFC | Gated | Both | One polarity | Annotated | No test | Outstanding | State |
-    |---|---|---|---|---|---|---|---|
+    | RFC | Gated | Both | One polarity | Annotated | No test | Outstanding | Nightly-only | State |
+    |---|---|---|---|---|---|---|---|---|
     """
 )
 
@@ -80,8 +80,8 @@ class TestRfcLedgerParse(unittest.TestCase):
                 root,
                 th.RFC_LEDGER,
                 LEDGER_HEAD
-                + "| `rfc1` | 10 | 4 | 0 | 6 | 0 | 0 | **enrolled** |\n"
-                + "| `rfc2` | 5 | 0 | 0 | 5 | 0 | 0 | **enrolled** |\n",
+                + "| `rfc1` | 10 | 4 | 0 | 6 | 0 | 0 | 0 | **enrolled** |\n"
+                + "| `rfc2` | 5 | 0 | 0 | 5 | 0 | 0 | 0 | **enrolled** |\n",
             )
             write(
                 root,
@@ -130,7 +130,7 @@ class TestRfcLedgerParse(unittest.TestCase):
             write(
                 root,
                 th.RFC_LEDGER,
-                LEDGER_HEAD + "| `rfc1` | 10 | 4 | 0 | 6 | 0 | 0 | **enrolled** |\n",
+                LEDGER_HEAD + "| `rfc1` | 10 | 4 | 0 | 6 | 0 | 0 | 0 | **enrolled** |\n",
             )
             write(root, "rfc/short/rfc1.md", "- [ ] [RFC1-1-1] [MUST] r {gap: x}\n")
             git_init(root)
@@ -785,7 +785,7 @@ class TestWriteCheckRoundTrip(unittest.TestCase):
         write(
             root,
             th.RFC_LEDGER,
-            LEDGER_HEAD + "| `rfc1` | 10 | 4 | 0 | 6 | 0 | 0 | **enrolled** |\n",
+            LEDGER_HEAD + "| `rfc1` | 10 | 4 | 0 | 6 | 0 | 0 | 0 | **enrolled** |\n",
         )
         write(root, "rfc/short/rfc1.md", "{gap: x} {not-applicable: y}\n")
         write(
@@ -986,7 +986,7 @@ class TestEntryPoints(unittest.TestCase):
         write(
             root,
             th.RFC_LEDGER,
-            LEDGER_HEAD + "| `rfc1` | 4 | 1 | 0 | 3 | 0 | 0 | **enrolled** |\n",
+            LEDGER_HEAD + "| `rfc1` | 4 | 1 | 0 | 3 | 0 | 0 | 0 | **enrolled** |\n",
         )
         write(
             root,

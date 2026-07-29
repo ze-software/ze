@@ -112,10 +112,10 @@ receives** a route with ATOMIC_AGGREGATE, and recording it as an aggregator rule
 let the readvertisement path be cited as evidence of non-applicability when it is
 the bound path.
 
-## What Keeps RFC Testing Valid (the five ratchets)
+## What Keeps RFC Testing Valid (the six ratchets)
 
 `make ze-rfc-check` reads the WORKING TREE to judge coverage, and a tree cannot tell
-"never proven" from "stopped being proven". Five comparisons against HEAD supply that
+"never proven" from "stopped being proven". Six comparisons against HEAD supply that
 difference. Each fires only on a real downgrade, so a green run means the evidence held,
 not that nobody looked.
 
@@ -125,13 +125,14 @@ not that nobody looked.
 | **Proof is monotonic** | `check_coverage_ratchet` | a requirement loses a polarity it had at HEAD. `{gap}` is NOT an escape: it is the move being blocked |
 | **Requirements do not vanish** | `check_retired_requirements` | a requirement id of an enrolled RFC disappears from its summary. Without this, deleting the checklist line is the CHEAPEST route from red to green, cheaper than `{gap}` which costs a public disclosure row, and the ratchet would be pressuring people to hide obligations rather than declare them. Correcting a misquote means editing the TEXT under the same id, which is allowed |
 | **Adding an RFC adds checking** | `check_new_summaries` | a summary that is NEW since HEAD declares gated MUSTs and is not in `rfc/enrolled.txt`, fails to parse, or captures zero requirements while `rfc/full/<stem>.txt` has MUST-level keywords |
+| **Non-unit evidence is monotonic, per tier** | `check_evidence_ratchet` | a requirement loses an evidence KIND it had at HEAD -- its `.ci` becomes a unit test, or its verify-tier binding is swapped for a nightly-tier interop one. Keyed by `kind/tier`, so a substitution that leaves the tag COUNT unchanged still fires: a unit test proves the algorithm, only a running functional or interop test proves the daemon or a peer. No annotation satisfies it |
 | **Extraction is monotonic** | `check_extraction_ratchet` | a stem that carried a sign-off at HEAD carries none now, or a signed stem's exclusion count RISES without a `resign-reason` and a bumped `signed-off` date. The first stops the bound being un-bound by deleting a file; the second stops the exclusion list becoming an escape hatch where every unmapped site is excluded with a shrug |
 
 Summaries that predate HEAD are the existing backlog and are deliberately grandfathered:
 a rule that reds the gate on unrelated work gets removed rather than obeyed. Where git
 cannot answer, every ratchet judges nothing rather than judging everything.
 
-**Beside the five, `check_drain_floor` compares the derived sign-off count against the drain policy in `rfc/drain-budget.txt` (a start date and a rate, and nothing else).** It is a schedule rather than a ratchet, and it ships INERT at rate 0: arming it is a one-line commit only the owner takes.
+**Beside the six, `check_drain_floor` compares the derived sign-off count against the drain policy in `rfc/drain-budget.txt` (a start date and a rate, and nothing else).** It is a schedule rather than a ratchet, and it ships INERT at rate 0: arming it is a one-line commit only the owner takes.
 
 At edit time the `rfc-tagged-test` guard (`_rfc_tagged_change_err`) blocks a behavior
 change to any test carrying an `RFC requirement:` tag, and separately blocks REMOVING the

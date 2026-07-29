@@ -90,6 +90,7 @@ func TestDraftDirIsInvisibleToRepoGates(t *testing.T) {
 		{"scripts/checks/ci_dispatch_commands.go", "draftTestDir", "dispatch-command check"},
 		{"scripts/dev/verify_wiring_docs.py", "real_ci_files(root)", "ci-sleep ratchet"},
 		{"scripts/dev/ci_observer_recover_check.py", `!= ("draft",)`, "observer-recover check"},
+		{"scripts/dev/rfc_requirements.py", "rel.startswith(DRAFT_PREFIX)", "RFC requirement coverage gate"},
 	} {
 		raw, err := os.ReadFile(filepath.Join(repo, g.file)) //nolint:gosec // repo-relative fixed path
 		require.NoErrorf(t, err, "gate source %s unreadable", g.file)

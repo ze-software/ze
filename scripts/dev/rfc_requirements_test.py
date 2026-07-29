@@ -13,6 +13,7 @@ import importlib.util
 import io
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -59,6 +60,10 @@ def _patched(**overrides):
     the test, not just the helper in isolation.
     """
     saved = {name: getattr(R, name) for name in overrides}
+    # The HEAD baseline is memoized for the process (two ratchets read it). A test that
+    # swaps the git layer underneath it must not inherit, or leave behind, an answer read
+    # through a different one -- that would be cross-test coupling to whatever ran first.
+    R.reset_baseline_cache()
     try:
         for name, val in overrides.items():
             setattr(R, name, val)
@@ -66,6 +71,7 @@ def _patched(**overrides):
     finally:
         for name, val in saved.items():
             setattr(R, name, val)
+        R.reset_baseline_cache()
 
 
 def _run_capturing(fn):
@@ -494,6 +500,316 @@ class TestCiTagScan(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------
+# Carrier table and the non-Go carriers (spec-rfcgate-2-evidence AC-4..AC-9)
+# --------------------------------------------------------------------------
+_PY_TAG = "# RFC requirement: RFC7606-2-1 positive — real tag\n"
+
+
+class TestPythonTagScan(unittest.TestCase):
+    """An interop check.py is tokenized, not regex-scanned: scenario checks are full of
+    quoted protocol text, and a '#' inside a string is not a comment."""
+
+    def test_scan_python_tags_found(self):
+        """AC-4: a line-start comment tag resolves with id, polarity and line."""
+        src = "import os\n\n\ndef check():\n    " + _PY_TAG.lstrip() + "    pass\n"
+        tags = R.scan_python_tags(src, "test/interop/scenarios/47-x/check.py")
+        self.assertEqual(len(tags), 1, tags)
+        self.assertEqual(tags[0].rid, "RFC7606-2-1")
+        self.assertEqual(tags[0].polarity, "positive")
+        self.assertEqual(tags[0].file, "test/interop/scenarios/47-x/check.py")
+        self.assertEqual(tags[0].line, 5)
+
+    def test_scan_python_tags_indented_comment_is_a_tag(self):
+        """Mirrors _GO_TAG_RE's `^\\s*//`: indentation does not stop a comment being one."""
+        src = "def check():\n        # RFC requirement: RFC7606-2-2 negative — indented\n        pass\n"
+        self.assertEqual(
+            [t.rid for t in R.scan_python_tags(src, "x/check.py")], ["RFC7606-2-2"]
+        )
+
+    def test_scan_python_tags_ignores_string_literals(self):
+        """AC-5: tag-shaped text inside a docstring or a string literal is NOT a tag.
+
+        This is the whole reason for tokenizing. A regex line scan reports three tags
+        here; only the last line is a genuine comment token.
+        """
+        src = (
+            '"""Scenario docstring.\n'
+            "\n"
+            "# RFC requirement: RFC7606-9.9-901 positive — PHANTOM, inside a docstring\n"
+            '"""\n'
+            'BANNER = "# RFC requirement: RFC7606-9.9-902 negative — PHANTOM, in a str"\n'
+            "# RFC requirement: RFC7606-2-1 positive — the only real one\n"
+        )
+        self.assertEqual(
+            [t.rid for t in R.scan_python_tags(src, "x/check.py")], ["RFC7606-2-1"]
+        )
+
+    def test_scan_python_tags_ignores_trailing_comment(self):
+        """A trailing comment is not a tag in ANY carrier (scan_ci_tags agrees, :537)."""
+        src = "x = 1  # RFC requirement: RFC7606-2-1 positive\n"
+        self.assertEqual(R.scan_python_tags(src, "x/check.py"), [])
+
+    def test_scan_python_tags_rejects_invalid_syntax(self):
+        """AC-9: a file whose comments cannot be read must not be reported as tag-free.
+
+        An unterminated triple-quoted string is the realistic shape: everything after it
+        is swallowed into a string token, so a tokenizer that failed open would silently
+        lose every tag below the break.
+        """
+        src = 'x = """unterminated\n' + _PY_TAG
+        with self.assertRaises(R.ParseError) as cm:
+            R.scan_python_tags(src, "test/interop/scenarios/47-x/check.py")
+        self.assertIn("test/interop/scenarios/47-x/check.py", str(cm.exception))
+        self.assertIn("cannot tokenize", str(cm.exception))
+
+    def test_scan_python_does_not_inherit_terminator(self):
+        """`terminator=` models the .ci runner's raw tmpfs blocks. Python has no such
+        construct (interop.py hands the whole file to importlib), so a line that happens
+        to mention it must not blind the scanner to the comments below it."""
+        src = (
+            "CMD = 'stdin=peer:terminator=EOF_PEER'\n"
+            "# RFC requirement: RFC7606-2-1 positive — still a real tag\n"
+        )
+        self.assertEqual(
+            [t.rid for t in R.scan_python_tags(src, "x/check.py")], ["RFC7606-2-1"]
+        )
+
+
+class TestEtCarrier(unittest.TestCase):
+    def test_scan_et_reuses_ci_semantics(self):
+        """AC-6: .et routes to scan_ci_tags -- one implementation of the terminator trap,
+        not a third. 163 of 164 .et files use terminator= blocks."""
+        c = R.carrier_for("test/editor/commands/x.et")
+        self.assertIsNotNone(c)
+        self.assertEqual(c.reader, "ci")
+        self.assertIs(R._READERS[c.reader], R.scan_ci_tags)
+        self.assertEqual(c.tier, R.TIER_VERIFY)
+
+    def test_et_terminator_block_is_not_scanned(self):
+        """The tag outside the block resolves; the one inside it does not."""
+        src = (
+            "# RFC requirement: RFC7606-2-1 positive — real tag\n"
+            "tmpfs=test.conf:terminator=EOF\n"
+            "# RFC requirement: RFC7606-9.9-903 negative — PHANTOM, raw config content\n"
+            "EOF\n"
+        )
+        c = R.carrier_for("test/editor/x.et")
+        self.assertEqual(
+            [t.rid for t in R._READERS[c.reader](src, "test/editor/x.et")],
+            ["RFC7606-2-1"],
+        )
+
+
+class TestCarrierTable(unittest.TestCase):
+    def test_carrier_table_is_single_source(self):
+        """Every consumer reads CARRIERS; no literal suffix check survives outside it.
+
+        This is A-3 mechanized. The module used to spell the carrier list THREE times
+        (scan_tree, the HEAD baseline filter, _scan_tags_tolerant), and widening one alone
+        desynchronizes the ratchet baseline in the green direction -- the failure mode a
+        conflict marker would have made loud and this one does not.
+        """
+        path = os.path.join(_HERE, "rfc_requirements.py")
+        with open(path, encoding="utf-8") as fh:
+            lines = fh.readlines()
+        start = next(i for i, ln in enumerate(lines) if ln.startswith("CARRIERS"))
+        end = next(i for i in range(start, len(lines)) if lines[i].rstrip() == ")")
+        table = set(range(start, end + 1))
+        offenders = []
+        for i, ln in enumerate(lines):
+            if i in table or ln.lstrip().startswith("#"):
+                continue
+            for literal in (
+                '"_test.go"',
+                '".ci"',
+                '".et"',
+                '"/check.py"',
+                '"check.py"',
+            ):
+                if literal in ln:
+                    offenders.append(f"{i + 1}: {ln.strip()}")
+        self.assertEqual(offenders, [], "carrier suffixes spelled outside CARRIERS")
+
+    def test_every_reader_exists(self):
+        for c in R.CARRIERS:
+            self.assertIn(c.reader, R._READERS, c.name)
+            self.assertIn(c.tier, (R.TIER_VERIFY, R.TIER_NIGHTLY, R.TIER_UNRUN), c.name)
+
+    def test_carrier_for_picks_the_specific_tree_before_the_catch_all(self):
+        self.assertEqual(
+            R.carrier_for("test/interop/scenarios/47-x/check.py").name, "interop-bgp"
+        )
+        self.assertEqual(
+            R.carrier_for("test/ipsec-interop/scenarios/01-x/check.py").name,
+            "interop-ipsec",
+        )
+        self.assertEqual(
+            R.carrier_for("test/stress/scenarios/01-x/check.py").name, "scenario-check"
+        )
+        self.assertEqual(R.carrier_for("internal/x_test.go").name, "unit")
+        # One row per suite ze-functional-test runs, so the specific suite beats the
+        # catch-all -- the check the flat `functional` row could not make.
+        self.assertEqual(R.carrier_for("test/plugin/x.ci").name, "functional-plugin")
+        self.assertEqual(R.carrier_for("test/traffic/x.ci").name, "functional-unrun")
+
+    def test_carrier_for_declines_an_unrelated_shape(self):
+        """A file that is not a carrier yields None, so scan_tree skips it as before."""
+        for rel in ("test/interop/interop.py", "internal/x.go", "test/plugin/x.conf"):
+            self.assertIsNone(R.carrier_for(rel), rel)
+
+    def test_a_non_check_py_is_not_a_carrier(self):
+        """The suffix is `/check.py`, an exact basename match: `precheck.py` is not one."""
+        self.assertIsNone(R.carrier_for("test/interop/scenarios/47-x/precheck.py"))
+
+
+def _write(root, rel, body):
+    path = os.path.join(root, rel)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(body)
+    return path
+
+
+class _FakeGit:
+    """Stands in for the `subprocess` module with a faithful `git grep -l -z` +
+    `git cat-file --batch` pair over an in-memory {path: content} tree.
+
+    Faithful matters. _FakeSubprocess returns one canned payload, which is enough to pin
+    the returncode guards it was written for but cannot answer a VARYING request. The
+    baseline reader chooses which paths to ask for -- that choice IS the filter under test
+    -- so the fake has to answer exactly what it was asked, in order, the way cat-file
+    does. A canned payload would frame correctly for one path list and silently mis-frame
+    for any other, which is how a filter regression could still look green.
+    """
+
+    def __init__(self, tree):
+        self._tree = dict(tree)
+
+    class _Result:
+        def __init__(self, stdout="", stdout_bytes=b""):
+            self.returncode = 0
+            self.stdout = stdout_bytes if stdout_bytes else stdout
+
+    def run(self, argv, **kwargs):
+        if kwargs.get("input") is None:
+            # `git grep -l -z -F "RFC requirement:"`: every fixture file holds the marker.
+            return self._Result(
+                stdout="".join(f"HEAD:{p}\0" for p in sorted(self._tree))
+            )
+        # `git cat-file --batch`: one framed record per requested path, in request order.
+        out = bytearray()
+        for line in kwargs["input"].decode("utf-8").split("\n"):
+            if not line:
+                continue
+            rel = line[len("HEAD:") :]
+            body = self._tree.get(rel, "").encode("utf-8")
+            out += b"aaaaaaa blob " + str(len(body)).encode() + b"\n" + body + b"\n"
+        return self._Result(stdout_bytes=bytes(out))
+
+
+class TestUnrunCarrierRefused(unittest.TestCase):
+    """AC-7: a tag in a suite nothing executes is refused, not marked.
+
+    A marker is a note; a refusal is a guard (ai/rules/fail-closed-guards.md). Raised from
+    scan_tree so `make ze-rfc-index` refuses it too -- a check that only run_check enforced
+    would let `--write` publish a ledger crediting evidence no pipeline runs.
+    """
+
+    def setUp(self):
+        self.root = _mkdtemp("rfcgate2-unrun-")
+        self.addCleanup(shutil.rmtree, self.root, True)
+
+    def test_tag_in_unrun_carrier_is_refused(self):
+        _write(self.root, "test/ipsec-interop/scenarios/01-psk/check.py", _PY_TAG)
+        with self.assertRaises(R.ParseError) as cm:
+            R.scan_tree(self.root)
+        msg = str(cm.exception)
+        self.assertIn("test/ipsec-interop/scenarios/01-psk/check.py", msg)
+        self.assertIn("interop-ipsec", msg)
+        self.assertIn("make ze-ipsec-interop-test", msg)
+        self.assertIn("automated pipeline", msg)
+
+    def test_unrun_carrier_without_a_tag_is_silent(self):
+        """Discriminates from 'always raises': the refusal is about the TAG, not the tree."""
+        _write(self.root, "test/ipsec-interop/scenarios/01-psk/check.py", "x = 1\n")
+        self.assertEqual(R.scan_tree(self.root), [])
+
+    def test_unclassified_scenario_check_is_refused_too(self):
+        """The catch-all fails closed: a tree nobody declared is exactly where silence
+        would be indistinguishable from proof."""
+        _write(self.root, "test/stress/scenarios/01-burst/check.py", _PY_TAG)
+        with self.assertRaises(R.ParseError) as cm:
+            R.scan_tree(self.root)
+        self.assertIn("scenario-check", str(cm.exception))
+
+
+class TestFilterAgreement(unittest.TestCase):
+    """AC-8: the tree filter and the HEAD baseline filter accept the same carrier set.
+
+    They are physically the same predicate now (carrier_for), and this test is what keeps
+    them that way: it drives BOTH code paths over one fixture tree holding every carrier
+    kind and asserts an identical tag set. Extending one alone makes it red.
+    """
+
+    FIXTURE = {
+        "internal/component/bgp/a_test.go": "// RFC requirement: RFC7606-2-1 positive\n",
+        "test/plugin/b.ci": "# RFC requirement: RFC7606-2-2 negative\n",
+        "test/editor/commands/c.et": "# RFC requirement: RFC7606-2-3 positive\n",
+        "test/interop/scenarios/47-x/check.py": "# RFC requirement: RFC7606-2-4 negative\n",
+        # Not carriers: neither path may contribute a tag on either side.
+        "test/interop/interop.py": "# RFC requirement: RFC7606-9.9-904 positive\n",
+        "test/plugin/d.conf": "# RFC requirement: RFC7606-9.9-905 positive\n",
+    }
+
+    def setUp(self):
+        self.root = _mkdtemp("rfcgate2-agree-")
+        self.addCleanup(shutil.rmtree, self.root, True)
+        for rel, body in self.FIXTURE.items():
+            _write(self.root, rel, body)
+
+    def _baseline_side(self):
+        """The REAL _git_baseline_tag_polarities, over a faithful in-memory git.
+
+        Deliberately not a re-implementation of the filter. An earlier draft of this test
+        inlined `carrier_for` here and was mutation-verified VACUOUS: reverting the
+        baseline filter to its old literal `_test.go`/`.ci` pair left it green, because it
+        never executed the function it claimed to pin. A test that re-derives the thing it
+        is checking checks nothing (ai/rules/interop-and-goal-validation.md).
+        """
+        with _patched(subprocess=_FakeGit(self.FIXTURE)):
+            return R._git_baseline_tag_polarities()
+
+    def _tree_side(self):
+        out = {}
+        for t in R.scan_tree(self.root):
+            out.setdefault(t.rid, set()).add(t.polarity)
+        return out
+
+    def test_tree_and_baseline_filters_agree(self):
+        tree, base = self._tree_side(), self._baseline_side()
+        self.assertEqual(tree, base)
+        self.assertEqual(
+            set(tree),
+            {"RFC7606-2-1", "RFC7606-2-2", "RFC7606-2-3", "RFC7606-2-4"},
+            "every carrier kind must resolve, and no non-carrier may",
+        )
+
+    def test_baseline_declines_the_unrun_carrier(self):
+        """The tree REFUSES an unrun tag, so the baseline must not credit one either --
+        otherwise the ratchet demands evidence the tree is forbidden to supply."""
+        fixture = {"test/ipsec-interop/scenarios/01-psk/check.py": _PY_TAG}
+        with _patched(subprocess=_FakeGit(fixture)):
+            self.assertEqual(R._git_baseline_tag_polarities(), {})
+
+    def test_baseline_declines_a_non_carrier(self):
+        """Discriminates the other way: a shape that is not a carrier contributes nothing
+        even though `git grep` listed it as containing the marker."""
+        fixture = {"test/interop/interop.py": _PY_TAG}
+        with _patched(subprocess=_FakeGit(fixture)):
+            self.assertEqual(R._git_baseline_tag_polarities(), {})
+
+
+# --------------------------------------------------------------------------
 # Coverage evaluation (AC-4, AC-5, AC-6, AC-9)
 # --------------------------------------------------------------------------
 def _req(rid, level="MUST", annotation=None, rfc="rfc7606"):
@@ -511,6 +827,42 @@ def _req(rid, level="MUST", annotation=None, rfc="rfc7606"):
 
 def _tag(rid, polarity, file="a_test.go", line=1):
     return R.Tag(rid=rid, polarity=polarity, file=file, line=line)
+
+
+@contextlib.contextmanager
+def _scratch():
+    """A throwaway repo root under the PROJECT tmp/, never the system one.
+
+    `go test ./...` walks /tmp and ai/rules/testing.md makes the project directory the
+    only allowed home for scratch.
+    """
+    os.makedirs(_TMP_ROOT, exist_ok=True)
+    root = tempfile.mkdtemp(prefix="rfcreq-", dir=_TMP_ROOT)
+    try:
+        yield root
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def _read_repo(rel):
+    """Read a repo file as text, for the source-text assertions."""
+    with open(os.path.join(R.PROJECT_DIR, rel), encoding="utf-8") as fh:
+        return fh.read()
+
+
+def _make_target(runner):
+    """The bare make target named in a Carrier.runner ("make ze-foo" -> "ze-foo")."""
+    parts = runner.split()
+    if len(parts) >= 2 and parts[0] == "make":
+        return parts[1]
+    return ""
+
+
+def _verify_stages(verify_src):
+    """Every stage stagesForMode builds, read out of its own `mk("...")` calls."""
+    import re as _re
+
+    return set(_re.findall(r'mk\("([A-Za-z0-9._-]+)"\)', verify_src))
 
 
 class TestCoverage(unittest.TestCase):
@@ -767,6 +1119,60 @@ class TestAuditFreshness(unittest.TestCase):
         )
 
 
+class TestEnrolledDescriptorLevelsMatchTheSummaries(unittest.TestCase):
+    """rfc/enrolled.txt quotes requirement LEVELS in prose; the summary owns them.
+
+    An enrolment note is the human-readable record of why an RFC is gated, and it routinely
+    cites a requirement as `RFCNNNN-x-1 (MUST NOT ...)`. That parenthetical is a copy of a
+    fact that lives in rfc/short/<stem>.md, and a copy drifts: RFC7947-x-1 was corrected to
+    SHOULD NOT in the summary on 2026-07-23 (RFC 7947 Section 2.2.2.1 calls it "a
+    recommendation rather than a requirement") while enrolled.txt went on calling it a MUST
+    NOT. Nothing noticed, because GATED_LEVELS excludes SHOULD NOT, so the coverage checker
+    never reads either spelling.
+
+    That is the failure mode this pins: a level overstated in the note is invisible to the
+    gate but is exactly what a reader trusts when deciding what Ze owes
+    (ai/rules/derive-not-hardcode.md, ai/rules/no-fabrication.md).
+    """
+
+    # Longest-first so "MUST NOT" is preferred over "MUST" and "SHOULD NOT" over "SHOULD".
+    _LEVEL_ALT = "|".join(
+        re.escape(x) for x in sorted(R.ALL_LEVELS, key=len, reverse=True)
+    )
+    _CITE = re.compile(
+        r"\b(RFC\d+[A-Za-z0-9-]*-[A-Za-z0-9.]+-\d+)\s*\((" + _LEVEL_ALT + r")\b"
+    )
+
+    def _summary_levels(self):
+        levels = {}
+        for stem in R.summary_stems():
+            path = os.path.join(R.SUMMARY_DIR, stem + ".md")
+            for req in R.parse_summary_file(path):
+                levels[req.rid] = req.level
+        return levels
+
+    def test_every_level_cited_in_an_enrolment_note_matches_its_summary(self):
+        levels = self._summary_levels()
+        raw = _read_repo("rfc/enrolled.txt")
+        checked = 0
+        for n, line in enumerate(raw.splitlines(), 1):
+            for rid, cited in self._CITE.findall(line):
+                checked += 1
+                self.assertIn(
+                    rid,
+                    levels,
+                    f"rfc/enrolled.txt:{n} cites {rid}, which no summary declares",
+                )
+                self.assertEqual(
+                    cited,
+                    levels[rid],
+                    f"rfc/enrolled.txt:{n} calls {rid} a {cited}; "
+                    f"rfc/short/ declares it {levels[rid]}. The summary owns the level",
+                )
+        # Guard against the check quietly covering nothing if the prose style changes.
+        self.assertGreater(checked, 5, "no level citations parsed out of enrolled.txt")
+
+
 class TestStatusLedgerCrossCheck(unittest.TestCase):
     STATUS = (
         "| RFC | Area | Status | Implemented coverage | Remaining if not complete |\n"
@@ -945,6 +1351,109 @@ class TestLedgerRender(unittest.TestCase):
         # sorted by (file, line): a:5 < a:90 (numeric, not lexical) < z:1
         self.assertLess(forward.index("a_test.go:5"), forward.index("a_test.go:90"))
         self.assertLess(forward.index("a_test.go:90"), forward.index("z_test.go:1"))
+
+
+_CI_FILE = "test/plugin/rfc7606-reset.ci"
+_INTEROP_FILE = "test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py"
+
+
+class TestLedgerEvidenceTier(unittest.TestCase):
+    """AC-10/AC-11: the ledger publishes evidence STRENGTH, not just its existence.
+
+    Before this, a nightly-advisory interop scenario and a merge-gate unit test rendered
+    into byte-identical cells, so "proven" meant two different things in one column and a
+    reader had no way to tell which (R-1).
+    """
+
+    def _render(self, tags, reqs=None):
+        return R.render_ledger(reqs or [_req("RFC7606-2-1")], tags, {"rfc7606"})
+
+    def test_ledger_row_carries_evidence_tier(self):
+        """AC-10: every link carries its kind AND its tier, derived from CARRIERS."""
+        out = self._render(
+            [
+                _tag("RFC7606-2-1", "positive", file="internal/x_test.go", line=3),
+                _tag("RFC7606-2-1", "negative", file=_CI_FILE, line=7),
+            ]
+        )
+        self.assertIn("`internal/x_test.go:3` (unit/verify)", out)
+        self.assertIn(f"`{_CI_FILE}:7` (functional/verify)", out)
+
+    def test_interop_link_is_labelled_nightly(self):
+        out = self._render(
+            [_tag("RFC7606-2-1", "positive", file=_INTEROP_FILE, line=51)]
+        )
+        self.assertIn(f"`{_INTEROP_FILE}:51` (interop/nightly)", out)
+
+    def test_nightly_only_marker_rendered(self):
+        """AC-11: a requirement whose ONLY evidence is nightly says so on its row."""
+        out = self._render(
+            [
+                _tag("RFC7606-2-1", "positive", file=_INTEROP_FILE, line=51),
+                _tag("RFC7606-2-1", "negative", file=_INTEROP_FILE, line=60),
+            ]
+        )
+        self.assertIn("**nightly-only**", out)
+
+    def test_no_nightly_marker_when_verify_evidence_exists(self):
+        """Discriminates from 'always marks': one verify-tier link removes the marker,
+        because the requirement IS proven on the merge path."""
+        out = self._render(
+            [
+                _tag("RFC7606-2-1", "positive", file=_INTEROP_FILE, line=51),
+                _tag("RFC7606-2-1", "negative", file=_CI_FILE, line=7),
+            ]
+        )
+        self.assertNotIn("**nightly-only**", out)
+
+    def test_untested_requirement_is_not_nightly_only(self):
+        """No evidence is a `missing`, not a weak proof. Marking it would hide the
+        difference between 'proven somewhere unrun' and 'not proven at all'."""
+        self.assertFalse(R.is_nightly_only([]))
+        self.assertNotIn("**nightly-only**", self._render([]))
+
+    def test_nightly_only_has_its_own_rollup_column(self):
+        """AC-11: counted separately, never folded into the merge-gate columns."""
+        cov = R.rfc_coverage(
+            [_req("RFC7606-2-1"), _req("RFC7606-2-2")],
+            [
+                _tag("RFC7606-2-1", "positive", file=_INTEROP_FILE),
+                _tag("RFC7606-2-1", "negative", file=_INTEROP_FILE, line=2),
+                _tag("RFC7606-2-2", "positive", file="internal/x_test.go"),
+                _tag("RFC7606-2-2", "negative", file="internal/x_test.go", line=2),
+            ],
+        )
+        self.assertEqual(len(cov), 1)
+        self.assertEqual(cov[0].nightly_only, 1)
+        self.assertEqual(cov[0].both, 2, "both stays the polarity view, unweakened")
+        out = self._render([], reqs=[_req("RFC7606-2-1")])
+        self.assertIn("| Outstanding | Nightly-only | State |", out)
+
+    def test_legend_is_derived_from_the_carrier_table(self):
+        """A hand-written legend rots the moment a carrier is added
+        (ai/rules/derive-not-hardcode.md)."""
+        out = self._render([])
+        for c in R.CARRIERS:
+            if c.tier == R.TIER_UNRUN:
+                self.assertNotIn(f"| `{c.label}` | `*{c.suffix}`", out, c.name)
+            else:
+                self.assertIn(f"| `{c.label}` | `*{c.suffix}`", out, c.name)
+
+    def test_ledger_render_is_stable(self):
+        """AC-12: two renders of one tree are byte-identical, so check_ledger_fresh stays
+        a real gate rather than a coin flip."""
+        tags = [
+            _tag("RFC7606-2-1", "positive", file=_INTEROP_FILE, line=51),
+            _tag("RFC7606-2-1", "negative", file=_CI_FILE, line=7),
+        ]
+        self.assertEqual(self._render(list(tags)), self._render(list(tags)))
+
+    def test_evidence_phrase_names_every_executable_label_including_zeros(self):
+        """A label omitted when zero reads as 'not applicable', not as 'we have none'."""
+        phrase = R._evidence_phrase(R.tag_kind_counts([_tag("X-1-1", "positive")]))
+        self.assertIn("unit/verify 1", phrase)
+        self.assertIn("interop/nightly 0", phrase)
+        self.assertIn("editor/verify 0", phrase)
 
 
 class TestLedgerFreshness(unittest.TestCase):
@@ -1459,6 +1968,7 @@ class TestCoverageRatchetWiring(unittest.TestCase):
             _git_baseline_enrolment=lambda: {"rfc7606"},
             _git_baseline_ids=lambda: {"RFC7606-2-1"},
             _git_baseline_tag_polarities=lambda: baseline,
+            _git_baseline_evidence=lambda: {},
             _git_baseline_summary_stems=lambda: {"rfc7606"},
             scan_tree=lambda *a, **k: tags,
             check_status_agreement=lambda *a, **k: [],
@@ -1482,6 +1992,204 @@ class TestCoverageRatchetWiring(unittest.TestCase):
             {"RFC7606-2-1": {"positive", "negative"}},
         )
         self.assertEqual(code, 0, out)
+
+
+# --------------------------------------------------------------------------
+# Non-unit evidence ratchet (spec-rfcgate-2-evidence AC-13..AC-15)
+# --------------------------------------------------------------------------
+class TestEvidenceRatchet(unittest.TestCase):
+    """Wire-level evidence can only rise, and a tier is never substitutable for another.
+
+    check_coverage_ratchet compares POLARITY sets, so swapping a running `.ci` for a Go
+    table test of the same polarity is invisible to it. That swap is a downgrade from
+    "the daemon does this" to "the function does this", and this ratchet is what sees it.
+    """
+
+    def _errs(self, tags, baseline, enrolled=("rfc7606",)):
+        return R.check_evidence_ratchet(
+            requirements=[_req("RFC7606-2-1")],
+            tags=tags,
+            enrolled=set(enrolled),
+            baseline_evidence=baseline,
+            baseline_enrolled=set(enrolled),
+        )
+
+    def test_non_unit_ratchet_fires_on_loss(self):
+        """AC-13: the last non-unit tag cannot quietly become a unit tag."""
+        errs = self._errs(
+            [_tag("RFC7606-2-1", "negative", file="internal/x_test.go")],
+            {"RFC7606-2-1": {"functional/verify"}},
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("RFC7606-2-1", errs[0])
+        self.assertIn("functional/verify", errs[0])
+        self.assertIn("nothing but unit tests", errs[0])
+
+    def test_no_annotation_satisfies_the_ratchet(self):
+        """AC-13: {gap} is the move being blocked, not a way through it."""
+        ann = R.Annotation(kind="gap", polarity=None, reason="dropped the .ci")
+        errs = R.check_evidence_ratchet(
+            requirements=[_req("RFC7606-2-1", annotation=ann)],
+            tags=[],
+            enrolled={"rfc7606"},
+            baseline_evidence={"RFC7606-2-1": {"functional/verify"}},
+            baseline_enrolled={"rfc7606"},
+        )
+        self.assertEqual(len(errs), 1, errs)
+
+    def test_verify_tier_ratchet_rejects_nightly_substitution(self):
+        """AC-14: a `.ci` binding replaced by an interop one is a LOSS, not a wash.
+
+        The total count of non-unit evidence is unchanged here -- one tag before, one
+        after. A single "non-unit evidence" counter would call this clean, which is why
+        the ratchet is keyed by `kind/tier` and not by a number (R-1).
+        """
+        errs = self._errs(
+            [_tag("RFC7606-2-1", "negative", file=_INTEROP_FILE)],
+            {"RFC7606-2-1": {"functional/verify"}},
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("functional/verify", errs[0])
+        self.assertIn("interop/nightly", errs[0], "the message must say what is left")
+
+    def test_nightly_evidence_is_additive_not_a_replacement(self):
+        """Keeping the .ci AND adding interop passes: nightly evidence is welcome, it just
+        cannot stand in for the verify-tier binding."""
+        self.assertEqual(
+            self._errs(
+                [
+                    _tag("RFC7606-2-1", "negative", file=_CI_FILE),
+                    _tag("RFC7606-2-1", "positive", file=_INTEROP_FILE),
+                ],
+                {"RFC7606-2-1": {"functional/verify"}},
+            ),
+            [],
+        )
+
+    def test_losing_nightly_while_keeping_verify_still_fires(self):
+        """The counters are INDEPENDENT, so the check runs in both directions."""
+        errs = self._errs(
+            [_tag("RFC7606-2-1", "negative", file=_CI_FILE)],
+            {"RFC7606-2-1": {"functional/verify", "interop/nightly"}},
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("interop/nightly", errs[0])
+
+    def test_non_unit_ratchet_accepts_growth(self):
+        """AC-15: baseline+1 passes. Boundary above."""
+        self.assertEqual(
+            self._errs(
+                [_tag("RFC7606-2-1", "negative", file=_CI_FILE)],
+                {},
+            ),
+            [],
+        )
+
+    def test_holding_the_baseline_exactly_passes(self):
+        """AC-15 boundary: the baseline value itself is valid, only below it fails."""
+        self.assertEqual(
+            self._errs(
+                [_tag("RFC7606-2-1", "negative", file=_CI_FILE)],
+                {"RFC7606-2-1": {"functional/verify"}},
+            ),
+            [],
+        )
+
+    def test_moving_a_ci_tag_within_the_carrier_is_invisible(self):
+        """Keyed by kind/tier, not by file:line, so renaming or moving a .ci is not a
+        loss -- the same reason check_coverage_ratchet compares sets."""
+        self.assertEqual(
+            self._errs(
+                [
+                    _tag(
+                        "RFC7606-2-1",
+                        "negative",
+                        file="test/plugin/renamed.ci",
+                        line=99,
+                    )
+                ],
+                {"RFC7606-2-1": {"functional/verify"}},
+            ),
+            [],
+        )
+
+    def test_rfc_enrolled_in_this_change_is_not_accused(self):
+        """Scoped like its sibling: an RFC not enrolled at HEAD is judged by evaluate()'s
+        ordinary rules, not accused of losing evidence it never had."""
+        self.assertEqual(
+            R.check_evidence_ratchet(
+                requirements=[_req("RFC7606-2-1")],
+                tags=[],
+                enrolled={"rfc7606"},
+                baseline_evidence={"RFC7606-2-1": {"functional/verify"}},
+                baseline_enrolled=set(),
+            ),
+            [],
+        )
+
+    def test_unit_evidence_is_not_ratcheted_here(self):
+        """Unit tags never enter the comparison: check_coverage_ratchet already guards
+        proof-of-polarity, and duplicating it here would fire twice for one loss."""
+        self.assertEqual(
+            R.nonunit_evidence([_tag("RFC7606-2-1", "positive", file="a_test.go")]), {}
+        )
+
+
+class TestEvidenceRatchetWiring(unittest.TestCase):
+    """check_evidence_ratchet is dead code unless run_check calls it with the real
+    baseline. Drives run_check end-to-end (ai/rules/integration-completeness.md)."""
+
+    def _drive(self, tags, baseline_evidence):
+        with _patched(
+            load_enrolled=lambda: {"rfc7606"},
+            summary_stems=lambda: {"rfc7606"},
+            parse_summary_file=lambda path: [_req("RFC7606-2-1")],
+            _git_baseline_enrolment=lambda: {"rfc7606"},
+            _git_baseline_ids=lambda: {"RFC7606-2-1"},
+            _git_baseline_tag_polarities=lambda: {},
+            _git_baseline_evidence=lambda: baseline_evidence,
+            _git_baseline_summary_stems=lambda: {"rfc7606"},
+            scan_tree=lambda *a, **k: tags,
+            check_status_agreement=lambda *a, **k: [],
+            check_audit_freshness=lambda *a, **k: [],
+            check_ledger_fresh=lambda *a, **k: [],
+        ):
+            return _run_capturing(R.run_check)
+
+    def test_run_check_fails_when_non_unit_evidence_is_lost(self):
+        code, out = self._drive(
+            [
+                _tag("RFC7606-2-1", "positive", file="internal/x_test.go"),
+                _tag("RFC7606-2-1", "negative", file="internal/x_test.go", line=2),
+            ],
+            {"RFC7606-2-1": {"functional/verify"}},
+        )
+        self.assertEqual(code, 2, out)
+        self.assertIn("lost its functional/verify evidence", out)
+
+    def test_run_check_clean_when_non_unit_evidence_held(self):
+        """Discriminates from 'always fails'."""
+        code, out = self._drive(
+            [
+                _tag("RFC7606-2-1", "positive", file="internal/x_test.go"),
+                _tag("RFC7606-2-1", "negative", file=_CI_FILE, line=7),
+            ],
+            {"RFC7606-2-1": {"functional/verify"}},
+        )
+        self.assertEqual(code, 0, out)
+
+    def test_run_check_publishes_the_tier_split(self):
+        """The summary line never flattens the tiers into one number (R-1)."""
+        _, out = self._drive(
+            [
+                _tag("RFC7606-2-1", "positive", file="internal/x_test.go"),
+                _tag("RFC7606-2-1", "negative", file=_CI_FILE, line=7),
+            ],
+            {},
+        )
+        self.assertIn("unit/verify 1", out)
+        self.assertIn("functional/verify 1", out)
+        self.assertIn("interop/nightly 0", out)
 
 
 # --------------------------------------------------------------------------
@@ -1696,6 +2404,7 @@ class TestRetiredRequirementsWiring(unittest.TestCase):
             _git_baseline_enrolment=lambda: {"rfc7606"},
             _git_baseline_ids=lambda: {"RFC7606-2-1", "RFC7606-2-2"},
             _git_baseline_tag_polarities=lambda: {},
+            _git_baseline_evidence=lambda: {},
             _git_baseline_summary_stems=lambda: {"rfc7606"},
             scan_tree=lambda *a, **k: tags,
             check_status_agreement=lambda *a, **k: [],
@@ -1735,6 +2444,7 @@ class TestDegradedBaselineIsQuiet(unittest.TestCase):
             _git_baseline_enrolment=lambda: {"rfc7606"},
             _git_baseline_ids=lambda: {"RFC7606-2-1"},
             _git_baseline_tag_polarities=lambda: {},
+            _git_baseline_evidence=lambda: {},
             _git_baseline_summary_stems=lambda: stems_baseline,
             source_keyword_count=lambda stem: 23,
             scan_tree=lambda *a, **k: [
@@ -1781,6 +2491,7 @@ class TestNewSummaryEnrolmentWiring(unittest.TestCase):
             _git_baseline_enrolment=lambda: {"rfc7606"},
             _git_baseline_ids=lambda: {"RFC7606-2-1", "RFC9999-1-1"},
             _git_baseline_tag_polarities=lambda: {},
+            _git_baseline_evidence=lambda: {},
             _git_baseline_summary_stems=lambda: baseline_stems,
             scan_tree=lambda *a, **k: [
                 _tag("RFC7606-2-1", "positive"),
@@ -1836,6 +2547,7 @@ class TestSummaryParseErrorWiring(unittest.TestCase):
                 _git_baseline_ids=lambda: set(),
                 _git_baseline_summary_stems=lambda: {"rfc7606"},
                 _git_baseline_tag_polarities=lambda: {},
+                _git_baseline_evidence=lambda: {},
                 scan_tree=lambda *a, **k: list(tags),
                 check_status_agreement=lambda *a, **k: [],
                 check_audit_freshness=lambda *a, **k: [],
@@ -3999,6 +4711,7 @@ class _ExtractionDrive(unittest.TestCase):
             _git_baseline_enrolment=lambda: base,
             _git_baseline_ids=lambda: {r.rid for r in reqs},
             _git_baseline_tag_polarities=lambda: {},
+            _git_baseline_evidence=lambda: {},
             _git_baseline_summary_stems=lambda: set(enrolled),
             scan_tree=lambda *a, **k: [
                 _tag(r.rid, p) for r in reqs for p in ("positive", "negative")
@@ -4358,6 +5071,307 @@ class TestGrandfatheredBacklog(unittest.TestCase):
         self.assertEqual(env["signed"], 0)
         self.assertEqual(env["backlog"], len(self._BACKLOG))
         self.assertEqual(env["unsigned"], sorted(self._BACKLOG))
+
+
+class TestCITierIsEarnedNotAssumed(unittest.TestCase):
+    """A `.ci`/`.et` claims merge-gate tier only where a ze-verify stage runs it.
+
+    The `functional` and `editor` carriers used to declare `prefix=""`, so ANY `.ci`
+    anywhere under internal/, pkg/ or test/ was credited `functional/verify` by extension
+    alone. Three evasions followed, each of them silent: move a tagged `.ci` out of a run
+    suite (test/traffic/), into the gitignored incubator (test/draft/), or into a tree
+    whose sibling check.py the SAME table refuses as unrun (test/ipsec-interop/). The tier
+    is now derived from mk/test-functional.mk's own suite list, so it tracks reality
+    instead of restating it (ai/rules/derive-not-hardcode.md).
+    """
+
+    def test_a_run_suite_is_verify_tier(self):
+        for rel in ("test/plugin/x.ci", "test/parse/x.ci", "test/ospf/x.ci"):
+            c = R.carrier_for(rel)
+            self.assertIsNotNone(c, rel)
+            self.assertEqual(c.tier, R.TIER_VERIFY, rel)
+            self.assertEqual(c.label, "functional/verify", rel)
+
+    def test_evasion_moving_a_ci_out_of_a_run_suite_is_not_verify_tier(self):
+        """test/traffic/, test/vpp/, test/chaos-web/ and friends have runners but sit
+        outside ze-functional-test's suite list, so nothing runs them on the merge path."""
+        for rel in (
+            "test/traffic/x.ci",
+            "test/vpp/x.ci",
+            "test/chaos-web/x.ci",
+            "test/static/x.ci",
+            "test/vrrp/x.ci",
+            "test/flow-export/x.ci",
+            "test/ipsec/x.ci",
+            "test/chaos/x.ci",
+        ):
+            c = R.carrier_for(rel)
+            self.assertIsNotNone(c, rel)
+            self.assertEqual(c.tier, R.TIER_UNRUN, rel)
+
+    def test_evasion_moving_a_ci_into_the_draft_incubator_is_not_a_carrier(self):
+        """test/draft/ is the mandated incubator (ai/rules/testing.md) and is gitignored.
+        A repo-wide scanner must SKIP it, not refuse it: a draft is invisible to gates, so
+        it can neither claim evidence nor redden anyone else's run."""
+        for rel in (
+            "test/draft/plugin/wip.ci",
+            "test/draft/editor/wip.et",
+            "test/draft/interop/scenarios/1/check.py",
+        ):
+            self.assertIsNone(R.carrier_for(rel), rel)
+
+    def test_evasion_moving_a_ci_beside_a_refused_check_py_is_not_verify_tier(self):
+        """The sharpest of the three: test/ipsec-interop/**/check.py is refused as unrun
+        while test/ipsec-interop/**.ci was credited verify-tier, in ONE table."""
+        for tree in ("ipsec-interop", "l2tp-interop", "pppoe-interop", "interop"):
+            ci = R.carrier_for(f"test/{tree}/regress.ci")
+            self.assertIsNotNone(ci, tree)
+            self.assertEqual(ci.tier, R.TIER_UNRUN, tree)
+
+    def test_a_ci_outside_test_is_not_verify_tier(self):
+        """TEST_ROOTS includes internal/ and pkg/. No suite walks either for .ci."""
+        for rel in (
+            "internal/component/bgp/x.ci",
+            "pkg/plugin/x.ci",
+            "pkg/plugin/x.et",
+        ):
+            c = R.carrier_for(rel)
+            self.assertIsNotNone(c, rel)
+            self.assertEqual(c.tier, R.TIER_UNRUN, rel)
+
+    def test_editor_et_is_verify_tier_only_under_the_editor_suite(self):
+        self.assertEqual(R.carrier_for("test/editor/mode/x.et").tier, R.TIER_VERIFY)
+        self.assertEqual(R.carrier_for("test/traffic/x.et").tier, R.TIER_UNRUN)
+
+    def test_exabgp_compat_is_verify_tier_via_its_own_stage(self):
+        """test/exabgp-compat is not in ze-functional-test's list; it runs in the SEPARATE
+        ze-exabgp-test stage, which is in both stagesForMode branches."""
+        c = R.carrier_for("test/exabgp-compat/encoding/x.ci")
+        self.assertIsNotNone(c)
+        self.assertEqual(c.tier, R.TIER_VERIFY)
+        self.assertIn("ze-exabgp-test", c.runner)
+
+    def test_scan_tree_refuses_a_tag_in_an_unrun_ci(self):
+        """End-to-end: the refusal fires through scan_tree, not only through carrier_for."""
+        with _scratch() as root:
+            d = os.path.join(root, "test", "traffic")
+            os.makedirs(d)
+            with open(os.path.join(d, "x.ci"), "w", encoding="utf-8") as fh:
+                fh.write("# RFC requirement: RFC7606-1-1 positive -- note\n")
+            with self.assertRaises(R.ParseError) as cm:
+                R.scan_tree(root)
+        self.assertIn("nothing executes automatically", str(cm.exception))
+
+    def test_scan_tree_silently_skips_a_draft(self):
+        with _scratch() as root:
+            d = os.path.join(root, "test", "draft", "plugin")
+            os.makedirs(d)
+            with open(os.path.join(d, "wip.ci"), "w", encoding="utf-8") as fh:
+                fh.write("# RFC requirement: RFC7606-1-1 positive -- note\n")
+            self.assertEqual(R.scan_tree(root), [])
+
+    def test_functional_suites_are_read_from_the_makefile(self):
+        suites = R.functional_suites()
+        self.assertIn("plugin", suites)
+        self.assertIn("editor", suites)
+        self.assertNotIn("traffic", suites)
+        raw = _read_repo("mk/test-functional.mk")
+        for s in suites:
+            self.assertIn(s, raw, s)
+
+    def test_an_unparseable_suite_list_fails_closed(self):
+        with _scratch() as root:
+            os.makedirs(os.path.join(root, "mk"))
+            path = os.path.join(root, "mk", "test-functional.mk")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write("ze-functional-test:\n\t@echo nope\n")
+            with self.assertRaises(R.ParseError):
+                R.functional_suites(path)
+
+    def test_a_second_suite_assignment_fails_closed(self):
+        """The derivation took the FIRST `all_suites=` match, so a second assignment --
+        a plausible future `ze-functional-list` or `-quick` recipe -- silently decided the
+        tier of every `.ci` in the repo. That is the same fail-open the earned tier exists
+        to close, arriving through the derivation instead of the extension: whichever list
+        the regex reached first became the definition of "runs on the merge path".
+
+        Deliberately name-agnostic. The suite names in both decoys below are nonsense, so
+        this test cannot be satisfied by enumerating today's un-run directories the way
+        test_evasion_moving_a_ci_out_of_a_run_suite_is_not_verify_tier does -- a decoy
+        naming test/hub/ or test/stress/ walked straight past that enumeration. What is
+        asserted is that AMBIGUITY itself is refused: two answers is not an answer
+        (ai/rules/fail-closed-guards.md).
+        """
+        with _scratch() as root:
+            os.makedirs(os.path.join(root, "mk"))
+            path = os.path.join(root, "mk", "test-functional.mk")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(
+                    "ze-functional-list:\n"
+                    '\tall_suites="qqalpha qqbeta"; \\\n'
+                    "\tfor suite in $$all_suites; do echo $$suite; done\n"
+                    "\n"
+                    "ze-functional-test:\n"
+                    '\tall_suites="qqgamma qqdelta"; \\\n'
+                    "\tfor suite in $$all_suites; do echo $$suite; done\n"
+                )
+            with self.assertRaises(R.ParseError) as cm:
+                R.functional_suites(path)
+        msg = str(cm.exception)
+        self.assertIn(path, msg)
+        self.assertIn("2", msg)
+        # Neither list may be adopted: the refusal must not read as "we picked one".
+        self.assertNotIn("qqalpha", msg)
+        self.assertNotIn("qqgamma", msg)
+
+    def test_the_repo_declares_its_suite_list_exactly_once(self):
+        """The other half of the pin: the refusal above is only reachable if the real
+        recipe is unambiguous today, so the count is asserted against the real file."""
+        raw = _read_repo("mk/test-functional.mk")
+        self.assertEqual(len(R._ALL_SUITES_RE.findall(raw)), 1)
+
+    def test_refusal_message_is_grammatical(self):
+        """The catch-all's message used to read '... -- no declared runner has no
+        automated caller'. It is the message most likely to be hit, so it is the one that
+        must parse as English (ai/rules/error-messages.md)."""
+        for c in R.CARRIERS:
+            if c.tier != R.TIER_UNRUN:
+                continue
+            msg = str(R._refuse_unrun(c, R.Tag("RFC7606-1-1", "positive", "f.ci", 1)))
+            self.assertNotIn(" has no automated caller", msg, c.name)
+            self.assertIn(f"runner: {c.runner}", msg, c.name)
+            self.assertIn(f"pipeline: {c.pipeline}", msg, c.name)
+
+
+class TestTierMatchesPipelineReality(unittest.TestCase):
+    """F4: the tier table is a claim about OTHER files, so it is pinned to their text.
+
+    Source-text assertions in the style of internal/test/runner/draft_dir_test.go's
+    TestDraftDirIsInvisibleToRepoGates: cheaper and more honest than materializing a fake
+    repo, and they red the moment the claim stops being true.
+    """
+
+    def test_every_verify_tier_carrier_names_a_real_verify_stage(self):
+        """A declared verify row names its OWN stage; a derived row rides the functional
+        stage, so what must be pinned there is that the functional stage exists at all."""
+        verify_src = _read_repo("scripts/status/verify_run.go")
+        for c in R.CARRIERS:
+            if c.tier != R.TIER_VERIFY:
+                continue
+            if c.derived:
+                self.assertIn(
+                    'mk("ze-functional-test")',
+                    verify_src,
+                    f"carrier {c.name} rides the functional stage, which stagesForMode "
+                    f"no longer runs",
+                )
+                continue
+            target = _make_target(c.runner)
+            stages = _verify_stages(verify_src)
+            # Prefix, not equality: ze-verify splits the unit run into ze-unit-test-cached
+            # and ze-unit-test-race-changed (full) or ze-unit-test-changed (changed mode),
+            # while `make ze-unit-test` is the whole-suite target a human runs. What must
+            # hold is that SOME verify stage runs this target's work.
+            self.assertTrue(
+                any(s == target or s.startswith(target + "-") for s in stages),
+                f"carrier {c.name} claims tier '{R.TIER_VERIFY}' but no stagesForMode "
+                f"stage runs {target}; stages are {sorted(stages)}",
+            )
+
+    def test_every_derived_suite_is_a_token_in_the_makefile_suite_list(self):
+        """The text pin. Token-exact, not substring: `ospf` is a prefix of `ospfv3` and
+        `l2tp` of `l2tp-wire`, so a substring test would pass a suite that is not run."""
+        raw = _read_repo("mk/test-functional.mk")
+        line = next(ln for ln in raw.splitlines() if "all_suites=" in ln)
+        tokens = set(line.split('"')[1].split())
+        self.assertGreater(len(tokens), 5)
+        derived = [c for c in R.CARRIERS if c.derived]
+        self.assertGreater(
+            len(derived), 5, "no derived suite rows: the parse found nothing"
+        )
+        for c in derived:
+            suite = c.prefix.split("/")[1]
+            self.assertIn(
+                suite,
+                tokens,
+                f"carrier {c.name} claims a ze-verify functional suite that "
+                f"mk/test-functional.mk does not run",
+            )
+
+    def test_the_nightly_carrier_names_a_job_the_nightly_workflow_runs(self):
+        wf = _read_repo(".github/workflows/evidence-nightly.yml")
+        for c in R.CARRIERS:
+            if c.tier != R.TIER_NIGHTLY:
+                continue
+            target = _make_target(c.runner)
+            self.assertIn(
+                target,
+                wf,
+                f"carrier {c.name} claims tier '{R.TIER_NIGHTLY}' but {target} is not in "
+                f"the nightly workflow",
+            )
+
+    def test_no_unrun_carrier_is_secretly_wired(self):
+        """The other side of the ratchet: an unrun row that HAS become automated is a
+        stale refusal, and a stale refusal blocks evidence that is now real."""
+        verify_src = _read_repo("scripts/status/verify_run.go")
+        wf = _read_repo(".github/workflows/evidence-nightly.yml")
+        for c in R.CARRIERS:
+            if c.tier != R.TIER_UNRUN:
+                continue
+            target = _make_target(c.runner)
+            if not target:
+                continue
+            self.assertNotIn(f'mk("{target}")', verify_src, c.name)
+            self.assertNotIn(target, wf, c.name)
+
+
+class TestTagMarkerPrefilter(unittest.TestCase):
+    """F5: TAG_MARKER's comment claimed it was the cheap pre-filter; nothing used it."""
+
+    def test_tag_marker_gates_the_expensive_scan(self):
+        """A check.py that cannot be tokenized is a hard ParseError -- unless it holds no
+        marker at all, in which case it is skipped before the tokenizer ever sees it. That
+        asymmetry is the pre-filter, observable."""
+        with _scratch() as root:
+            d = os.path.join(root, "test", "interop", "scenarios", "01-x")
+            os.makedirs(d)
+            with open(os.path.join(d, "check.py"), "w", encoding="utf-8") as fh:
+                fh.write("def broken(:\n")  # unparseable
+            self.assertEqual(R.scan_tree(root), [])
+
+            with open(os.path.join(d, "check.py"), "w", encoding="utf-8") as fh:
+                fh.write(
+                    "# RFC requirement: RFC7606-1-1 positive -- note\ndef broken(:\n"
+                )
+            with self.assertRaises(R.ParseError):
+                R.scan_tree(root)
+
+    def test_the_git_baseline_reuses_the_marker_constant(self):
+        src = _read_repo("scripts/dev/rfc_requirements.py")
+        body = src.split("def _read_git_baseline_tags", 1)[1].split("\ndef ", 1)[0]
+        self.assertNotIn(
+            '"RFC requirement:"',
+            body,
+            "_read_git_baseline_tags re-spells TAG_MARKER instead of reading it",
+        )
+        self.assertIn("TAG_MARKER", body)
+
+
+class TestNightlyRollupProse(unittest.TestCase):
+    """F8: the rollup counted a nightly-only requirement in Both AND in Nightly-only while
+    the prose said adding them to Both would misrepresent nightly evidence."""
+
+    def test_prose_does_not_contradict_the_counting(self):
+        prose = "\n".join(
+            R._render_rollup(
+                {"rfc7606": [_req("RFC7606-2-1")]},
+                {},
+                {"rfc7606"},
+            )
+        )
+        self.assertNotIn("adding them to **Both** would present", prose)
+        self.assertIn("polarity view", prose)
 
 
 class TestRealTree(unittest.TestCase):

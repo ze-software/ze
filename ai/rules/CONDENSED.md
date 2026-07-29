@@ -4089,7 +4089,7 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 |--------|----------------|
 | A `{not-applicable}` whose reason is "ze has no X producer at all" | That admission is often the violation of a separate MUST requiring X to exist. RFC 4271 §5.1.4's "MUST implement a mechanism ... that allows MULTI_EXIT_DISC to be removed" was unextracted, and two requirements cited its absence as their exemption. |
 | A section whose siblings are enumerated but one clause is not | RFC 8666 §5's "MUST be ignored on reception" was omitted while §6, §7.1 and §7.2 each had it. An enumeration hole, not a style choice. |
-## What Keeps RFC Testing Valid (the five ratchets)
+## What Keeps RFC Testing Valid (the six ratchets)
 `make ze-rfc-check` reads the WORKING TREE to judge coverage, and a tree cannot tell "never proven" from "stopped being proven".
 | Ratchet | Producer | Fires when |
 |---------|----------|-----------|
@@ -4097,8 +4097,9 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 | **Proof is monotonic** | `check_coverage_ratchet` | a requirement loses a polarity it had at HEAD. `{gap}` is NOT an escape: it is the move being blocked |
 | **Requirements do not vanish** | `check_retired_requirements` | a requirement id of an enrolled RFC disappears from its summary. Without this, deleting the checklist line is the CHEAPEST route from red to green, cheaper than `{gap}` which costs a public disclosure row, and the ratchet would be pressuring people to hide obligations rather than declare them. Correcting a misquote means editing the TEXT under the same id, which is allowed |
 | **Adding an RFC adds checking** | `check_new_summaries` | a summary that is NEW since HEAD declares gated MUSTs and is not in `rfc/enrolled.txt`, fails to parse, or captures zero requirements while `rfc/full/<stem>.txt` has MUST-level keywords |
+| **Non-unit evidence is monotonic, per tier** | `check_evidence_ratchet` | a requirement loses an evidence KIND it had at HEAD -- its `.ci` becomes a unit test, or its verify-tier binding is swapped for a nightly-tier interop one. Keyed by `kind/tier`, so a substitution that leaves the tag COUNT unchanged still fires: a unit test proves the algorithm, only a running functional or interop test proves the daemon or a peer. No annotation satisfies it |
 | **Extraction is monotonic** | `check_extraction_ratchet` | a stem that carried a sign-off at HEAD carries none now, or a signed stem's exclusion count RISES without a `resign-reason` and a bumped `signed-off` date. The first stops the bound being un-bound by deleting a file; the second stops the exclusion list becoming an escape hatch where every unmapped site is excluded with a shrug |
-**Beside the five, `check_drain_floor` compares the derived sign-off count against the drain policy in `rfc/drain-budget.txt` (a start date and a rate, and nothing else).** It is a schedule rather than a ratchet, and it ships INERT at rate 0: arming it is a one-line commit only the owner takes.
+**Beside the six, `check_drain_floor` compares the derived sign-off count against the drain policy in `rfc/drain-budget.txt` (a start date and a rate, and nothing else).** It is a schedule rather than a ratchet, and it ships INERT at rate 0: arming it is a one-line commit only the owner takes.
 **What none of this catches: a tagged test whose assertions are weakened *in place* while keeping the same shape.** That is `c_test_weakening` and `scripts/dev/audit-test-relaxation.py`, plus the SHA ratchet (`check_audit_freshness`) wherever `/ze-rfc-audit` has recorded a verdict. The SHA ratchet is armed only for RFCs that have an `rfc/audit/<rfc>.json`.
 ## Before Implementing BGP Features
 1. Find RFC in `rfc/` — if missing: `curl -o rfc/full/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
@@ -4387,6 +4388,18 @@ A test carrying an `RFC requirement: <id> <polarity>` tag is the proof behind a 
 | The summary misquotes the RFC | Fix `rfc/short/rfcNNNN.md` (keep the id), then re-run `/ze-rfc-audit` |
 | Reformat / comment / re-tag | Allowed; behavior must be unchanged |
 | You added, moved, deleted, or re-tagged a tagged test (or an edit shifted its line) | Run `make ze-rfc-index` and commit `ai/RFC-REQUIREMENTS.md` in the SAME commit. The ledger records each test's `file:line`, and `ze-rfc-check` (both verify modes) fails on a stale ledger, so a skipped regen lands on the next session as a cross-commit diff |
+**Where a tag may live, and what it is worth: four carriers, declared once in `CARRIERS` (`scripts/dev/rfc_requirements.py`) and derived by the scanner, the HEAD baseline, the ledger and the ratchets. Evidence has two axes: KIND (which layer the test exercises) and TIER (whether anything executes it).**
+| Carrier | Cell in the ledger | Executed by | Tier |
+|---------|--------------------|-------------|------|
+| `*_test.go` | `unit/verify` | `make ze-unit-test` | runs on every push |
+| `*.ci` | `functional/verify` | `make ze-functional-test` | runs on every push, but ONLY from a suite that target actually runs: the tier is derived per-suite from `mk/test-functional.mk`'s own `all_suites=` line, so a `.ci` in a suite outside it (traffic, vrrp, ipsec, flow-export, static, vpp, chaos) earns no verify tier, and `test/draft/` is skipped entirely |
+| `*.et` | `editor/verify` | `make ze-editor-test` | runs on every push, on the same earned-per-suite basis as `*.ci` |
+| `test/interop/scenarios/*/check.py` | `interop/nightly` | `make ze-interop-test` | scheduled, ADVISORY |
+- **Prefer a `.ci` over an interop binding** when a behavior is reachable from both: a `.ci` runs inside `ze-verify` on every push, interop does not (owner decision, umbrella D3).
+- A requirement whose ONLY evidence is nightly-tier is marked `**nightly-only**` on its ledger row and counted in its own rollup column: it is not merge-gate-proven, and the rollup deliberately never sums the two.
+- **A tag in `test/ipsec-interop/`, `test/l2tp-interop/`, `test/pppoe-interop/`, or any other `check.py` tree is REFUSED** with an error naming the file, because nothing runs those suites automatically and a tag nothing executes is an absence of evidence rather than weak evidence: wire the suite into a pipeline first, then give its carrier a tier in `CARRIERS`.
+- **Non-unit evidence is monotonic, per requirement and per tier.** Replacing a `.ci` binding with a unit tag, or with a nightly interop tag, fails `make ze-rfc-check`, and no annotation satisfies it.
+- A `check.py` is TOKENIZED, not line-scanned: a `#` inside a docstring or string literal is not a comment and is not a tag, and an untokenizable `check.py` fails the scan closed.
 ## Back-Fill New Test Types (BLOCKING)
 When you introduce a new test type, technique, or infrastructure (fuzz target, property test, mutation gate, `-race` sweep, clock-injection audit, new `.ci`/`.et` category, QEMU harness), apply it to the existing code...
 1. Name the applicable set: the package glob, symbol kind, or call-site pattern the new test type is meant to cover.
@@ -4497,7 +4510,7 @@ that can fail because of the changed file: direct Go test, matching `.ci`/`.et` 
 | Single functional test | `ze-test bgp plugin N` or `ze-test ui N` | seconds |
 | Resume functional suite | `ze-test bgp plugin --start N` or `ze-test ui --start N` | seconds to remaining suite |
 | Single encode test | `ze-test bgp encode N` | seconds |
-| Single editor test | `ze-test editor N` or `ze-test editor -p pattern` | seconds |
+| Single editor test | `ze-test editor N` or `ze-test editor --pattern <name>` | seconds |
 | Single ExaBGP compatibility test | `ze-test exabgp N` or `ze-test exabgp --start N` | seconds |
 | Single Go test | `go test -race -run TestName ./pkg/...` | seconds |
 | Single package | `go test -race ./internal/component/bgp/reactor/...` | seconds |
@@ -4509,7 +4522,8 @@ that can fail because of the changed file: direct Go test, matching `.ci`/`.et` 
 | Use | Form |
 |-----|------|
 | Iterating right now, from a failure index you just read | `ze-test bgp plugin 145` |
-| A script, a gate subset, a handover, a claim of evidence | `ze-test bgp plugin -p <name>` (`--pattern`) |
+| A script, a gate subset, a handover, a claim of evidence | `ze-test bgp plugin --pattern <name>` |
+**Always spell `--pattern` in full: `-p` is a DIFFERENT flag in most suites.** `-p` is `--parallel` (an int) for `ze-test bgp <type>`, `ze-test exabgp`, `ze-test vpp` and every `.ci` suite on the shared runner (`internal/test/cli/cmd_bgp.go:560`, `cmd_exabgp.go:201`, `cmd_vpp.go:148`, `ci_runner.go:47`), and `--pattern` (a string) only for `ze-test editor` and `ze-test web` (`cmd_editor.go:31`, `cmd_web.go:80`); `--pattern` itself has no short form anywhere. So `ze-test bgp plugin -p rfc7606-relay-one-field` is not a filtered run, it is a parse failure -- exit 2, no output, no tests -- and it reads as "nothing to report" rather than as an error.
 **A `ze.log.<subsystem>` key in a `.ci` test must name a real slog subsystem.**
 **Escalation ladder:** direct test -> file/feature test -> single package -> component group -> whole suite or `ze-verify`. If any rung fails, fix from that evidence and rerun the failed rung or a narrower failing test, not a wider suite.
 **Overlapping runs:** If a test run is failing, kill it before starting another. Never run `make ze-verify` twice concurrently.

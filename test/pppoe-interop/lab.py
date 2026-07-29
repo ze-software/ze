@@ -393,7 +393,17 @@ class Scenario:
                 "-e",
                 "ZE_STORAGE_BLOB=false",
             ],
-            cmd=["/etc/ze/ze.conf"],
+            # `start <config>`: the bare `ze <config>` launch form was removed from the CLI,
+            # and the image ENTRYPOINT is `tini -- ze`, so the old cmd died with "unknown
+            # command". Same defect as test/interop/interop.py. The first pass fixed only
+            # the four Docker labs; a later audit found the dead form still live at eight
+            # more executable sites (scripts/evidence/effective-{l2tp-ppp,pppoe-accel,
+            # vrrp-keepalived,vpp,vpp-iface}.py, test/stress/harness.py,
+            # test/plugin/lg-graph-lab/run.sh, docker/compose.yaml) and in five docs. The
+            # audit is only complete when it covers EVERY invocation site of the bare
+            # token, not the ones sharing a directory (ai/rules/before-writing-code.md,
+            # Sibling Call-Site Audit).
+            cmd=["start", "/etc/ze/ze.conf"],
         )
 
     def teardown(self):
