@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1260 summaries
+Total: 1263 summaries
 
 ## 000-099
 
@@ -1330,7 +1330,10 @@ Total: 1260 summaries
 | 1283 | fixit-ci-plugin-suite-nine | `plan/learned/1283-fixit-ci-plugin-suite-nine.md` |
 | 1284 | test-draft-workflow | `plan/learned/1284-test-draft-workflow.md` |
 | 1285 | bgp-attribute-order-one-convention | `plan/learned/1285-bgp-attribute-order-one-convention.md` |
+| 1286 | Plugin ConfigureMetrics never reached the registry; role-otc-egress-filter proved nothing | `plan/learned/1286-plugin-metrics-never-registered.md` |
 | 1287 | Rule routing, severity honesty, and a WIP cap | `plan/learned/1287-rule-routing-severity-and-wip-cap.md` |
 | 1288 | The discovery-index gate judges the commit, not the working tree | `plan/learned/1288-commit-view-discovery-index.md` |
 | 1289 | Delegation by default: overriding a harness guard from inside the repo | `plan/learned/1289-delegation-by-default.md` |
+| 1290 | Every IPv6 next-hop was invisible in `show bgp rib`, behind a test that could not fail | `plan/learned/1290-mp-reach-next-hop-invisible-in-show.md` |
 | 1291 | The pipe gate: what counts as a producer, and which shapes it can see | `plan/learned/1291-pipe-gate-producer-and-shapes.md` |
+| 1292 | Web expectations sampled the DOM once, so `action=wait` could not save them | `plan/learned/1292-web-expectations-sampled-once.md` |
