@@ -27,7 +27,7 @@ they account for over 50 appearances in the corpus.
 | `block-silent-ignore.sh` | 30+ | Retired 2026-04-19 | [Retired](#retired) |
 | `check-existing-patterns.sh` | 15+ | Retired 2026-04-19 | [Retired](#retired) |
 | `require-related-refs.sh` | 7 | Active | [require-related-refs.sh](#require-related-refssh) |
-| `block-test-deletion.sh` | 6 | Active | [block-test-deletion.sh](#block-test-deletionsh) |
+| `block-test-deletion.sh` | 7 | Active | [block-test-deletion.sh](#block-test-deletionsh) |
 | `block-legacy-log.sh` | 4 | Retired 2026-04-19 | [Retired](#retired) |
 | `block-ignored-errors.sh` | 4 | Active | [block-ignored-errors.sh](#block-ignored-errorssh) |
 | `block-temp-debug.sh` | 3 | Active | [block-temp-debug.sh](#block-temp-debugsh-now-c_temp_debug-in-pretool-writeeditpy) |
@@ -826,22 +826,43 @@ forward-ref block still fires by design.
 
 ## `block-test-deletion.sh`
 
-**Trigger.** `Edit` on a `.ci` file whose non-comment non-empty line
-count decreases.
+**Now `c_test_weakening` in `.claude/hooks/pretool-writeedit.py`.**
+
+**Trigger.** `Edit`, `Write` or `MultiEdit` on a test file whose
+non-comment non-empty line count decreases (plus the assertion-removal,
+`t.Skip`, `require`->`assert` and `ignore`-build-tag checks).
 
 **Blocks.** Any line-count reduction on a `.ci` file, including
-removing redundant fixture content or debug prints.
+removing redundant fixture content or debug prints — **and a
+strengthening that happens to be shorter than what it replaces.**
 
-**Workaround (verified in 6 specs).** One of:
-1. Use `Write` to replace the whole file (the hook does not run on
-   `Write`).
+**Workaround (verified in 7 specs).** One of:
+1. Keep the line count equal. Wrapping a long call across two lines is
+   ordinary formatting and is enough:
+   `runtime_fail(\n    f'...')` in place of `print(...)` + `sys.exit(1)`.
 2. Add a substitute line of equivalent weight to preserve the count
    (e.g. a comment that documents what was removed).
+3. `// test-relax: <reason>` when the change genuinely IS a relaxation.
+   Do **not** reach for it to get a strengthening past the line count:
+   the escape hatch is what a reviewer greps, so a false one is worse
+   than the block.
+
+**Do NOT use `Write` to route around it.** The catalog said so for a
+long time and it is now wrong: the check runs on `Write` and
+`MultiEdit` as well as `Edit` (`ai/rules/hook-mapping.md`). A session
+following the old advice loses the time twice.
 
 **Never.** Do not attempt to collapse 4 lines to 1 — the hook will
 reject it as a 3-line deletion.
 
-**Evidence.** 545, 550, 558, 559, 560, 622.
+**The shape that recurs.** Replacing the banned observer-exit
+antipattern (`print('FAIL: ...'); sys.exit(1)`, two lines) with
+`runtime_fail('...')` (one line) is a strict improvement — the old form
+cannot reach the runner at all — and the hook reads four such
+replacements as a 4-line deletion. 1290 hit exactly this while fixing a
+test that had been silently red on every run since it was written.
+
+**Evidence.** 545, 550, 558, 559, 560, 622, 1290.
 
 ---
 
