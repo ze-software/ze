@@ -6,7 +6,54 @@ package webtesting
 import (
 	"fmt"
 	"strings"
+	"time"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
+
+const (
+	// expectDeadline bounds how long a POSITIVE expectation waits for the thing
+	// it is looking for. Sized against the HARNESS, not against how long a page
+	// "should" take: the suite drives four tests at once through a single shared
+	// agent-browser daemon, where one `snapshot` or `eval` round trip costs
+	// seconds and a 10-step test that runs in 3s alone takes 20-45s. At 5s this
+	// budget bought one or two samples and `commit-flow.wb` still lost the race.
+	// It stays well inside the per-test `option=timeout` (30-60s), so a genuinely
+	// missing element still fails the step rather than the whole test.
+	expectDeadline = 15 * time.Second
+	expectPoll     = 100 * time.Millisecond
+)
+
+// retryPositive re-evaluates check until it passes or the deadline expires, and
+// returns the LAST failure so the error still carries a current snapshot.
+//
+// Positive expectations must poll because `action=wait` cannot prove the update
+// they are waiting for has started. WaitLoad's predicate (runner.go
+// inflightIdleExpr) is `no in-flight request AND quiet for 120ms`, which is true
+// both AFTER a request finishes and BEFORE one begins: a click that dispatches
+// its htmx request asynchronously leaves a window in which the page is idle, the
+// wait returns immediately, and a single-sample assertion reads the pre-request
+// DOM. That is what failed `commit-flow.wb` line 15 and
+// `scenario-interface-setup.wb` under the suite's 4-way concurrency while both
+// passed alone.
+//
+// NEGATIVE expectations deliberately do NOT poll. "Not present" is satisfied by
+// the first sample, so retrying could only ever convert a real failure into a
+// pass by sampling earlier; the preceding wait is what makes the absence
+// meaningful.
+func retryPositive(check func() error) error {
+	deadline := time.Now().Add(expectDeadline)
+	for {
+		err := check()
+		if err == nil {
+			return nil
+		}
+		if !time.Now().Before(deadline) {
+			return err
+		}
+		time.Sleep(expectPoll)
+	}
+}
 
 // checkExpectation validates a single expectation against the current browser state.
 func checkExpectation(b *Browser, e *WBExpectation) error {
@@ -32,12 +79,24 @@ func checkElement(b *Browser, e *WBExpectation) error {
 	}
 
 	if id, ok := e.Values["id"]; ok {
-		html, htmlErr := b.GetHTML()
-		if htmlErr != nil {
-			return fmt.Errorf("html: %w", htmlErr)
-		}
-		if !strings.Contains(html, "id=\""+id+"\"") && !strings.Contains(html, "id='"+id+"'") {
-			return fmt.Errorf("expected element with id %q not found in DOM; snapshot:\n%s", id, snap)
+		var tb textbuf.Buffer
+		attrDouble := tb.Str("id=\"").Str(id).Byte('"').String()
+		attrSingle := tb.Reset().Str("id='").Str(id).Byte('\'').String()
+		if err := retryPositive(func() error {
+			html, htmlErr := b.GetHTML()
+			if htmlErr != nil {
+				return fmt.Errorf("html: %w", htmlErr)
+			}
+			if !strings.Contains(html, attrDouble) && !strings.Contains(html, attrSingle) {
+				current, snapErr := b.Snapshot()
+				if snapErr != nil {
+					current = snap
+				}
+				return fmt.Errorf("expected element with id %q not found in DOM; snapshot:\n%s", id, current)
+			}
+			return nil
+		}); err != nil {
+			return err
 		}
 	}
 
@@ -52,12 +111,18 @@ func checkElement(b *Browser, e *WBExpectation) error {
 	}
 
 	if text, ok := e.Values["text"]; ok {
-		fullSnap, textErr := b.FullSnapshot()
-		if textErr != nil {
-			return fmt.Errorf("full snapshot: %w", textErr)
-		}
-		if !strings.Contains(strings.ToLower(fullSnap), strings.ToLower(text)) {
-			return fmt.Errorf("expected element with text %q not found in snapshot:\n%s", text, fullSnap)
+		want := strings.ToLower(text)
+		if err := retryPositive(func() error {
+			fullSnap, textErr := b.FullSnapshot()
+			if textErr != nil {
+				return fmt.Errorf("full snapshot: %w", textErr)
+			}
+			if !strings.Contains(strings.ToLower(fullSnap), want) {
+				return fmt.Errorf("expected element with text %q not found in snapshot:\n%s", text, fullSnap)
+			}
+			return nil
+		}); err != nil {
+			return err
 		}
 	}
 
@@ -80,8 +145,17 @@ func checkHTML(b *Browser, e *WBExpectation) error {
 		return fmt.Errorf("html: %w", err)
 	}
 	if sub, ok := e.Values["contains"]; ok {
-		if !strings.Contains(html, sub) {
-			return fmt.Errorf("HTML does not contain %q", sub)
+		if err := retryPositive(func() error {
+			current, htmlErr := b.GetHTML()
+			if htmlErr != nil {
+				return fmt.Errorf("html: %w", htmlErr)
+			}
+			if !strings.Contains(current, sub) {
+				return fmt.Errorf("HTML does not contain %q", sub)
+			}
+			return nil
+		}); err != nil {
+			return err
 		}
 	}
 	if sub, ok := e.Values["not-contains"]; ok {

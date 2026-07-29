@@ -9,6 +9,32 @@ resolved.
 
 ## Struck-through (resolved in place, were not yet under `## Resolved`)
 
+### ~~`ze-test web` 20 `test/web/commit-flow.wb`~~ -- RESOLVED 2026-07-29: positive expectations sampled once against an asynchronous page
+
+The shard called this host-specific and unowned, and suggested `ze-test web -a -p 1`
+to separate daemon contention from page state. Two things were wrong with that.
+`-p` is `--pattern`, not parallelism, and the web suite has no parallelism flag at
+all -- it is hardcoded four-way -- so that command silently runs a 19-test subset,
+still four-way, and proves nothing.
+
+The mechanism was in the harness, not the product. `checkElement` and `checkHTML`
+(`internal/component/web/testing/expect.go`) took ONE snapshot and asserted, and
+the `action=wait` before them cannot cover an update that has not started:
+`WaitLoad`'s predicate (`runner.go` `inflightIdleExpr`) is "no in-flight request
+and quiet for 120ms", which is true both after a request finishes AND before one
+begins. A click that dispatches its htmx POST asynchronously leaves a window where
+the page is idle and a single sample reads the pre-request DOM. The commit bar is
+an out-of-band swap on the save response (`handler_config_form.go` renders
+`oob_save_ok`), so it lands strictly after that window.
+
+Positive expectations now poll to a deadline; negatives deliberately do not, since
+retrying an absence can only convert a real failure into a pass. The deadline is
+sized against the harness rather than the page: four tests share one agent-browser
+daemon, one round trip costs seconds, and a test that runs in 3s alone takes 20-45s
+here, so 5s bought one or two samples and was still losing. At 15s the full suite
+is 87/87 three runs running, and faster than the failing runs were (166-227s
+against 299-438s).
+
 ### ~~`ze-test bgp plugin` dest-peer-teardown cluster (85, 97, 222, 398)~~ -- RESOLVED 2026-07-25: all four members addressed, and the shard was already stale for one
 
 222 `forward-congestion-teardown-metrics` and 398 `role-otc-unicast-scope` were
