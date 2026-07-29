@@ -11,11 +11,25 @@
 # combination", so the source peer must not be reset. A NOTIFICATION or a dropped session
 # would fail this test at the exit code.
 #
-# AC-6 (withdrawals before announcements) is NOT asserted here, and the claim is left out
-# rather than implied: Checker.check matches an arriving message against every pending rule,
-# not just the head (internal/test/peer/checker.go:400-411), so declaration order in a .ci is
-# not arrival order. Ordering is pinned by the unit tests instead
-# (TestForwardSplitMixedShapeWithdrawalsFirst, TestSplitCompliantWithdrawalsPrecedeAnnouncements).
+# VALIDATES: AC-6 -- the withdrawal reaches the wire BEFORE the announcement. A peer must not
+# briefly see a stale route re-announced, which is why wireu/split.go calls that order
+# load-bearing and emits IPv4 withdrawals first by construction (buildCombinedUpdates).
+#
+# This header used to say AC-6 was NOT asserted, on the grounds that Checker.check matches an
+# arriving message against every pending rule rather than the head, so declaration order is not
+# arrival order. That is true only WITHIN one seq group. groupMessages
+# (internal/test/peer/checker.go) builds one group per (conn, seq) and sorts them, and
+# advanceSequence makes only the CURRENT group's rules live, so the seq=2 announce rule below
+# cannot be consumed while the seq=1 withdrawal rule is still pending: an announcement arriving
+# first matches nothing and fails as a mismatch. The two rules are in different seq groups, so
+# this file HAS been asserting arrival order all along.
+#
+# Verified rather than reasoned: reversing result.rawBodies/result.updates at the end of
+# buildFwdBody (reactor/forward_body.go), after supersedeKey and the withdrawal flag are
+# computed so only emission order changes, fails this test 3/3 with "message mismatch" and the
+# announcement as the only frame conn=2 accepted. The unit tests
+# (TestForwardSplitMixedShapeWithdrawalsFirst, TestSplitCompliantWithdrawalsPrecedeAnnouncements)
+# pin the two splitters; this file pins the whole daemon path.
 #
 # PREVENTS: the relay reproducing a received mixed shape. The unit tests pin buildFwdBody and
 # both splitters directly; this test is the one that proves the behavior survives the whole

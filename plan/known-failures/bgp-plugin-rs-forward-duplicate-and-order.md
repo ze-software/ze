@@ -148,8 +148,9 @@ self-replay is not the producer of 254's duplicate**. In that same capture the
 replay relayed nothing at all (`relay-stored-route: incomplete replay
 ... relayed=0 eligible=1`, `err="no established peers to forward to"`), preceded by
 `session established peer=127.0.0.2` and `session closed peer=127.0.0.2
-reason="connection lost"` 1 ms apart -- the receiver's session dies immediately
-under load, which is a different defect again. Do not re-derive "the self-replay
+reason="connection lost"` 1 ms apart -- the receiver's session dies one
+millisecond after it establishes, which is a different defect again and wants its
+own diagnosis of who closes that socket. Do not re-derive "the self-replay
 raced the claim" from the old text above; it is disproven for 254.
 
 380's missing withdraw is likewise untouched by this fix, consistent with the
@@ -207,3 +208,48 @@ the destination's `Up` is still the only gate on being a forward target, and
 turning that off would forward to a peer whose session is not established.
 
 Remaining work stays owned by `plan/spec-fixit-stored-route-relay-hardening.md`.
+
+## Update 2026-07-29: neither member reproduces; 380's ordering question is ANSWERED
+
+**Neither member reproduces on today's tree.** 380: 10 runs alone plus 60 under
+`stress-repro.py --any-failure`, all green. 254: 60 under the same, all green.
+That is measurement, not a fix claim -- ~20 commits touched these paths since
+`1e4224885`, `81dd09dfa` (wait for adj-rib-in to reach the cut) and `397ed9aaf`
+(the source arm) among them.
+
+**380's open ordering question is closed, and the answer is that the test was
+always right.** `1e4224885` recorded the next step as "an ordering question in
+ze's split path [that] needs its own investigation, against the producer". The
+producers were read, and every link preserves withdrawals-first:
+
+| Link | Why order survives |
+|------|--------------------|
+| `wireu/split.go` `buildCombinedUpdates` | drains IPv4 withdrawals BEFORE announces, by construction, with the order called load-bearing in its own comment |
+| `message` `SplitCompliant` (re-encode path) | pinned by `TestSplitCompliantWithdrawalsPrecedeAnnouncements` |
+| `reactor/forward_body.go` `buildFwdBody` | both splits land in ONE `fwdItem`'s `rawBodies`/`updates`, so no cross-item batching can reorder them |
+| `reactor/forward_bucket.go` `fwdBucketMerge` | skips multi-body items and any body carrying withdrawals |
+| `reactor/forward_pool.go` `fwdReorderWithdrawalsFirst` | only ever moves withdrawals EARLIER |
+| `runWorker` | one long-lived goroutine per destination peer, batches FIFO |
+
+**And the `.ci` header's claim that it does not assert AC-6 was FALSE.**
+`groupMessages` (`internal/test/peer/checker.go`) builds one group per
+`(conn, seq)` and `advanceSequence` makes only the current group live, so the
+`seq=2` announce rule cannot be consumed while the `seq=1` withdrawal rule is
+pending. Declaration order across seq groups IS arrival order; the header's
+"matches every pending rule" is true only WITHIN a group. Demonstrated: reversing
+`result.rawBodies`/`result.updates` at the end of `buildFwdBody`, after
+`supersedeKey` and the withdrawal flag are computed so only emission order
+changes, fails 380 3/3 with "message mismatch". The header is corrected.
+
+**The destination-arm blackhole above is NOT closed here.** It was written with
+`81dd09dfa` already in the tree, so its author saw Phase 1 and kept it open. The
+only case this pass could reason through is covered by that wait: a withdrawal at
+or below a peer's cut is applied to the Adj-RIB-In store before
+`replayForPeer`'s Phase 1 stops waiting on `coversCut`, so the route is simply
+absent from the replay rather than stranded. What that reasoning does NOT cover
+is the give-up branch: after `replayCatchUpBudget` (5s) bgp-rs logs
+"peer-up replay gave up waiting for adj-rib-in to reach the cut" and proceeds,
+and past that point routes at or below the cut are knowingly delivered by neither
+rail. That branch is deliberate and says so. Whoever picks this up: start by
+deciding whether that fail-open is the blackhole, or whether there is a second
+path this pass did not find.
