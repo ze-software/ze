@@ -334,7 +334,7 @@ out-of-window message can reach.
 |---|---|
 | WP-1 (Message ID, window) | Widening the accept predicate is the danger, not the rollover fix. `classifyInbound` (`internal/component/ike/engine/msgid.go:69-93`) accepts exactly one request at `ExpectedMsgID` today. Supporting a window > 1 means accepting a RANGE, and every message in that range is a replay candidate. The window must be bounded by the peer's stated SET_WINDOW_SIZE and by a local cap, an out-of-window message must be dropped without a response (`RFC7296-2.3-5`), and INVALID_MESSAGE_ID must be rate limited (`RFC7296-2.3-6`) or it becomes an amplification primitive. The exhaustion fix itself must CLOSE or REKEY, never reset the counter |
 | WP-2 (INFORMATIONAL encryption) | Encrypting the DPD probe must not weaken the response path: `handleDPDResponse` correlates by Message ID (`internal/component/ike/engine/dpd.go:30-32`), which is what rejects a replayed response masking a dead peer. That correlation must survive the change. The I-bit fix is one line and changes nothing security-relevant, but it is wire-visible to a conforming peer |
-| WP-3 (error notifications) | Every notification this package ADDS is a new unauthenticated response Ze emits, so each is an amplification and information-disclosure surface. RFC 7296 constrains them precisely and the constraints are the security property: the response MUST NOT be cryptographically protected (`2.21.4-3`), MUST go to the source address and port with the SPIs and Message ID copied (`2.21.4-2`), a peer receiving one MUST NOT respond (`2.21.4-5`) and MUST NOT change SA state (`2.21.4-6`, `-7`). A missing "MUST NOT respond" turns two Ze instances into a packet loop. Rate limiting is mandatory (`RFC7296-2.4-7`, already implemented) |
+| WP-3 (error notifications) | Every notification this package ADDS is a new unauthenticated response Ze emits, so each is an amplification and information-disclosure surface. RFC 7296 constrains them precisely and the constraints are the security property: the response MUST NOT be cryptographically protected (`2.21.4-3`), MUST go to the source address and port with the SPIs and Message ID copied (`2.21.4-2`), a peer receiving one MUST NOT respond (`2.21.4-5`) and MUST NOT change SA state (`2.21.4-6`, `-7`). A missing "MUST NOT respond" turns two Ze instances into a packet loop. Rate limiting is mandatory (`RFC7296-2.4-12`, already implemented) |
 | WP-4 (COOKIE) | The COOKIE secret and its rotation are the whole security value. A cookie that is not bound to the initiator's address and a rotating local secret is a token an attacker mints. The data is 1 to 64 octets (`RFC7296-2.6-3`); the initiator must echo it unchanged as the FIRST payload with everything else unchanged (`2.6-4`); a mismatched cookie must be IGNORED and the message processed as if absent (`2.6-5`), which is a deliberate fail-open the RFC specifies and must not be "hardened" into a rejection |
 | WP-6 (proposal validation) | This package makes Ze REJECT more, which is the safe direction, but each new rejection is reachable pre-authentication and must not panic, allocate unboundedly, or loop on attacker-controlled counts. `Transform.ReadFrom` accepts any attribute set today (`internal/component/ike/wire/payload_sa.go:72-95`); adding duplicate-attribute and encoding checks means iterating attacker-supplied lists |
 | WP-7 (TS narrowing) | Narrowing is a security control, not a formality: installing the initiator's TSi/TSr verbatim (`internal/component/ike/engine/responder.go:477-482`) means a peer selects its own traffic selectors and Ze installs XFRM policy for them. This is the highest-value item in the spec from a security standpoint, and `RFC7296-2.9.2-1`/`-2` bound the narrowing so a rekey cannot silently widen scope |
@@ -547,7 +547,7 @@ absence). Every scenario records which mutation turned it red.
 - `test/ipsec/ipsec-dpd-probe-encrypted.ci`, `ipsec-peer-delete-child.ci`, `ipsec-msgid-exhaustion.ci`, `ipsec-ts-narrowing.ci`, `ipsec-remote-access-cp.ci`, `ipsec-cookie-challenge.ci` - the functional tests
 - `test/parse/ipsec-psk-hex.ci` - hex PSK config parse
 - `test/ipsec-interop/scenarios/12-invalid-ke-retry/` through `20-ipcomp/` - the nine interop scenarios, each with `ze.conf`, the strongSwan config and `check.py`
-- A driven-clock seam for `maintainSA` so the timeout and rate-limit obligations (`RFC7296-2.4-6`, `-7`, `-9`) are provable without wall-clock sleeps (`ai/rules/fix-dont-record.md`)
+- A driven-clock seam for `maintainSA` so the timeout and rate-limit obligations (`RFC7296-2.4-11`, `-7`, `-9`) are provable without wall-clock sleeps (`ai/rules/fix-dont-record.md`)
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
@@ -749,7 +749,7 @@ checks a reviewer runs against the diff.
 | Input validation | Every new parse path over attacker-controlled bytes bounds its iteration by a length the header declares, not by an attacker-supplied count, and rejects rather than truncating |
 | Accept-predicate widening | Any change to `classifyInbound` or the Message ID window is examined for what it now ACCEPTS. A widened window is a widened replay surface, and the SET_WINDOW_SIZE value is peer-supplied |
 | Unauthenticated response surface | Every notification added by WP-3 is checked against `RFC7296-2.21.4-3` (not cryptographically protected), `-5` (recipient MUST NOT respond) and `-6`/`-7` (MUST NOT change SA state). A missing MUST NOT-respond is a packet loop between two Ze instances |
-| Rate limiting | Every new unauthenticated emission is rate limited (`RFC7296-2.4-7`, `2.3-6`). An unlimited notify is an amplification primitive |
+| Rate limiting | Every new unauthenticated emission is rate limited (`RFC7296-2.4-12`, `2.3-6`). An unlimited notify is an amplification primitive |
 | Endpoint adoption | The observed source address/port (WP-8) is used for the reply only; an established SA's stored peer endpoint changes only on an authenticated message |
 | Authorization fails closed | `RFC7296-2.19-5` and `2.19-6` are authorization checks. Neither may fall through to the permissive branch on a miss (`ai/rules/fail-closed-guards.md`) |
 | Outbound fetch | Hash-and-URL certificate lookup (`RFC7296-3.6-2`, `-3`) fetches an attacker-named http URL. Bound the size, the timeout and the redirect count, and state whether the scheme allowlist is enforced |
@@ -1044,9 +1044,9 @@ the Obligation text.
 | `RFC7296-2.3-5` | MUST NOT | This Notify message MUST NOT be sent in a response; the invalid request MUST NOT be acknowledged (§2.3) | **NOT IMPL** |
 | `RFC7296-2.3-6` | MUST | Sending this notification is OPTIONAL, and notifications of this type MUST be rate limited (§2.3) | **NOT IMPL** |
 | `RFC7296-2.4-5` | MUST NOT | This notification MUST NOT be sent by an entity that may be replicated (§2.4) | **NOT IMPL** |
-| `RFC7296-2.4-6` | MUST | An endpoint MUST conclude that the other endpoint has failed only when repeated attempts to contact it have gone unanswered for a timeout period or when a cryptographically protected INITIAL_CONTACT notification is received on a different IKE SA to the same authenticated identity (§2.4) | impl-untested |
-| `RFC7296-2.4-7` | MUST | Implementations MUST limit the rate at which they take actions based on unprotected messages (§2.4) | impl-untested |
-| `RFC7296-2.4-8` | MUST | To be a good network citizen, retransmission times MUST increase exponentially to avoid flooding the network and making an existing congestion situation worse (§2.4) | impl-testable |
+| `RFC7296-2.4-11` | MUST | An endpoint MUST conclude that the other endpoint has failed only when repeated attempts to contact it have gone unanswered for a timeout period or when a cryptographically protected INITIAL_CONTACT notification is received on a different IKE SA to the same authenticated identity (§2.4) | impl-untested |
+| `RFC7296-2.4-12` | MUST | Implementations MUST limit the rate at which they take actions based on unprotected messages (§2.4) | impl-untested |
+| `RFC7296-2.4-13` | MUST | To be a good network citizen, retransmission times MUST increase exponentially to avoid flooding the network and making an existing congestion situation worse (§2.4) | impl-testable |
 | `RFC7296-2.4-9` | MUST | If a system creates Child SAs that can fail independently from one another without the associated IKE SA being able to send a delete message, then the system MUST negotiate such Child SAs using separate IKE SAs (§2.4) | impl-untested |
 | `RFC7296-2.4-10` | MUST | If an IKE endpoint chooses to delete Child SAs, it MUST send Delete payloads to the other end notifying it of the deletion (§2.4) | impl-testable |
 | `RFC7296-2.5-1` | MUST | The minor version number indicates new capabilities, and MUST be ignored by a node with a smaller minor version number, but used for informational purposes by the node with the larger minor version number (§2.5, §3.1) | impl-testable |
@@ -1077,7 +1077,7 @@ the Obligation text.
 | `RFC7296-2.9-2` | MUST | If the responder's policy allows it to accept the first selector of TSi and TSr, then the responder MUST narrow the Traffic Selectors to a subset that includes the initiator's first choices (§2.9) | **NOT IMPL** |
 | `RFC7296-2.9.2-1` | MUST NOT | Thus, the new SA MUST NOT have narrower selectors than the original (§2.9.2) | **NOT IMPL** |
 | `RFC7296-2.9.2-2` | MUST NOT | The responder MUST NOT narrow down the Traffic Selectors narrower than the scope currently in use (§2.9.2) | **NOT IMPL** |
-| `RFC7296-2.10-1` | MUST | Nonces used in IKEv2 MUST be randomly chosen (§2.10) | impl-testable |
+| `RFC7296-2.10-4` | MUST | Nonces used in IKEv2 MUST be randomly chosen (§2.10) | impl-testable |
 | `RFC7296-2.10-2` | MUST | Nonces used in IKEv2 MUST be at least 128 bits in size (§2.10) | impl-testable |
 | `RFC7296-2.10-3` | MUST | Nonces used in IKEv2 MUST be at least half the key size of the negotiated pseudorandom function (PRF) (§2.10) | impl-untested |
 | `RFC7296-2.11-1` | MUST | An implementation MUST accept incoming requests even if the source port is not 500 or 4500 (§2.11, §2.23) | impl-testable |
@@ -1092,9 +1092,9 @@ the Obligation text.
 | `RFC7296-2.15-2` | MUST NOT | The management interface MUST NOT add a null terminator before using them as shared secrets (§2.15) | impl-untested |
 | `RFC7296-2.15-3` | MUST | It MUST also accept a hex encoding of the shared secret (§2.15) | **NOT IMPL** |
 | `RFC7296-2.16-1` | MUST | These protocols are typically used to authenticate the initiator to the responder and MUST be used in conjunction with a public-key-signature-based authentication of the responder to the initiator (§2.16, §5) | impl-untested |
-| `RFC7296-2.16-2` | MUST | Extensible authentication is implemented in IKE as additional IKE_AUTH exchanges that MUST be completed in order to initialize the IKE SA (§2.16) | impl-untested |
+| `RFC7296-2.16-6` | MUST | Extensible authentication is implemented in IKE as additional IKE_AUTH exchanges that MUST be completed in order to initialize the IKE SA (§2.16) | impl-untested |
 | `RFC7296-2.16-3` | MUST | For EAP methods that create a shared key as a side effect of authentication, that shared key MUST be used by both the initiator and responder to generate AUTH payloads in messages 7 and 8 using the syntax for shared secrets specified in Section 2.15 (§2.16) | uncertain |
-| `RFC7296-2.16-4` | MUST NOT | This shared key generated during an IKE exchange MUST NOT be used for any other purpose (§2.16) | impl-untested |
+| `RFC7296-2.16-7` | MUST NOT | This shared key generated during an IKE exchange MUST NOT be used for any other purpose (§2.16) | impl-untested |
 | `RFC7296-2.16-5` | MUST | If EAP methods that do not generate a shared key are used, the AUTH payloads in messages 7 and 8 MUST be generated using SK_pi and SK_pr, respectively (§2.16) | uncertain |
 | `RFC7296-2.16-6` | MUST | Once the protocol exchange defined by the chosen EAP authentication method has successfully terminated, the responder MUST send an EAP payload containing the Success message (§2.16) | uncertain |
 | `RFC7296-2.16-7` | MUST | Similarly, if the authentication method has failed, the responder MUST send an EAP payload containing the Failure message (§2.16) | uncertain |
@@ -1351,6 +1351,166 @@ list is the one thing a reviewer would refuse.
 
 Run the extractor once the last row lands, and not before.
 
+## Two operating constraints found by landing rows out of order (2026-07-30)
+
+### Ids must land in ASCENDING order within a section
+
+`check_id_allocation` (`scripts/dev/rfc_requirements.py:477`) computes a per-section
+high-water mark from the ids committed at HEAD. A row that is new since HEAD and sits at or
+below its section's mark is refused. "Delete 5.3-4, add a different 5.3-4" is
+indistinguishable from a text correction unless the rule is positional.
+
+Phase 2b landed rows grouped by work package rather than by ordinal, so `RFC7296-2.4-9` and
+`2.4-10` were committed before `2.4-6`, `2.4-7` and `2.4-8`. The mark for section 2.4 became
+10, and the three lower ids then read as retired. Six ids tripped it: `2.4-6`, `2.4-7`,
+`2.4-8`, `2.10-1`, `2.16-2` and `2.16-4`.
+
+They were renumbered above their marks, to `2.4-11`, `2.4-12`, `2.4-13`, `2.10-4`, `2.16-6`
+and `2.16-7`. None had ever named another obligation, so the rename costs nothing and the
+invariant holds. Appendix A carries the new ids too, so the plan and the summary agree.
+
+**For every remaining phase: land a section's rows together, or land them in ascending
+ordinal order.** A work-package grouping cuts across sections and will trip this again.
+The gate is right and the batching was wrong.
+
+### The ipsec functional suite was never run, and now is
+
+`test/ipsec/` holds 8 `.ci` files and a registered runner root
+(`internal/test/cli/register.go:21`), and it was absent from `all_suites`
+(`mk/test-functional.mk`). Nothing ran it, ever. The files need no privilege: they declare
+no `needs-linux` and no `caps=`, and they drive a noop dataplane
+(`option=env:var=ze_test_ike_dataplane:value=noop`).
+
+That matters to this spec directly. `ai/rules/testing.md` gives a `.ci` its verify tier only
+when `ze-functional-test` actually runs that suite. Every daemon-level IKE test therefore sat
+outside the evidence tiers while this pilot proved IKE conformance.
+
+`ipsec` is now in `all_suites`. `rfc_requirements_test.py` listed `test/ipsec/x.ci` as an
+example of a suite nothing runs, and that fixture is now false. The entry moved to the
+run-suite assertion rather than being deleted, so the tier it earns cannot be lost quietly.
+
+## A security finding: EAP without public-key responder authentication (2026-07-30)
+
+`RFC7296-2.16-1` is NOT tagged, and the reason is a live violation rather than a missing
+test.
+
+RFC 7296 section 2.16 requires EAP to be used together with a public-key-signature-based
+authentication of the responder to the initiator. Ze does not do that for
+`eap-mschapv2` when no certificate is configured.
+
+| Layer | What happens |
+|-------|--------------|
+| Send | `computeServerAuth` (`internal/component/ike/engine/responder_eap.go:79-84`) returns `computeX509Auth` when a certificate is set, and `computePSKAuth` when it is not. Its own doc says "certificate preferred, else PSK" |
+| The AUTH itself | `computePSKAuth` returns `AuthMethod: wire.AuthMethodPSK` (`auth.go:255-258`). A shared-key MAC is not a public-key signature |
+| Config | `ValidatePKIRefs` (`internal/component/ike/ipsec/validate.go:35`) skips every mode except `AuthX509` and `AuthEAPTLS`, so an `eap-mschapv2` peer never has its certificate checked |
+| Accept | `verifyRemoteAuth` (`auth.go:314-319`) gates the MSK branch on a non-zero `sa.EAPMSK`, which is still zero when the responder's first AUTH arrives. It falls to `verifyPSKAuth` and passes |
+
+It is live rather than theoretical. `TestResponderEAPSessionWired`
+(`internal/component/ike/engine/responder_test.go:492`) runs `eap-mschapv2` with no
+certificate and establishes, and it is green today.
+
+**Why the RFC requires this.** EAP methods carry their own weaknesses, and MS-CHAPv2 is
+offline-crackable. The public-key responder authentication is what puts the EAP exchange
+inside a server-authenticated channel. Without it a party that impersonates the responder
+runs the EAP method directly against the client.
+
+EAP-TLS escapes by accident of ordering. `eapMethodConfig`
+(`internal/component/ike/engine/responder_eap.go:123`) runs before `computeServerAuth` and
+returns `errNoCertificate`, so the SA dies first.
+
+**Owners of a fix.** `computeServerAuth` for the send side, `verifyRemoteAuth` for the
+accept side, and `ValidatePKIRefs` for a config-time refusal. The EAP-TLS branch of
+`ValidatePKIRefs` is the model: it refuses the config rather than failing at session setup,
+and it cites `ai/rules/exact-or-reject.md` for doing so.
+
+A second finding from the same review is deliberately NOT tagged to `RFC7296-1.2-2`. The
+receive path stores the LAST CERT payload rather than the first. `sa.RemoteCertRaw =
+p.CertData` is assigned unconditionally inside the payload loop (`fsm.go:558`,
+`responder.go:364`). A peer sending a leaf and then an intermediate would
+have Ze verify AUTH against the intermediate. Section 1.2 phrases `1.2-2` as a SENDER
+obligation, which Ze meets, so this belongs to section 3.6 and to WP-10.
+
+## Phases 4 to 15 triaged (2026-07-30)
+
+The 108 `NOT IMPL` rows were triaged against the producing code, and the arithmetic
+changed twice.
+
+**113 rows, not 108.** Phase 3 reclassified five `uncertain` rows to NOT IMPL, and they
+join the set. The partition is exact: every row sits in one package, and none falls outside.
+
+**14 packages, not 12.** The spec's "12 work packages" was an estimate written before
+anyone mapped the rows to producers. The real grouping needs 14, and one of them is held
+for an owner ruling.
+
+| WP | Name | Rows |
+|----|------|------|
+| WP-4 | Notify vocabulary and the error-response path | 12 |
+| WP-5 | Unprotected messages, and messages that match no SA | 9 |
+| WP-6 | Header flags, payload flags, INFORMATIONAL protection | 5 |
+| WP-7 | COOKIE, DH-group retry, KE payload agreement | 10 |
+| WP-8 | SA proposal and transform-attribute conformance | 14 |
+| WP-9 | Crypto suite policy and management facility | 6 |
+| WP-10 | Identity and certificate configuration | 8 |
+| WP-11 | Configuration payload and remote access | 17 |
+| WP-12 | Traffic-selector narrowing and transport mode | 11 |
+| WP-13 | NAT traversal, port float, response addressing | 6 |
+| WP-14 | SA lifecycle, close, key destruction | 7 |
+| WP-15 | Request window and SET_WINDOW_SIZE | 2 |
+| WP-16 | IPComp | 4 |
+| WP-17 | ECN, held for OR-F | 2 |
+
+**WP-4 comes first, and that is an ordering constraint rather than a preference.** 23 of
+the 31 notify constants have no non-test referent, and Ze has no generic error-response
+builder. The only two senders hardcode one exchange each. Six later packages consume what
+WP-4 builds.
+
+### The triage challenged the walk again
+
+The walk's classification was wrong in both directions, for the third time.
+
+**Four rows are provable today** and were wrongly marked NOT IMPL: `RFC7296-2.3-3`,
+`3.1-10`, `3.3.1-1` and `3.3.5-3`. Each has behaviour a unit test reaches.
+
+**One row is an ACTIVE violation rather than an absence.** `RFC7296-1.4-2` requires an
+INFORMATIONAL exchange to be protected, and `sendDPD` sends one unprotected. The comment
+above it admits the gap and names a spec that never closed it: "Encryption integration
+requires ipsec-9 (SK wrapping)" (`internal/component/ike/engine/dpd.go:82-84`). That is a
+known MUST violation written down instead of fixed, which is what `ai/rules/no-parking.md`
+forbids. It is now owned by `plan/spec-fixit-ike-dpd-cleartext.md`.
+
+**`RFC7296-3.1-12` is the second-producer shape again.** `initiatorFlag` exists and five
+sites use it correctly. Exactly one producer hardcodes the flag instead:
+`internal/component/ike/engine/dpd.go:103` writes `Flags: wire.FlagInitiator`, so a
+responder-role SA would send a probe with the wrong flag.
+
+**Three rows hold only by absence** and MUST stay NOT IMPL: `RFC7296-3.2-1`, `2.5-12`
+and `3.12-1`. A test there would be the expiring-negative shape recorded above under
+`RFC7296-3.4-1`.
+
+### Where no owner exists
+
+45 rows have no existing owner. For 38 the creation site is nameable. Seven are genuinely
+unsited, and each one names what is missing:
+
+| Row | What does not exist |
+|-----|---------------------|
+| `RFC7296-2.3-6` | No outbound rate limiter to extend |
+| `RFC7296-2.4-5` | No replication concept in the config model |
+| `RFC7296-2.5-5` | No version-negotiation state machine |
+| `RFC7296-2.21.2-3` | No extension-notify surface |
+| `RFC7296-2.22-1` to `-4` | IPComp is wholly absent |
+| `RFC7296-2.11-3` | `IP_PKTINFO` appears nowhere in the tree |
+| `RFC7296-3.13.1-3` | `tsToIPNet` discards the OPAQUE port data |
+
+### One correction to an earlier finding
+
+`RFC7296-2.21.2-1`'s evidence is WIDER than recorded above. `internal/component/ike/wire/chain.go`
+has a SECOND silent `break` at `:18-20`, beside the one at `:29-31`. Both drop a truncated
+inner chain without an error.
+
+The full triage, with a row-by-row table, is in `tmp/phase4-15-triage.md`. `tmp/` is
+gitignored, so the summary above is the surviving record.
+
 ## Phase 3 -- the 18 uncertain rows resolved (2026-07-30)
 
 Each row was resolved by reading the producing code, never by reading a caller. The tally
@@ -1397,6 +1557,44 @@ accepted-method set cannot pass unnoticed.
 OR-F: `RFC7296-2.24-1` and `2.24-2` are not classified yet. The Linux XFRM and the VPP IPsec
 sources must be read first. VPP is vendored at `third_party/`. The ruling then follows their
 code, rather than an inference about a foreign system.
+
+**OR-F evidence, gathered 2026-07-30. The two backends answer differently, so one verdict
+cannot be true of both.**
+
+`XFRM`: the delegation reading HOLDS. `XFRM_STATE_NOECN` is bit 0 of the flags byte
+(`include/uapi/linux/xfrm.h:404`), and Ze cannot set it even by mistake. The vendored
+binding `netlink.XfrmState` carries no general flags field at all, only `ESN`,
+`DontEncapDSCP` and `OSeqMayWrap`, and `xfrmUsersaInfoFromXfrmState` never writes
+`msg.Flags`. On encapsulation `xfrm4_tunnel_encap_add` calls `INET_ECN_encapsulate`
+unconditionally, and that function's own comment cites RFC 3168 section 9.1.1, which is the
+clause row `2.24-1` names. On decapsulation `xfrm4_remove_tunnel_encap` propagates unless
+NOECN is set, so propagation is the default.
+
+`VPP`: the delegation reading FAILS. ECN copying is opt-in through
+`TUNNEL_API_ENCAP_DECAP_FLAG_NONE` and its `ENCAP_COPY_ECN` and `DECAP_COPY_ECN` flags.
+Encapsulation writes Not-ECT unconditionally, because `tunnel_build_v4_hdr` sets
+`ip->tos = t->t_dscp << 2` and zeroes the low two bits, and the fixup runs only when a
+tunnel flag is set. Decapsulation does nothing at all: the ESP decrypt path calls no
+tunnel decap fixup and sets no ECN. The IPIP path DOES call those fixups, so this is an
+omission in the IPsec path rather than an absent feature.
+
+Ze cannot opt in from its side today. The hand-written `ipsecSAEntry`
+(`internal/component/ike/dataplane/vpp.go:165-179`) carries neither a flags field nor the
+tunnel sub-struct that would hold `encap_decap_flags`.
+
+**A separate finding, not about ECN.** That struct is a hand-rolled approximation of a VPP
+API message. Its own comment says so: "When govpp/binapi/ipsec is vendored, replace these
+with the generated types." A hand-written struct that omits fields the real message carries
+is a wire-format divergence, not only a missing feature. Nobody established whether
+the VPP IPsec backend is reachable and tested. Settle that before anyone treats VPP IPsec
+as a shipping property.
+
+**One nuance no implementation escapes.** At encapsulation the two documents section 2.24
+cites disagree. RFC 3168 section 9.1.1 maps an inner CE to an outer ECT(0). RFC 4301's
+table says the field is copied, so CE maps to CE. Linux implements the first form.
+
+Full detail, with every citation, is in `tmp/or-f-ecn-findings.md`. `tmp/` is gitignored,
+so the paragraphs above are the surviving record.
 
 ## Phase 2b -- first three groups (2026-07-30)
 

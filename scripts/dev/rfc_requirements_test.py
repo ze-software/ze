@@ -5433,7 +5433,10 @@ class TestCITierIsEarnedNotAssumed(unittest.TestCase):
     """
 
     def test_a_run_suite_is_verify_tier(self):
-        for rel in ("test/plugin/x.ci", "test/parse/x.ci", "test/ospf/x.ci"):
+        # test/ipsec/ joined all_suites (mk/test-functional.mk) on 2026-07-30. Its 8 .ci
+        # files had a registered runner root and needed no privilege, and nothing ran them.
+        # It is asserted here so the tier it now earns cannot be lost silently.
+        for rel in ("test/plugin/x.ci", "test/parse/x.ci", "test/ospf/x.ci", "test/ipsec/x.ci"):
             c = R.carrier_for(rel)
             self.assertIsNotNone(c, rel)
             self.assertEqual(c.tier, R.TIER_VERIFY, rel)
@@ -5449,7 +5452,6 @@ class TestCITierIsEarnedNotAssumed(unittest.TestCase):
             "test/static/x.ci",
             "test/vrrp/x.ci",
             "test/flow-export/x.ci",
-            "test/ipsec/x.ci",
             "test/chaos/x.ci",
         ):
             c = R.carrier_for(rel)

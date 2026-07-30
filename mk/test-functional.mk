@@ -187,7 +187,7 @@ ZE_SKIP_SUITES ?=
 ze-functional-test: ze-functional-warm $(ZE_TEST_DEPS_ALL)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) \
 	failed=0; failed_names=""; skipped_names=""; total=0; suite_index=0; \
-	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy ldp rsvpte isis ospf ospfv3 web install appliance l2tp-wire isis-wire ospf-wire runner"; \
+	all_suites="encode plugin parse decode reload ui editor managed l2tp firewall policy ipsec ldp rsvpte isis ospf ospfv3 web install appliance l2tp-wire isis-wire ospf-wire runner"; \
 	suite_total=0; \
 	for suite in $$all_suites; do \
 		case ",$(ZE_SKIP_SUITES)," in *,$$suite,*) ;; *) suite_total=$$((suite_total + 1));; esac; \
