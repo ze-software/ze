@@ -1285,22 +1285,32 @@ when a digit follows. The other eight entries stay unconditional. Two tests pin
 both directions: `No. 5` stays one sentence, and `answered Yes/No. Every Yes
 names a file` is two.
 
-**Read this before you cite the impact.** The measured effect on findings is
-ZERO. Across 11256 tracked files the count is identical before and after. The
-glued pairs do not cross the 25-word limit in the text that exists now. The one
-place that did cross it was reworded by hand, during the workaround above. That
-workaround erased its own evidence.
+**The measured impact is zero, and that needs an explanation.** Across 11256
+tracked files the finding count is identical before and after the fix.
 
-**The lesson is about the measurement, not the regex.** This entry was first
-argued as "not worth fixing" because `No.` belongs in `ABBREVIATIONS` for
-ordinary prose. That is a claim about what the entry is FOR, not what it DOES.
+The defect is still real. A glued pair is REPORTED only when the joined sentence
+crosses the 25-word limit, and no pair in the tree does that today. Exactly one
+did: the false 37-word finding in `meta.go` named above. The workaround above
+removed that one by hand, and it moved the quotation into its own paragraph. So
+the workaround deleted the only observable symptom. By the time the fix was
+measured, nothing was left for it to improve.
 
-The second attempt counted occurrences, 38 wrong against 1 right, and called the
-first answer overturned. That counted SITES, not EFFECTS. Only the third attempt
-compared finding counts. Count the thing the gate actually reports.
+**Why it was fixed anyway.** The sentence count was wrong. A wrong count that
+stays under a threshold is luck, and the next sentence someone writes does not
+inherit that luck.
 
-The fix stands on correctness. A wrong sentence count that stays under a
-threshold is luck, and the next sentence someone writes does not inherit it.
+**The reusable rule: measure findings, not occurrences.** "Is this checker rule
+worth fixing" was answered three times here. The first two answers were wrong,
+and they were wrong in opposite directions.
+
+| Attempt | What it measured | Verdict | Why it was wrong |
+|---------|------------------|---------|------------------|
+| 1 | what `No.` is FOR, because `No. 5` is a real abbreviation | do not fix | a category argument. It never looked at this repository |
+| 2 | occurrences of the pattern: 38 wrong against 1 right | fix, and the first answer is overturned | it counted SITES. A site is a defect only when it changes a finding |
+| 3 | findings before and after across 11256 files: delta 0 | fix, on correctness alone | this is the number the gate reports |
+
+An occurrence count tells you how often a rule fires. It never tells you how
+often the answer changes. Count what the gate reports, then decide.
 
 **One report in the same pass stays unverified.** It says a quotation containing
 a period loses its closing quote before the word count collapses it. A probe did
