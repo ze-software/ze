@@ -5,6 +5,7 @@ package engine
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"net"
 	"time"
 
@@ -186,6 +187,100 @@ func wireProposalsToIKE(wireProps []wire.Proposal) []crypto.IKEProposal {
 		out = append(out, p)
 	}
 	return out
+}
+
+// wireProposalsToESP converts wire SA proposals to crypto ESP proposals, so the
+// initiator can check an accepted ESP offer against the proposals it sent. An AEAD
+// proposal carries no integrity transform, and that absence reads as AUTH_NONE.
+func wireProposalsToESP(wireProps []wire.Proposal) []crypto.ESPProposal {
+	out := make([]crypto.ESPProposal, 0, len(wireProps))
+	for _, wp := range wireProps {
+		p := crypto.ESPProposal{Number: uint16(wp.Number)}
+		for _, t := range wp.Transforms {
+			switch t.Type {
+			case wire.TransformTypeENCR:
+				p.Encryption.ID = crypto.EncryptionID(t.ID)
+				for _, a := range t.Attrs {
+					if a.Type == wire.AttrTypeKeyLength {
+						p.Encryption.KeyLength = a.Value
+					}
+				}
+			case wire.TransformTypeINTG:
+				p.Integrity.ID = crypto.IntegrityID(t.ID)
+			case wire.TransformTypeESN:
+				// RFC 7296 Section 3.3.2: ESN is not part of the suite this check
+				// compares, and ze offers one value for it.
+			}
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+// buildESPProposals converts config ESP proposals to crypto proposals, which gives the
+// accepted-offer check the set of suites this side offered.
+func buildESPProposals(espGroup ipsec.ESPGroup) []crypto.ESPProposal {
+	out := make([]crypto.ESPProposal, 0, len(espGroup.Proposals))
+	for _, p := range espGroup.Proposals {
+		enc := lookupEncryption(p.Encryption)
+		integ := lookupIntegrity(p.Hash)
+		if enc.IsAEAD {
+			integ = crypto.IntegrityTransform{ID: crypto.AUTH_NONE}
+		}
+		out = append(out, crypto.ESPProposal{Number: p.Number, Encryption: enc, Integrity: integ})
+	}
+	return out
+}
+
+// acceptedOffer is the result of the initiator's re-check of a response. Protocol names
+// which of the two proposal sets the responder answered with. The matching field holds
+// the local proposal that the accepted offer agrees with.
+type acceptedOffer struct {
+	Protocol uint8
+	IKE      crypto.IKEProposal
+	ESP      crypto.ESPProposal
+}
+
+var (
+	// errAcceptedOfferEmpty reports a response whose SA payload names no proposal.
+	errAcceptedOfferEmpty = errors.New("ike: the accepted offer carries no proposal")
+	// errAcceptedOfferProtocol reports an accepted offer for a protocol ze never offers.
+	errAcceptedOfferProtocol = errors.New("ike: the accepted offer names an unknown protocol")
+	// errAcceptedOfferMismatch reports an accepted offer that agrees with no proposal
+	// this side sent.
+	errAcceptedOfferMismatch = errors.New("ike: the accepted offer matches no proposal we sent")
+)
+
+// verifyAcceptedOffer checks a responder's accepted offer against the proposals this side
+// sent, and returns the local proposal it agrees with.
+//
+// RFC 7296 Section 3.3.6: the initiator of an exchange MUST check that the accepted
+// offer agrees with one of its proposals. It MUST stop the exchange when the offer does
+// not. Every initiator response path calls this one helper. A response path added later
+// that forgets the rule is therefore a visible omission rather than a silent one.
+//
+// It fails closed. A missing SA payload, an empty proposal list, and a protocol ze never
+// offers are all refused.
+func verifyAcceptedOffer(accepted *wire.PayloadSA, ikeGroup ipsec.IKEGroup, espGroup ipsec.ESPGroup) (acceptedOffer, error) {
+	if accepted == nil || len(accepted.Proposals) == 0 {
+		return acceptedOffer{}, errAcceptedOfferEmpty
+	}
+	switch accepted.Proposals[0].ProtocolID {
+	case wire.ProtocolIKE:
+		chosen, err := crypto.NegotiateIKE(wireProposalsToIKE(accepted.Proposals), buildIKEProposals(ikeGroup))
+		if err != nil {
+			return acceptedOffer{}, fmt.Errorf("%w: %w", errAcceptedOfferMismatch, err)
+		}
+		return acceptedOffer{Protocol: wire.ProtocolIKE, IKE: chosen}, nil
+	case wire.ProtocolESP:
+		chosen, err := crypto.NegotiateESP(wireProposalsToESP(accepted.Proposals), buildESPProposals(espGroup))
+		if err != nil {
+			return acceptedOffer{}, fmt.Errorf("%w: %w", errAcceptedOfferMismatch, err)
+		}
+		return acceptedOffer{Protocol: wire.ProtocolESP, ESP: chosen}, nil
+	default:
+		return acceptedOffer{}, errAcceptedOfferProtocol
+	}
 }
 
 // parseHashAlgoNotify extracts hash algorithm IDs from a SIGNATURE_HASH_ALGORITHMS

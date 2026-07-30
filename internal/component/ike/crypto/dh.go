@@ -6,12 +6,21 @@ import (
 	"crypto/ecdh"
 	"crypto/rand"
 	"errors"
+	"fmt"
 	"math/big"
 )
 
 var (
 	ErrInvalidPublicKey = errors.New("invalid DH public key")
 	ErrUnsupportedGroup = errors.New("unsupported DH group")
+	// ErrPublicKeyLength reports a peer Diffie-Hellman value whose length is not the
+	// length of the group modulus. RFC 7296 Section 3.4 makes that pad an obligation of
+	// the sender. A value of another length therefore names another group, or a peer
+	// that did not pad. Both cases end in a secret the two sides do not share, so the
+	// exponentiation never runs. It wraps ErrInvalidPublicKey. A value of the wrong
+	// length is an invalid public key, so a caller that tests for the general case
+	// still matches this one.
+	ErrPublicKeyLength = fmt.Errorf("%w: length does not match the group modulus", ErrInvalidPublicKey)
 )
 
 type DHExchange struct {
@@ -40,6 +49,11 @@ var modp2048Prime = func() *big.Int {
 
 var modp2048Generator = big.NewInt(2)
 
+// modp2048Len is the octet length of the MODP-2048 prime modulus. RFC 7296 Section 3.4
+// fixes every public value of the group at this length. It is derived from the modulus
+// rather than written down, so the two cannot drift apart.
+var modp2048Len = len(modp2048Prime.Bytes())
+
 func NewDHExchange(groupID DHGroupID) (*DHExchange, error) {
 	ex := &DHExchange{GroupID: groupID}
 	switch groupID {
@@ -53,7 +67,7 @@ func NewDHExchange(groupID DHGroupID) (*DHExchange, error) {
 		priv.Add(priv, two)
 		ex.privateBig = priv
 		pub := new(big.Int).Exp(modp2048Generator, priv, modp2048Prime)
-		ex.PublicKey = padBigInt(pub, 256)
+		ex.PublicKey = padBigInt(pub, modp2048Len)
 	case DH_ECP_256:
 		priv, err := ecdh.P256().GenerateKey(rand.Reader)
 		if err != nil {
@@ -77,6 +91,14 @@ func NewDHExchange(groupID DHGroupID) (*DHExchange, error) {
 func (ex *DHExchange) SharedSecret(remotePublic []byte) ([]byte, error) {
 	switch ex.GroupID {
 	case DH_MODP_2048:
+		// RFC 7296 Section 3.4: a MODP public value has the length of the prime
+		// modulus, and the sender prepends zero octets to reach it. A value of another
+		// length is refused before the exponentiation. Two cases reach here. The peer
+		// did not pad, or the value belongs to another group. Neither ends in a secret
+		// the two sides share, so the refusal is the only safe answer.
+		if len(remotePublic) != modp2048Len {
+			return nil, ErrPublicKeyLength
+		}
 		remotePub := new(big.Int).SetBytes(remotePublic)
 		one := big.NewInt(1)
 		pMinusOne := new(big.Int).Sub(modp2048Prime, one)
@@ -84,7 +106,7 @@ func (ex *DHExchange) SharedSecret(remotePublic []byte) ([]byte, error) {
 			return nil, ErrInvalidPublicKey
 		}
 		shared := new(big.Int).Exp(remotePub, ex.privateBig, modp2048Prime)
-		return padBigInt(shared, 256), nil
+		return padBigInt(shared, modp2048Len), nil
 	case DH_ECP_256:
 		remotePub, err := ecdh.P256().NewPublicKey(remotePublic)
 		if err != nil {

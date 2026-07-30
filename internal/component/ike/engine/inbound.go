@@ -206,6 +206,26 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 	// owner loop swaps to the new SA when the peer's Delete of the old one arrives
 	// (spec-ipsec-14, closes ipsec-13's deferred responder).
 	if hasKEPayload(inner) {
+		// RFC 7296 Section 2.8.2: simultaneous IKE SA rekey. Both peers run the same
+		// nonce comparison, so they abandon opposite exchanges and one new IKE SA is
+		// left. Its Child SAs hang off this session, so the survivor inherits them.
+		// Only a well-formed request that carries a nonce resolves a collision. A
+		// request without Ni must never make us abandon our own exchange.
+		if p := ps.pendingRekey; p != nil && p.kind == rekeyIKE {
+			if peerNi := nonceFromPayloads(inner); len(peerNi) > 0 {
+				if resolveRekeyCollision(p.localNonce, peerNi) {
+					log.Info("ike: simultaneous IKE rekey, we win (lower nonce), ignoring peer request", "peer", ps.peerName)
+					return ownedOutcome{}
+				}
+				log.Info("ike: simultaneous IKE rekey, peer wins, abandoning our exchange", "peer", ps.peerName)
+				// Our own request will never be answered now, so free the request
+				// window it holds (RFC 7296 Section 2.3) and release the DH half we
+				// kept for it. Without this the SA sends nothing more.
+				sa.releaseRequestWindow()
+				p.clear()
+				ps.pendingRekey = nil
+			}
+		}
 		resp, newSA, err := respondIKERekey(sa, inner, msg.Header.MessageID, log)
 		if err != nil {
 			log.Warn("ike: IKE rekey respond failed", "peer", ps.peerName, "error", err)
@@ -213,6 +233,13 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 		}
 		cacheResponse(sa, msg.Header.MessageID, resp)
 		sendRaw(sa, tr, resp, log)
+		if newSA == nil {
+			// RFC 7296 Section 1.3: the request named a Diffie-Hellman group we did
+			// not select, so the answer is an INVALID_KE_PAYLOAD Notify and no new SA
+			// exists. The peer retries with the group the Notify names.
+			log.Info("ike: refused peer IKE SA rekey, KE group mismatch", "peer", ps.peerName)
+			return ownedOutcome{}
+		}
 		// Make-before-break: hold the new SA until the peer deletes the old IKE SA.
 		ps.setPendingIKESwap(newSA)
 		log.Info("ike: responded to peer IKE SA rekey", "peer", ps.peerName)

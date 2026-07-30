@@ -102,11 +102,13 @@ func initiateChildRekey(sa *SA, oldChild *ChildSA) ([]byte, *pendingRekey, error
 func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.PayloadEntry, dp dataplane.Dataplane, log *slog.Logger) (*ChildSA, error) {
 	var nr []byte
 	var outSPI uint32
+	var accepted *wire.PayloadSA
 	for _, pe := range inner {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadNonce:
 			nr = p.NonceData
 		case *wire.PayloadSA:
+			accepted = p
 			s, err := espSPIFromSA(p)
 			if err != nil {
 				return nil, err
@@ -119,6 +121,11 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	}
 
 	old := pending.oldChild
+	// RFC 7296 Section 3.3.6: the initiator checks the accepted offer against the ESP
+	// proposals it sent. It stops the exchange when the two disagree.
+	if _, err := verifyAcceptedOffer(accepted, sa.IKEGroup, old.ESPGroup); err != nil {
+		return nil, fmt.Errorf("child rekey response: %w", err)
+	}
 	prop := old.ESPGroup.Proposals[0]
 	keys, err := crypto.DeriveChildSAKeys(sa.Proposal.PRF.ID, sa.SKKeys.SK_d,
 		pending.localNonce, nr, lookupEncryption(prop.Encryption), lookupIntegrity(prop.Hash))
@@ -346,6 +353,7 @@ func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.Payloa
 	var nr, ker []byte
 	var newResponderSPI [8]byte
 	haveSPI := false
+	var accepted *wire.PayloadSA
 	for _, pe := range inner {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadNonce:
@@ -353,6 +361,7 @@ func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.Payloa
 		case *wire.PayloadKE:
 			ker = p.KeyExchangeData
 		case *wire.PayloadSA:
+			accepted = p
 			s, err := ikeSPIFromSA(p)
 			if err != nil {
 				return nil, err
@@ -365,6 +374,16 @@ func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.Payloa
 		return nil, fmt.Errorf("ike rekey response: missing Nr(%d)/KEr(%d)/SPI(%v)", len(nr), len(ker), haveSPI)
 	}
 
+	// RFC 7296 Section 3.3.6: the initiator checks the accepted offer against the IKE
+	// proposals it sent. It stops the exchange when the two disagree. The new IKE SA
+	// then takes the suite both sides agreed on. respondIKERekey negotiates for real,
+	// so the offer it accepts is not always the first proposal of the old SA.
+	offer, err := verifyAcceptedOffer(accepted, oldSA.IKEGroup, oldSA.ESPGroup)
+	if err != nil {
+		return nil, fmt.Errorf("ike rekey response: %w", err)
+	}
+	chosen := offer.IKE
+
 	sharedSecret, err := pending.dh.SharedSecret(ker)
 	if err != nil {
 		return nil, err
@@ -375,10 +394,12 @@ func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.Payloa
 		clear(sharedSecret)
 		return nil, err
 	}
+	// RFC 7296 Section 2.18: SKEYSEED comes from the PRF of the OLD SA. The new key
+	// hierarchy comes from the suite the two sides agreed on for the new SA.
 	skKeys, err := crypto.DeriveSKKeys(
-		oldSA.Proposal.PRF.ID, skeyseed, pending.localNonce, nr,
+		chosen.PRF.ID, skeyseed, pending.localNonce, nr,
 		pending.newInitiatorSPI[:], newResponderSPI[:],
-		oldSA.Proposal.Encryption, oldSA.Proposal.Integrity)
+		chosen.Encryption, chosen.Integrity)
 	clear(sharedSecret)
 	clear(skeyseed)
 	if err != nil {
@@ -399,7 +420,7 @@ func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.Payloa
 		State:         StateEstablished,
 		LocalNonce:    pending.localNonce,
 		RemoteNonce:   nr,
-		Proposal:      oldSA.Proposal,
+		Proposal:      chosen,
 		SKKeys:        skKeys,
 		NextMsgID:     0,
 		ExpectedMsgID: 0,
@@ -427,11 +448,16 @@ func resolveRekeyCollision(localNonce, remoteNonce []byte) bool {
 // initiator, so the new SA has IsInitiator=false (we send with SK_er). The old SA is
 // removed once the peer's INFORMATIONAL Delete confirms the rekey (make-before-break).
 // This closes spec-ipsec-13's deferred IKE-rekey responder. RFC 7296 Section 1.3.3.
+//
+// It returns a response and a nil SA when the KEi payload names a group other than the
+// group of the proposal we selected. That answer is an INVALID_KE_PAYLOAD Notify, and the
+// caller MUST send it without a swap to a new SA. RFC 7296 Section 1.3.
 func respondIKERekey(oldSA *SA, inner []wire.PayloadEntry, msgID uint32, log *slog.Logger) ([]byte, *SA, error) {
 	if len(oldSA.IKEGroup.Proposals) == 0 {
 		return nil, nil, fmt.Errorf("ike rekey: no IKE proposals configured")
 	}
 	var ni, kei []byte
+	var keiGroup uint16
 	var peerNewSPI [8]byte
 	haveSPI := false
 	var remoteSA *wire.PayloadSA
@@ -441,6 +467,7 @@ func respondIKERekey(oldSA *SA, inner []wire.PayloadEntry, msgID uint32, log *sl
 			ni = p.NonceData
 		case *wire.PayloadKE:
 			kei = p.KeyExchangeData
+			keiGroup = p.DHGroup
 		case *wire.PayloadSA:
 			remoteSA = p
 			s, err := ikeSPIFromSA(p)
@@ -459,6 +486,27 @@ func respondIKERekey(oldSA *SA, inner []wire.PayloadEntry, msgID uint32, log *sl
 	chosen, err := crypto.NegotiateIKE(wireProposalsToIKE(remoteSA.Proposals), buildIKEProposals(oldSA.IKEGroup))
 	if err != nil {
 		return nil, nil, fmt.Errorf("ike rekey: %w", err)
+	}
+
+	// RFC 7296 Section 1.3: the initiator guesses the group before it knows our choice.
+	// When the KEi group differs from the group of the proposal we selected, we reject
+	// the request and name our group in an INVALID_KE_PAYLOAD Notify. No key is derived
+	// from a value computed over another group. The caller sends this answer and builds
+	// no new SA. RFC 7296 Section 3.10.1 gives the payload two octets of data.
+	if keiGroup != uint16(chosen.DHGroup.ID) {
+		log.Info("ike: peer IKE rekey KE group mismatch", "peer", oldSA.PeerName,
+			"want", uint16(chosen.DHGroup.ID), "got", keiGroup)
+		grp := []byte{byte(uint16(chosen.DHGroup.ID) >> 8), byte(chosen.DHGroup.ID)}
+		notify := &wire.PayloadNotify{
+			NotifyMsgType:    wire.NotifyInvalidKEPayload,
+			NotificationData: grp,
+		}
+		resp, err := buildEncryptedMessageEx(oldSA, []wire.PayloadEntry{{Payload: notify}},
+			msgID, wire.ExchangeCreateChildSA, initiatorFlag(oldSA)|wire.FlagResponse)
+		if err != nil {
+			return nil, nil, err
+		}
+		return resp, nil, nil
 	}
 
 	dh, err := crypto.NewDHExchange(chosen.DHGroup.ID)

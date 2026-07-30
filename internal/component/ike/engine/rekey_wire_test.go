@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"encoding/binary"
 	"errors"
 	"testing"
 	"time"
@@ -11,14 +10,14 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
-// espSAPayload builds a minimal wire SA payload carrying a single ESP SPI, as a
-// peer would send in a CREATE_CHILD_SA rekey.
+// espSAPayload builds the wire SA payload a peer sends in a CREATE_CHILD_SA rekey. It
+// holds one ESP proposal with the SPI and the transforms of the test ESP group.
+//
+// The transforms are part of the fixture. The initiator checks an accepted offer against
+// the proposals it sent (RFC 7296 Section 3.3.6, verifyAcceptedOffer). A proposal with no
+// transform names no suite, so a peer never sends one.
 func espSAPayload(spi uint32) *wire.PayloadSA {
-	b := make([]byte, 4)
-	binary.BigEndian.PutUint32(b, spi)
-	return &wire.PayloadSA{Proposals: []wire.Proposal{{
-		Number: 1, ProtocolID: wire.ProtocolESP, SPISize: 4, SPI: b,
-	}}}
+	return &wire.PayloadSA{Proposals: buildWireESPProposals(testESPGroup(), spi)}
 }
 
 func testNonce(seed byte) []byte {
@@ -269,10 +268,16 @@ func TestApplyIKERekeyResponse(t *testing.T) {
 	defer dh2.Clear()
 
 	respSPI := []byte{1, 2, 3, 4, 5, 6, 7, 8}
+	// The accepted offer carries the transforms of the IKE group we proposed. The
+	// initiator checks it against its own proposals (RFC 7296 Section 3.3.6), so a
+	// proposal with no transform is not something a peer sends.
+	respProps := buildWireIKEProposals(ikeGroup)
+	for i := range respProps {
+		respProps[i].SPISize = 8
+		respProps[i].SPI = respSPI
+	}
 	inner := []wire.PayloadEntry{
-		{Payload: &wire.PayloadSA{Proposals: []wire.Proposal{{
-			Number: 1, ProtocolID: wire.ProtocolIKE, SPISize: 8, SPI: respSPI,
-		}}}},
+		{Payload: &wire.PayloadSA{Proposals: respProps}},
 		{Payload: &wire.PayloadNonce{NonceData: testNonce(7)}},
 		{Payload: &wire.PayloadKE{DHGroup: uint16(ikeGroup.Proposals[0].DHGroup), KeyExchangeData: dh2.PublicKey}},
 	}

@@ -431,15 +431,15 @@ func handleSAInitResponse(
 		return
 	}
 
-	// Negotiate proposal.
-	localProposals := buildIKEProposals(sa.IKEGroup)
-	remoteProposals := wireProposalsToIKE(remoteSA.Proposals)
-	chosen, err := crypto.NegotiateIKE(remoteProposals, localProposals)
+	// RFC 7296 Section 3.3.6: the initiator checks the accepted offer against its own
+	// proposals. It stops the exchange when the two disagree.
+	offer, err := verifyAcceptedOffer(remoteSA, sa.IKEGroup, sa.ESPGroup)
 	if err != nil {
-		log.Warn("ike: proposal negotiation failed", "peer", sa.PeerName, "error", err)
+		log.Warn("ike: IKE_SA_INIT accepted offer rejected", "peer", sa.PeerName, "error", err)
 		sa.State = StateDead
 		return
 	}
+	chosen := offer.IKE
 	sa.Proposal = chosen
 
 	// Process DH exchange.
@@ -533,6 +533,7 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 
 	authVerified := false
 	var eapPayload *wire.PayloadEAP
+	var childOffer *wire.PayloadSA
 	for _, pe := range innerPayloads {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadNotify:
@@ -559,6 +560,7 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 		case *wire.PayloadEAP:
 			eapPayload = p
 		case *wire.PayloadSA:
+			childOffer = p
 			for _, prop := range p.Proposals {
 				if prop.ProtocolID == wire.ProtocolESP && prop.SPISize == 4 && len(prop.SPI) >= 4 {
 					sa.ChildOutboundSPI = binary.BigEndian.Uint32(prop.SPI[:4])
@@ -578,6 +580,17 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 		log.Warn("ike: AUTH response missing AUTH payload", "peer", sa.PeerName)
 		sa.State = StateDead
 		return
+	}
+
+	// RFC 7296 Section 3.3.6: the initiator checks the accepted Child SA offer against
+	// the ESP proposals it sent. It stops the exchange when the two disagree. An EAP
+	// round carries no SAr2, so the check runs on the response that holds one.
+	if childOffer != nil {
+		if _, err := verifyAcceptedOffer(childOffer, sa.IKEGroup, sa.ESPGroup); err != nil {
+			log.Warn("ike: IKE_AUTH accepted offer rejected", "peer", sa.PeerName, "error", err)
+			sa.State = StateDead
+			return
+		}
 	}
 
 	// RFC 7296 Section 2.16: EAP payload present means the responder requests EAP.
