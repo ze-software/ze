@@ -33,6 +33,7 @@ Environment:
 
 import argparse
 import atexit
+import functools
 import json
 import os
 import shutil
@@ -179,15 +180,29 @@ NETWORK = f"ze-perf-{SUFFIX}"
 
 import platform
 
-# Use buildx if available (preferred), fall back to legacy builder.
-USE_BUILDX = (
-    subprocess.run(
-        ["docker", "buildx", "version"],
-        capture_output=True,
-        timeout=5,
-    ).returncode
-    == 0
-)
+
+@functools.cache
+def use_buildx():
+    """True when `docker buildx` is available. Falls back to the legacy builder.
+
+    Probed lazily and cached, because importing this module must never shell out.
+    As a module-level constant this ran `docker buildx version` at import time, so
+    `test/perf/run_test.py` -- a unit test that only imports the module -- depended
+    on Docker answering within 5 seconds. A slow or absent Docker raised
+    TimeoutExpired out of the import and failed the test rather than the benchmark.
+    A probe that cannot answer means no buildx, which is the safe fallback.
+    """
+    try:
+        return (
+            subprocess.run(
+                ["docker", "buildx", "version"],
+                capture_output=True,
+                timeout=5,
+            ).returncode
+            == 0
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
 
 
 def docker(*args, check=True, timeout=60, capture=False, **kwargs):
@@ -197,7 +212,7 @@ def docker(*args, check=True, timeout=60, capture=False, **kwargs):
     so cleanup calls never crash the script.
     """
     args = list(args)
-    if args[:2] == ["buildx", "build"] and not USE_BUILDX:
+    if args[:2] == ["buildx", "build"] and not use_buildx():
         args = ["build"] + [a for a in args[2:] if a != "--load"]
     cmd = ["docker"] + args
     try:
