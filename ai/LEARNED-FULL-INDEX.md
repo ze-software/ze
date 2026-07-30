@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1274 summaries
+Total: 1276 summaries
 
 ## 000-099
 
@@ -1353,3 +1353,5 @@ Total: 1274 summaries
 | 1300 | mcp2026-2-mrtr | `plan/learned/1300-mcp2026-2-mrtr.md` |
 | 1301 | mcp2026-3-tasks-extension | `plan/learned/1301-mcp2026-3-tasks-extension.md` |
 | 1302 | mcp2026-4-caching-apps | `plan/learned/1302-mcp2026-4-caching-apps.md` |
+| 1303 | rfcgate-4-ledger | `plan/learned/1303-rfcgate-4-ledger.md` |
+| 1304 | rfcgate-0-umbrella | `plan/learned/1304-rfcgate-0-umbrella.md` |
