@@ -147,6 +147,22 @@ func buildCommandMeta(
 	// text, when the YANG node carries no description (dispatcher Help comes
 	// from pathToDesc in LoadBuiltins), so fill that gap rather than drop it.
 	for _, cmd := range pluginCmds {
+		// A plugin sets Hidden to remove a command from the operator-facing
+		// surfaces. VisibleCommandEntries and Complete already exclude a hidden
+		// command from the completion tree. This list is the only source for two
+		// more surfaces: the MCP tools/list result and the API command list. A
+		// hidden command must reach neither.
+		//
+		// The skip is at the top of the loop, because the duplicate branch below
+		// fills help text on a dispatcher entry. That entry keeps the command
+		// visible.
+		//
+		// The dispatcher loop above needs no equivalent skip.
+		// pluginserver.Command has no Hidden field, and a builtin command has no
+		// hidden state.
+		if cmd.Hidden {
+			continue
+		}
 		if i, dup := byName[strings.ToLower(cmd.Name)]; dup {
 			if infos[i].Help == "" {
 				infos[i].Help = cmd.Description

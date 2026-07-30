@@ -1185,10 +1185,13 @@ never shadows a builtin at the completion layer (mirroring dispatch precedence).
   with no daemon, so it stays YANG-only; the daemon's `system command complete`
   RPC completes plugin commands directly from the registry (`Registry().Complete`).
 
-`Hidden` commands still dispatch when typed in full but never appear in
-completion or help.
+`Hidden` commands still dispatch when typed in full. They never appear in
+completion, in help, in the MCP `tools/list` result, or in the API command list.
+`buildCommandMeta` is the one producer of the last two surfaces, and it skips
+every hidden plugin command.
 
 <!-- source: internal/component/plugin/server/command_registry.go -- VisibleCommandEntries, Complete, Hidden -->
+<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta hidden plugin command skip -->
 <!-- source: internal/component/command/node.go -- MergeCommandPaths, CommandEntry -->
 <!-- source: cmd/ze/hub/session_factory.go -- mergePluginCommands (SSH per-session) -->
 <!-- source: cmd/ze/hub/web_completer.go -- pluginAwareCommandCompleter (web live overlay) -->

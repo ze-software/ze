@@ -1,0 +1,103 @@
+# mcp-tools-list-hidden-command - a plugin command marked Hidden must not appear
+# in the MCP tools/list result.
+#
+# VALIDATES: a CommandDecl with hidden true reaches no MCP client, while a
+# non-hidden command from the same plugin does reach every MCP client.
+#
+# ai/rules/cli-patterns.md documents Hidden as "suppress a command". The
+# completion tree obeyed that through CommandRegistry.VisibleCommandEntries, and
+# the MCP surface did not. buildCommandMeta (cmd/ze/hub/command_meta.go) merges
+# the dispatcher commands with the plugin command registry. It read no Hidden
+# field, so every hidden plugin command became an MCP tool action.
+#
+# PREVENTS: an MCP client that sees a plugin command which operators cannot see
+# in completion or help. The same merged list feeds the API command list, so one
+# producer leaked the command to two surfaces.
+#
+# The two assertions have separate jobs. The reject is the defect assertion. The
+# token "concealed" names the hidden command, its description, and its action
+# enum value, so one reject covers every place the leak can surface. The expect
+# is the vacuity guard. It holds in both states, and it goes red when the plugin
+# registers nothing. Without it a daemon that starts no plugin passes the reject
+# and proves nothing.
+
+# Python test plugin: registers one visible and one hidden command, then holds
+# the process open. A plugin that exits triggers UnregisterAll, which removes
+# both commands before the MCP client can read tools/list.
+tmpfs=mcpgate-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Register one visible and one hidden command, then wait for shutdown."""
+import sys
+from ze_api import API
+
+def main():
+    api = API()
+
+    # declare_command sends the name alone, so the command list is built here to
+    # carry the hidden flag that CommandDecl defines (pkg/plugin/rpc/types.go).
+    api._commands = [
+        {'name': 'show mcpgate visible',
+         'description': 'visible probe command'},
+        {'name': 'show mcpgate concealed',
+         'description': 'concealed probe command', 'hidden': True},
+    ]
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    print('OK: declared one visible and one hidden command', file=sys.stderr)
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# wait-tool polls tools/list until the tool exists, so the test waits for the
+# plugin registration instead of a fixed duration. The tool name comes from the
+# "show mcpgate" prefix through toolName (internal/component/mcp/tools.go).
+stdin=mcp:terminator=EOF_MCP
+wait-tool ze_show_mcpgate
+probe tools/list
+EOF_MCP
+
+stdin=ze-conf:terminator=EOF_CONF
+plugin {
+	external mcpgate-test {
+		run ./mcpgate-test.run
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-conf
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=probe status=200 code=ok
+expect=stdout:contains=ze_show_mcpgate
+expect=stdout:contains=visible probe command
+reject=stdout:contains=concealed

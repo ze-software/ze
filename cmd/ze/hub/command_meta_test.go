@@ -145,6 +145,61 @@ func TestBuildCommandMeta_OrderIsDeterministic(t *testing.T) {
 	}
 }
 
+// TestBuildCommandMeta_SkipsHiddenPluginCommand covers the Hidden flag a plugin
+// sets on a CommandDecl.
+//
+// VALIDATES: a plugin command with Hidden true is absent from the merged list,
+// and a non-hidden sibling from the same plugin is present.
+// PREVENTS: a hidden command reaching the MCP tools/list result and the API
+// command list. buildCommandMeta is the single source for both surfaces.
+// VisibleCommandEntries hides the command from the completion tree, and every
+// MCP client still saw it.
+func TestBuildCommandMeta_SkipsHiddenPluginCommand(t *testing.T) {
+	got := buildCommandMeta(
+		[]*pluginserver.Command{{Name: "show bgp summary"}},
+		[]*pluginserver.RegisteredCommand{
+			{Name: "show widget status", Description: "visible one"},
+			{Name: "show widget secret", Description: "hidden one", Hidden: true},
+		},
+		nil, nil, nil)
+
+	names := make(map[string]bool, len(got))
+	for _, c := range got {
+		names[c.Name] = true
+	}
+
+	if names["show widget secret"] {
+		t.Errorf("hidden plugin command present in %+v, want it absent", got)
+	}
+	if !names["show widget status"] {
+		t.Errorf("non-hidden plugin command missing from %+v", got)
+	}
+	if len(got) != 2 {
+		t.Errorf("merged list length = %d, want 2; entries = %+v", len(got), got)
+	}
+}
+
+// VALIDATES: a hidden plugin command whose name also exists in the dispatcher
+// contributes nothing, and it does not fill the dispatcher entry's empty help.
+// PREVENTS: the duplicate branch reintroducing hidden text. The dispatcher
+// entry stays, because a builtin command has no hidden state, but the hidden
+// plugin description must not describe it.
+func TestBuildCommandMeta_HiddenPluginCommandDoesNotFillHelp(t *testing.T) {
+	const name = "show widget status"
+
+	got := buildCommandMeta(
+		[]*pluginserver.Command{{Name: name, Help: ""}},
+		[]*pluginserver.RegisteredCommand{{Name: name, Description: "hidden help", Hidden: true}},
+		nil, nil, nil)
+
+	if len(got) != 1 {
+		t.Fatalf("merged list length = %d, want 1; entries = %+v", len(got), got)
+	}
+	if got[0].Help != "" {
+		t.Errorf("Help = %q, want the hidden plugin description to be dropped", got[0].Help)
+	}
+}
+
 // VALIDATES: the UI-resource lookup still attaches to the surviving entry after
 // dedupe, including via the parent-path inheritance lookupUIResource performs.
 // PREVENTS: a deduped command losing its MCP Apps annotation.

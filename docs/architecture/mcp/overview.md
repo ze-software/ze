@@ -399,6 +399,12 @@ daemon reference.
 Tools are derived at every `tools/list` call, so newly registered commands
 become available without any MCP code changes (rule: `derive-not-hardcode`).
 
+A command that a plugin registers with `Hidden` never becomes a tool.
+`buildCommandMeta` skips it, so the tool list and the completion tree hide the
+same commands.
+
+<!-- source: cmd/ze/hub/command_meta.go -- buildCommandMeta hidden plugin command skip -->
+
 ## The Tasks Extension
 
 <!-- source: internal/component/mcp/tasks.go -- task registry -->
