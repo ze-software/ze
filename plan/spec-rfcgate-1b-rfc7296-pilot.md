@@ -1184,8 +1184,8 @@ the Obligation text.
 | `RFC7296-3.6-3` | MUST | Implementations MUST support the http: scheme for hash-and-URL lookup (§3.6, §1.7) | **NOT IMPL** |
 | `RFC7296-3.9-1` | MUST | The size of the Nonce Data MUST be between 16 and 256 octets, inclusive (§3.9) | impl-testable |
 | `RFC7296-3.9-2` | MUST NOT | Nonce values MUST NOT be reused (§3.9) | impl-testable |
-| `RFC7296-3.10-1` | MUST | For notifications concerning Child SAs, the Protocol ID field MUST contain either (2) to indicate AH or (3) to indicate ESP (§3.10) | **NOT IMPL** |
-| `RFC7296-3.10-2` | MUST | If the SPI field is empty, the Protocol ID field MUST be sent as zero and MUST be ignored on receipt (§3.10) | **NOT IMPL** |
+| `RFC7296-3.10-4` | MUST | For notifications concerning Child SAs, the Protocol ID field MUST contain either (2) to indicate AH or (3) to indicate ESP (§3.10) | **NOT IMPL** |
+| `RFC7296-3.10-5` | MUST | If the SPI field is empty, the Protocol ID field MUST be sent as zero and MUST be ignored on receipt (§3.10) | **NOT IMPL** |
 | `RFC7296-3.10-3` | MUST | For a notification concerning the IKE SA, the SPI Size MUST be zero and the SPI field must be empty (§3.10) | impl-testable |
 | `RFC7296-3.10.1-1` | MUST | An implementation receiving a Notify payload with one of these types that it does not recognize in a response MUST assume that the corresponding request has failed entirely (§3.10.1) | uncertain |
 | `RFC7296-3.10.1-2` | MUST | Unrecognized error types in a request and status types in a request or response MUST be ignored, and they should be logged (§3.10.1) | uncertain |
@@ -1400,6 +1400,33 @@ purpose, because that requirement has two producers, and each producer needs its
 reads the summary, which is permanent and is the gate's evidence. A plan is deleted at
 closure. A collision here surfaces at the moment its rows reach the summary, which is where
 the mechanical check already stands.
+
+### The same trap fired again in section 3.10, and it was predicted
+
+WP-12 proved two obligations that Appendix A held as `RFC7296-3.10-1` and `3.10-2`. Section
+3.10 had already landed `3.10-3` alone during phase 2b. So the mark was 3, and both new ids
+sat below it.
+
+`check_id_allocation` refuses that (`scripts/dev/rfc_requirements.py:503`). The rule is
+positional. An id at or below the mark that is absent from the baseline reads as a retired
+number pointed at a new obligation.
+
+The two rows are therefore `RFC7296-3.10-4` and `RFC7296-3.10-5` in the summary, in
+Appendix A, and in the tags. The obligation text is unchanged.
+
+**This is the second instance of the batching defect this spec already recorded.** The
+paragraph above predicted it in these words: "For every remaining phase: land a section's
+rows together, or land them in ascending ordinal order." Section 3.10 was landed out of
+order in phase 2b, and the cost arrived one work package later.
+
+**A supervision error made it worse.** The work package was briefed with the claim that all
+five ids were already allocated in `rfc/short/rfc7296.md`. None of the five were there. The
+agent verified the claim, refused to invent rows it had been told not to add, and reported
+the gap rather than working around it. That is the correct behaviour, and it is why the
+error cost one renumbering rather than five wrong rows.
+
+The lesson for briefing a work package: state where an id LIVES, and let the agent verify
+it. An id in Appendix A is a plan. Only an id in the summary is allocated.
 
 **For every remaining phase: land a section's rows together, or land them in ascending
 ordinal order.** A work-package grouping cuts across sections and will trip this again.
