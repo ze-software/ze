@@ -3075,12 +3075,34 @@ def _artifact(stem="rfc9999", src=_SRC_TWO_SITES, register="rfc2119", **over):
     return art
 
 
+# Sentinel for `_extraction_tree(baseline=...)`: leave the PRODUCTION HEAD reader in
+# place. Only a test whose subject IS that reader wants this; see
+# TestExtractionRatchet.test_git_failure_judges_nothing, which drives it through a fake
+# git and must observe the real None-on-failure path.
+_LIVE_BASELINE = object()
+
+
 @contextlib.contextmanager
-def _extraction_tree(artifacts=None, budget="start 2026-07-01\nrate 0\n", src=None):
+def _extraction_tree(
+    artifacts=None, budget="start 2026-07-01\nrate 0\n", src=None, baseline=None
+):
     """A temp rfc/extraction/ plus rfc/drain-budget.txt, with the source text patched.
 
     `artifacts` maps stem -> dict (written as JSON) or str (written verbatim, for the
     malformed-input cases). `budget=None` deletes the budget file.
+
+    THE HEAD BASELINE IS PART OF THE FIXTURE. `baseline` (default `{}`, i.e. "HEAD holds
+    no artifact for this tree") replaces `_git_baseline_extractions`, because the ratchets
+    consume `baseline - current` and `current` is this temp directory. Leaving the
+    production reader live pointed one side of that subtraction at the real repository
+    HEAD and the other at a temp dir, so the comparison was between two unrelated trees
+    and every artifact committed under rfc/extraction/ read as a sign-off this fixture had
+    "deleted". It stayed invisible only while HEAD carried no artifacts; the four
+    sign-offs of plan/spec-rfcgate-4-ledger.md turned eight fixture tests red at once,
+    the THIRD instance of one trap in this spec set (the first two were
+    `extraction_stems() == set()` and `budget.rate == 0.0` asserted against the live
+    corpus). Both sides now come from the same place, so no future commit can separate
+    them. Pass `baseline=` to state a different HEAD, or `_LIVE_BASELINE` to opt out.
     """
     tmp = _mkdtemp("ze-extract-")
     ext = os.path.join(tmp, "extraction")
@@ -3094,6 +3116,9 @@ def _extraction_tree(artifacts=None, budget="start 2026-07-01\nrate 0\n", src=No
             fh.write(budget)
     texts = src if src is not None else {}
     over = {"EXTRACTION_DIR": ext, "DRAIN_BUDGET_FILE": budget_path}
+    if baseline is not _LIVE_BASELINE:
+        head = {} if baseline is None else baseline
+        over["_git_baseline_extractions"] = lambda: head
     if src is not None:
         over["source_text"] = lambda stem: texts.get(stem)
         over["source_path"] = lambda stem: (
@@ -4272,8 +4297,11 @@ class TestExtractionRatchet(unittest.TestCase):
     def test_git_failure_judges_nothing(self):
         """AC-17, driven through _FakeSubprocess with PLAUSIBLE non-empty output: an
         empty-stdout fake cannot tell a reader that checks returncode from one that does
-        not, and both would pass on an implementation with no guard at all."""
-        with _extraction_tree(src={"rfc9999": _SRC_TWO_SITES}):
+        not, and both would pass on an implementation with no guard at all.
+
+        `baseline=_LIVE_BASELINE` because this row's SUBJECT is the production HEAD reader:
+        it must run and return None. Every other fixture test wants it replaced."""
+        with _extraction_tree(src={"rfc9999": _SRC_TWO_SITES}, baseline=_LIVE_BASELINE):
             with _patched(
                 subprocess=_FakeSubprocess(
                     returncode=128, stdout="rfc/extraction/rfc9999.json\0"
@@ -5135,6 +5163,55 @@ class TestDrainFloorWiring(_ExtractionDrive):
         ):
             code, out = self._drive(baseline_enrolled=("rfc9999",))
         self.assertEqual(code, 0, out)
+
+
+class TestFixtureIsolationFromTheRealExtractionTree(_ExtractionDrive):
+    """The recurrence guard: a fixture-driven run_check may not be influenced by the real
+    rfc/extraction/ contents, in the tree OR at HEAD.
+
+    Eight tests went red the moment plan/spec-rfcgate-4-ledger.md committed four
+    sign-offs, because `_extraction_tree` replaced the artifact DIRECTORY while leaving
+    the HEAD baseline reader pointed at the real repository. Nothing failed until a real
+    artifact existed, so the asymmetry shipped invisibly and its cost landed on whichever
+    session next committed a sign-off -- the exact work the gate exists to encourage.
+    These rows fail immediately if that isolation is removed again.
+    """
+
+    REAL_STEMS = ("rfc1035", "rfc3765", "rfc4486", "rfc5301")
+
+    def test_the_real_tree_carries_signoffs_so_this_guard_discriminates(self):
+        """The precondition, asserted rather than assumed: if rfc/extraction/ were empty
+        the rows below would pass with the isolation deleted, and the guard would be
+        theatre. Safe to rely on because check_extraction_ratchet makes sign-off
+        monotonic -- a committed artifact cannot go away."""
+        real = R.extraction_stems()
+        for stem in self.REAL_STEMS:
+            self.assertIn(stem, real, "the four ledger sign-offs are committed")
+
+    def test_a_fixture_baseline_reports_no_real_stem(self):
+        """The mechanism, isolated: inside a fixture tree the HEAD baseline describes the
+        FIXTURE's history (nothing committed), never the repository's."""
+        with _extraction_tree(src={}):
+            baseline = R._git_baseline_extractions()
+        self.assertEqual(baseline, {})
+
+    def test_an_empty_fixture_tree_is_not_accused_of_deleting_the_real_signoffs(self):
+        """The regression itself. An empty fixture tree plus the real HEAD produced
+        'rfcNNNN had an extraction sign-off at HEAD and has none now' four times over,
+        for four artifacts the fixture never claimed to hold."""
+        with _extraction_tree(src={}):
+            self.assertEqual(R.check_extraction_ratchet(), [])
+
+    def test_a_fixture_driven_run_check_names_no_real_stem(self):
+        """And end to end, which is what the gate's operators see: a clean fixture run
+        exits 0 and its output mentions only the fixture's own universe. Asserting the
+        absence of the stem NAMES catches leakage that a 0 exit code alone would not --
+        a real stem surfacing in a warning line, a published count, or a success line."""
+        with _extraction_tree(src={"rfc9999": _SRC_TWO_SITES}):
+            code, out = self._drive(baseline_enrolled=("rfc9999",))
+        self.assertEqual(code, 0, out)
+        for stem in self.REAL_STEMS:
+            self.assertNotIn(stem, out, f"{stem} leaked into a fixture-driven run")
 
 
 class TestSkeletonWriterWiring(unittest.TestCase):
@@ -9543,15 +9620,46 @@ class TestFourStemEnrolmentRealTree(unittest.TestCase):
                 f"{stem}: a tagged id was dropped: {sorted(lost & tagged)}",
             )
 
+    # The six `-x-` no-section anchors rfc3765 and rfc4486 carried BEFORE OR-1 re-anchored
+    # them (`git show e558c55b2^:rfc/short/rfc3765.md`, same for rfc4486). Pinned rather
+    # than read from _git_baseline_ids(), because what OR-1 replaced is a fact about a
+    # specific past commit and cannot change: once the re-anchored summaries were
+    # committed, HEAD and the tree agreed and a HEAD-vs-tree diff could no longer see the
+    # replacement at all.
+    _PRE_OR1_X_ANCHORS = (
+        "RFC3765-x-1",
+        "RFC3765-x-2",
+        "RFC3765-x-3",
+        "RFC3765-x-4",
+        "RFC4486-x-1",
+        "RFC4486-x-2",
+    )
+
     def test_the_x_anchored_ids_were_the_ones_replaced(self):
         """The discriminating half: the test above would also pass if NOTHING had changed.
-        The four rfc3765 ids at HEAD carried the `-x-` no-section anchor, and none survives."""
+
+        Asserted against the PINNED pre-OR-1 anchors, not against `_git_baseline_ids()`.
+        The original form compared HEAD to the working tree, which held only while the
+        re-anchored summaries were uncommitted: commit e558c55b2 committed them, `gone`
+        became empty, and `assertTrue(gone)` failed on work that was correct and complete.
+        Re-tuning it would buy one commit. The durable statement is the one below -- none
+        of the six defect markers survives in the tree, whoever committed what -- and it
+        still reds if OR-1 is reverted or an `-x-` anchor is reintroduced.
+
+        The loop over `gone` is kept verbatim as a live guard on the live baseline: a
+        re-anchor may only ever retire a defect marker, so any id of these two stems that
+        disappears relative to HEAD must be an `-x-` anchor. It is satisfied by an empty
+        `gone` today, which is the honest reading -- nothing was dropped, so nothing needs
+        justifying -- and it fires the moment a real id is dropped."""
+        current = {r.rid for reqs in self.reqs.values() for r in reqs}
+        for rid in self._PRE_OR1_X_ANCHORS:
+            self.assertIn("-x-", rid, f"{rid} is not an -x- anchor; the pin is wrong")
+            self.assertNotIn(rid, current, f"{rid} survived the OR-1 re-anchor")
         gone = {
             rid
             for rid in R._git_baseline_ids()
             if rid.startswith("RFC3765-") or rid.startswith("RFC4486-")
-        } - {r.rid for reqs in self.reqs.values() for r in reqs}
-        self.assertTrue(gone, "the -x- anchors should have been replaced")
+        } - current
         for rid in gone:
             self.assertIn("-x-", rid, f"{rid} was dropped but was not an -x- anchor")
 
