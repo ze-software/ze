@@ -2,9 +2,10 @@
   "audited": "2026-07-22",
   "reaudit_history": [
     "2026-07-22 re-stamp. Staleness was triggered by a mechanical package-qualifier rename across four of the tagged files, not by any change to what they assert: MessageType and the Type* codes moved from internal/component/bgp/message to the always-on leaf internal/core/bgp/msgtype, the route-action enum from internal/component/bgp/types to internal/core/bgp/routeaction, and internal/component/bgp/plugins/rib/events to internal/core/bgp/ribevents, so MRT/sysrib/FIB keep compiling when the BGP engine is compiled out (//go:build ze_bgp). Scope, measured rather than assumed: 20 files carry rfc7606 tags and only 4 changed in 254772452..HEAD -- plugins/adj_rib_in/rib_test.go, plugins/rib/rib_structured_test.go, reactor/session_rfc7606_structural_test.go, reactor/session_test.go. Every hunk in them is a requalification, an import line, or the 9-line rfc-test-change-approved header; normalizing the diff under the rename leaves ZERO unmatched assertion deletions (the unmatched ADDITIONS are that header and the imports -- an earlier version of this note wrongly claimed the add/delete multisets cancel outright, and wrongly said 18 files). The moved constants keep their values (msgtype.Type* 1..5 and routeaction 0..4 match the originals). No RFC-requirement tag was added, removed, moved to another function, or re-pointed anywhere in that range. No requirement TEXT changed: rfc/short/rfc7606.md and rfc/full/rfc7606.txt are byte-identical since the audit, and the requirement_sha of every verdict below is unchanged -- only the tagged-file fingerprints were refreshed, which stale on ANY edit because tagged_unit_shas hashes the whole enclosing file and keys on file:line (every key shifted exactly +9, the height of the inserted header). The verdicts still describe exactly what they judged. Independently re-derived by a second reviewer, 2026-07-22.",
-    "2026-07-29 re-stamp, RFC7606-5.1-2 and RFC7606-5.1-3 only. Neither verdict was re-judged; both fingerprint maps were refreshed after proving what changed under them. (a) test/plugin/rfc7606-relay-one-field.ci: COMMENT-ONLY. Proven mechanically, not asserted -- the 20 directive lines (expect=/action=/reject=/option=/cmd=/stdin=/tmpfs= plus the terminators) are byte-identical to HEAD; the header gained three explanations (which buildFwdBody arm it actually drives, why the notification reject rule was silent, and that scenario 47 now carries a second 5.1-3 binding) and two em dashes became `--`. tagged_unit_shas hashes the whole enclosing file, so a comment stales a verdict about assertions the comment never touched. (b) A NEW key appeared under 5.1-3: test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py:28. That is added evidence, which cannot invalidate a verdict about the evidence already there. The requirement text is byte-identical -- the re-stamp script refuses on a requirement_sha mismatch, so this is checked rather than claimed. No other verdict was touched."
+    "2026-07-29 re-stamp, RFC7606-5.1-2 and RFC7606-5.1-3 only. Neither verdict was re-judged; both fingerprint maps were refreshed after proving what changed under them. (a) test/plugin/rfc7606-relay-one-field.ci: COMMENT-ONLY. Proven mechanically, not asserted -- the 20 directive lines (expect=/action=/reject=/option=/cmd=/stdin=/tmpfs= plus the terminators) are byte-identical to HEAD; the header gained three explanations (which buildFwdBody arm it actually drives, why the notification reject rule was silent, and that scenario 47 now carries a second 5.1-3 binding) and two em dashes became `--`. tagged_unit_shas hashes the whole enclosing file, so a comment stales a verdict about assertions the comment never touched. (b) A NEW key appeared under 5.1-3: test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py:28. That is added evidence, which cannot invalidate a verdict about the evidence already there. The requirement text is byte-identical -- the re-stamp script refuses on a requirement_sha mismatch, so this is checked rather than claimed. No other verdict was touched.",
+    "Mechanical re-stamp by scripts/dev/rename_module_path.py: the module path moved from codeberg.org/thomas-mangin/ze to github.com/ze-software/ze. tagged_unit_shas fingerprints the whole enclosing file, so rewriting an import line stales a verdict about assertions the rename never touched. Every verdict re-stamped below was re-sealed ONLY after proving, per file, that its normalised content at HEAD with codeberg.org/thomas-mangin/ze replaced by github.com/ze-software/ze is identical to its content now, and that the requirement text is byte-identical to what was judged. A verdict failing either proof was refused and left stale. The proof is the code in rename_only_since_head(), not this note."
   ],
-  "reaudit_note": "Mechanical re-stamp by scripts/dev/rename_module_path.py: the module path moved from codeberg.org/thomas-mangin/ze to github.com/ze-software/ze. tagged_unit_shas fingerprints the whole enclosing file, so rewriting an import line stales a verdict about assertions the rename never touched. Every verdict re-stamped below was re-sealed ONLY after proving, per file, that its normalised content at HEAD with codeberg.org/thomas-mangin/ze replaced by github.com/ze-software/ze is identical to its content now, and that the requirement text is byte-identical to what was judged. A verdict failing either proof was refused and left stale. The proof is the code in rename_only_since_head(), not this note.",
+  "reaudit_note": "2026-07-29 SCHEMA MIGRATION, plan/spec-rfcgate-3-audit-teeth.md. Not a re-audit: this record is brought into the schema the gate now validates on read. Four corrections, each explained on its own verdict, plus a mechanical `units` backfill of every verdict that was already fresh at file level. `units` fingerprints the enclosing top-level FUNCTION of each tagged test rather than the whole file, which is what lets the gate tell a mechanical line shift (SHIFTED, cleared by `make ze-rfc-reseal`) from a real change to what a test asserts (STALE, needs /ze-rfc-audit). Six of the sixteen commits that have touched this file were hand re-stamps in which no verdict changed; that class is what the unit fingerprint removes. Exactly ONE verdict was judged here, RFC7606-5.1-2, and only because its recorded value was outside the vocabulary and therefore unrepairable without reading. Every other verdict value is untouched.",
   "requirements": {
     "RFC7606-2-1": {
       "note": "TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal (session_test.go) sends a malformed-ORIGIN UPDATE announcing 10.0.0.0/8 and asserts the DISPATCHED body has withdrawn=={0x08,0x0a}, nlri empty, attrLen zero; the message-level TestSynthesizeWithdrawMovesNLRIToWithdrawn and ...ConvertsMPReachToMPUnreach pin the rewrite exactly. Positive TestSessionRFC7606ValidUpdateDispatchesAnnouncement requires a valid UPDATE to stay byte-for-byte an announcement. 2026-07-20 re-audit: coverage STRENGTHENED beyond message synthesis. TestRIBTreatAsWithdrawRemovesInstalledRoute (rib_structured_test.go) now proves the route actually LEAVES the RIB -- Adj-RIB-In Len()==0 and a best-change Withdraw for 10.0.0.0/8 published to the Loc-RIB -- and that a treat-as-withdraw for a never-installed prefix publishes no spurious event. TestRIBTreatAsWithdrawAddPathPreservesPathID proves exactly the re-advertised ADD-PATH path (ID 42) is withdrawn while its sibling (ID 43) for the same prefix survives. Section 2 says the routes MUST be withdrawn; until these, the evidence stopped at 'a withdrawal-shaped message was dispatched'. Assertions are exact and fail on the old suppression bug. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged.",
@@ -17,6 +18,14 @@
         "internal/component/bgp/reactor/session_rfc7606_structural_test.go:286": "ea265ef1edea04d3",
         "internal/component/bgp/reactor/session_test.go:1939": "7c9ced72a0347576"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_withdraw_test.go:21": "243f7f200850388b",
+        "internal/component/bgp/message/rfc7606_withdraw_test.go:57": "4bf7425583f3618f",
+        "internal/component/bgp/plugins/rib/rib_structured_test.go:166": "69fd910a9e8e31a0",
+        "internal/component/bgp/plugins/rib/rib_structured_test.go:92": "caf9847c9b344d33",
+        "internal/component/bgp/reactor/session_rfc7606_structural_test.go:286": "99b469dd12a666c9",
+        "internal/component/bgp/reactor/session_test.go:1939": "a0d43831a3716151"
+      },
       "verdict": "enforced"
     },
     "RFC7606-2-2": {
@@ -27,14 +36,23 @@
         "internal/component/bgp/message/attr_discard_test.go:336": "e631404e10fbee92",
         "internal/component/bgp/reactor/session_test.go:2020": "7c9ced72a0347576"
       },
+      "units": {
+        "internal/component/bgp/message/attr_discard_test.go:255": "a9f7f462159da4b8",
+        "internal/component/bgp/message/attr_discard_test.go:336": "b75fed7367066278",
+        "internal/component/bgp/reactor/session_test.go:2020": "28e6044ff96091b1"
+      },
       "verdict": "enforced"
     },
     "RFC7606-2-3": {
-      "note": "TestRFC7606RouteSelectionAttributesNeverDiscarded (rfc7606_structural_test.go:426) enumerates ORIGIN/AS_PATH/NEXT_HOP/MED/LOCAL_PREF(iBGP) and asserts NotEqual(AttributeDiscard) AND NotEqual(None) AND DiscardEntries empty with AttrCode pinned per case — a two-sided exclusion that fails if any route-selection attr is discarded or silently accepted. Positive TestRFC7606NonRouteSelectionAttributesAreDiscarded (:497) shows ATOMIC_AGGREGATE/AGGREGATOR ARE discarded, so the MUST NOT is not trivially satisfied by never discarding.",
+      "note": "TestRFC7606RouteSelectionAttributesNeverDiscarded (rfc7606_structural_test.go:426) enumerates ORIGIN/AS_PATH/NEXT_HOP/MED/LOCAL_PREF(iBGP) and asserts NotEqual(AttributeDiscard) AND NotEqual(None) AND DiscardEntries empty with AttrCode pinned per case \u2014 a two-sided exclusion that fails if any route-selection attr is discarded or silently accepted. Positive TestRFC7606NonRouteSelectionAttributesAreDiscarded (:497) shows ATOMIC_AGGREGATE/AGGREGATOR ARE discarded, so the MUST NOT is not trivially satisfied by never discarding.",
       "requirement_sha": "7da8ba3eb6f41f1c",
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go:418": "669936946251c215",
         "internal/component/bgp/message/rfc7606_structural_test.go:489": "669936946251c215"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_structural_test.go:418": "c7133a8038583240",
+        "internal/component/bgp/message/rfc7606_structural_test.go:489": "328a8ce921ee1e35"
       },
       "verdict": "enforced"
     },
@@ -45,6 +63,10 @@
         "internal/component/bgp/plugins/adj_rib_in/rib_test.go:267": "6521317110cb2482",
         "internal/component/bgp/plugins/adj_rib_in/rib_test.go:268": "6521317110cb2482"
       },
+      "units": {
+        "internal/component/bgp/plugins/adj_rib_in/rib_test.go:267": "ce4245a09b7f9a19",
+        "internal/component/bgp/plugins/adj_rib_in/rib_test.go:268": "ce4245a09b7f9a19"
+      },
       "verdict": "enforced"
     },
     "RFC7606-2-6": {
@@ -53,6 +75,10 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go:316": "669936946251c215",
         "internal/component/bgp/message/rfc7606_structural_test.go:370": "669936946251c215"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_structural_test.go:316": "18f68285205fe021",
+        "internal/component/bgp/message/rfc7606_structural_test.go:370": "3e21c9c499ad64d7"
       },
       "verdict": "enforced"
     },
@@ -64,6 +90,11 @@
         "internal/component/bgp/reactor/session_validate_test.go:148": "585bd61281a6de6a",
         "test/plugin/rfc7606-reset.ci:7": "42adb6e162649323"
       },
+      "units": {
+        "internal/component/bgp/reactor/session_rfc7606_structural_test.go:228": "5727c066d9fa89d0",
+        "internal/component/bgp/reactor/session_validate_test.go:148": "3c87c01fd3bd0d71",
+        "test/plugin/rfc7606-reset.ci:7": "42adb6e162649323"
+      },
       "verdict": "enforced"
     },
     "RFC7606-3.b-1": {
@@ -72,6 +103,10 @@
       "tests": {
         "internal/component/bgp/reactor/session_rfc7606_structural_test.go:124": "ea265ef1edea04d3",
         "internal/component/bgp/reactor/session_rfc7606_structural_test.go:163": "ea265ef1edea04d3"
+      },
+      "units": {
+        "internal/component/bgp/reactor/session_rfc7606_structural_test.go:124": "b1cc25eed310a00c",
+        "internal/component/bgp/reactor/session_rfc7606_structural_test.go:163": "bc4ac7e6c83ed60a"
       },
       "verdict": "enforced"
     },
@@ -83,10 +118,15 @@
         "internal/component/bgp/message/rfc7606_test.go:1209": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:1229": "0b8739c630bb26fe"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:1188": "ba10b3ede55067a2",
+        "internal/component/bgp/message/rfc7606_test.go:1209": "39430e858784cf81",
+        "internal/component/bgp/message/rfc7606_test.go:1229": "c95c9823d725fbbc"
+      },
       "verdict": "enforced"
     },
     "RFC7606-3.d-1": {
-      "note": "TestRFC7606MissingOrigin (rfc7606_test.go:54) and TestRFC7606MissingASPath (:72) assert require.Equal(TreatAsWithdraw) with AttrCode 1/2; mp_reach/missing_ORIGIN (:2180) and missing_AS_PATH (:2190) do the same on the MP_REACH path. NEXT_HOP correctly not required (discretionary per §3.d note). Positive TestRFC7606ValidUpdate (:111) accepts a full mandatory set. Exact assertions, isolated buffers.",
+      "note": "TestRFC7606MissingOrigin (rfc7606_test.go:54) and TestRFC7606MissingASPath (:72) assert require.Equal(TreatAsWithdraw) with AttrCode 1/2; mp_reach/missing_ORIGIN (:2180) and missing_AS_PATH (:2190) do the same on the MP_REACH path. NEXT_HOP correctly not required (discretionary per \u00a73.d note). Positive TestRFC7606ValidUpdate (:111) accepts a full mandatory set. Exact assertions, isolated buffers.",
       "requirement_sha": "086b456334687d23",
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go:132": "0b8739c630bb26fe",
@@ -94,6 +134,13 @@
         "internal/component/bgp/message/rfc7606_test.go:187": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:2317": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:2327": "0b8739c630bb26fe"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:132": "b139e048362d4098",
+        "internal/component/bgp/message/rfc7606_test.go:150": "2c564263c38a67e8",
+        "internal/component/bgp/message/rfc7606_test.go:187": "3ae6f048c392bc4f",
+        "internal/component/bgp/message/rfc7606_test.go:2317": "826916eb61da357d",
+        "internal/component/bgp/message/rfc7606_test.go:2327": "826916eb61da357d"
       },
       "verdict": "enforced"
     },
@@ -105,6 +152,12 @@
         "internal/component/bgp/message/rfc7606_test.go:12": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:1627": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:453": "0b8739c630bb26fe"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:1025": "3273d68e3c0de569",
+        "internal/component/bgp/message/rfc7606_test.go:12": "b7f851d2585b9021",
+        "internal/component/bgp/message/rfc7606_test.go:1627": "826916eb61da357d",
+        "internal/component/bgp/message/rfc7606_test.go:453": "9f23d5bbe528f31a"
       },
       "verdict": "enforced"
     },
@@ -118,6 +171,13 @@
         "internal/component/bgp/message/rfc7606_test.go:1628": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:169": "0b8739c630bb26fe"
       },
+      "units": {
+        "internal/component/bgp/message/attr_discard_test.go:421": "37b93f552b985f8b",
+        "internal/component/bgp/message/attr_discard_test.go:435": "37b93f552b985f8b",
+        "internal/component/bgp/message/rfc7606_test.go:1345": "0a79fa12d7dc7b87",
+        "internal/component/bgp/message/rfc7606_test.go:1628": "826916eb61da357d",
+        "internal/component/bgp/message/rfc7606_test.go:169": "b035dba2219e6d42"
+      },
       "verdict": "enforced"
     },
     "RFC7606-3.g-1": {
@@ -129,6 +189,12 @@
         "internal/component/bgp/message/rfc7606_test.go:702": "0b8739c630bb26fe",
         "internal/component/bgp/reactor/session_test.go:1787": "7c9ced72a0347576"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:214": "0e8aea350f1562ff",
+        "internal/component/bgp/message/rfc7606_test.go:2256": "826916eb61da357d",
+        "internal/component/bgp/message/rfc7606_test.go:702": "e8d83289676a1ed9",
+        "internal/component/bgp/reactor/session_test.go:1787": "fbb3440e0706de73"
+      },
       "verdict": "enforced"
     },
     "RFC7606-3.g-2": {
@@ -138,30 +204,44 @@
         "internal/component/bgp/message/rfc7606_structural_test.go:542": "669936946251c215",
         "internal/component/bgp/message/rfc7606_structural_test.go:563": "669936946251c215"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_structural_test.go:542": "022af2a0c9578d2d",
+        "internal/component/bgp/message/rfc7606_structural_test.go:563": "89d4621d5dfdbb6c"
+      },
       "verdict": "enforced"
     },
     "RFC7606-3.h-1": {
-      "note": "TestRFC7606CollectAllErrors (rfc7606_test.go:1393) uses two attribute-discard errors (ATOMIC_AGG + AGGREGATOR) and asserts require.Equal(AttributeDiscard) with DiscardEntries len 2 covering codes 6 and 7 — fails on escalation or on dropping either entry. The {single-polarity,negative} annotation is sound: 'multiple attribute errors exist' has no error-free instance, so no positive can be constructed. Exact assertion, isolated buffer.",
+      "note": "TestRFC7606CollectAllErrors (rfc7606_test.go:1393) uses two attribute-discard errors (ATOMIC_AGG + AGGREGATOR) and asserts require.Equal(AttributeDiscard) with DiscardEntries len 2 covering codes 6 and 7 \u2014 fails on escalation or on dropping either entry. The {single-polarity,negative} annotation is sound: 'multiple attribute errors exist' has no error-free instance, so no positive can be constructed. Exact assertion, isolated buffer.",
       "requirement_sha": "b6a304b223f5df94",
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go:1529": "0b8739c630bb26fe"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:1529": "43f463753b5a4bfa"
+      },
       "verdict": "enforced"
     },
     "RFC7606-3.h-2": {
-      "note": "TestRFC7606MultipleErrorsStrongest (rfc7606_test.go:1369) combines ATOMIC_AGG discard (weaker) with COMMUNITY TAW (stronger) and asserts require.Equal(TreatAsWithdraw) AttrCode 8 — fails if the weaker action wins or if it over-escalates to SessionReset. The {single-polarity,negative} annotation holds (premise is that errors exist). The stronger boundary (TAW vs SessionReset) is separately pinned by 2-6.",
+      "note": "TestRFC7606MultipleErrorsStrongest (rfc7606_test.go:1369) combines ATOMIC_AGG discard (weaker) with COMMUNITY TAW (stronger) and asserts require.Equal(TreatAsWithdraw) AttrCode 8 \u2014 fails if the weaker action wins or if it over-escalates to SessionReset. The {single-polarity,negative} annotation holds (premise is that errors exist). The stronger boundary (TAW vs SessionReset) is separately pinned by 2-6.",
       "requirement_sha": "c624f5c5539d0434",
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go:1505": "0b8739c630bb26fe"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:1505": "302d5b3fc3419dcd"
+      },
       "verdict": "enforced"
     },
     "RFC7606-3.i-1": {
-      "note": "Negative TestEnforceRFC7606_InvalidWithdrawnNLRI (session_validate_test.go:87) puts prefix-length 33 in the Withdrawn Routes field (withdrawn-only body, isolated) and asserts require.Equal(SessionReset)+err — proving the withdrawn field IS syntax-checked like NLRI (mirror of TestEnforceRFC7606_InvalidTrailingNLRI for the NLRI field). Positive TestEnforceRFC7606_ValidWithdrawnNLRIAccepted (session_rfc7606_structural_test.go:72) drives a deliberately non-empty valid withdrawn field through enforceRFC7606 => ActionNone, unrewritten. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged.",
+      "note": "Negative TestEnforceRFC7606_InvalidWithdrawnNLRI (session_validate_test.go:87) puts prefix-length 33 in the Withdrawn Routes field (withdrawn-only body, isolated) and asserts require.Equal(SessionReset)+err \u2014 proving the withdrawn field IS syntax-checked like NLRI (mirror of TestEnforceRFC7606_InvalidTrailingNLRI for the NLRI field). Positive TestEnforceRFC7606_ValidWithdrawnNLRIAccepted (session_rfc7606_structural_test.go:72) drives a deliberately non-empty valid withdrawn field through enforceRFC7606 => ActionNone, unrewritten. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged.",
       "requirement_sha": "55678935f22b8a58",
       "tests": {
         "internal/component/bgp/reactor/session_rfc7606_structural_test.go:82": "ea265ef1edea04d3",
         "internal/component/bgp/reactor/session_validate_test.go:172": "585bd61281a6de6a"
+      },
+      "units": {
+        "internal/component/bgp/reactor/session_rfc7606_structural_test.go:82": "36303b7929270759",
+        "internal/component/bgp/reactor/session_validate_test.go:172": "6e38d65ce1da54f5"
       },
       "verdict": "enforced"
     },
@@ -179,6 +259,17 @@
         "internal/component/bgp/reactor/session_validate_test.go:201": "585bd61281a6de6a",
         "test/plugin/rfc7606-reset.ci:9": "42adb6e162649323"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:1420": "c04327a4646344b2",
+        "internal/component/bgp/message/rfc7606_test.go:804": "3cd2969a52f39d50",
+        "internal/component/bgp/message/rfc7606_test.go:830": "1cb2f1a86c6da6e4",
+        "internal/component/bgp/message/rfc7606_test.go:850": "37ae3d4613f9702f",
+        "internal/component/bgp/message/rfc7606_test.go:874": "ad3814158f8fad42",
+        "internal/component/bgp/message/rfc7606_test.go:903": "4311ed2e085a48ac",
+        "internal/component/bgp/message/rfc7606_test.go:937": "84f2e5546da586fe",
+        "internal/component/bgp/reactor/session_validate_test.go:201": "dd369ed57d781b63",
+        "test/plugin/rfc7606-reset.ci:9": "42adb6e162649323"
+      },
       "verdict": "enforced"
     },
     "RFC7606-4-1": {
@@ -187,6 +278,10 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go:237": "669936946251c215",
         "internal/component/bgp/message/rfc7606_test.go:1629": "0b8739c630bb26fe"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_structural_test.go:237": "6215492127a94045",
+        "internal/component/bgp/message/rfc7606_test.go:1629": "826916eb61da357d"
       },
       "verdict": "enforced"
     },
@@ -198,16 +293,24 @@
         "internal/component/bgp/message/rfc7606_test.go:1630": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:189": "0b8739c630bb26fe"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_structural_test.go:273": "232c90b703220ea8",
+        "internal/component/bgp/message/rfc7606_test.go:1630": "826916eb61da357d",
+        "internal/component/bgp/message/rfc7606_test.go:189": "3ae6f048c392bc4f"
+      },
       "verdict": "enforced"
     },
     "RFC7606-5.1-1": {
-      "note": "{gap} is honest and confirmed: buildUpdatePayload (wireu/split.go:440-476) writes the attribute section as baseAttrs, then mpUnreach, then mpReach (:463-470), so MP_REACH is emitted LAST, not 'the very first path attribute' as §5.1 SHALL requires. Disclosed in docs/architecture/wire/mp-nlri-ordering.md ('MP_REACH last: Intentionally non-compliant') and rfc-status.md gap (1).",
+      "code": {
+        "internal/component/bgp/wireu/split.go:456": "b9c5a276efebd296"
+      },
+      "note": "{gap} is honest and confirmed: buildUpdatePayload (wireu/split.go:440-476) writes the attribute section as baseAttrs, then mpUnreach, then mpReach (:463-470), so MP_REACH is emitted LAST, not 'the very first path attribute' as \u00a75.1 SHALL requires. Disclosed in docs/architecture/wire/mp-nlri-ordering.md ('MP_REACH last: Intentionally non-compliant') and rfc-status.md gap (1). 2026-07-29 (plan/spec-rfcgate-3-audit-teeth.md): the `code` map below transcribes the producing code this note already names, so the claim is falsifiable. Nothing was re-judged: with neither tests nor code fingerprinted this verdict's freshness test was `{} == {}` and it could never go stale, i.e. nobody was ever asked to look again if the gap closed. The fingerprint is the enclosing FUNCTION's span, not the file, because producer files churn far more than test files and a file-level hash here would just manufacture a new false-stale class (spec R-5).",
       "requirement_sha": "3ea72464437d16f3",
       "tests": {},
       "verdict": "unimplemented"
     },
     "RFC7606-5.1-2": {
-      "note": "Closed 2026-07-20 by plan/spec-rfc7606-5-1-2-relay-shape.md. Origination was already compliant and both splitters emit one NLRI-bearing component per message; what was missing was the RELAY, where an UPDATE that FIT was emitted whole in whatever shape it arrived. Ze is the sender of the bytes it relays, so the restriction applies there too. message.NLRIBearingFieldCount is now the single definition of the count; wireu.WireUpdate.MixesNLRIFields caches the verdict per received UPDATE (the pointer is shared across the per-peer forward loop, so the walk is paid once per message, not once per destination -- measured 3.3ns against 51.7ns, both allocation-free); buildFwdBody splits on shape as well as size in BOTH branches, and Splitter.SplitCompliant is the parsed-side entry point that does the same. A compliant single-field UPDATE still takes the zero-copy append: SplitWireUpdate returns the identical pointer and the reactor hands on the received bytes, asserted by pointer identity rather than equality. Receive -side tolerance (RFC7606-5.1-3) is untouched, and the deliberate MP_UNREACH-first ordering divergence (RFC7606-5.1-1) is unchanged. Evidence: 8 unit tests across three packages, one functional test (test/plugin/rfc7606-relay-one-field.ci, which fails 4/4 when either relay branch is reverted), and 8 mutants killed. 2026-07-20 (interop): a new regression pins that splitting must not MANUFACTURE an RFC 4724 End-of-RIB out of a degenerate empty MP_UNREACH (TestSplitWireUpdateDoesNotManufactureEoR), found by independent review. Interop scenario test/interop/scenarios/47-rfc7606-relay-shape-frr: FRR installs Ze's relayed output; it discriminates a separate duplicate-NEXT_HOP defect on the route-server replay path (FRR rejects the route without the fix). It proves FRR ACCEPTS the Section 5.1 split output but cannot distinguish split from unsplit -- Section 5.1's third bullet obliges every receiver to accept any combination -- so split-vs-unsplit discrimination stays in the unit tests and the .ci. 2026-07-29 (plan/spec-rfcgate-2-evidence.md): test/plugin/rfc7606-relay-one-field.ci now carries the `RFC requirement:` tag and appears in the fingerprint below. Nothing about the test changed; it was cited as evidence in this very note while the ledger still showed this MUST NOT as unit-only, because nobody had tagged it. .ci was already an admissible carrier -- this was a missing binding, not a missing capability. Verdict unchanged.",
+      "note": "Closed 2026-07-20 by plan/spec-rfc7606-5-1-2-relay-shape.md. Origination was already compliant and both splitters emit one NLRI-bearing component per message; what was missing was the RELAY, where an UPDATE that FIT was emitted whole in whatever shape it arrived. Ze is the sender of the bytes it relays, so the restriction applies there too. message.NLRIBearingFieldCount is now the single definition of the count; wireu.WireUpdate.MixesNLRIFields caches the verdict per received UPDATE (the pointer is shared across the per-peer forward loop, so the walk is paid once per message, not once per destination -- measured 3.3ns against 51.7ns, both allocation-free); buildFwdBody splits on shape as well as size in BOTH branches, and Splitter.SplitCompliant is the parsed-side entry point that does the same. A compliant single-field UPDATE still takes the zero-copy append: SplitWireUpdate returns the identical pointer and the reactor hands on the received bytes, asserted by pointer identity rather than equality. Receive -side tolerance (RFC7606-5.1-3) is untouched, and the deliberate MP_UNREACH-first ordering divergence (RFC7606-5.1-1) is unchanged. Evidence: 8 unit tests across three packages, one functional test (test/plugin/rfc7606-relay-one-field.ci, which fails 4/4 when either relay branch is reverted), and 8 mutants killed. 2026-07-20 (interop): a new regression pins that splitting must not MANUFACTURE an RFC 4724 End-of-RIB out of a degenerate empty MP_UNREACH (TestSplitWireUpdateDoesNotManufactureEoR), found by independent review. Interop scenario test/interop/scenarios/47-rfc7606-relay-shape-frr: FRR installs Ze's relayed output; it discriminates a separate duplicate-NEXT_HOP defect on the route-server replay path (FRR rejects the route without the fix). It proves FRR ACCEPTS the Section 5.1 split output but cannot distinguish split from unsplit -- Section 5.1's third bullet obliges every receiver to accept any combination -- so split-vs-unsplit discrimination stays in the unit tests and the .ci. 2026-07-29 (plan/spec-rfcgate-2-evidence.md): test/plugin/rfc7606-relay-one-field.ci now carries the `RFC requirement:` tag and appears in the fingerprint below. Nothing about the test changed; it was cited as evidence in this very note while the ledger still showed this MUST NOT as unit-only, because nobody had tagged it. .ci was already an admissible carrier -- this was a missing binding, not a missing capability. Verdict unchanged. 2026-07-29 (plan/spec-rfcgate-3-audit-teeth.md): the recorded value was `implemented`, which is outside the four values ai/skills/ze-rfc-audit.md defines, so no legal verdict had ever been recorded here and there was nothing to preserve. RE-JUDGED against rfc/full/rfc7606.txt Section 5.1 second bullet ('An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute') rather than mapped mechanically, because rewriting the word without reading would fabricate a judgement nobody reached. Verdict: enforced. The tests assert the RFC's own quantity -- NLRIBearingFieldCount over all ten combinations, then <=1 per emitted message -- not a proxy for it; each of the three sender-side entry points has a fixture that guards BOTH that the input already FITS (so only shape can force the split) and that it starts non-compliant, so the assertion cannot pass for the wrong reason; the negatives use genuinely compliant single-field inputs and assert POINTER IDENTITY of the passed-through bytes, which an equal-but-copied payload would fail, so the pair discriminates rather than wearing two hats; and the split is asserted to preserve every route, so a compliant-but-lossy split fails too. Would-it-fail is recorded from mutation, not inferred: reverting either relay branch leaves one message where the test requires several, and the .ci fails 4/4 with message-mismatch.",
       "requirement_sha": "1bf7dcc3e53c0463",
       "tests": {
         "internal/component/bgp/message/rfc7606_shape_test.go:119": "fa86c1039b6eb8a0",
@@ -221,13 +324,30 @@
         "internal/component/bgp/wireu/split_eor_test.go:32": "af6e6610cb544b99",
         "test/plugin/rfc7606-relay-one-field.ci:3": "93b5a186dfd04178"
       },
-      "verdict": "implemented"
+      "units": {
+        "internal/component/bgp/message/rfc7606_shape_test.go:119": "01ca44578293eec2",
+        "internal/component/bgp/message/rfc7606_shape_test.go:151": "a32b8e5d09663120",
+        "internal/component/bgp/message/rfc7606_shape_test.go:55": "a996aeb7f3d8351d",
+        "internal/component/bgp/reactor/forward_body_rfc7606_test.go:116": "2a1a75ded4359259",
+        "internal/component/bgp/reactor/forward_body_rfc7606_test.go:156": "23ef5c8661576201",
+        "internal/component/bgp/reactor/forward_body_rfc7606_test.go:51": "6f63d3c0b046f19f",
+        "internal/component/bgp/wireu/shape_rfc7606_test.go:23": "2c77d524af9a9afc",
+        "internal/component/bgp/wireu/shape_rfc7606_test.go:58": "23997f3825d6f88f",
+        "internal/component/bgp/wireu/split_eor_test.go:32": "7df1c7da3cd9f958",
+        "test/plugin/rfc7606-relay-one-field.ci:3": "93b5a186dfd04178"
+      },
+      "verdict": "enforced"
     },
     "RFC7606-5.1-3": {
-      "note": "{single-polarity} positive is honest: a MUST-accept obligation has no conforming rejection. rfc7606_test.go:583 (TestRFC7606MPReachIPv4NextHopValid) places MP_REACH after ORIGIN and AS_PATH (not first) and asserts ActionNone. Ze has no receive-side ordering check, so it accepts any position; if an ordering check were added that rejected non-first MP, this would fail. Caveat: proves the 'any position' clause but not the 'combination' clause. 2026-07-29 (plan/spec-rfcgate-2-evidence.md): the caveat above -- 'proves the any position clause but not the combination clause' -- is now closed by TWO bindings at the wire altitude, both landed. (1) test/plugin/rfc7606-relay-one-field.ci sends ONE UPDATE mixing Withdrawn Routes with NLRI and asserts the source peer is neither reset nor answered with a NOTIFICATION; it runs inside ze-verify on every push. (2) Interop scenario 47-rfc7606-relay-shape-frr drives the same shape from a raw injector at a real FRR and is now tagged. An earlier revision of THIS note said scenario 47 was not tagged because it failed at an unrelated assertion, attributed to the adj-rib-in replay path prepending Ze's AS while the forward path did not. That attribution was WRONG and is withdrawn: there is ONE prepend gate (reactor_api_forward.go:711, `facts.isEBGP && !facts.rsClient`) and both rails reach it; facts.rsClient is populated only from the session/rs-client leaf, which defaults to false and which no interop scenario set. Ze was correctly prepending for a peer that was, as configured, a plain eBGP peer. Setting rs-client in ze.conf -- what RFC 7947 route-server semantics require of a route server's clients -- turns the scenario GREEN; scenario 14-route-server-frr was red for the identical reason and is fixed the same way. §5.1's second bullet forbids a SENDER to emit that shape, so no conforming peer daemon can drive it and an injector is the only carrier that can. The two bindings are not interchangeable: the .ci is merge-gate evidence, the interop scenario is nightly and advisory. Verdict unchanged.",
+      "note": "{single-polarity} positive is honest: a MUST-accept obligation has no conforming rejection. rfc7606_test.go:583 (TestRFC7606MPReachIPv4NextHopValid) places MP_REACH after ORIGIN and AS_PATH (not first) and asserts ActionNone. Ze has no receive-side ordering check, so it accepts any position; if an ordering check were added that rejected non-first MP, this would fail. Caveat: proves the 'any position' clause but not the 'combination' clause. 2026-07-29 (plan/spec-rfcgate-2-evidence.md): the caveat above -- 'proves the any position clause but not the combination clause' -- is now closed by TWO bindings at the wire altitude, both landed. (1) test/plugin/rfc7606-relay-one-field.ci sends ONE UPDATE mixing Withdrawn Routes with NLRI and asserts the source peer is neither reset nor answered with a NOTIFICATION; it runs inside ze-verify on every push. (2) Interop scenario 47-rfc7606-relay-shape-frr drives the same shape from a raw injector at a real FRR and is now tagged. An earlier revision of THIS note said scenario 47 was not tagged because it failed at an unrelated assertion, attributed to the adj-rib-in replay path prepending Ze's AS while the forward path did not. That attribution was WRONG and is withdrawn: there is ONE prepend gate (reactor_api_forward.go:711, `facts.isEBGP && !facts.rsClient`) and both rails reach it; facts.rsClient is populated only from the session/rs-client leaf, which defaults to false and which no interop scenario set. Ze was correctly prepending for a peer that was, as configured, a plain eBGP peer. Setting rs-client in ze.conf -- what RFC 7947 route-server semantics require of a route server's clients -- turns the scenario GREEN; scenario 14-route-server-frr was red for the identical reason and is fixed the same way. \u00a75.1's second bullet forbids a SENDER to emit that shape, so no conforming peer daemon can drive it and an injector is the only carrier that can. The two bindings are not interchangeable: the .ci is merge-gate evidence, the interop scenario is nightly and advisory. Verdict unchanged.",
       "requirement_sha": "64c991a1ea52db81",
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go:703": "0b8739c630bb26fe",
+        "test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py:28": "57df538ba25f86d0",
+        "test/plugin/rfc7606-relay-one-field.ci:7": "93b5a186dfd04178"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:703": "e8d83289676a1ed9",
         "test/interop/scenarios/47-rfc7606-relay-shape-frr/check.py:28": "57df538ba25f86d0",
         "test/plugin/rfc7606-relay-one-field.ci:7": "93b5a186dfd04178"
       },
@@ -243,6 +363,13 @@
         "internal/component/bgp/message/rfc7606_test.go:2278": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:2292": "0b8739c630bb26fe"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:1446": "2ef0df6447b80465",
+        "internal/component/bgp/message/rfc7606_test.go:1466": "0db3fdf749b07c00",
+        "internal/component/bgp/message/rfc7606_test.go:1486": "ec6654eb444b7e56",
+        "internal/component/bgp/message/rfc7606_test.go:2278": "826916eb61da357d",
+        "internal/component/bgp/message/rfc7606_test.go:2292": "826916eb61da357d"
+      },
       "verdict": "enforced"
     },
     "RFC7606-5.3-1": {
@@ -253,6 +380,11 @@
         "internal/component/bgp/message/rfc7606_test.go:848": "0b8739c630bb26fe",
         "internal/component/bgp/reactor/session_validate_test.go:199": "585bd61281a6de6a"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_structural_test.go:54": "c285d00b4dc7e152",
+        "internal/component/bgp/message/rfc7606_test.go:848": "37ae3d4613f9702f",
+        "internal/component/bgp/reactor/session_validate_test.go:199": "dd369ed57d781b63"
+      },
       "verdict": "enforced"
     },
     "RFC7606-5.3-2": {
@@ -261,6 +393,10 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_structural_test.go:75": "669936946251c215",
         "internal/component/bgp/reactor/session_validate_test.go:170": "585bd61281a6de6a"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_structural_test.go:75": "23f0a8a82c45bc48",
+        "internal/component/bgp/reactor/session_validate_test.go:170": "6e38d65ce1da54f5"
       },
       "verdict": "enforced"
     },
@@ -272,6 +408,11 @@
         "internal/component/bgp/message/rfc7606_test.go:901": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_withdraw_test.go:293": "7c9db156f2c132bf"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_structural_test.go:97": "08ec4b96c35e26c3",
+        "internal/component/bgp/message/rfc7606_test.go:901": "4311ed2e085a48ac",
+        "internal/component/bgp/message/rfc7606_withdraw_test.go:293": "889d3ce75f9758bb"
+      },
       "verdict": "enforced"
     },
     "RFC7606-5.3-4": {
@@ -280,6 +421,10 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_withdraw_test.go:225": "7c9db156f2c132bf",
         "internal/component/bgp/message/rfc7606_withdraw_test.go:294": "7c9db156f2c132bf"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_withdraw_test.go:225": "f46c35cdc8811822",
+        "internal/component/bgp/message/rfc7606_withdraw_test.go:294": "889d3ce75f9758bb"
       },
       "verdict": "enforced"
     },
@@ -290,6 +435,10 @@
         "internal/component/bgp/message/rfc7606_withdraw_test.go:261": "7c9db156f2c132bf",
         "internal/component/bgp/message/rfc7606_withdraw_test.go:295": "7c9db156f2c132bf"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_withdraw_test.go:261": "f68376ef4cd2ee4c",
+        "internal/component/bgp/message/rfc7606_withdraw_test.go:295": "889d3ce75f9758bb"
+      },
       "verdict": "enforced"
     },
     "RFC7606-5.3-6": {
@@ -299,10 +448,18 @@
         "internal/component/bgp/message/rfc7606_structural_test.go:157": "669936946251c215",
         "test/plugin/rfc7606-reset.ci:6": "42adb6e162649323"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_structural_test.go:157": "2f53070c952e16a2",
+        "test/plugin/rfc7606-reset.ci:6": "42adb6e162649323"
+      },
       "verdict": "enforced"
     },
     "RFC7606-5.4-1": {
-      "note": "Unimplemented BY DECISION, 2026-07-20, not by oversight. Ze retains and propagates unrecognized typed NLRI opaquely. The earlier note's mechanism was wrong: ParseEVPN/ParseMVPN are not on the RIB or forwarding path (display decoders only). Retention comes from FamilyRIB.insertOpaque keying on raw NLRI bytes and buildFwdBody's verbatim same-context forward, neither of which reads the route type. Ze has no EVPN forwarding plane, so it is only ever a relay here; discarding would break transit for route types newer than this code while improving nothing locally, and RFC 7606 Section 6 warns that asymmetric intra-AS dropping causes forwarding loops and black holes. RFC 9552 Section 5.1 exercised 5.4's escape clause for BGP-LS; RFC 7432 never did for EVPN, so this stays a disclosed divergence. ExaBGP matches this behaviour; GoBGP session-resets. Neither cites 5.4.",
+      "code": {
+        "internal/component/bgp/plugins/rib/storage/familyrib.go:278": "b0369821be1ae045",
+        "internal/component/bgp/reactor/forward_body.go:37": "01d72c9a12cae10f"
+      },
+      "note": "Unimplemented BY DECISION, 2026-07-20, not by oversight. Ze retains and propagates unrecognized typed NLRI opaquely. The earlier note's mechanism was wrong: ParseEVPN/ParseMVPN are not on the RIB or forwarding path (display decoders only). Retention comes from FamilyRIB.insertOpaque keying on raw NLRI bytes and buildFwdBody's verbatim same-context forward, neither of which reads the route type. Ze has no EVPN forwarding plane, so it is only ever a relay here; discarding would break transit for route types newer than this code while improving nothing locally, and RFC 7606 Section 6 warns that asymmetric intra-AS dropping causes forwarding loops and black holes. RFC 9552 Section 5.1 exercised 5.4's escape clause for BGP-LS; RFC 7432 never did for EVPN, so this stays a disclosed divergence. ExaBGP matches this behaviour; GoBGP session-resets. Neither cites 5.4. 2026-07-29 (plan/spec-rfcgate-3-audit-teeth.md): the `code` map below transcribes the producing code this note already names, so the claim is falsifiable. Nothing was re-judged: with neither tests nor code fingerprinted this verdict's freshness test was `{} == {}` and it could never go stale, i.e. nobody was ever asked to look again if the gap closed. The fingerprint is the enclosing FUNCTION's span, not the file, because producer files churn far more than test files and a file-level hash here would just manufacture a new false-stale class (spec R-5).",
       "requirement_sha": "ea93cedfd8042c38",
       "tests": {},
       "verdict": "unimplemented"
@@ -315,6 +472,12 @@
         "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go:103": "714bbc754d5d3f6f",
         "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go:59": "714bbc754d5d3f6f",
         "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go:85": "714bbc754d5d3f6f"
+      },
+      "units": {
+        "internal/component/bgp/reactor/session_rfc7606_diag_cost_test.go:26": "f2537f84e2894288",
+        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go:103": "aaae726194bfc528",
+        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go:59": "757dc7da2b417ef4",
+        "internal/component/bgp/reactor/session_rfc7606_diagnostics_test.go:85": "77dbad0bed129534"
       },
       "verdict": "enforced"
     },
@@ -329,6 +492,14 @@
         "internal/component/bgp/message/rfc7606_test.go:600": "0b8739c630bb26fe",
         "test/plugin/rfc7606-withdraw.ci:8": "57248be6f49bee1d"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:11": "b7f851d2585b9021",
+        "internal/component/bgp/message/rfc7606_test.go:549": "93c5f2f89fc08441",
+        "internal/component/bgp/message/rfc7606_test.go:566": "d2502f5a786c8be8",
+        "internal/component/bgp/message/rfc7606_test.go:583": "dafad90ef9e16b9d",
+        "internal/component/bgp/message/rfc7606_test.go:600": "424f741e37a7f787",
+        "test/plugin/rfc7606-withdraw.ci:8": "57248be6f49bee1d"
+      },
       "verdict": "enforced"
     },
     "RFC7606-7.10-1": {
@@ -339,6 +510,11 @@
         "internal/component/bgp/message/rfc7606_test.go:1116": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:1137": "0b8739c630bb26fe"
       },
+      "units": {
+        "internal/component/bgp/message/attr_discard_test.go:462": "37b93f552b985f8b",
+        "internal/component/bgp/message/rfc7606_test.go:1116": "7eac9432f78e9c41",
+        "internal/component/bgp/message/rfc7606_test.go:1137": "56318d1811c98fd3"
+      },
       "verdict": "enforced"
     },
     "RFC7606-7.10-2": {
@@ -347,6 +523,10 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go:1138": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:1163": "0b8739c630bb26fe"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:1138": "56318d1811c98fd3",
+        "internal/component/bgp/message/rfc7606_test.go:1163": "7cbb134dcb6f04ab"
       },
       "verdict": "enforced"
     },
@@ -362,6 +542,15 @@
         "internal/component/bgp/message/rfc7606_test.go:753": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:779": "0b8739c630bb26fe"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:623": "2538cbb05ebee4eb",
+        "internal/component/bgp/message/rfc7606_test.go:648": "465207c798f74740",
+        "internal/component/bgp/message/rfc7606_test.go:676": "77e036ba3a3dfc3a",
+        "internal/component/bgp/message/rfc7606_test.go:701": "e8d83289676a1ed9",
+        "internal/component/bgp/message/rfc7606_test.go:728": "c04fe46c3cd2d1a5",
+        "internal/component/bgp/message/rfc7606_test.go:753": "d2d2639f175c25ed",
+        "internal/component/bgp/message/rfc7606_test.go:779": "3d282f1a3e690dc9"
+      },
       "verdict": "enforced"
     },
     "RFC7606-7.13-1": {
@@ -370,6 +559,10 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_optional_attrs_test.go:56": "c53904e7a8456607",
         "internal/component/bgp/message/rfc7606_optional_attrs_test.go:83": "c53904e7a8456607"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:56": "f616b09cc2b5b615",
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:83": "6d345775e6dadd74"
       },
       "verdict": "enforced"
     },
@@ -380,13 +573,20 @@
         "internal/component/bgp/message/rfc7606_test.go:306": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:337": "0b8739c630bb26fe"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:306": "3a9428bf9308b255",
+        "internal/component/bgp/message/rfc7606_test.go:337": "9a48bbdbbba6137c"
+      },
       "verdict": "enforced"
     },
     "RFC7606-7.14-2": {
-      "note": "Single-polarity (positive-only) argument holds: §7.14 is a MUST NOT prohibition ('MUST NOT treat an unrecognized Extended Community Type or Sub-Type as an error'), so acceptance is the only conforming observation. Positive rfc7606_test.go:247 uses valid length 8 with unrecognized Type 0x3f/Sub-Type 0xee and asserts ActionNone; length kept valid so the 7.14-1 length clause cannot mask the type question. validateExtCommunityAttr (rfc7606.go:550-560) inspects only length, never type, so introducing a type allowlist would flip this test to TreatAsWithdraw and fail it.",
+      "note": "Single-polarity (positive-only) argument holds: \u00a77.14 is a MUST NOT prohibition ('MUST NOT treat an unrecognized Extended Community Type or Sub-Type as an error'), so acceptance is the only conforming observation. Positive rfc7606_test.go:247 uses valid length 8 with unrecognized Type 0x3f/Sub-Type 0xee and asserts ActionNone; length kept valid so the 7.14-1 length clause cannot mask the type question. validateExtCommunityAttr (rfc7606.go:550-560) inspects only length, never type, so introducing a type allowlist would flip this test to TreatAsWithdraw and fail it.",
       "requirement_sha": "14286f46ce5b9963",
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go:366": "0b8739c630bb26fe"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:366": "f912c6bb54e659cf"
       },
       "verdict": "enforced"
     },
@@ -397,6 +597,10 @@
         "internal/component/bgp/message/rfc7606_optional_attrs_test.go:115": "c53904e7a8456607",
         "internal/component/bgp/message/rfc7606_optional_attrs_test.go:142": "c53904e7a8456607"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:115": "f3322a701a9b2be7",
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:142": "8093e22d166e9f12"
+      },
       "verdict": "enforced"
     },
     "RFC7606-7.15-2": {
@@ -404,6 +608,9 @@
       "requirement_sha": "eedc81a2acb3586b",
       "tests": {
         "internal/component/bgp/message/rfc7606_optional_attrs_test.go:172": "c53904e7a8456607"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:172": "d2b5621f4f7fd98c"
       },
       "verdict": "enforced"
     },
@@ -419,10 +626,19 @@
         "internal/component/bgp/message/rfc7606_optional_attrs_test.go:214": "c53904e7a8456607",
         "internal/component/bgp/message/rfc7606_optional_attrs_test.go:259": "c53904e7a8456607"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_attrset_context_test.go:102": "63482db5b5d6c56b",
+        "internal/component/bgp/message/rfc7606_attrset_context_test.go:31": "01f1fa6935946336",
+        "internal/component/bgp/message/rfc7606_attrset_context_test.go:55": "44cec5f69a520c4e",
+        "internal/component/bgp/message/rfc7606_attrset_context_test.go:83": "c43d178793ce2d69",
+        "internal/component/bgp/message/rfc7606_attrset_discard_test.go:25": "a6867489cfd235da",
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:214": "9aa9117fc06e7bbf",
+        "internal/component/bgp/message/rfc7606_optional_attrs_test.go:259": "4a302f229df88e89"
+      },
       "verdict": "enforced"
     },
     "RFC7606-7.2-1": {
-      "note": "All four §7.2 malformation types have isolated exact negatives, each asserting TreatAsWithdraw + AttrCode 2 plus a distinguishing Description substring: unrecognized segment type (rfc7606_test.go:344 'segment type'), overrun (:366 'overrun'), underrun (:389 'underrun'), zero-length segment (:414 'zero'). The substring assertions prevent passing via a neighbouring rule; buffers keep ORIGIN/NEXT_HOP valid so only AS_PATH is malformed. Positives :290/:312 accept valid AS_SEQUENCE/AS_SET (Action None).",
+      "note": "All four \u00a77.2 malformation types have isolated exact negatives, each asserting TreatAsWithdraw + AttrCode 2 plus a distinguishing Description substring: unrecognized segment type (rfc7606_test.go:344 'segment type'), overrun (:366 'overrun'), underrun (:389 'underrun'), zero-length segment (:414 'zero'). The substring assertions prevent passing via a neighbouring rule; buffers keep ORIGIN/NEXT_HOP valid so only AS_PATH is malformed. Positives :290/:312 accept valid AS_SEQUENCE/AS_SET (Action None).",
       "requirement_sha": "6caf55064f644470",
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go:1393": "0b8739c630bb26fe",
@@ -434,6 +650,16 @@
         "internal/component/bgp/message/rfc7606_test.go:497": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:524": "0b8739c630bb26fe"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:1393": "8af8ded3670d3571",
+        "internal/component/bgp/message/rfc7606_test.go:2386": "eb75f6981246ef05",
+        "internal/component/bgp/message/rfc7606_test.go:409": "793cb141e5811388",
+        "internal/component/bgp/message/rfc7606_test.go:431": "bcfdf2ca1caf20db",
+        "internal/component/bgp/message/rfc7606_test.go:452": "9f23d5bbe528f31a",
+        "internal/component/bgp/message/rfc7606_test.go:475": "fbbde30df810af89",
+        "internal/component/bgp/message/rfc7606_test.go:497": "951853ed798a6f5d",
+        "internal/component/bgp/message/rfc7606_test.go:524": "452165c86fb49011"
+      },
       "verdict": "enforced"
     },
     "RFC7606-7.3-1": {
@@ -443,6 +669,10 @@
         "internal/component/bgp/message/rfc7606_test.go:1778": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:188": "0b8739c630bb26fe"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:1778": "826916eb61da357d",
+        "internal/component/bgp/message/rfc7606_test.go:188": "3ae6f048c392bc4f"
+      },
       "verdict": "enforced"
     },
     "RFC7606-7.4-1": {
@@ -451,6 +681,10 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go:1230": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:1792": "0b8739c630bb26fe"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:1230": "c95c9823d725fbbc",
+        "internal/component/bgp/message/rfc7606_test.go:1792": "826916eb61da357d"
       },
       "verdict": "enforced"
     },
@@ -463,6 +697,12 @@
         "internal/component/bgp/message/rfc7606_test.go:983": "0b8739c630bb26fe",
         "internal/component/bgp/reactor/session_test.go:2021": "7c9ced72a0347576"
       },
+      "units": {
+        "internal/component/bgp/message/attr_discard_test.go:407": "37b93f552b985f8b",
+        "internal/component/bgp/message/rfc7606_test.go:1004": "71e48a00f5c5aa6d",
+        "internal/component/bgp/message/rfc7606_test.go:983": "470dcd36e8096ff2",
+        "internal/component/bgp/reactor/session_test.go:2021": "28e6044ff96091b1"
+      },
       "verdict": "enforced"
     },
     "RFC7606-7.5-2": {
@@ -471,6 +711,10 @@
       "tests": {
         "internal/component/bgp/message/rfc7606_test.go:1005": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:1024": "0b8739c630bb26fe"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:1005": "71e48a00f5c5aa6d",
+        "internal/component/bgp/message/rfc7606_test.go:1024": "3273d68e3c0de569"
       },
       "verdict": "enforced"
     },
@@ -481,6 +725,11 @@
         "internal/component/bgp/message/attr_discard_test.go:420": "e631404e10fbee92",
         "internal/component/bgp/message/rfc7606_test.go:1631": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:168": "0b8739c630bb26fe"
+      },
+      "units": {
+        "internal/component/bgp/message/attr_discard_test.go:420": "37b93f552b985f8b",
+        "internal/component/bgp/message/rfc7606_test.go:1631": "826916eb61da357d",
+        "internal/component/bgp/message/rfc7606_test.go:168": "b035dba2219e6d42"
       },
       "verdict": "enforced"
     },
@@ -494,6 +743,13 @@
         "internal/component/bgp/message/rfc7606_test.go:1344": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:1369": "0b8739c630bb26fe"
       },
+      "units": {
+        "internal/component/bgp/message/attr_discard_test.go:434": "37b93f552b985f8b",
+        "internal/component/bgp/message/rfc7606_test.go:1300": "af527e77c4d97da6",
+        "internal/component/bgp/message/rfc7606_test.go:1322": "b82fc3e057ae1592",
+        "internal/component/bgp/message/rfc7606_test.go:1344": "0a79fa12d7dc7b87",
+        "internal/component/bgp/message/rfc7606_test.go:1369": "fa43988ec27ddb1b"
+      },
       "verdict": "enforced"
     },
     "RFC7606-7.8-1": {
@@ -503,6 +759,11 @@
         "internal/component/bgp/message/rfc7606_test.go:1632": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:31": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:66": "0b8739c630bb26fe"
+      },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:1632": "826916eb61da357d",
+        "internal/component/bgp/message/rfc7606_test.go:31": "659ef6adb47d1374",
+        "internal/component/bgp/message/rfc7606_test.go:66": "e3e2baba9dd5cacc"
       },
       "verdict": "enforced"
     },
@@ -514,6 +775,11 @@
         "internal/component/bgp/message/rfc7606_test.go:1050": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:1071": "0b8739c630bb26fe"
       },
+      "units": {
+        "internal/component/bgp/message/attr_discard_test.go:449": "37b93f552b985f8b",
+        "internal/component/bgp/message/rfc7606_test.go:1050": "ecc81e533fdf2495",
+        "internal/component/bgp/message/rfc7606_test.go:1071": "0e505e33edab1f63"
+      },
       "verdict": "enforced"
     },
     "RFC7606-7.9-2": {
@@ -523,13 +789,18 @@
         "internal/component/bgp/message/rfc7606_test.go:1072": "0b8739c630bb26fe",
         "internal/component/bgp/message/rfc7606_test.go:1091": "0b8739c630bb26fe"
       },
+      "units": {
+        "internal/component/bgp/message/rfc7606_test.go:1072": "0e505e33edab1f63",
+        "internal/component/bgp/message/rfc7606_test.go:1091": "0805cbd835e724e5"
+      },
       "verdict": "enforced"
     },
     "RFC7606-8-1": {
-      "note": "{not-applicable} annotation holds up: RFC §8 ('A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error...') binds AUTHORS of future BGP attribute specifications, not a running implementation. There is genuinely no Ze code path that could satisfy or violate it, so it is not implementable (per the method, an implementable N/A would be 'wrong' -- this one is not). Recorded 'enforced' only in the sense that the N/A classification is honest and correct; there is no test to demand and no finding.",
+      "no_code_path": "RFC 7606 Section 8 binds the AUTHORS of future BGP attribute specifications: 'A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled.' It is an obligation on a document, discharged by writing one, so no running implementation can either satisfy or violate it and there is no code path in Ze to point a test at. Distinct from a gap: a gap is behaviour Ze could implement and does not.",
+      "note": "{not-applicable} annotation holds up: RFC \u00a78 ('A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error...') binds AUTHORS of future BGP attribute specifications, not a running implementation. There is genuinely no Ze code path that could satisfy or violate it, so it is not implementable (per the method, an implementable N/A would be 'wrong' -- this one is not). Recorded 'enforced' only in the sense that the N/A classification is honest and correct; there is no test to demand and no finding. 2026-07-29 (plan/spec-rfcgate-3-audit-teeth.md, owner ruling OR-1): the value was `enforced` with an empty `tests` map, which the schema now refuses -- `enforced` means the tests would fail if the code stopped complying, and this note itself says there is no test to demand. That was the honest reading of a vocabulary with no honest state for it, so Thomas added one rather than have the record re-judged: `not-applicable`, which requires an empty `tests` map, a mandatory `no_code_path` reason, and an independently committed {not-applicable} annotation on the checklist line. No judgement changed here; the same finding is now recorded in a word that means it. UNRESOLVED and deliberately left so: ai/rules/rfc-compliance.md voids {not-applicable} as AUTHORITY, so the annotation this verdict agrees with is itself a classification the owner has voided. This ruling makes the VERDICT honest about what the code does; it does not re-affirm the annotation, and re-deriving that is fleet-drain work under the rfcgate umbrella's D4. RFC7606-8-1 needs looking at again when the drain reaches it.",
       "requirement_sha": "acce9cef76f7fb09",
       "tests": {},
-      "verdict": "enforced"
+      "verdict": "not-applicable"
     }
   },
   "rfc": "rfc7606"

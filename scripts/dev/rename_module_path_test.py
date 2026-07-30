@@ -427,5 +427,186 @@ class Residuals(unittest.TestCase):
             self.assertEqual(rmp.residual_report(root, OLD), [("README.md", 1)])
 
 
+# The re-stamp boundary the rename tool must NOT re-implement: forbidden token -> the live
+# spelling in the gate that proves the token still names something reachable.
+#
+# ONE list, consumed by BOTH assertions below. They used to hold independent hardcoded copies of
+# these tokens, which made the vacuity guard blind to the exact recurrence it was added to catch:
+# a dead token in the absence guard's own list. Reproduced before this was derived -- adding
+# `verdict_is_fresh(` back as a fourth forbidden token left the module at `Ran 42 tests ... OK`,
+# because the liveness check iterated its own separate copy and never saw the new entry
+# (`ai/rules/derive-not-hardcode.md`, applied to a test's own data).
+#
+# Every probe must also be LOAD-BEARING -- a spelling the gate cannot satisfy in prose. See
+# RESEAL_RULE_WRITES below for the one that was not.
+
+# Forbidden tokens that name a gate FUNCTION. Their liveness probe is DERIVED as `def <token>`,
+# so a token and its probe cannot be mis-paired and a token whose function is deleted reds by
+# itself rather than needing someone to remember to re-point a second list.
+RESEAL_RULE_FUNCTIONS = (
+    # DECIDING freshness -- both spellings of the boundary. `verdict_freshness(` is the per-verdict
+    # rule; `audit_freshness(` is the per-RFC wrapper that the gate's own `reseal_audits` calls
+    # (`scripts/dev/rfc_requirements.py:2687`), and it is the likelier route for a copy-paste
+    # re-implementation, which is why forbidding only the inner one left the boundary crossable.
+    "verdict_freshness(",
+    "audit_freshness(",
+    # COMPUTING a fingerprint. `unit_shas(` is the unit-level producer `audit_freshness` calls;
+    # `tagged_unit_shas(` is the file-level one. A re-implementation reaching for either is a
+    # second copy of the hash rule.
+    "unit_shas(",
+    "tagged_unit_shas(",
+)
+
+# The one forbidden token that is not a call but a WRITE to the recorded fingerprint map, so its
+# probe cannot be derived and is given explicitly -- which is exactly why it has to be chosen
+# carefully. The probe was once the bare word `"tests"`, which cannot falsify: it occurs NINE times
+# in the gate (the schema key set, docstrings, error messages), so renaming the schema field at its
+# load-bearing sites -- the tuple, the `recorded_map` lookup, the write -- left SIX prose hits
+# keeping this green while `verdict["tests"] = ` had become unmatchable. `_FINGERPRINT_MAPS =
+# ("tests"` is the tuple the gate iterates to walk the fingerprint maps: it cannot survive that
+# rename, and unlike a bare word it cannot be written in a sentence.
+RESEAL_RULE_WRITES = {
+    'verdict["tests"] = ': '_FINGERPRINT_MAPS = ("tests"',
+}
+
+RESEAL_RULE_TOKENS = {
+    **{token: "def " + token for token in RESEAL_RULE_FUNCTIONS},
+    **RESEAL_RULE_WRITES,
+}
+
+
+class ResealDelegates(unittest.TestCase):
+    """VALIDATES: the rename tool CALLS the gate's shared re-stamp and adds its own per-file
+    proof, rather than owning a second copy of the fingerprint rule.
+    PREVENTS: the hazard reseal_rfc_audits' own docstring named -- a second copy of the rule that
+    drifted would re-seal verdicts against a hash the gate does not compute
+    (plan/spec-rfcgate-3-audit-teeth.md AC-22). Also pins A-1: the tool never touches a
+    JUDGEMENT field."""
+
+    def test_it_delegates_to_the_gate_and_passes_its_own_proof(self):
+        calls = {}
+
+        class FakeGate:
+            @staticmethod
+            def reseal_audits(prove=None, note=None):
+                calls["prove"] = prove
+                calls["note"] = note
+                return ["rfc7606 RFC7606-2-1"], []
+
+        original = rmp._rfc_requirements
+        rmp._rfc_requirements = lambda root: FakeGate
+        try:
+            resealed, refused = rmp.reseal_rfc_audits(Path("/nowhere"), OLD, NEW)
+        finally:
+            rmp._rfc_requirements = original
+
+        self.assertEqual((resealed, refused), (["rfc7606 RFC7606-2-1"], []))
+        self.assertTrue(
+            callable(calls["prove"]), "the rename-specific proof must be passed in"
+        )
+        self.assertIn(OLD, calls["note"])
+        self.assertIn(NEW, calls["note"])
+        self.assertIn("rename_only_since_head", calls["note"])
+
+    def test_the_proof_it_passes_is_rename_only_since_head(self):
+        """The predicate must be the real proof, not a lambda that says yes."""
+        seen = []
+        # rename_only_since_head reads the gate's own `_normalize` through the SAME accessor this
+        # test replaces, so the stub has to keep supplying it -- otherwise the predicate raises,
+        # reseal_rfc_audits catches, and the test would pass by never running the predicate at all.
+        real_normalize = rmp._rfc_requirements(Path(rmp.__file__).parents[2])._normalize
+
+        class FakeGate:
+            _normalize = staticmethod(real_normalize)
+
+            @staticmethod
+            def reseal_audits(prove=None, note=None):
+                seen.append(prove("x_test.go"))
+                return [], []
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            env = {**os.environ, "GIT_CONFIG_GLOBAL": str(root / ".gitconfig")}
+            write(root, "x_test.go", f'import "{OLD}/x"\nrequire.Equal(t, 3, got)\n')
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True, env=env)
+            subprocess.run(["git", "add", "-A"], cwd=root, check=True, env=env)
+            subprocess.run(
+                [
+                    "git",
+                    "-c",
+                    "user.email=t@e",
+                    "-c",
+                    "user.name=t",
+                    "commit",
+                    "-qm",
+                    "x",
+                ],
+                cwd=root,
+                check=True,
+                env=env,
+            )
+            # A real edit beside the rename: the proof must say NO.
+            write(root, "x_test.go", f'import "{NEW}/x"\nrequire.Equal(t, 4, got)\n')
+            original = rmp._rfc_requirements
+            rmp._rfc_requirements = lambda r: FakeGate
+            try:
+                rmp.reseal_rfc_audits(root, OLD, NEW)
+            finally:
+                rmp._rfc_requirements = original
+        self.assertEqual(seen, [False], "the predicate is not rename_only_since_head")
+
+    def test_it_owns_no_second_copy_of_the_rule(self):
+        """AC-22 mechanically: exactly one definition of the re-stamp in the tree.
+
+        `RESEAL_RULE_TOKENS` names the three ingredients of a re-implementation: DECIDING
+        freshness, COMPUTING a fingerprint, and WRITING one. The tool may do none of them; it may
+        only pass its extra `prove` predicate to `reseal_audits`.
+
+        `verdict_freshness(` replaced `verdict_is_fresh(` there when that second, dead spelling of
+        the freshness rule was deleted from the gate. Re-pointed rather than dropped: a token that
+        can no longer appear anywhere in the tree asserts nothing, and the BOUNDARY is still
+        crossable -- the successor function is importable, so a future edit can still decide its
+        own re-stamp set and bypass the shared loop. The symbol going away is not the coupling
+        becoming impossible.
+        """
+        src = Path(rmp.__file__).read_text(encoding="utf-8")
+        self.assertIn("reseal_audits(", src)
+        for gone in RESEAL_RULE_TOKENS:
+            self.assertNotIn(
+                gone, src, f"the rename tool still re-implements the rule ({gone})"
+            )
+
+    def test_each_forbidden_token_names_something_that_still_exists(self):
+        """The vacuity guard on the guard above. An absence assertion is only protection while the
+        thing it forbids is reachable: `verdict_is_fresh(` sat in that list after the function was
+        deleted, so a third of the check was satisfied by nothing at all. Each token must still
+        name a live symbol or a live schema field in the gate.
+
+        It reads the SAME `RESEAL_RULE_TOKENS` the guard above iterates, which is the whole point:
+        while the two held separate copies, a dead token added to the guard's list was invisible
+        here, and this check could not fail for the one case it exists to catch.
+        """
+        gate = Path(rmp.__file__).parent / "rfc_requirements.py"
+        gate_src = gate.read_text(encoding="utf-8")
+        for token, live in RESEAL_RULE_TOKENS.items():
+            # assertTrue, not assertIn: the haystack is the whole 5,600-line gate, and assertIn
+            # prints it on failure (257KB), burying the one line that says what to do.
+            self.assertTrue(
+                live in gate_src,
+                f"{token!r} forbids something the gate no longer has ({live!r} is absent): "
+                f"re-point it at the live spelling of the boundary, or the assertion cannot fail",
+            )
+
+    def test_a_gate_that_cannot_be_imported_is_reported_not_raised(self):
+        original = rmp._rfc_requirements
+        rmp._rfc_requirements = lambda root: None
+        try:
+            resealed, refused = rmp.reseal_rfc_audits(Path("/nowhere"), OLD, NEW)
+        finally:
+            rmp._rfc_requirements = original
+        self.assertEqual(resealed, [])
+        self.assertTrue(refused)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -442,6 +442,22 @@ ze-rfc-check:
 ze-rfc-index:
 	@python3 scripts/dev/rfc_requirements.py --write
 
+# Re-stamp the audit verdicts a mechanical edit staled (plan/spec-rfcgate-3-audit-teeth.md).
+# `make ze-rfc-check` reports a verdict as SHIFTED when the tagged unit -- the enclosing
+# top-level function of each tagged test -- is byte-identical and only the file around it moved:
+# a line shift, a sibling test, an import rewrite. Nothing was re-judged, so no human should be
+# asked to re-read; this rewrites the file-level fingerprints and nothing else.
+#
+# Deliberately its OWN target. It is the only thing that writes rfc/audit/ without a human
+# editing it, and folding it into ze-rfc-check (a check that writes cannot be trusted to
+# report) or ze-rfc-index (which runs routinely for reasons unrelated to any audit) would
+# automate the blind re-stamp reflex the spec exists to remove. Owner ruling 2026-07-29.
+#
+# A verdict whose unit, cited producer code, or requirement text moved is REFUSED and stays
+# stale: that one needs /ze-rfc-audit <rfc>. Run `make ze-rfc-index` afterwards.
+ze-rfc-reseal:
+	@python3 scripts/dev/rfc_requirements.py --reseal
+
 # Write an UNCLASSIFIED extraction skeleton for one RFC
 # (plan/spec-rfcgate-1-extraction.md): every normative site and every section of
 # rfc/full/<stem>.txt, with each disposition null. A reviewer then classifies each one by

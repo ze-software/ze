@@ -75,21 +75,59 @@
         "numerator": 36,
         "percent": 21.7
       },
+      "unproven_rfcs": [
+        "rfc2003",
+        "rfc2132",
+        "rfc2473",
+        "rfc2782",
+        "rfc2784",
+        "rfc2890",
+        "rfc3031",
+        "rfc3032",
+        "rfc3786",
+        "rfc4213",
+        "rfc4364",
+        "rfc4555",
+        "rfc4576",
+        "rfc4684",
+        "rfc4761",
+        "rfc4862",
+        "rfc5561",
+        "rfc5575",
+        "rfc6071",
+        "rfc6396",
+        "rfc6397",
+        "rfc6482",
+        "rfc6608",
+        "rfc7012",
+        "rfc7166",
+        "rfc7535",
+        "rfc7611",
+        "rfc7871",
+        "rfc8097",
+        "rfc8571",
+        "rfc8956",
+        "rfc9069",
+        "rfc9085",
+        "rfc9086",
+        "rfc9319",
+        "rfc9514"
+      ],
       "value": "36 / 166"
     },
     {
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 20663,
-        "numerator": 136,
+        "denominator": 20682,
+        "numerator": 135,
         "percent": 0.7
       },
       "key": "assert-nothing",
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "136 / 20663 (floor 136)",
+      "value": "135 / 20682 (floor 136)",
       "worst": [
         {
           "file": "cmd/ze/hub/aaa_lifecycle_test.go",
@@ -181,18 +219,18 @@
       "action": "This is volume, not health. It is here to state the counting boundary, because a count that silently includes vendored tests inflates by ~6x.",
       "counts": {
         "bench_funcs": 123,
-        "ci_files": 1476,
+        "ci_files": 1473,
         "et_files": 164,
         "fuzz_funcs": 76,
-        "test_files": 2736,
-        "test_funcs": 20693
+        "test_files": 2741,
+        "test_funcs": 20712
       },
-      "detail": "2736 Go test files, 76 fuzz targets, 123 benchmarks, 1476 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "2741 Go test files, 76 fuzz targets, 123 benchmarks, 1473 .ci scenarios, 164 .et editor tests. Counts cover internal, cmd, pkg, scripts, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "20693 test functions"
+      "value": "20712 test functions"
     },
     {
       "action": "Take the lowest-scoring package and add tests until its survivors die.",
@@ -270,13 +308,13 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 2736,
-        "numerator": 896,
+        "denominator": 2741,
+        "numerator": 897,
         "percent": 32.7
       },
       "question": "Q2",
       "status": "ok",
-      "value": "896 / 2736",
+      "value": "897 / 2741",
       "worst": [
         {
           "area": "internal/chaos/report",
@@ -350,10 +388,10 @@
           "with_rfc_tag": 0
         },
         "2026": {
-          "packages": 489,
+          "packages": 490,
           "with_ci": 30,
           "with_fuzz": 30,
-          "with_rfc_tag": 88
+          "with_rfc_tag": 90
         }
       },
       "detail": "A technique adopted only forward from its introduction shows here as a step: recent buckets carry it, older ones never do.",
@@ -366,14 +404,14 @@
     },
     {
       "action": "Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.",
-      "detail": "Reds logged rather than fixed, one shard file per live failure (41 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.",
+      "detail": "Reds logged rather than fixed, one shard file per live failure (42 entries archived in plan/known-failures/RESOLVED.md are not counted). Structural gates may never be logged here, but a live entry is not necessarily flaky: some are deterministic product bugs awaiting a fix.",
       "key": "known-failures",
       "label": "Logged known-failing tests",
-      "live": 2,
+      "live": 1,
       "question": "Q3",
-      "resolved": 41,
+      "resolved": 42,
       "status": "warn",
-      "value": "2"
+      "value": "1"
     }
   ]
 }

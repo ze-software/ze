@@ -55,7 +55,6 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import re
 import shutil
@@ -324,89 +323,42 @@ def reseal_rfc_audits(root: Path, old: str, new: str) -> tuple[list[str], list[s
     so rewriting an import line stales a verdict about assertions the rename
     never touched.
 
-    Re-stamping is the project's established answer to that (see the
-    `reaudit_note` in rfc/audit/rfc7606.json, 2026-07-22), and doing it here makes
-    the proof mechanical instead of narrated: a verdict is re-sealed ONLY when the
-    requirement text is unchanged AND every file it names differs from HEAD by
-    nothing but this rename. A verdict that fails either test is refused and
-    reported, and stays stale so a human re-reads it.
+    THE RE-STAMP LOOP ITSELF NOW LIVES IN THE GATE (`rfc_requirements.reseal_audits`).
+    This function used to own a second copy of it, which is the hazard the docstring
+    below already named: a second copy of the fingerprint rule that drifted would
+    re-seal verdicts against a hash the gate does not compute. Since
+    plan/spec-rfcgate-3-audit-teeth.md the gate resolves freshness into four states and
+    re-stamps exactly the mechanical one, so there is one rule and this is a caller of
+    it (AC-22).
+
+    What stays here is the rename-SPECIFIC extra proof: `rename_only_since_head` is
+    passed in as the `prove` predicate, so a verdict is re-sealed only when the gate
+    calls the change mechanical AND every file it names differs from HEAD by nothing
+    but this rename. Two independent proofs, and this one can only ever refuse more.
 
     Returns (resealed, refused).
     """
     rr = _rfc_requirements(root)
     if rr is None:
         return [], ["rfc_requirements.py not importable"]
+    note = (
+        f"Mechanical re-stamp by scripts/dev/rename_module_path.py: the module "
+        f"path moved from {old} to {new}. The whole-file fingerprint stales a verdict "
+        f"about assertions the rename never touched. Every verdict re-stamped below was "
+        f"re-sealed ONLY after the gate itself judged the change mechanical (the tagged "
+        f"unit and the requirement text byte-identical to what was judged) AND after "
+        f"proving, per file, that its normalised content at HEAD with {old} replaced by "
+        f"{new} is identical to its content now. A verdict failing either proof was "
+        f"refused and left stale. The proof is the code in "
+        f"rfc_requirements.reseal_audits() and rename_only_since_head(), not this note."
+    )
     try:
-        enrolled, reqs, _, tags, _ = rr._collect_for_check()
+        return rr.reseal_audits(
+            prove=lambda rel: rename_only_since_head(root, rel, old, new),
+            note=note,
+        )
     except Exception as exc:  # the gate itself will report the real error
-        return [], [f"cannot read RFC requirements: {exc}"]
-
-    by_rid: dict[str, list] = {}
-    for t in tags:
-        by_rid.setdefault(t.rid, []).append(t)
-
-    resealed: list[str] = []
-    refused: list[str] = []
-    proven: dict[str, bool] = {}
-    for rfc in sorted(enrolled):
-        path = Path(rr.AUDIT_DIR) / (rfc + ".json")
-        if not path.is_file():
-            continue
-        data = json.loads(path.read_text(encoding="utf-8"))
-        verdicts = data.get("requirements", {})
-        touched = False
-        for req in reqs:
-            if req.rfc != rfc:
-                continue
-            verdict = verdicts.get(req.rid)
-            if not verdict:
-                continue
-            found = by_rid.get(req.rid, [])
-            fresh = rr.tagged_unit_shas(found)
-            req_sha = rr.requirement_sha(req.text)
-            if rr.verdict_is_fresh(verdict, req_sha, fresh):
-                continue
-            if verdict.get("requirement_sha") != req_sha:
-                refused.append(f"{rfc} {req.rid}: the requirement TEXT changed")
-                continue
-            files = {
-                key.rsplit(":", 1)[0]
-                for key in list(verdict.get("tests", {})) + list(fresh)
-            }
-            for rel in sorted(files):
-                if rel not in proven:
-                    proven[rel] = rename_only_since_head(root, rel, old, new)
-            unproven = sorted(f for f in files if not proven[f])
-            if unproven:
-                refused.append(
-                    f"{rfc} {req.rid}: more than the rename changed in "
-                    + ", ".join(unproven)
-                )
-                continue
-            verdict["tests"] = fresh
-            resealed.append(f"{rfc} {req.rid}")
-            touched = True
-        if touched:
-            # An earlier re-stamp's reasoning is evidence about the same verdicts.
-            # Overwriting it would delete the record of why they were trusted then.
-            previous = data.get("reaudit_note")
-            if previous:
-                data.setdefault("reaudit_history", []).append(previous)
-            data["reaudit_note"] = (
-                f"Mechanical re-stamp by scripts/dev/rename_module_path.py: the module "
-                f"path moved from {old} to {new}. tagged_unit_shas fingerprints the whole "
-                f"enclosing file, so rewriting an import line stales a verdict about "
-                f"assertions the rename never touched. Every verdict re-stamped below was "
-                f"re-sealed ONLY after proving, per file, that its normalised content at "
-                f"HEAD with {old} replaced by {new} is identical to its content now, and "
-                f"that the requirement text is byte-identical to what was judged. A "
-                f"verdict failing either proof was refused and left stale. The proof is "
-                f"the code in rename_only_since_head(), not this note."
-            )
-            path.write_text(
-                json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-            )
-    return resealed, refused
+        return [], [f"cannot re-seal RFC audits: {exc}"]
 
 
 def go_targets(

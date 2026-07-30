@@ -58,7 +58,8 @@ Then the polarity pair:
       "verdict": "enforced",
       "note": "negative asserts the exact TreatAsWithdraw + AttrCode 1; positive pins all three valid ORIGIN values",
       "requirement_sha": "<from the tool>",
-      "tests": {"internal/component/bgp/message/rfc7606_test.go:10": "<sha>"}
+      "tests": {"internal/component/bgp/message/rfc7606_test.go:10": "<whole-file sha>"},
+      "units": {"internal/component/bgp/message/rfc7606_test.go:10": "<enclosing-func sha>"}
     }
   }
 }
@@ -66,13 +67,52 @@ Then the polarity pair:
 
 | Verdict | Meaning |
 |---------|---------|
-| `enforced` | The tests would fail if the code stopped complying. The only verdict that means "proven". |
+| `enforced` | The tests would fail if the code stopped complying. The only verdict that means "proven". Requires a non-empty `tests` map AND both polarities (or a `{single-polarity}` annotation). |
 | `weak` | Tagged and green, but cannot fail on non-compliance (a floor assertion, a cascade-confounded buffer, a positive that proves only "no error"). **Report it. Do not leave it silently tagged.** |
 | `wrong` | The test asserts something the RFC does not say. The requirement is not covered and the test is misinformation. |
-| `unimplemented` | The tests are fine; the CODE does not do it. This is a `{gap}`, not a test gap. |
+| `unimplemented` | The tests are fine; the CODE does not do it. This is a `{gap}`, not a test gap. Requires a `code` map and a `{gap}`/`{not-applicable}` annotation. |
+| `not-applicable` | No reachable code path can satisfy or violate the requirement — it binds a document's authors, another role, or a layer Ze does not implement. Requires NO cited test (`tests` empty or omitted, either is the same state), a `no_code_path` reason in prose, and a `{not-applicable}` annotation on the checklist line. |
+
+**The five values are a closed enum and `make ze-rfc-check` enforces it.** A sixth word is a
+parse error, not a novel verdict. `implemented` sat in `rfc/audit/rfc7606.json` for weeks, and no
+code read the field at all.
+
+**`not-applicable` is not a shortcut past `enforced`.** It exists because an obligation on
+*future specification authors* (RFC 7606 §8) can be neither satisfied nor violated by code that
+runs. A test for it is therefore a contradiction. It costs two committed facts — the reason on
+the record and the agreeing annotation — precisely so it stays more expensive than the honest
+alternatives.
+
+And per `ai/rules/rfc-compliance.md` the annotation it agrees with is itself VOID as authority.
+This verdict says what the CODE can do. It never says that the classification is settled.
+
+| Field | When | What it is |
+|-------|------|-----------|
+| `requirement_sha` | always | `requirement_sha(text)` of the checklist line |
+| `tests` | one entry per tagged test, and empty or omitted on `not-applicable`, which cites none | `{file:line -> whole-file sha}` for each tagged test |
+| `units` | one entry per `tests` entry, so empty or omitted whenever `tests` is | `{file:line -> enclosing-unit sha}`. The unit is one top-level Go function (doc comment through closing brace) or the whole file for a `.ci`, a `.et` or an interop `check.py` |
+| `code` | `unimplemented` | `{file:line -> enclosing-unit sha}` of the PRODUCING code the note names. Without it the verdict can never go stale |
+| `no_code_path` | `not-applicable` | prose stating why no reachable path exists |
+| `upgrade_reason` | changing a `weak`/`wrong` verdict to `enforced` with no unit change | what you re-read and why the earlier judgement was wrong |
 
 **Compute the shas with the tool, never by hand:**
-`requirement_sha(text)`, `test_sha(source)` in `scripts/dev/rfc_requirements.py`.
+`requirement_sha(text)`, `test_sha(source)`, `tagged_unit_shas(tags)` (the `tests` map) and
+`unit_shas(keys)` (the `units` and `code` maps) in `scripts/dev/rfc_requirements.py`.
+
+## Recording a finding never fails the build
+
+`weak` is green. `wrong` and `unimplemented` are green too, provided the RFC's row in
+`docs/features/rfc-status.md` already admits the RFC is not fully met. The red falls on the
+public CLAIM, not on your honesty.
+
+What IS red: deleting a `weak` or `wrong` verdict, upgrading one to `enforced` with nothing
+changed, and removing any verdict that existed at HEAD. Audit coverage is monotonic per
+requirement id, so a judgement that has been made cannot be un-made by erasing it. If you
+believe a finding was wrong, record `upgrade_reason`.
+
+An `unimplemented` verdict is a statement that Ze does not meet a MUST. Under
+`ai/rules/rfc-compliance.md` that is a question for Thomas, never a settled deviation. Raise it
+with the RFC text and the producing `file:line`. Then ask which way he wants it fixed.
 
 ## Why the fingerprint exists
 
@@ -86,6 +126,23 @@ does not fail: the audit is sampled, the gate is total.
 
 Biased to over-trigger on purpose. A false "stale" costs a re-read; a false "fresh" ships
 a test that no longer enforces its requirement.
+
+### Four states, and only one of them wants you
+
+| State | What moved | What clears it |
+|-------|-----------|----------------|
+| `fresh` | nothing | — |
+| `shifted` | the FILE around a tagged unit: a line shift, a sibling test, an import rewrite. The unit itself is byte-identical, so nothing was re-judged | `make ze-rfc-reseal`, then `make ze-rfc-index`. **No re-reading is asked for** |
+| `stale-unit` | the tagged unit itself, or a cited producer in a `code` map | `/ze-rfc-audit <rfc>` — read it again |
+| `stale-requirement` | the checklist line's own text | `/ze-rfc-audit <rfc>` — every judgement under it is void |
+
+`shifted` exists because six of the sixteen commits that have touched `rfc/audit/rfc7606.json`
+were hand re-stamps in which no verdict changed. Each one cost a human a mechanical proof and a
+written note. And each one taught the reflex that re-stamping is what you do when this gate goes
+red. That is the failure mode at fleet scale, so the class is now automated away.
+
+`make ze-rfc-reseal` is the ONLY thing that writes `rfc/audit/` without a human editing it.
+`make ze-rfc-check` is read-only and `make ze-rfc-index` touches the ledger alone.
 
 ## Rules
 
@@ -111,5 +168,7 @@ a test that no longer enforces its requirement.
 |------|-----|
 | Does every MUST have its pair of tests? | `make ze-rfc-check` |
 | Requirement → test map, and the backlog | `make ze-rfc-index` → `ai/RFC-REQUIREMENTS.md` |
+| Which requirements are audited, proven, or carry a finding | the **Audit coverage** section of `ai/RFC-REQUIREMENTS.md` (derived, never hand-maintained) |
+| Clear a `shifted` verdict | `make ze-rfc-reseal`, then `make ze-rfc-index` |
 | Write or re-author a summary | `/ze-rfc <rfc>` |
 | Public support claims | `docs/features/rfc-status.md` |

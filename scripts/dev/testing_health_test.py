@@ -119,6 +119,148 @@ class TestRfcLedgerParse(unittest.TestCase):
             self.assertEqual(unproven.data["unproven"]["numerator"], 1)
             self.assertEqual(unproven.data["unproven"]["denominator"], 2)
 
+    def test_unenrolled_rows_are_not_part_of_the_partition(self):
+        """An un-enrolled summary's gated MUSTs are legitimately unproven.
+
+        VALIDATES: the partition is asserted over the ENROLLED population, the
+        only one `make ze-rfc-check` enforces "proven in both polarities, or
+        annotated" for.
+        PREVENTS: the collector raising on the extract-then-enrol intermediate
+        state that plan/spec-rfcgate-4-ledger.md mandates. Extracting rfc1035,
+        rfc4486 and rfc5301 added 34 gated MUST rows that are not yet enrolled,
+        and `2754 gated - 974 proven = 1780` no longer matched a split of 1746.
+
+        The fixture kills BOTH halves of the population filter independently:
+        counting the un-enrolled row in the totals makes the remainder 11 against
+        a split of 6, and counting the un-enrolled SUMMARY's annotations makes
+        the split 8 against a remainder of 6. Either way collect_rfc raises.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(
+                root,
+                th.RFC_LEDGER,
+                LEDGER_HEAD
+                + "| `rfc1` | 10 | 4 | 0 | 6 | 0 | 0 | 0 | **enrolled** |\n"
+                # Gated MUSTs, none proven, none annotated: exactly what an
+                # extracted-but-not-yet-enrolled summary looks like.
+                + "| `rfc2` | 5 | 0 | 0 | 2 | 3 | 3 | 0 | backlog |\n",
+            )
+            write(
+                root,
+                "rfc/short/rfc1.md",
+                "".join(
+                    f"- [ ] [RFC1-1-{i}] [MUST] r{i} {{gap: not done}}\n"
+                    for i in range(1, 4)
+                )
+                + "".join(
+                    f"- [ ] [RFC1-2-{i}] [MUST] r{i} {{not-applicable: n/a}}\n"
+                    for i in range(1, 4)
+                )
+                + "".join(
+                    f"- [ ] [RFC1-3-{i}] [MUST] proven both ways\n" for i in range(1, 5)
+                ),
+            )
+            write(
+                root,
+                "rfc/short/rfc2.md",
+                "".join(
+                    f"- [ ] [RFC2-1-{i}] [MUST] r{i} {{single-polarity: positive; z}}\n"
+                    for i in range(1, 3)
+                )
+                + "".join(
+                    f"- [ ] [RFC2-2-{i}] [MUST] owes a test\n" for i in range(1, 4)
+                ),
+            )
+            git_init(root)
+            headline, unproven = th.collect_rfc(root)
+            density = headline.data["proof_density"]
+            self.assertEqual(density["denominator"], 10, "un-enrolled gated counted")
+            self.assertEqual(density["numerator"], 4)
+            annotations = headline.data["annotations"]
+            self.assertEqual(
+                annotations.get("single-polarity", 0),
+                0,
+                "an un-enrolled summary's annotations were counted",
+            )
+            self.assertEqual(sum(annotations.values()), 6, annotations)
+            self.assertEqual(headline.data["rfcs_total"], 1)
+            self.assertEqual(unproven.data["unproven"]["denominator"], 1)
+            self.assertEqual(
+                unproven.data["unproven"]["numerator"],
+                0,
+                "a backlog RFC was reported as an enrolled RFC without proof",
+            )
+
+    def test_unproven_list_is_the_whole_population_not_a_display_slice(self):
+        """`unproven_rfcs` is gated, so it may never be truncated.
+
+        VALIDATES: structural_facts's promise that one RFC LEAVING the list is a
+        detectable event -- true only if every unproven RFC is in it.
+        PREVENTS: the list being unified with `worst` next door, which is
+        deliberately `unproven[:10]` because it renders as a table. That
+        truncation is exactly why the gated fact could not be sourced from
+        `worst`: an eleventh RFC earning its first pair would move nothing.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            stems = [f"rfc{i:02d}" for i in range(1, 13)]  # 12 > the top-ten slice
+            rows = "".join(
+                f"| `{stem}` | 1 | 0 | 0 | 1 | 0 | 0 | 0 | **enrolled** |\n"
+                for stem in stems
+            )
+            write(
+                root,
+                th.RFC_LEDGER,
+                LEDGER_HEAD
+                + rows
+                # One RFC WITH a pair, to prove it is excluded rather than the
+                # list simply being every enrolled row.
+                + "| `rfcpaired` | 1 | 1 | 0 | 0 | 0 | 0 | 0 | **enrolled** |\n",
+            )
+            for stem in stems:
+                write(
+                    root,
+                    f"rfc/short/{stem}.md",
+                    f"- [ ] [{stem.upper()}-1-1] [MUST] owes a pair {{gap: not done}}\n",
+                )
+            write(
+                root,
+                "rfc/short/rfcpaired.md",
+                "- [ ] [RFCPAIRED-1-1] [MUST] proven both ways\n",
+            )
+            git_init(root)
+            headline, unproven = th.collect_rfc(root)
+            self.assertEqual(unproven.data["unproven_rfcs"], stems)
+            self.assertEqual(
+                len(unproven.data["unproven_rfcs"]),
+                unproven.data["unproven"]["numerator"],
+                "the named list and its own count must agree",
+            )
+            self.assertNotIn("rfcpaired", unproven.data["unproven_rfcs"])
+            # The neighbour it must not be confused with: still a display slice.
+            self.assertEqual(len(headline.data["worst"]), 10)
+
+    def test_no_enrolled_row_fails_closed(self):
+        """Zero enrolled rows must not read as a vacuously satisfied partition.
+
+        VALIDATES: ai/rules/fail-closed-guards.md -- the zero-value trap. An
+        empty enrolled population means the ledger's State marker changed or the
+        row parse broke, never that every requirement is accounted for.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            write(
+                root,
+                th.RFC_LEDGER,
+                LEDGER_HEAD + "| `rfc1` | 5 | 0 | 0 | 0 | 5 | 5 | 0 | backlog |\n",
+            )
+            write(root, "rfc/short/rfc1.md", "- [ ] [RFC1-1-1] [MUST] owed\n")
+            git_init(root)
+            with self.assertRaises(th.CollectError) as ctx:
+                th.collect_rfc(root)
+            self.assertIn("**enrolled**", str(ctx.exception))
+
     def test_split_that_is_not_a_partition_fails_closed(self):
         """A split that does not sum to the remainder must not be published.
 
@@ -130,7 +272,8 @@ class TestRfcLedgerParse(unittest.TestCase):
             write(
                 root,
                 th.RFC_LEDGER,
-                LEDGER_HEAD + "| `rfc1` | 10 | 4 | 0 | 6 | 0 | 0 | 0 | **enrolled** |\n",
+                LEDGER_HEAD
+                + "| `rfc1` | 10 | 4 | 0 | 6 | 0 | 0 | 0 | **enrolled** |\n",
             )
             write(root, "rfc/short/rfc1.md", "- [ ] [RFC1-1-1] [MUST] r {gap: x}\n")
             git_init(root)
@@ -455,6 +598,38 @@ class TestInventoryBoundary(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with self.assertRaises(th.CollectError):
                 th.collect_inventory(Path(tmp))
+
+
+def rfc_unproven_metric(**over):
+    """A well-formed `rfc-unproven` snapshot metric: list and count agreeing.
+
+    Every structural-fact test needs the OTHER facts well-formed, or a guard
+    fires for the wrong reason and the test stops discriminating the guard it
+    names.
+    """
+    m = {
+        "key": "rfc-unproven",
+        "status": th.WARN,
+        "value": "2 / 3",
+        "unproven": th.ratio(2, 3),
+        "unproven_rfcs": ["rfc1", "rfc2"],
+    }
+    m.update(over)
+    return m
+
+
+def tag_orphan_metric(**over):
+    """A well-formed `tag-orphan` snapshot metric: `orphans` agreeing with
+    `orphan_count`, which is what collect_inert writes."""
+    m = {
+        "key": "tag-orphan",
+        "status": th.OK,
+        "value": "1 (floor 1)",
+        "orphan_count": 1,
+        "orphans": [{"file": "internal/a/a_test.go", "requires": "ze_x"}],
+    }
+    m.update(over)
+    return m
 
 
 def fake_metrics(assert_nothing: int, tag_orphan: int):
@@ -970,6 +1145,304 @@ class TestNegativeTestAreaBuckets(unittest.TestCase):
                 )
 
 
+class TestDescribeNamesWhatMoved(unittest.TestCase):
+    """A gate that prints two long lists has told the reader nothing.
+
+    VALIDATES: _describe's own promise, "name what moved, so the failure is
+    diagnosable without a diff tool".
+    PREVENTS: the `rfc-unproven` fact -- 36 RFC stems today -- being reported as
+    two near-identical 36-item lists, leaving the one that moved to be found by
+    eye. It was invisible while the fact was empty; populating it made the
+    difference the only part worth printing.
+    """
+
+    def test_list_difference_is_named_not_dumped(self):
+        committed = [f"rfc{i}" for i in range(1, 15)]
+        generated = [r for r in committed if r != "rfc7"] + ["rfc99"]
+        lines = th._describe(committed, sorted(generated), "rfc-unproven")
+        joined = "\n".join(lines)
+        self.assertIn("rfc7", joined)
+        self.assertIn("rfc99", joined)
+        self.assertNotIn("rfc3", joined, f"unmoved entries were dumped:\n{joined}")
+
+    def test_identical_lists_describe_nothing(self):
+        self.assertEqual(th._describe(["a"], ["a"], "x"), [])
+
+    def test_non_list_facts_still_print_both_sides(self):
+        lines = th._describe({"a": "ok"}, {"a": "warn"}, "statuses")
+        joined = "\n".join(lines)
+        self.assertIn("ok", joined)
+        self.assertIn("warn", joined)
+
+
+class TestStructuralFactRfcUnproven(unittest.TestCase):
+    """The gated fact must carry the RFCs it names, and refuse to go quiet.
+
+    VALIDATES: structural_facts()'s own promise -- "which enrolled RFCs have no
+    test pair -- one leaving the list is a requirement newly proven".
+    PREVENTS: the defect this class was written for. The fact read `worst` off
+    the `rfc-unproven` metric, a key that metric never carried (a truncated
+    top-ten list lived on `rfc-proof-density` instead), so it evaluated to `[]`
+    on BOTH sides of every comparison and could not detect anything. A gated
+    check that cannot fail reads as coverage while providing none
+    (ai/rules/testing.md, Test Sensitivity Ratchets).
+    """
+
+    def _metric(self, **over):
+        return rfc_unproven_metric(**over)
+
+    def _record(self, *metrics):
+        """The metric(s) under test, PLUS a well-formed `tag-orphan` neighbour.
+
+        Every fact in structural_facts is now cross-checked, so a record that
+        omits the neighbour raises from the neighbour's guard and the test stops
+        proving anything about `rfc-unproven`. The message assertions below pin
+        which guard spoke.
+        """
+        return {"metrics": [*metrics, tag_orphan_metric()]}
+
+    def test_fact_names_every_unproven_rfc(self):
+        """The whole set, not a display slice: an RFC ranked 20th being proven is
+        the same event as the first one being proven, and must be as detectable."""
+        facts = th.structural_facts(self._record(self._metric()))
+        self.assertEqual(facts["rfc-unproven"], ["rfc1", "rfc2"])
+
+    def test_empty_is_legal_only_when_the_count_agrees(self):
+        """Zero unproven RFCs is the goal state, so `[]` must stay expressible."""
+        facts = th.structural_facts(
+            self._record(
+                self._metric(unproven=th.ratio(0, 3), unproven_rfcs=[], value="0 / 3")
+            )
+        )
+        self.assertEqual(facts["rfc-unproven"], [])
+
+    def test_missing_field_fails_closed(self):
+        """A snapshot predating the field, or a renamed one, must speak. Yielding
+        `[]` here IS the defect (ai/rules/fail-closed-guards.md)."""
+        m = self._metric()
+        del m["unproven_rfcs"]
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(self._record(m))
+        self.assertIn("rfc-unproven", str(ctx.exception))
+        self.assertIn("written before the field existed", str(ctx.exception))
+
+    def test_metric_absent_fails_closed(self):
+        """Sourcing the fact from `rfc-proof-density` instead is not a fallback."""
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(
+                self._record(
+                    {
+                        "key": "rfc-proof-density",
+                        "status": th.OK,
+                        "worst": [{"rfc": "rfc1", "gated": 9}],
+                    }
+                )
+            )
+        self.assertIn("rfc-unproven", str(ctx.exception))
+
+    def test_list_contradicting_its_own_count_fails_closed(self):
+        """The cross-check that makes a silent `[]` impossible: the metric counts
+        two unproven RFCs, so a list that names none of them is not measurement."""
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(self._record(self._metric(unproven_rfcs=[])))
+        self.assertIn("rfc-unproven", str(ctx.exception))
+        self.assertIn("have diverged", str(ctx.exception))
+
+    def test_non_list_field_fails_closed(self):
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(self._record(self._metric(unproven_rfcs="rfc1")))
+        self.assertIn("rfc-unproven", str(ctx.exception))
+        self.assertIn("expected a list", str(ctx.exception))
+
+    def test_absent_count_fails_closed(self):
+        m = self._metric()
+        del m["unproven"]
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(self._record(m))
+        self.assertIn("rfc-unproven", str(ctx.exception))
+        self.assertIn("cannot be checked against its own count", str(ctx.exception))
+
+
+class TestStructuralFactTagOrphans(unittest.TestCase):
+    """The tag-orphan fact must be unable to go quiet, same as `rfc-unproven`.
+
+    VALIDATES: structural_facts()'s own promise -- "which test files no `go test`
+    target can build -- a new one means a build tag or a make target just
+    stranded a file".
+    PREVENTS: the vacuity that shipped one fact over. This fact reads
+    `by_key.get("tag-orphan", {}).get("orphans") or []`, which is the DEFECT'S
+    EXACT SHAPE: a missing metric, a renamed field, or a non-list all collapse to
+    `[]` on BOTH sides of the comparison, and an empty list is indistinguishable
+    from "no test file is stranded" -- the goal state. The list is correct today
+    (8 orphans), so this is the back-fill ai/rules/testing.md requires, not a bug
+    fix: coverage that only grows forward from the date a technique was invented
+    is the trap the rule names.
+
+    The cross-check is `orphan_count`, which collect_inert writes from the same
+    `len(orphans)`. A list disagreeing with its own counter cannot be
+    measurement: it is a stale snapshot, a truncation, or a reader on the wrong
+    field.
+    """
+
+    def _record(self, *metrics):
+        """The metric(s) under test, plus a well-formed `rfc-unproven` neighbour."""
+        return {"metrics": [*metrics, rfc_unproven_metric()]}
+
+    def test_fact_names_every_orphan(self):
+        facts = th.structural_facts(self._record(tag_orphan_metric()))
+        self.assertEqual(facts["tag-orphans"], [("internal/a/a_test.go", "ze_x")])
+
+    def test_empty_is_legal_only_when_the_count_agrees(self):
+        """Zero stranded files is the goal state, so `[]` must stay expressible."""
+        facts = th.structural_facts(
+            self._record(tag_orphan_metric(orphan_count=0, orphans=[], value="0"))
+        )
+        self.assertEqual(facts["tag-orphans"], [])
+
+    def test_metric_absent_fails_closed(self):
+        """`by_key.get("tag-orphan", {})` defaulting to `{}` is the hole: it makes
+        a misspelled metric key read as `nothing is stranded`."""
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(self._record())
+        self.assertIn("tag-orphan", str(ctx.exception))
+        self.assertIn("has no source", str(ctx.exception))
+
+    def test_missing_field_fails_closed(self):
+        """A snapshot predating the field, or a renamed one, has no answer here --
+        which is not the same as zero orphans."""
+        m = tag_orphan_metric()
+        del m["orphans"]
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(self._record(m))
+        self.assertIn("tag-orphan", str(ctx.exception))
+        # Pin THIS branch: the length cross-check downstream would also refuse
+        # the record, so a bare assertRaises cannot prove this guard exists.
+        self.assertIn("written before the field existed", str(ctx.exception))
+
+    def test_non_list_field_fails_closed(self):
+        """A string iterates into characters, every one of which the `isinstance`
+        filter drops -- so a wrong type reached `[]` silently."""
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(self._record(tag_orphan_metric(orphans="a_test.go")))
+        self.assertIn("tag-orphan", str(ctx.exception))
+        self.assertIn("expected a list", str(ctx.exception))
+
+    def test_absent_count_fails_closed(self):
+        """With no counter there is nothing to cross-check against, so the list
+        cannot be trusted; that is an error, not a reason to skip the check."""
+        m = tag_orphan_metric()
+        del m["orphan_count"]
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(self._record(m))
+        self.assertIn("tag-orphan", str(ctx.exception))
+        self.assertIn("cannot be checked against its own count", str(ctx.exception))
+
+    def test_non_integer_count_fails_closed(self):
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(self._record(tag_orphan_metric(orphan_count="1")))
+        self.assertIn("tag-orphan", str(ctx.exception))
+        self.assertIn("cannot be checked against its own count", str(ctx.exception))
+
+    def test_list_contradicting_its_own_count_fails_closed(self):
+        """The check that makes a silent `[]` impossible: the metric counts three
+        stranded files, so a list naming one of them is not measurement."""
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(self._record(tag_orphan_metric(orphan_count=3)))
+        self.assertIn("tag-orphan", str(ctx.exception))
+        self.assertIn("have diverged", str(ctx.exception))
+
+    def test_empty_list_against_a_nonzero_count_fails_closed(self):
+        """The precise vacuity: `[]` published while the counter says 8."""
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(
+                self._record(tag_orphan_metric(orphans=[], orphan_count=8))
+            )
+        self.assertIn("tag-orphan", str(ctx.exception))
+        self.assertIn("have diverged", str(ctx.exception))
+
+
+class TestStructuralFactStatuses(unittest.TestCase):
+    """Every metric's status is gated, so the reader of it must be unable to
+    degenerate into a constant.
+
+    VALIDATES: structural_facts()'s own promise -- "a flip to `warn`, and above
+    all to `unknown`, means a collector stopped measuring. Sensor rot is the
+    failure mode the page exists to make visible, so it must not be able to land
+    silently."
+    PREVENTS: the `statuses` analogue of the `rfc-unproven` defect, which is
+    strictly worse because it is TOTAL. This fact has no counter of its own, so
+    it is cross-checked against two sources independent of its content: the
+    status vocabulary (`OK`/`WARN`/`UNKNOWN`, the module's own constants) and the
+    cardinality of the metrics list it is derived from. A reader looking at the
+    wrong field yields `None` for every metric, which compares EQUAL on both
+    sides for any status change whatsoever; a reader on the wrong KEY field
+    collapses ten metrics into one dict entry, hiding nine statuses. Neither is
+    caught by comparing the two snapshots, because both sides degenerate
+    identically -- which is exactly how the shipped defect survived.
+
+    Deliberately NOT a check of the list's length against itself: that is a
+    tautology and would read as protection while providing none.
+    """
+
+    def _record(self, *metrics):
+        return {"metrics": [*metrics, tag_orphan_metric(), rfc_unproven_metric()]}
+
+    def test_fact_maps_every_metric_key_to_its_status(self):
+        facts = th.structural_facts(
+            self._record({"key": "known-failures", "status": th.UNKNOWN})
+        )
+        self.assertEqual(
+            facts["statuses"],
+            {
+                "known-failures": th.UNKNOWN,
+                "tag-orphan": th.OK,
+                "rfc-unproven": th.WARN,
+            },
+        )
+
+    def test_status_outside_the_vocabulary_fails_closed(self):
+        """A value no collector can produce means the reader is on another field."""
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(self._record({"key": "m", "status": "green"}))
+        self.assertIn("statuses", str(ctx.exception))
+
+    def test_absent_status_fails_closed(self):
+        """`None` for every metric is what a renamed `status` field produces, and
+        it makes the fact compare equal on both sides for ANY status change."""
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(self._record({"key": "m"}))
+        self.assertIn("statuses", str(ctx.exception))
+
+    def test_collapsed_keys_fail_closed(self):
+        """Two metrics under one key means eight of ten statuses are unwatched.
+
+        This is what reading the wrong KEY field does: every entry lands under
+        `None` and the dict comprehension silently keeps only the last one.
+        """
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(
+                self._record(
+                    {"key": "dup", "status": th.OK}, {"key": "dup", "status": th.WARN}
+                )
+            )
+        self.assertIn("statuses", str(ctx.exception))
+
+    def test_metric_without_a_key_fails_closed(self):
+        """A single missing key is invisible to the cardinality check, so the key
+        itself is checked too."""
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts(self._record({"status": th.OK}))
+        self.assertIn("statuses", str(ctx.exception))
+
+    def test_empty_metric_list_fails_closed(self):
+        """`{}` statuses, `[]` orphans and `[]` unproven RFCs all at once reads as
+        a perfectly healthy repository. The precondition is checked before any
+        fact, so this does not depend on a sibling guard noticing."""
+        with self.assertRaises(th.CollectError) as ctx:
+            th.structural_facts({"metrics": []})
+        self.assertIn("no metrics", str(ctx.exception))
+
+
 class TestEntryPoints(unittest.TestCase):
     """Drive do_write / do_check / do_record, not just their helpers.
 
@@ -983,10 +1456,16 @@ class TestEntryPoints(unittest.TestCase):
 
     def _repo(self, tmp: str) -> Path:
         root = Path(tmp)
+        # rfc1 has a proven pair; rfc2 has none. The unproven row is what makes
+        # the `rfc-unproven` structural fact non-empty, so the round-trip tests
+        # below exercise the gate with real content instead of comparing two
+        # empty lists -- which is how the vacuity survived this class once.
         write(
             root,
             th.RFC_LEDGER,
-            LEDGER_HEAD + "| `rfc1` | 4 | 1 | 0 | 3 | 0 | 0 | 0 | **enrolled** |\n",
+            LEDGER_HEAD
+            + "| `rfc1` | 4 | 1 | 0 | 3 | 0 | 0 | 0 | **enrolled** |\n"
+            + "| `rfc2` | 2 | 0 | 0 | 2 | 0 | 0 | 0 | **enrolled** |\n",
         )
         write(
             root,
@@ -994,6 +1473,12 @@ class TestEntryPoints(unittest.TestCase):
             "- [ ] [RFC1-1-1] [MUST] a {gap: x}\n"
             "- [ ] [RFC1-1-2] [MUST] b {not-applicable: y}\n"
             "- [ ] [RFC1-1-3] [MUST] c {single-polarity: positive; z}\n",
+        )
+        write(
+            root,
+            "rfc/short/rfc2.md",
+            "- [ ] [RFC2-1-1] [MUST] d {gap: x}\n"
+            "- [ ] [RFC2-1-2] [MUST] e {not-applicable: y}\n",
         )
         write(
             root, "internal/a/a_test.go", "package a\n\nfunc TestA(t *testing.T) {}\n"
@@ -1100,7 +1585,14 @@ class TestEntryPoints(unittest.TestCase):
             self.assertEqual(th.do_check(root), 1)
 
     def test_check_fails_when_the_tag_orphan_list_changes(self):
-        """A new orphan means a build tag or make target just stranded a file."""
+        """A new orphan means a build tag or make target just stranded a file.
+
+        The committed snapshot is edited CONSISTENTLY -- list and count together,
+        exactly as test_check_fails_when_an_rfc_gains_its_first_proof does for
+        `rfc-unproven` -- so this drives the DRIFT path (a real event the tree and
+        the snapshot disagree about) rather than the malformed-snapshot path,
+        which test_check_fails_closed_on_a_count_that_contradicts_the_list owns.
+        """
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(tmp)
             th.do_write(root)
@@ -1110,10 +1602,112 @@ class TestEntryPoints(unittest.TestCase):
                     m["orphans"] = [
                         {"file": "internal/ghost_test.go", "requires": "ze_x"}
                     ]
+                    m["orphan_count"] = 1
             (root / th.LATEST).write_text(
                 json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
             )
             self.assertEqual(th.do_check(root), 1)
+
+    def test_check_fails_closed_on_a_count_that_contradicts_the_list(self):
+        """A snapshot whose orphan list and orphan count disagree is not
+        measurement, so it must be refused rather than diffed.
+
+        PREVENTS: the `tag-orphans` half of the vacuity. Without the cross-check,
+        `orphans` could be `[]` while the counter said 8 and the gate would read
+        it as "nothing is stranded" -- the goal state -- on both sides.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            th.do_write(root)
+            record = json.loads((root / th.LATEST).read_text())
+            for m in record["metrics"]:
+                if m["key"] == "tag-orphan":
+                    m["orphan_count"] = 8
+            (root / th.LATEST).write_text(
+                json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            with self.assertRaises(th.CollectError) as ctx:
+                th.do_check(root)
+            self.assertIn("tag-orphan", str(ctx.exception))
+            self.assertIn("have diverged", str(ctx.exception))
+
+    def test_check_fails_closed_on_a_snapshot_without_the_orphan_field(self):
+        """A snapshot predating the field must not read as "nothing is stranded"."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            th.do_write(root)
+            record = json.loads((root / th.LATEST).read_text())
+            for m in record["metrics"]:
+                if m["key"] == "tag-orphan":
+                    del m["orphans"]
+            (root / th.LATEST).write_text(
+                json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            with self.assertRaises(th.CollectError) as ctx:
+                th.do_check(root)
+            self.assertIn("orphans", str(ctx.exception))
+            self.assertIn("written before the field existed", str(ctx.exception))
+
+    def test_check_fails_closed_on_a_status_outside_the_vocabulary(self):
+        """A status no collector produces means the reader is on another field, so
+        the gate must speak rather than quietly report drift."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            th.do_write(root)
+            record = json.loads((root / th.LATEST).read_text())
+            for m in record["metrics"]:
+                if m["key"] == "known-failures":
+                    m["status"] = "green"
+            (root / th.LATEST).write_text(
+                json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            with self.assertRaises(th.CollectError) as ctx:
+                th.do_check(root)
+            self.assertIn("statuses", str(ctx.exception))
+
+    def test_check_fails_when_an_rfc_gains_its_first_proof(self):
+        """The event the fact exists to catch, driven through its entry point.
+
+        The committed snapshot is edited to the state it would have AFTER rfc2
+        earns a pair -- consistently, count and list together -- while the tree
+        still says rfc2 is unproven. That divergence must fail the gate.
+        PREVENTS: the fact reading a key nothing populates, which made this
+        comparison `[] != []` and therefore always green.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            th.do_write(root)
+            record = json.loads((root / th.LATEST).read_text())
+            for m in record["metrics"]:
+                if m["key"] == "rfc-unproven":
+                    self.assertEqual(
+                        m["unproven_rfcs"],
+                        ["rfc2"],
+                        "the generated snapshot must name the unproven RFC",
+                    )
+                    m["unproven_rfcs"] = []
+                    m["unproven"] = th.ratio(0, 2)
+            (root / th.LATEST).write_text(
+                json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            self.assertEqual(th.do_check(root), 1)
+
+    def test_check_fails_closed_on_a_snapshot_without_the_field(self):
+        """A snapshot written before the field existed must not read as `no RFCs
+        are unproven`. It has no answer, and that is not the same as zero."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            th.do_write(root)
+            record = json.loads((root / th.LATEST).read_text())
+            for m in record["metrics"]:
+                if m["key"] == "rfc-unproven":
+                    del m["unproven_rfcs"]
+            (root / th.LATEST).write_text(
+                json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            with self.assertRaises(th.CollectError) as ctx:
+                th.do_check(root)
+            self.assertIn("written before the field existed", str(ctx.exception))
 
     def test_check_fails_on_unparseable_latest_json(self):
         with tempfile.TemporaryDirectory() as tmp:

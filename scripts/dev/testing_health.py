@@ -99,6 +99,11 @@ RFC_LEVEL = re.compile(r"^- \[[ x]\] \[[^\]]+\] \[([A-Z ]+)\]")
 # Mirrors GATED_LEVELS in scripts/dev/rfc_requirements.py:69. The ledger's totals
 # cover only these, so the page's split must too.
 GATED_LEVELS = frozenset({"MUST", "MUST NOT", "SHALL", "SHALL NOT", "REQUIRED"})
+# The State cell an enrolled RFC renders (scripts/dev/rfc_requirements.py
+# _render_rollup; the other two states are `enrollable` and `backlog`). Pinned to
+# the exact rendered marker so a renderer change empties the enrolled population
+# and trips the fail-closed guard in collect_rfc rather than silently reshaping it.
+RFC_STATE_ENROLLED = "**enrolled**"
 
 TEST_FUNC = re.compile(r"^func (Test[A-Z_][A-Za-z0-9_]*)\(", re.MULTILINE)
 FUZZ_FUNC = re.compile(r"^func (Fuzz[A-Z_][A-Za-z0-9_]*)\(", re.MULTILINE)
@@ -136,6 +141,13 @@ MIN_SAMPLES = 4
 SUBPROCESS_TIMEOUT = 600
 
 OK, WARN, UNKNOWN = "ok", "warn", "unknown"
+
+# The only statuses a collector can produce. structural_facts checks the gated
+# `statuses` fact against this set because that fact has no counter of its own:
+# a reader on the wrong field yields `None` for every metric, which compares
+# EQUAL on both sides of the gate for any status change at all. The vocabulary
+# is an independent source, so it can catch what a snapshot comparison cannot.
+STATUS_VALUES = frozenset({OK, WARN, UNKNOWN})
 
 
 class Metric:
@@ -287,6 +299,12 @@ def collect_rfc(root: Path) -> tuple[Metric, Metric]:
 
     The ledger's own summary reports "0 outstanding", which is true and reads as
     100%. It merges four different states. This splits them back apart.
+
+    Population: the ENROLLED ledger rows only, which is the set `make ze-rfc-check`
+    actually gates. The un-enrolled remainder is not hidden -- the ledger states it
+    in its own preamble and lists every one of those rows -- it simply is not part
+    of the partition asserted below, because nothing obliges it to be proven or
+    annotated yet.
     """
     text = read_text(root, RFC_LEDGER)
     if RFC_TABLE_HEADER not in text:
@@ -309,24 +327,57 @@ def collect_rfc(root: Path) -> tuple[Metric, Metric]:
                     "notest": int(m.group(6)),
                     "outstanding": int(m.group(7)),
                     "nightly_only": int(m.group(8)),
+                    "state": m.group(9).strip(),
                 }
             )
     if not rows:
         raise CollectError(f"{RFC_LEDGER} coverage table parsed to zero rows")
 
+    # ENROLLED ROWS ONLY, on every side of the partition below. "Every gated
+    # requirement is proven in both polarities or annotated" is what
+    # `make ze-rfc-check`'s evaluate() enforces, and it enforces it for the
+    # ENROLLED set alone. An un-enrolled summary's gated MUSTs are legitimately
+    # neither proven nor annotated -- the ledger's own preamble says so, and
+    # plan/spec-rfcgate-4-ledger.md makes extract-then-enrol the mandated order,
+    # so "gated rows, not yet enrolled" is a REQUIRED intermediate state, not an
+    # anomaly. Summing the whole table made that state raise: extracting rfc1035,
+    # rfc4486 and rfc5301 added 34 such rows, and `2754 gated - 974 proven = 1780`
+    # was reported against a split of 1746 -- short by exactly those 34.
+    #
+    # This is the same class of error as the earlier one, one population wider.
+    # Then, the split counted `{kind}` across whole files, so MAY/SHOULD/OPTIONAL
+    # requirements leaked in and the three parts summed to 20 MORE than
+    # `gated - both` while being presented as its breakdown (one file, rfc4577,
+    # supplied all 20: 8 MAY, 8 SHOULD, 3 OPTIONAL, 1 SHOULD NOT). Both fixes obey
+    # one rule: the split and the totals it partitions must come from the same
+    # population -- enrolled ledger rows, gated requirement levels.
+    #
+    # Enrolment is read from the ledger ROW, never from rfc/enrolled.txt: the row
+    # IS the population this assertion is about, and a second source is how the
+    # two diverge again.
+    enrolled_rows = [r for r in rows if r["state"] == RFC_STATE_ENROLLED]
+    if not enrolled_rows:
+        raise CollectError(
+            f"{RFC_LEDGER} parsed {len(rows)} coverage row(s), none marked "
+            f"{RFC_STATE_ENROLLED!r} in its State column. Either the ledger's state "
+            f"marker changed or the row parse broke; an empty enrolled population "
+            f"would satisfy the annotation partition vacuously, so refuse it."
+        )
+    rows = enrolled_rows
+
     gated = sum(r["gated"] for r in rows)
     both = sum(r["both"] for r in rows)
     if gated == 0:
-        raise CollectError(f"{RFC_LEDGER} reports zero gated requirements")
+        raise CollectError(
+            f"{RFC_LEDGER} reports zero gated requirements across its "
+            f"{len(rows)} gate-carrying RFC(s)"
+        )
 
-    # The split MUST come from the same population as the ledger's totals, or it
-    # is not a partition of the remainder. Counting `{kind}` across whole files
-    # counted MAY/SHOULD/OPTIONAL requirements too, so the three parts summed to
-    # 20 more than `gated - both` while being presented as its breakdown. One
-    # file (rfc4577) supplied all 20: 8 MAY, 8 SHOULD, 3 OPTIONAL, 1 SHOULD NOT.
-    #
-    # Only enrolled summaries with a ledger row count, and only requirement lines
-    # whose level is gated, matching GATED_LEVELS in rfc_requirements.py:69.
+    # The other half of "same population": two filters, both required. A summary
+    # counts only when it owns an ENROLLED ledger row (`rows` is already narrowed
+    # to those above), and a line counts only when its requirement level is gated,
+    # matching GATED_LEVELS in rfc_requirements.py:69. Drop either filter and the
+    # split stops being a partition of `gated - both`.
     kinds = defaultdict(int)
     known_rfcs = {r["rfc"] for r in rows}
     summary_files = tracked_matching(root, RFC_SUMMARIES.split("/")[0], ".md")
@@ -337,8 +388,8 @@ def collect_rfc(root: Path) -> tuple[Metric, Metric]:
     ]
     if not summary_files:
         raise CollectError(
-            f"no tracked summaries under {RFC_SUMMARIES} match a ledger row: refusing "
-            f"to report the annotation split as all-zero when nothing was measured"
+            f"no tracked summaries under {RFC_SUMMARIES} match an enrolled ledger row: "
+            f"refusing to report the annotation split as all-zero when nothing was measured"
         )
     for path in summary_files:
         for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
@@ -400,7 +451,18 @@ def collect_rfc(root: Path) -> tuple[Metric, Metric]:
         detail="Enrolled and gate-green, but no requirement is proven by BOTH polarities. "
         "Some of these do carry positive-only tests; none carries a pair.",
         action="Pick the largest and complete a pair, or accept it is a single-polarity claim.",
-        data={"unproven": ratio(len(unproven), len(rows))},
+        data={
+            "unproven": ratio(len(unproven), len(rows)),
+            # The WHOLE set, named, and sorted by name rather than by rank.
+            # structural_facts gates this list, so two properties are load-bearing.
+            # Complete: `rfc-proof-density`'s `worst` is `unproven[:10]`, a display
+            # slice, so an eleventh RFC earning its first pair would have been an
+            # undetectable event. Rank-free: ordering by gated count would rewrite
+            # this list whenever extraction moves a count, turning pure churn into
+            # a diff. Membership changes only when an RFC gains or loses its first
+            # proven pair, or enters or leaves enrolment -- each an event.
+            "unproven_rfcs": sorted(r["rfc"] for r in unproven),
+        },
     )
     return headline, unproven_metric
 
@@ -1431,6 +1493,153 @@ def do_write(root: Path, bootstrap: bool = False) -> int:
     return 0
 
 
+def _gated_list(by_key, metric_key, list_field, count_of, count_path, means) -> list:
+    """A gated list, read off its metric and cross-checked against that metric's
+    own counter. Every branch raises rather than returning `[]`.
+
+    `[]` is the one answer a gated list must never be able to INVENT, because for
+    every fact here it is the goal state -- no unproven RFC, no stranded test
+    file -- so it is indistinguishable from success and it is what the shipped
+    defect produced. `rfc-unproven` read `worst`, a key only `rfc-proof-density`
+    carries, so the fact was empty on both sides of every comparison and gated
+    nothing (ai/rules/fail-closed-guards.md: a guard that neither denies nor
+    speaks does not exist). Its siblings had the same `.get(...) or []` shape and
+    the same reachable vacuum.
+
+    The length cross-check is what closes it for good. Each list and its counter
+    are computed from the SAME data by the same collector, so a list disagreeing
+    with its count cannot be measurement -- it is a stale snapshot, a truncation,
+    or a reader on the wrong field. An empty list stays legal, but ONLY when the
+    counter agrees, which makes the vacuous state unreachable rather than merely
+    unlikely.
+
+    Note what this deliberately does NOT do: compare the list's length to itself.
+    That tautology would read as protection while providing none, so a fact with
+    no independent counter is left un-cross-checked and named as a gap instead.
+    """
+    metric = by_key.get(metric_key)
+    if metric is None:
+        raise CollectError(
+            f"no `{metric_key}` metric in the record, so the gated fact naming "
+            f"{means} has no source. Refusing to report it as empty: that reads as "
+            f"the goal state."
+        )
+    listed = metric.get(list_field)
+    if listed is None:
+        raise CollectError(
+            f"the `{metric_key}` metric carries no `{list_field}` field. A snapshot "
+            f"written before the field existed has no answer here, which is not the "
+            f"same as zero. Run `make ze-test-health` and commit {LATEST}."
+        )
+    if not isinstance(listed, list):
+        raise CollectError(
+            f"`{metric_key}.{list_field}` is {type(listed).__name__}, expected a "
+            f"list: got {listed!r}"
+        )
+    counted = count_of(metric)
+    # bool is an int in Python, and `len(x) != True` is satisfied by any
+    # one-element list, so a boolean counter would pass the comparison below
+    # while proving nothing.
+    if not isinstance(counted, int) or isinstance(counted, bool):
+        raise CollectError(
+            f"`{metric_key}.{count_path}` is not an integer, so the gated list "
+            f"cannot be checked against its own count: got {counted!r}"
+        )
+    if len(listed) != counted:
+        raise CollectError(
+            f"`{metric_key}` lists {len(listed)} entry(ies) in `{list_field}` but "
+            f"counts {counted} in `{count_path}`. Both come from the same data, so "
+            f"they have diverged: the snapshot is stale, or the list is truncated. "
+            f"Run `make ze-test-health` and commit {LATEST}."
+        )
+    return listed
+
+
+def _unproven_rfcs(by_key) -> list[str]:
+    """The enrolled RFCs with no proven pair, read from the metric that IS that
+    claim, cross-checked against that metric's own `unproven.numerator`."""
+    listed = _gated_list(
+        by_key,
+        "rfc-unproven",
+        "unproven_rfcs",
+        lambda m: (m.get("unproven") or {}).get("numerator"),
+        "unproven.numerator",
+        "the enrolled RFCs with no test pair",
+    )
+    return sorted(str(x) for x in listed)
+
+
+def _tag_orphans(by_key) -> list[tuple[str, str]]:
+    """The test files no `go test` target can build, cross-checked against the
+    same metric's `orphan_count`.
+
+    collect_inert writes `orphan_count` as `len(orphans)`, so the two can only
+    disagree if one of them is not what it claims to be. Without the check, the
+    old `by_key.get("tag-orphan", {}).get("orphans") or []` turned a misspelled
+    metric key, a renamed field, or a wrong type into "nothing is stranded" -- the
+    goal state -- identically on both sides of the gate.
+    """
+    listed = _gated_list(
+        by_key,
+        "tag-orphan",
+        "orphans",
+        lambda m: m.get("orphan_count"),
+        "orphan_count",
+        "the test files no `go test` target can build",
+    )
+    return sorted(
+        (str(o.get("file", "")), str(o.get("requires", "")))
+        for o in listed
+        if isinstance(o, dict)
+    )
+
+
+def _statuses(metrics) -> dict:
+    """Every metric's status, keyed by metric.
+
+    This fact has NO counter to cross-check against, and counting the dict
+    against itself would be a tautology. Two sources independent of its content
+    are checked instead:
+
+      * the status VOCABULARY (`STATUS_VALUES`). A reader on the wrong field
+        yields `None` for every metric, and `{key: None}` compares equal on both
+        sides of the gate for any status change whatsoever -- a total vacuum,
+        worse than the `rfc-unproven` defect, which at least left the other facts
+        working.
+      * the CARDINALITY of the metrics list this is derived from. A reader on the
+        wrong KEY field collapses every entry under one key, and the dict
+        comprehension silently keeps only the last -- hiding nine of ten
+        statuses. Comparing the projection's size against its source's detects
+        that collapse; it is not the list measured against itself.
+    """
+    if not metrics:
+        raise CollectError(
+            "the record has no metrics, so there are no statuses to gate. An empty "
+            "record makes every structural fact vacuously healthy, which is the "
+            "one reading this gate must never produce."
+        )
+    statuses = {m.get("key"): m.get("status") for m in metrics}
+    if len(statuses) != len(metrics):
+        raise CollectError(
+            f"`statuses` has {len(statuses)} entry(ies) for {len(metrics)} metric(s): "
+            f"two metrics share a key, so the dict silently dropped one and its "
+            f"status is no longer gated. Keys seen: {sorted(map(str, statuses))}"
+        )
+    for key, status in sorted(statuses.items(), key=lambda kv: str(kv[0])):
+        if not isinstance(key, str) or not key:
+            raise CollectError(
+                f"`statuses` has a metric with no usable `key` ({key!r}), so its "
+                f"status is gated under a name nothing can be traced to."
+            )
+        if status not in STATUS_VALUES:
+            raise CollectError(
+                f"`statuses` gives metric {key!r} the status {status!r}, which no "
+                f"collector produces (expected one of {sorted(STATUS_VALUES)}). The "
+                f"field is missing or renamed; a constant status gates nothing."
+            )
+    return statuses
+
+
 def structural_facts(record) -> dict:
     """The claims worth gating: the ones whose change is an EVENT, not churn.
 
@@ -1444,40 +1653,68 @@ def structural_facts(record) -> dict:
     cosmetic. What IS here changes only when something happened:
 
       * which test files no `go test` target can build -- a new one means a
-        build tag or a make target just stranded a file;
+        build tag or a make target just stranded a file. Via `_tag_orphans`,
+        cross-checked against the same metric's `orphan_count`;
       * which enrolled RFCs have no test pair -- one leaving the list is a
-        requirement newly proven;
+        requirement newly proven. The names come from `rfc-unproven`'s own
+        `unproven_rfcs` field via `_unproven_rfcs`, cross-checked against that
+        metric's count. It used to read `worst`, a key that metric never had, and
+        so gated nothing;
       * every metric's status -- a flip to `warn`, and above all to `unknown`,
         means a collector stopped measuring. Sensor rot is the failure mode the
         page exists to make visible, so it must not be able to land silently.
+        Via `_statuses`, checked against the status vocabulary and the metrics
+        list's cardinality, the only sources independent of its own content.
+
+    EVERY fact here fails closed, and that is deliberate rather than incidental:
+    the `rfc-unproven` defect proved that a fact with a `.get(...) or []` shape
+    can be permanently `[]` on BOTH sides of the comparison and gate nothing
+    while reading as the goal state. A snapshot comparison cannot catch a reader
+    bug, because both sides degenerate identically. So each fact is checked
+    against a source independent of itself before it is compared at all.
 
     The anti-regression guarantee does not rest on this: `ze-test-sensitivity-check`
     enforces the ratchets from the tree at stage 10, reading only the baseline,
     and is untouched by page staleness.
     """
-    by_key = {m.get("key"): m for m in record["metrics"]}
-    orphans = by_key.get("tag-orphan", {}).get("orphans") or []
-    unproven = by_key.get("rfc-unproven", {}).get("worst") or []
+    metrics = record["metrics"]
+    by_key = {m.get("key"): m for m in metrics}
     return {
-        "statuses": {m.get("key"): m.get("status") for m in record["metrics"]},
-        "tag-orphans": sorted(
-            (str(o.get("file", "")), str(o.get("requires", "")))
-            for o in orphans
-            if isinstance(o, dict)
-        ),
-        "rfc-unproven": sorted(
-            str(r.get("rfc", "")) for r in unproven if isinstance(r, dict)
-        ),
+        # Ordered so the shared precondition (a non-empty metric list) is checked
+        # before any per-fact guard, and so each fact's failure is attributable to
+        # its own guard rather than to whichever sibling happened to run first.
+        "statuses": _statuses(metrics),
+        "tag-orphans": _tag_orphans(by_key),
+        "rfc-unproven": _unproven_rfcs(by_key),
     }
 
 
 def _describe(diff_a, diff_b, label) -> list[str]:
-    """Name what moved, so the failure is diagnosable without a diff tool."""
+    """Name what moved, so the failure is diagnosable without a diff tool.
+
+    For a list-valued fact, print the DIFFERENCE, not both sides. `rfc-unproven`
+    names 36 RFCs, so dumping both lists leaves the reader to find the one that
+    moved by eye -- which is the diff tool this function exists to replace. Dict
+    facts (`statuses`) are small and keyed, so both sides stay readable.
+    """
     out = []
-    if diff_a != diff_b:
-        out.append(f"  {label}:")
-        out.append(f"    committed: {diff_a}")
-        out.append(f"    generated: {diff_b}")
+    if diff_a == diff_b:
+        return out
+    out.append(f"  {label}:")
+    if isinstance(diff_a, list) and isinstance(diff_b, list):
+        gone = [x for x in diff_a if x not in diff_b]
+        new = [x for x in diff_b if x not in diff_a]
+        # An entry present in both but reordered is not a membership change;
+        # every fact here is sorted, so that cannot happen without one of these
+        # being non-empty. Fall through anyway rather than printing nothing.
+        if gone or new:
+            if gone:
+                out.append(f"    left the committed list: {gone}")
+            if new:
+                out.append(f"    new in the generated list: {new}")
+            return out
+    out.append(f"    committed: {diff_a}")
+    out.append(f"    generated: {diff_b}")
     return out
 
 

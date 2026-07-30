@@ -31,7 +31,12 @@ Usage:
     python3 scripts/dev/rfc_requirements.py --check        # gate (exit 2 on violation)
     python3 scripts/dev/rfc_requirements.py --check-fresh  # ledger staleness only (exit 1)
     python3 scripts/dev/rfc_requirements.py --write        # render ai/RFC-REQUIREMENTS.md
+    python3 scripts/dev/rfc_requirements.py --reseal       # re-stamp SHIFTED audit verdicts
     python3 scripts/dev/rfc_requirements.py --selftest     # run rfc_requirements_test.py
+
+--reseal is the ONLY mode that writes under rfc/audit/. --check is read-only and --write
+touches the ledger alone, so every change to a hand-authored evidence file is either a human
+editing it or one greppable command (spec-rfcgate-3-audit-teeth.md, A-7).
 
 Exit 0 = a comparison ran and found nothing wrong.
 Exit 2 = violations found, or the gate could not run (unparseable input, nothing
@@ -42,6 +47,7 @@ Exit 2 = violations found, or the gate could not run (unparseable input, nothing
 import calendar
 import datetime
 import hashlib
+import importlib.util
 import io
 import json
 import math
@@ -56,6 +62,17 @@ import tokenize
 from typing import Dict, List, NamedTuple, Optional, Sequence, Set, Tuple
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
+
+# "The tagged unit" has exactly ONE definition, shared with the edit-time guard
+# (.claude/hooks/pretool-writeedit.py). Loaded BY PATH rather than by `import`, because this
+# module is itself loaded by path in three places -- rfc_requirements_test.py, the Go gate
+# wrappers, and rename_module_path.py's library import -- and in none of them is scripts/dev
+# guaranteed to be on sys.path.
+_scope_spec = importlib.util.spec_from_file_location(
+    "rfc_tagged_scope", os.path.join(_HERE, "rfc_tagged_scope.py")
+)
+rfc_tagged_scope = importlib.util.module_from_spec(_scope_spec)
+_scope_spec.loader.exec_module(rfc_tagged_scope)
 PROJECT_DIR = os.path.abspath(os.path.join(_HERE, "..", ".."))
 
 SUMMARY_DIR = os.path.join(PROJECT_DIR, "rfc", "short")
@@ -1810,6 +1827,26 @@ def parse_status_ledger(text: str) -> Dict[str, Dict[str, str]]:
     return rows
 
 
+def row_discloses_a_gap(row: Dict[str, str]) -> bool:
+    """Does this docs/features/rfc-status.md row admit the RFC is not fully met?
+
+    One definition, two consumers: a `{gap}` ANNOTATION (check_status_agreement) and a `wrong`
+    or `unimplemented` VERDICT (check_audit_disclosure) say the same thing about the same RFC,
+    so a verdict must not be able to hide behind a row an annotation could not.
+
+    Under a clean 'Supported' claim, ONLY an explicit non-empty gap note in the Remaining
+    column discloses. An empty/whitespace/neutral Remaining does NOT -- that was the
+    fail-open: `_NO_GAP_RE.search("")` is None, so a blank Remaining read as "disclosed" and a
+    {gap} MUST hid behind clean support (`ai/rules/fail-closed-guards.md`: absence of a claim is
+    not a disclosure). A non-'Supported' status (Partial, Not supported, ...) itself discloses
+    that the RFC is not fully met, so the row is not advertising clean support.
+    """
+    remaining = row["remaining"].strip()
+    if not row["status"].startswith("Supported"):
+        return True
+    return bool(remaining) and not _NO_GAP_RE.search(remaining)
+
+
 def check_status_agreement(
     requirements: Sequence[Requirement],
     rows: Dict[str, Dict[str, str]],
@@ -1834,21 +1871,7 @@ def check_status_agreement(
             continue
         status = row["status"]
         remaining = row["remaining"]
-        remaining_stripped = remaining.strip()
-        if status.startswith("Supported"):
-            # Under a clean 'Supported' claim, ONLY an explicit non-empty gap note in the
-            # Remaining column discloses the gap. An empty/whitespace/neutral Remaining does
-            # NOT -- that was the fail-open: `_NO_GAP_RE.search("")` is None, so a blank
-            # Remaining read as "disclosed" and a {gap} MUST hid behind clean support
-            # (ai/rules/fail-closed-guards.md: absence of a claim is not a disclosure).
-            discloses = bool(remaining_stripped) and not _NO_GAP_RE.search(
-                remaining_stripped
-            )
-        else:
-            # A non-'Supported' status (Partial, Not supported, ...) itself discloses that
-            # the RFC is not fully met, so the row is not advertising clean support.
-            discloses = True
-        if not discloses:
+        if not row_discloses_a_gap(row):
             errs.append(
                 f"{req.rid} is annotated {{gap: {ann.reason[:50]}}} but "
                 f"docs/features/rfc-status.md says {req.rfc} is '{status}' with "
@@ -1866,37 +1889,457 @@ def _normalize(src: str) -> str:
     return "\n".join(line for line in lines if line)
 
 
+# The width of every fingerprint this module records, in hex characters. ONE constant, consumed
+# by both producers below and by the schema check that validates a recorded value, so the shape
+# the gate accepts is derived from the shape it emits and the two cannot drift
+# (`ai/rules/derive-not-hardcode.md`).
+SHA_HEX_LEN = 16
+# Matched with `fullmatch`, not `match`. Python's `$` also matches immediately BEFORE a final
+# newline, so `match` accepts a 17-character `"a"*16 + "\n"` -- an "invalid above" value waved
+# through by the very check meant to catch it.
+#
+# `\Z`, not `$`, for the same reason one notch further out. An anchored `search` is equivalent to
+# `match`, NOT to `fullmatch`, so with `$` the pattern re-opened that exact hole for a
+# `search`-based caller: `re.search` accepted `"a"*16 + "\n"`, and a comment here used to claim
+# the anchors made it "safe" for one. `\Z` matches only at the very end of the string, so `search`,
+# `match` and `fullmatch` now all reject the trailing-newline value and the claim is true rather
+# than merely written down. `fullmatch` behaviour is identical under either anchor (it consumes the
+# whole string by definition), so the two `assertRegex` call sites in the test module -- whose
+# inputs have already cleared `_sha_value` -- are unaffected.
+_SHA_RE = re.compile(r"^[0-9a-f]{" + str(SHA_HEX_LEN) + r"}\Z")
+
+
 def requirement_sha(text: str) -> str:
-    return hashlib.sha256(_normalize(text).encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha256(_normalize(text).encode("utf-8")).hexdigest()[:SHA_HEX_LEN]
 
 
 def test_sha(src: str) -> str:
-    return hashlib.sha256(_normalize(src).encode("utf-8")).hexdigest()[:16]
+    return hashlib.sha256(_normalize(src).encode("utf-8")).hexdigest()[:SHA_HEX_LEN]
 
 
-def verdict_is_fresh(verdict: Dict, req_sha: str, test_shas: Dict[str, str]) -> bool:
-    """A verdict is only fresh while BOTH the requirement text and every tagged test are
-    byte-identical to what was audited.
+def recorded_map(verdict: Dict, key: str) -> Dict[str, str]:
+    """One RECORDED fingerprint map, with absent and empty as the same state.
 
-    Biased to over-trigger: a false 'stale' costs a re-read, a false 'fresh' ships a
-    test that no longer enforces its requirement.
+    `_sha_map` established that reading at LOAD time ("absent reads as empty"). This is the same
+    normalisation at COMPARISON time, and the two have to agree. They did not: `_verdict_claims`
+    tests the map for falsiness, so absent and `{}` are one state to the schema, while the
+    freshness rule compared the raw `verdict.get("tests")` against a computed `{}` -- and
+    `None == {}` is False.
+
+    The cost of that gap was a permanently red gate on the one state OR-1 created. A
+    `not-applicable` verdict cites no test, `ai/skills/ze-rfc-audit.md` tells the author to omit
+    the field, and the omitted spelling then read STALE_UNIT forever with a message that was
+    false in all three of its clauses: no tagged test was ever gone (OR-1 FORBIDS citing one),
+    it is not a line shift, and re-running `/ze-rfc-audit` reproduces the identical record.
+    `--reseal` refused it too, so nothing cleared it (`ai/rules/fail-closed-guards.md`, the
+    zero-value trap: a present-but-empty value must not diverge from an absent one;
+    `ai/rules/error-messages.md` leg 3: a remediation must be TRUE, not merely present).
+
+    A wrong TYPE reads as empty here rather than raising: `_validate_verdict` already refused it
+    at load time, and this is on the LEDGER RENDER path where raising would take down a report
+    that must stay readable (`audit_freshness` makes the same trade for an unresolvable key).
     """
-    return (
-        verdict.get("requirement_sha") == req_sha and verdict.get("tests") == test_shas
+    val = verdict.get(key)
+    return val if isinstance(val, dict) else {}
+
+
+# --------------------------------------------------------------------------
+# The audit record's schema (plan/spec-rfcgate-3-audit-teeth.md)
+# --------------------------------------------------------------------------
+# The verdict vocabulary of ai/skills/ze-rfc-audit.md, as a closed enum. Before this it was
+# prose in a skill file that no code read: the freshness rule compared the requirement sha and
+# the tests map and never looked at the value, so `weak` and `wrong` -- which that skill calls
+# "the valuable outputs" -- were treated exactly like `enforced`. The one mechanism designed to
+# surface a bad test wrote its findings into a field nothing read, and the vocabulary had
+# already drifted unnoticed (`implemented` on RFC7606-5.1-2).
+VERDICT_ENFORCED = "enforced"
+VERDICT_WEAK = "weak"
+VERDICT_WRONG = "wrong"
+VERDICT_UNIMPLEMENTED = "unimplemented"
+# Owner ruling OR-1 (Thomas, 2026-07-29). A requirement with genuinely no reachable code path
+# had NO legal state: `enforced` with an empty `tests` map is refused (a claim of proof with no
+# cited test), and the `code`-map remedy is only open to `unimplemented`. RFC7606-8-1 -- "a
+# document that specifies a new BGP attribute MUST provide specifics regarding what constitutes
+# an error" -- binds the AUTHORS of future specifications, so there is nothing in Ze to prove or
+# to break. Abusing `enforced` for it was the honest reading of a schema that had no honest
+# state. NOT a loophole in AC-5: it costs a mandatory `no_code_path` reason AND an agreeing
+# {not-applicable} annotation, i.e. two committed facts where `enforced` needs one word.
+VERDICT_NOT_APPLICABLE = "not-applicable"
+
+AUDIT_VERDICTS = frozenset(
+    {
+        VERDICT_ENFORCED,
+        VERDICT_WEAK,
+        VERDICT_WRONG,
+        VERDICT_UNIMPLEMENTED,
+        VERDICT_NOT_APPLICABLE,
+    }
+)
+
+# `enforced` is the ONLY verdict that means proven (ai/skills/ze-rfc-audit.md). Everything
+# else is subtracted from the published proven count and named with its reason (AC-24).
+UNPROVEN_VERDICTS = frozenset(AUDIT_VERDICTS - {VERDICT_ENFORCED})
+
+# A finding ABOUT A TEST, as opposed to a statement about the code (`unimplemented`) or about
+# reachability (`not-applicable`). These are the two the findings ratchet protects from quiet
+# deletion and from a silent upgrade to `enforced` (AC-11, AC-12): a finding that can be
+# deleted is a finding that will be.
+FINDING_VERDICTS = frozenset({VERDICT_WEAK, VERDICT_WRONG})
+
+_AUDIT_FILE_KEYS = frozenset(
+    {"rfc", "audited", "requirements", "reaudit_note", "reaudit_history"}
+)
+_VERDICT_KEYS = frozenset(
+    {
+        "verdict",
+        "note",
+        "requirement_sha",
+        "tests",
+        "units",
+        "code",
+        "upgrade_reason",
+        "no_code_path",
+    }
+)
+# Only these two carry a fingerprint MAP whose keys become filesystem reads.
+_FINGERPRINT_MAPS = ("tests", "units", "code")
+
+# A fingerprint key is `<repo-relative path>:<line>`. Validated because a verdict is
+# agent-authored input that a build gate turns into an open(): it is not a trusted path
+# source (Security Review, Path handling).
+_FINGERPRINT_KEY_RE = re.compile(r"^(?P<file>[^:\0]+):(?P<line>\d+)$")
+
+
+def _fingerprint_key(key: str, where: str) -> Tuple[str, int]:
+    """Split `file:line`, refusing anything that could read outside the tree."""
+    m = _FINGERPRINT_KEY_RE.match(key)
+    if not m:
+        raise ParseError(
+            f"{where}: fingerprint key {key!r} is not '<repo-relative-path>:<line>'"
+        )
+    rel = m.group("file")
+    if rel.startswith("/") or rel.startswith("~") or ".." in rel.split("/"):
+        raise ParseError(
+            f"{where}: fingerprint key {key!r} names a path outside the repository. A "
+            f"verdict is authored input, not a trusted path source"
+        )
+    return rel, int(m.group("line"))
+
+
+def _sha_value(sha: object, where: str) -> str:
+    """One recorded fingerprint, checked for SHAPE and not merely for non-emptiness.
+
+    A recorded sha is agent-authored input, and the previous check accepted any non-empty string.
+    A malformed one is not inert but it is not silent either: it compares unequal to the computed
+    value and resolves to STALE_UNIT, which degrades toward MORE checking, so this was never an
+    unsound-green defect (`ai/rules/fail-closed-guards.md`). It is the wrong DIAGNOSIS, though --
+    it sends a reader to re-audit a requirement whose judgement never moved, and the remediation
+    STALE prints ("re-run /ze-rfc-audit") does not name the actual fault, which leaves leg 3 of
+    `ai/rules/error-messages.md` present but untrue.
+
+    Length alone is not the check. A value truncated and then padded to 16 characters has the
+    right length and is still not a fingerprint, so the charset is validated too -- and that is
+    the case the boundary tests pin alongside 15 and 17, because it is the one a pure length
+    check would wave through.
+    """
+    if isinstance(sha, str) and _SHA_RE.fullmatch(sha):
+        return sha
+    if isinstance(sha, str):
+        got = f"a {len(sha)}-character string"
+    else:
+        got = f"a {type(sha).__name__}"
+    raise ParseError(
+        f"{where}: {sha!r} is not a fingerprint. Expected exactly {SHA_HEX_LEN} lowercase hex "
+        f"characters, as produced by requirement_sha()/test_sha(); got {got}. Replace the "
+        f"recorded value with the computed one -- a hand-edited fingerprint is never valid, and "
+        f"`make ze-rfc-reseal` cannot repair it because it loads through this same check"
     )
 
 
+def _sha_map(verdict: Dict, key: str, where: str) -> Dict[str, str]:
+    """One validated fingerprint map. Absent reads as empty; a wrong TYPE never does.
+
+    The zero-value trap this closes: `verdict.get("tests")` returning a string, a list, or a
+    map of maps used to flow straight into an equality comparison, where any of them compares
+    unequal to the computed shas and reported as STALE -- a real defect wearing the costume of
+    a routine re-read (`ai/rules/fail-closed-guards.md`).
+    """
+    val = verdict.get(key)
+    if val is None:
+        return {}
+    if not isinstance(val, dict):
+        raise ParseError(
+            f"{where}: {key!r} must be an object, got {type(val).__name__}"
+        )
+    out: Dict[str, str] = {}
+    for k, v in val.items():
+        if not isinstance(k, str):
+            raise ParseError(f"{where}: {key!r} has a non-string key {k!r}")
+        _fingerprint_key(k, f"{where}: {key}")
+        out[k] = _sha_value(v, f"{where}: {key}[{k!r}]")
+    return out
+
+
+def _validate_verdict(rfc: str, rid: str, verdict: object, where: str) -> None:
+    """One verdict's STRUCTURE. Raises ParseError, which every driver turns into exit 2.
+
+    Structure only: the cross-referential rules (does the rid exist, do the tags cover both
+    polarities, does the annotation agree) need the requirements and live in
+    `check_audit_schema`. Splitting them that way follows child 1's precedent -- a malformed
+    artifact is a ParseError, an unsatisfied CLAIM is a reported violation -- and it matters
+    because a ParseError aborts the whole run while a violation lets the other 900 be seen.
+    """
+    if not isinstance(verdict, dict):
+        raise ParseError(
+            f"{where}: {rid} must be an object, got {type(verdict).__name__}"
+        )
+    _reject_unknown_keys(verdict, _VERDICT_KEYS, f"{where}: {rid}")
+    value = verdict.get("verdict")
+    if value not in AUDIT_VERDICTS:
+        raise ParseError(
+            f"{where}: {rid} has verdict {value!r}, which is not one of "
+            f"{sorted(AUDIT_VERDICTS)}. The vocabulary is closed (ai/skills/ze-rfc-audit.md): "
+            f"a fifth word is drift, and drift in this field is a compliance claim nobody can "
+            f"read"
+        )
+    _str_field(verdict, "note", f"{where}: {rid}")
+    # The boundary row names all three recorded fingerprints (`requirement_sha`, test sha, unit
+    # sha), so the shape check covers the scalar too and not only the maps. `_str_field` runs
+    # first, so a wrong TYPE keeps its own message; the shape check then reads the RAW value, NOT
+    # `_str_field`'s return, because that return is `.strip()`ed while the record keeps what was
+    # written and `verdict_freshness` compares THAT. Checking the stripped form passed a
+    # `"<16 hex>\n"` value here and then let it read STALE_REQUIREMENT forever -- validating
+    # something other than what the consumer reads is how a fail-open hides inside a guard.
+    _str_field(verdict, "requirement_sha", f"{where}: {rid}")
+    _sha_value(verdict.get("requirement_sha"), f"{where}: {rid}: 'requirement_sha'")
+    for key in _FINGERPRINT_MAPS:
+        _sha_map(verdict, key, f"{where}: {rid}")
+    if verdict.get("upgrade_reason") is not None:
+        _str_field(verdict, "upgrade_reason", f"{where}: {rid}", required=False)
+    # `no_code_path` means exactly one thing, so it may only appear where it means it. A field
+    # that sits unread on the other four verdicts is a field an author can believe they filled
+    # in (ai/rules/fail-closed-guards.md: a guard that cannot deny must at least say something).
+    if "no_code_path" in verdict:
+        if value != VERDICT_NOT_APPLICABLE:
+            raise ParseError(
+                f"{where}: {rid} carries 'no_code_path' with verdict {value!r}. That field "
+                f"states why no reachable code path exists and is only meaningful on "
+                f"{VERDICT_NOT_APPLICABLE!r}"
+            )
+        # The one string field that was never type-checked. `_verdict_claims` reads it as
+        # `str(verdict.get("no_code_path") or "").strip()`, so `123`, `["a"]`, `{"k": "v"}` and
+        # `true` all satisfied OR-1's MANDATORY prose reason -- while its siblings `note`,
+        # `requirement_sha` and `upgrade_reason` go through `_str_field` and refused exactly
+        # that. `required=False` on purpose: absent-or-empty stays the REPORTED violation
+        # `_verdict_claims` owns (which names what to write), and only a wrong TYPE raises here.
+        _str_field(verdict, "no_code_path", f"{where}: {rid}", required=False)
+
+
+def audit_stems() -> Set[str]:
+    """Every stem with an rfc/audit/<stem>.json.
+
+    The direction `check_audit_freshness` never walked. It iterates REQUIREMENTS and asks each
+    for its verdict, so an audit file for a stem that is not enrolled, or has no summary at
+    all, was read by nothing and reported by nothing -- a whole file of judgements that looked
+    like evidence and was not even loaded (AC-4).
+    """
+    if not os.path.isdir(AUDIT_DIR):
+        return set()
+    return {n[: -len(".json")] for n in os.listdir(AUDIT_DIR) if n.endswith(".json")}
+
+
 def load_audit(rfc: str) -> Dict[str, Dict]:
-    """Read rfc/audit/<rfc>.json: /ze-rfc-audit's per-requirement verdicts."""
+    """Read and VALIDATE rfc/audit/<rfc>.json: /ze-rfc-audit's per-requirement verdicts.
+
+    Before this the body was a bare `json.load` returning `data.get("requirements", {})`: no
+    field-presence check, no enum check, no type check, and every other top-level key silently
+    discarded. The vocabulary had already drifted and nothing noticed, because nothing looked.
+    """
     path = os.path.join(AUDIT_DIR, rfc + ".json")
+    rel = f"rfc/audit/{rfc}.json"
     if not os.path.exists(path):
         return {}
     try:
         with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, ValueError) as exc:
-        raise ParseError(f"rfc/audit/{rfc}.json: cannot read: {exc}") from exc
-    return data.get("requirements", {})
+        raise ParseError(f"{rel}: cannot read: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ParseError(f"{rel}: expected a JSON object, got {type(data).__name__}")
+    _reject_unknown_keys(data, _AUDIT_FILE_KEYS, rel)
+    stem = _str_field(data, "rfc", rel)
+    if stem != rfc:
+        raise ParseError(
+            f"{rel}: 'rfc' is {stem!r} but the filename says {rfc!r}. The record names the "
+            f"RFC it judges; the two can never drift apart"
+        )
+    _str_field(data, "audited", rel)
+    history = data.get("reaudit_history")
+    if history is not None and (
+        not isinstance(history, list) or not all(isinstance(h, str) for h in history)
+    ):
+        raise ParseError(f"{rel}: 'reaudit_history' must be a list of strings")
+    reqs = data.get("requirements")
+    if not isinstance(reqs, dict):
+        raise ParseError(f"{rel}: 'requirements' must be an object")
+    for rid, verdict in reqs.items():
+        _validate_verdict(rfc, rid, verdict, rel)
+    return reqs
+
+
+def load_audits(enrolled: Set[str]) -> Dict[str, Dict[str, Dict]]:
+    """Every enrolled RFC's verdicts, validated once and shared by every audit check.
+
+    One load point, so the validating parse cannot be reached by one consumer and bypassed by
+    another, and so a 166-RFC run pays for each file once instead of once per check.
+    """
+    return {rfc: load_audit(rfc) for rfc in sorted(enrolled)}
+
+
+def check_audit_files(enrolled: Set[str], stems: Set[str]) -> List[str]:
+    """An audit file must judge an RFC that is enrolled and has a summary (AC-4)."""
+    errs: List[str] = []
+    for stem in sorted(audit_stems()):
+        rel = f"rfc/audit/{stem}.json"
+        if stem not in stems:
+            errs.append(
+                f"{rel}: there is no rfc/short/{stem}.md, so this file records judgements "
+                f"about requirements that do not exist. Delete it, or write the summary"
+            )
+        elif stem not in enrolled:
+            errs.append(
+                f"{rel}: {stem} is not in rfc/enrolled.txt, so nothing reads these verdicts "
+                f"-- an audit file for an un-enrolled RFC is evidence the gate never loads. "
+                f"Enrol {stem}, or delete the file"
+            )
+    return errs
+
+
+def check_audit_schema(
+    requirements: Sequence[Requirement],
+    tags: Sequence[Tag],
+    enrolled: Set[str],
+    audits: Optional[Dict[str, Dict[str, Dict]]] = None,
+) -> List[str]:
+    """The cross-referential half of the record's schema: claims that need the requirements.
+
+    `load_audit` proves a verdict is well FORMED. This proves it is not self-contradictory:
+    `enforced` with no test cited, `enforced` over a single polarity, `unimplemented` with no
+    producing code named, `not-applicable` that the summary does not agree with, or a verdict
+    for a requirement that is not there at all.
+    """
+    if audits is None:
+        audits = load_audits(enrolled)
+    by_rid: Dict[str, List[Tag]] = {}
+    for t in tags:
+        by_rid.setdefault(t.rid, []).append(t)
+    known: Dict[str, Requirement] = {}
+    for req in requirements:
+        known.setdefault(req.rid, req)
+
+    errs: List[str] = []
+    for rfc in sorted(audits):
+        rel = f"rfc/audit/{rfc}.json"
+        for rid in sorted(audits[rfc]):
+            verdict = audits[rfc][rid]
+            req = known.get(rid)
+            if req is None or req.rfc != rfc:
+                errs.append(
+                    f"{rel}: {rid} is not a requirement of {rfc}. A verdict may not describe "
+                    f"a requirement that is not there: either the id was renumbered (which "
+                    f"the id rules forbid) or the checklist line was deleted under it"
+                )
+                continue
+            errs.extend(
+                _verdict_claims(rel, rid, verdict, req, by_rid.get(rid, []), tags)
+            )
+    return errs
+
+
+def _verdict_claims(
+    rel: str,
+    rid: str,
+    verdict: Dict,
+    req: Requirement,
+    found: Sequence[Tag],
+    tags: Sequence[Tag],
+) -> List[str]:
+    """Everything one verdict claims about its requirement, checked against the tree."""
+    errs: List[str] = []
+    value = verdict["verdict"]
+    ann = req.annotation
+    polarities = {t.polarity for t in found}
+
+    if value == VERDICT_ENFORCED:
+        # AC-5. "Proven" with no cited test is not a weaker claim, it is a contradiction: the
+        # verdict's whole content is "the tests would fail if the code stopped complying".
+        if not verdict.get("tests"):
+            errs.append(
+                f"{rel}: {rid} is {VERDICT_ENFORCED!r} with an empty 'tests' map. "
+                f"{VERDICT_ENFORCED!r} means the tests would fail if the code stopped "
+                f"complying, so it must cite at least one. If no reachable code path could "
+                f"satisfy or violate the requirement, the honest verdict is "
+                f"{VERDICT_NOT_APPLICABLE!r} with a 'no_code_path' reason and an agreeing "
+                f"{{not-applicable}} annotation"
+            )
+        # AC-6. A negative-only test passes if the code rejects everything and a positive-only
+        # one passes if it accepts everything, so a single polarity cannot support "proven".
+        if not (ann and ann.kind == "single-polarity"):
+            missing = sorted(POLARITIES - polarities)
+            if missing:
+                errs.append(
+                    f"{rel}: {rid} is {VERDICT_ENFORCED!r} but has no "
+                    f"{'/'.join(missing)} test (only "
+                    f"{'/'.join(sorted(polarities)) or 'none'}). One polarity cannot prove a "
+                    f"requirement: add the missing test, or annotate the summary line "
+                    f"{{single-polarity: <polarity>; why}}"
+                )
+
+    if value == VERDICT_UNIMPLEMENTED:
+        # AC-7. An empty `tests` map is legitimate here -- the claim is about CODE, not about a
+        # test -- which is exactly what made these verdicts permanently fresh: their freshness
+        # test reduced to `{} == {}`. The `code` map is what makes the claim falsifiable again,
+        # firing when the gap might have closed.
+        if not verdict.get("code"):
+            errs.append(
+                f"{rel}: {rid} is {VERDICT_UNIMPLEMENTED!r} with an empty 'code' map. A claim "
+                f"that the CODE does not comply must name the producing code, or it is "
+                f"unfalsifiable: with neither tests nor code fingerprinted, the verdict can "
+                f"never go stale and no one is ever asked to look again"
+            )
+        if not (ann and ann.kind in ("gap", "not-applicable")):
+            errs.append(
+                f"{rel}: {rid} is {VERDICT_UNIMPLEMENTED!r} but "
+                f"{req.source}:{req.line} carries no {{gap}} or {{not-applicable}} "
+                f"annotation. The record and the checklist must agree: a divergence Ze knows "
+                f"about must be declared where a reader of the summary will meet it"
+            )
+
+    if value == VERDICT_NOT_APPLICABLE:
+        # Owner ruling OR-1: three facts, not one word. Two of them are committed in different
+        # files, so the state cannot be reached by editing the audit record alone.
+        if verdict.get("tests"):
+            errs.append(
+                f"{rel}: {rid} is {VERDICT_NOT_APPLICABLE!r} but cites tests "
+                f"({', '.join(sorted(verdict['tests']))}). If a test can exercise it, a "
+                f"reachable code path exists and the verdict is a judgement about that test"
+            )
+        if not str(verdict.get("no_code_path") or "").strip():
+            errs.append(
+                f"{rel}: {rid} is {VERDICT_NOT_APPLICABLE!r} with no 'no_code_path' reason. "
+                f"State WHY no reachable code path could satisfy or violate this requirement: "
+                f"a verdict whose only content is its own name is exactly the unfalsifiable "
+                f"entry this schema rejects"
+            )
+        if not (ann and ann.kind == "not-applicable"):
+            kind = f"{{{ann.kind}}}" if ann else "no annotation"
+            errs.append(
+                f"{rel}: {rid} is {VERDICT_NOT_APPLICABLE!r} but {req.source}:{req.line} "
+                f"carries {kind}. Two committed facts must agree, so this verdict is legal "
+                f"only over a {{not-applicable}} checklist line -- the audit record cannot "
+                f"reclassify a requirement on its own"
+            )
+    return errs
 
 
 def tagged_unit_shas(tags: Sequence[Tag], root: str = PROJECT_DIR) -> Dict[str, str]:
@@ -1920,10 +2363,250 @@ def tagged_unit_shas(tags: Sequence[Tag], root: str = PROJECT_DIR) -> Dict[str, 
     return out
 
 
+def _read_source(rel: str, root: str, cache: Dict[str, str]) -> str:
+    """One tracked file's text, read at most once per run."""
+    if rel not in cache:
+        try:
+            with open(
+                os.path.join(root, rel), encoding="utf-8", errors="replace"
+            ) as fh:
+                cache[rel] = fh.read()
+        except OSError:
+            cache[rel] = ""
+    return cache[rel]
+
+
+def unit_shas(
+    keys: Sequence[str], root: str = PROJECT_DIR, where: str = "audit"
+) -> Dict[str, str]:
+    """Fingerprint the enclosing UNIT of each `file:line`, keyed by that same string.
+
+    The unit is one top-level Go function (its doc comment through its closing brace) or the
+    whole file, decided by `rfc_tagged_scope` -- the SAME definition the edit-time guard
+    widens an Edit to, so the two can never disagree about which text an obligation covers.
+
+    This is the fix for the false-stale class. `tagged_unit_shas` hashes the whole enclosing
+    FILE, so a verdict went stale on any edit anywhere in a tagged file and on any line shift:
+    six of a pending sixteen commits to the one existing audit file were mechanical re-stamps
+    where nothing about what a test asserts had changed, and not one of them changed a verdict.
+    At fleet scale that trains the reflex -- re-stamp when the gate goes red -- and the reflex
+    is what fails, not the reading.
+
+    An EMPTY unit is an error, never a hash input (spec R-2). Hashing "" would give every
+    unreadable file the same fingerprint, so a deleted test would read as "unchanged" -- a
+    false FRESH, the one catastrophic outcome. `tagged_unit_shas` above stores "" for an
+    unreadable file, which is safe only because it compares unequal to what was recorded; here
+    the same value would be a legitimate-looking answer (`ai/rules/fail-closed-guards.md`).
+    """
+    out: Dict[str, str] = {}
+    cache: Dict[str, str] = {}
+    for key in keys:
+        rel, line = _fingerprint_key(key, where)
+        content = _read_source(rel, root, cache)
+        if not content:
+            raise ParseError(
+                f"{where}: {key} names {rel}, which is missing or empty. There is no unit to "
+                f"fingerprint, and hashing nothing would make every missing file look "
+                f"identical and therefore unchanged"
+            )
+        text, _kind = rfc_tagged_scope.unit_at(rel, content, line)
+        if not text:
+            raise ParseError(
+                f"{where}: {key} resolved to an empty unit in {rel}; refusing to fingerprint "
+                f"an empty extraction"
+            )
+        out[key] = test_sha(text)
+    return out
+
+
+def unit_scopes(keys: Sequence[str], root: str = PROJECT_DIR) -> Dict[str, str]:
+    """How each `file:line` resolved: `func` or `file`. For error messages only."""
+    out: Dict[str, str] = {}
+    cache: Dict[str, str] = {}
+    for key in keys:
+        try:
+            rel, line = _fingerprint_key(key, "audit")
+        except ParseError:
+            continue
+        content = _read_source(rel, root, cache)
+        if not content:
+            continue
+        out[key] = rfc_tagged_scope.unit_at(rel, content, line)[1]
+    return out
+
+
+def tag_keys(tags: Sequence[Tag]) -> List[str]:
+    """The `file:line` keys a requirement's tags fingerprint under."""
+    return [f"{t.file}:{t.line}" for t in tags]
+
+
+# The four freshness states, mutually exclusive and total. Replacing the boolean is the whole
+# point: `fresh` and `stale` collapsed a mechanical re-stamp (nothing about the assertions
+# moved) into the same signal as a real judgement change, and the only remedy either offered
+# was a human re-read.
+FRESH = "fresh"
+SHIFTED = (
+    "shifted"  # units identical, the enclosing file moved: mechanically re-sealable
+)
+STALE_UNIT = "stale-unit"  # the tagged unit itself, or cited producer code, changed
+STALE_REQUIREMENT = "stale-requirement"  # the RFC obligation's own text changed
+
+
+def _unit_identity(fingerprints: Dict[str, str]) -> Dict[Tuple[str, str], int]:
+    """A unit map as a multiset of (file, unit-sha) -- the identity a LINE SHIFT preserves.
+
+    Comparing the maps key-by-key would defeat the whole point: a `file:line` key changes when a
+    nine-line header is prepended, so every verdict in the file would compare unequal and report
+    STALE even though the recorded shas are identical. That IS the false-stale class this spec
+    exists to remove, and the first implementation reproduced it exactly.
+
+    A COUNT, not a set. Two tags inside one function collapse to one (file, sha) pair, so a set
+    would call deleting one of them "unchanged" -- a false FRESH. The count changes, so it does
+    not.
+    """
+    out: Dict[Tuple[str, str], int] = {}
+    for key, sha in fingerprints.items():
+        rel = key.rsplit(":", 1)[0]
+        out[(rel, sha)] = out.get((rel, sha), 0) + 1
+    return out
+
+
+def verdict_freshness(
+    verdict: Dict,
+    req_sha: str,
+    test_shas: Dict[str, str],
+    unit_fingerprints: Optional[Dict[str, str]] = None,
+    code_fingerprints: Optional[Dict[str, str]] = None,
+) -> Tuple[str, List[str]]:
+    """Which of the four states a verdict is in, and which keys moved.
+
+    THE freshness rule -- there is no second spelling of it. A `verdict_is_fresh` helper carried
+    the pre-`units` file-level rule alongside this function and claimed, in its own docstring,
+    that the transitional branch below delegated to it. It did not: the branch was written
+    inline, the two spellings then diverged (the helper never consulted the `code` map, so a
+    record whose cited producer had moved read fresh there and STALE_UNIT here), and ten
+    assertions across six test methods went on giving green assurance about a function the gate
+    never called (`TestTransitionalFileLevelRule`'s four cases, `test_verdict_fresh_and_stale`,
+    and `test_the_transitional_rule_normalises_it_too`; counted, not estimated). Deleted
+    rather than wired up, because the inline version is the stronger of the two
+    (`ai/rules/no-layering.md`: delete the old spelling, do not keep it beside the new one).
+
+    Biased to over-trigger, as it has been since the boolean: a false 'stale' costs a re-read, a
+    false 'fresh' ships a test that no longer enforces its requirement.
+
+    Order matters and is the same bias: the requirement's own text is checked first (re-reading
+    the RFC invalidates every judgement under it), then the units, then the producing code, and
+    only then the file-level shift -- so a real judgement change can never be reported as the
+    cheap mechanical case.
+
+    A verdict with no `units` (recorded before unit fingerprints existed) takes exactly the old
+    file-level rule, applied inline below, so pre-existing records keep behaving as they did and
+    the migration is a backfill rather than a re-judgement (AC-20).
+    """
+    if verdict.get("requirement_sha") != req_sha:
+        return STALE_REQUIREMENT, []
+
+    # Every recorded map is read through `recorded_map`, so an ABSENT key and an empty one are
+    # one state here exactly as they already were to `_verdict_claims`. Reading the raw dict on
+    # the line below used to make the documented way of authoring a `not-applicable` verdict
+    # permanently STALE_UNIT with an untrue remedy.
+    tests_recorded = recorded_map(verdict, "tests")
+    code_recorded = recorded_map(verdict, "code")
+    units_recorded = recorded_map(verdict, "units")
+
+    if code_recorded:
+        current_code = code_fingerprints or {}
+        if _unit_identity(code_recorded) != _unit_identity(current_code):
+            moved = sorted(
+                k
+                for k in set(code_recorded) | set(current_code)
+                if code_recorded.get(k) != current_code.get(k)
+            )
+            return STALE_UNIT, moved or sorted(set(code_recorded) ^ set(current_code))
+
+    # THE transitional branch (AC-20): the whole pre-`units` file-level rule, and the only
+    # spelling of it. Every assertion about that rule drives this line -- see
+    # `TestTransitionalFileLevelRule` in the test module, which was re-pointed here when the
+    # `verdict_is_fresh` duplicate it used to drive was deleted.
+    if not units_recorded:
+        return (FRESH, []) if tests_recorded == test_shas else (STALE_UNIT, [])
+
+    current_units = unit_fingerprints or {}
+    if _unit_identity(units_recorded) != _unit_identity(current_units):
+        moved = sorted(
+            k
+            for k in set(units_recorded) | set(current_units)
+            if units_recorded.get(k) != current_units.get(k)
+        )
+        return STALE_UNIT, moved or sorted(set(units_recorded) ^ set(current_units))
+    if tests_recorded != test_shas:
+        shifted = sorted(
+            k
+            for k in set(tests_recorded) | set(test_shas)
+            if tests_recorded.get(k) != test_shas.get(k)
+        )
+        return SHIFTED, shifted
+    return FRESH, []
+
+
+def audit_freshness(
+    requirements: Sequence[Requirement],
+    tags: Sequence[Tag],
+    enrolled: Set[str],
+    audits: Optional[Dict[str, Dict[str, Dict]]] = None,
+) -> Dict[str, Tuple[str, List[str]]]:
+    """{rid: (state, moved keys)} for every requirement carrying a verdict.
+
+    Derived once and shared by the freshness check, the ledger's proven count and `--reseal`,
+    so the three can never disagree about which verdicts are current.
+    """
+    if audits is None:
+        audits = load_audits(enrolled)
+    by_rid: Dict[str, List[Tag]] = {}
+    for t in tags:
+        by_rid.setdefault(t.rid, []).append(t)
+
+    out: Dict[str, Tuple[str, List[str]]] = {}
+    for req in requirements:
+        if req.rfc not in enrolled:
+            continue
+        verdict = audits.get(req.rfc, {}).get(req.rid)
+        if not verdict:
+            continue
+        keys = tag_keys(by_rid.get(req.rid, []))
+        # An unresolvable fingerprint degrades to STALE_UNIT rather than propagating. A file the
+        # gate cannot read is NOT "unchanged": naming the keys it could not resolve sends the
+        # verdict for a re-read, which is more checking, never less
+        # (`ai/rules/fail-closed-guards.md`). Raising here instead would take the LEDGER RENDER
+        # down with it -- a report is not a gate, and a cited producer that has been deleted
+        # must still be reportable rather than crashing every consumer of the ledger.
+        try:
+            units = unit_shas(keys, where=f"rfc/audit/{req.rfc}.json: {req.rid} tests")
+            code = unit_shas(
+                list(verdict.get("code") or {}),
+                where=f"rfc/audit/{req.rfc}.json: {req.rid} code",
+            )
+        except ParseError:
+            out[req.rid] = (
+                STALE_UNIT,
+                sorted(set(keys) | set(verdict.get("code") or {})),
+            )
+            continue
+        out[req.rid] = verdict_freshness(
+            verdict,
+            requirement_sha(req.text),
+            tagged_unit_shas(by_rid.get(req.rid, [])),
+            units,
+            code,
+        )
+    return out
+
+
 def check_audit_freshness(
     requirements: Sequence[Requirement],
     tags: Sequence[Tag],
     enrolled: Set[str],
+    audits: Optional[Dict[str, Dict[str, Dict]]] = None,
 ) -> List[str]:
     """A recorded verdict must still describe what it judged.
 
@@ -1935,32 +2618,473 @@ def check_audit_freshness(
     A MISSING verdict is not an error: the audit is sampled, the gate is total. But a
     verdict that no longer matches what it judged is worse than none -- it is a stale
     assurance -- so that fails.
+
+    Four states now, and each names the ONE command that clears it. `shifted` is the case this
+    gate used to spend a human on: the tagged unit is byte-identical and only the file around
+    it moved, so nothing was re-judged and nothing needs re-reading.
     """
+    if audits is None:
+        audits = load_audits(enrolled)
+    states = audit_freshness(requirements, tags, enrolled, audits)
+    scopes: Dict[str, str] = {}
     errs: List[str] = []
+    for req in requirements:
+        state, moved = states.get(req.rid, (FRESH, []))
+        if state == FRESH:
+            continue
+        where = f"{req.source}:{req.line}"
+        if state == SHIFTED:
+            errs.append(
+                f"{where}: {req.rid} has a SHIFTED audit verdict -- the tagged unit is "
+                f"byte-identical and only the file around it moved "
+                f"({', '.join(moved) or 'a line shift'}), so nothing was re-judged. Re-stamp "
+                f"it mechanically: make ze-rfc-reseal"
+            )
+            continue
+        if state == STALE_REQUIREMENT:
+            errs.append(
+                f"{where}: {req.rid} has a STALE audit verdict -- the REQUIREMENT TEXT changed "
+                f"since it was judged, so every judgement under it is void. Re-run: "
+                f"/ze-rfc-audit {req.rfc}"
+            )
+            continue
+        if not scopes:
+            scopes = unit_scopes([k for _, ks in states.values() for k in ks])
+        detail = ", ".join(f"{k} ({scopes.get(k, 'file')}-scoped)" for k in moved)
+        errs.append(
+            f"{where}: {req.rid} has a STALE audit verdict -- what it judged changed: "
+            f"{detail or 'a tagged test is gone'}. This is NOT a line shift and "
+            f"make ze-rfc-reseal will refuse it. Re-run: /ze-rfc-audit {req.rfc}"
+        )
+    return errs
+
+
+# --------------------------------------------------------------------------
+# Mechanical re-seal: remove the human step from the no-judgement class
+# --------------------------------------------------------------------------
+_RESEAL_NOTE = (
+    "Mechanical re-stamp by `make ze-rfc-reseal`. Every verdict re-stamped below was in the "
+    "SHIFTED state: its recorded unit fingerprints -- the enclosing top-level function of each "
+    "tagged test -- were byte-identical to the tree, and only the file around them had moved (a "
+    "line shift, a sibling test, an import rewrite). Nothing about what any of these tests "
+    "asserts changed, so no verdict was re-judged and only the `tests` map was rewritten. A "
+    "verdict whose unit, cited producer code, or requirement text moved was REFUSED and left "
+    "stale for a human. The proof is the code in verdict_freshness(), not this note."
+)
+
+
+def reseal_audits(
+    prove=None, note: Optional[str] = None
+) -> Tuple[List[str], List[str]]:
+    """Re-stamp the verdicts whose tagged units did not change, and only those.
+
+    The ONE definition of the mechanical re-stamp. `scripts/dev/rename_module_path.py` used to
+    own a second loop, and `reseal_rfc_audits`'s own docstring names the hazard: a second copy of
+    the fingerprint rule that drifted would re-seal verdicts against a hash the gate does not
+    compute.
+
+    `prove` is an OPTIONAL extra per-file predicate the caller may impose (the rename tool passes
+    `rename_only_since_head`, proving the file differs from HEAD by nothing but the rename). It
+    can only ever make the re-seal stricter. It is also what unlocks the TRANSITIONAL case: a
+    verdict with no recorded `units` cannot be shown to have an unchanged unit, so it is
+    re-sealable only when the caller supplies an independent proof -- which is exactly the
+    capability the rename tool had before this became shared, kept rather than lost.
+
+    Returns (resealed, refused).
+    """
+    enrolled, reqs, _, tags, _ = _collect_for_check()
+    audits = load_audits(enrolled)
+    states = audit_freshness(reqs, tags, enrolled, audits)
     by_rid: Dict[str, List[Tag]] = {}
     for t in tags:
         by_rid.setdefault(t.rid, []).append(t)
 
-    audits: Dict[str, Dict[str, Dict]] = {}
+    resealed: List[str] = []
+    refused: List[str] = []
+    proven: Dict[str, bool] = {}
     for rfc in sorted(enrolled):
-        audits[rfc] = load_audit(rfc)
+        verdicts = audits.get(rfc) or {}
+        if not verdicts:
+            continue
+        touched: List[str] = []
+        for req in reqs:
+            if req.rfc != rfc or req.rid not in verdicts:
+                continue
+            verdict = verdicts[req.rid]
+            state, _moved = states.get(req.rid, (FRESH, []))
+            if state == FRESH:
+                continue
+            transitional = state == STALE_UNIT and not verdict.get("units")
+            if state != SHIFTED and not (transitional and prove is not None):
+                refused.append(f"{rfc} {req.rid}: {state}, a human must re-read it")
+                continue
+            fresh = tagged_unit_shas(by_rid.get(req.rid, []))
+            if prove is not None:
+                files = {
+                    key.rsplit(":", 1)[0]
+                    for key in list(verdict.get("tests") or {}) + list(fresh)
+                }
+                for rel in sorted(files):
+                    if rel not in proven:
+                        proven[rel] = bool(prove(rel))
+                unproven = sorted(f for f in files if not proven[f])
+                if unproven:
+                    refused.append(
+                        f"{rfc} {req.rid}: more than the caller's proof changed in "
+                        + ", ".join(unproven)
+                    )
+                    continue
+            verdict["tests"] = fresh
+            resealed.append(f"{rfc} {req.rid}")
+            touched.append(req.rid)
+        if touched:
+            _write_audit(rfc, audits[rfc], note or _RESEAL_NOTE)
+    return resealed, refused
 
+
+def _write_audit(rfc: str, verdicts: Dict[str, Dict], note: str) -> None:
+    """Rewrite one audit file, preserving the previous re-stamp note into history.
+
+    Staged beside the target then `os.replace`d, copying `run_extract_skeleton`: a refusal or a
+    kill must leave the reviewer's existing evidence file untouched
+    (`ai/rules/never-destroy-work.md`). Re-read through the validating parser BEFORE it lands, so
+    a defect in this writer can never commit a record that later makes every `--check` exit
+    "cannot run".
+
+    That re-read is of the STAGED BYTES, not of the in-memory dict. The comment claimed the bytes
+    and the code validated the dict, which is not the same guarantee: `--check` reads the file, so
+    only the file can prove what `--check` will see, and a JSON round trip is exactly where a
+    writer defect would hide (`json.dump` silently stringifies a non-string key, for one). Both
+    are checked now -- the dict first, since it still refuses things the round trip would launder.
+    """
+    path = os.path.join(AUDIT_DIR, rfc + ".json")
+    with open(path, encoding="utf-8") as fh:
+        data = json.load(fh)
+    data["requirements"] = verdicts
+    # An earlier re-stamp's reasoning is evidence about the same verdicts. Overwriting it would
+    # delete the record of why they were trusted then.
+    previous = data.get("reaudit_note")
+    if previous:
+        data.setdefault("reaudit_history", []).append(previous)
+    data["reaudit_note"] = note
+
+    _sweep_stale_staging(AUDIT_DIR)
+    staging = tempfile.mkdtemp(prefix=_STAGING_PREFIX, dir=AUDIT_DIR)
+    try:
+        staged = os.path.join(staging, rfc + ".json")
+        with open(staged, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, indent=2, sort_keys=True)
+            fh.write("\n")
+        where = f"rfc/audit/{rfc}.json (staged)"
+        for rid, verdict in data["requirements"].items():
+            _validate_verdict(rfc, rid, verdict, where)
+        with open(staged, encoding="utf-8") as fh:
+            reread = json.load(fh)
+        for rid, verdict in reread.get("requirements", {}).items():
+            _validate_verdict(rfc, rid, verdict, where)
+        os.replace(staged, path)
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+
+def run_reseal() -> int:
+    """`make ze-rfc-reseal`: the ONLY thing that writes rfc/audit/ without a human editing it.
+
+    Deliberately not folded into `--check` (a check that writes cannot be trusted to report) nor
+    into `--write` (`ze-rfc-index` runs routinely, for reasons that have nothing to do with an
+    audit, so re-sealing there would automate the blind re-stamp reflex this exists to remove).
+    Owner ruling 2026-07-29, spec A-7.
+    """
+    try:
+        resealed, refused = reseal_audits()
+    except (ParseError, OSError) as exc:
+        print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")
+        return 2
+    for line in refused:
+        print(f"{YELLOW}refused{RESET} {line}")
+    if resealed:
+        for line in resealed:
+            print(f"{GREEN}re-stamped{RESET} {line}")
+        print(
+            f"{GREEN}re-sealed{RESET} {len(resealed)} shifted verdict(s); "
+            f"{len(refused)} refused. The ledger now needs: make ze-rfc-index"
+        )
+    else:
+        print(
+            f"{GREEN}nothing to re-seal{RESET}: no verdict is in the 'shifted' state "
+            f"({len(refused)} refused)"
+        )
+    return 0
+
+
+# --------------------------------------------------------------------------
+# The verdict value becomes load-bearing
+# --------------------------------------------------------------------------
+def check_audit_disclosure(
+    requirements: Sequence[Requirement],
+    rows: Dict[str, Dict[str, str]],
+    enrolled: Set[str],
+    audits: Optional[Dict[str, Dict[str, Dict]]] = None,
+) -> List[str]:
+    """A verdict saying the requirement is not met must not hide under a clean support claim.
+
+    `check_status_agreement` already refuses to let a `{gap}` ANNOTATION sit behind a
+    'Supported' row with nothing in Remaining. A `wrong` or `unimplemented` VERDICT says the
+    same thing -- the requirement is not proven, or not met -- so it must not be weaker.
+
+    The red falls on the PUBLIC CLAIM, which is the right place: it costs the auditor nothing to
+    report the finding, and the finding ratchet means reverting the verdict to clear the build
+    is itself a failure, so the only exit is the docs edit (R-4).
+
+    `weak` is deliberately NOT here. It says the TEST cannot fail on non-compliance, not that
+    the code is wrong, so demanding a public gap note for it would publish a claim the audit
+    does not support -- and would make honesty the expensive path, which is the incentive
+    inversion this whole spec exists to remove (AC-10).
+    """
+    if audits is None:
+        audits = load_audits(enrolled)
+    errs: List[str] = []
+    seen: Set[str] = set()
     for req in requirements:
-        if req.rfc not in enrolled:
+        if req.rfc not in enrolled or req.rid in seen:
             continue
         verdict = audits.get(req.rfc, {}).get(req.rid)
-        if not verdict:
+        if not verdict or verdict["verdict"] not in (
+            VERDICT_WRONG,
+            VERDICT_UNIMPLEMENTED,
+        ):
+            continue
+        seen.add(req.rid)
+        row = rows.get(req.rfc)
+        if row is None:
+            errs.append(
+                f"rfc/audit/{req.rfc}.json: {req.rid} is {verdict['verdict']!r} but {req.rfc} "
+                f"has no row in docs/features/rfc-status.md; the public ledger must disclose it"
+            )
+            continue
+        if not row_discloses_a_gap(row):
+            errs.append(
+                f"rfc/audit/{req.rfc}.json: {req.rid} is {verdict['verdict']!r} but "
+                f"docs/features/rfc-status.md says {req.rfc} is '{row['status']}' with "
+                f"'{row['remaining'][:40]}'. An audited requirement that is not met cannot be "
+                f"advertised as clean support -- update the row's Status/Remaining. Reverting "
+                f"the verdict is not an exit: the findings ratchet refuses that too"
+            )
+    return errs
+
+
+def _git_baseline_audits() -> Optional[Dict[str, Dict[str, Dict]]]:
+    """Every committed verdict at HEAD, or None when git could not answer.
+
+    None, NOT an empty map: this is consumed as `baseline - current`, so an empty baseline
+    would accuse nobody, but the DISTINCTION still has to survive because `check_audit_findings`
+    reports on what the baseline SAID. A fresh clone with no history must accuse nothing
+    (R-7, the polarity discipline of `_git_baseline_summary_stems`).
+
+    Read tolerantly per file: a HEAD blob that no longer satisfies today's schema contributes no
+    baseline instead of aborting the run. The commit that FIXES a malformed record is exactly the
+    one where the tree parses and HEAD does not, and failing there would make the fix
+    unlandable.
+    """
+    try:
+        res = subprocess.run(
+            ["git", "ls-tree", "-r", "-z", "--name-only", "HEAD", "rfc/audit"],
+            cwd=PROJECT_DIR,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if res.returncode != 0:
+        return None
+    paths = [
+        p.strip()
+        for p in res.stdout.split("\0")
+        if p.strip().endswith(".json") and "/" in p.strip()
+    ]
+    out: Dict[str, Dict[str, Dict]] = {}
+    for rel, blob in _git_cat_blobs(paths).items():
+        stem = os.path.basename(rel)[: -len(".json")]
+        try:
+            data = json.loads(blob)
+            verdicts = data["requirements"]
+            if not isinstance(verdicts, dict):
+                continue
+        except (ValueError, KeyError, TypeError):
+            continue
+        out[stem] = {
+            rid: v
+            for rid, v in verdicts.items()
+            if isinstance(v, dict) and v.get("verdict") in AUDIT_VERDICTS
+        }
+    return out
+
+
+def check_audit_findings(
+    requirements: Sequence[Requirement],
+    enrolled: Set[str],
+    audits: Optional[Dict[str, Dict[str, Dict]]] = None,
+    baseline: Optional[Dict[str, Dict[str, Dict]]] = None,
+) -> List[str]:
+    """A finding is PERMANENT: it cannot be deleted, and it cannot quietly become proof.
+
+    `check_retired_requirements` exists because deleting the checklist line was the cheapest
+    route from red to green. The same shape applies one level up: once the verdict value has
+    consequences, deleting or upgrading the verdict becomes the cheapest route, so this is not
+    decoration -- it is what keeps the rest honest.
+
+    The cost falls on ERASURE, never on reporting: recording `weak` is free and green (AC-10),
+    removing one is red, and upgrading one to `enforced` with nothing changed is red.
+    """
+    if audits is None:
+        audits = load_audits(enrolled)
+    if baseline is None:
+        baseline = _git_baseline_audits()
+    if baseline is None:
+        return []  # "could not look" is not "nothing was there"
+
+    errs: List[str] = []
+    seen: Set[str] = set()
+    for req in requirements:
+        if req.rfc not in enrolled or req.rid in seen:
+            continue
+        was = baseline.get(req.rfc, {}).get(req.rid)
+        if not was or was.get("verdict") not in FINDING_VERDICTS:
+            continue
+        seen.add(req.rid)
+        now = audits.get(req.rfc, {}).get(req.rid)
+        if not now:
+            errs.append(
+                f"rfc/audit/{req.rfc}.json: the {was['verdict']!r} finding on {req.rid} was "
+                f"DELETED. A finding is resolved by fixing the test or retiring the "
+                f"requirement, never by removing the record of it -- deletion is the cheapest "
+                f"route from red to green and is the one this ratchet exists to close"
+            )
+            continue
+        if now["verdict"] != VERDICT_ENFORCED:
+            continue
+        # AC-12. An upgrade is a claim that something changed. The recorded UNITS are the
+        # machine-checkable half of that claim; `upgrade_reason` is the auditable escape for the
+        # cases they cannot see (a helper outside the tagged function, a re-read of the RFC).
+        if str(now.get("upgrade_reason") or "").strip():
+            continue
+        if (now.get("units") or {}) != (was.get("units") or {}):
+            continue
+        errs.append(
+            f"rfc/audit/{req.rfc}.json: {req.rid} went from {was['verdict']!r} to "
+            f"{VERDICT_ENFORCED!r} while every tagged unit stayed byte-identical. A finding "
+            f"cannot become proof with nothing changed: fix the test (which moves its unit "
+            f"fingerprint), or record an 'upgrade_reason' saying what you re-read and why the "
+            f"earlier judgement was wrong"
+        )
+    return errs
+
+
+def check_audit_verdict_ratchet(
+    requirements: Sequence[Requirement],
+    enrolled: Set[str],
+    audits: Optional[Dict[str, Dict[str, Dict]]] = None,
+    baseline: Optional[Dict[str, Dict[str, Dict]]] = None,
+    baseline_enrolled: Optional[Set[str]] = None,
+) -> List[str]:
+    """Audit coverage is monotonic PER REQUIREMENT ID -- never per percentage.
+
+    A ratio ratchet would fail the build for adding a tagged test, because the denominator
+    grows; that punishes coverage work, which is the one behaviour this programme most needs
+    (R-6, AC-19). The SET of audited ids has no such perverse case, and the percentage stays a
+    published figure that nothing gates.
+
+    Deliberately stricter than "a FRESH verdict may not vanish": presence is what is ratcheted,
+    so a verdict that has gone stale must be RE-JUDGED, not deleted. Freshness is exactly the
+    state in which deletion is most tempting and least honest.
+    """
+    if audits is None:
+        audits = load_audits(enrolled)
+    if baseline is None:
+        baseline = _git_baseline_audits()
+    if baseline is None:
+        return []
+    errs: List[str] = []
+    seen: Set[str] = set()
+    for req in requirements:
+        if req.rfc not in enrolled or req.rid in seen:
+            continue
+        if baseline_enrolled is not None and req.rfc not in baseline_enrolled:
+            continue
+        if req.rid not in baseline.get(req.rfc, {}):
+            continue
+        if req.rid in audits.get(req.rfc, {}):
+            continue
+        seen.add(req.rid)
+        errs.append(
+            f"rfc/audit/{req.rfc}.json: {req.rid} carried a verdict at HEAD and carries none "
+            f"now. Audit coverage is monotonic per requirement id: a judgement that was made "
+            f"cannot be un-made by deleting it. Re-judge it (/ze-rfc-audit {req.rfc}) or "
+            f"re-stamp it (make ze-rfc-reseal) -- removal is not an option"
+        )
+    return errs
+
+
+# An identifier a note can cite: 5+ characters, so English words like "the" and "each" do not
+# accidentally satisfy the check while a real symbol name does. Measured over the existing
+# corpus: 0 of 49 non-empty-`tests` verdicts fail this against their tagged UNIT text.
+_NOTE_IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{4,}")
+
+
+def check_audit_note(
+    requirements: Sequence[Requirement],
+    tags: Sequence[Tag],
+    enrolled: Set[str],
+    audits: Optional[Dict[str, Dict[str, Dict]]] = None,
+) -> List[str]:
+    """An `enforced` note must name something that actually occurs in the tagged unit.
+
+    No gate can prove a human read the RFC; everything here is a proxy. This is the cheapest
+    honest one: the note is the auditor's account of WHY the test would fail on non-compliance,
+    and an account of a test one has read almost always names something in it. A lazy writer
+    fails it and an honest one passes without noticing (R-1).
+
+    ONE matching token is enough, deliberately, so a prose note is not punished for being prose
+    (R-3). When a tagged test is renamed this goes red -- accepted: a renamed test IS a reason
+    to re-read, and the message names the tokens checked and the files searched so the fix is
+    obvious rather than a guess.
+    """
+    if audits is None:
+        audits = load_audits(enrolled)
+    by_rid: Dict[str, List[Tag]] = {}
+    for t in tags:
+        by_rid.setdefault(t.rid, []).append(t)
+
+    errs: List[str] = []
+    seen: Set[str] = set()
+    cache: Dict[str, str] = {}
+    for req in requirements:
+        if req.rfc not in enrolled or req.rid in seen:
+            continue
+        verdict = audits.get(req.rfc, {}).get(req.rid)
+        if not verdict or verdict["verdict"] != VERDICT_ENFORCED:
             continue
         found = by_rid.get(req.rid, [])
-        fresh = verdict_is_fresh(
-            verdict, requirement_sha(req.text), tagged_unit_shas(found)
+        if not found:
+            continue  # AC-5/AC-6 already report this; do not pile a second error on it
+        seen.add(req.rid)
+        blob = ""
+        for t in found:
+            content = _read_source(t.file, PROJECT_DIR, cache)
+            if content:
+                blob += rfc_tagged_scope.unit_at(t.file, content, t.line)[0]
+        tokens = _NOTE_IDENT_RE.findall(verdict["note"])
+        if any(tok in blob for tok in tokens):
+            continue
+        files = ", ".join(sorted({t.file for t in found}))
+        errs.append(
+            f"rfc/audit/{req.rfc}.json: {req.rid} is {VERDICT_ENFORCED!r} but its note names "
+            f"nothing that occurs in the tagged unit(s). Searched {files}; tokens checked: "
+            f"{', '.join(tokens[:12]) or '(none)'}. A note that cannot be tied to the test it "
+            f"judges is not evidence that the test was read -- name the assertion, the helper, "
+            f"or the constant the judgement turns on"
         )
-        if not fresh:
-            errs.append(
-                f"{req.source}:{req.line}: {req.rid} has a STALE audit verdict -- the "
-                f"requirement text or a tagged test changed since it was judged, so the "
-                f"verdict no longer describes what it judged. Re-run: /ze-rfc-audit {req.rfc}"
-            )
     return errs
 
 
@@ -2181,6 +3305,283 @@ def _render_rollup(
     return out
 
 
+class AuditCoverage(NamedTuple):
+    """One RFC's audit row. Every field derived; nothing here is authored anywhere.
+
+    TWO partitions, over two different populations, because one denominator cannot carry both
+    questions honestly:
+
+    * `auditable = audited + unaudited` -- the REQUIREMENT view. How much of this RFC an audit
+      could be performed on, and how much of that carries a verdict.
+    * `verdicts = proven + findings` -- the RECORD view, total over every verdict recorded for
+      the RFC, and `findings` is exactly the number of worklist rows it contributes.
+
+    They are not the same population, and conflating them is what this row got wrong: `proven`
+    and `findings` counted only the both-polarity subset, so a verdict on a requirement whose
+    polarity coverage is ANNOTATED was counted in no column at all -- and if it was a fresh
+    `enforced` it was in no worklist row either. Five of the tree's 52 verdicts were invisible.
+    """
+
+    rfc: str
+    auditable: int  # gated, enrolled, polarity coverage complete: what can be audited
+    audited: int  # ...carrying a verdict of any value
+    proven: int  # every recorded verdict that is `enforced` AND fresh
+    findings: int  # every recorded verdict that is NOT proven (AC-24); == worklist rows
+    verdicts: int = 0  # every recorded verdict, i.e. proven + findings
+
+    @property
+    def unaudited(self) -> int:
+        return self.auditable - self.audited
+
+
+def polarity_covered(req: Requirement, found: Sequence[Tag]) -> bool:
+    """Whether a requirement's polarity coverage is COMPLETE, by the rule the schema uses.
+
+    `_verdict_claims` exempts a `{single-polarity}` requirement from the both-polarity demand:
+    the annotation IS the missing polarity's justification, and it is what makes an `enforced`
+    verdict legal over one test. `audit_coverage` derived the same fact from tags alone and never
+    read `req.annotation`, so the two disagreed about what complete coverage is -- and every
+    annotated requirement fell outside `Auditable` while the schema was happy to judge it.
+    """
+    polarities = {t.polarity for t in found}
+    if polarities == POLARITIES:
+        return True
+    ann = req.annotation
+    return bool(polarities) and ann is not None and ann.kind == "single-polarity"
+
+
+def audit_coverage(
+    requirements: Sequence[Requirement],
+    tags: Sequence[Tag],
+    enrolled: Set[str],
+    audits: Optional[Dict[str, Dict[str, Dict]]] = None,
+    states: Optional[Dict[str, Tuple[str, List[str]]]] = None,
+) -> Tuple[List[AuditCoverage], List[Tuple[str, str, str]]]:
+    """Per-RFC audit coverage, and the worklist of every requirement that is not proven.
+
+    AC-24 lives here, and this is deliberately NOT the polarity rollup. `_render_rollup`'s
+    **Both** column answers "which polarities exist"; subtracting an audit verdict from it would
+    contradict that doctrine outright, and would also break the partition
+    `scripts/dev/testing_health.py` asserts (`gated - both` must equal the annotation split, or
+    it raises rather than publishing a non-partition as one). So `proven` is a SEPARATE count in
+    a separate section: a requirement with both polarities and a `weak` verdict is counted in
+    **Both** (it has both polarities -- true) and NOT in `proven` (it is not proven -- also
+    true), and the worklist names the verdict as the reason. The ledger can never show one
+    requirement as proven and weak at once, which is what AC-24 asks for.
+
+    `proven` requires the verdict to be FRESH as well as `enforced`: a stale verdict describes a
+    test that has since changed, so publishing it as proof is the stale assurance this whole
+    machinery exists to stop. The gate fails on a stale verdict anyway, so the two agree.
+
+    `proven + findings` is TOTAL over the recorded verdicts, and `findings` is exactly the number
+    of worklist rows the RFC contributes (`AuditCoverage` documents the two partitions). Both
+    counts used to be gated on the requirement having a tagged pair, which is a different
+    population from the record, so the two published numbers described different things while
+    reading as one: 44 proven + 3 unproven out of 52 recorded, with five verdicts in neither.
+    """
+    if audits is None:
+        audits = load_audits(enrolled)
+    if states is None:
+        states = audit_freshness(requirements, tags, enrolled, audits)
+    by_rid: Dict[str, List[Tag]] = {}
+    for t in tags:
+        by_rid.setdefault(t.rid, []).append(t)
+
+    rows: List[AuditCoverage] = []
+    worklist: List[Tuple[str, str, str]] = []
+    for rfc in sorted(enrolled):
+        auditable = audited = proven = findings = verdicts = 0
+        seen: Set[str] = set()
+        recorded = audits.get(rfc, {})
+        for req in requirements:
+            if req.rfc != rfc or req.rid in seen:
+                continue
+            seen.add(req.rid)
+            verdict = recorded.get(req.rid)
+            # The requirement view keeps child 2's doctrine (gated, and polarity coverage
+            # complete), now reading the same coverage rule the schema reads.
+            if req.gated and polarity_covered(req, by_rid.get(req.rid, [])):
+                auditable += 1
+                if verdict:
+                    audited += 1
+            if not verdict:
+                continue
+            # The record view is TOTAL over recorded verdicts, and deliberately not gated on
+            # either flag above: a verdict is schema-legal on any requirement of the RFC
+            # (`check_audit_schema` only demands the rid exist), so counting the both-polarity
+            # subset left real judgements in no column and, when fresh and `enforced`, in no
+            # worklist row -- the gate then published "everything I hold is proven" over a
+            # record that said otherwise. A verdict whose rid matches NO requirement is counted
+            # here by neither: `check_audit_schema` owns that as a violation, which is why this
+            # walk can be driven from the requirements and still be total.
+            verdicts += 1
+            value = verdict["verdict"]
+            state = states.get(req.rid, (FRESH, []))[0]
+            if value == VERDICT_ENFORCED and state == FRESH:
+                proven += 1
+            else:
+                findings += 1
+                reason = value if state == FRESH else f"{value} ({state})"
+                worklist.append((rfc, req.rid, reason))
+        rows.append(AuditCoverage(rfc, auditable, audited, proven, findings, verdicts))
+    # Sorted, not append-ordered: the ledger's byte content is compared by check_ledger_fresh, and
+    # `requirements` arrives in whatever order the summaries were walked in, so an append-ordered
+    # worklist would report a fresh ledger as stale on another machine.
+    return rows, sorted(worklist)
+
+
+def _render_audit_coverage(
+    requirements: Sequence[Requirement],
+    tags: Sequence[Tag],
+    enrolled: Set[str],
+) -> List[str]:
+    """The semantic half of the gate's coverage, published rather than gated.
+
+    Without this the audit exists and is invisible: a low-tens count of auditable requirements
+    carries a verdict, all of them on one RFC out of 166, and nothing said so anywhere a reader
+    would meet it. Publishing per-RFC is also what makes SAMPLING possible -- the only real check
+    on whether a verdict was written by someone who read something -- which no gate can perform.
+    The figures are deliberately not quoted here: every one of them is rendered a few lines below
+    from the live walk, and a docstring copy of them is a number that rots (this one said "44 of
+    974" until the coverage rule started reading annotations and both halves moved).
+
+    The COLUMN COUNT here is load-bearing. `scripts/dev/testing_health.py:95` pins the polarity
+    rollup with a nine-cell regex (`RFC_ROW`) and matches it against every line of this file, so
+    a table whose rows had the same shape would be silently folded into that tool's proof-density
+    figure. `TestAuditTableCannotBeMistakenForTheRollup` holds this apart.
+    """
+    rows, worklist = audit_coverage(requirements, tags, enrolled)
+    auditable = sum(r.auditable for r in rows)
+    audited = sum(r.audited for r in rows)
+    proven = sum(r.proven for r in rows)
+    findings = sum(r.findings for r in rows)
+    verdicts = sum(r.verdicts for r in rows)
+    pct = (100.0 * audited / auditable) if auditable else 0.0
+
+    out: List[str] = []
+    out.append("## Audit coverage")
+    out.append("")
+    out.append(
+        f"{audited} of {auditable} auditable requirement(s) carry a `/ze-rfc-audit` verdict "
+        f"({pct:.2f}%), across {sum(1 for r in rows if r.audited)} of {len(rows)} enrolled "
+        f"RFC(s). **Auditable** = gated, enrolled, and polarity coverage complete: a pair of "
+        f"tests, or one test over a `{{single-polarity}}` line saying why the other cannot "
+        f"exist. Until then there is nothing for an auditor to judge."
+    )
+    out.append("")
+    out.append(
+        f"**Proven** ({proven}) is the count that means what the badge implies: a verdict of "
+        f"`{VERDICT_ENFORCED}` -- the tests would fail if the code stopped complying -- that is "
+        f"still fresh. It is NOT the **Both** column of the rollup above: that one answers which "
+        f"polarities exist, and a requirement can have both and still be judged `{VERDICT_WEAK}`. "
+        f"Every one of the {findings} verdict(s) that is audited but not proven is named "
+        f"below with its verdict, so no requirement can read as proven and weak at once."
+    )
+    out.append("")
+    out.append(
+        f"The remaining {auditable - audited} carry no verdict at all. That is not a violation: "
+        f"the audit is sampled and the gate is total, so a missing verdict never fails "
+        f"`make ze-rfc-check`. It is published because an unmeasured semantic half is "
+        f"indistinguishable from a clean one."
+    )
+    out.append("")
+    out.append(
+        f"Two partitions over two populations, because one denominator cannot carry both "
+        f"questions. **Requirements:** `Auditable` ({auditable}) = `Audited` ({audited}) + "
+        f"`Unaudited` ({auditable - audited}). **Records:** all {verdicts} recorded verdict(s) = "
+        f"`Proven` ({proven}) + `Not proven` ({findings}), and the worklist below names every one "
+        f"of those {len(worklist)}. A verdict can sit on a requirement that is not auditable -- "
+        f"an annotated `{{gap}}` or `{{not-applicable}}` line carries no tagged test -- so the "
+        f"record totals are the wider of the two and are never a subset of `Audited`."
+    )
+    out.append("")
+    out.append("| RFC | Auditable | Audited | Proven | Not proven | Unaudited |")
+    out.append("|---|---|---|---|---|---|")
+    for r in sorted(rows, key=lambda r: (-r.audited, r.rfc)):
+        if not r.auditable and not r.audited:
+            continue
+        out.append(
+            f"| `{r.rfc}` | {r.auditable} | {r.audited} | {r.proven} | {r.findings} | "
+            f"{r.unaudited} |"
+        )
+    out.append("")
+    out.append("### Audited but not proven")
+    out.append("")
+    if not worklist:
+        out.append(
+            "None: every recorded verdict is a fresh `enforced`. On a corpus this size that is "
+            "worth reading as a warning as much as a result -- `/ze-rfc-audit` says `weak` and "
+            "`wrong` are its valuable outputs, and a run that returns all `enforced` has "
+            "probably not read anything."
+        )
+    else:
+        out.append(
+            "One row per requirement whose verdict is anything other than a fresh "
+            f"`{VERDICT_ENFORCED}`. A blur is not a worklist: each is named so it can be picked "
+            "up individually."
+        )
+        out.append("")
+        out.append("| Requirement | Verdict | Meaning |")
+        out.append("|---|---|---|")
+        for rfc, rid, reason in worklist:
+            out.append(f"| `{rid}` | `{reason}` | {_verdict_meaning(reason)} |")
+    out.append("")
+    return out
+
+
+_UNPROVEN_MEANING = {
+    VERDICT_WEAK: "tagged and green, but cannot fail on non-compliance",
+    VERDICT_WRONG: "the test asserts something the RFC does not say",
+    VERDICT_UNIMPLEMENTED: "the tests are fine; the CODE does not comply",
+    VERDICT_NOT_APPLICABLE: "no reachable code path could satisfy or violate it",
+}
+
+
+# A NON-fresh row's meaning is its STATE, not its verdict word: the judgement itself may be
+# perfectly good with only its fingerprints out of date. One line per state, because rendering
+# them all as "the verdict no longer describes what it judged" told a `shifted` reader the exact
+# opposite of the truth -- `shifted` means the tagged unit IS byte-identical -- and sent them to
+# re-read an RFC when one mechanical command clears it.
+_STATE_MEANING = {
+    SHIFTED: (
+        "the tagged unit is byte-identical and only the file around it moved; nothing was "
+        "re-judged, so re-stamp it with `make ze-rfc-reseal`"
+    ),
+    STALE_UNIT: (
+        "what it judged changed -- the tagged unit itself, or the producing code it cites; it "
+        "must be re-judged with `/ze-rfc-audit` before it counts as anything"
+    ),
+    STALE_REQUIREMENT: (
+        "the requirement's own text changed since it was judged, so every judgement under it is "
+        "void; re-run `/ze-rfc-audit`"
+    ),
+}
+
+
+def _verdict_meaning(reason: str) -> str:
+    """One line per verdict, so the worklist explains itself to a reader who has not read the
+    skill. Derived from the reason string the coverage walk produced, never a second table.
+
+    Fails closed on a vocabulary that grows: a verdict added to `UNPROVEN_VERDICTS`, or a state
+    added to the four, without a published meaning SAYS so in the ledger rather than rendering an
+    empty cell or a wrong one, because an unexplained verdict in a worklist is a row a reader
+    silently skips (`ai/rules/fail-closed-guards.md` -- a guard that cannot answer must speak).
+    """
+    value, _, rest = reason.partition(" ")
+    if rest:
+        state = rest.strip().strip("()")
+        return _STATE_MEANING.get(
+            state,
+            f"recorded `{value}` in the unpublished freshness state `{state}` -- add it to "
+            f"_STATE_MEANING",
+        )
+    if value not in UNPROVEN_VERDICTS:
+        return "outside the recorded vocabulary"
+    return _UNPROVEN_MEANING.get(
+        value, "no published meaning for this verdict -- add one to _UNPROVEN_MEANING"
+    )
+
+
 def _render_evidence_legend() -> List[str]:
     """What each `kind/tier` cell means, derived from CARRIERS rather than restated.
 
@@ -2286,7 +3687,22 @@ def render_ledger(
     out.append("")
     out.extend(_render_evidence_legend())
     out.extend(_render_rollup(by_rfc, by_rid, enrolled))
+    out.extend(_render_audit_coverage(requirements, tags, enrolled))
     out.extend(render_extraction_table(requirements, enrolled))
+
+    # The per-row audit marker, so a reader scanning ONE requirement sees the verdict without
+    # reconstructing it from the coverage section. Same shape as the nightly-only marker below.
+    verdicts_by_rid: Dict[str, str] = {}
+    audits = load_audits(enrolled)
+    states = audit_freshness(requirements, tags, enrolled, audits)
+    for r in requirements:
+        v = audits.get(r.rfc, {}).get(r.rid)
+        if not v:
+            continue
+        state = states.get(r.rid, (FRESH, []))[0]
+        verdicts_by_rid[r.rid] = (
+            v["verdict"] if state == FRESH else f"{v['verdict']}, {state}"
+        )
 
     for rfc in sorted(by_rfc):
         reqs = by_rfc[rfc]
@@ -2316,6 +3732,12 @@ def render_ledger(
             # the weakness without reconstructing it from the per-link tiers.
             if is_nightly_only(found):
                 marks.append("**nightly-only**")
+            audited = verdicts_by_rid.get(r.rid)
+            if audited and audited != VERDICT_ENFORCED:
+                # An `enforced` verdict is unmarked on purpose: it says the row's tests do what
+                # the row already claims. Every OTHER value contradicts the row, and a
+                # contradiction has to be visible where the claim is made (AC-24).
+                marks.append(f"**audit: {audited}**")
             if r.annotation:
                 marks.append(f"{{{r.annotation.kind}}} {r.annotation.reason}")
             note = " ".join(marks)
@@ -3251,7 +4673,7 @@ def _evaluate_extraction(
     if art.source_sha != inv.source_sha:
         # One accurate error, not a wall. With the source moved, every site and every
         # section would mismatch too, and the only useful message is this one. Same bias
-        # verdict_is_fresh:1231 records: a false stale costs a re-read, a false fresh
+        # `verdict_freshness` records: a false stale costs a re-read, a false fresh
         # ships an unbounded summary.
         return errs + [
             f"{where}: source-sha no longer matches {inv.source_path}. The source text "
@@ -4049,7 +5471,24 @@ def run_check() -> int:
         with open(STATUS_FILE, encoding="utf-8") as fh:
             rows = parse_status_ledger(fh.read())
         errs.extend(check_status_agreement(reqs, rows, enrolled))
-        errs.extend(check_audit_freshness(reqs, tags, enrolled))
+
+        # The audit half. Loaded ONCE through the validating parse and shared by every check
+        # below, so the schema cannot be reached by one consumer and bypassed by another
+        # (plan/spec-rfcgate-3-audit-teeth.md). A malformed record raises ParseError and lands
+        # on the handler below as a clean exit 2, never a traceback.
+        audits = load_audits(enrolled)
+        baseline_audits = _git_baseline_audits()
+        errs.extend(check_audit_files(enrolled, stems))
+        errs.extend(check_audit_schema(reqs, tags, enrolled, audits))
+        errs.extend(check_audit_freshness(reqs, tags, enrolled, audits))
+        errs.extend(check_audit_disclosure(reqs, rows, enrolled, audits))
+        errs.extend(check_audit_note(reqs, tags, enrolled, audits))
+        errs.extend(check_audit_findings(reqs, enrolled, audits, baseline_audits))
+        errs.extend(
+            check_audit_verdict_ratchet(
+                reqs, enrolled, audits, baseline_audits, base_enrolled
+            )
+        )
 
         # Extraction sign-off: bounds what the summary MISSED, which every check above is
         # blind to -- they all judge the requirements a summary LISTS
@@ -4104,6 +5543,26 @@ def run_check() -> int:
         f"{GREEN}extraction{RESET}: {_register_phrase(counts)} signed off of "
         f"{len(enrolled)} enrolled; {len(enrolled - set(signed))} unsigned "
         f"(grandfathered backlog)."
+    )
+    # Same reason the extraction bound is printed: the semantic half's coverage is stated OUT
+    # LOUD on every clean run, including when it is small. A gate that reports "OK" while its
+    # judgement half covers one RFC in 166 is telling a reader something it has not measured.
+    # The WORKLIST is the unproven count, never a re-derived subset. This line summed
+    # `r.findings` and threw the worklist away, and when `findings` counted only the
+    # both-polarity subset the two disagreed: it printed "0 audited-but-not-proven, of 44
+    # verdict(s)" over a record holding 52 verdicts, two `unimplemented` gaps and one
+    # `not-applicable` among them. The ledger reconciled that in prose; the one line an
+    # operator reads did not, which is the reporting surface AC-24 exists to make honest.
+    audit_rows, audit_worklist = audit_coverage(reqs, tags, enrolled)
+    audit_total = sum(r.auditable for r in audit_rows)
+    audit_done = sum(r.audited for r in audit_rows)
+    audit_verdicts = sum(r.verdicts for r in audit_rows)
+    print(
+        f"{GREEN}audit{RESET}: {sum(r.proven for r in audit_rows)} proven, "
+        f"{len(audit_worklist)} audited-but-not-proven, of {audit_verdicts} "
+        f"verdict(s); {audit_done} of {audit_total} auditable requirement(s) audited "
+        f"({(100.0 * audit_done / audit_total) if audit_total else 0.0:.2f}%); a missing "
+        f"verdict is legal (the audit is sampled, the gate is total)."
     )
     return 0
 
@@ -4182,6 +5641,8 @@ def main(argv: Sequence[str]) -> int:
         except (ParseError, OSError) as exc:
             print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")
             return 2
+    if "--reseal" in args:
+        return run_reseal()
     if "--check" in args:
         return run_check()
     print(__doc__)

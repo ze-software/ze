@@ -513,15 +513,41 @@ inside a `terminator=` block):
   `{single-polarity: positive|negative; why}` instead. `{gap: why; ref}` and
   `{not-applicable: why}` cover deliberate divergence and inapplicability, each
   with a reason (a bare annotation is rejected).
-- **`make ze-rfc-check` gates coverage; `make ze-rfc-index` renders the ledger.**
+- **Five RFC make targets, and each clears a different red.**
+  - `make ze-rfc-check` gates coverage and validates the audit records.
+  - `make ze-rfc-index` renders the ledger (`ai/RFC-REQUIREMENTS.md`).
+  - `make ze-rfc-extract STEM=<stem>` writes an extraction skeleton.
+  - `make ze-rfc-extraction-status` prints the sign-off counts.
+  - `make ze-rfc-reseal` re-stamps an audit verdict a mechanical edit staled.
+
   For an enrolled RFC (`rfc/enrolled.txt`) the gate fails unless every MUST has its
-  pair or a reasoned annotation. Writing a summary does NOT enroll an RFC;
-  enrollment is a separate, deliberate step taken once the tests exist.
+  pair or a reasoned annotation. Writing a summary does NOT enroll an RFC.
+  Enrollment is a separate, deliberate step taken once the tests exist.
+  <!-- source: Makefile — ze-rfc-check, ze-rfc-index, ze-rfc-extract, ze-rfc-extraction-status, ze-rfc-reseal -->
 - **Audit letter and spirit with `/ze-rfc-audit <rfc>`.** The gate proves a link
-  exists but cannot read the test. The audit reads the RFC itself and each tagged
-  test and judges whether the test would fail if the code stopped complying,
-  recording a per-requirement verdict that `make ze-rfc-check` re-stales when the
-  requirement text or a tagged test changes.
+  exists, but it cannot read the test. The audit reads the RFC itself and each
+  tagged test. It then judges whether the test would fail if the code stopped
+  complying, and records a per-requirement verdict in `rfc/audit/<rfc>.json`.
+  The verdict is one of five closed values, and the gate reads it:
+  - `enforced` is the only one that means proven.
+  - `weak`, `wrong`, `unimplemented` and `not-applicable` each subtract the
+    requirement from the published proven count. That count is in the ledger's
+    **Audit coverage** section, and the gate still exits 0.
+
+  Recording a finding is free, and deleting one is not. `make ze-rfc-check`
+  re-stales a verdict when the requirement text, the tagged test's own function,
+  or a cited producer changes.
+  <!-- source: scripts/dev/rfc_requirements.py — AUDIT_VERDICTS, check_audit_schema, audit_coverage -->
+- **A `SHIFTED` verdict is not your problem to re-read.** When the gate says a
+  verdict is SHIFTED, the tagged unit is byte-identical and only the file around it
+  moved — a line shift, a sibling test, a rewritten import. Run
+  `make ze-rfc-reseal` then `make ze-rfc-index`. It is the only command that writes
+  `rfc/audit/`, and that is deliberate. A check that also wrote cannot be trusted
+  to report. And a regen target that wrote evidence would re-stamp hand-authored
+  judgements during unrelated work.
+  <!-- source: scripts/dev/rfc_requirements.py — verdict_freshness, run_reseal -->
+- **A `STALE` verdict is.** The tagged unit itself changed, so re-run
+  `/ze-rfc-audit <rfc>`. The re-seal refuses that case by design.
 - **Never change a tagged test to make it pass.** Once a test carries an
   `RFC requirement:` tag it is the requirement: fix your code, not the test.
   Changing its behavior needs explicit user approval recorded as

@@ -1051,31 +1051,68 @@ class TestFingerprint(unittest.TestCase):
         b = R.test_sha("func TestX(t *testing.T) {\n\n  a := 1\n\n}\n")
         self.assertEqual(a, b)
 
+
+# --------------------------------------------------------------------------
+# The transitional (pre-`units`) file-level rule -- AC-20
+# --------------------------------------------------------------------------
+class TestTransitionalFileLevelRule(unittest.TestCase):
+    """The rule a verdict recorded before unit fingerprints existed still takes.
+
+    These four cases used to drive `verdict_is_fresh`, a second spelling of this rule that
+    `verdict_freshness` was documented as delegating to and never called. The two had already
+    diverged (the helper consulted no `code` map), so the assurance these cases gave was about a
+    function the gate never executed. They now drive the live transitional branch --
+    `verdict_freshness` with no `units` recorded -- so the coverage sits on the code that runs.
+
+    Re-pointed rather than deleted: the FUNCTIONALITY was not removed, only relocated
+    (`ai/rules/no-test-deletion.md`). The move also makes each case stronger, because the live
+    path names WHICH stale state it is where the boolean could only say "not fresh".
+    """
+
     def test_verdict_fresh_when_nothing_changed(self):
         verdict = {"requirement_sha": "aaa", "tests": {"a_test.go:10": "bbb"}}
-        self.assertTrue(R.verdict_is_fresh(verdict, "aaa", {"a_test.go:10": "bbb"}))
+        self.assertEqual(
+            R.verdict_freshness(verdict, "aaa", {"a_test.go:10": "bbb"}),
+            (R.FRESH, []),
+        )
 
     def test_verdict_stale_when_requirement_sha_changes(self):
         verdict = {"requirement_sha": "aaa", "tests": {"a_test.go:10": "bbb"}}
-        self.assertFalse(
-            R.verdict_is_fresh(verdict, "CHANGED", {"a_test.go:10": "bbb"})
-        )
+        state, _moved = R.verdict_freshness(verdict, "CHANGED", {"a_test.go:10": "bbb"})
+        self.assertEqual(state, R.STALE_REQUIREMENT)
 
     def test_verdict_stale_when_test_sha_changes(self):
         verdict = {"requirement_sha": "aaa", "tests": {"a_test.go:10": "bbb"}}
-        self.assertFalse(
-            R.verdict_is_fresh(verdict, "aaa", {"a_test.go:10": "CHANGED"})
-        )
+        state, _moved = R.verdict_freshness(verdict, "aaa", {"a_test.go:10": "CHANGED"})
+        self.assertEqual(state, R.STALE_UNIT)
 
     def test_verdict_stale_when_test_disappears_or_appears(self):
         """A tagged test deleted, or a new one added, both invalidate the verdict."""
         verdict = {"requirement_sha": "aaa", "tests": {"a_test.go:10": "bbb"}}
-        self.assertFalse(R.verdict_is_fresh(verdict, "aaa", {}))
-        self.assertFalse(
-            R.verdict_is_fresh(
-                verdict, "aaa", {"a_test.go:10": "bbb", "b_test.go:1": "ccc"}
-            )
+        gone, _ = R.verdict_freshness(verdict, "aaa", {})
+        added, _ = R.verdict_freshness(
+            verdict, "aaa", {"a_test.go:10": "bbb", "b_test.go:1": "ccc"}
         )
+        self.assertEqual(gone, R.STALE_UNIT)
+        self.assertEqual(added, R.STALE_UNIT)
+
+    def test_a_recorded_units_map_leaves_the_transitional_branch(self):
+        """The discriminating twin, and the reason the branch is reachable at all: the same input
+        with `units` recorded takes the unit-level path instead, where an unchanged unit and a
+        moved file are SHIFTED rather than STALE_UNIT. If this ever equals the case above, the
+        transitional branch has stopped being transitional."""
+        verdict = {
+            "requirement_sha": "aaa",
+            "tests": {"a_test.go:10": "bbb"},
+            "units": {"a_test.go:10": "u" * 16},
+        }
+        state, _moved = R.verdict_freshness(
+            verdict,
+            "aaa",
+            {"a_test.go:99": "bbb"},
+            {"a_test.go:99": "u" * 16},
+        )
+        self.assertEqual(state, R.SHIFTED)
 
 
 # --------------------------------------------------------------------------
@@ -1106,10 +1143,16 @@ class TestAuditFreshness(unittest.TestCase):
 
     def test_verdict_fresh_and_stale(self):
         """A verdict that no longer matches what it judged is worse than none: it is a
-        stale assurance. That is why it FAILS while a missing one does not."""
+        stale assurance. That is why it FAILS while a missing one does not.
+
+        Drives `verdict_freshness` (the live rule) rather than the deleted `verdict_is_fresh`
+        duplicate it used to call."""
         v = {"requirement_sha": R.requirement_sha("x"), "tests": {}}
-        self.assertTrue(R.verdict_is_fresh(v, R.requirement_sha("x"), {}))
-        self.assertFalse(R.verdict_is_fresh(v, R.requirement_sha("CHANGED"), {}))
+        self.assertEqual(
+            R.verdict_freshness(v, R.requirement_sha("x"), {}), (R.FRESH, [])
+        )
+        state, _moved = R.verdict_freshness(v, R.requirement_sha("CHANGED"), {})
+        self.assertEqual(state, R.STALE_REQUIREMENT)
 
     def test_requirement_text_edit_stales_the_verdict(self):
         a = R.requirement_sha("MUST discard the attribute")
@@ -1528,6 +1571,16 @@ class TestIDAllocationWiring(unittest.TestCase):
             check_retired_requirements=lambda *a, **k: [],
             check_status_agreement=lambda *a, **k: [],
             check_audit_freshness=lambda *a, **k: [],
+            # The rest of the audit half, neutralised for the same reason the line above
+            # is: this driver's subject is not the audit record, and the REAL
+            # rfc/audit/rfc7606.json legitimately describes 52 requirements this fixture
+            # does not declare (spec-rfcgate-3-audit-teeth.md).
+            check_audit_files=lambda *a, **k: [],
+            check_audit_schema=lambda *a, **k: [],
+            check_audit_disclosure=lambda *a, **k: [],
+            check_audit_note=lambda *a, **k: [],
+            check_audit_findings=lambda *a, **k: [],
+            check_audit_verdict_ratchet=lambda *a, **k: [],
             check_ledger_fresh=lambda *a, **k: [],
         ):
             return _run_capturing(R.run_check)
@@ -1973,6 +2026,16 @@ class TestCoverageRatchetWiring(unittest.TestCase):
             scan_tree=lambda *a, **k: tags,
             check_status_agreement=lambda *a, **k: [],
             check_audit_freshness=lambda *a, **k: [],
+            # The rest of the audit half, neutralised for the same reason the line above
+            # is: this driver's subject is not the audit record, and the REAL
+            # rfc/audit/rfc7606.json legitimately describes 52 requirements this fixture
+            # does not declare (spec-rfcgate-3-audit-teeth.md).
+            check_audit_files=lambda *a, **k: [],
+            check_audit_schema=lambda *a, **k: [],
+            check_audit_disclosure=lambda *a, **k: [],
+            check_audit_note=lambda *a, **k: [],
+            check_audit_findings=lambda *a, **k: [],
+            check_audit_verdict_ratchet=lambda *a, **k: [],
             check_ledger_fresh=lambda *a, **k: [],
         ):
             return _run_capturing(R.run_check)
@@ -2152,6 +2215,16 @@ class TestEvidenceRatchetWiring(unittest.TestCase):
             scan_tree=lambda *a, **k: tags,
             check_status_agreement=lambda *a, **k: [],
             check_audit_freshness=lambda *a, **k: [],
+            # The rest of the audit half, neutralised for the same reason the line above
+            # is: this driver's subject is not the audit record, and the REAL
+            # rfc/audit/rfc7606.json legitimately describes 52 requirements this fixture
+            # does not declare (spec-rfcgate-3-audit-teeth.md).
+            check_audit_files=lambda *a, **k: [],
+            check_audit_schema=lambda *a, **k: [],
+            check_audit_disclosure=lambda *a, **k: [],
+            check_audit_note=lambda *a, **k: [],
+            check_audit_findings=lambda *a, **k: [],
+            check_audit_verdict_ratchet=lambda *a, **k: [],
             check_ledger_fresh=lambda *a, **k: [],
         ):
             return _run_capturing(R.run_check)
@@ -2409,6 +2482,16 @@ class TestRetiredRequirementsWiring(unittest.TestCase):
             scan_tree=lambda *a, **k: tags,
             check_status_agreement=lambda *a, **k: [],
             check_audit_freshness=lambda *a, **k: [],
+            # The rest of the audit half, neutralised for the same reason the line above
+            # is: this driver's subject is not the audit record, and the REAL
+            # rfc/audit/rfc7606.json legitimately describes 52 requirements this fixture
+            # does not declare (spec-rfcgate-3-audit-teeth.md).
+            check_audit_files=lambda *a, **k: [],
+            check_audit_schema=lambda *a, **k: [],
+            check_audit_disclosure=lambda *a, **k: [],
+            check_audit_note=lambda *a, **k: [],
+            check_audit_findings=lambda *a, **k: [],
+            check_audit_verdict_ratchet=lambda *a, **k: [],
             check_ledger_fresh=lambda *a, **k: [],
             check_id_allocation=lambda *a, **k: [],
         ):
@@ -2453,6 +2536,16 @@ class TestDegradedBaselineIsQuiet(unittest.TestCase):
             ],
             check_status_agreement=lambda *a, **k: [],
             check_audit_freshness=lambda *a, **k: [],
+            # The rest of the audit half, neutralised for the same reason the line above
+            # is: this driver's subject is not the audit record, and the REAL
+            # rfc/audit/rfc7606.json legitimately describes 52 requirements this fixture
+            # does not declare (spec-rfcgate-3-audit-teeth.md).
+            check_audit_files=lambda *a, **k: [],
+            check_audit_schema=lambda *a, **k: [],
+            check_audit_disclosure=lambda *a, **k: [],
+            check_audit_note=lambda *a, **k: [],
+            check_audit_findings=lambda *a, **k: [],
+            check_audit_verdict_ratchet=lambda *a, **k: [],
             check_ledger_fresh=lambda *a, **k: [],
         ):
             return _run_capturing(R.run_check)
@@ -2499,6 +2592,16 @@ class TestNewSummaryEnrolmentWiring(unittest.TestCase):
             ],
             check_status_agreement=lambda *a, **k: [],
             check_audit_freshness=lambda *a, **k: [],
+            # The rest of the audit half, neutralised for the same reason the line above
+            # is: this driver's subject is not the audit record, and the REAL
+            # rfc/audit/rfc7606.json legitimately describes 52 requirements this fixture
+            # does not declare (spec-rfcgate-3-audit-teeth.md).
+            check_audit_files=lambda *a, **k: [],
+            check_audit_schema=lambda *a, **k: [],
+            check_audit_disclosure=lambda *a, **k: [],
+            check_audit_note=lambda *a, **k: [],
+            check_audit_findings=lambda *a, **k: [],
+            check_audit_verdict_ratchet=lambda *a, **k: [],
             check_ledger_fresh=lambda *a, **k: [],
         ):
             return _run_capturing(R.run_check)
@@ -2551,6 +2654,16 @@ class TestSummaryParseErrorWiring(unittest.TestCase):
                 scan_tree=lambda *a, **k: list(tags),
                 check_status_agreement=lambda *a, **k: [],
                 check_audit_freshness=lambda *a, **k: [],
+                # The rest of the audit half, neutralised for the same reason the line above
+                # is: this driver's subject is not the audit record, and the REAL
+                # rfc/audit/rfc7606.json legitimately describes 52 requirements this fixture
+                # does not declare (spec-rfcgate-3-audit-teeth.md).
+                check_audit_files=lambda *a, **k: [],
+                check_audit_schema=lambda *a, **k: [],
+                check_audit_disclosure=lambda *a, **k: [],
+                check_audit_note=lambda *a, **k: [],
+                check_audit_findings=lambda *a, **k: [],
+                check_audit_verdict_ratchet=lambda *a, **k: [],
                 check_ledger_fresh=lambda *a, **k: [],
             ):
                 return _run_capturing(R.run_check)
@@ -3523,7 +3636,7 @@ class TestExtractionSignoff(unittest.TestCase):
         self.assertTrue(any("section 2" in e for e in self._errs(art)))
 
     def test_source_sha_mismatch_fails(self):
-        """AC-4: over-trigger bias, exactly as verdict_is_fresh:1231 records -- a false
+        """AC-4: over-trigger bias, exactly as `verdict_freshness` records -- a false
         stale costs a re-read, a false fresh ships an unbounded summary."""
         errs = self._errs(_artifact(**{"source-sha": "0" * 16}))
         self.assertTrue(any("source-sha" in e or "source text" in e for e in errs))
@@ -4718,6 +4831,16 @@ class _ExtractionDrive(unittest.TestCase):
             ],
             check_status_agreement=lambda *a, **k: [],
             check_audit_freshness=lambda *a, **k: [],
+            # The rest of the audit half, neutralised for the same reason the line above
+            # is: this driver's subject is not the audit record, and the REAL
+            # rfc/audit/rfc7606.json legitimately describes 52 requirements this fixture
+            # does not declare (spec-rfcgate-3-audit-teeth.md).
+            check_audit_files=lambda *a, **k: [],
+            check_audit_schema=lambda *a, **k: [],
+            check_audit_disclosure=lambda *a, **k: [],
+            check_audit_note=lambda *a, **k: [],
+            check_audit_findings=lambda *a, **k: [],
+            check_audit_verdict_ratchet=lambda *a, **k: [],
             check_ledger_fresh=lambda *a, **k: [],
         )
         overrides.update(kw)  # an explicit override wins over the default wiring
@@ -5387,6 +5510,2323 @@ class TestRealTree(unittest.TestCase):
                 continue
             n += 1
         self.assertGreater(n, 150)
+
+
+# --------------------------------------------------------------------------
+# Audit teeth (plan/spec-rfcgate-3-audit-teeth.md)
+# --------------------------------------------------------------------------
+# The verdict field was written by a skill and read by NOTHING: the freshness rule compared the
+# requirement sha and the tests map and never looked at the value, so a `weak` verdict -- which
+# ai/skills/ze-rfc-audit.md calls one of its two valuable outputs -- was treated exactly like
+# `enforced`. These classes are the reader.
+
+
+@contextlib.contextmanager
+def _audit_tree(files=None, status=None):
+    """A temp rfc/audit/ plus a temp docs/features/rfc-status.md.
+
+    `files` maps stem -> dict (dumped as JSON) or str (written verbatim, for the malformed-input
+    cases). `status` is the raw status-ledger text; the default discloses a gap for rfc9999 so a
+    disclosure test has to opt INTO the clean-support row rather than inherit it.
+    """
+    tmp = _mkdtemp("ze-audit-")
+    adir = os.path.join(tmp, "audit")
+    os.makedirs(adir)
+    for stem, body in (files or {}).items():
+        with open(os.path.join(adir, stem + ".json"), "w", encoding="utf-8") as fh:
+            fh.write(body if isinstance(body, str) else json.dumps(body, indent=2))
+    spath = os.path.join(tmp, "rfc-status.md")
+    with open(spath, "w", encoding="utf-8") as fh:
+        fh.write(status if status is not None else _STATUS_DISCLOSED)
+    try:
+        with _patched(AUDIT_DIR=adir, STATUS_FILE=spath):
+            yield adir
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+_STATUS_HEAD = (
+    "| RFC | Area | Status | Coverage | Remaining |\n"
+    "|-----|------|--------|----------|-----------|\n"
+)
+_STATUS_DISCLOSED = (
+    _STATUS_HEAD + "| RFC 9999 | x | Partial | cov | Section 2 is unmet. |\n"
+)
+_STATUS_CLEAN = _STATUS_HEAD + "| RFC 9999 | x | Supported | cov | No tracked gap. |\n"
+
+
+def _go_fixture(
+    root, name, tag_rid="RFC9999-2-1", body="\trequire.Equal(t, 1, one())\n"
+):
+    """A tagged Go test file on disk, returned as a repo-relative path.
+
+    Repo-relative and under the project tmp/ because the fingerprint helpers resolve against
+    PROJECT_DIR: a fixture outside the tree could not be read, and ai/rules/testing.md makes the
+    project tmp/ the only allowed scratch home.
+    """
+    path = os.path.join(root, name)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(
+            "package x\n"
+            "\n"
+            "func helperUntagged(t *testing.T) {\n\trequire.Equal(t, 2, two())\n}\n"
+            "\n"
+            f"// RFC requirement: {tag_rid} positive -- one() returns one.\n"
+            "func TestTagged(t *testing.T) {\n" + body + "}\n"
+        )
+    return os.path.relpath(path, R.PROJECT_DIR).replace(os.sep, "/")
+
+
+def _verdict(
+    req, rel, line, value="enforced", note="require.Equal pins one()", **extra
+):
+    """A well-formed verdict over one tagged test, with both fingerprint maps recorded."""
+    key = f"{rel}:{line}"
+    out = {
+        "verdict": value,
+        "note": note,
+        "requirement_sha": R.requirement_sha(req.text),
+        "tests": R.tagged_unit_shas([_tag(req.rid, "positive", file=rel, line=line)]),
+        "units": R.unit_shas([key]),
+    }
+    out.update(extra)
+    return out
+
+
+def _audit_file(stem, verdicts):
+    return {
+        "rfc": stem,
+        "audited": "2026-07-29",
+        "requirements": verdicts,
+    }
+
+
+class _AuditFixture(unittest.TestCase):
+    """One requirement, one tagged Go test on disk, one recorded verdict.
+
+    Shared because every audit check needs the same three things to exist and agree before it
+    can be shown to fire on one of them being wrong.
+    """
+
+    def setUp(self):
+        self.tmp = _mkdtemp("ze-auditfx-")
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.req = _req("RFC9999-2-1", rfc="rfc9999")
+        self.rel = _go_fixture(self.tmp, "a_test.go")
+        # Line 7 is the `// RFC requirement:` comment, which is INSIDE TestTagged's span (a doc
+        # comment belongs to the func below it). Line 6 is the blank line before it and sits
+        # outside every span, so a fixture pointing there silently resolves to FILE scope and
+        # every unit-versus-file assertion below reads as passing while proving nothing.
+        self.line = 7
+        self.tags = [
+            _tag(self.req.rid, "positive", file=self.rel, line=self.line),
+            _tag(self.req.rid, "negative", file=self.rel, line=self.line),
+        ]
+
+    def verdict(self, value="enforced", **extra):
+        return _verdict(self.req, self.rel, self.line, value=value, **extra)
+
+    def audits(self, verdict=None, value="enforced", **extra):
+        v = verdict if verdict is not None else self.verdict(value=value, **extra)
+        return {"rfc9999": {self.req.rid: v}}
+
+    def schema(self, verdict=None, reqs=None, tags=None, **kw):
+        return R.check_audit_schema(
+            reqs if reqs is not None else [self.req],
+            tags if tags is not None else self.tags,
+            {"rfc9999"},
+            self.audits(verdict, **kw),
+        )
+
+
+class TestAuditSchema(_AuditFixture):
+    """`load_audit` was a bare json.load returning `data.get("requirements", {})`: no field
+    check, no enum check, no type check, and every other top-level key silently discarded. The
+    vocabulary had already drifted to a fifth value and nothing noticed, because nothing looked.
+    """
+
+    def _load(self, verdicts, stem="rfc9999", raw=None):
+        body = raw if raw is not None else _audit_file(stem, verdicts)
+        with _audit_tree(files={stem: body}):
+            return R.load_audit(stem)
+
+    def test_unknown_verdict_value_fails(self):
+        """AC-1, with the live `implemented` value as the fixture."""
+        v = self.verdict()
+        v["verdict"] = "implemented"
+        with self.assertRaises(R.ParseError) as cm:
+            self._load({self.req.rid: v})
+        msg = str(cm.exception)
+        self.assertIn(self.req.rid, msg)
+        self.assertIn("implemented", msg)
+        for legal in R.AUDIT_VERDICTS:
+            self.assertIn(legal, msg, "the message must name the legal set")
+
+    def test_missing_required_field_fails(self):
+        """AC-2: one case per required field. An absent authored field is never a default."""
+        for field in ("verdict", "note", "requirement_sha"):
+            v = self.verdict()
+            del v[field]
+            with self.assertRaises(R.ParseError, msg=field) as cm:
+                self._load({self.req.rid: v})
+            self.assertIn(self.req.rid, str(cm.exception))
+
+    def test_unknown_key_in_verdict_fails(self):
+        """AC-2: a typo'd field would otherwise read as an ABSENT field and pass silently."""
+        v = self.verdict()
+        v["notez"] = "typo"
+        with self.assertRaises(R.ParseError) as cm:
+            self._load({self.req.rid: v})
+        self.assertIn("notez", str(cm.exception))
+
+    def test_wrong_type_fails_closed_not_as_a_traceback(self):
+        """Security Review, Input validation: a string where a map belongs must be a clean
+        error. It used to flow into an equality comparison and report as STALE -- a real defect
+        wearing the costume of a routine re-read."""
+        v = self.verdict()
+        v["tests"] = "internal/a_test.go:1"
+        with self.assertRaises(R.ParseError) as cm:
+            self._load({self.req.rid: v})
+        self.assertIn("must be an object", str(cm.exception))
+
+    def test_fingerprint_key_may_not_escape_the_tree(self):
+        """Security Review, Path handling: `tests` keys become open() calls, and a verdict is
+        agent-authored input, not a trusted path source."""
+        for bad in ("/etc/passwd:1", "../../etc/passwd:1", "a_test.go", "~/x:1"):
+            v = self.verdict()
+            v["tests"] = {bad: "a" * 16}
+            with self.assertRaises(R.ParseError, msg=bad):
+                self._load({self.req.rid: v})
+
+    def test_top_level_typo_is_not_discarded(self):
+        """Everything except `requirements` used to be dropped without inspection, so a
+        misspelled `reaudit_note` silently deleted the record of why a verdict was trusted."""
+        body = _audit_file("rfc9999", {self.req.rid: self.verdict()})
+        body["reaudit_notes"] = "typo"
+        with self.assertRaises(R.ParseError) as cm:
+            self._load(None, raw=body)
+        self.assertIn("reaudit_notes", str(cm.exception))
+
+    def test_rfc_field_must_match_the_filename(self):
+        body = _audit_file("rfc7606", {self.req.rid: self.verdict()})
+        with self.assertRaises(R.ParseError) as cm:
+            self._load(None, stem="rfc9999", raw=body)
+        self.assertIn("filename", str(cm.exception))
+
+    def test_malformed_json_still_fails_closed(self):
+        """Preserved behavior: a syntax error is a clean exit-2 message, not a traceback."""
+        with self.assertRaises(R.ParseError) as cm:
+            self._load(None, raw="{not json")
+        self.assertIn("cannot read", str(cm.exception))
+
+    def test_missing_file_is_legal_and_empty(self):
+        """Preserved behavior: the audit is sampled, so an absent file is normal."""
+        with _audit_tree():
+            self.assertEqual(R.load_audit("rfc9999"), {})
+
+    def test_verdict_for_unknown_rid_fails(self):
+        """AC-3: the direction check_audit_freshness never walked. It iterates REQUIREMENTS and
+        asks each for its verdict, so a verdict for an id that does not exist was read by
+        nothing and reported by nothing."""
+        errs = R.check_audit_schema(
+            [self.req],
+            self.tags,
+            {"rfc9999"},
+            {"rfc9999": {"RFC9999-9-9": self.verdict()}},
+        )
+        self.assertTrue(errs)
+        self.assertIn("RFC9999-9-9", " ".join(errs))
+
+    def test_audit_file_for_unenrolled_stem_fails(self):
+        """AC-4: an audit file nothing loads is evidence that does not exist."""
+        with _audit_tree(files={"rfc9999": _audit_file("rfc9999", {})}):
+            errs = R.check_audit_files(set(), {"rfc9999"})
+            self.assertTrue(errs)
+            self.assertIn("rfc/audit/rfc9999.json", errs[0])
+            self.assertIn("enrolled", errs[0])
+
+    def test_audit_file_with_no_summary_fails(self):
+        """AC-4, the other half: judgements about requirements that do not exist."""
+        with _audit_tree(files={"rfc9999": _audit_file("rfc9999", {})}):
+            errs = R.check_audit_files({"rfc9999"}, set())
+            self.assertTrue(errs)
+            self.assertIn("rfc/short/rfc9999.md", errs[0])
+
+    def test_audit_file_that_is_enrolled_and_summarised_passes(self):
+        """The discriminating twin: AC-4 is not "always fails"."""
+        with _audit_tree(files={"rfc9999": _audit_file("rfc9999", {})}):
+            self.assertEqual(R.check_audit_files({"rfc9999"}, {"rfc9999"}), [])
+
+    def test_enforced_with_empty_tests_fails(self):
+        """AC-5: "proven" with no cited test is a contradiction, not a weaker claim."""
+        v = self.verdict()
+        v["tests"] = {}
+        v["units"] = {}
+        errs = self.schema(v)
+        self.assertTrue(errs)
+        joined = " ".join(errs)
+        self.assertIn("empty 'tests'", joined)
+        # The error must point at the honest alternative, or the only way out looks like a lie.
+        self.assertIn(R.VERDICT_NOT_APPLICABLE, joined)
+
+    def test_enforced_needs_both_polarities(self):
+        """AC-6: a negative-only test passes if the code rejects everything, and a positive-only
+        one passes if it accepts everything. Only the pair pins behaviour."""
+        errs = self.schema(tags=[self.tags[0]])
+        self.assertTrue(errs)
+        self.assertIn("negative", " ".join(errs))
+
+    def test_single_polarity_annotation_exempts_it(self):
+        """AC-6's negative half: the exemption is the annotation, and it works."""
+        ann = R.Annotation(kind="single-polarity", polarity="positive", reason="why")
+        req = _req("RFC9999-2-1", rfc="rfc9999", annotation=ann)
+        errs = R.check_audit_schema([req], [self.tags[0]], {"rfc9999"}, self.audits())
+        self.assertEqual(errs, [])
+
+    def test_unimplemented_needs_code_map(self):
+        """AC-7: with neither tests nor code fingerprinted the freshness test reduces to
+        `{} == {}`, so the verdict can never go stale and nobody is ever asked to look again."""
+        ann = R.Annotation(kind="gap", polarity=None, reason="deliberate")
+        req = _req("RFC9999-2-1", rfc="rfc9999", annotation=ann)
+        v = self.verdict(value="unimplemented")
+        v["tests"], v["units"] = {}, {}
+        errs = R.check_audit_schema([req], [], {"rfc9999"}, {"rfc9999": {req.rid: v}})
+        self.assertTrue(errs)
+        self.assertIn("'code' map", " ".join(errs))
+
+    def test_unimplemented_needs_gap_annotation(self):
+        """AC-7's other half: a divergence Ze knows about must be declared where a reader of the
+        summary will meet it, not only in an audit file."""
+        v = self.verdict(value="unimplemented")
+        v["tests"], v["units"] = {}, {}
+        v["code"] = R.unit_shas([f"{self.rel}:3"])
+        errs = R.check_audit_schema(
+            [self.req], [], {"rfc9999"}, {"rfc9999": {self.req.rid: v}}
+        )
+        self.assertTrue(errs)
+        self.assertIn("{gap}", " ".join(errs))
+
+    def test_unimplemented_with_code_and_gap_passes(self):
+        """AC-7's discriminating twin."""
+        ann = R.Annotation(kind="gap", polarity=None, reason="deliberate")
+        req = _req("RFC9999-2-1", rfc="rfc9999", annotation=ann)
+        v = self.verdict(value="unimplemented")
+        v["tests"], v["units"] = {}, {}
+        v["code"] = R.unit_shas([f"{self.rel}:3"])
+        self.assertEqual(
+            R.check_audit_schema([req], [], {"rfc9999"}, {"rfc9999": {req.rid: v}}), []
+        )
+
+
+class TestNotApplicableVerdict(_AuditFixture):
+    """Owner ruling OR-1 (Thomas, 2026-07-29).
+
+    RFC7606-8-1 was `enforced` with an empty `tests` map on a `{not-applicable}` requirement, and
+    the schema this spec writes left it NO legal state: AC-5 refuses `enforced` with no cited
+    test, and AC-7's `code`-map remedy is open only to `unimplemented`. Thomas added a state
+    rather than have the record re-judged. It must not become the cheap escape from AC-5, so it
+    costs two committed facts where `enforced` costs one word.
+    """
+
+    def _na(self, req, **extra):
+        v = self.verdict(value=R.VERDICT_NOT_APPLICABLE, **extra)
+        v["tests"], v["units"] = {}, {}
+        return {"rfc9999": {req.rid: v}}
+
+    def _req_na(self):
+        ann = R.Annotation(kind="not-applicable", polarity=None, reason="binds authors")
+        return _req("RFC9999-2-1", rfc="rfc9999", annotation=ann)
+
+    def test_legal_with_a_reason_and_an_agreeing_annotation(self):
+        req = self._req_na()
+        errs = R.check_audit_schema(
+            [req],
+            [],
+            {"rfc9999"},
+            self._na(req, no_code_path="section 8 binds authors"),
+        )
+        self.assertEqual(errs, [])
+
+    def test_a_bare_state_is_refused(self):
+        """OR-1: a verdict whose only content is its own name is the unfalsifiable entry the
+        schema exists to reject."""
+        req = self._req_na()
+        errs = R.check_audit_schema([req], [], {"rfc9999"}, self._na(req))
+        self.assertTrue(errs)
+        self.assertIn("no_code_path", " ".join(errs))
+
+    def test_an_empty_reason_is_refused_too(self):
+        """A whitespace reason is the same escape one space wider."""
+        req = self._req_na()
+        errs = R.check_audit_schema(
+            [req], [], {"rfc9999"}, self._na(req, no_code_path="   ")
+        )
+        self.assertTrue(errs)
+        self.assertIn("no_code_path", " ".join(errs))
+
+    def test_the_annotation_must_agree(self):
+        """OR-1: two committed facts. The audit record cannot reclassify a requirement alone."""
+        errs = R.check_audit_schema(
+            [self.req],
+            [],
+            {"rfc9999"},
+            self._na(self.req, no_code_path="because"),
+        )
+        self.assertTrue(errs)
+        self.assertIn("not-applicable", " ".join(errs))
+
+    def test_a_gap_annotation_does_not_satisfy_it(self):
+        """{gap} says Ze could comply and does not; {not-applicable} says nothing could. Reading
+        one as the other is how a gap would launder itself into unreachability."""
+        ann = R.Annotation(kind="gap", polarity=None, reason="deliberate")
+        req = _req("RFC9999-2-1", rfc="rfc9999", annotation=ann)
+        errs = R.check_audit_schema(
+            [req], [], {"rfc9999"}, self._na(req, no_code_path="because")
+        )
+        self.assertTrue(errs)
+
+    def test_citing_a_test_is_refused(self):
+        """If a test can exercise it, a reachable code path exists."""
+        req = self._req_na()
+        audits = self._na(req, no_code_path="because")
+        audits["rfc9999"][req.rid]["tests"] = R.tagged_unit_shas(
+            [_tag(req.rid, "positive", file=self.rel, line=self.line)]
+        )
+        errs = R.check_audit_schema([req], self.tags, {"rfc9999"}, audits)
+        self.assertTrue(errs)
+        self.assertIn("cites tests", " ".join(errs))
+
+    def test_ac5_stays_strict(self):
+        """OR-1's own constraint: the new state is the honest ALTERNATIVE to abusing `enforced`,
+        never a relaxation of AC-5. Enforced with no tests is still a hard failure."""
+        req = self._req_na()
+        v = self.verdict()
+        v["tests"], v["units"] = {}, {}
+        errs = R.check_audit_schema([req], [], {"rfc9999"}, {"rfc9999": {req.rid: v}})
+        self.assertTrue(errs)
+        self.assertIn("empty 'tests'", " ".join(errs))
+
+    def test_no_code_path_may_not_sit_on_another_verdict(self):
+        """A field that means one thing may only appear where it means it: unread anywhere else,
+        an author can believe they filled it in."""
+        v = self.verdict()
+        v["no_code_path"] = "why"
+        with _audit_tree(files={"rfc9999": _audit_file("rfc9999", {self.req.rid: v})}):
+            with self.assertRaises(R.ParseError) as cm:
+                R.load_audit("rfc9999")
+        self.assertIn("no_code_path", str(cm.exception))
+
+
+class TestFingerprintShapeBoundary(_AuditFixture):
+    """Boundary row 1: a recorded fingerprint is exactly `SHA_HEX_LEN` lowercase hex characters.
+
+    The schema used to accept ANY non-empty string here. That was fail-closed rather than unsound
+    -- a malformed sha compares unequal to the computed value and resolves to STALE_UNIT -- but
+    STALE is the wrong diagnosis for a typo: it sends a reader to re-audit a judgement that never
+    moved, and prints a remediation that does not name the fault.
+
+    Driven through `load_audit`, the entry point an authored record actually arrives by, not
+    through `_sha_value` alone (`ai/rules/fail-closed-guards.md`: drive the guard from its entry
+    point). The four cases per field are the boundary trio plus the one a pure length check would
+    wave through.
+    """
+
+    def test_the_pattern_itself_rejects_a_trailing_newline_under_search(self):
+        """`_SHA_RE` ends `\\Z`, not `$`, and nothing else in this class would notice a revert.
+
+        Every other case here drives `load_audit` -> `_sha_value`, which uses `fullmatch` and is
+        therefore correct under EITHER anchor. So the anchor is load-bearing only for a
+        `search`/`match` caller, and an anchored `search` is equivalent to `match`, not to
+        `fullmatch`: with `$`, `re.search(pattern, "a"*16 + "\\n")` MATCHES, which is the exact
+        17-character hole `fullmatch` was introduced to close. A comment claimed the pattern was
+        "safe for a `search`-based caller" while that was untrue (third review pass, NOTE 5).
+
+        Pinned at the pattern rather than through an entry point on purpose: the property belongs
+        to the regex, and the guard exists so that swapping `\\Z` back to `$` cannot pass silently.
+        """
+        self.assertIsNone(R._SHA_RE.search("a" * R.SHA_HEX_LEN + "\n"))
+        # The discriminating twin: the anchor must still accept the shape it is meant to accept,
+        # or the assertion above would also pass on a pattern that matches nothing at all.
+        self.assertIsNotNone(R._SHA_RE.search("a" * R.SHA_HEX_LEN))
+
+    # 16 lowercase hex is the only accepted shape. `"g"` is not hex; `"A"` is hex but uppercase,
+    # which is what a case-insensitive check would let through; both are the RIGHT LENGTH, so
+    # neither is caught by a length test alone.
+    BAD = {
+        "one short (15)": "a" * (R.SHA_HEX_LEN - 1),
+        "one long (17)": "a" * (R.SHA_HEX_LEN + 1),
+        "non-hex at the right length": "g" * R.SHA_HEX_LEN,
+        "uppercase hex at the right length": "A" * R.SHA_HEX_LEN,
+        # The subtlest "one long": Python's `$` matches immediately BEFORE a final newline, so a
+        # `match`-based check accepts this 17-character value while reporting the shape as
+        # enforced. Found by adversarial self-review of the guard, and the reason it uses
+        # `fullmatch`.
+        "one long via a trailing newline": "a" * R.SHA_HEX_LEN + "\n",
+    }
+
+    def _load(self, verdict):
+        with _audit_tree(
+            files={"rfc9999": _audit_file("rfc9999", {self.req.rid: verdict})}
+        ):
+            return R.load_audit("rfc9999")
+
+    def test_the_producers_emit_the_shape_the_schema_demands(self):
+        """The two must agree by construction, or the gate rejects its own output."""
+        for produced in (R.requirement_sha("some text"), R.test_sha("func F() {}\n")):
+            self.assertEqual(len(produced), R.SHA_HEX_LEN, produced)
+            self.assertRegex(produced, r"^[0-9a-f]+$", produced)
+
+    def test_last_valid_is_accepted(self):
+        """The discriminating twin: the check must not reject the legal shape. The fixture's own
+        fingerprints come from the producers, so this also pins producer-schema agreement."""
+        loaded = self._load(self.verdict())
+        self.assertIn(self.req.rid, loaded)
+
+    def test_a_malformed_requirement_sha_is_refused(self):
+        for name, bad in self.BAD.items():
+            v = self.verdict()
+            v["requirement_sha"] = bad
+            with self.assertRaises(R.ParseError, msg=name) as cm:
+                self._load(v)
+            self.assertIn("requirement_sha", str(cm.exception), name)
+
+    def test_a_malformed_sha_in_any_fingerprint_map_is_refused(self):
+        for field in R._FINGERPRINT_MAPS:
+            for name, bad in self.BAD.items():
+                v = self.verdict()
+                v[field] = {f"{self.rel}:{self.line}": bad}
+                with self.assertRaises(R.ParseError, msg=f"{field}/{name}") as cm:
+                    self._load(v)
+                self.assertIn(field, str(cm.exception), f"{field}/{name}")
+
+    def test_the_refusal_names_the_value_and_the_expected_shape(self):
+        """`ai/rules/error-messages.md`: the offending value AND the expected one. 'invalid sha'
+        with neither is unactionable, and the reader cannot tell a typo from a real re-audit."""
+        v = self.verdict()
+        v["requirement_sha"] = "a" * (R.SHA_HEX_LEN - 1)
+        with self.assertRaises(R.ParseError) as cm:
+            self._load(v)
+        msg = str(cm.exception)
+        self.assertIn("a" * (R.SHA_HEX_LEN - 1), msg)
+        self.assertIn(str(R.SHA_HEX_LEN), msg)
+        self.assertIn("hex", msg)
+        self.assertIn("15-character", msg)
+
+    def test_a_wrong_type_keeps_its_own_message(self):
+        """A non-string is a TYPE fault, not a shape one, and the two must not collapse: the
+        author of `tests: {k: 42}` needs to be told it is a number."""
+        v = self.verdict()
+        v["tests"] = {f"{self.rel}:{self.line}": 42}
+        with self.assertRaises(R.ParseError) as cm:
+            self._load(v)
+        self.assertIn("int", str(cm.exception))
+
+    def test_every_live_recorded_sha_passes_the_shape(self):
+        """The gate is only sound if the real tree satisfies it. A shape the committed records
+        fail would mean the shape is wrong, not the records (and `load_audits` would abort every
+        consumer of rfc/audit/)."""
+        checked = 0
+        for stem in sorted(R.audit_stems()):
+            for rid, v in R.load_audit(stem).items():
+                self.assertRegex(v["requirement_sha"], R._SHA_RE, f"{stem} {rid}")
+                checked += 1
+                for field in R._FINGERPRINT_MAPS:
+                    for key, sha in (v.get(field) or {}).items():
+                        self.assertRegex(sha, R._SHA_RE, f"{stem} {rid} {field} {key}")
+                        checked += 1
+        self.assertGreater(checked, 300, "the live audit tree must be non-trivial")
+
+
+class TestNotApplicableTestsMapSpelling(_AuditFixture):
+    """The documented way to author OR-1's state produced a permanently red gate.
+
+    OR-1 says a `not-applicable` verdict's `tests` map is absent OR empty, and
+    `ai/skills/ze-rfc-audit.md` tells the author it is for "every verdict except
+    `not-applicable`" -- i.e. omit it. `_verdict_claims` accepts both spellings (it tests the map
+    for falsiness). `verdict_freshness` did not: it compared the raw `verdict.get("tests")`,
+    which is `None` when the key is absent, against a computed `{}`, and `None == {}` is False.
+
+    So the DOCUMENTED authoring path read STALE_UNIT forever, and the message it emitted was
+    false in all three of its clauses -- no tagged test was ever gone (OR-1 forbids citing one),
+    it is not a line shift, and re-running `/ze-rfc-audit` reproduces the identical record.
+    `--reseal` refused it too ("a human must re-read it"), so there was no exit at all short of
+    guessing that `"tests": {}` had to be written literally.
+    """
+
+    def _na(self, spelling, **extra):
+        """A legal not-applicable record, with `tests` written empty or omitted."""
+        ann = R.Annotation(
+            kind="not-applicable", polarity=None, reason="binds future authors"
+        )
+        req = _req(self.req.rid, rfc="rfc9999", annotation=ann)
+        v = self.verdict(value=R.VERDICT_NOT_APPLICABLE, **extra)
+        v["no_code_path"] = "section 8 binds the authors of future specifications"
+        v["units"] = {}
+        if spelling == "empty":
+            v["tests"] = {}
+        else:
+            del v["tests"]
+        return req, v
+
+    def test_absent_and_empty_are_the_same_state(self):
+        """The zero-value trap (ai/rules/fail-closed-guards.md): a present-but-empty value must
+        never diverge from an absent one. One record, two spellings, two different states."""
+        seen = {}
+        for spelling in ("empty", "omitted"):
+            req, v = self._na(spelling)
+            seen[spelling] = R.verdict_freshness(
+                v, R.requirement_sha(req.text), {}, {}, {}
+            )
+        self.assertEqual(seen["omitted"], (R.FRESH, []))
+        self.assertEqual(seen["empty"], seen["omitted"])
+
+    def test_neither_spelling_raises_a_freshness_violation(self):
+        for spelling in ("empty", "omitted"):
+            req, v = self._na(spelling)
+            errs = R.check_audit_freshness(
+                [req], [], {"rfc9999"}, {"rfc9999": {req.rid: v}}
+            )
+            self.assertEqual(errs, [], spelling)
+
+    def test_the_transitional_rule_normalises_it_too(self):
+        """The same absent-versus-empty normalisation on a record with NO `units` key at all.
+
+        `test_absent_and_empty_are_the_same_state` above reaches the transitional branch with
+        `units` recorded EMPTY; this one omits the key entirely, which is how a verdict written
+        before unit fingerprints existed actually looks. These three assertions used to drive
+        `verdict_is_fresh`, the deleted duplicate of this branch, and its docstring claimed the
+        two spellings were pinned together -- they were not, which is why the coverage moved to
+        the branch that runs."""
+        self.assertEqual(
+            R.verdict_freshness({"requirement_sha": "aaa"}, "aaa", {}), (R.FRESH, [])
+        )
+        self.assertEqual(
+            R.verdict_freshness({"requirement_sha": "aaa", "tests": {}}, "aaa", {}),
+            (R.FRESH, []),
+        )
+        state, _moved = R.verdict_freshness(
+            {"requirement_sha": "aaa"}, "aaa", {"a_test.go:1": "b"}
+        )
+        self.assertEqual(state, R.STALE_UNIT)
+
+    def test_a_real_stale_not_applicable_record_still_fails(self):
+        """The discriminating twin. Normalising absent-to-empty must not make the state
+        unfalsifiable: editing the requirement TEXT under it still voids the judgement."""
+        req, v = self._na("omitted")
+        state, _moved = R.verdict_freshness(v, R.requirement_sha("CHANGED"), {}, {}, {})
+        self.assertEqual(state, R.STALE_REQUIREMENT)
+
+    def test_no_code_path_must_be_prose_not_any_json_value(self):
+        """`no_code_path` was the only string field never type-checked: read as
+        `str(verdict.get("no_code_path") or "").strip()`, so `123`, `["a"]`, `{"k": "v"}` and
+        `true` all satisfied OR-1's MANDATORY prose reason. Its siblings `note`,
+        `requirement_sha` and `upgrade_reason` all go through `_str_field`, which is why
+        `upgrade_reason: 123` was correctly refused and this was not."""
+        for bad in (123, ["a", "b"], {"k": "v"}, True, 0.5):
+            req, v = self._na("empty")
+            v["no_code_path"] = bad
+            with _audit_tree(files={"rfc9999": _audit_file("rfc9999", {req.rid: v})}):
+                with self.assertRaises(R.ParseError, msg=repr(bad)) as cm:
+                    R.load_audit("rfc9999")
+            self.assertIn("no_code_path", str(cm.exception))
+
+    def test_a_prose_reason_is_still_loaded(self):
+        """The discriminating twin: the type check must not reject the legal state."""
+        req, v = self._na("empty")
+        with _audit_tree(files={"rfc9999": _audit_file("rfc9999", {req.rid: v})}):
+            loaded = R.load_audit("rfc9999")
+        self.assertIn(req.rid, loaded)
+
+    def test_an_empty_reason_is_still_the_friendly_violation(self):
+        """A whitespace reason must stay a REPORTED violation with OR-1's message, not become a
+        ParseError that aborts the run: `_verdict_claims` owns that case and names what to do."""
+        req, v = self._na("empty")
+        v["no_code_path"] = "   "
+        with _audit_tree(files={"rfc9999": _audit_file("rfc9999", {req.rid: v})}):
+            loaded = R.load_audit("rfc9999")
+        errs = R.check_audit_schema([req], [], {"rfc9999"}, {"rfc9999": loaded})
+        self.assertTrue(errs)
+        self.assertIn("no_code_path", " ".join(errs))
+
+
+class TestUnitIdentityIsAMultiset(_AuditFixture):
+    """`_unit_identity` counts (file, unit-sha) pairs instead of collecting them into a set, and
+    its docstring names exactly what the count guards: two tags inside ONE function collapse to
+    one pair, so a set would call deleting one of them "unchanged" -- a false FRESH, which the
+    spec's Security Review calls the one catastrophic outcome.
+
+    Nothing tested it. Turning the count into `out[(rel, sha)] = 1` passed all 488 tests, and
+    the shape is not hypothetical: 334 of 1351 requirement ids in the tree have a (file,
+    unit-sha) pair counted above one, four of them carrying a verdict today.
+    """
+
+    def _two_tags(self):
+        """Two same-polarity tags inside one function: the doc comment and a body line."""
+        return [
+            _tag(self.req.rid, "positive", file=self.rel, line=self.line),
+            _tag(self.req.rid, "positive", file=self.rel, line=self.line + 2),
+        ]
+
+    def test_two_tags_in_one_unit_count_twice(self):
+        """The mechanism, directly: a set reports one pair where the record holds two."""
+        recorded = R.unit_shas(R.tag_keys(self._two_tags()))
+        self.assertEqual(len(recorded), 2, "the fixture needs two keys...")
+        self.assertEqual(
+            len(set(recorded.values())), 1, "...resolving to the SAME unit"
+        )
+        self.assertEqual(list(R._unit_identity(recorded).values()), [2])
+
+    def test_deleting_one_of_two_tags_in_a_unit_is_stale_not_shifted(self):
+        """The consequence, through the real consumer. Deleting one of two same-polarity tags in
+        one function is a real change to what is proven: STALE_UNIT, which `--reseal` refuses.
+        Under a set it compares equal and degrades to the mechanically re-sealable SHIFTED --
+        which is the false FRESH one `make ze-rfc-reseal` away."""
+        two = self._two_tags()
+        survivor = [two[0]]
+        v = {
+            "verdict": "enforced",
+            "note": "two tagged assertions inside one function",
+            "requirement_sha": R.requirement_sha(self.req.text),
+            "tests": R.tagged_unit_shas(two),
+            "units": R.unit_shas(R.tag_keys(two)),
+        }
+        state, moved = R.verdict_freshness(
+            v,
+            R.requirement_sha(self.req.text),
+            R.tagged_unit_shas(survivor),
+            R.unit_shas(R.tag_keys(survivor)),
+            {},
+        )
+        self.assertEqual(state, R.STALE_UNIT)
+        self.assertIn(f"{self.rel}:{self.line + 2}", moved)
+
+    def test_both_tags_intact_is_still_fresh(self):
+        """The discriminating twin: the count must not manufacture a new false-stale class."""
+        two = self._two_tags()
+        v = {
+            "verdict": "enforced",
+            "note": "two tagged assertions inside one function",
+            "requirement_sha": R.requirement_sha(self.req.text),
+            "tests": R.tagged_unit_shas(two),
+            "units": R.unit_shas(R.tag_keys(two)),
+        }
+        state, _moved = R.verdict_freshness(
+            v,
+            R.requirement_sha(self.req.text),
+            R.tagged_unit_shas(two),
+            R.unit_shas(R.tag_keys(two)),
+            {},
+        )
+        self.assertEqual(state, R.FRESH)
+
+
+class TestAuditUnitFreshness(_AuditFixture):
+    """The false-stale fix. `tagged_unit_shas` hashes the whole enclosing FILE, so a verdict went
+    stale on any edit anywhere in a tagged file and on any line shift: six of a pending sixteen
+    commits to the one existing audit file were mechanical re-stamps in which no verdict changed.
+    """
+
+    def _state(self, verdict=None, reqs=None, tags=None):
+        return R.audit_freshness(
+            reqs if reqs is not None else [self.req],
+            tags if tags is not None else self.tags,
+            {"rfc9999"},
+            self.audits(verdict),
+        ).get(self.req.rid)
+
+    def test_untouched_is_fresh(self):
+        self.assertEqual(self._state()[0], R.FRESH)
+
+    def test_sibling_edit_is_shifted_not_stale(self):
+        """AC-14, the F18 case: editing an UNRELATED test in the same file. This is the class
+        that cost a human a mechanical proof and a 200-word note, six times."""
+        v = self.verdict()
+        path = os.path.join(R.PROJECT_DIR, self.rel)
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(
+                src.replace("require.Equal(t, 2, two())", "require.NotNil(t, two())")
+            )
+        self.assertEqual(self._state(v)[0], R.SHIFTED)
+
+    def test_line_shift_is_shifted_not_stale(self):
+        """A nine-line header prepended to a tagged file shifted every key by +9 and staled every
+        verdict in it, having changed nothing about any assertion."""
+        v = self.verdict()
+        path = os.path.join(R.PROJECT_DIR, self.rel)
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("// header\n" + src)
+        tags = [t._replace(line=t.line + 1) for t in self.tags]
+        state, moved = R.audit_freshness([self.req], tags, {"rfc9999"}, self.audits(v))[
+            self.req.rid
+        ]
+        self.assertEqual(state, R.SHIFTED)
+        self.assertTrue(moved, "the message must be able to name what moved")
+
+    def test_edit_inside_unit_is_stale(self):
+        """AC-15: the discriminating twin. A change to what the tagged test ASSERTS is a real
+        judgement change and must never be reported as the mechanical case."""
+        v = self.verdict()
+        path = os.path.join(R.PROJECT_DIR, self.rel)
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(
+                src.replace(
+                    "require.Equal(t, 1, one())", "require.NotEqual(t, 1, one())"
+                )
+            )
+        self.assertEqual(self._state(v)[0], R.STALE_UNIT)
+
+    def test_requirement_edit_is_distinguished(self):
+        """AC-15: re-reading the RFC voids every judgement under it, and that is a different
+        remedy from a test edit, so it is a different state and a different message."""
+        v = self.verdict()
+        v["requirement_sha"] = R.requirement_sha("something else entirely")
+        self.assertEqual(self._state(v)[0], R.STALE_REQUIREMENT)
+
+    def test_requirement_edit_wins_over_a_shift(self):
+        """Order is the bias: a real judgement change must never be reported as re-sealable."""
+        v = self.verdict()
+        v["requirement_sha"] = R.requirement_sha("other")
+        v["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        self.assertEqual(self._state(v)[0], R.STALE_REQUIREMENT)
+
+    def test_missing_units_falls_back_to_file_rule(self):
+        """AC-20: a verdict recorded before unit fingerprints existed keeps EXACTLY today's
+        behaviour, so the migration is a backfill and not a re-judgement."""
+        v = self.verdict()
+        del v["units"]
+        self.assertEqual(self._state(v)[0], R.FRESH)
+        v2 = self.verdict()
+        del v2["units"]
+        v2["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        self.assertEqual(self._state(v2)[0], R.STALE_UNIT)
+
+    def test_a_deleted_tagged_test_is_stale(self):
+        """A verdict whose test is gone must never read as unchanged."""
+        v = self.verdict()
+        state, _ = R.audit_freshness([self.req], [], {"rfc9999"}, self.audits(v))[
+            self.req.rid
+        ]
+        self.assertEqual(state, R.STALE_UNIT)
+
+    def test_unresolvable_span_falls_back_to_file(self):
+        """R-2: a tag outside every function span resolves to the WHOLE FILE, which is more
+        checking, never less. A narrower guess there would be a false FRESH."""
+        path = os.path.join(self.tmp, "hoist_test.go")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(
+                "package x\n\n// RFC requirement: RFC9999-2-1 positive -- x.\nvar y = 1\n"
+            )
+        rel = os.path.relpath(path, R.PROJECT_DIR).replace(os.sep, "/")
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        text, kind = R.rfc_tagged_scope.unit_at(rel, src, 3)
+        self.assertEqual(kind, R.rfc_tagged_scope.SCOPE_FILE)
+        self.assertIn("package x", text)
+
+    def test_empty_extraction_is_an_error_not_a_hash(self):
+        """R-2, the zero-value trap. Hashing "" would give every unreadable file the same
+        fingerprint, so a deleted test would read as unchanged -- a false FRESH, the one
+        catastrophic outcome (ai/rules/fail-closed-guards.md)."""
+        path = os.path.join(self.tmp, "empty_test.go")
+        open(path, "w").close()
+        rel = os.path.relpath(path, R.PROJECT_DIR).replace(os.sep, "/")
+        with self.assertRaises(R.ParseError) as cm:
+            R.unit_shas([f"{rel}:1"])
+        self.assertIn("fingerprint", str(cm.exception))
+
+    def test_unit_fingerprint_differs_from_the_file_fingerprint(self):
+        """The whole premise: if the unit sha equalled the file sha, nothing would have changed
+        and the SHIFTED state could never exist."""
+        key = f"{self.rel}:{self.line}"
+        self.assertNotEqual(
+            R.unit_shas([key])[key],
+            R.tagged_unit_shas(self.tags)[key],
+            "a unit sha equal to the file sha means the span was not resolved",
+        )
+
+    def test_shifted_message_names_reseal_and_not_index(self):
+        """AC-14 is explicit about the WORDS: the remedy is `make ze-rfc-reseal`, and it must not
+        name `make ze-rfc-index`, which does not clear this state (A-7)."""
+        v = self.verdict()
+        v["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        errs = R.check_audit_freshness(
+            [self.req], self.tags, {"rfc9999"}, self.audits(v)
+        )
+        self.assertTrue(errs)
+        self.assertIn("make ze-rfc-reseal", errs[0])
+        self.assertIn("SHIFTED", errs[0])
+        self.assertNotIn("ze-rfc-index", errs[0])
+
+    def test_stale_message_does_not_offer_the_mechanical_remedy(self):
+        """The inverse, and the one that matters: a real judgement change must not be handed a
+        one-command fix."""
+        v = self.verdict()
+        v["units"] = {f"{self.rel}:{self.line}": "0" * 16}
+        errs = R.check_audit_freshness(
+            [self.req], self.tags, {"rfc9999"}, self.audits(v)
+        )
+        self.assertTrue(errs)
+        self.assertIn("/ze-rfc-audit", errs[0])
+        self.assertIn("refuse", errs[0])
+
+
+class TestAuditCodeFingerprint(_AuditFixture):
+    """AC-8: the empty-`tests` class is no longer permanently fresh.
+
+    Three of the 52 verdicts in the one existing audit file carried an empty `tests` map, so
+    their freshness test was `{} == {}` and they could never go stale -- claims about CODE
+    fingerprinted against TESTS that do not exist.
+    """
+
+    def _gap(self):
+        ann = R.Annotation(kind="gap", polarity=None, reason="deliberate")
+        return _req("RFC9999-2-1", rfc="rfc9999", annotation=ann)
+
+    def _unimpl(self, code_line=3):
+        v = self.verdict(value="unimplemented")
+        v["tests"], v["units"] = {}, {}
+        v["code"] = R.unit_shas([f"{self.rel}:{code_line}"])
+        return v
+
+    def test_editing_cited_producer_stales_verdict(self):
+        req, v = self._gap(), self._unimpl()
+        path = os.path.join(R.PROJECT_DIR, self.rel)
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(
+                src.replace("require.Equal(t, 2, two())", "require.Equal(t, 3, two())")
+            )
+        state, moved = R.audit_freshness(
+            [req], [], {"rfc9999"}, {"rfc9999": {req.rid: v}}
+        )[req.rid]
+        self.assertEqual(state, R.STALE_UNIT)
+        self.assertTrue(moved)
+
+    def test_an_untouched_producer_stays_fresh(self):
+        """The discriminating twin: the code map is not "always stale"."""
+        req, v = self._gap(), self._unimpl()
+        self.assertEqual(
+            R.audit_freshness([req], [], {"rfc9999"}, {"rfc9999": {req.rid: v}})[
+                req.rid
+            ][0],
+            R.FRESH,
+        )
+
+    def test_symbol_span_preferred_over_whole_file(self):
+        """R-5: producer files churn far more than test files, so a file-level hash here would
+        just manufacture a new false-stale class. Editing a DIFFERENT function in the same
+        producer file must not stale the verdict."""
+        req, v = self._gap(), self._unimpl()
+        path = os.path.join(R.PROJECT_DIR, self.rel)
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(
+                src.replace("require.Equal(t, 1, one())", "require.Equal(t, 9, one())")
+            )
+        self.assertEqual(
+            R.audit_freshness([req], [], {"rfc9999"}, {"rfc9999": {req.rid: v}})[
+                req.rid
+            ][0],
+            R.FRESH,
+        )
+
+    def test_a_deleted_producer_fails_closed(self):
+        """A cited producer that is gone is not "unchanged": it degrades toward MORE checking.
+
+        Deliberately a STATE and not an exception. Raising would take the LEDGER RENDER down
+        with it -- a report is not a gate -- while STALE_UNIT sends the verdict for a re-read AND
+        reds `make ze-rfc-check`, which is the outcome that matters."""
+        req, v = self._gap(), self._unimpl()
+        os.remove(os.path.join(R.PROJECT_DIR, self.rel))
+        state, moved = R.audit_freshness(
+            [req], [], {"rfc9999"}, {"rfc9999": {req.rid: v}}
+        )[req.rid]
+        self.assertEqual(state, R.STALE_UNIT)
+        self.assertTrue(moved, "the message must name what could not be resolved")
+        self.assertTrue(
+            R.check_audit_freshness([req], [], {"rfc9999"}, {"rfc9999": {req.rid: v}})
+        )
+
+
+class TestAuditDisclosure(_AuditFixture):
+    """AC-9: `check_status_agreement` already refuses to let a {gap} ANNOTATION hide behind a
+    clean 'Supported' row. A verdict saying the same thing must not be weaker than an annotation
+    saying it."""
+
+    def _errs(self, status, value="wrong"):
+        rows = R.parse_status_ledger(status)
+        return R.check_audit_disclosure(
+            [self.req], rows, {"rfc9999"}, self.audits(value=value)
+        )
+
+    def test_wrong_under_clean_supported_fails(self):
+        errs = self._errs(_STATUS_CLEAN)
+        self.assertTrue(errs)
+        joined = " ".join(errs)
+        self.assertIn(self.req.rid, joined)
+        self.assertIn("Supported", joined)
+
+    def test_wrong_with_disclosed_row_passes(self):
+        self.assertEqual(self._errs(_STATUS_DISCLOSED), [])
+
+    def test_unimplemented_under_clean_supported_fails(self):
+        self.assertTrue(self._errs(_STATUS_CLEAN, value="unimplemented"))
+
+    def test_missing_row_fails(self):
+        self.assertTrue(self._errs(_STATUS_HEAD))
+
+    def test_weak_is_not_gated_on_disclosure(self):
+        """AC-10's incentive shape, made executable. `weak` says the TEST cannot fail on
+        non-compliance, not that the code is wrong, so demanding a public gap note for it would
+        publish a claim the audit does not support -- and would make honesty the expensive
+        path, which is the inversion this whole spec removes."""
+        self.assertEqual(self._errs(_STATUS_CLEAN, value="weak"), [])
+
+    def test_one_definition_of_disclosure(self):
+        """The annotation check and the verdict check must not drift: both read
+        row_discloses_a_gap, so a row that discloses for one discloses for the other."""
+        clean = R.parse_status_ledger(_STATUS_CLEAN)["rfc9999"]
+        disclosed = R.parse_status_ledger(_STATUS_DISCLOSED)["rfc9999"]
+        self.assertFalse(R.row_discloses_a_gap(clean))
+        self.assertTrue(R.row_discloses_a_gap(disclosed))
+
+
+class TestAuditNote(_AuditFixture):
+    """AC-17. No gate can prove a human read the RFC; this is the cheapest honest proxy -- an
+    account of a test one has actually read almost always names something in it."""
+
+    def _errs(self, note):
+        return R.check_audit_note(
+            [self.req], self.tags, {"rfc9999"}, self.audits(note=note)
+        )
+
+    def test_note_must_cite_a_symbol_in_a_tagged_unit(self):
+        errs = self._errs("looks fine to me, seems correct enough overall")
+        self.assertTrue(errs)
+        joined = " ".join(errs)
+        self.assertIn(self.rel, joined, "the message must name the files searched")
+        self.assertIn("tokens checked", joined)
+
+    def test_one_matching_token_is_enough(self):
+        """R-3: a prose note must not be punished for being prose."""
+        self.assertEqual(
+            self._errs(
+                "the negative case would pass on any error, but require.Equal pins the exact "
+                "value, so a stub implementation cannot satisfy it"
+            ),
+            [],
+        )
+
+    def test_a_symbol_only_in_a_sibling_function_does_not_count(self):
+        """The unit, not the file: naming something from an unrelated test in the same file is
+        exactly the citation that proves nothing was read."""
+        self.assertTrue(self._errs("helperUntagged covers this"))
+
+    def test_short_words_do_not_satisfy_it(self):
+        """`the` occurs in every file. A token has to be long enough to be a symbol."""
+        self.assertTrue(self._errs("it is the one"))
+
+    def test_only_enforced_notes_are_checked(self):
+        """A `weak` or `unimplemented` note describes something that is NOT in the test, so
+        demanding a symbol from the test would punish the honest verdict."""
+        for value in ("weak", "wrong"):
+            errs = R.check_audit_note(
+                [self.req],
+                self.tags,
+                {"rfc9999"},
+                self.audits(value=value, note="nothing here matches"),
+            )
+            self.assertEqual(errs, [], value)
+
+
+class TestAuditFindings(_AuditFixture):
+    """A finding that can be deleted is a finding that will be. This is
+    check_coverage_ratchet's shape applied to judgement rather than to tags."""
+
+    def _errs(self, now_value, was_value="weak", baseline=None, **extra):
+        was = self.verdict(value=was_value)
+        base = {"rfc9999": {self.req.rid: was}} if baseline is None else baseline
+        audits = (
+            {"rfc9999": {}}
+            if now_value is None
+            else self.audits(value=now_value, **extra)
+        )
+        return R.check_audit_findings([self.req], {"rfc9999"}, audits, base)
+
+    def test_weak_verdict_does_not_fail_the_gate(self):
+        """AC-10, the incentive decision made executable: recording a finding is FREE. Failing
+        immediately is safe only because zero such verdicts exist today, and that is exactly the
+        problem -- the first person it would bite is the honest auditor."""
+        self.assertEqual(self._errs("weak"), [])
+
+    def test_deleted_finding_fails(self):
+        """AC-11: once the verdict value has consequences, deleting it becomes the cheapest
+        route from red to green."""
+        errs = self._errs(None)
+        self.assertTrue(errs)
+        self.assertIn("DELETED", " ".join(errs))
+
+    def test_upgrade_without_unit_change_fails(self):
+        """AC-12: a finding cannot become proof with nothing changed."""
+        errs = self._errs("enforced")
+        self.assertTrue(errs)
+        self.assertIn("byte-identical", " ".join(errs))
+
+    def test_upgrade_with_changed_unit_passes(self):
+        """AC-12's negative half: fixing the test moves its unit fingerprint, which IS the
+        evidence that something changed."""
+        was = self.verdict(value="weak")
+        was["units"] = {f"{self.rel}:{self.line}": "0" * 16}
+        errs = R.check_audit_findings(
+            [self.req], {"rfc9999"}, self.audits(), {"rfc9999": {self.req.rid: was}}
+        )
+        self.assertEqual(errs, [])
+
+    def test_upgrade_with_recorded_reason_passes(self):
+        """AC-12's auditable escape: the unit hash cannot follow a call or see a re-read of the
+        RFC, so there has to be a way through -- one that is written down rather than silent."""
+        self.assertEqual(
+            self._errs(
+                "enforced", upgrade_reason="re-read S5.1; the earlier read was wrong"
+            ),
+            [],
+        )
+
+    def test_a_blank_reason_is_not_an_escape(self):
+        self.assertTrue(self._errs("enforced", upgrade_reason="   "))
+
+    def test_downgrade_to_a_finding_is_free(self):
+        """Reporting is never the expensive path: `enforced` -> `weak` passes."""
+        was = self.verdict(value="enforced")
+        errs = R.check_audit_findings(
+            [self.req],
+            {"rfc9999"},
+            self.audits(value="weak"),
+            {"rfc9999": {self.req.rid: was}},
+        )
+        self.assertEqual(errs, [])
+
+    def test_degraded_git_baseline_accuses_nobody(self):
+        """R-7: "I could not look" must never render as "nothing was there". A wall of
+        violations on a fresh clone is the fastest way to teach people to bypass a gate."""
+        with _patched(_git_baseline_audits=lambda: None):
+            self.assertEqual(
+                R.check_audit_findings([self.req], {"rfc9999"}, {"rfc9999": {}}), []
+            )
+
+
+class TestAuditVerdictRatchet(_AuditFixture):
+    """AC-13/AC-19. The ratchet is on the SET of audited ids, never on the ratio: a ratio
+    ratchet would fail the build for adding a tagged test, which punishes coverage work."""
+
+    def test_removed_verdict_fails(self):
+        errs = R.check_audit_verdict_ratchet(
+            [self.req],
+            {"rfc9999"},
+            {"rfc9999": {}},
+            {"rfc9999": {self.req.rid: self.verdict()}},
+            {"rfc9999"},
+        )
+        self.assertTrue(errs)
+        self.assertIn("monotonic", " ".join(errs))
+
+    def test_a_kept_verdict_passes(self):
+        self.assertEqual(
+            R.check_audit_verdict_ratchet(
+                [self.req],
+                {"rfc9999"},
+                self.audits(),
+                {"rfc9999": {self.req.rid: self.verdict()}},
+                {"rfc9999"},
+            ),
+            [],
+        )
+
+    def test_a_stale_verdict_may_not_be_deleted_either(self):
+        """Deliberately stricter than the literal "fresh at HEAD": a stale verdict must be
+        RE-JUDGED, not removed. Staleness is the state in which deletion is most tempting and
+        least honest, so exempting it would aim the ratchet away from its own case."""
+        was = self.verdict()
+        was["units"] = {f"{self.rel}:{self.line}": "0" * 16}
+        self.assertTrue(
+            R.check_audit_verdict_ratchet(
+                [self.req],
+                {"rfc9999"},
+                {"rfc9999": {}},
+                {"rfc9999": {self.req.rid: was}},
+                {"rfc9999"},
+            )
+        )
+
+    def test_percentage_drop_from_new_tag_passes(self):
+        """AC-19/R-6, the ratchet-on-a-ratio trap stated as a test. Adding a second audited-able
+        requirement halves the percentage and removes no verdict, so it must be green."""
+        second = _req("RFC9999-2-2", rfc="rfc9999")
+        errs = R.check_audit_verdict_ratchet(
+            [self.req, second],
+            {"rfc9999"},
+            self.audits(),
+            {"rfc9999": {self.req.rid: self.verdict()}},
+            {"rfc9999"},
+        )
+        self.assertEqual(errs, [])
+
+    def test_degraded_git_baseline_accuses_nobody(self):
+        with _patched(_git_baseline_audits=lambda: None):
+            self.assertEqual(
+                R.check_audit_verdict_ratchet([self.req], {"rfc9999"}, {"rfc9999": {}}),
+                [],
+            )
+
+    def test_an_rfc_enrolled_in_this_change_is_not_accused(self):
+        """Scoped like its two siblings: an RFC enrolled in THIS change is judged by the
+        ordinary rules rather than accused of losing evidence it never had."""
+        self.assertEqual(
+            R.check_audit_verdict_ratchet(
+                [self.req],
+                {"rfc9999"},
+                {"rfc9999": {}},
+                {"rfc9999": {self.req.rid: self.verdict()}},
+                set(),
+            ),
+            [],
+        )
+
+
+class TestReseal(_AuditFixture):
+    """AC-16. Every no-judgement re-stamp is a training example teaching that re-stamping is
+    what one does when the gate goes red. Removing the human from that class is worth more than
+    any message improvement, because at fleet scale the reflex is what fails."""
+
+    def _drive(self, verdict, prove=None):
+        stem = "rfc9999"
+        with _audit_tree(files={stem: _audit_file(stem, {self.req.rid: verdict})}):
+            with _patched(
+                load_enrolled=lambda: {stem},
+                summary_stems=lambda: {stem},
+                parse_summary_file=lambda path: [self.req],
+                scan_tree=lambda *a, **k: self.tags,
+            ):
+                resealed, refused = R.reseal_audits(prove=prove)
+                with open(
+                    os.path.join(R.AUDIT_DIR, stem + ".json"), encoding="utf-8"
+                ) as fh:
+                    after = json.load(fh)
+        return resealed, refused, after
+
+    def _shift(self):
+        """A verdict in the SHIFTED state: unit identical, file fingerprint moved."""
+        v = self.verdict()
+        v["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        return v
+
+    def test_only_shifted_are_restamped(self):
+        resealed, refused, after = self._drive(self._shift())
+        self.assertEqual(len(resealed), 1, refused)
+        self.assertEqual(
+            after["requirements"][self.req.rid]["tests"],
+            R.tagged_unit_shas(self.tags),
+        )
+
+    def test_a_stale_unit_is_refused(self):
+        v = self.verdict()
+        v["units"] = {f"{self.rel}:{self.line}": "0" * 16}
+        resealed, refused, after = self._drive(v)
+        self.assertEqual(resealed, [])
+        self.assertTrue(refused)
+        self.assertEqual(after["requirements"][self.req.rid], v)
+
+    def test_a_stale_requirement_is_refused(self):
+        v = self._shift()
+        v["requirement_sha"] = R.requirement_sha("other")
+        resealed, refused, _ = self._drive(v)
+        self.assertEqual(resealed, [])
+        self.assertTrue(refused)
+
+    def test_a_fresh_verdict_is_left_alone(self):
+        resealed, refused, after = self._drive(self.verdict())
+        self.assertEqual(resealed, [])
+        self.assertEqual(refused, [])
+        self.assertNotIn(
+            "reaudit_note", after, "an untouched file must not be rewritten"
+        )
+
+    def test_reseal_never_mutates_judgement_fields(self):
+        """AC-16: every key except `tests` is byte-identical afterward. The re-seal is a
+        fingerprint refresh; a re-seal that could touch a verdict would be an audit."""
+        before = self._shift()
+        before["note"] = "require.Equal pins one(); unchanged by any re-stamp"
+        _, _, after = self._drive(dict(before))
+        got = after["requirements"][self.req.rid]
+        for key in ("verdict", "note", "units", "requirement_sha"):
+            self.assertEqual(got[key], before[key], key)
+
+    def test_reseal_preserves_previous_note_into_history(self):
+        """AC-16: an earlier re-stamp's reasoning is evidence about the same verdicts.
+        Overwriting it would delete the record of why they were trusted then."""
+        stem = "rfc9999"
+        body = _audit_file(stem, {self.req.rid: self._shift()})
+        body["reaudit_note"] = "the 2026-07-22 module rename"
+        with _audit_tree(files={stem: body}):
+            with _patched(
+                load_enrolled=lambda: {stem},
+                summary_stems=lambda: {stem},
+                parse_summary_file=lambda path: [self.req],
+                scan_tree=lambda *a, **k: self.tags,
+            ):
+                R.reseal_audits()
+                with open(
+                    os.path.join(R.AUDIT_DIR, stem + ".json"), encoding="utf-8"
+                ) as fh:
+                    after = json.load(fh)
+        self.assertIn("the 2026-07-22 module rename", after["reaudit_history"])
+        self.assertIn("ze-rfc-reseal", after["reaudit_note"])
+
+    def test_a_transitional_verdict_needs_the_callers_proof(self):
+        """A verdict with no recorded `units` cannot be SHOWN to have an unchanged unit, so it is
+        re-sealable only when the caller supplies an independent proof. That is exactly the
+        capability rename_module_path.py had before the loop became shared -- kept, not lost."""
+        v = self.verdict()
+        del v["units"]
+        v["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        resealed, refused, _ = self._drive(dict(v))
+        self.assertEqual(resealed, [], "without a proof it must be refused")
+        self.assertTrue(refused)
+        resealed, refused, _ = self._drive(dict(v), prove=lambda rel: True)
+        self.assertEqual(len(resealed), 1, refused)
+
+    def test_the_callers_proof_can_only_refuse_more(self):
+        """A `prove` that says no must veto even a SHIFTED verdict: two independent proofs, and
+        the caller's can only ever make the re-seal stricter."""
+        resealed, refused, _ = self._drive(self._shift(), prove=lambda rel: False)
+        self.assertEqual(resealed, [])
+        self.assertTrue(refused)
+
+    def test_a_written_file_still_validates(self):
+        """The writer round-trips through the REAL parser before the file lands: a derivation
+        defect that wrote an unreadable record would make every later --check exit "cannot run",
+        hiding every other violation in the repository."""
+        stem = "rfc9999"
+        with _audit_tree(
+            files={stem: _audit_file(stem, {self.req.rid: self._shift()})}
+        ):
+            with _patched(
+                load_enrolled=lambda: {stem},
+                summary_stems=lambda: {stem},
+                parse_summary_file=lambda path: [self.req],
+                scan_tree=lambda *a, **k: self.tags,
+            ):
+                R.reseal_audits()
+                self.assertIn(self.req.rid, R.load_audit(stem))
+
+    def test_no_staging_directory_is_left_behind(self):
+        stem = "rfc9999"
+        with _audit_tree(
+            files={stem: _audit_file(stem, {self.req.rid: self._shift()})}
+        ) as adir:
+            with _patched(
+                load_enrolled=lambda: {stem},
+                summary_stems=lambda: {stem},
+                parse_summary_file=lambda path: [self.req],
+                scan_tree=lambda *a, **k: self.tags,
+            ):
+                R.reseal_audits()
+            self.assertEqual(
+                [n for n in os.listdir(adir) if n.startswith(R._STAGING_PREFIX)], []
+            )
+
+
+class _AuditDrive(_AuditFixture):
+    """Shared run_check driver: everything unrelated to the audit is patched out, so a failure
+    here is the audit machinery and nothing else. A check that stops being CALLED must fail a
+    test rather than passing silently (ai/rules/fail-closed-guards.md: drive the guard from its
+    entry point, not only the helper)."""
+
+    def _drive(
+        self, verdicts, status=None, baseline_audits=None, reqs=None, tags=None, **kw
+    ):
+        stem = "rfc9999"
+        reqs = [self.req] if reqs is None else reqs
+        tags = self.tags if tags is None else tags
+        overrides = dict(
+            load_enrolled=lambda: {stem},
+            summary_stems=lambda: {stem},
+            parse_summary_file=lambda path: reqs,
+            _git_baseline_enrolment=lambda: {stem},
+            _git_baseline_ids=lambda: {r.rid for r in reqs},
+            _git_baseline_tag_polarities=lambda: {},
+            _git_baseline_evidence=lambda: {},
+            _git_baseline_summary_stems=lambda: {stem},
+            _git_baseline_audits=lambda: baseline_audits or {},
+            scan_tree=lambda *a, **k: tags,
+            signed_extractions=lambda reqs_: {},
+            check_extraction_signoff=lambda *a, **k: [],
+            check_extraction_ratchet=lambda *a, **k: [],
+            check_drain_floor=lambda *a, **k: [],
+            check_ledger_fresh=lambda *a, **k: [],
+            # check_enrolment refuses an enrolled stem with no source text under rfc/full/, which
+            # is child 1's rule and nothing to do with the audit record.
+            source_text=lambda s: "1.  Intro\n\nA speaker MUST do the thing.\n",
+            source_path=lambda s: f"rfc/full/{s}.txt",
+        )
+        overrides.update(kw)
+        with _audit_tree(files={stem: _audit_file(stem, verdicts)}, status=status):
+            with _patched(**overrides):
+                return _run_capturing(R.run_check)
+
+
+class TestAuditSchemaWiring(_AuditDrive):
+    def test_run_check_fails_on_an_illegal_verdict_value(self):
+        v = self.verdict()
+        v["verdict"] = "implemented"
+        code, out = self._drive({self.req.rid: v})
+        self.assertEqual(code, 2, out)
+        self.assertIn("implemented", out)
+
+    def test_run_check_fails_on_a_dangling_rid(self):
+        code, out = self._drive({"RFC9999-9-9": self.verdict()})
+        self.assertEqual(code, 2, out)
+        self.assertIn("RFC9999-9-9", out)
+
+    def test_run_check_fails_on_enforced_with_no_tests(self):
+        v = self.verdict()
+        v["tests"], v["units"] = {}, {}
+        code, out = self._drive({self.req.rid: v})
+        self.assertEqual(code, 2, out)
+        self.assertIn("empty 'tests'", out)
+
+    def test_run_check_clean_on_a_well_formed_verdict(self):
+        """The discriminating twin for every wiring test above."""
+        code, out = self._drive({self.req.rid: self.verdict()})
+        self.assertEqual(code, 0, out)
+
+    def test_run_check_reports_the_audit_bound_on_a_clean_run(self):
+        """The semantic half's coverage is stated out loud, including when it is small: a gate
+        that reports OK while its judgement half covers one RFC in 166 tells a reader something
+        it has not measured."""
+        code, out = self._drive({self.req.rid: self.verdict()})
+        self.assertEqual(code, 0, out)
+        self.assertIn("audit", out)
+        self.assertIn("proven", out)
+        self.assertIn("sampled", out)
+
+    def test_a_malformed_audit_file_exits_two_cleanly(self):
+        """A traceback would hide every other violation in the repository."""
+        stem = "rfc9999"
+        with _audit_tree(files={stem: "{not json"}):
+            with _patched(
+                load_enrolled=lambda: {stem},
+                summary_stems=lambda: {stem},
+                parse_summary_file=lambda path: [self.req],
+                scan_tree=lambda *a, **k: self.tags,
+            ):
+                code, out = _run_capturing(R.run_check)
+        self.assertEqual(code, 2, out)
+        self.assertIn("cannot run", out)
+
+
+class TestAuditUnitFreshnessWiring(_AuditDrive):
+    def test_run_check_reports_shifted_through_the_entry_point(self):
+        v = self.verdict()
+        v["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        code, out = self._drive({self.req.rid: v})
+        self.assertEqual(code, 2, out)
+        self.assertIn("SHIFTED", out)
+        self.assertIn("make ze-rfc-reseal", out)
+
+
+class TestAuditDisclosureWiring(_AuditDrive):
+    def test_run_check_fails_on_an_undisclosed_finding(self):
+        code, out = self._drive(
+            {self.req.rid: self.verdict(value="wrong")}, status=_STATUS_CLEAN
+        )
+        self.assertEqual(code, 2, out)
+        self.assertIn("clean support", out)
+
+    def test_run_check_passes_when_the_row_discloses(self):
+        code, out = self._drive(
+            {self.req.rid: self.verdict(value="wrong")}, status=_STATUS_DISCLOSED
+        )
+        self.assertEqual(code, 0, out)
+
+
+class TestAuditNoteWiring(_AuditDrive):
+    def test_run_check_fails_on_a_note_citing_nothing(self):
+        code, out = self._drive(
+            {self.req.rid: self.verdict(note="looks fine, seems correct enough")}
+        )
+        self.assertEqual(code, 2, out)
+        self.assertIn("tokens checked", out)
+
+
+class TestAuditRatchetWiring(_AuditDrive):
+    def test_run_check_fails_when_a_verdict_is_deleted(self):
+        code, out = self._drive(
+            {}, baseline_audits={"rfc9999": {self.req.rid: self.verdict()}}
+        )
+        self.assertEqual(code, 2, out)
+        self.assertIn("monotonic", out)
+
+    def test_run_check_fails_when_a_finding_is_deleted(self):
+        code, out = self._drive(
+            {}, baseline_audits={"rfc9999": {self.req.rid: self.verdict(value="weak")}}
+        )
+        self.assertEqual(code, 2, out)
+        self.assertIn("DELETED", out)
+
+    def test_run_check_passes_on_a_freshly_recorded_weak_verdict(self):
+        """AC-10 at the entry point: recording a finding is green, end to end."""
+        code, out = self._drive({self.req.rid: self.verdict(value="weak")})
+        self.assertEqual(code, 0, out)
+
+
+class TestAuditUpgradeGuardWiring(_AuditDrive):
+    def test_run_check_fails_on_a_silent_upgrade(self):
+        code, out = self._drive(
+            {self.req.rid: self.verdict()},
+            baseline_audits={"rfc9999": {self.req.rid: self.verdict(value="weak")}},
+        )
+        self.assertEqual(code, 2, out)
+        self.assertIn("upgrade_reason", out)
+
+    def test_run_check_passes_with_a_recorded_reason(self):
+        code, out = self._drive(
+            {
+                self.req.rid: self.verdict(
+                    upgrade_reason="re-read S2; the earlier judgement was wrong"
+                )
+            },
+            baseline_audits={"rfc9999": {self.req.rid: self.verdict(value="weak")}},
+        )
+        self.assertEqual(code, 0, out)
+
+
+class TestAuditFilesWiring(_AuditDrive):
+    def test_run_check_fails_on_an_audit_file_for_an_unenrolled_stem(self):
+        stem = "rfc9999"
+        with _audit_tree(
+            files={
+                stem: _audit_file(stem, {self.req.rid: self.verdict()}),
+                "rfc4242": _audit_file("rfc4242", {}),
+            }
+        ):
+            with _patched(
+                load_enrolled=lambda: {stem},
+                summary_stems=lambda: {stem},
+                parse_summary_file=lambda path: [self.req],
+                _git_baseline_enrolment=lambda: {stem},
+                _git_baseline_ids=lambda: {self.req.rid},
+                _git_baseline_tag_polarities=lambda: {},
+                _git_baseline_evidence=lambda: {},
+                _git_baseline_summary_stems=lambda: {stem},
+                _git_baseline_audits=lambda: {},
+                scan_tree=lambda *a, **k: self.tags,
+                signed_extractions=lambda reqs_: {},
+                check_extraction_signoff=lambda *a, **k: [],
+                check_extraction_ratchet=lambda *a, **k: [],
+                check_drain_floor=lambda *a, **k: [],
+                check_ledger_fresh=lambda *a, **k: [],
+            ):
+                code, out = _run_capturing(R.run_check)
+        self.assertEqual(code, 2, out)
+        self.assertIn("rfc4242", out)
+
+
+class TestAuditLedger(_AuditFixture):
+    """AC-18/AC-24. The verdict field being inert inverted the skill's own incentive: the skill
+    says `weak` and `wrong` are the valuable outputs, and the gate treated them as identical to
+    `enforced`, so recording a finding cost the auditor effort and bought the project nothing.
+    The first thing a finding needs is to be VISIBLE."""
+
+    def _render(self, value="enforced", **extra):
+        with _audit_tree(
+            files={
+                "rfc9999": _audit_file(
+                    "rfc9999", {self.req.rid: self.verdict(value=value, **extra)}
+                )
+            }
+        ):
+            return R.render_ledger([self.req], self.tags, {"rfc9999"})
+
+    def test_coverage_section_is_derived(self):
+        body = self._render()
+        self.assertIn("## Audit coverage", body)
+        self.assertIn("| `rfc9999` | 1 | 1 | 1 | 0 | 0 |", body)
+
+    def test_weak_verdict_removes_proven_status(self):
+        """AC-24: the requirement has BOTH polarities and is NOT proven, and the ledger says both
+        without contradicting itself. The discriminating twin is
+        TestAuditRatchetWiring.test_run_check_passes_on_a_freshly_recorded_weak_verdict, which
+        proves the same fixture exits 0 (AC-10)."""
+        body = self._render(value="weak")
+        self.assertIn("| `rfc9999` | 1 | 1 | 0 | 1 | 0 |", body)
+        self.assertIn("**audit: weak**", body)
+
+    def test_findings_worklist_names_each_rid(self):
+        """AC-18: a blur is not a worklist."""
+        body = self._render(value="weak")
+        self.assertIn("### Audited but not proven", body)
+        self.assertIn(f"| `{self.req.rid}` | `weak` |", body)
+        self.assertIn("cannot fail on non-compliance", body)
+
+    def test_the_polarity_rollup_is_untouched(self):
+        """C-5. Child 2's doctrine: **Both** and **One polarity** are the POLARITY view, never a
+        total to adjust. Subtracting an audit verdict from Both would also break the partition
+        scripts/dev/testing_health.py asserts (`gated - both` must equal the annotation split, or
+        it raises rather than publishing a non-partition as one)."""
+        weak = self._render(value="weak")
+        enforced = self._render()
+        for body in (weak, enforced):
+            self.assertIn(
+                "| `rfc9999` | 1 | 1 | 0 | 0 | 0 | 0 | 0 | **enrolled** |", body
+            )
+
+    def test_a_stale_verdict_is_not_published_as_proven(self):
+        """A stale verdict describes a test that has since changed, so publishing it as proof is
+        the stale assurance the whole machinery exists to stop."""
+        v = self.verdict()
+        v["units"] = {f"{self.rel}:{self.line}": "0" * 16}
+        with _audit_tree(files={"rfc9999": _audit_file("rfc9999", {self.req.rid: v})}):
+            body = R.render_ledger([self.req], self.tags, {"rfc9999"})
+        self.assertIn("| `rfc9999` | 1 | 1 | 0 | 1 | 0 |", body)
+        self.assertIn("stale-unit", body)
+
+    def test_an_unaudited_requirement_is_counted_as_such(self):
+        with _audit_tree():
+            body = R.render_ledger([self.req], self.tags, {"rfc9999"})
+        self.assertIn("| `rfc9999` | 1 | 0 | 0 | 0 | 1 |", body)
+        self.assertIn("never fails", body)
+
+    def test_the_render_is_stable(self):
+        """check_ledger_fresh compares bytes, so an unstable render would report a fresh ledger
+        as stale on another machine."""
+        self.assertEqual(self._render(), self._render())
+
+
+class TestAuditCoverageCountsEveryVerdict(_AuditFixture):
+    """The gate's green output said every verdict it holds is proven while the ledger named three
+    that are not.
+
+    `audit_coverage` derived its `both` flag from TAGS alone and never consulted
+    `req.annotation`, whereas `_verdict_claims` exempts a `{single-polarity}` requirement from the
+    both-polarity demand -- the annotation IS the second polarity's justification. So a
+    requirement whose coverage is ANNOTATED fell outside `Auditable`, was counted in no column,
+    and when its verdict was a fresh `enforced` it was not in the worklist either.
+
+    Measured on the tree: 52 verdicts recorded, `audited=44 proven=44 worklist=3`. Five verdicts
+    appeared NOWHERE (all `enforced` + `{single-polarity}` + fresh), so the ledger's own claim
+    that the worklist partitions the VERDICTS was arithmetically false: 44 + 3 of 52.
+    """
+
+    def _single_polarity(self, rid="RFC9999-3-1"):
+        ann = R.Annotation(
+            kind="single-polarity",
+            polarity="positive",
+            reason="no conforming input exists",
+        )
+        req = _req(rid, rfc="rfc9999", annotation=ann)
+        tag = _tag(rid, "positive", file=self.rel, line=self.line)
+        return req, tag, _verdict(req, self.rel, self.line)
+
+    def _annotation_only(self, rid="RFC9999-4-1"):
+        """An `unimplemented` verdict over a `{gap}` line: a verdict with no tagged test at all."""
+        ann = R.Annotation(kind="gap", polarity=None, reason="deliberate divergence")
+        req = _req(rid, rfc="rfc9999", annotation=ann)
+        v = _verdict(req, self.rel, self.line, value=R.VERDICT_UNIMPLEMENTED)
+        v["tests"], v["units"] = {}, {}
+        v["code"] = R.unit_shas([f"{self.rel}:{self.line}"])
+        return req, v
+
+    def test_an_annotated_requirement_is_auditable_and_proven(self):
+        req, tag, v = self._single_polarity()
+        rows, worklist = R.audit_coverage(
+            [req], [tag], {"rfc9999"}, {"rfc9999": {req.rid: v}}
+        )
+        row = next(r for r in rows if r.rfc == "rfc9999")
+        self.assertEqual(
+            (row.auditable, row.audited, row.proven, row.findings, row.verdicts),
+            (1, 1, 1, 0, 1),
+        )
+        self.assertEqual(worklist, [])
+
+    def test_the_schema_agrees_that_it_is_auditable(self):
+        """The two must not disagree about what complete polarity coverage IS: the exemption in
+        `_verdict_claims` is what makes this verdict legal in the first place, so a coverage walk
+        that calls the same requirement un-auditable is reading a different rule."""
+        req, tag, v = self._single_polarity()
+        self.assertEqual(
+            R.check_audit_schema([req], [tag], {"rfc9999"}, {"rfc9999": {req.rid: v}}),
+            [],
+        )
+
+    def test_one_polarity_without_an_annotation_is_not_auditable(self):
+        """The discriminating twin: the exemption is the ANNOTATION, never the bare fact that one
+        polarity exists. Without it, AC-6 refuses the verdict and the pair is still owed."""
+        req = _req("RFC9999-3-1", rfc="rfc9999")
+        tag = _tag(req.rid, "positive", file=self.rel, line=self.line)
+        v = _verdict(req, self.rel, self.line)
+        rows, _worklist = R.audit_coverage(
+            [req], [tag], {"rfc9999"}, {"rfc9999": {req.rid: v}}
+        )
+        row = next(r for r in rows if r.rfc == "rfc9999")
+        self.assertEqual(row.auditable, 0)
+        self.assertTrue(
+            R.check_audit_schema([req], [tag], {"rfc9999"}, {"rfc9999": {req.rid: v}})
+        )
+
+    def test_every_recorded_verdict_is_proven_or_named(self):
+        """The invariant the ledger asserts, over the three shapes that used to fall between the
+        columns and the worklist: both-polarity proven, annotated single-polarity proven, and an
+        annotation-only `unimplemented` with no tagged test at all."""
+        req_one, tag_one, v_one = self._single_polarity()
+        req_gap, v_gap = self._annotation_only()
+        audits = {
+            "rfc9999": {
+                self.req.rid: self.verdict(),
+                req_one.rid: v_one,
+                req_gap.rid: v_gap,
+            }
+        }
+        rows, worklist = R.audit_coverage(
+            [self.req, req_one, req_gap],
+            list(self.tags) + [tag_one],
+            {"rfc9999"},
+            audits,
+        )
+        recorded = sum(len(v) for v in audits.values())
+        self.assertEqual(recorded, 3)
+        self.assertEqual(sum(r.verdicts for r in rows), recorded)
+        self.assertEqual(sum(r.proven for r in rows) + len(worklist), recorded)
+        self.assertEqual(sum(r.findings for r in rows), len(worklist))
+        self.assertEqual([rid for _rfc, rid, _reason in worklist], [req_gap.rid])
+
+    def test_the_ledger_publishes_the_annotated_requirement(self):
+        """AC-24's reporting surface. A proven verdict that appears in no row and no worklist line
+        is a judgement the ledger holds and does not publish."""
+        req, tag, v = self._single_polarity()
+        with _audit_tree(files={"rfc9999": _audit_file("rfc9999", {req.rid: v})}):
+            body = R.render_ledger([req], [tag], {"rfc9999"})
+        self.assertIn("| `rfc9999` | 1 | 1 | 1 | 0 | 0 |", body)
+
+
+class TestAuditSummaryLineAgreesWithTheLedger(_AuditDrive):
+    """`run_check` summed `r.findings` and DISCARDED the worklist it had just computed, so
+    `make ze-rfc-check` printed `44 proven, 0 audited-but-not-proven, of 44 verdict(s)` on a tree
+    holding two `unimplemented` gaps and one `not-applicable`. The ledger reconciled it in prose;
+    the one line an operator actually reads did not. It is the exact reporting surface AC-24
+    exists to make honest.
+    """
+
+    def _annotation_only(self, rid="RFC9999-4-1"):
+        ann = R.Annotation(kind="gap", polarity=None, reason="deliberate divergence")
+        req = _req(rid, rfc="rfc9999", annotation=ann)
+        v = _verdict(req, self.rel, self.line, value=R.VERDICT_UNIMPLEMENTED)
+        v["tests"], v["units"] = {}, {}
+        v["code"] = R.unit_shas([f"{self.rel}:{self.line}"])
+        return req, v
+
+    def test_the_audit_line_counts_the_unproven_verdicts(self):
+        req_gap, v_gap = self._annotation_only()
+        code, out = self._drive(
+            {self.req.rid: self.verdict(), req_gap.rid: v_gap},
+            reqs=[self.req, req_gap],
+        )
+        self.assertEqual(code, 0, out)
+        self.assertIn("1 proven", out)
+        self.assertIn("1 audited-but-not-proven", out)
+        self.assertIn("of 2 verdict(s)", out)
+
+    def test_a_clean_run_still_reports_zero_unproven(self):
+        """The discriminating twin: the count must come from the worklist, not be a constant."""
+        code, out = self._drive({self.req.rid: self.verdict()})
+        self.assertEqual(code, 0, out)
+        self.assertIn("1 proven", out)
+        self.assertIn("0 audited-but-not-proven", out)
+        self.assertIn("of 1 verdict(s)", out)
+
+
+class TestAuditCountersCoverTheWholeTree(unittest.TestCase):
+    """The fixture classes prove the rule; this proves it against the real audit records. The
+    defect it pins was invisible precisely because it only appears once a verdict sits on an
+    annotated requirement, which no fixture had and the tree has five of."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.enrolled = R.load_enrolled()
+        reqs = []
+        for stem in sorted(R.summary_stems()):
+            try:
+                reqs.extend(
+                    R.parse_summary_file(os.path.join(R.SUMMARY_DIR, stem + ".md"))
+                )
+            except R.ParseError:
+                continue
+        cls.reqs = reqs
+        cls.tags = R.scan_tree()
+        cls.audits = R.load_audits(cls.enrolled)
+
+    def test_every_recorded_verdict_is_counted_somewhere(self):
+        rows, worklist = R.audit_coverage(
+            self.reqs, self.tags, self.enrolled, self.audits
+        )
+        recorded = sum(len(v) for v in self.audits.values())
+        self.assertGreater(recorded, 0, "the corpus test must not cover nothing")
+        self.assertEqual(
+            sum(r.verdicts for r in rows),
+            recorded,
+            "a recorded verdict is counted in no RFC's row",
+        )
+        self.assertEqual(
+            sum(r.proven for r in rows) + len(worklist),
+            recorded,
+            "the worklist must partition the verdicts with `proven`",
+        )
+        self.assertEqual(sum(r.findings for r in rows), len(worklist))
+
+    def test_the_ledger_and_the_worklist_agree_on_the_tree(self):
+        """`Not proven` in the published table and the worklist beneath it are one number."""
+        rows, worklist = R.audit_coverage(
+            self.reqs, self.tags, self.enrolled, self.audits
+        )
+        body = "\n".join(R._render_audit_coverage(self.reqs, self.tags, self.enrolled))
+        recorded = sum(len(v) for v in self.audits.values())
+        self.assertEqual(sum(r.findings for r in rows), len(worklist))
+        self.assertIn(f"names every one of those {len(worklist)}", body)
+        self.assertIn(f"all {recorded} recorded verdict(s)", body)
+
+
+class TestAuditTableCannotBeMistakenForTheRollup(unittest.TestCase):
+    """C-6. scripts/dev/testing_health.py pins the polarity rollup with a nine-cell regex and
+    matches it against EVERY line of the ledger, raising rather than yielding zero when the shape
+    moves. A new table whose rows had the same shape would be silently folded into that tool's
+    proof-density figure -- a wrong number that nothing would report."""
+
+    def _health_row_re(self):
+        src = _read_repo("scripts/dev/testing_health.py")
+        m = re.search(r"RFC_ROW = re\.compile\(\s*r\"(?P<pat>.+?)\"\s*\)", src, re.S)
+        self.assertIsNotNone(m, "testing_health.py no longer spells RFC_ROW this way")
+        return re.compile(m.group("pat"))
+
+    def test_no_audit_row_matches_the_health_tools_rollup_pattern(self):
+        row_re = self._health_row_re()
+        reqs = [_req("RFC9999-2-1", rfc="rfc9999")]
+        tags = [_tag("RFC9999-2-1", p) for p in ("positive", "negative")]
+        rows = R._render_audit_coverage(reqs, tags, {"rfc9999"})
+        matched = [line for line in rows if row_re.match(line.strip())]
+        self.assertEqual(
+            matched,
+            [],
+            "an audit row parses as a polarity-rollup row; testing_health.py would fold it "
+            "into its proof-density figure",
+        )
+
+    def test_the_rollup_header_it_pins_is_unchanged(self):
+        src = _read_repo("scripts/dev/testing_health.py")
+        m = re.search(r"RFC_TABLE_HEADER = \(\s*(?P<body>.+?)\)\n", src, re.S)
+        pinned = "".join(re.findall(r'"([^"]*)"', m.group("body")))
+        rollup = R._render_rollup(
+            {"rfc9999": [_req("RFC9999-2-1", rfc="rfc9999")]}, {}, {"rfc9999"}
+        )
+        self.assertIn(pinned, rollup)
+
+
+class TestTaggedScopeCorpus(unittest.TestCase):
+    """AC-23/A-3, run over the REAL tree like TestRealTree does.
+
+    The standing guard behind the unit fingerprint: every tag in the tree must resolve to a unit
+    span or an explicit file-scope marker, and never to an empty result that would hash to a
+    constant. An empty extraction is the false-FRESH failure -- the one catastrophic outcome.
+    """
+
+    def test_every_tag_in_the_tree_resolves(self):
+        tags = R.scan_tree()
+        self.assertGreater(len(tags), 2000, "the corpus test must not cover nothing")
+        cache = {}
+        kinds = {}
+        for t in tags:
+            content = R._read_source(t.file, R.PROJECT_DIR, cache)
+            self.assertTrue(content, f"{t.file}: a tagged file must be readable")
+            text, kind = R.rfc_tagged_scope.unit_at(t.file, content, t.line)
+            self.assertTrue(text, f"{t.file}:{t.line} resolved to an empty unit")
+            self.assertIn(
+                kind, (R.rfc_tagged_scope.SCOPE_FUNC, R.rfc_tagged_scope.SCOPE_FILE)
+            )
+            kinds[kind] = kinds.get(kind, 0) + 1
+        self.assertGreater(
+            kinds.get(R.rfc_tagged_scope.SCOPE_FUNC, 0),
+            2000,
+            "if every Go tag fell back to file scope the unit fingerprint would be a no-op",
+        )
+
+    def test_every_go_tag_sits_in_exactly_one_span(self):
+        """A-3, measured rather than assumed. The trap: go_func_scopes returns CHARACTER
+        OFFSETS, so comparing a tag's LINE against a span reads as a clean corpus while checking
+        nothing."""
+        cache = {}
+        multi, outside = [], []
+        for t in R.scan_tree():
+            if not t.file.endswith(".go"):
+                continue
+            content = R._read_source(t.file, R.PROJECT_DIR, cache)
+            spans = R.rfc_tagged_scope.go_func_scopes(content)
+            off = R.rfc_tagged_scope.line_offset(content, t.line)
+            hit = [s for s in spans if s[0] <= off < s[1]]
+            if len(hit) > 1:
+                multi.append(f"{t.file}:{t.line}")
+            elif not hit:
+                outside.append(f"{t.file}:{t.line}")
+        self.assertEqual(multi, [], "a tag inside two spans has no single honest unit")
+        self.assertEqual(
+            outside, [], "a tag outside every span falls back to file scope"
+        )
+
+    def test_the_live_audit_records_are_all_fresh(self):
+        """The real tree's own verdicts must satisfy the schema and be current. Fixtures prove
+        the checks fire; this proves the shipped evidence passes them."""
+        enrolled, reqs, _, tags, _ = R._collect_for_check()
+        audits = R.load_audits(enrolled)
+        self.assertTrue(any(audits.values()), "no audit file was loaded at all")
+        self.assertEqual(R.check_audit_schema(reqs, tags, enrolled, audits), [])
+        self.assertEqual(R.check_audit_freshness(reqs, tags, enrolled, audits), [])
+        self.assertEqual(R.check_audit_note(reqs, tags, enrolled, audits), [])
+
+
+class TestTaggedScopeCoversEveryCarrier(unittest.TestCase):
+    """C-4a. The edit-time guard's file predicate reads TAG_CARRIER_SUFFIXES, which mirrors the
+    scanner's carrier table. When plan/spec-rfcgate-2-evidence.md admitted interop `check.py`
+    evidence, two files began carrying RFC obligations the guard could not see AT ALL -- because
+    that predicate was a hand-written literal in the hook. This holds the two together."""
+
+    def test_every_carrier_suffix_is_a_known_tag_carrier(self):
+        missing = sorted(
+            {c.suffix for c in R.CARRIERS}
+            - {
+                s
+                for s in {c.suffix for c in R.CARRIERS}
+                if R.rfc_tagged_scope.is_tag_carrier("test/x/y" + s)
+            }
+        )
+        self.assertEqual(
+            missing,
+            [],
+            "a carrier the scanner counts as evidence that the edit-time guard cannot see",
+        )
+
+    def test_a_non_carrier_is_not_claimed(self):
+        for path in ("internal/a/foo.go", "docs/x.md", "scripts/dev/tool.py"):
+            self.assertFalse(R.rfc_tagged_scope.is_tag_carrier(path), path)
+
+    def test_the_hook_uses_the_shared_definition(self):
+        """AC-22: exactly ONE definition. A second copy that drifted would let the gate re-seal
+        a verdict against a hash the guard does not compute."""
+        hook = _read_repo(".claude/hooks/pretool-writeedit.py")
+        self.assertIn("rfc_tagged_scope.py", hook)
+        self.assertIn("_rfc_scope.tag_scope(", hook)
+        self.assertNotIn(
+            "def _go_func_scopes",
+            hook,
+            "the hook kept a private copy of the span logic",
+        )
+
+
+class TestVerdictVocabularyAgreesWithTheSkill(unittest.TestCase):
+    """The gate's enum and `ai/skills/ze-rfc-audit.md`'s table are the same vocabulary read by a
+    machine and by an agent. A drift makes the skill teach the fleet to write records the schema
+    refuses -- which is how `implemented` got into the one existing audit file
+    (`ai/rules/derive-not-hardcode.md`)."""
+
+    def test_the_skill_documents_exactly_the_gates_enum(self):
+        skill = _read_repo("ai/skills/ze-rfc-audit.md")
+        # Scoped to the VERDICT table by its own header, not to every backticked table cell: the
+        # skill also tables the freshness states and the record's fields, and a pattern loose
+        # enough to catch those would pass whatever it happened to find.
+        head = skill.index("| Verdict | Meaning |")
+        table = skill[head:].split("\n\n", 1)[0]
+        documented = set(re.findall(r"^\| `([a-z-]+)` \| ", table, re.M))
+        self.assertEqual(
+            documented,
+            set(R.AUDIT_VERDICTS),
+            "the skill's verdict table and AUDIT_VERDICTS have drifted",
+        )
+
+    def test_enforced_is_the_only_proven_verdict(self):
+        self.assertEqual(
+            R.UNPROVEN_VERDICTS, set(R.AUDIT_VERDICTS) - {R.VERDICT_ENFORCED}
+        )
+        self.assertTrue(R.FINDING_VERDICTS < R.UNPROVEN_VERDICTS)
+
+    def test_every_unproven_verdict_has_a_published_meaning(self):
+        """The worklist explains each row. A verdict added to the enum without a meaning would
+        render a row a reader silently skips."""
+        for value in R.UNPROVEN_VERDICTS:
+            self.assertNotIn("add one to", R._verdict_meaning(value), value)
+
+    def test_a_value_outside_the_vocabulary_says_so(self):
+        """Its discriminating twin, and the reason it exists: the test above passes whether or
+        not the vocabulary CHECK is present, because it only ever asks about members. Mutation
+        found that -- disabling the membership guard left it green."""
+        self.assertEqual(
+            R._verdict_meaning("implemented"), "outside the recorded vocabulary"
+        )
+        self.assertEqual(
+            R._verdict_meaning(R.VERDICT_ENFORCED), "outside the recorded vocabulary"
+        )
+
+
+class TestFreshnessStatesAreTotal(unittest.TestCase):
+    """Critical Review, Correctness: the four states must be mutually exclusive AND total. A
+    fifth, implicitly-fresh outcome is the false-fresh failure wearing a shrug."""
+
+    STATES = None
+
+    def setUp(self):
+        self.STATES = {R.FRESH, R.SHIFTED, R.STALE_UNIT, R.STALE_REQUIREMENT}
+        self.assertEqual(
+            len(self.STATES), 4, "the four states must be distinct strings"
+        )
+
+    def test_every_input_shape_yields_one_of_the_four(self):
+        sha = R.requirement_sha("x")
+        shas = {"a_test.go:1": "f" * 16}
+        units = {"a_test.go:1": "u" * 16}
+        other = {"a_test.go:1": "0" * 16}
+        code = {"p.go:1": "c" * 16}
+        shapes = [
+            {},
+            {"requirement_sha": sha},
+            {"requirement_sha": sha, "tests": shas},
+            {"requirement_sha": sha, "tests": shas, "units": units},
+            {"requirement_sha": sha, "tests": other, "units": units},
+            {"requirement_sha": sha, "tests": shas, "units": other},
+            {"requirement_sha": sha, "tests": {}, "units": {}, "code": code},
+            {"requirement_sha": "nope", "tests": shas, "units": units},
+        ]
+        for shape in shapes:
+            state, moved = R.verdict_freshness(shape, sha, shas, units, code)
+            self.assertIn(state, self.STATES, shape)
+            self.assertIsInstance(moved, list)
+
+    def test_a_requirement_change_never_reads_as_reseal_able(self):
+        """Order is the bias: SHIFTED is the only re-sealable state, so no input that changed a
+        judgement may reach it."""
+        shas = {"a_test.go:1": "f" * 16}
+        units = {"a_test.go:1": "u" * 16}
+        for shape in (
+            {"requirement_sha": "old", "tests": {}, "units": units},
+            {
+                "requirement_sha": "old",
+                "tests": shas,
+                "units": {"a_test.go:1": "z" * 16},
+            },
+        ):
+            state, _ = R.verdict_freshness(
+                shape, R.requirement_sha("x"), shas, units, {}
+            )
+            self.assertNotEqual(state, R.SHIFTED, shape)
+
+
+class TestScopeReaderIsDeclared(unittest.TestCase):
+    """F-2: `.py` fell to whole-file scope only because the Go span finder finds no `func` in
+    Python -- the right answer reached for the wrong reason, and one that would have changed
+    silently the day anyone taught the span finder about `def`."""
+
+    def test_non_go_carriers_are_file_scoped_by_declaration(self):
+        for path in ("test/plugin/a.ci", "test/editor/a.et", "test/interop/s/check.py"):
+            self.assertEqual(
+                R.rfc_tagged_scope.scope_reader(path),
+                R.rfc_tagged_scope.SCOPE_FILE,
+                path,
+            )
+
+    def test_go_is_span_scoped(self):
+        self.assertEqual(R.rfc_tagged_scope.scope_reader("internal/a/a_test.go"), "go")
+
+    def test_a_python_unit_is_the_whole_file(self):
+        src = "# RFC requirement: RFC9999-1-1 positive -- x.\ndef check():\n    assert 1\n"
+        text, kind = R.rfc_tagged_scope.unit_at("test/interop/s/check.py", src, 2)
+        self.assertEqual(kind, R.rfc_tagged_scope.SCOPE_FILE)
+        self.assertEqual(text, src)
+
+
+class TestIndexNeverWritesAudit(_AuditFixture):
+    """A-7/AC-16: `--check` is read-only and `--write` touches the ledger alone, so
+    `--reseal` is the only path by which an evidence file changes without a human editing it.
+    ze-rfc-index runs ROUTINELY, for reasons that have nothing to do with an audit."""
+
+    def _snapshot(self, adir):
+        out = {}
+        for name in sorted(os.listdir(adir)):
+            with open(os.path.join(adir, name), "rb") as fh:
+                out[name] = fh.read()
+        return out
+
+    def test_check_and_write_modes_never_touch_audit(self):
+        stem = "rfc9999"
+        shifted = self.verdict()
+        shifted["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        ledger = _mkstemp(".md")
+        self.addCleanup(os.remove, ledger)
+        with _audit_tree(
+            files={stem: _audit_file(stem, {self.req.rid: shifted})}
+        ) as adir:
+            before = self._snapshot(adir)
+            with _patched(
+                load_enrolled=lambda: {stem},
+                summary_stems=lambda: {stem},
+                parse_summary_file=lambda path: [self.req],
+                _git_baseline_enrolment=lambda: {stem},
+                _git_baseline_ids=lambda: {self.req.rid},
+                _git_baseline_tag_polarities=lambda: {},
+                _git_baseline_evidence=lambda: {},
+                _git_baseline_summary_stems=lambda: {stem},
+                _git_baseline_audits=lambda: {},
+                scan_tree=lambda *a, **k: self.tags,
+                signed_extractions=lambda reqs_: {},
+                check_extraction_signoff=lambda *a, **k: [],
+                check_extraction_ratchet=lambda *a, **k: [],
+                check_drain_floor=lambda *a, **k: [],
+                LEDGER_FILE=ledger,
+            ):
+                _run_capturing(R.run_check)
+                self.assertEqual(
+                    self._snapshot(adir), before, "--check wrote to rfc/audit/"
+                )
+                code, _ = _run_capturing(R.run_write)
+                self.assertEqual(code, 0)
+                self.assertEqual(
+                    self._snapshot(adir), before, "--write wrote to rfc/audit/"
+                )
+
+    def test_only_one_make_target_reseals(self):
+        """Deliverable: every write to an evidence file is intentional AND greppable."""
+        hits = [
+            line
+            for line in _read_repo("Makefile").splitlines()
+            if line.startswith("ze-rfc-reseal:")
+        ]
+        self.assertEqual(len(hits), 1, "ze-rfc-reseal must be exactly one make target")
+        self.assertIn("--reseal", _read_repo("Makefile"))
+
+
+class TestResealOnlyTouchesShifted(_AuditFixture):
+    """The `--reseal` mode driven through main(), so the flag being unwired fails a test."""
+
+    def test_main_dispatches_reseal(self):
+        called = []
+        with _patched(run_reseal=lambda: called.append(True) or 0):
+            code = R.main(["rfc_requirements.py", "--reseal"])
+        self.assertEqual(code, 0)
+        self.assertEqual(called, [True], "--reseal did not reach run_reseal")
+
+    def test_run_reseal_reports_and_exits_zero(self):
+        stem = "rfc9999"
+        shifted = self.verdict()
+        shifted["tests"] = {f"{self.rel}:{self.line}": "0" * 16}
+        with _audit_tree(files={stem: _audit_file(stem, {self.req.rid: shifted})}):
+            with _patched(
+                load_enrolled=lambda: {stem},
+                summary_stems=lambda: {stem},
+                parse_summary_file=lambda path: [self.req],
+                scan_tree=lambda *a, **k: self.tags,
+            ):
+                code, out = _run_capturing(R.run_reseal)
+        self.assertEqual(code, 0, out)
+        self.assertIn("re-stamped", out)
+        self.assertIn("ze-rfc-index", out, "the follow-up command must be named")
+
+    def test_run_reseal_fails_closed_on_a_malformed_record(self):
+        stem = "rfc9999"
+        with _audit_tree(files={stem: "{not json"}):
+            with _patched(
+                load_enrolled=lambda: {stem},
+                summary_stems=lambda: {stem},
+                parse_summary_file=lambda path: [self.req],
+                scan_tree=lambda *a, **k: self.tags,
+            ):
+                code, out = _run_capturing(R.run_reseal)
+        self.assertEqual(code, 2, out)
+        self.assertIn("cannot run", out)
+
+
+class TestNotApplicableWiring(_AuditDrive):
+    """The documented authoring path, driven end-to-end.
+
+    Implementation Step 9's criterion is that a reader following `ai/skills/ze-rfc-audit.md`
+    produces a record that passes the schema on the FIRST try. The skill says `tests` is for
+    "every verdict except `not-applicable`", so a reader omits it -- and that spelling exited 2
+    with a message whose remedy was false, while the spelling nothing documented exited 0.
+    """
+
+    def _na(self, spelling):
+        ann = R.Annotation(
+            kind="not-applicable", polarity=None, reason="binds future authors"
+        )
+        req = _req(self.req.rid, rfc="rfc9999", annotation=ann)
+        v = self.verdict(value=R.VERDICT_NOT_APPLICABLE)
+        v["no_code_path"] = "section 8 binds the authors of future specifications"
+        v["units"] = {}
+        if spelling == "empty":
+            v["tests"] = {}
+        else:
+            del v["tests"]
+        return req, v
+
+    def test_run_check_accepts_the_documented_omitted_tests_map(self):
+        for spelling in ("empty", "omitted"):
+            req, v = self._na(spelling)
+            code, out = self._drive({req.rid: v}, reqs=[req], tags=[])
+            self.assertEqual(code, 0, f"{spelling}: {out}")
+            self.assertNotIn("STALE", out)
+
+    def test_reseal_neither_re_stamps_nor_refuses_it(self):
+        """The remedy the STALE message named was false in every clause. `--reseal` refused the
+        record ("a human must re-read it") and re-running `/ze-rfc-audit` reproduces it
+        byte-for-byte, so there was no exit at all short of guessing the literal spelling."""
+        for spelling in ("empty", "omitted"):
+            req, v = self._na(spelling)
+            with _audit_tree(files={"rfc9999": _audit_file("rfc9999", {req.rid: v})}):
+                with _patched(
+                    load_enrolled=lambda: {"rfc9999"},
+                    summary_stems=lambda: {"rfc9999"},
+                    parse_summary_file=lambda path: [req],
+                    scan_tree=lambda *a, **k: [],
+                ):
+                    resealed, refused = R.reseal_audits()
+            self.assertEqual((resealed, refused), ([], []), spelling)
+
+
+class TestWorklistMeaningNamesTheState(unittest.TestCase):
+    """A non-fresh row's meaning is its STATE, not its verdict word.
+
+    Every non-fresh reason rendered "the verdict no longer describes what it judged", which is the
+    OPPOSITE of what `shifted` means -- there the tagged unit IS byte-identical and only the file
+    around it moved -- so the ledger sent that reader to re-read an RFC when one mechanical
+    command clears it. Reachable transiently between `ze-rfc-index` and `ze-rfc-reseal`.
+    """
+
+    def test_shifted_says_byte_identical_and_names_reseal(self):
+        meaning = R._verdict_meaning(f"{R.VERDICT_ENFORCED} ({R.SHIFTED})")
+        self.assertIn("byte-identical", meaning)
+        self.assertIn("ze-rfc-reseal", meaning)
+        self.assertNotIn("no longer describes", meaning)
+
+    def test_stale_unit_says_what_it_judged_changed_and_wants_a_human(self):
+        meaning = R._verdict_meaning(f"{R.VERDICT_WEAK} ({R.STALE_UNIT})")
+        self.assertIn("changed", meaning)
+        self.assertIn("ze-rfc-audit", meaning)
+        self.assertNotIn("ze-rfc-reseal", meaning)
+
+    def test_stale_requirement_says_the_obligation_text_moved(self):
+        meaning = R._verdict_meaning(f"{R.VERDICT_ENFORCED} ({R.STALE_REQUIREMENT})")
+        self.assertIn("text changed", meaning)
+        self.assertNotIn("ze-rfc-reseal", meaning)
+
+    def test_every_non_fresh_state_has_a_published_meaning(self):
+        for state in (R.SHIFTED, R.STALE_UNIT, R.STALE_REQUIREMENT):
+            self.assertIn(state, R._STATE_MEANING)
+
+    def test_an_unpublished_state_says_so_rather_than_borrowing_one(self):
+        """Fail closed: a fifth state must not inherit a sentence written for another one."""
+        meaning = R._verdict_meaning("enforced (invented-state)")
+        self.assertIn("invented-state", meaning)
+        self.assertIn("_STATE_MEANING", meaning)
+
+    def test_a_fresh_verdict_still_renders_its_verdict_meaning(self):
+        """The discriminating twin: the state branch must not swallow the verdict branch."""
+        self.assertIn("cannot fail", R._verdict_meaning(R.VERDICT_WEAK))
+
+
+class _JSONShim:
+    """`json` for one `_write_audit` call: `dump` writes a record the caller never held, `load`
+    is real. The only way to make the staged BYTES differ from the in-memory dict."""
+
+    def __init__(self, bad):
+        self.bad = bad
+
+    def dump(self, data, fh, **kw):
+        json.dump(self.bad, fh, **kw)
+
+    def load(self, fh):
+        return json.load(fh)
+
+
+class TestWriteAuditValidatesTheStagedBytes(_AuditFixture):
+    """`_write_audit`'s docstring promised the record was "re-read through the validating parser
+    BEFORE it lands"; the code validated the in-memory dict instead. `--check` reads the FILE, so
+    only the file can prove what `--check` will see, and a JSON round trip is exactly where a
+    writer defect would hide."""
+
+    def _write(self, shim=None):
+        stem = "rfc9999"
+        good = {stem: _audit_file(stem, {self.req.rid: self.verdict()})}
+        with _audit_tree(files=good) as adir:
+            path = os.path.join(adir, stem + ".json")
+            with open(path, encoding="utf-8") as fh:
+                before = fh.read()
+            with _patched(**({"json": shim} if shim else {})):
+                raised = None
+                try:
+                    R._write_audit(stem, {self.req.rid: self.verdict()}, "a note")
+                except R.ParseError as exc:
+                    raised = str(exc)
+            with open(path, encoding="utf-8") as fh:
+                after = fh.read()
+        return raised, before, after
+
+    def test_a_record_only_broken_on_disk_is_refused(self):
+        bad = _audit_file("rfc9999", {self.req.rid: {"verdict": "implemented"}})
+        raised, before, after = self._write(_JSONShim(bad))
+        self.assertIsNotNone(raised, "the staged bytes were never re-read")
+        self.assertIn("implemented", raised)
+        self.assertEqual(
+            before, after, "a refusal must leave the existing evidence untouched"
+        )
+
+    def test_a_good_record_still_lands(self):
+        """The discriminating twin: the extra read must not refuse the legal write."""
+        raised, before, after = self._write()
+        self.assertIsNone(raised, raised)
+        self.assertNotEqual(before, after, "the re-stamp note must have landed")
+        self.assertIn("a note", after)
+
+
+class TestSkillDocumentsWhatTheSchemaAccepts(unittest.TestCase):
+    """The skill is the authoring path; a schema it contradicts produces a red gate on the first
+    try. Its `tests` row said "every verdict except `not-applicable`" (omit it) while the only
+    spelling the freshness rule accepted was a literal empty map, and its `units` row said
+    "always" while the one live `not-applicable` record carries no `units` key at all.
+    """
+
+    def _row(self, field):
+        for line in _read_repo("ai/skills/ze-rfc-audit.md").splitlines():
+            if line.startswith(f"| `{field}` |"):
+                return line
+        self.fail(f"ai/skills/ze-rfc-audit.md has no field table row for {field!r}")
+
+    def test_the_tests_row_does_not_forbid_the_field(self):
+        """ "except `not-applicable`" reads as "omit it", which is legal -- but so is an empty map,
+        and a reader who cannot tell has to guess which one the gate wants."""
+        row = self._row("tests")
+        self.assertNotIn("except", row)
+        self.assertIn("empty", row)
+
+    def test_the_units_row_does_not_claim_to_be_unconditional(self):
+        """`units` is the unit-level twin of each `tests` entry, so a verdict citing no test has
+        none. "always" contradicts the record the ruling that created this state produced."""
+        row = self._row("units")
+        self.assertNotIn("always", row)
+
+    def test_the_no_code_path_row_still_states_prose(self):
+        """The type check added for it enforces exactly what this row promises."""
+        self.assertIn("prose", self._row("no_code_path"))
 
 
 if __name__ == "__main__":
