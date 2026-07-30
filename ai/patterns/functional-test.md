@@ -184,6 +184,21 @@ expect=json:json=<expected-json>
 | `expect=syslog:pattern=<regex>` | Syslog regex match |
 | `reject=stderr:pattern=<regex>` | Fail if stderr matches |
 
+### HTTP Checks
+
+| Syntax | Purpose |
+|--------|---------|
+| `http=get:seq=N:url=<url>:status=<code>` | GET assertion (`$PORT`/`$PORT2` substituted) |
+| `http=post:seq=N:url=<url>:status=<code>:sendfile=<file>` | POST assertion, body from file |
+| `http=wait:seq=N:url=<url>:status=<code>[:timeout=<dur>]` | Readiness poll; runs before assertions |
+| `...:contains=<text>` | Response body substring |
+| `...:bodyfile=<file>` | Response body exact match against a file |
+| `...:content-type=<type>` | Request body type for `sendfile` (default `application/json`) |
+| `...:header=<Name>: <Value>` | Request header, HTTP wire form. **Repeatable** -- the only key allowed more than once per line. Splits on the first colon (so values may contain colons), trims whitespace, overrides the `sendfile` default `Content-Type`, and a value with no colon is a parse error. Works on `get`, `post`, and `wait` |
+| `...:insecure-tls=true` | Accept a self-signed local HTTPS certificate |
+
+Full reference: `docs/architecture/testing/ci-format.md` (HTTP Checks).
+
 ### Actions
 
 | Syntax | Purpose |

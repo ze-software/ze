@@ -1160,3 +1160,35 @@ commands, which collided with `test/tmp/`.
 before `/tmp` (start of line, whitespace, or one of `=`, `'`, `"`,
 `$`, `(`, backtick, `:`, `,`). `test/tmp/` and `~/tmp/` no longer
 collide.
+
+## Filed 2026-07-29 (spec-mcp2026-2-mrtr): `c_layering` blocks quoting a normative specification sentence
+
+### F-mrtr-1: a MUST-adjacent spec quote cannot be written in a Go comment
+
+**Trigger.** `c_layering` (`.claude/hooks/pretool-writeedit.py:505`) blocks any
+non-test `.go` file whose text matches `backwards.?compatib` or
+`backward.?compatib`, anywhere, including inside a quotation.
+
+**What it cost.** MCP 2026-07-28 `client/elicitation` says, verbatim: "For
+backwards compatibility, an empty capabilities object is equivalent to declaring
+support for `form` mode only." That sentence IS the rule the capability gate
+implements, and `ai/rules/rfc-compliance.md` asks for the requirement quoted
+above the enforcing path. Two separate Write calls were rejected for carrying
+it: one in `internal/component/mcp/mrtr.go` (the gate) and one in
+`internal/test/cli/cmd_mcp_mrtr.go` (the client's mirror of the same default).
+
+**Worked around, not fixed.** Both sites now paraphrase the lead-in and quote
+only the operative clause ("the specification states that an empty capabilities
+object is equivalent to declaring support for `form` mode only"). The normative
+content survives; the provenance is one step weaker than the rule asks for, and
+a future reader cannot grep the spec sentence to find the code.
+
+**Suggested fix.** The pattern exists to catch Ze *maintaining* a compatibility
+layer, which is a claim about Ze's own code, not about a cited external
+document. Exempting a line that is evidently a quotation would keep the catch
+and drop this class of false positive: skip lines whose match sits inside double
+quotes, or inside a comment line that also contains `MUST`, `SHOULD`, `MAY`, or
+a `://` URL. The same shape already fixed `block-legacy-log.sh` (anchor to the
+Go construct rather than the substring) and the retired `block-layering.sh`
+`for.?compatibility` pattern, so there is precedent for both the problem and the
+remedy.
