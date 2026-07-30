@@ -1336,6 +1336,21 @@ assert that it is the only one.
 **261 sites must be classified against 232 gated ids.** Roughly 29 sites need an
 exclusion or a `duplicate-of` mapping. That is the arithmetic the final phase closes.
 
+**Measured 2026-07-30, and phase 16 is confirmed to come LAST.** `make ze-rfc-extract
+STEM=rfc7296` writes 261 sites across 104 sections, with the register derived as
+`rfc2119`. Every one arrives UNCLASSIFIED, and `make ze-rfc-check` then reports 451
+violations until each is classified by hand. The skeleton was generated, measured, and
+removed again, because it reddens the gate for every session sharing this checkout.
+
+Phase 16 cannot be attempted before the rows exist. The summary carried 89 rows at that
+moment, so about 170 of the 261 sites had no requirement id to map to. A sign-off there
+would have excluded sites that become real rows in phases 4 to 15.
+`rfc/extraction/README.md` names the per-RFC exclusion ratio as the control that catches
+exactly that. A first sign-off is reviewed rather than ratcheted, so a large exclusion
+list is the one thing a reviewer would refuse.
+
+Run the extractor once the last row lands, and not before.
+
 ## Phase 3 -- the 18 uncertain rows resolved (2026-07-30)
 
 Each row was resolved by reading the producing code, never by reading a caller. The tally
@@ -1398,6 +1413,34 @@ mutation-verified. The gate moved from 2768 to 2787 gated requirements, and from
 
 Groups B, C, E and G remain, which is 28 rows.
 
+**Quote fidelity holds for this batch too.** The same measurement the 47 phase-2a rows
+passed was re-run over these 19. 15 quote the source exactly, and 4 carry a verbatim run of
+half the row or more. None fell below that, and no row states an obligation the source does
+not carry. Across all 66 rows landed so far the tally is 43 exact, 23 partial, 0 weak.
+
+### Where the pilot stands, measured 2026-07-30
+
+`rfc/short/rfc7296.md` carries 89 rows. 23 predate the walk, and 66 come from Appendix A.
+
+| Class | Landed | Remaining |
+|-------|--------|-----------|
+| `impl-testable` | 51 | 12 |
+| `impl-untested` | 11 | 14 |
+| `uncertain` | 4 | 14 |
+| `NOT IMPL` | 0 | 108 |
+| **Total** | **66** | **148** |
+
+Two readings of that table are worth stating, because neither is obvious.
+
+The four landed `uncertain` rows are `RFC7296-3.16-1` to `3.16-4`. Phase 3 promoted them
+after it read the producing code, and phase 2b then proved them. The class column still
+says `uncertain`, because it is the walk's record and phase 2a decided not to rewrite it.
+
+The 108 `NOT IMPL` rows are the whole of phases 4 to 15, and no phase-2 group touches them.
+The provable remainder is therefore 40 rows, not 148. Three of those 40 are held by
+`plan/spec-fixit-ike-negotiation-conformance.md`, and five more were reclassified `NOT
+IMPL` by phase 3.
+
 **The window pair needed a production fix, not a test.** Group A refused to tag `2.3-2`
 and `2.3-4`, because Ze emitted requests from four uncoupled paths that share one
 `sa.NextMsgID`. The owner ruled the same day, and
@@ -1413,3 +1456,97 @@ a green tag over the IKE_SA_INIT half alone would publish "proven" over the gap.
 | `RFC7296-1.3-2` | `respondIKERekey` negotiates at `rekey.go:459`, builds DH from `chosen.DHGroup.ID` at `rekey.go:464`, and never compares that to the request's `PayloadKE.DHGroup`. It builds no Notify. The IKE_SA_INIT half IS implemented (`responder.go:135-142`) | `DHExchange.SharedSecret` (`crypto/dh.go:79-87`) accepts any value in (1, p-1), so a mismatched group yields a bogus shared secret. Silent wrong keys, rather than INVALID_KE_PAYLOAD |
 | `RFC7296-2.8.2-1` | `resolveRekeyCollision` (`rekey.go:418`) has one caller, `inbound.go:163`, inside the CHILD rekey branch. The IKE rekey branch (`inbound.go:193-205`) never reads `ps.pendingRekey` | An inbound IKE rekey is answered while our own IKE rekey is in flight. No nonce comparison, and no deletion of the lowest-nonce new SA |
 | `RFC7296-3.3.6-3` | The accepted offer is re-checked at IKE_SA_INIT (`fsm.go:437-441`) and nowhere else. Absent at IKE_AUTH SAr2 (`fsm.go:561-566`), `applyChildRekeyResponse` (`rekey.go:102-135`) and `applyIKERekeyResponse` (`rekey.go:345-414`) | `respondIKERekey` genuinely re-negotiates, so a responder that picks a different suite leaves the two sides deriving the new IKE SA with different algorithms |
+
+All three are owned by `plan/spec-fixit-ike-negotiation-conformance.md`, with an owner
+ruling per row.
+
+### Two rows are tagged proven while a SECOND producer violates them
+
+This is the most dangerous shape the pilot has found, and it is the one the ledger cannot
+see. Both rows below carry a positive and a negative tagged test, and both tests are
+honest: each cites the producer it drives. A different producer of the same obligation
+does not meet it, and no tag covers that one.
+
+**`RFC7296-1.4-4`, "the recipient of an INFORMATIONAL request MUST send some response".**
+The tagged test drives `handleInformationalOwned` (`inbound.go:293-299`), which does
+respond. `handleInformational` (`inbound.go:370-396`) is a second live handler that
+responds to nothing. It takes no transport parameter, so it CANNOT reply. It logs, and it
+sets `StateDead` for an IKE Delete.
+
+That path is live rather than dead. `routeInbound` (`register.go:521`) hands a packet to
+the owner loop only when `ps.ownedSA.Load() == sa`. Every other case falls through to
+`handleInbound`, then `fsm.go:357`, then `handleEstablishedInbound` (`inbound.go:356`),
+then `handleInformational`. The window is narrow, and the peer retransmits, so the defect
+is not wire-visible. It is still a MUST that one producer does not meet.
+
+A second silent drop sits beside it. `routeInbound`'s `default:` arm discards the packet
+when the owner queue is full and logs a warning. That is a resource condition rather than
+a protocol decision, and it belongs to the same fix.
+
+**`RFC7296-2.4-10`, "if an IKE endpoint chooses to delete Child SAs, it MUST send Delete
+payloads".** The tagged test drives the rekey-retirement path, which does send one
+(`inbound.go:142`). Child hard-lifetime expiry (`established.go:213-217`) and IKE hard
+expiry (`:226-230`) both call `cleanupChild` and send no Delete of any kind. Hard expiry IS
+the endpoint choosing to delete.
+
+Two neighbouring paths are excused and these two are not. The DPD-timeout path
+(`established.go:183-187`) is covered by section 2.4's "unless the other endpoint is no
+longer responding". The graceful-stop path sends an IKE Delete (`:125-127`), which closes
+the Child SAs by section 1.4.1.
+
+Neither row is un-tagged for this. The tag is accurate about what it proves, and removing
+it would lose real coverage. Both need a fix at the uncovered producer, and neither is
+scoped here.
+
+### One row nearly proved conformance out of a recorded defect
+
+`RFC7296-1.4.1-4` says the responses MUST NOT include Delete payloads for the deleted SAs.
+Group B proved it by feeding Ze an inbound Delete and asserting the answer carries none.
+The assertion is true, and the mutation reddens it. The reasoning was still wrong.
+
+RFC 7296 section 1.4.1 gives the ordinary case first, where the response usually carries
+Delete payloads for the paired SAs. It then names ONE exception, a delete request for SAs
+the node already sent a delete request for. The MUST NOT belongs to that exception alone.
+The test prepared the ORDINARY case, where an absent Delete is not conformance at all.
+
+In the ordinary case an absent Delete is the defect this summary already records as the
+`{gap}` on `RFC7296-1.4-1`. The green test therefore read one row's recorded gap as another
+row's proof. Two extracted rows describe one observable behaviour from opposite directions,
+and only the section's scope separates them.
+
+The row stays proven, on a stronger and honest basis. `handleInformationalOwned` passes a
+nil payload chain to the response builder unconditionally (`inbound.go:293`), and the only
+two `PayloadDelete` constructions in the file build REQUESTS (`inbound.go:258`, `:334`). Ze
+attaches a Delete to no response at all, so it attaches none in the crossed case either.
+The tag now states that, names the section scope, and warns the reader that the same
+behaviour is a defect against the ordinary case.
+
+**The lesson generalises.** When two rows govern one observable, a test that asserts the
+observable proves neither until it establishes WHICH case it is in. Check the section scope
+first, then tag an absence.
+
+### A negative that argues from an absent guard expires when the guard arrives
+
+`RFC7296-3.4-1` is the MODP public-value padding rule. Its negative proved the positive was
+not vacuous by showing that NOTHING on the receive side compensated for a missing send-side
+pad. It fed `SharedSecret` a 1-octet unpadded value, and a secret still came out. The
+absence of a receive-side length check WAS the argument.
+
+`plan/spec-fixit-ike-negotiation-conformance.md` then added exactly that check, under the
+owner's ruling for `RFC7296-1.3-2`. The negative's premise disappeared, and
+`internal/component/ike/crypto` went red on
+`TestRFC7296MODPShortPublicValueHasNoSecondGuard`.
+
+Neither agent was wrong. The two rows are coupled through one function, and the coupling is
+invisible from either row's own text. The replacement argument is stronger. The send-side
+pad is load-bearing BECAUSE a conforming receiver refuses a wrong-length value. A peer
+applying the same rule would reject an unpadded value from Ze.
+
+**Read this first, then write a negative.** A negative that rests on the absence of a guard
+is a hostage to the next fix. Prefer one that rests on a property the code HAS. Where an
+absence is the only available argument, say so in the tag. State that the argument expires
+if the guard is ever added, so the next reader knows why the test failed.
+
+The generator `tmp/gen_rows2.py` now refuses to insert rows while any package holding a tag
+fails to build or fails its tests. That guard caught this red before it reached a
+commit, which is the only reason it is written here rather than in a post-mortem.
