@@ -712,9 +712,61 @@ Contract: `rfc/extraction/README.md`.
 
 <!-- source: scripts/dev/rfc_requirements.py -- check_extraction_signoff/run_extract_skeleton -->
 
+### What the tags cannot say: the audit record
+
+A tag proves a LINK exists. Nothing in it can say whether the test would FAIL if the
+implementation stopped complying. That judgement is what a compliance claim actually rests on.
+It is recorded per requirement in `rfc/audit/<rfc>.json` by `/ze-rfc-audit`, and the gate
+now reads it.
+
+The verdict is one of five closed values. `enforced` is the only one that means proven, and it
+requires a cited test and both polarities. `weak` (tagged and green but cannot fail on
+non-compliance), `wrong` (asserts something the RFC does not say), `unimplemented` (the code does
+not comply — needs a `code` map naming the producing function) and `not-applicable` (no reachable
+code path can satisfy or violate it — needs a `no_code_path` reason and an agreeing
+`{not-applicable}` annotation) each subtract the requirement from the published **proven** count
+in `ai/RFC-REQUIREMENTS.md` while still exiting 0.
+
+That split is deliberate. Recording a finding is free and green. Erasing one is red. Two moves
+are therefore blocked:
+
+- A `weak` or `wrong` verdict cannot be deleted, and it cannot be silently upgraded to `enforced`.
+- A verdict that existed at HEAD cannot vanish.
+
+Audit coverage is monotonic per requirement id, because otherwise deleting the verdict is the
+cheapest route from red to green.
+
+<!-- source: scripts/dev/rfc_requirements.py -- AUDIT_VERDICTS/check_audit_schema/check_audit_findings -->
+
+A verdict goes stale when what it judged changes, in one of three ways, and only one of them
+wants a human:
+
+```
+make ze-rfc-reseal                   # clears SHIFTED: a line shift or a sibling edit
+make ze-rfc-index                    # then re-render the ledger
+/ze-rfc-audit <rfc>                  # clears STALE: the tagged test itself changed
+```
+
+`SHIFTED` means the tagged unit is byte-identical, and only the file around it moved. The tagged
+unit is the enclosing top-level Go function. For a `.ci`, a `.et` or an interop `check.py` it is
+the whole file. Six of the sixteen commits that have touched the one existing audit file were hand
+re-stamps of exactly that kind, in which no verdict changed.
+
+`make ze-rfc-reseal` is the only thing that writes `rfc/audit/` without a human edit.
+`ze-rfc-check` is read-only, and `ze-rfc-index` touches the ledger alone. A re-stamp can
+therefore never happen as a side effect of unrelated work.
+
+<!-- source: scripts/dev/rfc_requirements.py -- verdict_freshness/reseal_audits -->
+
+The definition of "the tagged unit" lives in one place, `scripts/dev/rfc_tagged_scope.py`, which
+both this gate and the edit-time `rfc-tagged-test` guard import. A second copy that drifted would
+let the gate re-seal a verdict against a fingerprint the guard does not compute.
+
+<!-- source: scripts/dev/rfc_tagged_scope.py -- unit_at/tag_scope -->
+
 Full authoring guidance: `ai/skills/ze-rfc.md` (id allocation and annotations),
-`ai/skills/ze-rfc-audit.md` (letter-and-spirit audit), and
-`docs/contributing/rfc-implementation-guide.md`.
+`ai/skills/ze-rfc-audit.md` (letter-and-spirit audit, the verdict vocabulary and the four
+freshness states), and `docs/contributing/rfc-implementation-guide.md`.
 
 ---
 
@@ -823,8 +875,15 @@ Driver flags:
 | `--token <token>` | Bearer token, sent on every request |
 | `--timeout <duration>` | Connection timeout (default 10s) |
 | `--tasks` | Declare the `io.modelcontextprotocol/tasks` extension in every request's `_meta.clientCapabilities` |
+| `--elicit <modes>` | Declare the `elicitation` capability in every request. `form`, `url`, `form,url`, or `empty` for the `{}` shape the specification equates with form mode only. Omitted, the capability is not declared at all |
 
 <!-- source: internal/test/cli/cmd_mcp.go — cmdMcp flag set -->
+<!-- source: internal/test/cli/cmd_mcp_mrtr.go — parseElicitCapability -->
+
+`--elicit` takes modes rather than being a bare boolean because the capability
+is mode-structured: a client declaring `url` supports elicitation and must never
+be sent a form-mode request, so `--elicit url` and `--elicit form` are different
+tests, not different spellings of one.
 
 There is no `--resources` flag. `resources` is a `ServerCapabilities` member,
 not one of the five `ClientCapabilities` members (`experimental`, `roots`,
@@ -833,21 +892,130 @@ it and the daemon serves `resources/list` and `resources/read` to every caller.
 
 <!-- source: internal/component/mcp/resources.go — resourcesList, resourcesRead -->
 
+There is no `--ui` flag either. The MCP Apps extension is declared per request
+through `probe-meta clientCapabilities`, because its settings object is what the
+test is usually varying:
+
+```
+probe-meta clientCapabilities {"extensions":{"io.modelcontextprotocol/ui":{}}}
+probe tools/list
+```
+
+<!-- source: internal/component/mcp/apps.go — clientSupportsUIApps -->
+
+**Multi Round-Trip Requests.** When the daemon answers
+`resultType: "input_required"`, the client builds `inputResponses` from the
+queued answer and retries the ORIGINAL request under a new JSON-RPC id, up to
+four rounds. Without a queued answer the call fails instead, so a round trip is
+never taken by accident and a test that did not ask for one still sees the
+interim result as a failure.
+
+| Directive | Effect |
+|-----------|--------|
+| `elicit-answer accept <value>` | Supply `<value>` under the property name the server's `requestedSchema` declares |
+| `elicit-answer decline` / `cancel` | Answer with that action; both are terminal |
+| `elicit-answer omit` | Retry carrying an empty `inputResponses`, which drives the server's re-ask path |
+| `elicit-answer none` | Forget the queued answer |
+| `elicit-extra <key>` | Also send an `inputResponses` entry under `<key>`, which no server asked for; `-` clears it |
+
+The client reads the answer's field name off the server's `requestedSchema`
+rather than assuming one, and refuses to answer an elicitation whose `mode` it
+did not declare. Both keep it an independent reading of the protocol instead of
+a restatement of the daemon: a server that sent a form-mode request to a
+url-only client fails the run with a named error rather than being quietly
+accommodated.
+
+<!-- source: internal/test/cli/cmd_mcp_mrtr.go — send retry loop, answerElicitRequest, elicitDirective -->
+
+`tools-order-stable [<calls>]` calls `tools/list` `<calls>` times (default 3)
+against an unchanged daemon and prints
+`tools-order stable=<true|false> calls=<n> tools=<n> digest=<hex>`. The
+comparison is over the RAW bytes of the `tools` array, not over the tool names:
+a wobbling action enum or a drifting description leaves every name in place and
+still defeats client caching, so names alone would under-assert the acceptance
+criterion (a byte-identical array, "including every action enum and every
+description string"). The digest on the stable line is a SHA-256 prefix over
+that array, so a `.ci` can assert the byte comparison actually ran.
+
+On drift the line names the diverging call, and then either the first differing
+tool index with both name sequences, or -- when the names are identical and only
+the payload moved -- the byte offset and both digests. The comparison is done in
+the driver rather than by a `.ci` expectation because Go's RE2 has no
+backreference, so "these two responses are identical" cannot be written as a
+pattern.
+
+<!-- source: internal/test/cli/cmd_mcp_calls.go — toolsOrderStable, toolsList, toolsDigest, firstDifference -->
+
+**Colons in expectation values.** `ParseKVPairs` splits a `.ci` directive on
+`:`, but only where a colon introduces a real key token — a letter followed by
+letters, digits, `-` or `_`, then `=`. An ordinary colon stays in the value, so
+`contains=error: no such peer` asserts the whole sentence. `json=`, `text=`,
+`hex=` and `pattern=` are consumed whole and keep everything after them.
+
+The shape that still splits is a value carrying something that looks like a key:
+`contains=note:level=high` breaks at `:level=`. That is deliberate — it is how
+the engine-step form `contains=aes-cbc:timeout=25` keeps working — so a needle of
+that shape needs `pattern=`, which must come last on the line since it consumes
+the remainder.
+
+**This was not always so, and the history is the reason to keep the rule in
+mind.** Until 2026-07-30 every colon split, so a `contains=` needle was silently
+cut at its first colon: `contains="cacheScope":"public"` asserted only
+`"cacheScope"`. A sweep found **203 assertions across 15 suites** weakened that
+way. Re-arming them turned up a security test,
+`test/appliance/appliance-push-image-escape.ci`, that had never once exercised
+the path-traversal guard it was named for — its symlink resolved to a
+nonexistent file, so the code returned "not found" long before the escape check,
+and the truncated needle `error` accepted that happily.
+
+<!-- source: internal/test/ci/ciformat.go — ParseKVPairs complexKeys, splitOnKeyBoundary -->
+
 
 ### 3c. Task Tests (`test/plugin/task-*.ci`)
 
-Task-augmented `tools/call` scenarios using the `--tasks` flag on
-`ze-test mcp`, which declares task support in every request's
-`_meta.clientCapabilities`.
+Eight files cover the `io.modelcontextprotocol/tasks` extension:
+`task-cancel.ci`, `task-extension-advertised.ci`, `task-forbidden.ci`,
+`task-identity-scope.ci`, `task-no-extension.ci`, `task-removed-methods.ci`,
+`task-rib-routes.ci` and `task-update-ack.ci`.
 
-Task directives: `task-call <tool> <args>`, `task-get <id>`,
-`task-result <id>`, `task-cancel <id>`, `task-list`,
-`task-wait <id> <state>`. `$LAST` substitutes the most recent directive
-output (typically the taskId from `task-call`).
+Most pass the `--tasks` flag to `ze-test mcp`, which declares the
+`io.modelcontextprotocol/tasks` identifier under
+`_meta.clientCapabilities.extensions` on every request.
+`task-no-extension.ci` deliberately omits the flag: it is the A/B twin of
+`task-rib-routes.ci`, same peer and same tool, asserting that a client which
+never declared the extension still gets its answer, synchronously, instead of a
+task handle.
+
+Task creation is server-directed. The client sends an ordinary `tools/call`, and
+the daemon decides from the command's `ze:task-support` YANG annotation whether
+to answer with a task handle. There is no per-call opt-in field to set.
+
+| Directive | Purpose |
+|-----------|---------|
+| `task-call <tool> [<args>]` | Ordinary `tools/call` the server must answer with `resultType: "task"`; prints the taskId |
+| `call-sync <tool> [<args>]` | Ordinary `tools/call` the server must answer synchronously (`resultType: "complete"`, no taskId) |
+| `task-get <id>` | Call `tasks/get`, print the status |
+| `task-result <id>` | Print the result a terminal task carries, read off `tasks/get` |
+| `task-update <id> [<json>]` | Call `tasks/update` with optional `inputResponses`; requires an empty acknowledgement |
+| `task-cancel <id>` | Call `tasks/cancel`; requires an empty acknowledgement |
+| `task-wait <id> <state>` | Poll `tasks/get` until the state matches |
+
+<!-- source: internal/test/cli/cmd_mcp.go -- taskDirective -->
+
+`$LAST` substitutes the most recent directive output (typically the taskId from
+`task-call`). `task-update` and `task-cancel` deliberately do not update it,
+because both return an empty acknowledgement rather than an identifier.
 
 Tasks are polled, never pushed: `2026-07-28` has no server-to-client stream on
 this transport, so `task-wait` polls `tasks/get` rather than waiting on a
-notification.
+notification. The surviving method set is exactly `tasks/get`, `tasks/update`
+and `tasks/cancel`; `tasks/list` and `tasks/result` are gone, the terminal
+payload now rides on `tasks/get`, and `task-removed-methods.ci` asserts the two
+removed names answer as unknown methods while probing the surviving three in the
+same run.
+
+<!-- source: internal/component/mcp/streamable_tools.go -- callTool, createTask, tasksUpdate -->
+<!-- source: internal/component/mcp/tasks.go -- TaskInfo.toWire -->
 
 ### 3d. Conformance Probes (`probe-*` directives)
 

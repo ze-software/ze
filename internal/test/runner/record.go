@@ -276,24 +276,33 @@ type RunCommand struct {
 	ExitCode *int
 }
 
+// httpHeader is one request header set by a :header=Name: Value key.
+// Repeating the key on a single http= line yields several entries, kept in the
+// order the keys appear on the line.
+type httpHeader struct {
+	Name  string // Field name, whitespace-trimmed (e.g. "MCP-Protocol-Version")
+	Value string // Field value, whitespace-trimmed; may itself contain colons
+}
+
 // httpCheck represents an HTTP request assertion in a .ci test.
-// Format: http=get:seq=N:url=URL:status=CODE[:contains=TEXT]
-// Format: http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:sendfile=FILE][:content-type=TYPE][:insecure-tls=true]
-// Format: http=wait:seq=N:url=URL:status=CODE[:contains=TEXT][:timeout=DUR]
+// Format: http=get:seq=N:url=URL:status=CODE[:contains=TEXT][:header=NAME: VALUE]...
+// Format: http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:sendfile=FILE][:content-type=TYPE][:header=NAME: VALUE]...[:insecure-tls=true]
+// Format: http=wait:seq=N:url=URL:status=CODE[:contains=TEXT][:header=NAME: VALUE]...[:timeout=DUR]
 // "get"/"post" checks are assertions; "wait" polls until the condition is met
 // (retrying on both connection errors and content mismatches).
 // Executed after all cmd= processes start, with retry+backoff for startup.
 type httpCheck struct {
-	Seq         int    // Execution order (lower first, among HTTP checks)
-	Method      string // HTTP method: "get", "post", or "wait"
-	URL         string // Request URL (supports $PORT substitution)
-	Status      int    // Expected HTTP status code
-	Contains    string // Expected body substring (optional, empty = skip body check)
-	BodyFile    string // Path to file with expected body content (exact match)
-	SendFile    string // Path to file whose content is sent as the POST request body
-	ContentType string // Content-Type header for sendfile bodies (default application/json)
-	InsecureTLS bool   // Accept self-signed TLS certificates for HTTPS test endpoints
-	Timeout     string // Poll timeout for wait checks (default "15s")
+	Seq         int          // Execution order (lower first, among HTTP checks)
+	Method      string       // HTTP method: "get", "post", or "wait"
+	URL         string       // Request URL (supports $PORT substitution)
+	Status      int          // Expected HTTP status code
+	Contains    string       // Expected body substring (optional, empty = skip body check)
+	BodyFile    string       // Path to file with expected body content (exact match)
+	SendFile    string       // Path to file whose content is sent as the POST request body
+	ContentType string       // Content-Type header for sendfile bodies (default application/json)
+	Headers     []httpHeader // Request headers from repeatable header= keys, applied after ContentType
+	InsecureTLS bool         // Accept self-signed TLS certificates for HTTPS test endpoints
+	Timeout     string       // Poll timeout for wait checks (default "15s")
 }
 
 // fileCheck represents an expect=file assertion in a .ci test.

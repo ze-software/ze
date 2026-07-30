@@ -1,0 +1,99 @@
+# mcp-mrtr-elicit-roundtrip - ze_execute asks for the missing command through a
+# Multi Round-Trip Request, the client answers on a retry, the command runs.
+#
+# VALIDATES: spec-mcp2026-2-mrtr AC-1 and AC-2, and end-to-end user story 1.
+# The first probe shows the interim result verbatim: resultType
+# "input_required", one inputRequests entry whose value is an elicitation/create
+# request carrying an explicit "mode":"form" -- and NO requestState, which is
+# what makes the exchange stateless. The directive that follows then drives the
+# real round trip: the client constructs the input, retries the ORIGINAL request
+# under a new JSON-RPC id with inputResponses, and the dispatched command's
+# output (the configured peer name) reaches stdout.
+#
+# WHAT CHANGED AND WHY: this replaces elicitation-accept.ci, which proved the
+# same user outcome through the mechanism MCP 2026-07-28 deleted -- a POST
+# upgraded to SSE, a server-initiated elicitation/create JSON-RPC request, and a
+# correlated client JSON-RPC response. The transport now forbids both halves of
+# that exchange, so the old test could only pass against a non-conformant
+# server. The outcome asserted is unchanged; the protocol carrying it is not.
+#
+# PREVENTS: the interim result being labelled "complete" (a client would read a
+# prompt as an answer), the mode field being dropped (which hides the url-mode
+# gap), a requestState appearing (umbrella R-3, a signed-but-unbound replay
+# primitive), and the retry failing to merge the answer into the dispatch.
+
+stdin=mcp:terminator=EOF_MCP
+wait-peers
+probe tools/call {"name":"ze_execute","arguments":{}}
+elicit-answer accept show bgp peer list
+@ze_execute {}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT --elicit form:stdin=mcp:timeout=20s
+expect=exit:code=0
+# The interim result, in full. pattern= rather than contains= because every
+# needle carries a colon and a contains= value is split on it (ci.ParseKVPairs).
+expect=stdout:pattern="resultType":"input_required"
+expect=stdout:contains=inputRequests
+expect=stdout:contains=elicitation/create
+expect=stdout:pattern="mode":"form"
+expect=stdout:pattern="requestedSchema"
+# It is an interim SUCCESS, not a tool error: HTTP 200, code=ok, no isError.
+expect=stdout:pattern=probe status=200 code=ok
+# The retry ran the answered command: the configured peer is in the output.
+expect=stdout:contains=peer1
+# No requestState anywhere. Ze mints none, so any occurrence is either a server
+# emitting state it cannot verify later or a client inventing one.
+reject=stdout:contains=requestState
+# The server never writes a JSON-RPC request frame. AC-3's first half: an
+# elicitation/create is a plain {method, params} OBJECT nested in inputRequests,
+# never a message of its own, so no JSON-RPC envelope may appear anywhere in a
+# printed result.
+#
+# This replaces `"jsonrpc":"2.0","id":[0-9]+,"method":"elicitation/create"`,
+# which could not match whatever the server did: formatProbeResult
+# (internal/test/cli/cmd_mcp.go) prints the frame's `result` MEMBER, never the
+# enclosing frame, so no line of this client's stdout is ever shaped like a
+# whole JSON-RPC message. The needle below is inside that printed member, so it
+# fires the moment newElicitRequest (internal/component/mcp/elicit.go) starts
+# building a frame instead of an object.
+reject=stdout:pattern="jsonrpc":"2\.0"
+# AC-15's interim half (spec-mcp2026-4-caching-apps): an input_required result
+# "is not cacheable and carries no caching hints". The probe above prints the
+# whole interim result, so a hint stamped onto it would land here. tools/list is
+# never called in this run, so neither key has any other way to reach stdout.
+reject=stdout:pattern="ttlMs"
+reject=stdout:pattern="cacheScope"

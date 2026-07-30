@@ -35,10 +35,10 @@ import (
 	zemcp "github.com/ze-software/ze/internal/component/mcp"
 )
 
-// mcpService adapts *MCPServerHandle to the Service interface (the handle
+// mcpService adapts *mcpServerHandle to the Service interface (the handle
 // already satisfies Reconfigurable + Shutdown; only Name is added).
 type mcpService struct {
-	*MCPServerHandle
+	*mcpServerHandle
 }
 
 func (mcpService) Name() string { return "mcp" }
@@ -161,10 +161,10 @@ func parseTaskSupportLevel(s string) zemcp.TaskSupportLevel {
 	}
 }
 
-// MCPServerHandle bundles the running HTTP server with the Streamable handler
+// mcpServerHandle bundles the running HTTP server with the Streamable handler
 // so the shutdown path can close both: http.Server.Shutdown drains the TCP
-// listener, handler.Close drains the session registry's GC goroutine.
-type MCPServerHandle struct {
+// listener, handler.Close drains the task registry's GC goroutine.
+type mcpServerHandle struct {
 	Server    *http.Server
 	Handler   *zemcp.Streamable
 	useTLS    bool
@@ -177,7 +177,7 @@ type MCPServerHandle struct {
 // startMCPServer creates and starts an MCP HTTP server bound to every entry
 // in addrs. Returns the handle on success, nil on failure (logged,
 // non-fatal). Shutdown on the returned server closes every listener; the
-// caller MUST also call handler.Close() so the session registry GC goroutine
+// caller MUST also call handler.Close() so the task registry GC goroutine
 // exits.
 //
 // Bind is all-or-nothing: if ANY listener fails to bind, the already-bound
@@ -188,8 +188,10 @@ type MCPServerHandle struct {
 // the other is a config error; MCPListenConfig.Validate rejects that at
 // verify time, so we trust the pair is complete here.
 //
-// Speaks the MCP 2025-06-18 Streamable HTTP profile (sessions, SSE, GET/DELETE).
-func startMCPServer(addrs []string, dispatch zemcp.CommandDispatcher, commands zemcp.CommandLister, mcpCfg zemcp.StreamableConfig, tlsCert, tlsKey string) *MCPServerHandle {
+// Speaks the MCP 2026-07-28 Streamable HTTP profile: POST-only and stateless,
+// with per-request metadata, headers and authentication, and no handshake,
+// session or server-to-client stream.
+func startMCPServer(addrs []string, dispatch zemcp.CommandDispatcher, commands zemcp.CommandLister, mcpCfg zemcp.StreamableConfig, tlsCert, tlsKey string) *mcpServerHandle {
 	if len(addrs) == 0 {
 		fmt.Fprintln(os.Stderr, "warning: MCP server disabled: no listen addresses")
 		return nil
@@ -256,7 +258,7 @@ func startMCPServer(addrs []string, dispatch zemcp.CommandDispatcher, commands z
 		fmt.Fprintf(os.Stderr, "MCP server listening on %s://%s/\n", scheme, ln.Addr().String())
 	}
 
-	return &MCPServerHandle{
+	return &mcpServerHandle{
 		Server:    srv,
 		Handler:   handler,
 		useTLS:    useTLS,
@@ -321,7 +323,7 @@ func checkKeyFilePermissions(keyFile string) error {
 }
 
 // Addresses returns every bound listen address.
-func (h *MCPServerHandle) Addresses() []string {
+func (h *mcpServerHandle) Addresses() []string {
 	if h == nil {
 		return nil
 	}
@@ -333,9 +335,9 @@ func (h *MCPServerHandle) Addresses() []string {
 }
 
 // Shutdown gracefully stops the HTTP server and drains the Streamable's
-// session registry. Idempotent through http.Server.Shutdown and
+// task registry. Idempotent through http.Server.Shutdown and
 // Streamable.Close. MUST be called before process exit.
-func (h *MCPServerHandle) Shutdown(ctx context.Context) error {
+func (h *mcpServerHandle) Shutdown(ctx context.Context) error {
 	if h == nil {
 		return nil
 	}
@@ -353,7 +355,7 @@ func (h *MCPServerHandle) Shutdown(ctx context.Context) error {
 }
 
 // Reconfigure migrates MCP listeners to a new set of addresses.
-func (h *MCPServerHandle) Reconfigure(ctx context.Context, newAddrs []string) error {
+func (h *mcpServerHandle) Reconfigure(ctx context.Context, newAddrs []string) error {
 	if h == nil {
 		return errors.New("MCP server not running")
 	}

@@ -1,0 +1,69 @@
+# task-extension-advertised - server/discover names the tasks extension.
+#
+# VALIDATES: spec-mcp2026-3-tasks-extension AC-11. MCP 2026-07-28
+# basic/versioning "Extension Negotiation": "Extensions are advertised in the
+# `extensions` field of capabilities, which is a map of extension identifiers to
+# per-extension settings objects", and "an empty object indicates support with
+# no additional settings".
+#
+# WHY THIS MATTERS BEYOND BOOKKEEPING: basic/index "ResultType" says a client's
+# legal ResultType set is the core set plus "any additional values of supported
+# extensions that are advertised via capabilities", and that "a resultType of
+# any value unrecognized by the client MUST be considered invalid". So
+# resultType "task" -- which this server returns for every `ze:task-support
+# required` command -- is only interpretable BECAUSE this row exists. Before this
+# phase the server advertised an empty extension set while already serving
+# tasks/*, claiming non-support while serving.
+#
+# The UI extension is asserted alongside it, so a regression that replaced the
+# extensions map wholesale (rather than adding to it) fails here too.
+
+stdin=mcp:terminator=EOF_MCP
+probe server/discover
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=tcp_connections:value=0
+
+cmd=background:seq=1:exec=ze --mcp $PORT2 -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2:stdin=mcp:timeout=15s
+expect=exit:code=0
+expect=stdout:pattern=probe status=200 code=ok
+# The tasks extension, with the empty settings object the specification
+# prescribes. pattern= is required: the identifier itself contains a colon-free
+# slash but the JSON needle carries `":` pairs, and contains= truncates at the
+# first colon (internal/test/ci/ciformat.go ParseKVPairs).
+expect=stdout:pattern="io\.modelcontextprotocol/tasks":\{\}
+# The UI extension is still there: this phase ADDS to the map rather than
+# replacing it.
+expect=stdout:pattern="io\.modelcontextprotocol/ui":\{\}
+# Both sit inside the extensions object, not loose in capabilities.
+expect=stdout:pattern=(?s)"extensions":\{[^}]*"io\.modelcontextprotocol/
+# The advertisement is not an error path.
+reject=stdout:contains=code=-32601
+reject=stdout:contains=code=-32602

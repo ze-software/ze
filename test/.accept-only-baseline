@@ -107,7 +107,6 @@ test/plugin/smart-show-unconfigured.ci
 test/plugin/smart-show.ci
 test/plugin/sysctl-list.ci
 test/plugin/sysctl-show-describe.ci
-test/plugin/task-identity-scope.ci
 test/plugin/traffic-monitor.ci
 test/ui/cli-completion-ghost-no-match.ci
 test/ui/cli-completion-invalid-context.ci

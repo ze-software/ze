@@ -114,15 +114,26 @@ module ze-extensions {
     }
 
     // Extension: task-support
-    // Declares whether an MCP tool supports task-augmented calls.
+    // Declares whether an MCP tool is executed as a task.
     // Used by tools.go to populate execution.taskSupport in tools/list.
     // Values: "optional" (default), "required", "forbidden".
+    //
+    // The SERVER decides, per MCP 2026-07-28's io.modelcontextprotocol/tasks
+    // extension: task creation is server-directed and this annotation is the
+    // whole rule. Before that revision the CLIENT asked, per call, via
+    // params.task, and these three words described what the client was allowed
+    // to ask for. The vocabulary is unchanged because it always described the
+    // command's relationship to task execution rather than who initiates it;
+    // only the actor moved.
     extension task-support {
         argument level;
         description "Declares the MCP task-support level for this command.
-                     'required' = must be called as a task,
-                     'optional' = sync or task (default if absent),
-                     'forbidden' = must not be called as a task.";
+                     Task creation is server-directed: the server decides from
+                     this annotation, and the client opts in once by declaring
+                     the io.modelcontextprotocol/tasks extension.
+                     'required' = the server always returns a task handle,
+                     'optional' = the call is synchronous (default if absent),
+                     'forbidden' = the server never returns a task handle.";
     }
 
     // Extension: edit-shortcut

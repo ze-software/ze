@@ -1,0 +1,64 @@
+# mcp-ui-resource-read - the embedded UI bundle is fetched with the cache
+# metadata that lets a host keep it.
+#
+# VALIDATES: spec-mcp2026-4-caching-apps AC-2 and AC-3 (resources/list and
+# resources/read both return ttlMs 3600000 and cacheScope "private"), and AC-10
+# (a path-traversal URI is still refused).
+#
+# One hour is the embedded-asset class: cachedResources is built once at
+# construction and the bytes come from //go:embed, so they are fixed for the
+# binary's lifetime. It is deliberately NOT a day. The bytes DO change across an
+# upgrade, and unlike a stale tool list a stale UI bundle produces no error for
+# the client to recover from -- it just renders the old panel.
+#
+# PREVENTS: the two resource surfaces drifting onto different TTLs, the
+# registry-derived 60 s leaking onto an immutable asset, and the traversal guard
+# being lost while the handlers were edited for cache hints.
+
+stdin=mcp:terminator=EOF_MCP
+probe resources/list
+probe resources/read {"uri":"ui://bgp-peer/index.html"}
+probe resources/read {"uri":"ui://../../../etc/passwd"}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+# Traversal is still refused, and a refusal carries no cache hints to store.
+expect=stdout:contains=code=-32602
+reject=stdout:contains=/etc/passwd
+reject=stdout:pattern="cacheScope":"public"
+# The registry-derived TTL must not leak onto an embedded asset.
+reject=stdout:pattern="ttlMs":60000
+# The bundle itself came back, so the TTL describes real content.
+expect=stdout:pattern="mimeType":"text/html"
+expect=stdout:pattern="uri":"ui://bgp-peer/index\.html"
+expect=stdout:pattern="cacheScope":"private"
+# Both cacheable resource surfaces carry the embedded-asset TTL.
+expect=stdout:pattern=(?s)"ttlMs":3600000.*"ttlMs":3600000

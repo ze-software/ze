@@ -1,25 +1,50 @@
-# mcp-status - verify chaos MCP server responds to status and tools/list
-# Tests --mcp flag and chaos_status tool
+# mcp-status - the chaos MCP listener identifies itself and serves its tools.
+#
+# WHAT CHANGED AND WHY: step 1 used to POST `{"method":"initialize"}` as a
+# readiness probe and read the server name out of the handshake's serverInfo.
+# MCP 2026-07-28 deleted the handshake, so that request now answers 400/-32020
+# (it carries no standard headers) and there is no initialize result to read a
+# name from. It is replaced by two things, because the old step was doing two
+# jobs at once:
+#
+#   1. Readiness. `http=wait:` polls with GET and sends no body
+#      (executeOneHTTPWait, internal/test/runner/runner_validate.go), and the
+#      2026-07-28 endpoint is POST-only, so the readiness signal is the 405 the
+#      endpoint answers a GET with. That is a stronger signal than a TCP connect:
+#      it proves the MCP handler is mounted and routing, not merely that
+#      something is listening. Unlike an assertion check, a wait retries on a
+#      wrong status too, so it cannot fail early on a half-started server.
+#   2. Identity. serverInfo moved into every result's _meta, and server/discover
+#      is the call a client makes to learn what a server is
+#      (internal/component/mcp/discover.go). Step 2 reads the name from there.
+#
+# Steps 3 and 4 are the original tools/list and chaos_status checks, unchanged
+# except for the headers and _meta every request now carries.
 
 cmd=background:seq=1:exec=ze-chaos --in-process --web :$PORT --mcp :$PORT2 --duration 10s --peers 2 --seed 42 --routes 5 --quiet
 
-# Wait for MCP server to be ready via initialize
-tmpfs=init.json:terminator=EOF_INIT
-{"jsonrpc":"2.0","id":1,"method":"initialize"}
-EOF_INIT
+# Readiness: GET the MCP endpoint until it answers 405 Method Not Allowed.
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/mcp:status=405:contains=method not allowed:timeout=20s
 
-http=post:seq=1:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=ze-chaos-mcp:sendfile=init.json
+# server/discover carries the server name under
+# result._meta["io.modelcontextprotocol/serverInfo"], plus the versions it speaks.
+tmpfs=discover.json:terminator=EOF_DISCOVER
+{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+EOF_DISCOVER
+
+http=post:seq=1:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=ze-chaos-mcp:sendfile=discover.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: server/discover
+http=post:seq=2:url=http://127.0.0.1:$PORT2/mcp:status=200:contains="supportedVersions":["2026-07-28"]:sendfile=discover.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: server/discover
 
 # tools/list returns chaos tools
 tmpfs=list.json:terminator=EOF_LIST
-{"jsonrpc":"2.0","id":2,"method":"tools/list"}
+{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
 EOF_LIST
 
-http=post:seq=2:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=chaos_status:sendfile=list.json
+http=post:seq=3:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=chaos_status:sendfile=list.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/list
 
 # chaos_status returns JSON with seed and route counts
 tmpfs=status.json:terminator=EOF_STATUS
-{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"chaos_status","arguments":{}}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"chaos_status","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
 EOF_STATUS
 
-http=post:seq=3:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=routes-announced:sendfile=status.json
+http=post:seq=4:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=routes-announced:sendfile=status.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:header=Mcp-Name: chaos_status

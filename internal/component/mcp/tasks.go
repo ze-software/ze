@@ -1,12 +1,16 @@
 // Design: docs/architecture/mcp/overview.md -- MCP task registry and worker orchestration
+// Related: task_state.go -- the TaskState enum every entry carries, and the state Ze cannot enter
+// Related: streamable_tools.go -- createTask and the tasks/* handlers that drive this registry
 
 package mcp
 
 import (
+	"cmp"
 	"context"
-	"encoding/json"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
-	"fmt"
+	"slices"
 	"sync"
 	"time"
 )
@@ -19,13 +23,50 @@ const (
 	minTaskTTL                = time.Second
 	maxTaskTTL                = time.Hour
 	taskGCInterval            = 30 * time.Second
+	// defaultTaskExecDeadline bounds how long a worker may run before the
+	// registry forces its entry terminal (D-3).
+	//
+	// This is a LIVENESS bound, not a retention one, and it exists because MCP
+	// 2026-07-28 removed sessions. Under the previous revision
+	// CancelAllForSession was wired to session expiry and was the only path that
+	// could force a NON-terminal task terminal; the TTL sweep cannot do it,
+	// because it deletes only entries that ALREADY reached a terminal state.
+	// Removing sessions therefore removed a liveness guarantee, not just a
+	// cleanup hook: a worker whose dispatch never returns would hold one of its
+	// principal's maxConcurrent slots forever and never be swept.
+	//
+	// 10 minutes is deliberately far longer than any annotated command should
+	// take. It is a backstop against a wedged dispatch, not a timeout operators
+	// are expected to tune around.
+	defaultTaskExecDeadline = 10 * time.Minute
+	// defaultPollInterval is the ceiling on the pollIntervalMs hint. The value
+	// actually sent is min(this, ttl/2) -- see retentionHints.
+	defaultPollInterval = time.Second
+	// taskIDRawBytes is the entropy behind a task id: 128 bits, base64url
+	// encoded. A task id is a capability-free handle -- the registry checks the
+	// authenticated principal on every lookup -- but it is still unguessable so
+	// a task cannot be probed for by enumeration.
+	taskIDRawBytes = 16
 )
+
+// generateTaskID returns a fresh base64url-encoded 128-bit task identifier.
+func generateTaskID() (string, error) {
+	var buf [taskIDRawBytes]byte
+	if _, err := rand.Read(buf[:]); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(buf[:]), nil
+}
 
 // Task registry errors.
 var (
 	errTaskNotFound       = errors.New("mcp: task not found")
 	errTaskConcurrencyCap = errors.New("mcp: task concurrency cap reached")
-	errTaskNotTerminal    = errors.New("mcp: task not terminal")
+	// errTaskExecDeadline is the error text stored on a task the sweep forced
+	// terminal for outrunning its execution deadline (D-3). A client polling
+	// tasks/get reads it as the task's `error`, so it says what happened and
+	// what to do rather than only that the task failed.
+	errTaskExecDeadline = errors.New("mcp: task exceeded its server-side execution deadline and was terminated; re-run the command, and if it legitimately needs longer, raise TaskRegistryConfig.ExecDeadline")
 )
 
 // taskEntry is a single task in the registry. Fields guarded by mu.
@@ -33,7 +74,6 @@ type taskEntry struct {
 	mu         sync.Mutex
 	id         string
 	identity   string
-	sessionID  string
 	state      TaskState
 	createdAt  time.Time
 	updatedAt  time.Time
@@ -42,6 +82,10 @@ type taskEntry struct {
 	errorMsg   string
 	cancel     context.CancelFunc
 	ttl        time.Duration
+	// deadline is the instant past which a still-working task is forced
+	// terminal by the sweep (D-3). Zero means no deadline, which no path
+	// through Create can produce.
+	deadline time.Time
 }
 
 // taskRegistry holds all in-flight and recently-terminal tasks.
@@ -53,6 +97,7 @@ type taskRegistry struct {
 	maxConcurrent int
 	maxTerminal   int
 	ttl           time.Duration
+	execDeadline  time.Duration
 	now           func() time.Time
 	stop          chan struct{}
 	stopped       chan struct{}
@@ -63,6 +108,9 @@ type TaskRegistryConfig struct {
 	MaxConcurrent int
 	MaxTerminal   int
 	TTL           time.Duration
+	// ExecDeadline bounds a single worker's run before the sweep forces its
+	// entry terminal. Non-positive selects defaultTaskExecDeadline.
+	ExecDeadline time.Duration
 }
 
 func newTaskRegistry(cfg TaskRegistryConfig) *taskRegistry {
@@ -74,30 +122,71 @@ func newTaskRegistry(cfg TaskRegistryConfig) *taskRegistry {
 	if maxT <= 0 {
 		maxT = defaultMaxTerminalTasks
 	}
-	ttl := cfg.TTL
-	if ttl <= 0 {
-		ttl = defaultTaskTTL
+	deadline := cfg.ExecDeadline
+	if deadline <= 0 {
+		deadline = defaultTaskExecDeadline
 	}
 	r := &taskRegistry{
 		tasks:         make(map[string]*taskEntry),
 		byIdentity:    make(map[string]map[string]struct{}),
 		maxConcurrent: maxC,
 		maxTerminal:   maxT,
-		ttl:           ttl,
-		now:           time.Now,
-		stop:          make(chan struct{}),
-		stopped:       make(chan struct{}),
+		// The TTL is clamped ONCE, here. It used to be clamped per Create,
+		// because the client could request a TTL on each task-augmented call;
+		// with the client-directed opt-in gone (D-1) the config field is the only
+		// TTL input that exists, so the bound belongs at the single point it
+		// enters the registry rather than on a path taken per task.
+		ttl:          clampTaskTTL(cfg.TTL),
+		execDeadline: deadline,
+		now:          time.Now,
+		stop:         make(chan struct{}),
+		stopped:      make(chan struct{}),
 	}
 	go r.runGC()
 	return r
 }
 
+// clampTaskTTL bounds a configured retention window to [minTaskTTL, maxTaskTTL],
+// reading a non-positive value as "use the default" rather than as "zero".
+func clampTaskTTL(requested time.Duration) time.Duration {
+	switch {
+	case requested <= 0:
+		return defaultTaskTTL
+	case requested < minTaskTTL:
+		return minTaskTTL
+	case requested > maxTaskTTL:
+		return maxTaskTTL
+	default:
+		return requested
+	}
+}
+
+// retentionHints returns the two client-facing timing numbers a CreateTaskResult
+// carries, in milliseconds: how long a terminal result is retained, and how
+// often the client should poll.
+//
+// pollIntervalMs is DERIVED, never configured (D-6). A fixed constant can exceed
+// the retention window -- at the 1 s minimum TTL a 1 s poll hint would let a
+// conforming client sleep exactly past the result and find it swept -- so the
+// hint is capped at half the TTL. That keeps one invariant true for every legal
+// TTL: a client obeying the hint polls at least twice inside the window.
+func (r *taskRegistry) retentionHints() (ttlMs, pollMs int64) {
+	ttl := clampTaskTTL(r.ttl)
+	poll := min(defaultPollInterval, ttl/2)
+	return ttl.Milliseconds(), poll.Milliseconds()
+}
+
 // Create registers a new task in working state and returns its ID.
 // The caller is responsible for launching the worker goroutine with
 // the returned cancel func.
-func (r *taskRegistry) Create(identity, sessionID string, requestedTTL time.Duration) (string, context.Context, context.CancelFunc, error) {
-	ttl := r.clampTTL(requestedTTL)
+//
+// identity is the authenticated principal the task belongs to. It comes from
+// the per-request authenticator, never from a request body field, and it is
+// the only key the registry indexes by: the concurrency cap, every lookup and
+// the visibility rule are all per principal.
+func (r *taskRegistry) Create(identity string) (string, context.Context, context.CancelFunc, error) {
 	now := r.now()
+	deadline := now.Add(r.execDeadline)
 
 	r.mu.Lock()
 	count := r.activeCount(identity)
@@ -106,23 +195,33 @@ func (r *taskRegistry) Create(identity, sessionID string, requestedTTL time.Dura
 		return "", nil, nil, errTaskConcurrencyCap
 	}
 
-	id, err := generateSessionID()
+	id, err := generateTaskID()
 	if err != nil {
 		r.mu.Unlock()
 		return "", nil, nil, err
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	// The worker context carries the deadline so a well-behaved dispatch that
+	// selects on ctx.Done() unwinds on its own. That reaches the dispatcher
+	// through server.context (tools.go), which is the ONE reader of the runner's
+	// ctx field; both dispatch sites used to hard-code context.Background(), so
+	// this half of the mechanism was inert and the claim below was the only one
+	// that held. It is still NOT the guarantee: a wedged dispatch that never
+	// looks at its context would keep the goroutine and the concurrency slot
+	// regardless. The registry-side backstop is in sweep, which forces the ENTRY
+	// terminal at the same instant whether or not the goroutine ever returns
+	// (D-3).
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 
 	entry := &taskEntry{
 		id:        id,
 		identity:  identity,
-		sessionID: sessionID,
 		state:     TaskWorking,
 		createdAt: now,
 		updatedAt: now,
 		cancel:    cancel,
-		ttl:       ttl,
+		ttl:       r.ttl,
+		deadline:  deadline,
 	}
 	r.tasks[id] = entry
 	if r.byIdentity[identity] == nil {
@@ -151,25 +250,6 @@ func (r *taskRegistry) Get(identity, taskID string) (TaskInfo, error) {
 	return taskInfoFromEntry(entry), nil
 }
 
-// Result returns the stored CallToolResult for a terminal task.
-func (r *taskRegistry) Result(identity, taskID string) (map[string]any, error) {
-	r.mu.Lock()
-	entry, ok := r.tasks[taskID]
-	r.mu.Unlock()
-	if !ok {
-		return nil, errTaskNotFound
-	}
-	entry.mu.Lock()
-	defer entry.mu.Unlock()
-	if entry.identity != identity {
-		return nil, errTaskNotFound
-	}
-	if !entry.state.IsTerminal() {
-		return nil, errTaskNotTerminal
-	}
-	return entry.result, nil
-}
-
 // Cancel requests cancellation of a working task. Terminal tasks are
 // left as-is (idempotent no-op per AC-19a).
 func (r *taskRegistry) Cancel(identity, taskID string) (TaskState, error) {
@@ -180,51 +260,29 @@ func (r *taskRegistry) Cancel(identity, taskID string) (TaskState, error) {
 		return TaskUnspecified, errTaskNotFound
 	}
 	entry.mu.Lock()
-	defer entry.mu.Unlock()
 	if entry.identity != identity {
+		entry.mu.Unlock()
 		return TaskUnspecified, errTaskNotFound
 	}
 	if entry.state.IsTerminal() {
-		return entry.state, nil
+		state := entry.state
+		entry.mu.Unlock()
+		return state, nil
 	}
 	entry.state = TaskCancelled
 	entry.updatedAt = r.now()
 	entry.terminalAt = entry.updatedAt
 	entry.cancel()
+	entry.mu.Unlock()
+
+	// A cancel is the other way a task becomes terminal, so the retention cap
+	// is enforced here too. entry.mu is released first: the registry lock order
+	// is r.mu before entry.mu.
+	r.evictTerminalOverCap(identity)
 	return TaskCancelled, nil
 }
 
-// List returns all tasks for the given identity.
-func (r *taskRegistry) List(identity string) []TaskInfo {
-	r.mu.Lock()
-	ids, ok := r.byIdentity[identity]
-	if !ok {
-		r.mu.Unlock()
-		return nil
-	}
-	idSlice := make([]string, 0, len(ids))
-	for id := range ids {
-		idSlice = append(idSlice, id)
-	}
-	r.mu.Unlock()
-
-	result := make([]TaskInfo, 0, len(idSlice))
-	for _, id := range idSlice {
-		r.mu.Lock()
-		entry, ok := r.tasks[id]
-		r.mu.Unlock()
-		if !ok {
-			continue
-		}
-		entry.mu.Lock()
-		result = append(result, taskInfoFromEntry(entry))
-		entry.mu.Unlock()
-	}
-	return result
-}
-
-// Transition updates a task's state. Used by workers on completion/failure
-// and by the elicitation integration for input_required transitions.
+// Transition updates a task's state. Used by workers on completion/failure.
 // Rejects invalid transitions (terminal -> any).
 func (r *taskRegistry) Transition(taskID string, to TaskState) bool {
 	r.mu.Lock()
@@ -234,20 +292,36 @@ func (r *taskRegistry) Transition(taskID string, to TaskState) bool {
 		return false
 	}
 	entry.mu.Lock()
-	defer entry.mu.Unlock()
 	if entry.state.IsTerminal() {
+		entry.mu.Unlock()
 		return false
 	}
 	entry.state = to
 	entry.updatedAt = r.now()
-	if to.IsTerminal() {
+	becameTerminal := to.IsTerminal()
+	if becameTerminal {
 		entry.terminalAt = entry.updatedAt
+	}
+	identity := entry.identity
+	entry.mu.Unlock()
+
+	// Enforce the retention cap here, not only on the GC ticker: this is the
+	// moment the terminal set grows, and a burst can cross the cap many times
+	// between two taskGCInterval ticks, so the invariant would not hold at the
+	// points a caller can observe it. entry.mu is released first: the registry
+	// lock order is r.mu before entry.mu (see sweep and activeCount).
+	if becameTerminal {
+		r.evictTerminalOverCap(identity)
 	}
 	return true
 }
 
-// SetErrorMsg stores the error message for a failed task.
-func (r *taskRegistry) SetErrorMsg(taskID, msg string) {
+// setErrorMsg stores the error message for a task that has not yet finished.
+//
+// Terminal entries are immutable. See the note on storeResult: a worker that
+// returns after the deadline sweep already failed its entry must not overwrite
+// the diagnostic that explains why the task ended.
+func (r *taskRegistry) setErrorMsg(taskID, msg string) {
 	r.mu.Lock()
 	entry, ok := r.tasks[taskID]
 	r.mu.Unlock()
@@ -255,12 +329,33 @@ func (r *taskRegistry) SetErrorMsg(taskID, msg string) {
 		return
 	}
 	entry.mu.Lock()
-	entry.errorMsg = msg
+	if !entry.state.IsTerminal() {
+		entry.errorMsg = msg
+	}
 	entry.mu.Unlock()
 }
 
-// StoreResult saves the tool call result on a terminal task.
-func (r *taskRegistry) StoreResult(taskID string, result map[string]any) {
+// storeResult saves the tool call result on a task that has not yet finished.
+//
+// # A terminal entry is immutable, and that is the whole point
+//
+// Three writers touch an entry after creation: Transition, setErrorMsg and this
+// one. Transition has always refused terminal -> any; the other two did not,
+// and the gap was reachable. The deadline sweep (pass 1) sets state, terminalAt
+// and errorMsg on a WORKING task whose worker has not returned. When that worker
+// eventually does return, runTaskWorker calls storeResult and setErrorMsg before
+// its (correctly refused) Transition -- so the entry ended up carrying the
+// sweep's deadline error AND the worker's completed result, and toWire emitted
+// both `error` and `result`. A client polling tasks/get read status "failed"
+// with a deadline diagnostic beside a complete, correct answer, which toWire's
+// own godoc says cannot happen.
+//
+// The guard is the same predicate Transition uses, so all three writers now
+// agree on one rule: the first terminal state wins, and everything after it is
+// dropped. Ordering inside runTaskWorker is unaffected -- on the normal path the
+// entry is still working when the payload is stored, which is the property that
+// keeps a polling client from seeing a terminal status with an empty payload.
+func (r *taskRegistry) storeResult(taskID string, result map[string]any) {
 	r.mu.Lock()
 	entry, ok := r.tasks[taskID]
 	r.mu.Unlock()
@@ -268,39 +363,38 @@ func (r *taskRegistry) StoreResult(taskID string, result map[string]any) {
 		return
 	}
 	entry.mu.Lock()
-	entry.result = result
+	if !entry.state.IsTerminal() {
+		entry.result = result
+	}
 	entry.mu.Unlock()
 }
 
-// CancelAllForSession cancels all in-flight tasks for a session (on
-// session close). Terminal tasks are left for TTL GC.
-func (r *taskRegistry) CancelAllForSession(sessionID string) {
+// Close stops the GC goroutine and cancels every task still in flight.
+//
+// The cancellation is not housekeeping. taskWorkerFunc's godoc promises "ctx is
+// canceled on tasks/cancel and on task-registry shutdown", and only the first
+// half was true: Close stopped the sweeper and returned, leaving every working
+// entry's context live. A worker blocked in a dispatch therefore outlived
+// Streamable.Close() with nothing left to reap it -- the sweep that would have
+// forced its entry terminal is the goroutine Close just stopped.
+//
+// Only the context is canceled; no state is written. The registry is being torn
+// down, so a worker that unwinds here finds its entry via the normal path and
+// transitions it, and one that ignores its context leaks no more than it
+// already did. Lock order is r.mu before entry.mu, as in sweep.
+func (r *taskRegistry) Close() {
+	close(r.stop)
+	<-r.stopped
+
 	r.mu.Lock()
-	var toCancel []*taskEntry
+	defer r.mu.Unlock()
 	for _, entry := range r.tasks {
-		if entry.sessionID == sessionID {
-			toCancel = append(toCancel, entry)
-		}
-	}
-	r.mu.Unlock()
-
-	now := r.now()
-	for _, entry := range toCancel {
 		entry.mu.Lock()
-		if !entry.state.IsTerminal() {
-			entry.state = TaskCancelled
-			entry.updatedAt = now
-			entry.terminalAt = now
+		if !entry.state.IsTerminal() && entry.cancel != nil {
 			entry.cancel()
 		}
 		entry.mu.Unlock()
 	}
-}
-
-// Close stops the GC goroutine.
-func (r *taskRegistry) Close() {
-	close(r.stop)
-	<-r.stopped
 }
 
 // activeCount returns the number of non-terminal tasks for identity.
@@ -329,17 +423,134 @@ func (r *taskRegistry) activeCount(identity string) int {
 	return count
 }
 
-func (r *taskRegistry) clampTTL(requested time.Duration) time.Duration {
-	if requested <= 0 {
-		return r.ttl
+// terminalCap returns the retained-terminal-task cap for one principal.
+//
+// newTaskRegistry normalises a non-positive MaxTerminal to the default, exactly
+// as it does for MaxConcurrent and the TTL, so a registry built through the
+// constructor always carries a positive value. This helper repeats that one
+// convention for any registry that was not, so a zero can never be read as
+// "unlimited": a zero-valued cap silently meaning "no cap" is the fail-open
+// shape ai/rules/fail-closed-guards.md exists to stop. There is deliberately no
+// third convention -- nothing in this registry spells "uncapped".
+func (r *taskRegistry) terminalCap() int {
+	if r.maxTerminal <= 0 {
+		return defaultMaxTerminalTasks
 	}
-	if requested < minTaskTTL {
-		return minTaskTTL
+	return r.maxTerminal
+}
+
+// deleteLocked removes one task and prunes the identity index, dropping the
+// identity key once its last id goes. Caller must hold r.mu.
+//
+// Both reapers -- the TTL sweep and the retention cap -- go through here. A
+// leaked byIdentity key is the same unbounded map growth in a different shape,
+// so the index-consistent removal is written once rather than copied.
+func (r *taskRegistry) deleteLocked(id, identity string) {
+	delete(r.tasks, id)
+	ids, ok := r.byIdentity[identity]
+	if !ok {
+		return
 	}
-	if requested > maxTaskTTL {
-		return maxTaskTTL
+	delete(ids, id)
+	if len(ids) == 0 {
+		delete(r.byIdentity, identity)
 	}
-	return requested
+}
+
+// evictTerminalOverCap bounds the terminal tasks retained for one principal,
+// dropping oldest-terminal-first until at most terminalCap remain.
+//
+// # Why this cap exists
+//
+// The registry is the only long-lived per-client structure on this transport,
+// and a terminal entry retains a full result map (storeResult) until its TTL
+// expires -- a client-chosen window of up to an hour (clampTTL). The
+// concurrency cap counts only non-terminal tasks (activeCount), so a completed
+// task frees its slot immediately and a client can cycle tasks to completion
+// indefinitely. Without this cap the map grows without bound.
+//
+// # Why the cap is per principal and not global
+//
+// A GLOBAL cap would bound the map at one flat number, but it would also hand
+// every authenticated caller a cross-principal denial: a burst of quick tasks
+// would evict every other principal's results. That is one principal
+// destroying another's data, which is a worse failure than the growth it
+// prevents.
+//
+// PER PRINCIPAL bounds the map at principals x cap, and no principal can reach
+// another's entries. The multiplier is set by the auth mode, not by the caller:
+//
+//   - none and bearer both authenticate to the anonymous identity, so every
+//     caller collapses onto one key and the bound is a hard cap. This is the
+//     default for `ze --mcp` and for ze-chaos, and the deployment where the
+//     unbounded growth was actually reachable.
+//   - bearer-list is bounded by the operator's configured identity list.
+//   - oauth is bounded by the subjects the trusted issuer has signed tokens
+//     for. Admission there belongs to the authorization server, which Ze
+//     already trusts for authentication itself. Buying a smaller multiplier by
+//     handing every tenant an eviction primitive against every other tenant is
+//     the worse trade.
+//
+// It also keeps the sibling caps coherent: maxConcurrent is already per
+// principal, so a global maxTerminal would be a second, contradictory scoping
+// convention inside one registry.
+//
+// A non-terminal task is never evicted: an in-flight task must not vanish
+// because other tasks completed.
+func (r *taskRegistry) evictTerminalOverCap(identity string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.evictTerminalOverCapLocked(identity)
+}
+
+// evictTerminalOverCapLocked is evictTerminalOverCap with r.mu already held.
+// It takes entry.mu per entry, which is the registry's lock order (r.mu before
+// entry.mu, as in sweep and activeCount), so no caller may hold an entry lock
+// when calling it.
+func (r *taskRegistry) evictTerminalOverCapLocked(identity string) {
+	ids, ok := r.byIdentity[identity]
+	if !ok {
+		return
+	}
+	limit := r.terminalCap()
+	// len(ids) counts terminal and non-terminal alike, so it is an upper bound
+	// on the terminal count: at or under the cap here means nothing to evict.
+	if len(ids) <= limit {
+		return
+	}
+
+	type terminalRef struct {
+		id string
+		at time.Time
+	}
+	refs := make([]terminalRef, 0, len(ids))
+	for id := range ids {
+		entry, ok := r.tasks[id]
+		if !ok {
+			continue
+		}
+		entry.mu.Lock()
+		terminal := entry.state.IsTerminal()
+		at := entry.terminalAt
+		entry.mu.Unlock()
+		if terminal {
+			refs = append(refs, terminalRef{id: id, at: at})
+		}
+	}
+	excess := len(refs) - limit
+	if excess <= 0 {
+		return
+	}
+
+	// Oldest terminal first. The id breaks ties so eviction is deterministic
+	// rather than dependent on map iteration order, which matters when a coarse
+	// or injected clock stamps several tasks with one instant.
+	slices.SortFunc(refs, func(a, b terminalRef) int {
+		return cmp.Or(a.at.Compare(b.at), cmp.Compare(a.id, b.id))
+	})
+	for _, ref := range refs[:excess] {
+		r.deleteLocked(ref.id, identity)
+	}
 }
 
 func (r *taskRegistry) runGC() {
@@ -356,11 +567,45 @@ func (r *taskRegistry) runGC() {
 	}
 }
 
+// sweep runs both reapers, in the order they depend on.
+//
+// Pass 1 forces a past-deadline WORKING task terminal (D-3). Pass 2 deletes a
+// terminal task whose retention TTL has expired. The order matters only in that
+// a task forced terminal here starts its retention window now rather than being
+// deleted in the same tick, so a client that polls once more still learns how
+// its task ended rather than finding it vanished.
 func (r *taskRegistry) sweep() {
 	now := r.now()
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	// Pass 1: the liveness backstop the deleted session reaper used to provide.
+	//
+	// Canceling the worker's context is not enough on its own: the goroutine
+	// may be blocked somewhere that never observes cancellation, and until the
+	// ENTRY is terminal it keeps counting against activeCount and holds one of
+	// its principal's maxConcurrent slots. So the entry is transitioned here,
+	// independently of whether the goroutine ever returns.
+	//
+	// The worker's own later Transition (if it does eventually return) is a
+	// no-op: Transition refuses terminal -> any.
+	for _, entry := range r.tasks {
+		entry.mu.Lock()
+		overdue := !entry.state.IsTerminal() && !entry.deadline.IsZero() &&
+			now.After(entry.deadline)
+		if overdue {
+			entry.state = TaskFailed
+			entry.updatedAt = now
+			entry.terminalAt = now
+			entry.errorMsg = errTaskExecDeadline.Error()
+			if entry.cancel != nil {
+				entry.cancel()
+			}
+		}
+		entry.mu.Unlock()
+	}
+
+	// Pass 2: retention.
 	for id, entry := range r.tasks {
 		entry.mu.Lock()
 		expired := entry.state.IsTerminal() && !entry.terminalAt.IsZero() &&
@@ -368,14 +613,17 @@ func (r *taskRegistry) sweep() {
 		identity := entry.identity
 		entry.mu.Unlock()
 		if expired {
-			delete(r.tasks, id)
-			if ids, ok := r.byIdentity[identity]; ok {
-				delete(ids, id)
-				if len(ids) == 0 {
-					delete(r.byIdentity, identity)
-				}
-			}
+			r.deleteLocked(id, identity)
 		}
+	}
+
+	// Backstop for the retention cap. Transition and Cancel already enforce it
+	// at the moment a task becomes terminal, so this normally finds nothing; it
+	// runs anyway so a future path that makes a task terminal without going
+	// through them cannot quietly unbound the map. Deleting the current key
+	// while ranging is safe, and evictTerminalOverCapLocked touches no other.
+	for identity := range r.byIdentity {
+		r.evictTerminalOverCapLocked(identity)
 	}
 }
 
@@ -388,10 +636,21 @@ type TaskInfo struct {
 	UpdatedAt time.Time
 	Identity  string
 	ErrorMsg  string
+	// Result is the tool output, populated only once the task is terminal.
+	// It is what tasks/get hands back now that tasks/result is gone.
+	Result map[string]any
 }
 
-// ToWire converts to the MCP camelCase wire format.
-func (t TaskInfo) ToWire() map[string]any {
+// toWire converts to the MCP camelCase wire format.
+//
+// The terminal payload rule is the whole reason tasks/result could be deleted.
+// MCP 2026-07-28 changelog Major change 6: the extension "replaces the blocking
+// tasks/result method with polling via tasks/get". A polling client must be able
+// to learn the OUTCOME from the same call that reports the status, so a terminal
+// task carries `result` when it completed and `error` when it failed. A
+// non-terminal task carries neither, which is what makes "still working" and
+// "finished with nothing to say" distinguishable.
+func (t TaskInfo) toWire() map[string]any {
 	m := map[string]any{
 		"taskId":       t.ID,
 		"status":       t.State.String(),
@@ -400,6 +659,9 @@ func (t TaskInfo) ToWire() map[string]any {
 	}
 	if t.ErrorMsg != "" {
 		m["error"] = t.ErrorMsg
+	}
+	if t.State.IsTerminal() && t.Result != nil {
+		m["result"] = t.Result
 	}
 	return m
 }
@@ -412,17 +674,20 @@ func taskInfoFromEntry(e *taskEntry) TaskInfo {
 		UpdatedAt: e.updatedAt,
 		Identity:  e.identity,
 		ErrorMsg:  e.errorMsg,
+		Result:    e.result,
 	}
 }
 
 // taskWorkerFunc is the function signature a task worker executes.
-// ctx is canceled on tasks/cancel or session close.
+// ctx is canceled on tasks/cancel and on task-registry shutdown.
 type taskWorkerFunc func(ctx context.Context) (map[string]any, error)
 
-// runTaskWorker launches a goroutine that executes work, transitions
-// the task on completion/failure, stores the result, and emits a
-// status notification on the session's GET stream.
-func runTaskWorker(ctx context.Context, reg *taskRegistry, sess *session, taskID string, work taskWorkerFunc) {
+// runTaskWorker launches a goroutine that executes work, transitions the task
+// on completion/failure, and stores the result.
+//
+// Nothing is pushed to the client: MCP 2026-07-28 has no server-to-client
+// stream on this transport, so a client observes a task by polling tasks/get.
+func runTaskWorker(ctx context.Context, reg *taskRegistry, taskID string, work taskWorkerFunc) {
 	go func() {
 		result, err := work(ctx)
 
@@ -438,93 +703,22 @@ func runTaskWorker(ctx context.Context, reg *taskRegistry, sess *session, taskID
 			finalState = TaskCompleted
 		}
 
-		reg.Transition(taskID, finalState)
-		if errMsg != "" {
-			reg.SetErrorMsg(taskID, errMsg)
-		}
+		// The payload is stored BEFORE the state goes terminal, and the order is
+		// load-bearing now that tasks/get is the only way to collect a result.
+		//
+		// A client polls on an interval it was handed; the instant it sees a
+		// terminal status it reads `result`/`error` from that SAME response and
+		// stops polling. Transitioning first would open a window where the task
+		// reads terminal with an empty payload, and the client would correctly
+		// conclude the task finished with no output and never look again. Under
+		// the old blocking tasks/result the window was invisible, because the
+		// client made a second call that arrived after the store.
 		if result != nil {
-			reg.StoreResult(taskID, result)
+			reg.storeResult(taskID, result)
 		}
-
-		frame, fErr := buildTaskStatusNotification(taskID, finalState)
-		if fErr == nil && sess != nil {
-			_ = sess.Send(frame)
+		if errMsg != "" {
+			reg.setErrorMsg(taskID, errMsg)
 		}
+		reg.Transition(taskID, finalState)
 	}()
-}
-
-// TaskElicit sends an elicitation request from a task worker context.
-// Unlike session.Elicit (which uses the POST reply sink), this sends
-// the elicit frame via session.Send (GET SSE stream) because the
-// creating POST has already returned by the time a task worker runs.
-//
-// State transitions: working -> input_required -> (block) -> working.
-// On decline/cancel, transitions back to working so the worker can
-// decide the terminal state.
-func TaskElicit(ctx context.Context, reg *taskRegistry, sess *session, taskID, message string, schema map[string]any) (map[string]any, error) {
-	if !sess.ClientSupportsElicit() {
-		return nil, ErrElicitUnsupported
-	}
-	if err := validateElicitSchema(schema); err != nil {
-		return nil, err
-	}
-
-	if !reg.Transition(taskID, TaskInputRequired) {
-		return nil, errors.New("mcp: task not in a state that allows elicitation")
-	}
-	if frame, err := buildTaskStatusNotification(taskID, TaskInputRequired); err == nil {
-		_ = sess.Send(frame)
-	}
-
-	id, ch, err := sess.RegisterElicit()
-	if err != nil {
-		reg.Transition(taskID, TaskWorking)
-		return nil, err
-	}
-	resolved := false
-	defer func() {
-		if !resolved {
-			sess.CancelElicit(id)
-		}
-		// Always transition back from input_required (finding #6).
-		reg.Transition(taskID, TaskWorking)
-		if frame, fErr := buildTaskStatusNotification(taskID, TaskWorking); fErr == nil {
-			_ = sess.Send(frame)
-		}
-	}()
-
-	frame, err := buildElicitFrame(id, message, schema)
-	if err != nil {
-		return nil, err
-	}
-	// Send via GET SSE stream, not POST sink (finding #2).
-	if err := sess.Send(frame); err != nil {
-		return nil, fmt.Errorf("mcp: task elicit: send frame: %w", err)
-	}
-
-	select {
-	case resp := <-ch:
-		resolved = true
-		// Defer handles the working transition for all paths.
-		return resolveElicitAction(resp)
-	case <-ctx.Done():
-		return nil, fmt.Errorf("mcp: task elicit: %w", ctx.Err())
-	}
-}
-
-// buildTaskStatusNotification constructs the notifications/tasks/status
-// JSON-RPC notification with _meta.io.modelcontextprotocol/related-task.
-func buildTaskStatusNotification(taskID string, state TaskState) ([]byte, error) {
-	frame := map[string]any{
-		"jsonrpc": "2.0",
-		"method":  "notifications/tasks/status",
-		"params": map[string]any{
-			"taskId": taskID,
-			"status": state.String(),
-			"_meta": map[string]any{
-				"io.modelcontextprotocol/related-task": taskID,
-			},
-		},
-	}
-	return json.Marshal(frame)
 }

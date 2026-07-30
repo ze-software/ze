@@ -536,7 +536,12 @@ func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
 	})
 
 	ciDir := filepath.Dir(rec.CIFile)
-	for _, chk := range checks {
+	// Index rather than range-copy: httpCheck is large enough that a per-iteration
+	// copy trips gocritic's rangeValCopy. The path rewrites below therefore land in
+	// `checks`, which is already the defensive copy made above, so rec.HTTPChecks
+	// still keeps the authored relative paths.
+	for i := range checks {
+		chk := &checks[i]
 		client := r.httpClientForCheck(chk)
 		url := strings.ReplaceAll(chk.URL, "$PORT2", strconv.Itoa(rec.Port+1))
 		url = strings.ReplaceAll(url, "$PORT", strconv.Itoa(rec.Port))
@@ -565,7 +570,7 @@ func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
 	return nil
 }
 
-func (r *Runner) httpClientForCheck(chk httpCheck) *http.Client {
+func (r *Runner) httpClientForCheck(chk *httpCheck) *http.Client {
 	// Scale the per-request budget by the parallel headroom (identity for serial
 	// runs): a server that is listening but slow to respond under oversubscription
 	// must not trip a net timeout, which isTransientConnError treats as
@@ -580,10 +585,36 @@ func (r *Runner) httpClientForCheck(chk httpCheck) *http.Client {
 	return client
 }
 
+// applyCheckHeaders puts the check's header= keys on the request. It runs AFTER
+// any default Content-Type so an explicit header=Content-Type: ... wins: the first
+// occurrence of a field name replaces whatever is already set, and any repeat of
+// that same name is appended, matching HTTP's multi-value field semantics.
+func applyCheckHeaders(req *http.Request, headers []httpHeader) {
+	if len(headers) == 0 {
+		return
+	}
+	seen := make(map[string]bool, len(headers))
+	for _, h := range headers {
+		canonical := http.CanonicalHeaderKey(h.Name)
+		// net/http writes req.Host on the wire and IGNORES a "Host" entry in
+		// req.Header, so routing it through Set would silently do nothing.
+		if canonical == "Host" {
+			req.Host = h.Value
+			continue
+		}
+		if seen[canonical] {
+			req.Header.Add(h.Name, h.Value)
+			continue
+		}
+		seen[canonical] = true
+		req.Header.Set(h.Name, h.Value)
+	}
+}
+
 // executeOneHTTPCheck performs a single HTTP request with retry+backoff.
 // Retries up to 20 times with 200ms intervals for connection-refused errors
 // (server may still be starting). Non-connection errors fail immediately.
-func (r *Runner) executeOneHTTPCheck(ctx context.Context, client *http.Client, chk httpCheck, url string) error {
+func (r *Runner) executeOneHTTPCheck(ctx context.Context, client *http.Client, chk *httpCheck, url string) error {
 	// The retry budget is a server-startup readiness window (connection-refused ->
 	// wait -> retry). 20 x 200ms = 4s is fine unloaded, but a parallel run
 	// oversubscribes every core and a web/LG server can take longer than 4s to
@@ -617,6 +648,7 @@ func (r *Runner) executeOneHTTPCheck(ctx context.Context, client *http.Client, c
 			}
 			req.Header.Set("Content-Type", contentType)
 		}
+		applyCheckHeaders(req, chk.Headers)
 
 		resp, err := client.Do(req)
 		if err != nil {
@@ -690,7 +722,10 @@ func (r *Runner) executeHTTPWaits(ctx context.Context, rec *Record) error {
 		return waits[i].Seq < waits[j].Seq
 	})
 
-	for _, w := range waits {
+	// Indexed for the same reason as executeHTTPChecks: httpCheck is too large to
+	// range-copy per iteration.
+	for i := range waits {
+		w := &waits[i]
 		client := r.httpClientForCheck(w)
 		url := strings.ReplaceAll(w.URL, "$PORT2", strconv.Itoa(rec.Port+1))
 		url = strings.ReplaceAll(url, "$PORT", strconv.Itoa(rec.Port))
@@ -704,7 +739,7 @@ func (r *Runner) executeHTTPWaits(ctx context.Context, rec *Record) error {
 // executeOneHTTPWait polls a single HTTP endpoint until the expected condition
 // is met. Retries on connection errors, wrong status codes, and content
 // mismatches. Default timeout is 15s, overridden by the check's Timeout field.
-func (r *Runner) executeOneHTTPWait(ctx context.Context, client *http.Client, chk httpCheck, url string) error {
+func (r *Runner) executeOneHTTPWait(ctx context.Context, client *http.Client, chk *httpCheck, url string) error {
 	const retryInterval = 500 * time.Millisecond
 
 	timeout := 15 * time.Second
@@ -735,6 +770,7 @@ func (r *Runner) executeOneHTTPWait(ctx context.Context, client *http.Client, ch
 		if err != nil {
 			return fmt.Errorf("http wait %s: invalid request: %w", url, err)
 		}
+		applyCheckHeaders(req, chk.Headers)
 
 		resp, err := client.Do(req)
 		if err != nil {

@@ -1,0 +1,67 @@
+# mcp-legacy-initialize-rejected - a pre-2026-07-28 client's initialize POST is
+# refused with a diagnostic that names the version this server does speak.
+#
+# VALIDATES: spec-mcp2026-1-stateless-core AC-18. The request is exactly what a
+# legacy client sends: an initialize body carrying protocolVersion/capabilities/
+# clientInfo in params, and NONE of the standard MCP headers. Header validation
+# runs before dispatch, so this never reaches the unknown-method path -- it is
+# refused with HTTP 400 and JSON-RPC -32020.
+#
+# MCP 2026-07-28 basic/versioning: a modern-only server "SHOULD name the
+# protocol versions it supports in any error it returns to an initialize
+# request: legacy clients have no fall-forward mechanism, and this message may
+# be the only diagnostic they can surface to users." So the message text, not
+# just the code, is the thing under test.
+#
+# The trailing conformant probe proves the rejection is a per-request verdict
+# and not a poisoned listener: the daemon keeps serving afterwards.
+#
+# PREVENTS: a silent 200 that a legacy client would read as a successful
+# handshake, a bare -32601 with no version in it, and any surviving initialize
+# arm that mints session state.
+
+stdin=mcp:terminator=EOF_MCP
+probe-header MCP-Protocol-Version -
+probe-header Mcp-Method -
+probe-body {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"legacy-client","version":"0.1"}}}
+probe initialize
+probe tools/list
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=probe status=400 code=-32020
+expect=stdout:contains=is not a method in this protocol era
+# The SHOULD: the supported version has to be in the message a legacy client
+# reads, on the same line as the -32020 it came with.
+expect=stdout:pattern=code=-32020 message=header mismatch.*2026-07-28
+# Rejecting the legacy request did not take the listener down.
+expect=stdout:pattern=(?s)status=400 code=-32020.*probe status=200 code=ok
+reject=stdout:contains=Mcp-Session-Id

@@ -1,0 +1,57 @@
+# mcp-resources-no-client-capability - UI resources are served to a client that
+# declares no capabilities at all.
+#
+# VALIDATES: spec-mcp2026-4-caching-apps AC-12 (resources/list and
+# resources/read both succeed for a client declaring {}; neither returns
+# -32601).
+#
+# `resources` is a member of ServerCapabilities, not of ClientCapabilities,
+# whose complete member set in MCP 2026-07-28 is experimental, roots, sampling,
+# elicitation and extensions. So no conformant client can declare it, and a
+# server that demanded the declaration would refuse every conformant caller
+# while its own server/discover advertised capabilities.resources and its
+# tools/list published _meta.ui.resourceUri pointing at these very assets.
+#
+# PREVENTS: the client-opt-in gate returning under any name. It is asserted here
+# from the OUTSIDE, with a client that sends {} and has no way to send anything
+# else, so a reintroduced gate fails this test rather than passing review.
+
+stdin=mcp:terminator=EOF_MCP
+probe resources/list
+probe resources/read {"uri":"ui://bgp-peer/index.html"}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+expect=stdout:pattern=(?s)probe status=200 code=ok.*probe status=200 code=ok
+expect=stdout:pattern="uri":"ui://bgp-peer/index\.html"
+# The two codes a resurrected gate would answer with.
+reject=stdout:contains=code=-32601
+reject=stdout:contains=code=-32021

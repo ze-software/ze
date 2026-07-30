@@ -1,0 +1,98 @@
+# mcp-client-response-frame-rejected - a client JSON-RPC RESPONSE posted to /mcp
+# is refused, never correlated and never dispatched.
+#
+# VALIDATES: spec-mcp2026-2-mrtr AC-3, second half -- "no client JSON-RPC
+# response is ever accepted". The first half (the server writes no JSON-RPC
+# request frame) is asserted in mcp-mrtr-elicit-roundtrip.ci.
+#
+# WHY THIS FILE EXISTS: the second half had no test at all. MCP 2026-07-28
+# replaced server-initiated elicitation with Multi Round-Trip Requests, so this
+# server asks a client nothing and a response frame answers a question that was
+# never put. The five TestStreamable_JSONRPCResponse* tests that drove the old
+# intake path were deleted with reply_sink.go in Phase 1, and the property
+# survived only as arithmetic: a response has no `method`, and the Mcp-Method
+# header "must repeat the body's method", so no header value could match. The
+# refusal is now explicit (errBodyCarriesNoMethod, internal/component/mcp/
+# headers.go) and this proves it through the real listener.
+#
+# Three frames, three header shapes, one verdict each: HTTP 400 with JSON-RPC
+# -32020, the code MCP 2026-07-28 basic/transports/streamable-http "Server
+# Validation" pins to a header/body disagreement. The message names the missing
+# body `method` rather than the header, so a caller can tell this from an
+# ordinary header typo.
+#
+# PREVENTS: the intake path reopening. A change that let the header supply a
+# method the body lacks would dispatch the frame -- reachable here as
+# `code=-32601` (method not found on the empty method) or as a `code=ok` result
+# where a rejection belongs -- and a change that treated a method-less frame as
+# a notification would answer 202. All three are rejected below.
+
+stdin=mcp:terminator=EOF_MCP
+# 1. A result-shaped response, with fully conformant headers for a real method.
+#    The headers are perfect; the BODY is what is refused.
+probe-body {"jsonrpc":"2.0","id":1,"result":{"action":"accept","content":{"answer":"42"}}}
+probe tools/list
+# 2. The same frame with no Mcp-Method header at all, which is the shape a client
+#    replying to a server request would actually send.
+probe-header Mcp-Method -
+probe-body {"jsonrpc":"2.0","id":2,"result":{"action":"accept","content":{"answer":"42"}}}
+probe tools/list
+# 3. An error-shaped response. A JSON-RPC error frame is a response too, and the
+#    old intake path had a dedicated branch for it.
+probe-body {"jsonrpc":"2.0","id":3,"error":{"code":-32000,"message":"client refused"}}
+probe tools/list
+# 4. The listener still serves conformant traffic: the rejections are per-request
+#    verdicts, not a poisoned endpoint.
+probe tools/list
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+# The verdict, on the specific code rather than merely "an error".
+expect=stdout:contains=probe status=400 code=-32020
+# The message names the BODY's missing method, not a header, so the diagnostic
+# distinguishes a response frame from a header typo. pattern= because the needle
+# carries quotes and a colon.
+expect=stdout:pattern=carries no "method"
+expect=stdout:pattern=never a client-sent response or error frame
+# All three frames were refused, and only then was conformant traffic served.
+expect=stdout:pattern=(?s)status=400 code=-32020.*status=400 code=-32020.*status=400 code=-32020.*probe status=200 code=ok
+# Not dispatched. A frame that reached the dispatch switch with an empty method
+# falls through to the default arm and answers -32601.
+reject=stdout:contains=code=-32601
+# Not accepted-and-ignored either: 202 is the acknowledgement a NOTIFICATION
+# earns, and a response frame reaching it would mean the transport took the
+# frame and merely had nothing to say about it.
+reject=stdout:contains=status=202
+# No posted frame's own payload ever came back in a result. Scoped to a single
+# probe LINE because probe 4 legitimately prints a tools/list result, and keyed
+# on "answer", which exists only in the frames above -- `action` would match the
+# generated tools' own action enum in that legitimate result.
+reject=stdout:pattern=code=ok result=[^\n]*"answer"

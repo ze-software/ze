@@ -1,0 +1,69 @@
+# mcp-ui-extension-enabled - a host declaring MCP Apps gets the panel metadata,
+# in the extension's own field names.
+#
+# VALIDATES: spec-mcp2026-4-caching-apps AC-8 (a tool with a UI annotation, seen
+# by a client declaring the extension, carries _meta.ui with resourceUri on the
+# ui:// scheme plus permissions and csp from the YANG annotation).
+#
+# The three keys are the extension's own, verbatim: the MCP Apps overview names
+# "_meta.ui.resourceUri field pointing to a ui:// resource", says the "_meta.ui
+# object can include permissions to request additional capabilities", and names
+# "_meta.ui.csp" for "what external origins the app can load resources from".
+# Ze has emitted exactly these since the 2026-01-26 draft and the extension did
+# not move, so this test pins the shape against the specification rather than
+# against what the code happens to produce.
+#
+# Both declarations below must work: bare "text/html" is a superset of
+# "text/html;profile=mcp-app", since the profile is a media-type parameter, so
+# matching is on the base type and a host declaring either is served.
+#
+# PREVENTS: exact-string matching on the profiled media type, which would refuse
+# a host that renders Ze's bundle perfectly well; and a settings object with no
+# mimeTypes being read as a constraint rather than as unconstrained support.
+
+stdin=mcp:terminator=EOF_MCP
+# Empty settings: "an empty object indicates support with no additional settings".
+probe-meta clientCapabilities {"extensions":{"io.modelcontextprotocol/ui":{}}}
+probe tools/list
+# The profiled media type from the specification's own worked example.
+probe-meta clientCapabilities {"extensions":{"io.modelcontextprotocol/ui":{"mimeTypes":["text/html;profile=mcp-app"]}}}
+probe tools/list
+# Bare text/html, the superset a plain HTML host declares.
+probe-meta clientCapabilities {"extensions":{"io.modelcontextprotocol/ui":{"mimeTypes":["text/html"]}}}
+probe tools/list
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+expect=stdout:pattern=(?s)code=ok.*code=ok.*code=ok
+expect=stdout:pattern="permissions":\["network"\]
+expect=stdout:pattern="csp":"default-src 'self'"
+# All three declarations produced the panel metadata.
+expect=stdout:pattern=(?s)"resourceUri":"ui://bgp-peer/index\.html".*"resourceUri":"ui://bgp-peer/index\.html".*"resourceUri":"ui://bgp-peer/index\.html"

@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | 0/4 |
+| Phase | 4/4 |
 | Deferral shard | `plan/deferrals/mcp2026-0-umbrella.md` |
-| Updated | 2026-07-28 |
+| Updated | 2026-07-30 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

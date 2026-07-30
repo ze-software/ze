@@ -259,6 +259,33 @@ func (c MCPListenConfig) Validate() error {
 	return nil
 }
 
+// ExtractMCPSettings returns the environment.mcp settings whenever the block
+// exists, WITHOUT regard to `enabled` or to whether a listen port was given.
+//
+// This exists because `enabled` answers one question -- "should config start an
+// MCP listener?" -- and was being read as if it answered a second, unrelated
+// one: "do the MCP auth settings apply?". They are not the same question,
+// because the listener can equally be started by `ze --mcp <port>` or by
+// `ze.mcp.listen`. Conflating them meant an operator who wrote
+//
+//	environment { mcp { auth-mode bearer; token secret; } }
+//
+// and started `ze --mcp 9718` got a fully UNAUTHENTICATED listener: ExtractMCPConfig
+// returned ok=false, every caller skipped the config, AuthMode stayed zero, and
+// NewStreamable's mode inference selected AuthNone. The operator's explicit
+// instruction was silently discarded, which ai/rules/exact-or-reject.md forbids.
+//
+// Callers that need "did config ask for a listener" must use ExtractMCPConfig.
+// Callers that need "how does this listener authenticate" must use this, so the
+// answer cannot depend on which mechanism supplied the address.
+func ExtractMCPSettings(tree *Tree) (MCPListenConfig, bool) {
+	cfg, _, present := extractMCPBlock(tree)
+	if !present {
+		return MCPListenConfig{}, false
+	}
+	return cfg, true
+}
+
 // ExtractMCPConfig returns the environment.mcp config if enabled.
 //
 // With BindRemote=false the loopback clamp forces every server entry to
@@ -266,21 +293,42 @@ func (c MCPListenConfig) Validate() error {
 // Runtime-fatal inconsistencies (auth-mode oauth without authorization-server,
 // bind-remote without auth, oauth without TLS) are reported by Validate, which
 // the verifier calls. Extraction itself never rewrites to "best guess".
+//
+// ok=true means "config asks for an MCP listener and named a port for it". It
+// deliberately does NOT mean "these are the auth settings" -- see
+// ExtractMCPSettings for that half.
 func ExtractMCPConfig(tree *Tree) (MCPListenConfig, bool) {
+	cfg, enabled, present := extractMCPBlock(tree)
+	if !present || !enabled {
+		return MCPListenConfig{}, false
+	}
+	// A port leaf is mandatory; if the user left it blank and the YANG default
+	// is also empty, the block is effectively unusable.
+	if len(cfg.Servers) == 0 || cfg.Servers[0].Port == "" {
+		return MCPListenConfig{}, false
+	}
+	return cfg, true
+}
+
+// extractMCPBlock parses environment.mcp in full and reports both whether the
+// block exists at all (present) and whether it asks for a listener (enabled).
+// It applies no gate of its own: the two callers above decide what their own
+// ok value means, so neither can silently inherit the other's meaning.
+func extractMCPBlock(tree *Tree) (MCPListenConfig, bool, bool) {
 	envBlock := tree.GetContainer("environment")
 	if envBlock == nil {
-		return MCPListenConfig{}, false
+		return MCPListenConfig{}, false, false
 	}
 	mcp := envBlock.GetContainer("mcp")
 	if mcp == nil {
-		return MCPListenConfig{}, false
+		return MCPListenConfig{}, false, false
 	}
 
-	// Service must be explicitly enabled (default false).
-	enabled, _ := mcp.Get("enabled")
-	if enabled != configTrue {
-		return MCPListenConfig{}, false
-	}
+	// Service must be explicitly enabled (default false) for config to START a
+	// listener. Reported, not enforced here: the settings below are parsed
+	// either way so an address supplied by CLI or env still authenticates.
+	enabledLeaf, _ := mcp.Get("enabled")
+	enabled := enabledLeaf == configTrue
 
 	cfg := MCPListenConfig{Servers: extractServerList(mcp, loopbackIP, "")}
 
@@ -332,13 +380,10 @@ func ExtractMCPConfig(tree *Tree) (MCPListenConfig, bool) {
 		}
 	}
 
-	// A port leaf is mandatory; if the user left it blank and the YANG default
-	// is also empty, the block is effectively unusable.
-	if len(cfg.Servers) == 0 || cfg.Servers[0].Port == "" {
-		return MCPListenConfig{}, false
-	}
-
-	return cfg, true
+	// The port gate lives in ExtractMCPConfig, not here: a block with auth
+	// settings and no port is unusable as a LISTENER source but is still the
+	// operator's authentication instruction for a listener started elsewhere.
+	return cfg, enabled, true
 }
 
 // extractMCPIdentities reads the environment.mcp.identity list.

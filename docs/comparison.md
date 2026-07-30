@@ -237,11 +237,35 @@ without maintaining a second protocol stack to do it.
 | Embeddable library | No | No | No | No | No | Yes | Yes | No | No | No | No |
 | Plugin SDK | Yes | No | No | No | No | No | No | No | No | No | No |
 | External process protocol | Yes | No | No | No | No | No | No | Yes | No | No | No |
-| MCP (Model Context Protocol) server | Yes | No | No | No | No | No | No | No | No | No | No |
-| MCP elicitation (2025-06-18) | Yes | No | No | No | No | No | No | No | No | No | No |
-| MCP tasks (2025-11-25) | Yes | No | No | No | No | No | No | No | No | No | No |
-| MCP Apps (UI resources) | Yes | No | No | No | No | No | No | No | No | No | No |
+| MCP (Model Context Protocol) server, revision 2026-07-28 | Yes | No | No | No | No | No | No | No | No | No | No |
+| MCP `server/discover` capability advertisement | Yes | No | No | No | No | No | No | No | No | No | No |
+| MCP elicitation (form mode, via Multi Round-Trip Requests) | Yes | No | No | No | No | No | No | No | No | No | No |
+| MCP background tasks (`io.modelcontextprotocol/tasks` extension, polled) | Yes | No | No | No | No | No | No | No | No | No | No |
+| MCP Apps (UI resources, `io.modelcontextprotocol/ui` extension) | Yes | No | No | No | No | No | No | No | No | No | No |
+| MCP cacheable results (`ttlMs`, `cacheScope`) | Yes | No | No | No | No | No | No | No | No | No | No |
 | SSH CLI access | Yes | No | No | No | No | No | No | No | No | No | Yes |
+
+**MCP scope for this table:** Ze's rows describe MCP protocol revision
+`2026-07-28` as implemented in the inspected checkout. `No` in the other columns
+means no MCP server was found in the inspected scope of that project, not a
+claim that none exists anywhere.
+
+**Ze's elicitation changed shape, and the row names the shape.** Ze shipped
+server-initiated `elicitation/create` under revision `2025-06-18`. Revision
+`2026-07-28` removed protocol-level sessions and the server-to-client stream and
+states that a server "**MUST NOT** send independent JSON-RPC *requests*" on any
+stream, so a prompt can no longer be pushed. It is returned instead, as a Multi
+Round-Trip Request: `ze_execute` called without a `command` answers
+`resultType: "input_required"` with an `inputRequests` map, and the client
+supplies the value by retrying the original call with `inputResponses`.
+
+Two limits qualify the `Yes`. Ze emits **form mode only** (url mode is not
+implemented), and it attaches no `requestState`, which is conformant --
+requirement 6's "at least one of `inputRequests` or `requestState`" is met by
+`inputRequests` alone -- but means Ze carries no continuation state across a
+retry and could not yet support a flow that needed one.
+<!-- source: internal/component/mcp/mrtr.go -- inputRequiredForMissingCommand, rejectUnsolicitedRequestState -->
+<!-- source: internal/component/mcp/elicit.go -- newElicitRequest, elicitModeForm -->
 
 ## Operations
 

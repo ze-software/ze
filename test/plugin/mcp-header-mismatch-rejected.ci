@@ -1,0 +1,85 @@
+# mcp-header-mismatch-rejected - every way a standard header can disagree with
+# the body is refused with HTTP 400 and JSON-RPC -32020.
+#
+# VALIDATES: spec-mcp2026-1-stateless-core AC-6 (Mcp-Method disagrees with the
+# body's method), AC-7 (Mcp-Name absent on tools/call) and AC-9
+# (MCP-Protocol-Version disagrees with the body's _meta), plus the forged-name
+# case the header contract exists for.
+#
+# MCP 2026-07-28 basic/transports/streamable-http "Server Validation": "Servers
+# that process the request body MUST reject requests where the values specified
+# in the headers do not match the corresponding values in the request body." The
+# headers exist so an intermediary can route on them without parsing the body;
+# if a header and the body may disagree, the intermediary and the server act on
+# different values, which is the confusion attack this rejection closes.
+#
+# Each case asserts its OWN message text, not just the shared -32020, so a
+# single over-broad guard that rejected everything for one reason could not pass
+# all four. The final conformant probe is the control: with correct headers the
+# same tools/call is served, so the rejections are about the headers and not
+# about the call being broken.
+#
+# PREVENTS: header validation running after dispatch (R-2), a mismatch being
+# collapsed into a generic -32602, and a missing Mcp-Name defaulting to the body
+# value instead of denying (ai/rules/fail-closed-guards.md: absence and
+# mismatch are the same verdict).
+
+stdin=mcp:terminator=EOF_MCP
+wait-tool ze_execute
+# AC-6: header says tools/list, body says tools/call.
+probe-header Mcp-Method tools/list
+probe tools/call {"name":"ze_execute","arguments":{"command":"show version"}}
+# Forged Mcp-Name: names a tool the body does not call.
+probe-header Mcp-Name ze_reference
+probe tools/call {"name":"ze_execute","arguments":{"command":"show version"}}
+# AC-7: Mcp-Name omitted entirely on a method that requires it.
+probe-header Mcp-Name -
+probe tools/call {"name":"ze_execute","arguments":{"command":"show version"}}
+# AC-9: header version disagrees with params._meta protocolVersion.
+probe-header MCP-Protocol-Version 2026-01-01
+probe tools/list
+# Control: same call, conformant headers.
+probe tools/call {"name":"ze_execute","arguments":{"command":"show version"}}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=probe status=400 code=-32020
+expect=stdout:contains=Mcp-Method header disagrees with the body's method
+expect=stdout:contains=Mcp-Name header disagrees with params.name
+expect=stdout:contains=Mcp-Name header is required for tools/call
+expect=stdout:contains=MCP-Protocol-Version header disagrees with params._meta
+# Every rejection carries the 400 alongside the -32020, and the control call
+# after them all is served.
+expect=stdout:pattern=(?s)status=400 code=-32020.*status=400 code=-32020.*status=400 code=-32020.*status=400 code=-32020.*probe status=200 code=ok
+# A -32020 message must never reflect unvalidated header bytes back: the forged
+# name and the bogus version are the client's own strings.
+reject=stdout:contains=ze_reference
+reject=stdout:contains=2026-01-01

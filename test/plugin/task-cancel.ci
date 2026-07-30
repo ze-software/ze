@@ -1,18 +1,54 @@
-# task-cancel - create a task, wait for completion, then cancel
-# Exercises: createTask on required tool -> tasks/cancel on terminal task -> task-get
-# Uses ze_monitor_bgp (task-support: required) to exercise the required path.
-# cancel on an already-completed task is a no-op (returns current state).
+# task-cancel - cancel is acknowledged and never rewrites a terminal state.
+#
+# VALIDATES: spec-mcp2026-3-tasks-extension AC-9. Cancellation is cooperative:
+# the server acknowledges it and does not guarantee the task stops, and a task
+# that already reached a terminal state stays in the state it reached.
+#
+# WHAT CHANGED AND WHY: the pre-cutover file called `task-call ze_monitor_bgp`,
+# which sent `task:{}` to opt the call into task execution. That opt-in is gone
+# (D-1): the SERVER decides from the `ze:task-support required` annotation
+# ze_monitor_bgp carries, so the identical directive now sends no task member
+# and the handle comes back unasked. The file also asserted only
+# `contains=completed`, which the `task-wait` line already guarantees before
+# cancel is ever sent -- so the cancel half was unasserted. It is asserted now:
+# the state AFTER the cancel is read back and must still be `completed`.
+#
+# The idempotence claim is the substance here. A cancel that overwrote the
+# terminal state would silently destroy a completed task's result, and the old
+# assertion could not see it.
+#
+# WHY THE TASK IS ALREADY TERMINAL, AND WHERE THE RUNNING CASE IS PROVED: no
+# `ze:task-support required` command blocks. Every one of them (monitor bgp,
+# monitor ping, monitor interface rate, subscribe, show rib) answers its RPC
+# from a snapshot and returns, so a `task-cancel` issued straight after
+# `task-call` would race the worker and land on `cancelled` or `completed`
+# depending on host load -- a timing assumption, which is the defect
+# ai/rules/fix-dont-record.md bans rather than a test. Cancelling a genuinely
+# WORKING task is proved deterministically instead by
+# TestTasksCancelAcknowledgesWithAnEmptyResult/working_task
+# (internal/component/mcp/tasks_test.go), which drives the same HTTP transport
+# with a dispatcher blocked on ctx.Done(), so the worker is provably still
+# running when the cancel arrives, and asserts the state becomes `cancelled`.
+# This file owns the two properties a functional run CAN pin deterministically:
+# the empty acknowledgement, and terminal-state idempotence.
 
-# MCP commands: wait for auto-generated tools, then run monitor bgp as a task
 stdin=mcp:terminator=EOF_MCP
+# ze_monitor_bgp is GENERATED from the command registry and carries
+# `ze:task-support required`. Waiting for it proves the registry is populated;
+# waiting on a handcrafted tool would not, since those are served from a static
+# list and appear immediately.
 wait-tool ze_monitor_bgp
+# No `task` member: the server creates the task from the annotation. task-call
+# fails the run unless the reply is resultType "task" with a taskId, so the
+# server-directed creation is enforced here rather than merely assumed.
 task-call ze_monitor_bgp {}
 task-wait $LAST completed
+# Cancel a task that is ALREADY terminal: acknowledged, and a no-op.
 task-cancel $LAST
+# Read the state back. This is the assertion the old file was missing.
 task-get $LAST
 EOF_MCP
 
-# Ze config: single peer (no peer needed to be established for this test)
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer peer1 {
@@ -42,6 +78,26 @@ EOF_CONF
 option=tcp_connections:value=0
 
 cmd=background:seq=1:exec=ze --mcp $PORT2 -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2 --tasks:stdin=mcp:timeout=10s
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2 --tasks:stdin=mcp:timeout=15s
 expect=exit:code=0
+# The acknowledgement was EMPTY. task-cancel prints this line only after
+# requireEmptyAck (internal/test/cli/cmd_mcp_calls.go) has confirmed the result
+# carries nothing beyond resultType and _meta; a server volunteering a taskId or
+# a status fails the client instead, which is what the stderr reject below
+# names. MCP 2026-07-28 ext-tasks: "Acknowledge cancellation requests with an
+# empty result."
+expect=stdout:contains=task-cancel acknowledged task=
+# The state after the cancel. task-get prints the status, so this line reads the
+# POST-cancel value rather than the one task-wait already proved.
 expect=stdout:contains=completed
+# The cancel did not rewrite the terminal state. A cancel applied to an already
+# completed task must not move it to `cancelled`.
+reject=stdout:contains=cancelled
+# The acknowledgement did not grow a payload. This replaces a
+# `reject=stdout:contains=code -32021` that could never match: probe prints
+# `code=<n>` (cmd_mcp.go formatProbeResult) and the space-separated form exists
+# only in a client error string, which goes to stderr -- and this file sends no
+# probe at all, so stdout never carries a `code=` token in either spelling.
+reject=stderr:pattern=acknowledgement is not empty
+reject=stderr:pattern=code \-32021
+reject=stderr:pattern=code \-32602

@@ -1,42 +1,38 @@
 // Design: docs/architecture/mcp/overview.md -- Streamable HTTP transport for MCP
 // Related: tools.go -- MCP tool dispatch types and primitives
-// Related: session.go -- session registry and SSE outbound queue
+// Related: meta.go -- per-request _meta parsing
+// Related: headers.go -- standard request header validation
+// Related: discover.go -- server/discover result assembly
 // Related: streamable_auth.go -- OAuth/bearer authentication and origin validation
 // Related: streamable_tools.go -- tool dispatch and task management
 
-// Streamable HTTP (MCP 2025-06-18 basic/transports) dispatcher.
+// Streamable HTTP (MCP 2026-07-28 basic/transports) dispatcher.
 //
-// One HTTP endpoint answering POST (client -> server JSON-RPC) and GET (open
-// server -> client SSE stream). Origin header validated, Mcp-Session-Id header
-// assigned at initialize, required on subsequent calls.
+// One HTTP endpoint answering POST only. There is no handshake, no session and
+// no server-to-client stream: every request carries its own protocol version,
+// client identity and client capabilities in `params._meta`, mirrors selected
+// body fields into HTTP headers the server cross-checks, and authenticates on
+// its own. GET and DELETE, which earlier revisions used for the SSE stream and
+// session termination, answer 405.
 
 package mcp
 
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
-	"time"
 
 	"github.com/ze-software/ze/internal/core/audit"
 )
 
 var errMcpOauthAsMetadataEmptyIssuer = errors.New("mcp oauth: AS metadata: empty issuer")
 
-// ProtocolVersion is the negotiated MCP protocol version this server speaks.
-const ProtocolVersion = "2025-06-18"
-
-// mimeEventStream is the Content-Type / Accept token for Server-Sent Events
-// streams. Defined once so the POST error, the GET response header, and the
-// Accept-header probe all spell it identically.
-const mimeEventStream = "text/event-stream"
-
-// LegacyProtocolVersion is assumed when a client omits the MCP-Protocol-Version
-// header after initialize (per the 2025-06-18 transports spec).
-const LegacyProtocolVersion = "2025-03-26"
+// ProtocolVersion is the MCP protocol version this server speaks.
+const ProtocolVersion = "2026-07-28"
 
 // Endpoint is the single MCP endpoint path.
 const Endpoint = "/mcp"
@@ -44,17 +40,21 @@ const Endpoint = "/mcp"
 // OAuthMetadataPath is the RFC 9728 Protected Resource Metadata discovery URL.
 const OAuthMetadataPath = "/.well-known/oauth-protected-resource"
 
-// supportedProtocolVersions enumerates the MCP versions this server will
-// negotiate with at initialize time.
-var supportedProtocolVersions = map[string]struct{}{
-	ProtocolVersion:       {},
-	LegacyProtocolVersion: {},
-	"2024-11-05":          {},
-}
+// supportedProtocolVersions enumerates every MCP version this server accepts,
+// in the order server/discover and an UnsupportedProtocolVersionError advertise
+// them.
+//
+// Exactly one entry: the cutover to 2026-07-28 dropped the handshake-based
+// revisions outright, and no shim, alias or default survives for them
+// (ai/rules/compatibility.md). A slice rather than a set so the advertised
+// order is deterministic; membership goes through
+// isSupportedProtocolVersion.
+var supportedProtocolVersions = []string{ProtocolVersion}
 
-// errUnsupportedProtocolVersion is returned when a client sends an
-// initialize with a protocolVersion this server does not understand.
-var errUnsupportedProtocolVersion = errors.New("mcp: unsupported protocol version")
+// isSupportedProtocolVersion reports whether this server implements v.
+func isSupportedProtocolVersion(v string) bool {
+	return slices.Contains(supportedProtocolVersions, v)
+}
 
 // StreamableConfig bundles what NewStreamable needs. Zero-value fields get defaults.
 type StreamableConfig struct {
@@ -62,23 +62,17 @@ type StreamableConfig struct {
 	Commands CommandLister
 	// Provider, when set, replaces the command-registry tool surface: tools/list
 	// returns Provider.Tools(), tools/call delegates to Provider.CallTool, and
-	// initialize reports Provider.ServerName(). Session-less POSTs are then
-	// accepted (the MCP spec makes sessions optional), because Provider-based
-	// servers (ze-chaos) are driven by stateless clients that do not thread
-	// Mcp-Session-Id. Nil (the ze daemon) keeps the strict session requirement.
+	// server/discover reports Provider.ServerName(). Nil (the ze daemon) serves
+	// the command-registry surface instead. Provider mode changes only which
+	// tools are offered: it takes the same header validation, the same
+	// per-request metadata and the same per-request authentication as every
+	// other caller.
 	Provider       ToolProvider
 	Token          string // AuthMode=Bearer: single shared secret
 	AllowedOrigins []string
-	SessionTTL     time.Duration
-	MaxBodyBytes   int64
-	// MaxSessions caps concurrent sessions. Zero uses defaultMaxSessions (1024);
-	// negative disables the cap (not recommended in production).
-	MaxSessions int
-	// MaxSessionLifetime caps the absolute age of a session regardless of
-	// activity — defends against clients that hold sessions open via GET SSE
-	// streams indefinitely (their heartbeats otherwise keep lastSeenAt fresh).
-	// Zero disables the lifetime cap. Recommend a value > SessionTTL.
-	MaxSessionLifetime time.Duration
+	// MaxBodyBytes caps one request body. Zero uses maxRequestBody (1 MB).
+	// This is the only per-request size bound the transport enforces.
+	MaxBodyBytes int64
 
 	// AuthMode selects the authentication strategy. AuthUnspecified is
 	// treated as AuthNone so existing callers (Phase 1) that leave this
@@ -117,17 +111,21 @@ type OAuthConfig struct {
 
 // Streamable is the Streamable HTTP MCP server. Implements http.Handler.
 //
+// The server holds no per-client state: identity and capabilities are rebuilt
+// from each request and passed by value into dispatch, so there is nothing
+// keyed by client, connection or session to bound or expire. The task registry
+// is the one long-lived structure, and it is keyed by authenticated principal
+// with its own concurrency, retention and TTL caps.
+//
 // Lifecycle: create with NewStreamable; mount on any net/http listener; MUST
-// call Close before process exit so the session-GC goroutine stops.
+// call Close before process exit so the task-GC goroutine stops.
 type Streamable struct {
-	cfg            StreamableConfig
-	registry       *sessionRegistry
-	tasks          *taskRegistry
-	maxBody        int64
-	originSet      map[string]struct{}
-	heartbeatEvery time.Duration // override for tests; 0 → sessionHeartbeatWindow
-	auth           authenticator
-	authMode       AuthMode
+	cfg       StreamableConfig
+	tasks     *taskRegistry
+	maxBody   int64
+	originSet map[string]struct{}
+	auth      authenticator
+	authMode  AuthMode
 	// oauthIssuer is the AS-reported issuer, populated after a successful
 	// buildAuthForMode run. Used by the RFC 9728 metadata handler so the
 	// advertised authorization_servers[0] matches the value the token
@@ -139,26 +137,13 @@ type Streamable struct {
 
 // NewStreamable returns a configured Streamable HTTP MCP server. Returns an
 // error if any entry in cfg.AllowedOrigins fails to parse — silently falling
-// back to "loopback only" would contradict the operator's intent — or if
-// MaxSessionLifetime is set but shorter than SessionTTL (which would make the
-// idle TTL dead code).
+// back to "loopback only" would contradict the operator's intent.
 //
 // Caller MUST call Close before process exit.
 func NewStreamable(cfg StreamableConfig) (*Streamable, error) {
-	if cfg.MaxSessionLifetime > 0 && cfg.SessionTTL > 0 && cfg.MaxSessionLifetime < cfg.SessionTTL {
-		return nil, fmt.Errorf("MaxSessionLifetime (%v) must be >= SessionTTL (%v) or zero",
-			cfg.MaxSessionLifetime, cfg.SessionTTL)
-	}
 	maxB := cfg.MaxBodyBytes
 	if maxB == 0 {
 		maxB = maxRequestBody
-	}
-	// Session cap semantics (unified across config and registry):
-	//   0  -> use defaultMaxSessions (1024)
-	//   <0 -> unlimited (disabled cap; not recommended)
-	maxSessions := cfg.MaxSessions
-	if maxSessions == 0 {
-		maxSessions = defaultMaxSessions
 	}
 	originSet, err := buildOriginSet(cfg.AllowedOrigins)
 	if err != nil {
@@ -178,15 +163,9 @@ func NewStreamable(cfg StreamableConfig) (*Streamable, error) {
 	if err != nil {
 		return nil, err
 	}
-	taskReg := newTaskRegistry(cfg.Tasks)
-	sessReg := newSessionRegistry(cfg.SessionTTL, cfg.MaxSessionLifetime, maxSessions)
-	sessReg.onExpire = func(sessionID string) {
-		taskReg.CancelAllForSession(sessionID)
-	}
 	return &Streamable{
 		cfg:             cfg,
-		registry:        sessReg,
-		tasks:           taskReg,
+		tasks:           newTaskRegistry(cfg.Tasks),
 		maxBody:         maxB,
 		originSet:       originSet,
 		auth:            authRes.auth,
@@ -196,29 +175,15 @@ func NewStreamable(cfg StreamableConfig) (*Streamable, error) {
 	}, nil
 }
 
-// heartbeatInterval returns the SSE heartbeat cadence, honoring a test
-// override when set. Overrides below minHeartbeatInterval are clamped to that
-// floor so a stray tiny value (e.g. 1 ns) cannot saturate the scheduler.
-func (s *Streamable) heartbeatInterval() time.Duration {
-	if s.heartbeatEvery > 0 {
-		if s.heartbeatEvery < minHeartbeatInterval {
-			return minHeartbeatInterval
-		}
-		return s.heartbeatEvery
-	}
-	return sessionHeartbeatWindow
-}
-
 // Close releases server resources. Idempotent.
 func (s *Streamable) Close() {
 	s.tasks.Close()
-	s.registry.Close()
 }
 
 // ServeHTTP implements http.Handler.
 func (s *Streamable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// RFC 9728 protected-resource metadata is served BEFORE the Origin
-	// allowlist: the document is public by design, carries no session
+	// allowlist: the document is public by design, carries no client
 	// state, and browser-based OAuth clients discover it cross-origin
 	// from whatever domain hosts the SPA. CORS wildcard + OPTIONS
 	// preflight admit those clients without weakening the Origin check
@@ -228,6 +193,10 @@ func (s *Streamable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// MCP 2026-07-28 basic/transports/streamable-http Section "Security &
+	// Endpoint": "Servers MUST validate the Origin header on all incoming
+	// connections to prevent DNS rebinding attacks. If the Origin header is
+	// present and invalid, servers MUST respond with HTTP 403 Forbidden."
 	if !s.originAllowed(r) {
 		http.Error(w, "forbidden origin", http.StatusForbidden)
 		return
@@ -243,45 +212,52 @@ func (s *Streamable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Auth runs on initialize only; subsequent requests are gated by a
-	// valid Mcp-Session-Id, which was issued only after a successful
-	// auth-dispatcher run at create time. The 128-bit session ID is the
-	// per-request token. See spec-mcp-2-remote-oauth "Entry Point (target)"
-	// and AC-11a.
 	switch r.Method {
 	case http.MethodPost:
 		s.handlePOST(w, r)
-	case http.MethodGet:
-		s.handleGET(w, r)
-	case http.MethodDelete:
-		s.handleDELETE(w, r)
 	case http.MethodOptions:
 		s.handleEndpointPreflight(w, r)
 	default:
-		// Same rationale as the 404 branch: CORS headers on the 405 so a
-		// browser client can read the Allow header and error description.
+		// MCP 2026-07-28 basic/transports/streamable-http Section "Earlier
+		// Streamable HTTP Revisions": "A server that supports only this
+		// revision and receives such traffic from an older client SHOULD
+		// respond as follows: HTTP GET or DELETE to the MCP endpoint: respond
+		// with 405 Method Not Allowed."
+		//
+		// The endpoint is POST-only in this revision ("The server MUST provide
+		// a single HTTP endpoint path ... that supports POST"): the GET stream
+		// and the DELETE session-termination call of the 2025-03-26 through
+		// 2025-11-25 shape do not exist here. Same rationale as the 404 branch
+		// for the CORS headers: a browser client must be able to read the Allow
+		// header and the error description.
 		setMainPathCORS(w, r)
-		w.Header().Set("Allow", "POST, GET, DELETE, OPTIONS")
+		w.Header().Set("Allow", "POST, OPTIONS")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
-// Response headers MCP clients need to read cross-origin. The fetch API
-// only exposes CORS-safelisted response headers unless listed here; without
-// Mcp-Session-Id a browser-based client cannot extract the session token
-// from the initialize response, and without WWW-Authenticate it cannot
-// discover the OAuth metadata URL on a 401.
-const corsExposeHeaders = "Mcp-Session-Id, WWW-Authenticate, Retry-After"
+// Response headers MCP clients need to read cross-origin. The fetch API only
+// exposes CORS-safelisted response headers unless listed here; without
+// WWW-Authenticate a browser-based client cannot discover the OAuth metadata
+// URL on a 401. No session-id header exists in this revision, so none is
+// exposed, and Retry-After is not listed either: its only emitter was the 429
+// session-limit response, which went with the session registry. Advertising a
+// header nothing sends tells a client to look for something that never arrives.
+const corsExposeHeaders = "WWW-Authenticate"
 
-// Headers the server accepts on non-safelisted cross-origin requests.
-const corsAllowHeaders = "Authorization, Content-Type, Mcp-Session-Id, MCP-Protocol-Version, Accept"
+// Headers the server accepts on non-safelisted cross-origin requests: the
+// standard MCP request headers plus authentication and content negotiation.
+// Mcp-Param-* is absent because CORS allow-lists cannot express a prefix and
+// this server annotates no tool parameter with `x-mcp-header`, so no client is
+// ever told to send one.
+const corsAllowHeaders = "Authorization, Content-Type, MCP-Protocol-Version, Mcp-Method, Mcp-Name, Accept"
 
 // setMainPathCORS emits the CORS response headers for the /mcp endpoint's
-// real-request responses (POST / GET / DELETE). Preflight uses a separate
-// header set (see handleEndpointPreflight). Called at the top of every
-// main-path handler: the Origin check in ServeHTTP already admitted the
-// request, so echoing the Origin back is safe. No-op when Origin is absent
-// (non-browser client; CORS does not apply).
+// real-request responses. Preflight uses a separate header set (see
+// handleEndpointPreflight). Called at the top of every main-path handler: the
+// Origin check in ServeHTTP already admitted the request, so echoing the Origin
+// back is safe. No-op when Origin is absent (non-browser client; CORS does not
+// apply).
 //
 // Must run before the response body is written because `http.Error` and
 // `ResponseWriter.Write` flush headers on first byte.
@@ -295,17 +271,14 @@ func setMainPathCORS(w http.ResponseWriter, r *http.Request) {
 	h.Set("Access-Control-Allow-Credentials", "true")
 	h.Set("Access-Control-Expose-Headers", corsExposeHeaders)
 	// Vary: Origin so shared caches do not serve one origin's response to
-	// another. Use Add so it composes with any Vary set by the handler
-	// (SSE handlers currently do not set Vary, but defensive for future
-	// changes like Accept-Encoding).
+	// another. Use Add so it composes with any Vary set by the handler.
 	h.Add("Vary", "Origin")
 }
 
 // handleEndpointPreflight responds to a CORS preflight for the main /mcp
 // endpoint. The Origin check has already admitted the request; echo the
 // Origin back (wildcard is not compatible with credentialed requests, and
-// MCP clients send Authorization + session-id headers on POST/DELETE).
-// Methods, headers, and max-age enumerate what the real request may carry.
+// MCP clients send an Authorization header on POST).
 //
 // Preflight responses include Vary: Origin so caches keyed by origin do
 // not serve the wrong Access-Control-Allow-Origin to a different caller.
@@ -314,12 +287,12 @@ func (s *Streamable) handleEndpointPreflight(w http.ResponseWriter, r *http.Requ
 	if origin == "" {
 		// Preflight requires an Origin header; a non-browser client sending
 		// OPTIONS without Origin is almost certainly misconfigured.
-		w.Header().Set("Allow", "POST, GET, DELETE, OPTIONS")
+		w.Header().Set("Allow", "POST, OPTIONS")
 		http.Error(w, "preflight requires Origin header", http.StatusBadRequest)
 		return
 	}
 	w.Header().Set("Access-Control-Allow-Origin", origin)
-	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", corsAllowHeaders)
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Access-Control-Max-Age", "600")
@@ -384,15 +357,18 @@ func (s *Streamable) originAllowed(r *http.Request) bool {
 	return ok
 }
 
-// authenticate dispatches to the configured authenticator and attaches the
-// resulting Identity to the request context when successful. Returns a
-// non-nil *authError that the caller renders into a 401 response.
+// authenticate dispatches to the configured authenticator and returns the
+// authenticated Identity. Returns a non-nil *authError that the caller renders
+// into a 401 response.
 //
-// Phase 2 policy: identity is bound at initialize. Subsequent requests with
-// a valid Mcp-Session-Id are trusted by session-id validity alone (MCP
-// 2025-06-18 auth is per-session, not per-request). The initialize handler
-// calls this function; other handlers skip the bearer check because the
-// session carries the identity.
+// Runs on EVERY request. With the handshake gone there is no session id to
+// stand in for a credential, so each POST presents its own and each POST is
+// checked: a revoked token stops working on the next request rather than at
+// session expiry, and there is no long-lived identifier to steal.
+//
+// A zero Identity means "authenticated as anonymous under auth-mode none", not
+// "unauthenticated": an unauthenticated request is the *authError early return
+// above, never a value a handler can receive.
 func (s *Streamable) authenticate(r *http.Request) (Identity, *authError) {
 	if s.auth == nil {
 		return Identity{}, nil
@@ -401,6 +377,19 @@ func (s *Streamable) authenticate(r *http.Request) (Identity, *authError) {
 }
 
 // handlePOST processes a client-initiated JSON-RPC message.
+//
+// The order below is the contract, not a convenience: header validation is a
+// transport-level guard that MUST run before dispatch, or the header/body
+// confusion it exists to prevent is already possible by the time it runs.
+//
+//  1. read and size-cap the body
+//  2. parse the JSON-RPC envelope        -> -32700
+//  3. validate the standard headers      -> -32020, HTTP 400
+//  4. parse the per-request `_meta`      -> -32602, HTTP 400
+//  5. check the declared version         -> -32022, HTTP 400
+//  6. authenticate                       -> 401
+//  7. acknowledge a notification         -> 202
+//  8. dispatch
 func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 	setMainPathCORS(w, r)
 	ct := r.Header.Get("Content-Type")
@@ -418,391 +407,115 @@ func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 
 	var req request
 	if err := json.Unmarshal(body, &req); err != nil {
-		writeJSONResponse(w, &response{
-			JSONRPC: "2.0",
-			Error:   &rpcError{Code: -32700, Message: "parse error"},
-		})
+		writeJSONResponse(w, s.fail(nil, rpcParseError, "parse error"))
 		return
 	}
 
-	if req.Method == "initialize" {
-		identity, aerr := s.authenticate(r)
-		if aerr != nil {
-			recordMCPAuthFailure(s.cfg.AuditRecorder, r.Header.Get("Authorization"), r.RemoteAddr)
-			writeAuthError(w, aerr)
-			return
-		}
-		sess, err := s.doInitialize(&req, identity)
-		if err != nil {
-			switch {
-			case errors.Is(err, errSessionLimitReached):
-				w.Header().Set("Retry-After", "30")
-				http.Error(w, "session limit reached", http.StatusTooManyRequests)
-			case errors.Is(err, errUnsupportedProtocolVersion):
-				writeJSONResponse(w, s.fail(req.ID, -32602, err.Error()))
-			default:
-				writeJSONResponse(w, s.fail(req.ID, -32603, err.Error()))
-			}
-			return
-		}
-		w.Header().Set("Mcp-Session-Id", sess.ID())
-		writeJSONResponse(w, s.buildInitializeResult(&req))
+	// Decoded once and shared: header validation reads params.name / params.uri
+	// and the declared `_meta` version, and parseRequestMeta reads the rest of
+	// the same object.
+	params := decodeParamsObject(req.Params)
+
+	// MCP 2026-07-28 basic/transports/streamable-http Section "Server
+	// Validation": "Servers MUST reject requests with a 400 Bad Request HTTP
+	// status and JSON-RPC error code -32020 (HeaderMismatch) if any validation
+	// fails."
+	if headerErr := validateStandardHeaders(r, &req, params); headerErr != nil {
+		writeJSONResponseStatus(w, http.StatusBadRequest,
+			s.fail(req.ID, rpcHeaderMismatch, headerErr.Error()))
 		return
 	}
 
-	if !s.validateProtocolVersionHeader(r) {
-		http.Error(w, "unsupported MCP-Protocol-Version", http.StatusBadRequest)
-		return
-	}
-	headerID := r.Header.Get("Mcp-Session-Id")
-	if headerID == "" {
-		// Provider-based servers (ze-chaos) accept session-less POSTs: their
-		// clients fire independent requests without threading Mcp-Session-Id,
-		// and the MCP spec makes sessions optional. runMethod handlers are
-		// nil-session aware (tasks/resources degrade to method-not-found).
-		if s.cfg.Provider != nil {
-			if req.ID == nil {
-				w.WriteHeader(http.StatusAccepted)
-				return
-			}
-			resp := s.runMethod(r.Context(), nil, &req, r.RemoteAddr)
-			if resp == nil {
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
-			writeJSONResponse(w, resp)
-			return
-		}
-		writeJSONResponse(w, s.fail(req.ID, -32600, "Mcp-Session-Id header required"))
-		return
-	}
-	sess, ok := s.registry.Get(headerID)
-	if !ok {
-		http.Error(w, "session not found", http.StatusNotFound)
+	// MCP 2026-07-28 basic/index Section "_meta": "A request missing any
+	// required field is malformed; the server MUST reject it with JSON-RPC
+	// error code -32602 (Invalid params). On HTTP, the response status MUST be
+	// 400 Bad Request."
+	meta, metaErr := parseRequestMeta(params)
+	if metaErr != nil {
+		writeJSONResponseStatus(w, http.StatusBadRequest,
+			s.fail(req.ID, rpcInvalidParams, metaErr.Error()))
 		return
 	}
 
-	// JSON-RPC response body (client's reply to a server-initiated request
-	// such as elicitation/create). Has id and result|error, no method.
-	// Routed to the correlation map; returns 202 Accepted with empty body.
-	// Detected BEFORE the notification branch because a response also has
-	// id != nil. See spec-mcp-3-elicitation AC-13 / AC-15b.
-	if req.Method == "" && req.ID != nil {
-		s.handleElicitResponse(w, sess, &req, body)
+	// MCP 2026-07-28 basic/versioning Section "Protocol Version Negotiation":
+	// "If the server does not implement the requested version (whether the
+	// version is unknown to the server, or is a known version the server has
+	// chosen not to support), it MUST respond with an
+	// UnsupportedProtocolVersionError listing the versions it does support."
+	// The binding pins the status: "For HTTP, the response status code MUST be
+	// 400 Bad Request."
+	if !isSupportedProtocolVersion(meta.ProtocolVersion) {
+		writeJSONResponseStatus(w, http.StatusBadRequest,
+			s.failUnsupportedVersion(req.ID, meta.ProtocolVersion))
 		return
 	}
 
-	// Notifications (no id per JSON-RPC 2.0) are acknowledged with 202 per the
-	// MCP 2025-06-18 Streamable HTTP spec; no body is returned. Session
-	// lastSeenAt was already refreshed by registry.Get above.
+	// MCP 2026-07-28 basic/patterns/mrtr Section "Client Requirements": "2. ...
+	// If the InputRequiredResult does not contain a requestState field, the
+	// client MUST NOT include one in the retry." This server issues none, so an
+	// arriving value is a client protocol violation and, per server requirement
+	// 4, unverifiable attacker-controlled input that MUST be rejected. Refused
+	// here, before dispatch, so no handler can ever see one.
+	if stateErr := rejectUnsolicitedRequestState(params); stateErr != nil {
+		mrtrLogger.Warn("rejected a request carrying an unsolicited requestState",
+			slog.String("method", req.Method), slog.String("remote", r.RemoteAddr))
+		writeJSONResponseStatus(w, http.StatusBadRequest,
+			s.fail(req.ID, rpcInvalidParams, stateErr.Error()))
+		return
+	}
+
+	identity, aerr := s.authenticate(r)
+	if aerr != nil {
+		recordMCPAuthFailure(s.cfg.AuditRecorder, r.Header.Get("Authorization"), r.RemoteAddr)
+		writeAuthError(w, aerr)
+		return
+	}
+
+	// MCP 2026-07-28 basic/transports/streamable-http Section "Sending
+	// Messages": a JSON-RPC notification (no id) the server accepts "MUST
+	// return HTTP status code 202 Accepted with no body". This revision defines
+	// no client-to-server notification on this transport, so nothing is
+	// dispatched; the acknowledgement is the whole handling.
 	if req.ID == nil {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
 
-	// Bind a per-POST reply sink BEFORE running the method. The sink
-	// starts as jsonReplySink; a tool handler that elicits triggers an
-	// in-place upgrade to sseReplySink (session.UpgradeCurrentSinkToSSE)
-	// so the elicitation/create frame AND the terminal tool result ride
-	// the same HTTP response as SSE events. Non-eliciting handlers leave
-	// the sink untouched; handlePOST then writes the JSON response via
-	// writeJSONResponse as before.
-	jsonSink := newJSONReplySink(w)
-	release, sinkErr := sess.SetActivePostSink(jsonSink)
-	if sinkErr != nil {
-		// Concurrent POST already owns a sink. MCP expects one client per
-		// session, so this is either a misbehaving client or a race in a
-		// multi-client testing setup. Fail fast rather than risk
-		// interleaved frames on the same HTTP response.
-		writeJSONResponse(w, s.fail(req.ID, -32603, "another request is in flight on this session"))
-		return
+	scope := requestScope{
+		Identity:        identity,
+		Capabilities:    meta.Capabilities,
+		ProtocolVersion: meta.ProtocolVersion,
+		ClientInfo:      meta.ClientInfo,
 	}
-	defer release()
-
-	resp := s.runMethod(r.Context(), sess, &req, r.RemoteAddr)
-	if resp == nil {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	// If the handler upgraded the sink during dispatch (i.e. elicited),
-	// the terminal response MUST ride the SSE stream too — otherwise the
-	// client sees the elicit frame but no response. Route via the sink.
-	if sess.CurrentPostSink().IsSSE() {
-		data, err := json.Marshal(resp)
-		if err != nil {
-			// Headers already committed; best-effort.
-			return
-		}
-		_ = sess.CurrentPostSink().WriteFrame(data)
-		return
-	}
-	writeJSONResponse(w, resp)
+	resp := s.runMethod(r.Context(), scope, &req, r.RemoteAddr)
+	writeJSONResponseStatus(w, httpStatusForDispatch(resp), resp)
 }
 
-// handleElicitResponse routes a client's JSON-RPC response body (the reply
-// to a server-initiated elicitation/create) to the pending-correlation
-// channel. Returns 202 Accepted regardless of whether the id matched --
-// AC-15b silently drops unknown-id replies so the server does not leak
-// which elicit ids are live. Malformed action values propagate via
-// ErrElicitMalformed when the suspended Elicit resolves.
+// httpStatusForDispatch maps a dispatched method's response to the HTTP status
+// the MCP 2026-07-28 binding pins to it.
 //
-// Both JSON-RPC response shapes are handled:
-//
-//   - Success: {"id":...,"result":{"action":...,"content":...}}. Normal path.
-//   - Error:  {"id":...,"error":{...}}. MCP does not document elicit-error
-//     semantics; we deliver it as an explicit cancel (Action="cancel",
-//     Content=nil) so the suspended handler unblocks via ErrElicitCanceled
-//     rather than ErrElicitMalformed. An RPC-level failure on the reply leg
-//     is the client saying "never mind", not "I broke your protocol."
-//
-// Content-type guards: when action=="accept" and result carries a content
-// key that is not a JSON object, we reject with 400 -- an accept without a
-// parseable content map is a protocol violation the client should see.
-func (s *Streamable) handleElicitResponse(w http.ResponseWriter, sess *session, req *request, body []byte) {
-	// Extract the JSON-RPC id as a string; we only generate string ids
-	// (base64url of 128 random bits) so a non-string id cannot match
-	// anything in the correlations map.
-	var idStr string
-	if req.ID != nil {
-		_ = json.Unmarshal(*req.ID, &idStr)
+// Only two dispatch-time error codes carry a mandated status; every other
+// result, success or failure, rides a 200 as JSON-RPC intends. Derived here
+// rather than at each return site so a handler cannot forget the status that
+// belongs with the code it chose.
+func httpStatusForDispatch(resp *response) int {
+	if resp == nil || resp.Error == nil {
+		return http.StatusOK
 	}
-	if idStr == "" {
-		http.Error(w, "id must be a non-empty string", http.StatusBadRequest)
-		return
+	switch resp.Error.Code {
+	case rpcMethodNotFound:
+		// MCP 2026-07-28 basic/transports/streamable-http Section "Protocol
+		// Version Header": "If the server does not implement the requested RPC
+		// method, it MUST respond with 404 Not Found and a JSON-RPC error with
+		// code -32601 (Method not found). The JSON-RPC error body distinguishes
+		// this case from a 404 returned by a legacy HTTP+SSE server that does
+		// not host the modern MCP endpoint."
+		return http.StatusNotFound
+	case rpcMissingRequiredClientCapability:
+		// MCP 2026-07-28 basic/index Section "Error Codes", schema
+		// MissingRequiredClientCapabilityError: "For HTTP, the response status
+		// code MUST be 400 Bad Request."
+		return http.StatusBadRequest
 	}
-	// Re-parse the body as a generic map to pull result / error without
-	// struct tags (check-json-kebab.sh bans camelCase struct tags).
-	var parsed map[string]any
-	if err := json.Unmarshal(body, &parsed); err != nil {
-		http.Error(w, "malformed JSON", http.StatusBadRequest)
-		return
-	}
-	var action string
-	var content map[string]any
-	if result, ok := parsed["result"].(map[string]any); ok {
-		action, _ = result["action"].(string)
-		if contentRaw, hasContent := result["content"]; hasContent {
-			if contentMap, isMap := contentRaw.(map[string]any); isMap {
-				content = contentMap
-			} else {
-				// Accept with non-object content is a protocol violation.
-				http.Error(w, "result.content must be a JSON object", http.StatusBadRequest)
-				return
-			}
-		}
-	} else if _, hasErr := parsed["error"]; hasErr {
-		// Client returned an error response -- treat as explicit cancel.
-		// This lets the suspended Elicit return ErrElicitCanceled (a
-		// typed sentinel handlers already branch on) instead of
-		// ErrElicitMalformed for what is really "client said no."
-		action = elicitActionCancel
-	}
-	// Unknown action values (including "") are delivered verbatim; Elicit
-	// translates them to ErrElicitMalformed.
-	sess.ResolveElicit(idStr, elicitResponse{Action: action, Content: content})
-	w.WriteHeader(http.StatusAccepted)
-}
-
-// handleGET opens a server-to-client SSE stream bound to an existing session.
-//
-// A periodic heartbeat (SSE comment line, sessionHeartbeatWindow cadence)
-// keeps the TCP connection open through network intermediaries with short
-// idle timeouts, and refreshes the session's last-seen timestamp so the TTL
-// sweep does not reap a session whose only activity is the stream itself.
-//
-// Only one concurrent stream is allowed per session. A second GET with the
-// same Mcp-Session-Id is rejected with 409 Conflict — Go channel semantics
-// would otherwise route each server-sent frame to a non-deterministic
-// receiver, breaking task-status routing and resumability.
-func (s *Streamable) handleGET(w http.ResponseWriter, r *http.Request) {
-	setMainPathCORS(w, r)
-	if !acceptsEventStream(r) {
-		http.Error(w, "GET requires Accept: "+mimeEventStream, http.StatusNotAcceptable)
-		return
-	}
-	id := r.Header.Get("Mcp-Session-Id")
-	sess, ok := s.registry.Get(id)
-	if !ok {
-		http.Error(w, "session not found", http.StatusNotFound)
-		return
-	}
-	if !sess.streamActive.CompareAndSwap(false, true) {
-		// Strip the "mcp:" internal-package prefix from the public-facing
-		// body; keep the sentinel for log-level correlation.
-		http.Error(w, "session already has an active stream", http.StatusConflict)
-		return
-	}
-	defer sess.streamActive.Store(false)
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "streaming unsupported", http.StatusInternalServerError)
-		return
-	}
-	// Best effort: long-lived SSE streams outlive http.Server.WriteTimeout.
-	_ = http.NewResponseController(w).SetWriteDeadline(time.Time{})
-	w.Header().Set("Content-Type", mimeEventStream)
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	// Defeat buffering by nginx / common CDN fronts; without this the
-	// heartbeat keepalive is batched until a full buffer page fills and
-	// clients see the stream as hung.
-	w.Header().Set("X-Accel-Buffering", "no")
-	w.WriteHeader(http.StatusOK)
-	flusher.Flush()
-
-	ctx := r.Context()
-	heartbeat := time.NewTicker(s.heartbeatInterval())
-	defer heartbeat.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-heartbeat.C:
-			if _, err := fmt.Fprint(w, ": heartbeat\n\n"); err != nil {
-				return
-			}
-			flusher.Flush()
-			sess.Touch(s.registry.now())
-		case frame, open := <-sess.Outbound():
-			if !open {
-				return
-			}
-			if _, err := fmt.Fprintf(w, "data: %s\n\n", frame); err != nil { //nolint:errcheck // output
-				return
-			}
-			flusher.Flush()
-			sess.Touch(s.registry.now())
-		}
-	}
-}
-
-// handleDELETE terminates a session.
-func (s *Streamable) handleDELETE(w http.ResponseWriter, r *http.Request) {
-	setMainPathCORS(w, r)
-	id := r.Header.Get("Mcp-Session-Id")
-	if id == "" {
-		http.Error(w, "Mcp-Session-Id header required", http.StatusBadRequest)
-		return
-	}
-	s.tasks.CancelAllForSession(id)
-	if !s.registry.Delete(id) {
-		http.Error(w, "session not found", http.StatusNotFound)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
-// doInitialize creates the session for an initialize request, binding the
-// authenticated identity to the session. The identity flows through the
-// registry immutably so later handlers (tasks, elicitation) can scope by it
-// without re-auth.
-func (s *Streamable) doInitialize(req *request, identity Identity) (*session, error) {
-	negotiated, err := parseInitializeProtocolVersion(req)
-	if err != nil {
-		return nil, err
-	}
-	clientElicit := parseElicitationCapability(req)
-	clientTasks := parseTasksCapability(req)
-	clientResources := parseResourcesCapability(req)
-	sess, err := s.registry.CreateWithCapabilities(negotiated, identity, clientElicit, clientTasks, clientResources)
-	if err != nil {
-		return nil, err
-	}
-	return sess, nil
-}
-
-// parseElicitationCapability reports whether the client declared the
-// elicitation capability (capabilities.elicitation = {}) at initialize.
-// Missing or malformed params -> false (capability not declared). MCP
-// 2025-06-18 requires clients that support elicitation to declare it.
-// Reference: https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation
-func parseElicitationCapability(req *request) bool {
-	if len(req.Params) == 0 {
-		return false
-	}
-	var p map[string]any
-	if err := json.Unmarshal(req.Params, &p); err != nil {
-		return false
-	}
-	caps, _ := p["capabilities"].(map[string]any)
-	if caps == nil {
-		return false
-	}
-	// Spec shape is elicitation: {}; any map (including empty) counts
-	// as a declaration. A bare null or missing key is "not declared."
-	_, present := caps["elicitation"].(map[string]any)
-	return present
-}
-
-// parseTasksCapability reports whether the client declared
-// capabilities.tasks={} at initialize. Same pattern as elicitation.
-func parseTasksCapability(req *request) bool {
-	if len(req.Params) == 0 {
-		return false
-	}
-	var p map[string]any
-	if err := json.Unmarshal(req.Params, &p); err != nil {
-		return false
-	}
-	caps, _ := p["capabilities"].(map[string]any)
-	if caps == nil {
-		return false
-	}
-	_, present := caps["tasks"].(map[string]any)
-	return present
-}
-
-// parseResourcesCapability reports whether the client declared
-// capabilities.resources={} at initialize. Same pattern as tasks.
-func parseResourcesCapability(req *request) bool {
-	if len(req.Params) == 0 {
-		return false
-	}
-	var p map[string]any
-	if err := json.Unmarshal(req.Params, &p); err != nil {
-		return false
-	}
-	caps, _ := p["capabilities"].(map[string]any)
-	if caps == nil {
-		return false
-	}
-	_, present := caps["resources"].(map[string]any)
-	return present
-}
-
-// buildInitializeResult assembles the InitializeResult body.
-// MCP uses camelCase JSON keys per the external spec; Ze's kebab-case rule
-// exempts MCP. Keys are built via map literals to preserve the spec shape.
-func (s *Streamable) buildInitializeResult(req *request) *response {
-	name := "ze-mcp"
-	if s.cfg.Provider != nil {
-		name = s.cfg.Provider.ServerName()
-	}
-	return &response{
-		JSONRPC: "2.0",
-		ID:      req.ID,
-		Result: map[string]any{
-			"protocolVersion": ProtocolVersion,
-			"capabilities": map[string]any{
-				"tools":     map[string]any{},
-				"tasks":     map[string]any{},
-				"resources": map[string]any{},
-			},
-			"serverInfo": map[string]any{
-				"name":    name,
-				"version": "2.0.0",
-			},
-		},
-	}
-}
-
-// validateProtocolVersionHeader applies the 2025-06-18 rule: missing header ->
-// accept (spec assumes 2025-03-26). Present with unknown value -> 400.
-func (s *Streamable) validateProtocolVersionHeader(r *http.Request) bool {
-	v := r.Header.Get("MCP-Protocol-Version")
-	if v == "" {
-		return true
-	}
-	return v == ProtocolVersion || v == LegacyProtocolVersion || v == "2024-11-05"
+	return http.StatusOK
 }

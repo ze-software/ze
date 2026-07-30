@@ -33,8 +33,25 @@ func ParseKVPairs(parts []string) map[string]string {
 		break
 	}
 
-	// Parse remaining simple key=value pairs
-	for part := range strings.SplitSeq(joined, ":") {
+	// Parse remaining simple key=value pairs.
+	//
+	// Split on a colon ONLY where a new `key=` token begins. A naive
+	// SplitSeq(joined, ":") cuts every colon, which silently truncates any
+	// value that legitimately contains one: `expect=stdout:contains=error: no
+	// such peer` became `contains=error`, an assertion that passes on almost
+	// any output. A tree-wide sweep on 2026-07-29 found 203 `.ci` assertions
+	// weakened exactly that way across 15 suites -- tests that could not fail.
+	//
+	// splitOnKeyBoundary keeps the 33 legitimate uses working: a colon followed
+	// by `timeout=` IS a new key and still splits, so the engine-step
+	// `contains=aes-cbc:timeout=25` form is unaffected.
+	// Extracting a complex key above leaves the separator that preceded it, so
+	// `conn=1:seq=1:text=...` becomes `conn=1:seq=1:`. The old split-on-every-colon
+	// dropped that as an empty part; a boundary-aware split would instead carry it
+	// into the final value as `seq=1:`. Trim it before splitting.
+	joined = strings.TrimSuffix(joined, ":")
+
+	for _, part := range splitOnKeyBoundary(joined) {
 		if part == "" {
 			continue
 		}
@@ -45,4 +62,55 @@ func ParseKVPairs(parts []string) map[string]string {
 		}
 	}
 	return kv
+}
+
+// splitOnKeyBoundary splits s on each colon that introduces a new `key=` token,
+// leaving colons inside a value intact.
+//
+// A boundary is a colon followed by an identifier and then `=`, where the
+// identifier is the shape a .ci directive key actually takes: a letter, then
+// letters, digits, `-` or `_`. `:contains=` and `:timeout=` are boundaries;
+// `: no such peer` and `:8080/path` are not.
+//
+// The remaining ambiguity is a value containing a colon followed by something
+// that looks like a key, e.g. `contains=note:level=high`. That splits, because
+// nothing in the format distinguishes it from a real key. Authors who need such
+// a value use `pattern=`, which is consumed whole before this runs.
+func splitOnKeyBoundary(s string) []string {
+	var parts []string
+	start := 0
+	for i := range len(s) {
+		if s[i] != ':' || !startsKeyToken(s[i+1:]) {
+			continue
+		}
+		parts = append(parts, s[start:i])
+		start = i + 1
+	}
+	return append(parts, s[start:])
+}
+
+// startsKeyToken reports whether s begins with a directive key followed by `=`.
+func startsKeyToken(s string) bool {
+	if s == "" || !isKeyLeadByte(s[0]) {
+		return false
+	}
+	for i := 1; i < len(s); i++ { //nolint:intrange // starts at 1, not 0
+		switch {
+		case s[i] == '=':
+			return true
+		case isKeyByte(s[i]):
+			continue
+		default:
+			return false
+		}
+	}
+	return false
+}
+
+func isKeyLeadByte(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+}
+
+func isKeyByte(c byte) bool {
+	return isKeyLeadByte(c) || (c >= '0' && c <= '9') || c == '-' || c == '_'
 }

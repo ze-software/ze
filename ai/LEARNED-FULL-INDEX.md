@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1269 summaries
+Total: 1274 summaries
 
 ## 000-099
 
@@ -1343,3 +1343,13 @@ Total: 1269 summaries
 | 1295 | rfcgate-1-extraction | `plan/learned/1295-rfcgate-1-extraction.md` |
 | 1296 | rfcgate-2 -- wire-level evidence for RFC requirements | `plan/learned/1296-rfcgate-2-evidence.md` |
 | 1297 | rfcgate-3 -- giving the RFC audit record teeth | `plan/learned/1297-rfcgate-3-audit-teeth.md` |
+| 1298 | mcp2026-0-umbrella | `plan/learned/1298-mcp2026-0-umbrella.md` |
+| 1299 | mcp2026-1-stateless-core | `plan/learned/1299-mcp2026-1-stateless-core.md` |
+
+## 1300-1399
+
+| # | Summary | File |
+|---|---------|------|
+| 1300 | mcp2026-2-mrtr | `plan/learned/1300-mcp2026-2-mrtr.md` |
+| 1301 | mcp2026-3-tasks-extension | `plan/learned/1301-mcp2026-3-tasks-extension.md` |
+| 1302 | mcp2026-4-caching-apps | `plan/learned/1302-mcp2026-4-caching-apps.md` |

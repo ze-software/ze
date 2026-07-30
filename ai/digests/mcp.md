@@ -9,9 +9,11 @@ Ze's MCP (Model Context Protocol) server exposes the same command surface the CL
 to AI assistants over HTTP. It is compile-out-able (`//go:build ze_mcp`): the always-on hub
 resolves listen addresses, a `CommandDispatcher` closure, and a neutral command-metadata source
 as plain values, and only the gated `service_mcp.go` converts them into `internal/component/mcp`
-types, so a non-MCP build never links the package. Two transports coexist: the legacy
-2024-11-05 JSON-RPC-over-POST `Handler` (test compatibility) and the current 2025-06-18
-`Streamable` HTTP dispatcher (sessions, SSE, GET/DELETE), which every production listener uses.
+types, so a non-MCP build never links the package. There is exactly one transport and exactly
+one protocol revision: the `2026-07-28` Streamable HTTP profile (`streamable.go:34`,
+`streamable.go:51`), which is stateless -- no `initialize` handshake, no session, no GET stream,
+no server-initiated request. Every POST carries its own protocol version, client capabilities and
+credential, and is validated, authenticated and dispatched on its own.
 Tools are never hand-registered per command: `tools/list` derives one MCP tool per
 command-group at call time from the live command registry plus YANG-derived
 parameter/task-support/UI metadata, so new commands appear automatically without touching this
@@ -19,137 +21,227 @@ package.
 
 ## Flow
 1. **Startup: resolve config, build dispatcher + command source.** `runYANGConfig` resolves MCP
-   listen addresses from CLI flag / env var / YANG config (`cmd/ze/hub/main.go:249-254`,
-   `:296-309`, `:327-335`), then builds the MCP-surface command dispatcher `mcpDispatch :=
-   serverDispatcherWithSurface(apiServer, audit.MCP)` (`main.go:572`) and the neutral
-   command-metadata closure `commandMetaSource(apiServer)` (`main.go:724`, defined
-   `command_meta.go:60`). Both flow into `ServiceDeps.MCP` (`main.go:718-726`, `mcpServiceDeps`
-   type at `service_registry.go:82-90`).
+   listen addresses from CLI flag / env var / YANG config (`main.go:376-394`, `:408-414`), then
+   builds the MCP-surface command dispatcher `mcpDispatch := serverDispatcher(apiServer,
+   audit.MCP)` (`main.go:649`) and the neutral command-metadata closure
+   `commandMetaSource(apiServer)` (`main.go:985`, defined `command_meta.go:67`). Both flow into
+   `ServiceDeps.MCP` (`main.go:979-985`, `mcpServiceDeps` type at `service_registry.go:92`).
 2. **Gated factory builds and mounts the server.** `buildMCPService` (`service_mcp.go:50`)
    converts the neutral deps: `mcpCommandLister` (`service_mcp.go:78`) maps each `commandMeta`
-   to a `zemcp.CommandInfo`; `mcpConfigToStreamable` (`service_mcp.go:124`) merges YANG
+   to a `zemcp.CommandInfo`; `mcpConfigToStreamable` (`service_mcp.go:125`) merges YANG
    auth-mode/OAuth/bearer-list config into a `StreamableConfig`. `startMCPServer`
-   (`service_mcp.go:191`) calls `zemcp.NewStreamable(mcpCfg)` (`service_mcp.go:201`, defined
-   `streamable.go:140`), which builds the origin allowlist (`buildOriginSet`,
-   `streamable.go:156`), the auth strategy (`buildAuthForMode`, `streamable.go:170`, defined
-   `streamable_auth.go:47`), the task registry (`streamable.go:174`), the session registry
-   (`streamable.go:175`), and caches the embedded UI resource listing (`streamable.go:188`,
-   calling `listResources`, `resources.go:64`). One `net.Listener` is opened per configured
-   address; all are served by a single `http.Server` whose `Handler` is the `*Streamable`
-   (`service_mcp.go:208-256`).
-3. **Command to tool metadata assembly.** `commandMetaSource` (`command_meta.go:60`) walks
-   `pluginserver.Dispatcher.Commands()` (`command_meta.go:89`) and `Registry().All()`
-   (plugin-registered commands, `command_meta.go:108`), enriching each with YANG RPC input
-   params (`buildParamMeta`, `command_meta.go:121`), `ze:task-support`
-   (`buildTaskSupportMap`, `command_meta.go:176`), and `ze:ui-resource` (`lookupUIResource`,
-   `command_meta.go:186`, walking up parent paths) sourced once from
-   `yangloader.DefaultLoader()` (`command_meta.go:70`).
-4. **Single HTTP entry point.** `Streamable.ServeHTTP` (`streamable.go:212`) serves the RFC
-   9728 metadata document unauthenticated, then gates every other path by `originAllowed`
-   (`streamable.go:364`) before switching on method: POST/GET/DELETE/OPTIONS to
-   `handlePOST`/`handleGET`/`handleDELETE`/`handleEndpointPreflight` (`streamable.go:245-259`);
-   anything else is 404/405 with CORS headers still applied.
-5. **initialize.** `handlePOST` (`streamable.go:397`) reads and JSON-unmarshals the body; for
-   `method=="initialize"` it runs `s.authenticate(r)` (`streamable.go:422`, dispatcher at
-   `:389`), which delegates to the mode-specific `authenticator` built at construction
-   (none/bearer/bearer-list/oauth, `auth.go:108`, `bearer.go`, `oauth.go`). On success,
-   `doInitialize` (`streamable.go:676`) parses the negotiated protocol version and the three
-   capability bits (`parseElicitationCapability` `streamable.go:696`, `parseTasksCapability`
-   `:716`, `parseResourcesCapability` `:734`) and calls
-   `sessionRegistry.CreateWithCapabilities` (`session.go:191`, calling `Create` `:206`), which
-   allocates a 128-bit random session id (`generateSessionID`, `session.go:549`) after checking
-   `maxSessions` (`session.go:212`, `:234`). The response carries the `Mcp-Session-Id` header
-   (`streamable.go:441`) and `buildInitializeResult` (`streamable.go:442`, defined `:753`).
-6. **Session-bound framing for every later request.** Non-initialize POSTs must carry
-   `Mcp-Session-Id` (`streamable.go:450`); `sessionRegistry.Get` (`session.go:249`) validates
-   the id and refreshes `lastSeenAt`. A JSON-RPC response body (no `method`, has `id`) is an
-   elicitation reply and is routed by `handleElicitResponse` (`streamable.go:466`, defined
-   `:538`) to the pending correlation channel (`session.ResolveElicit`, `session.go:403`); a
-   notification (no `id`) is acknowledged with 202 (`streamable.go:474`); everything else binds
-   a fresh per-POST `jsonReplySink` via `SetActivePostSink` (`streamable.go:486-487`, defined
-   `session.go:440`) before dispatch, so a mid-call `session.Elicit` can upgrade the reply in
-   place to SSE (`reply_sink.go:78`, `elicit.go:252`).
-7. **Method dispatch.** `Streamable.runMethod` (`streamable_tools.go:20`) switches on
-   `req.Method`: `tools/list` calls `allTools` (`:25`, defined `:46`); `tools/call` calls
-   `callTool` (`:26`, defined `:65`); `tasks/list|get|result|cancel` (`:28-35`);
-   `resources/list|read` (`:36-39`, defined `resources.go:136`, `:143`).
-8. **tools/list: tool generation.** `allTools` (`streamable_tools.go:46`) calls
-   `groupCommands` (`tools.go:95`) to bucket every `CommandInfo` by shared prefix into
-   `toolGroup`s (e.g. "show bgp rib status" + "show bgp rib best" group under "show bgp rib"),
-   then `generateTools`/`buildToolDef` (`tools.go:239`, `:256`) synthesize one JSON-Schema tool
-   per group named `ze_<prefix>` (`toolName`, `tools.go:240`), folding in typed YANG params
-   (`addYANGParams`, `tools.go:411`), the group's `execution.taskSupport`
-   (`groupTaskSupport`, `tools.go:388`), and `_meta.ui` when a `ze:ui-resource` is present
-   (`groupUIResource`, `tools.go:376`). Handcrafted tools `ze_execute`/`ze_reference`
-   (`tools.go:723-745`) are prepended and excluded from auto-generation via
-   `handcraftedNames` (`tools.go:678`).
-9. **tools/call: dispatch to command execution.** `callTool` (`streamable_tools.go:71`)
-   unmarshals `callParams` (`tools.go:603`), checks `TaskSupportForbidden`/`Required` via
-   `lookupTaskSupport` (`streamable_tools.go:117`); if `params.Task` is set and allowed
-   it delegates to `createTask` (`streamable_tools.go:229`) instead of running synchronously
-   (task path: a worker goroutine via `runTaskWorker`, `tasks.go:425`, transitions
-   `working -> completed|failed|cancelled`). A `StreamableConfig.Provider`
-   (ze-chaos) short-circuits here: `CallTool` delegates to the provider and task
-   calls are rejected (`streamable_tools.go:78-90`). Otherwise it builds a
-   per-call `server` runner (`tools.go:471`) and resolves the tool: handcrafted
-   names hit `toolHandlers[params.Name]` (`tools.go:611`) directly; generated names resolve via
-   `findGeneratedTool` (`streamable_tools.go:138`) back to a command prefix + valid-action set,
-   then `server.dispatchGenerated` (`tools.go:498`) assembles a plain CLI command string
-   (`peer <sel> <prefix> <action> <typed-params...> <arguments>`) and calls `server.run`
-   (`tools.go:698`).
-10. **Handoff to the shared command dispatcher.** `server.run` calls
-    `s.dispatch(command, username, remoteAddr)` (`tools.go:699`), the `CommandDispatcher`
-    closure `mcpDispatch` built in step 1, equal to
-    `serverDispatcherWithSurface(apiServer, audit.MCP)` (`main_servers.go:26`). It builds a
-    `pluginserver.CommandContext{Surface: "mcp", ...}` (`main_servers.go:32`) and calls
-    `pluginserver.Dispatcher.Dispatch(ctx, input)` (`main_servers.go:33`, defined
-    `internal/component/plugin/server/command.go:538`), the identical dispatcher path
-    CLI/SSH/web use, so MCP calls get the same authorization and accounting. The
-    `plugin.Response` is JSON-marshaled back to a string (`main_servers.go:49`) and wrapped as
-    MCP content (`TextResult`/`ErrResult`, `tools.go:707`, `:714`).
-11. **Response return.** `callTool`/`createTask` return a `*response`; `handlePOST` marshals it
-    as a plain `application/json` body, or, if the handler elicited mid-call and the sink was
-    upgraded, writes it as one more SSE `data:` frame through
-    `sess.CurrentPostSink().WriteFrame` so the elicit request and the terminal result ride the
-    same HTTP response (`streamable.go:504-516`).
-12. **Server-initiated side channel.** `handleGET` (`streamable.go:594`) opens one long-lived
-    SSE stream per session (a second concurrent GET is rejected with 409, `:606-611`), draining
-    `session.Outbound()` (`session.go:530`) for task-status notifications
-    (`buildTaskStatusNotification`, emitted from `runTaskWorker`, `tasks.go:449-452`) and a
-    periodic heartbeat that also refreshes `lastSeenAt` (`streamable.go:637-642`).
-    `handleDELETE` (`streamable.go:657`) cancels all in-flight tasks for the session
-    (`tasks.CancelAllForSession`) and removes it from the registry. The registry's own GC
-    goroutine sweeps every 30s and evicts idle/over-lifetime sessions (`session.go:309-350`).
-13. **Elicitation mid-dispatch (side branch off step 9).** A tool handler that needs missing
-    input (e.g. `ze_execute` with an empty `command`, `tools.go:623-655`) calls
-    `session.Elicit(ctx, message, schema)` (`elicit.go:227`). `Elicit` validates the schema
-    against the flat-primitive subset the spec allows (`validateElicitSchema`, `elicit.go:102`),
-    registers a correlation channel (`RegisterElicit`, `session.go:374`), upgrades the POST's
-    reply sink to SSE (`UpgradeCurrentSinkToSSE`, `session.go:467`, `reply_sink.go:78`), writes
-    an `elicitation/create` frame, then blocks on the channel or `ctx.Done()`. The client's
-    matching JSON-RPC response arrives on a later POST and is routed back by
-    `handleElicitResponse` (step 6) via `session.ResolveElicit` (`session.go:403`).
+   (`service_mcp.go:192`) calls `zemcp.NewStreamable(mcpCfg)` (`service_mcp.go:202`, defined
+   `streamable.go:142`), which picks the body cap (`streamable.go:143-146`), builds the origin
+   allowlist (`buildOriginSet`, `streamable.go:147`, defined `streamable_auth.go:291`), infers the
+   auth mode for legacy callers and builds the auth strategy (`streamable.go:153-161`,
+   `buildAuthForMode` at `streamable_auth.go:47`), creates the task registry
+   (`streamable.go:167`, `newTaskRegistry` at `tasks.go:81`), and caches the embedded UI resource
+   listing (`streamable.go:173`, `listResources` at `resources.go:64`). One `net.Listener` is
+   opened per configured address; all are served by a single `http.Server` whose `Handler` is the
+   `*Streamable` (`service_mcp.go:233`).
+3. **Command to tool metadata assembly.** `commandMetaSource` (`command_meta.go:67`) walks
+   `pluginserver.Dispatcher.Commands()` and `Registry().All()` (`command_meta.go:95`), enriching
+   each with YANG RPC input params (`buildParamMeta`, `command_meta.go:176`), `ze:task-support`
+   (`buildTaskSupportMap`, `command_meta.go:231`), and `ze:ui-resource` (`lookupUIResource`,
+   `command_meta.go:241`, walking up parent paths) sourced once from
+   `yangloader.DefaultLoader()` (`command_meta.go:77`).
+4. **Single HTTP entry point, POST only.** `Streamable.ServeHTTP` (`streamable.go:183`) serves the
+   RFC 9728 metadata document unauthenticated and ahead of the Origin gate (`streamable.go:190`,
+   handler at `:305`), then gates every other path by `originAllowed` (`streamable.go:199`, defined
+   `:341`) with a 403 on a bad Origin, 404s a wrong sub-path (`streamable.go:204`), and switches on
+   method (`streamable.go:214`): POST to `handlePOST`, OPTIONS to `handleEndpointPreflight`
+   (`streamable.go:282`), and **everything else -- GET and DELETE included -- to a 405 carrying
+   `Allow: POST, OPTIONS`** (`streamable.go:232-234`). The GET SSE stream and the DELETE
+   session-termination call of the earlier revisions do not exist.
+5. **handlePOST: a fixed validation order, then dispatch.** `handlePOST` (`streamable.go:390`)
+   guards the content type, reads the body under `http.MaxBytesReader` (`streamable.go:398`,
+   cap `maxRequestBody` at `tools.go:665`), JSON-unmarshals it into `request`
+   (`streamable.go:406`, `-32700` on failure), and decodes `params` once into a generic map
+   (`decodeParamsObject`, `streamable.go:414`, defined `meta.go:106`). Then, in this order:
+   `validateStandardHeaders` (`streamable.go:420`, defined `headers.go:107`) -> `-32020` + HTTP
+   400; `parseRequestMeta` (`streamable.go:430`, defined `meta.go:131`) -> `-32602` + HTTP 400;
+   `isSupportedProtocolVersion` (`streamable.go:444`, defined `:54`) -> `-32022` + HTTP 400 with
+   `data.supported`/`data.requested` (`failUnsupportedVersion`, `streamable_tools.go:443`);
+   `s.authenticate(r)` (`streamable.go:450`, defined `:369`) -> 401 plus an audit record
+   (`recordMCPAuthFailure`, `internal/component/mcp/audit.go:12`). The order is the contract: header validation is a
+   transport-level guard that must run before dispatch or the header/body confusion it prevents is
+   already possible.
+6. **Notification, then scope, then dispatch.** A body with no `id` is a notification and is
+   answered `202 Accepted` with no body (`streamable.go:462`); this revision defines no
+   client-to-server notification on the transport, so nothing is dispatched. Otherwise `handlePOST`
+   builds a `requestScope` **by value** from the authenticated identity and the parsed `_meta`
+   (`streamable.go:467-472`, type at `streamable_tools.go:85`) and calls `runMethod`
+   (`streamable.go:473`). The HTTP status comes from `httpStatusForDispatch`
+   (`streamable.go:474`, defined `:484`): `-32601` becomes 404, `-32021` becomes 400, everything
+   else 200.
+7. **Per-request `_meta` parsing.** `parseRequestMeta` (`meta.go:131`) reads `params._meta` --
+   note it sits **inside `params`**, not at the JSON-RPC top level -- and requires
+   `io.modelcontextprotocol/protocolVersion` and `io.modelcontextprotocol/clientCapabilities`,
+   while `io.modelcontextprotocol/clientInfo` is optional (`meta.go:27-32` for the key names,
+   `meta.go:174` for the info parse). `parseClientCapabilities` (`meta.go:191`) sets the
+   `Resources` and `Tasks` bools of the `clientCapabilities` value type (`meta.go:81`); the tasks
+   bit is set ONLY by `extensions["io.modelcontextprotocol/tasks"]`. The bare `tasks` member of
+   2025-11-25 is deliberately no longer accepted: under the server-directed model the bit decides
+   whether the server may return an UNSOLICITED task handle, and a legacy client that declared
+   `{"tasks":{}}` was opting into a model where it asked for each task itself.
+8. **Header validation.** `validateStandardHeaders` (`headers.go:107`) requires
+   `MCP-Protocol-Version` and `Mcp-Method` on every POST (`headers.go:31-38` for the names),
+   requires `Mcp-Name` for `tools/call` (mirroring `params.name`) and for `resources/read` /
+   `prompts/get` (mirroring `params.uri`) via `mcpNameSource` (`headers.go:184`), decodes the
+   `=?base64?...?=` sentinel before comparing (`decodeSentinel`, `headers.go:207`), and rejects an
+   `Mcp-Param-*` value carrying octets RFC 9110 forbids in a field value (`validateParamHeaders`,
+   `headers.go:233`). Finally it compares the header version against the body's declared version
+   when the body declares one (`headers.go:168`) -- a body that declares none is a `-32602`
+   reported by step 5's next stage, not a header mismatch.
+9. **Method dispatch.** `Streamable.runMethod` (`streamable_tools.go:106`) switches on
+   `req.Method` over the constant set at `streamable_tools.go:21-38`: `server/discover` to
+   `serverDiscover` (`discover.go:45`); `tools/list` to `allTools` (`streamable_tools.go:141`);
+   `tools/call` to `callTool` (`:162`); `tasks/get|update|cancel`; `resources/list|read`
+   (`resources.go:148`, `:157`). `tasks/list` and `tasks/result` were REMOVED (MCP 2026-07-28
+   changelog major 6) and now fall through to the default arm: 404 + `-32601`. `initialize` is recognized only to
+   return a diagnostic naming the supported version (`streamable_tools.go:131`, message built by
+   `initializeEraError`, `headers.go:82`); anything else is `-32601` with HTTP 404.
+10. **server/discover.** `serverDiscover` (`discover.go:45`) returns `supportedVersions` (a clone
+    of the supported set), `capabilities` (`serverCapabilities`, `discover.go:62`: `tools`,
+    `resources`, and an `extensions` map naming BOTH `io.modelcontextprotocol/ui` (MCP Apps) and
+    `io.modelcontextprotocol/tasks`, each with an empty settings object. Advertising tasks is what
+    makes `resultType: "task"` legal for a client to parse: basic/index builds the client's
+    supported ResultType set from the core set plus the values of extensions advertised via
+    capabilities) and `instructions`
+    (`discover.go:76`). `serverInfo` (`discover.go:92`) is not a top-level field -- it rides in
+    the result `_meta`, stamped by `ok()` like every other result.
+11. **tools/list: tool generation.** `allTools` (`streamable_tools.go:141`) calls `groupCommands`
+    (`tools.go:112`) to bucket every `CommandInfo` by shared prefix into `toolGroup`s, then
+    `generateTools`/`buildToolDef` (`tools.go:258`, `:275`) synthesize one JSON-Schema tool per
+    group named `ze_<prefix>` (`toolName`, `tools.go:250`), folding in typed YANG params
+    (`addYANGParams`, `tools.go:427`), the group's `execution.taskSupport` (`groupTaskSupport`,
+    `tools.go:404`), and `_meta.ui` when a `ze:ui-resource` is present (`groupUIResource`,
+    `tools.go:392`). Handcrafted tools `ze_execute`/`ze_reference` (`tools.go:718`, schemas at
+    `tools.go:805`) are prepended and excluded from auto-generation via `handcraftedNames`
+    (`tools.go:760`).
+12. **tools/call: dispatch to command execution.** `callTool` (`streamable_tools.go:162`)
+    unmarshals `callParams` (`tools.go:710`), which no longer has a `Task` member: creation is
+    SERVER-directed. It reads the tool's level via `lookupTaskSupport` and delegates to
+    `createTask` only when the level is `TaskSupportRequired` AND the request declared the tasks
+    extension; `forbidden` and `optional` run synchronously, and so does `required` for a
+    non-declaring client (which still gets its answer, as `resultType: "complete"`). A
+    `StreamableConfig.Provider` (ze-chaos) short-circuits here: `CallTool` delegates to the
+    provider, which has no YANG behind it and therefore no annotation to read. Otherwise it builds a
+    per-call `server` runner carrying the request's authenticated username (`tools.go:548`,
+    built `streamable_tools.go:189-195`) and resolves the tool: handcrafted names hit
+    `toolHandlers[params.Name]` (`streamable_tools.go:196`) directly; generated names resolve via
+    `findGeneratedTool` (`streamable_tools.go:235`) back to a command prefix + valid-action set,
+    then `server.dispatchGenerated` (`tools.go:571`) assembles a plain CLI command string
+    (`peer <sel> <prefix> <action> <typed-params...> <arguments>`) and calls `server.run`
+    (`tools.go:780`).
+13. **Handoff to the shared command dispatcher.** `server.run` calls `s.dispatch.JSON(...)`
+    (`tools.go:781`), the `CommandDispatcher` closure `mcpDispatch` built in step 1, equal to
+    `serverDispatcher(apiServer, audit.MCP)` (`main_servers.go:36`). `JSON`
+    (`internal/component/plugin/dispatch.go:56`) wraps the closure, which builds a
+    `pluginserver.CommandContext{Surface: "mcp", ...}` (`main_servers.go:46-51`) and calls
+    `pluginserver.Dispatcher.Dispatch` (`main_servers.go:63`), the identical dispatcher path
+    CLI/SSH/web use, so MCP calls get the same authorization and accounting. The result is wrapped
+    as MCP content (`TextResult`/`ErrResult`, `tools.go:789`, `:796`).
+14. **Result envelope.** Every successful handler returns through `ok`
+    (`streamable_tools.go:407`), which copies the handler's map and stamps two fields the revision
+    requires on every result: `resultType: "complete"` (`streamable_tools.go:75`) and
+    `_meta["io.modelcontextprotocol/serverInfo"]` (merged by `resultMeta`,
+    `streamable_tools.go:420`). One site covers every method. `handlePOST` marshals the response
+    as a plain `application/json` body with the status `httpStatusForDispatch` chose
+    (`writeJSONResponseStatus`, `streamable_tools.go:491`).
+14b. **Cache hints are stamped beside `ok()`, never inside it.** `runMethod` wraps the dispatch
+    switch in `stampCacheHints` (`caching.go`), which adds `ttlMs` and `cacheScope` when the
+    method is a key of `cacheTTLByMethod` AND the result's `resultType` is `"complete"`:
+    `server/discover` and `tools/list` at 60 s (registry-derived, re-read per call),
+    `resources/list` and `resources/read` at 1 h (embedded assets, fixed for the binary's
+    lifetime). It is NOT folded into `ok()` because `tools/call` shares that responder and no
+    shape of its result may carry a caching hint -- interim `input_required` results are not
+    cacheable and MRTR retries must not be cached. `cacheScope` is the constant `"private"` on
+    every surface; no `"public"` constant exists in the package. **A caching hint is the
+    (`ttlMs`, `cacheScope`) PAIR**: a `tools/call` answered with `resultType: "task"` carries
+    `ttlMs` and `pollIntervalMs` from `retentionHints` (`tasks.go`), which are the tasks
+    extension's own retention fields and never come with a `cacheScope`. `cacheScope` is the
+    discriminator; do not "fix" a CreateTaskResult by removing its `ttlMs`.
+14c. **A handler that needs input RETURNS a request, it never sends one.** `ze_execute` with no
+    `command` calls `askForCommand` (`mrtr.go`): with `caps.ElicitForm` set it returns
+    `inputRequiredForMissingCommand()`, a map carrying `resultType: "input_required"` and ONE
+    `inputRequests` entry keyed `ze_execute_command` whose value is an `elicitation/create`
+    request with an explicit `"mode":"form"`; without it, the pre-existing
+    `missing required argument: command` tool error. **The published descriptor tracks the same
+    capability**: `gateExecuteCommandRequired` (`mrtr.go`, applied in `allTools`) adds
+    `inputSchema.required: ["command"]` to the `ze_execute` descriptor only for a client without
+    form mode, copy-on-write so the package-level `handcraftedTools` is never mutated. An
+    unconditional `required` (which is what Phase 1 published) makes the whole MRTR path
+    unreachable: a schema-validating host will not construct a call its own schema rejects.
+    `ok()` preserves a handler-set `resultType`
+    instead of overwriting it, and `guardInputRequired` (wrapped around `dispatchMethod` inside
+    `runMethod`) turns an `input_required` on any method other than `prompts/get`,
+    `resources/read`, `tools/call` into `-32603` plus a WARN. The client answers by retrying the
+    SAME request under a new id with `params.inputResponses`; `callTool` decodes it with
+    `decodeInputResponses(req.Params)` onto the runner, and `resolveElicitedValue` maps the entry
+    to accept / decline / cancel / missing / malformed. **Nothing is retained between the two
+    requests, and Ze mints no `requestState`** -- `rejectUnsolicitedRequestState` refuses any
+    request carrying one (`-32602`, HTTP 400, before dispatch), because a value Ze never issued
+    cannot be verified. The task worker's runner deliberately gets a ZERO `caps`, so a handler
+    that would elicit takes the missing-argument path rather than storing an interim result as
+    the task's payload. That zeroing is precisely what makes the extension's `input_required`
+    state unreachable in Ze, which is why `TaskInputRequired` does not exist.
+
+15. **Tasks are polled, never pushed.** `createTask` re-checks the request's declared tasks
+    extension (the last place the guard can sit and still be the guard), resolves the tool BEFORE
+    allocating a slot, then calls `taskRegistry.Create(identity)` and launches `runTaskWorker`.
+    The worker transitions `working -> completed|failed|cancelled` and stores the result;
+    **nothing is sent to the client**, because this revision has no server-to-client stream on
+    the transport. A client observes a task by polling `tasks/get`, which is ALSO where the output
+    arrives: a terminal task carries `result` (completed) or `error` (failed). The result is
+    stored BEFORE the state goes terminal, so a poll that sees a terminal status can always read
+    the payload from the same response -- ordering them the other way would leave a window where
+    a correct client reads a finished task as having produced nothing.
+
+15b. **A worker cannot outlive its execution deadline.** `Create` gives the worker a
+    deadline-bearing context, and `sweep` forces any still-working entry past its deadline to
+    `failed`, releasing the concurrency slot. Both halves are needed: a wedged dispatch may never
+    observe its context, so the REGISTRY transitions the entry whether or not the goroutine
+    returns. This replaces the session reaper MCP 2026-07-28 deleted, which was the only path
+    that could force a non-terminal task terminal -- the TTL sweep only deletes entries that
+    already reached one.
+
+15c. **The context actually reaches the dispatcher, and a terminal entry is immutable.** Two
+    defects here were fixed on 2026-07-30, both of which had a godoc asserting the behavior that
+    was missing. (a) `server.ctx` was written at both construction sites and read nowhere; the
+    two dispatch sites hard-coded `context.Background()`, so the deadline above and a client
+    disconnect were both inert. `server.context()` (`tools.go`) is now the single reader, used by
+    the `ze_execute` handler and by `(*server).run`, which is the path every generated tool and
+    therefore every task takes. (b) `storeResult` and `setErrorMsg` had no terminal check, so a
+    worker returning AFTER the deadline sweep closed its entry wrote its result over the sweep's
+    diagnostic and `toWire` emitted both `error` and `result`. All three writers now share
+    `Transition`'s rule: the first terminal state wins. `Close` also cancels every still-working
+    entry, which its `taskWorkerFunc` godoc had always promised and never did.
 
 ## Key files
 | File | Role |
 |------|------|
-| `streamable.go` | Streamable HTTP dispatcher: `ServeHTTP`, Origin/CORS, `handlePOST`/`handleGET`/`handleDELETE`, `initialize`, session binding, RFC 9728 metadata endpoint |
-| `streamable_tools.go` | `runMethod` JSON-RPC method switch, `callTool`, task-augmented `tools/call` (`createTask`), `tasks/*` handlers |
-| `streamable_auth.go` | `buildAuthForMode`: OAuth AS-metadata fetch + JWKS priming at startup, dispatch to bearer/none/oauth strategies |
-| `tools.go` | JSON-RPC 2.0 wire types (`request`/`response`/`rpcError`/`callParams`), the `server` per-request runner, handcrafted tools (`ze_execute`, `ze_reference`), `ToolProvider` interface (ze-chaos), plus command-registry to MCP tool auto-generation: `groupCommands`, `buildToolDef`, `dispatchGenerated` (tool call to CLI command string). The legacy 2024-11-05 `Handler`/`ZeProvider` were deleted (spec-followup-subsystem AC-9) |
-| `session.go` | `sessionRegistry` (TTL/lifetime GC, cap), `session` (capability bits, correlation map, outbound SSE queue, per-POST reply sink binding) |
-| `reply_sink.go` | `jsonReplySink` / `sseReplySink`: the POST-response upgrade mechanism elicitation relies on |
-| `elicit.go` | `session.Elicit`, flat-primitive schema validator, `ErrElicit*` sentinels |
-| `tasks.go` | `taskRegistry`, `runTaskWorker`, TTL GC, `TaskElicit` (mid-task elicitation over the GET SSE stream) |
+| `streamable.go` | Streamable HTTP dispatcher: `ServeHTTP` (POST/OPTIONS only, GET/DELETE 405), Origin/CORS, the `handlePOST` validation pipeline, `authenticate`, `httpStatusForDispatch`, the RFC 9728 metadata endpoint, `ProtocolVersion`/`supportedProtocolVersions` |
+| `meta.go` | Per-request `_meta`: reserved `io.modelcontextprotocol/*` key names, `parseRequestMeta`, the fail-closed `clientCapabilities` value type |
+| `headers.go` | `validateStandardHeaders`, `mcpNameSource`, the `=?base64?...?=` sentinel decoder, `Mcp-Param-*` field-value checks, `initializeEraError` |
+| `discover.go` | `server/discover`: `serverCapabilities`, `instructions`, `serverInfo`, the server name/version constants |
+| `streamable_tools.go` | `runMethod` method switch, the `requestScope` per-request value, `callTool`, `createTask`, `tasks/*` handlers, the JSON-RPC/MCP error codes, and the `ok`/`fail`/`failUnsupportedVersion`/`failMissingTasksCapability` response builders |
+| `streamable_auth.go` | `buildAuthForMode`: OAuth AS-metadata fetch + JWKS priming at startup, dispatch to bearer/none/oauth strategies, origin canonicalization, `writeAuthError` |
+| `tools.go` | JSON-RPC 2.0 wire types (`request`/`response`/`rpcError`/`callParams`), the `server` per-request runner, handcrafted tools (`ze_execute`, `ze_reference`), `ToolProvider` interface (ze-chaos), plus command-registry to MCP tool auto-generation: `groupCommands`, `buildToolDef`, `dispatchGenerated` |
+| `tasks.go` | `taskRegistry` keyed by authenticated principal (`byIdentity`), per-principal concurrency cap, terminal-retention cap, TTL clamp and GC, `runTaskWorker` |
 | `resources.go` | `resources/list` / `resources/read`, MIME sniffer, `ui://` URI validator over the embedded FS |
+| `caching.go` | Cacheable results: `cacheTTLByMethod` (the closed set of methods carrying hints), the two `ttlMs` constants, the unconditional `cacheScopePrivate`, and `stampCacheHints` |
+| `mrtr.go` | Multi Round-Trip Requests: `newInputRequiredResult`, `inputRequiredForMissingCommand` (the ONLY emittable elicitation), `permitsInputRequired`/`guardInputRequired` (the method restriction), `rejectUnsolicitedRequestState`, `elicitationFormSupported` (the mode gate), and `resolveExecuteCommand`/`askForCommand` (`ze_execute`'s re-entrancy) |
+| `elicit.go` | Form-mode elicitation: the flat-primitive `requestedSchema` validator (`validateElicitSchema`), the `accept`/`decline`/`cancel` action constants, `elicitFieldIsSecret` (the credential-shaped-property refusal), and `newElicitRequest` |
+| `apps.go` | The `io.modelcontextprotocol/ui` extension: `extensionUI`, `clientSupportsUIApps` (the five-case settings gate), `gateUIMeta`/`withoutUIMeta` (the `_meta.ui` strip) |
 | `ui/embed.go` | `//go:embed` of MCP Apps UI bundles |
 | `auth.go` | `AuthMode` enum, `Identity` value type, `authenticator` interface, RFC 6750/9728 `authError` |
 | `bearer.go`, `oauth.go`, `jwt.go`, `jwks.go`, `as_metadata.go` | Concrete auth strategies: shared token, per-identity bearer list, OAuth 2.1 resource-server JWT verification + JWKS cache + AS metadata fetch |
 | `audit.go` | `recordMCPAuthFailure`: routes failed auth attempts to the shared `audit.Recorder` |
-| `internal/component/mcp/yang/ze-mcp-conf.yang` | YANG schema: MCP listener, auth-mode, bearer-list identities, OAuth config |
+| `internal/component/mcp/yang/ze-mcp-conf.yang` | YANG schema: MCP listener, auth-mode, bearer-list identities, OAuth |
 | `cmd/ze/hub/service_mcp.go` | Gated (`ze_mcp`) mount point: `buildMCPService`, `startMCPServer`, multi-listener bind/shutdown/`Reconfigure`, TLS loading |
 | `cmd/ze/hub/command_meta.go` | Neutral, always-on `commandMeta` source shared by the API and MCP command listers |
-| `cmd/ze/hub/main_servers.go` | `serverDispatcherWithSurface`: adapts `pluginserver.Dispatcher` to the generic `CommandDispatcher` closure signature, tagging the audit surface |
+| `cmd/ze/hub/main_servers.go` | `serverDispatcher`: adapts `pluginserver.Dispatcher` to the generic `CommandDispatcher` closure signature, tagging the audit surface |
 | `cmd/ze/hub/service_registry.go` | `ServiceDeps`/`mcpServiceDeps`: the generic-typed boundary that keeps `internal/component/mcp` out of always-on builds |
 
 ## Invariants & gotchas
@@ -157,60 +249,132 @@ package.
   always-on-buildable files allowed to import `internal/component/mcp`; `command_meta.go` and
   the listen/token resolution in `main.go` stay neutral so a `ze_mcp`-off build never links the
   package (`service_mcp.go:1-16`).
-- **Auth runs once, at initialize, only.** Subsequent requests are trusted by
-  `Mcp-Session-Id` validity alone: MCP 2025-06-18 auth is per-session, not per-request
-  (`streamable.go:384-388`). A leaked or guessed session id is equivalent to a valid bearer
-  token for that session's lifetime.
-- **One reply sink per POST, upgradeable exactly once.** `SetActivePostSink` refuses a second
-  concurrent sink (`session.go:440-445`), so a second in-flight POST on the same session fails
-  fast rather than interleaving frames. `jsonReplySink.WriteFrame`/`UpgradeToSSE` both flip
-  `written`, so a handler cannot emit two terminal responses (`reply_sink.go:38-42`).
-- **Only one live GET stream per session.** A second concurrent GET on the same
-  `Mcp-Session-Id` is rejected with 409 (`streamable.go:606-611`) because Go channel receive
-  semantics would otherwise route each server-sent frame to a nondeterministic reader, breaking
-  task-status routing.
+- **Auth runs on EVERY request, and there is no credential-equivalent identifier.**
+  `s.authenticate(r)` (`streamable.go:450`, defined `:369`) sits in the one pipeline every POST
+  takes, before dispatch. A revoked token stops working on the next request rather than at some
+  expiry, and nothing analogous to the old `Mcp-Session-Id` exists to steal. `auth-mode none` is
+  not a bypass: `noneAuthenticator` (`bearer.go:41`) *authenticates* every caller as a zero
+  `Identity`, which is why the ze-chaos Provider listener takes the same uniform path as everyone
+  else rather than a carve-out.
+- **Per-request state is a VALUE, so the compiler forbids the old optional-session bug class.**
+  `requestScope` (`streamable_tools.go:85`) is built once in `handlePOST` and copied into every
+  handler. It is not a pointer, has no nil case and no "unknown" capability state, so a handler
+  cannot be reached without an identity and a capability set, and a zero `clientCapabilities`
+  (`meta.go:81`) denies rather than serves. The pre-cutover shape passed a possibly-nil `*session`
+  and needed a hand-written guard at each call site.
+- **`_meta` lives inside `params`, not at the message top level** (`meta.go:131`). Getting this
+  wrong makes every request look malformed. `protocolVersion` and `clientCapabilities` are
+  required; `clientInfo` is not, and is self-reported, so it never reaches an authorization or
+  ownership decision.
+- **A missing `_meta` field and a header mismatch are DIFFERENT failures.** `-32602` (HTTP 400)
+  means a required `_meta` field is absent (`meta.go:55-59` carries the three messages);
+  `-32020` (HTTP 400) means a header is missing or disagrees with the body (`headers.go:58-67`).
+  Collapsing them would emit a reserved-range code with a meaning the specification does not give
+  it. `metaProtocolVersion` (`meta.go:158`) exists precisely to keep the two apart during header
+  validation.
+- **An undeclared capability is `-32021`, not `-32601`.** `failMissingTasksCapability`
+  (`streamable_tools.go:471`) answers HTTP 400 with `data.requiredCapabilities`; `-32601` is
+  reserved for a method the server genuinely does not have and additionally carries HTTP 404
+  (`streamable.go:490-498`). The pre-cutover code used `-32601` for both.
+- **Only a CLIENT capability may gate a request, so Tasks is the only gate.** `resources`,
+  `tools` and `prompts` are `ServerCapabilities` members; the five `ClientCapabilities` members
+  are `experimental`, `roots`, `sampling`, `elicitation`, `extensions`. Gating `resources/*` on
+  a client declaring `resources` (which the cutover briefly did) refused every conformant caller
+  and answered with a `data.requiredCapabilities` that is not a legal `ClientCapabilities` value.
+  `resourcesList`/`resourcesRead` (`resources.go`) take no `requestScope` at all, which is what
+  makes the gate un-reintroducible by accident.
+- **The elicitation capability gate is a MODE check, not a presence check.**
+  `elicitationFormSupported` (`mrtr.go`) reads `clientCapabilities.elicitation` as
+  `{ form?, url? }`: absent is false, an EMPTY object is true (the specification equates it with
+  form mode only), `{"url":{}}` is false, and an object naming only unrecognized modes is false.
+  The pre-cutover parser checked presence, which would send a form-mode request to a url-only
+  client and break "Servers MUST NOT send elicitation requests with modes that are not supported
+  by the client". `test/plugin/mcp-mrtr-url-only-capability.ci` is the discriminating test: a
+  presence check passes every other test in the set and fails that one.
+- **`resultType` and `serverInfo` are stamped in exactly one place.** `ok`
+  (`streamable_tools.go:407`) is the only successful return path, so a new method gets both for
+  free; a handler that hand-builds a `*response` would silently ship a non-conformant result.
+  `ok` copies the handler's map rather than mutating it, because `tasks/get` hands back the map
+  the registry stored (as a terminal task's `result`). `ok` also PRESERVES a discriminator the
+  handler already chose, so `createTask`'s `"task"` and mrtr's `"input_required"` survive; the
+  test is "did the handler set one", not a list of known values.
+- **Header names are matched case-insensitively, header values exactly.** `http.Header.Get`
+  supplies the name lookup; the value comparisons in `validateStandardHeaders`
+  (`headers.go:136`, `:152`) are deliberately exact, per the specification's Case Sensitivity
+  clause.
+- **The `=?base64?` sentinel is standard Base64 WITH padding, not base64url**, and the markers are
+  case-sensitive (`headers.go:207-222`). A value not in sentinel form is used verbatim, so an
+  uppercase `=?BASE64?` is a plain value, not a malformed sentinel.
 - **Task-augmented calls resolve the tool BEFORE allocating a task slot.** `createTask` looks
   up the handler/prefix first so an unknown tool name never burns a concurrency slot
-  (`streamable_tools.go:216-228`); the resolved dispatch path is captured once so the worker
+  (`streamable_tools.go:336-349`); the resolved dispatch path is captured once so the worker
   never re-runs `groupCommands`.
-- **Elicitation requires ctx propagation.** `ze_execute`'s missing-command branch and
-  `session.Elicit` both take the originating POST's `context.Context` so a client disconnect
-  (`ctx.Done()`) unblocks the suspended handler instead of leaking a correlation entry until the
-  session TTL sweeps it (`tools.go:630-634`, `elicit.go:263-268`).
+- **No task status is pushed; polling is the only observation.** `runTaskWorker`
+  (`tasks.go:418`) writes state into the registry and sends nothing (`tasks.go:416-417`). The
+  status-notification push of the earlier revision rode the deleted GET stream.
+- **The task registry is keyed by the AUTHENTICATED principal, never by a body field.**
+  `byIdentity` (`tasks.go:65`) is populated from `scope.Identity.Name`
+  (`streamable_tools.go:351`), which comes from the per-request authenticator. That bounds the key
+  space by the credential surface (one empty key under `auth-mode none`, the configured list under
+  bearer-list, whatever the AS issues under oauth), and `activeCount` (`tasks.go:302`) bounds each
+  key's contents at 8.
+- **The surviving bounds are per request and per principal, not per client.** 1 MiB body
+  (`tools.go:665`, enforced `streamable.go:398`), 8 concurrent tasks per identity
+  (`tasks.go:16`, enforced `tasks.go:121-124`), 128 retained terminal tasks (`tasks.go:17`), and a
+  1 s .. 1 h TTL clamp, now applied ONCE in `newTaskRegistry` rather than per create (the
+  client-requested TTL died with `params.task`, so the config field is the only TTL input left).
+  Plus a 10-minute per-worker execution deadline. There is no session cap, TTL or lifetime,
+  because there is no session -- and the execution deadline is what replaces the liveness
+  guarantee the session reaper used to provide.
 - **Reserved param names are never forwarded as typed args.** `dispatchGenerated` treats
-  `action`, `arguments`, `peer` as protocol-level fields (`tools.go:450`); any other JSON key
+  `action`, `arguments`, `peer` as protocol-level fields (`tools.go:475`); any other JSON key
   becomes a `key value` pair appended to the CLI command string. Values containing
-  newlines/tabs are rejected before they reach the dispatcher (`tools.go:480-511`).
-- **Session cap semantics are unified but inverted at two layers.**
-  `StreamableConfig.MaxSessions`/`TaskRegistryConfig` use "0 means default, negative means
-  unlimited"; internally `newSessionRegistry` renormalizes a negative value to `0` and treats
-  `0` as "use the default" (`session.go:148-160`); read both together before touching either.
+  newlines/tabs are rejected before they reach the dispatcher (`tools.go:772`).
 - **No stdio transport exists.** Despite "stdio/HTTP" being a common MCP transport pairing
-  elsewhere, Ze's MCP server only speaks HTTP (legacy JSON-RPC-over-POST via `Handler`, and the
-  2025-06-18 Streamable HTTP profile via `Streamable`); `ze-test mcp` (a separate test client
-  under `internal/test/cli/`) is an HTTP client, not a stdio bridge.
+  elsewhere, Ze's MCP server only speaks the Streamable HTTP profile; `ze-test mcp` (a separate
+  test client under `internal/test/cli/`) is an HTTP client, not a stdio bridge.
 - **Command dispatch is shared, not MCP-private.** `mcpDispatch` reaches the exact same
   `pluginserver.Dispatcher.Dispatch` the CLI/SSH/web surfaces call, tagged only by
-  `Surface: audit.MCP` (`main_servers.go:26-33`); authorization, YANG validation, and accounting
-  are enforced once in the shared dispatcher, not duplicated in the MCP layer.
-- **Identity is bound once, at initialize, and never re-derived.** `Identity` (`auth.go:87`)
-  rides on the session (`session.go:54`, `:493`); task ownership, `tasks/list`/`get`/`result`/
-  `cancel` all scope by `sess.Identity().Name` and reject cross-identity lookups with a uniform
-  "not found" so an attacker cannot probe for another identity's task ids
-  (`streamable_tools.go:154`, `:171`, `:186`, `:201`; see also `docs/architecture/mcp/overview.md`).
-- **Resources capability is metadata-gated, not content-gated.** A tool's `_meta.ui` block
-  (UI resource URI, permissions, CSP) is emitted at `tools/list` time regardless of whether the
-  client declared `capabilities.resources` (`tools.go:351-362`); only the `resources/list` and
-  `resources/read` RPCs themselves are refused with `-32601` to clients that never declared the
-  capability.
+  `Surface: audit.MCP` (`main_servers.go:36`, `:50`); authorization, YANG validation, and
+  accounting are enforced once in the shared dispatcher, not duplicated in the MCP layer.
+- **Serving a `ui://` asset and ADVERTISING a panel are two different gates, and only the
+  second one exists.** `resourcesList`/`resourcesRead` (`resources.go`) take no `requestScope`
+  and refuse nobody: the assets are non-secret embedded files behind an authenticated endpoint,
+  and the client-capability gate that briefly sat there was the defect described above --
+  discovery advertised the asset and the read then refused it. What IS gated is the `_meta.ui`
+  block on a tool descriptor, on the client having declared `io.modelcontextprotocol/ui`
+  (`clientSupportsUIApps`, `apps.go`). So a non-Apps client can still fetch a `ui://` asset,
+  which is harmless and keeps the resource handlers free of any extension knowledge.
+- **The MCP Apps gate is applied to the ASSEMBLED tool list, not inside `buildToolDef`.**
+  `allTools` (`streamable_tools.go`) calls `gateUIMeta` on the finished slice, so one site covers
+  both descriptor origins -- the ones generated from the command registry and the ones a
+  `ToolProvider` (ze-chaos) supplies. A provider owns its maps and may return the same ones every
+  call, so `withoutUIMeta` copies rather than edits, and when the gate is open or nothing carries
+  `_meta.ui` the input slice is returned untouched.
+- **The `_meta.ui` fallback is omission, never rejection.** The specification permits exactly two
+  ("revert to core protocol behavior or reject the request"), and a descriptor without `_meta.ui`
+  is a valid core descriptor -- so the tool stays listed and callable for a host that cannot
+  render panels. `mimeTypes` matching is on the BASE media type, so bare `text/html` and
+  `text/html;profile=mcp-app` are both served; the profile is a media-type parameter, and exact
+  matching would refuse a host that renders Ze's bundle perfectly well.
+- **Tool ORDER is part of the contract, and it survives map iteration by construction.**
+  `groupCommands` (`tools.go:112`) builds from two maps, whose iteration order Go randomizes per
+  range, but the groups are sorted on `prefix` -- a map key, therefore unique, therefore a total
+  order for the non-stable `sort.Slice`. Actions are sorted on `name`, which is total only
+  because the command union is deduplicated at its source (`cmd/ze/hub/command_meta.go`); before
+  that fix a duplicated command made the tie order arbitrary AND put the same value in an `action`
+  enum twice, which is invalid JSON Schema and made the tool DESCRIPTION vary between identical
+  calls. Handcrafted tools lead the list, generated ones follow.
 
 ## See also
-- `docs/architecture/mcp/overview.md`: protocol profile, transport shape, headers, capability
-  negotiation, session lifecycle, roadmap
+- `docs/architecture/mcp/overview.md`: protocol profile, transport shape, headers, per-request
+  metadata, capability negotiation, result envelope, error codes
 - `docs/guide/mcp/overview.md`: operator-facing config, auth modes, tool reference, `ze-test
   mcp` usage
-- `docs/guide/mcp/elicitation.md`: full elicitation/create flow
-- `docs/guide/mcp/tasks.md`: task-augmented `tools/call` flow
+- `docs/guide/mcp/elicitation.md`: the Multi Round-Trip round trip, the form-mode precondition,
+  the retry shape, and why no `requestState` is issued
+- `docs/guide/mcp/tasks.md`: the `io.modelcontextprotocol/tasks` extension -- server-directed
+  creation, polling, and the removed methods
 - `docs/guide/mcp/remote-access.md`: tunneling / remote-bind guidance
 - `docs/guide/mcp/chaos.md`: MCP under `ze-chaos`
 - `docs/features/mcp-integration.md`: feature-level summary (AI-ready BGP operations, example
@@ -220,6 +384,8 @@ package.
 - `plan/learned/636-mcp-1-streamable-http.md`, `plan/learned/638-mcp-2-remote-oauth.md`,
   `plan/learned/640-mcp-3-elicitation.md`, `plan/learned/681-mcp-4-tasks.md`,
   `plan/learned/682-mcp-5-apps.md`: landed phase specs (Streamable HTTP, OAuth, elicitation,
-  tasks, MCP Apps resources)
+  tasks, MCP Apps resources). The PUSH model of elicitation was deleted by the `2026-07-28`
+  cutover and returned as Multi Round-Trip Requests; the flat-primitive schema validator that
+  summary records was recovered unchanged and still constrains what Ze emits
 - `plan/learned/987-feature-gate-5-mcp.md`: the `ze_mcp` compile-out feature gate this digest's
   mount point (`service_mcp.go`) implements

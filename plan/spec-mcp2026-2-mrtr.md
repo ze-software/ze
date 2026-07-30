@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | spec-mcp2026-1-stateless-core |
 | Phase | 2/4 |
 | Deferral shard | `plan/deferrals/mcp2026-2-mrtr.md` |
-| Updated | 2026-07-28 |
+| Updated | 2026-07-30 |
 
 Parent: `plan/spec-mcp2026-0-umbrella.md`.
 
@@ -107,6 +107,40 @@ Umbrella AC covered: AC-6.
 - [x] `ai/rules/error-messages.md` - rejection messages name what failed without echoing attacker bytes
 - [x] `ai/rules/design-principles.md` - YAGNI
   → Decision: the `requestState` machinery is not built, because Ze has no state to put in it. See Key Design Decision 1.
+
+### Deleted code this phase must RECOVER, not reinvent (Phase 1 R-4)
+
+**Added 2026-07-29, closing an obligation Phase 1 recorded but never carried
+here.** Phase 1's R-4 says "Phase 2's Required Reading must name the deleted
+path so the validator is recovered rather than reinvented", and until now it did
+not. The path is named below so the recovery is a `git show`, not a rewrite.
+
+Phase 1 deletes `internal/component/mcp/elicit.go` and `elicit_test.go`, because
+`(*session).Elicit` (`elicit.go:227`), `TaskElicit` and `handleElicitResponse`
+all name the `session` type and cannot compile once it is gone. But **most of
+that file has nothing to do with sessions**: the flat-primitive
+`requestedSchema` validator is pure, and this phase's own Constraints section
+requires it "preserved rather than rewritten", with "its 11 unit tests
+(`elicit_test.go:99-317`) surviving unmodified".
+
+- [ ] Recover the validator from Phase 1's commit A, which preserves the file in
+  history by design (`ai/rules/spec-preservation.md`):
+  `git show <phase-1-commit-A>:internal/component/mcp/elicit.go`
+  and the same for `elicit_test.go`. Find the commit with
+  `git log --oneline --diff-filter=D -- internal/component/mcp/elicit.go`.
+- [ ] Symbols to recover verbatim: `validateElicitSchema` (`:102`),
+  `validateElicitProperty` (`:132`), `wrapSchemaErr` (`:172`),
+  `elicitSchemaError` (`:181`), `describeType` (`:194`), and the three package
+  vars `elicitPrimitiveTypes` (`:72`), `elicitStringFormats` (`:80`),
+  `elicitForbiddenKeywords` (`:89`). **None of these references the `session`
+  type** — they were collateral in a type-driven deletion, not obsolete code.
+- [ ] Do NOT recover `(*session).Elicit` (`:227`), `resolveElicitAction`
+  (`:274`) or `buildElicitFrame` (`:291`). Those three are the blocking
+  channel model and the server-initiated request frame, which is precisely what
+  MRTR replaces.
+  → Constraint: recovering the tests unmodified is the check that the validator
+  came back byte-identical. If a recovered test needs editing to pass, the
+  validator was rewritten rather than recovered, and that is the R-4 failure.
 
 ### Protocol Specification (Scope: protocol)
 - [x] `https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr` - server requirements 1-8, client requirements 1-4, error handling, security considerations
@@ -231,7 +265,7 @@ not exist.
 |-------|-------------------|-------------------|
 | AC-1 | `tools/call` for `ze_execute` with empty `command`, client declaring form-mode elicitation | Result carries `resultType: "input_required"` and one `inputRequests` entry whose value is an `elicitation/create` request with `mode: "form"`, and **no `requestState` field is present** |
 | AC-2 | Retry carrying `inputResponses` with `action: "accept"` under Ze's key | Final result, `resultType: "complete"`, carrying the dispatched command output |
-| AC-3 | Any elicitation flow | No JSON-RPC request frame is ever written to the client, and no client JSON-RPC response is ever accepted |
+| AC-3 | Any elicitation flow | No JSON-RPC request frame is ever written to the client, and no client JSON-RPC response is ever accepted. **Evidence completed 2026-07-30:** the second half had no test -- the five `TestStreamable_JSONRPCResponse*` tests that drove the old intake path went with `reply_sink_test.go` in Phase 1, and the refusal survived only as arithmetic (a response has no `method`, and `Mcp-Method` must repeat the body's method). It is now explicit at the producer (`errBodyCarriesNoMethod`, `internal/component/mcp/headers.go`, still `-32020`/400) and asserted by `TestClientJSONRPCResponseIsRefused` (`internal/component/mcp/headers_test.go`, 5 frame shapes x 4 header shapes) and `test/plugin/mcp-client-response-frame-rejected.ci`. The first half's `.ci` needle was vacuous and is corrected in `mcp-mrtr-elicit-roundtrip.ci` |
 | AC-4 | Any request carrying a `requestState` field | Rejected with a JSON-RPC error; the tool does not run. The rejection message names the failure class and does not echo the supplied bytes |
 | AC-5 | Client declares no `elicitation` capability in per-request `_meta` | No `inputRequests` entry is emitted; the existing missing-argument error result is returned |
 | AC-6 | Client declares `elicitation` with `url` mode only | No form-mode entry is emitted (MRTR requirement 7 and the elicitation page's mode MUST NOT); the missing-argument error result is returned |
@@ -285,6 +319,7 @@ map that is parsed once and discarded would be YAGNI
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `mcp-mrtr-elicit-roundtrip` | `test/plugin/*.ci` | Prompted for a missing command and get the result. Replaces `elicitation-accept.ci` | |
+| `mcp-client-response-frame-rejected` | `test/plugin/*.ci` | A client JSON-RPC response POSTed to `/mcp` is refused with `-32020`/400 and never dispatched (AC-3, second half) | done 2026-07-30 (written late; see the AC-3 row) |
 | `mcp-mrtr-elicit-declined` | `test/plugin/*.ci` | Decline the prompt cleanly, no re-ask. Replaces `elicitation-decline.ci` | |
 | `mcp-mrtr-unsolicited-state-rejected` | `test/plugin/*.ci` | A `requestState` Ze never issued is refused | |
 | `mcp-mrtr-no-capability` | `test/plugin/*.ci` | Client without elicitation is never prompted. Replaces `elicitation-no-capability.ci` | |
@@ -304,7 +339,7 @@ map that is parsed once and discarded would be YAGNI
 - `internal/component/mcp/tasks.go` - delete `TaskElicit` (`:456-513`)
 - `internal/component/mcp/elicit_test.go` - keep `:99-317` unmodified, retarget the rest
 - `internal/test/cli/cmd_mcp.go` - client retry loop
-- `docs/guide/mcp/elicitation.md`, `docs/architecture/mcp/overview.md`, `ai/digests/mcp.md`
+- `docs/guide/mcp/elicitation.md` (**CREATE, not rewrite** -- corrected 2026-07-29: Phase 1 DELETED this page rather than stubbing it, because its two `<!-- source: -->` anchors pointed at `elicit.go` and `session.go` and `code_to_docs.py --check` fails on an anchor to a deleted file. Phase 2 writes it fresh for the MRTR shape), `docs/architecture/mcp/overview.md`, `ai/digests/mcp.md`
 
 ## Files to Create
 - `internal/component/mcp/mrtr.go` - `InputRequiredResult`, `InputRequests`, `InputResponses`, the form-mode capability gate, and the unsolicited-`requestState` guard
@@ -340,7 +375,7 @@ map that is parsed once and discarded would be YAGNI
 | 3 | CLI command added/changed? | Yes | `docs/functional-tests.md` for the `ze-test mcp` `-elicit` flag and retry loop |
 | 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md`: `elicitation/create` stops being a server-to-client method and becomes an `inputRequests` value |
 | 5 | Plugin added/changed? | No | MCP is a component |
-| 6 | Has a user guide page? | Yes | `docs/guide/mcp/elicitation.md`, rewritten: the SSE upgrade and correlated-response walkthrough are gone |
+| 6 | Has a user guide page? | Yes | `docs/guide/mcp/elicitation.md` -- **created fresh, not rewritten** (corrected 2026-07-29: Phase 1 deleted the page; see Required Reading). Document the MRTR round trip: `resultType: "input_required"` + `inputRequests`, the client retry carrying `inputResponses`, and the form-mode capability precondition. There is no SSE upgrade or correlated-response walkthrough to remove, because there is no page |
 | 7 | Wire format changed? | Yes | `docs/architecture/mcp/overview.md` |
 | 8 | Plugin SDK/protocol changed? | No | Untouched |
 | 9 | RFC behavior implemented, changed, or newly proven? | Yes | `docs/features/mcp-integration.md` records MRTR support and the deliberate absence of `requestState` |
@@ -351,7 +386,7 @@ map that is parsed once and discarded would be YAGNI
 | 14 | Prometheus counters added/changed? | No | None added, per the Integration Checklist decision above |
 | 15 | Registered plugin/event/command/capability changed? | No | No registry entries |
 | 16 | Changed source referenced by doc source anchors? | Yes | `docs/architecture/mcp/overview.md` anchors `elicit.go`, `session.go` and `tasks.go`, all of which change |
-| 17 | Docs show config/CLI/API examples for this area? | Yes | `docs/guide/mcp/elicitation.md` examples are all the old server-initiated shape |
+| 17 | Docs show config/CLI/API examples for this area? | Yes | ~~`docs/guide/mcp/elicitation.md` examples are all the old server-initiated shape~~ **corrected 2026-07-29:** that page is gone, so there are no stale examples left to fix. The live surfaces carrying MCP examples are `docs/guide/mcp/overview.md`, `docs/features/mcp-integration.md` and `cmd/ze/help_ai.go`; a new `inputRequests` example is added to the first two |
 
 ## Implementation Steps
 
@@ -360,7 +395,7 @@ map that is parsed once and discarded would be YAGNI
 3. **Phase: `InputRequiredResult`** - types and emission in `mrtr.go`, gated on form-mode support, asserting no `requestState` key is marshalled.
 4. **Phase: Handler re-entrancy** - rewrite `ze_execute` (`tools.go:722-773`) as a function of arguments plus `inputResponses`, with the decline and cancel terminal paths distinguished from the missing-key re-ask path.
 5. **Phase: Delete the old path** - `session.Elicit`, correlation map, `handleElicitResponse`, `TaskElicit` and `task_elicit_test.go`.
-6. **Phase: Consumers and docs** - test-client retry loop, `docs/guide/mcp/elicitation.md`, overview, digest.
+6. **Phase: Consumers and docs** - test-client retry loop, a freshly created `docs/guide/mcp/elicitation.md` (Phase 1 deleted it), overview, digest. Re-add the inbound links Phase 1 removed from `docs/architecture/api/commands.md` and `docs/features/mcp-integration.md`.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |

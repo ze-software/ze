@@ -619,8 +619,12 @@ func TestParseCmdExec(t *testing.T) {
 
 // TestParseHTTP verifies marker-based parsing of http= lines.
 //
-// VALIDATES: parseHTTP correctly handles URLs with colons, optional contains, and any marker order.
-// PREVENTS: Panics on reordered markers, colons in URLs truncating values.
+// VALIDATES: parseHTTP correctly handles URLs with colons, optional contains, repeatable
+// header= keys (including values that themselves contain colons), and any marker order.
+// PREVENTS: Panics on reordered markers, colons in URLs truncating values, a header=
+// swallowing a following key's value, and a malformed header= being silently dropped.
+// The header-free cases double as the no-regression proof: they compare the WHOLE
+// httpCheck, so a stray Headers entry on a line without header= would fail them.
 func TestParseHTTP(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -652,6 +656,53 @@ func TestParseHTTP(t *testing.T) {
 			name: "post_sendfile_content_type",
 			line: "http=post:seq=4:url=https://127.0.0.1:$PORT2/config/set/bgp/:status=200:sendfile=set.form:content-type=application/x-www-form-urlencoded:insecure-tls=true",
 			want: httpCheck{Seq: 4, Method: "post", URL: "https://127.0.0.1:$PORT2/config/set/bgp/", Status: 200, SendFile: "set.form", ContentType: "application/x-www-form-urlencoded", InsecureTLS: true},
+		},
+		{
+			name: "single_header",
+			line: "http=post:seq=1:url=http://127.0.0.1:$PORT/mcp:status=200:header=MCP-Protocol-Version: 2026-07-28",
+			want: httpCheck{Seq: 1, Method: "post", URL: "http://127.0.0.1:$PORT/mcp", Status: 200, Headers: []httpHeader{
+				{Name: "MCP-Protocol-Version", Value: "2026-07-28"},
+			}},
+		},
+		{
+			name: "two_headers_one_line",
+			line: "http=post:seq=2:url=http://127.0.0.1:$PORT/mcp:status=200:header=Mcp-Method: tools/list:header=Mcp-Name: ze",
+			want: httpCheck{Seq: 2, Method: "post", URL: "http://127.0.0.1:$PORT/mcp", Status: 200, Headers: []httpHeader{
+				{Name: "Mcp-Method", Value: "tools/list"},
+				{Name: "Mcp-Name", Value: "ze"},
+			}},
+		},
+		{
+			name: "header_with_sendfile_and_content_type",
+			line: "http=post:seq=3:url=http://127.0.0.1:$PORT/mcp:status=200:sendfile=call.json:content-type=application/json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:contains=result",
+			want: httpCheck{Seq: 3, Method: "post", URL: "http://127.0.0.1:$PORT/mcp", Status: 200, Contains: "result", SendFile: "call.json", ContentType: "application/json", Headers: []httpHeader{
+				{Name: "MCP-Protocol-Version", Value: "2026-07-28"},
+				{Name: "Mcp-Method", Value: "tools/call"},
+			}},
+		},
+		{
+			name: "header_value_with_colon",
+			line: "http=get:seq=4:url=http://127.0.0.1:$PORT/:status=200:header=Referer: http://127.0.0.1:8080/page",
+			want: httpCheck{Seq: 4, Method: "get", URL: "http://127.0.0.1:$PORT/", Status: 200, Headers: []httpHeader{
+				{Name: "Referer", Value: "http://127.0.0.1:8080/page"},
+			}},
+		},
+		{
+			name: "header_without_space_after_colon",
+			line: "http=get:seq=5:url=http://127.0.0.1:$PORT/:status=200:header=Mcp-Name:ze",
+			want: httpCheck{Seq: 5, Method: "get", URL: "http://127.0.0.1:$PORT/", Status: 200, Headers: []httpHeader{
+				{Name: "Mcp-Name", Value: "ze"},
+			}},
+		},
+		{
+			name:    "header_missing_colon",
+			line:    "http=get:seq=1:url=http://host/:status=200:header=MCP-Protocol-Version",
+			wantErr: `invalid header="MCP-Protocol-Version"`,
+		},
+		{
+			name:    "header_empty_name",
+			line:    "http=get:seq=1:url=http://host/:status=200:header= : value",
+			wantErr: "invalid header=",
 		},
 		{
 			name:    "invalid_insecure_tls",
@@ -742,6 +793,14 @@ func TestParseHTTPWait(t *testing.T) {
 			name:     "wait_with_contains_and_timeout",
 			line:     "http=wait:seq=1:url=http://127.0.0.1:$PORT2/lg/graph:status=200:contains=AS2914:timeout=15s",
 			want:     httpCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:$PORT2/lg/graph", Status: 200, Contains: "AS2914", Timeout: "15s"},
+			wantWait: true,
+		},
+		{
+			name: "wait_with_header_and_timeout",
+			line: "http=wait:seq=1:url=http://127.0.0.1:$PORT/mcp:status=200:header=MCP-Protocol-Version: 2026-07-28:timeout=20s",
+			want: httpCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:$PORT/mcp", Status: 200, Timeout: "20s", Headers: []httpHeader{
+				{Name: "MCP-Protocol-Version", Value: "2026-07-28"},
+			}},
 			wantWait: true,
 		},
 		{

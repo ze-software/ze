@@ -1,0 +1,66 @@
+# mcp-discover-ui-extension - server/discover advertises MCP Apps as the
+# io.modelcontextprotocol/ui extension, and carries its own cache hints.
+#
+# VALIDATES: spec-mcp2026-4-caching-apps AC-7 (server/discover advertises
+# extensions["io.modelcontextprotocol/ui"]) and AC-4 (the DiscoverResult carries
+# ttlMs 60000 and cacheScope "private").
+#
+# DiscoverResult extends CacheableResult, whose ttlMs and cacheScope are both
+# NON-optional, so a discover result without them is not merely unhelpful, it is
+# the wrong shape. The extension identifier is what tells a host it may look for
+# _meta.ui on a tool descriptor at all: MCP 2026-07-28 basic/versioning
+# negotiates extensions through the capabilities map, and names this exact
+# identifier in its worked example.
+#
+# PREVENTS: Ze publishing _meta.ui and ui:// assets while never announcing the
+# extension that gives them meaning, which would leave a conformant host with no
+# reason to fetch them.
+
+stdin=mcp:terminator=EOF_MCP
+probe server/discover
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=probe status=200 code=ok
+reject=stdout:pattern="cacheScope":"public"
+expect=stdout:pattern="ttlMs":60000
+expect=stdout:pattern="cacheScope":"private"
+expect=stdout:pattern="supportedVersions":\["2026-07-28"\]
+# The UI extension, with the empty settings object the specification
+# prescribes for "support with no additional settings".
+#
+# Matched on the ENTRY alone rather than on the whole extensions object. The
+# previous form closed the map immediately after `ui` (`...ui":{}}`), which
+# asserted "ui is the only extension" -- an assertion this file never meant to
+# make and that the Tasks extension (spec-mcp2026-3-tasks-extension AC-11)
+# correctly broke. mcp-discover-daemon.ci is where the full extension roster
+# is pinned.
+expect=stdout:pattern="io\.modelcontextprotocol/ui":\{\}

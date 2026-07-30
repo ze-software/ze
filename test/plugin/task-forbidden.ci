@@ -1,12 +1,91 @@
-# task-forbidden - calling a forbidden tool with task:{} is rejected
-# Exercises: taskSupport:forbidden + task param -> -32602 error
+# task-forbidden - a mutating command is never handed back as a task.
+#
+# VALIDATES: spec-mcp2026-3-tasks-extension AC-12, and closes R-1. Under the
+# server-directed model (D-1) the `ze:task-support` annotation stopped being a
+# constraint on what the CLIENT may ask for and became the server's own
+# promotion rule. `forbidden` is what stops that rule from auto-tasking a
+# command that mutates state: the four annotated commands are `clear bgp rib
+# in/out` and `request bgp rib inject/withdraw`.
+#
+# WHAT CHANGED AND WHY: the pre-cutover file asserted two REJECTIONS -- a
+# task-augmented call to a forbidden tool refused with -32602, and a
+# non-task call to a required tool refused with "requires task-augmented call".
+# Neither rejection exists any more. There is no `task` member to send, so the
+# first has nothing to refuse; and a required tool is now served, not refused,
+# so the second is gone outright. The property that survives is the one the
+# filename names, and it is now asserted positively: a forbidden command RUNS
+# and comes back with no task handle.
+#
+# The old file's header carried a since-corrected claim that `forbidden` was
+# unreachable through any generated tool. It was not: tools/list carries
+# taskSupport "forbidden" on both ze_clear_bgp and ze_request_bgp. Advertisement
+# and enforcement cannot disagree because they read the SAME field -- buildToolDef
+# publishes g.taskSupport and lookupTaskSupport returns g.taskSupport, both set
+# by groupTaskSupport (internal/component/mcp/tools.go). This test is what keeps
+# that true.
+#
+# The required tool is called in the SAME run, and must come back as a task. Two
+# tools, one client, one capability declaration: the only variable is the
+# annotation, so the test isolates it. Without that row a server that had simply
+# stopped creating tasks at all would pass.
+#
+# WHY THERE IS A PEER HERE: `clear bgp rib in` is dispatched to the bgp-rib
+# plugin, and until a session exists the dispatcher answers "plugin command not
+# registered (plugin may not be running)" -- a tool-level error that has nothing
+# to do with the task-support gate and would fail this run for the wrong reason.
+# `wait-tool` cannot close that window: it proves the command is LISTED from the
+# command registry, not that the plugin serving it is up. An established session
+# is what makes the forbidden command genuinely runnable, which is what AC-12's
+# positive half requires.
 
-# MCP commands: try to run rib clear in (forbidden) as a task
+# ze-peer: establish a session so the rib plugin's commands are dispatchable.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1:origin-as=65001
+# Hold the session open: if the peer closes, ze reads session-down, withdraws
+# the routes and the rib commands lose their subject mid-test.
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
 stdin=mcp:terminator=EOF_MCP
-task-call ze_rib_clear {"action":"in","peer":"*"}
+wait-established
+# No readiness signal for "the peer's UPDATE is installed in the Adj-RIB-In":
+# wait-established only proves the session is up. Same fixed hold as
+# task-rib-routes.ci, for the same missing signal.
+wait 1s
+# FORBIDDEN: ze_clear_bgp is taskSupport "forbidden", so the server must answer
+# it inline and must never mint a task handle for it.
+#
+# `probe` rather than `call-sync`, and the reason is worth stating because it
+# looks like a weakening. AC-12 is a claim about the RESULT SHAPE: a forbidden
+# command is answered synchronously rather than handed back as a task. probe
+# prints the whole JSON-RPC result, so the shape is asserted directly below --
+# a 200 carrying resultType "complete", with no taskId anywhere.
+#
+# call-sync cannot be used here, and not because the gate is weaker: it routes
+# through extractText, which turns a TOOL-level isError into a client error and
+# aborts the run. `clear bgp rib in` returns exactly that, because the
+# dispatcher wants a positional selector ("requires a selector (* for all
+# peers)") that the generated tool has no way to supply -- its command path
+# contains no `peer` keyword, so actionAcceptsPeer (internal/component/mcp/
+# tools.go) refuses the `peer` argument, and there is no other channel for it.
+# That is a pre-existing gap in the generated-tool selector surface, unrelated
+# to tasks and unchanged by this phase; the command was equally un-invokable
+# before it. What matters for AC-12 is that the server DISPATCHED the call and
+# answered inline, which the assertions below prove.
+probe tools/call {"name":"ze_clear_bgp","arguments":{"action":"rib in"}}
+# REQUIRED, same run: ze_show_bgp is taskSupport "required" and MUST come back
+# as a task. This is what proves the forbidden result above is the annotation
+# being honoured rather than task creation being broken everywhere.
+task-call ze_show_bgp {"action":"rib"}
+task-wait $LAST completed
+# task-wait prints nothing on success; task-get is what puts the terminal state
+# on stdout for the assertion below.
+task-get $LAST
 EOF_MCP
 
-# Ze config
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer peer1 {
@@ -29,13 +108,58 @@ bgp {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}
 		}
+		behavior {
+			group-updates disable
+		}
 	}
 }
 EOF_CONF
 
-option=tcp_connections:value=0
-
-# task-call on a forbidden tool should print an error and exit non-zero
-cmd=background:seq=1:exec=ze --mcp $PORT2 -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2 --tasks:stdin=mcp:timeout=10s
-expect=exit:code=1
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze --mcp $PORT2 -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=ze-test mcp --port $PORT2 --tasks:stdin=mcp:timeout=25s
+expect=exit:code=0
+# The forbidden call was DISPATCHED and answered inline: a JSON-RPC success, not
+# an error envelope.
+expect=stdout:pattern=probe status=200 code=ok
+# And its result carries the synchronous discriminator. pattern= is used
+# because the needle is a JSON fragment. (This note previously said contains=
+# truncates at the first colon; that was true until 2026-07-30, when
+# ParseKVPairs, internal/test/ci/ciformat.go, was made boundary-aware so an
+# ordinary colon stays in the value. pattern= remains the clearer choice here.)
+expect=stdout:pattern="resultType":"complete"
+# The required tool DID produce a task and it ran to completion. task-call fails
+# the client unless the reply really is resultType "task" with a taskId, so
+# reaching this line means task creation works -- which is what stops the
+# forbidden assertion above from passing on a server that never tasks anything.
+expect=stdout:contains=completed
+# THE ASSERTION AC-12 IS ABOUT: the forbidden command's own result carries no
+# task handle. Scoped to the probe's single output LINE ([^\n]*) rather than to
+# the whole stdout, because the required tool legitimately mints a taskId later
+# in the same run -- a whole-output reject would be failed by the very row that
+# proves task creation still works.
+reject=stdout:pattern=probe status=200 code=ok result=[^\n]*taskId
+# No task result shape anywhere: the required tool's handle is printed as a bare
+# id by task-call, so this discriminator must not appear at all.
+reject=stdout:pattern="resultType":"task"
+# Ordering: the forbidden command was answered inline BEFORE the required tool's
+# task reached its terminal state, so the two rows are the two different
+# outcomes of one run rather than one outcome read twice.
+expect=stdout:pattern=(?s)"resultType":"complete".*completed
+# Not refused at any layer: the client declared the extension and sent
+# conformant headers, so nothing but the annotation decided either outcome.
+#
+# `code=-32021`, not `code -32021`: formatProbeResult (internal/test/cli/
+# cmd_mcp.go) prints `code=<n>`, and the space-separated spelling exists only in
+# a client error string that goes to stderr, so the old form could never match
+# on stdout. This file DOES send probes, so the corrected form is a live guard
+# on the probe lines above rather than decoration.
+reject=stdout:contains=code=-32021
+reject=stdout:contains=code=-32602
+reject=stderr:pattern=code \-32021
+reject=stderr:pattern=code \-32602
+reject=stderr:pattern=unknown tool
+# The forbidden command was not quietly refused instead of run, and it really
+# reached its plugin rather than dying on an unregistered-command error.
+reject=stderr:pattern=does not support task\-augmented calls
+reject=stderr:pattern=not registered

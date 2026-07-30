@@ -1,0 +1,74 @@
+# mcp-ui-extension-fallback - a host with no MCP Apps support still gets every
+# tool, just without the UI panel metadata.
+#
+# VALIDATES: spec-mcp2026-4-caching-apps AC-9 and AC-11 (a client declaring no
+# UI extension, and one declaring only media types Ze cannot produce, both see
+# the UI-annotated tool listed with no _meta at all, and neither is rejected).
+#
+# MCP 2026-07-28 basic/versioning permits exactly two fallbacks when one party
+# supports an extension and the other does not: "revert to core protocol
+# behavior or reject the request with an appropriate error". Ze reverts. A
+# descriptor without _meta.ui is a valid core descriptor, so omitting it IS the
+# revert branch; rejecting a whole tools/list because the host cannot render
+# HTML panels would break every non-Apps client for no benefit.
+#
+# The positive direction lives in mcp-ui-extension-enabled.ci. The two are
+# separate files on purpose: both call tools/list, and a single stdout holding a
+# gated and an ungated response cannot express "this one has no resourceUri"
+# without a negative lookahead, which RE2 does not have.
+#
+# PREVENTS: the gate being implemented as "hide the tool", which would make
+# every UI-annotated command unreachable to a non-Apps host instead of merely
+# unpanelled; and the fallback becoming a rejection.
+
+stdin=mcp:terminator=EOF_MCP
+# 1. Nothing declared at all.
+probe tools/list
+# 2. Declared, but only for media types Ze cannot produce.
+probe-meta clientCapabilities {"extensions":{"io.modelcontextprotocol/ui":{"mimeTypes":["image/png"]}}}
+probe tools/list
+# 3. The gated tool is still reachable: an invalid action is answered by the
+#    tool's own validation, not by "unknown tool". Nothing is torn down.
+probe tools/call {"name":"ze_request_peer","arguments":{"action":"not-a-real-action"}}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+# All three calls succeeded: the fallback is omission, never rejection.
+expect=stdout:pattern=(?s)code=ok.*code=ok.*code=ok
+reject=stdout:contains=code=-32601
+reject=stdout:contains=code=-32021
+# The UI-annotated tool is listed on both gated calls.
+expect=stdout:pattern=(?s)ze_request_peer.*ze_request_peer
+# It is reachable: the error names the action, not a missing tool.
+reject=stdout:contains=unknown tool
+# ...and NO descriptor carried panel metadata on any of them.
+reject=stdout:pattern="resourceUri"
+reject=stdout:pattern="_meta":\{"ui"

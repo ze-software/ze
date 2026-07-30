@@ -1,0 +1,74 @@
+# mcp-tools-list-deterministic-order - repeated tools/list calls against an
+# unchanged daemon return the same tools in the same order.
+#
+# VALIDATES: spec-mcp2026-4-caching-apps AC-6 (two consecutive tools/list calls
+# with unchanged registrations return an identical tools array).
+#
+# MCP 2026-07-28 server/tools: "Servers SHOULD return tools in a deterministic
+# order (i.e., the same ordering across requests when the underlying set of
+# tools has not changed)." A wobbling order silently defeats both the client
+# caching this phase just enabled and the LLM prompt-cache hits that motivate
+# the SHOULD -- nothing errors, the cache simply never hits.
+#
+# The risk is real rather than theoretical: groupCommands builds from two maps,
+# and Go randomizes map iteration order on every range. Group order survives
+# because the groups are sorted on a unique prefix; action order survives only
+# because the command union is deduplicated at its source, which is what makes a
+# sort on action name a total order.
+#
+# tools-order-stable does the comparison in the client because a .ci can only
+# match patterns, and Go's RE2 has no backreference, so "these two responses are
+# identical" is not expressible as an expectation.
+#
+# BYTE IDENTITY, NOT NAME IDENTITY (corrected 2026-07-30). The directive used to
+# compare only the tool NAME sequence, which is weaker than the AC it stands
+# for: AC-6 asks for a byte-identical tools array "including every action enum
+# and every description string", and a wobbling action enum leaves every name in
+# place. Byte identity was proved at generation level by
+# TestToolOrderDeterministic and by nothing at all on the wire, which is where
+# the map ranges that build the enums actually reach a client. The directive now
+# compares the raw `tools` bytes and prints a digest of them.
+#
+# PREVENTS: map iteration reaching the wire, and a duplicate command re-entering
+# the union and making a tie-break order arbitrary between calls.
+
+stdin=mcp:terminator=EOF_MCP
+tools-order-stable 8
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=30s
+expect=exit:code=0
+expect=stdout:contains=tools-order stable=true calls=8
+# The digest is a SHA-256 prefix over the raw tools array. Asserting its shape
+# proves the byte-level comparison ran: the stable line cannot carry one unless
+# toolsOrderStable read the array as bytes rather than as a name list. A
+# non-empty tool count comes with it, since two empty arrays are byte-identical.
+expect=stdout:pattern=tools-order stable=true calls=8 tools=[1-9][0-9]* digest=[0-9a-f]{16}
+reject=stdout:contains=stable=false

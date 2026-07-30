@@ -16,7 +16,16 @@ set -eu
 mkdir appliances
 ze appliance --dir appliances init --config push-config.json lab >/dev/null 2>&1
 printf 'outside image\n' > outside.img
-ln -s ../outside.img appliances/lab/ze-20260101-000000.img
+# ../../ , not ../ : the symlink sits in appliances/lab/, so `../outside.img`
+# resolves to appliances/outside.img -- a file that does not exist. EvalSymlinks
+# then fails and resolveContainedImagePath returns "image ... not found"
+# (internal/appliance/cmd_push.go:286) WITHOUT ever reaching the escape check at
+# :288-291. The test still passed, because `expect=...contains=error: image path
+# ... escapes appliance directory` was silently truncated at its first colon to
+# `error` -- so this security test never once exercised the guard it is named
+# for. Both halves are fixed: the parser (internal/test/ci/ciformat.go) no longer
+# truncates, and the link now resolves to a real file outside the appliance dir.
+ln -s ../../outside.img appliances/lab/ze-20260101-000000.img
 if ze appliance --dir appliances push lab >/dev/null 2>push.err; then
     echo "push unexpectedly succeeded" >&2
     exit 1

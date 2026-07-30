@@ -1,58 +1,54 @@
-// Design: docs/architecture/mcp/overview.md -- MCP server-initiated elicitation
-// Related: session.go -- session state and correlation map for pending elicitations
-// Related: streamable.go -- per-POST reply sinks and the POST->SSE upgrade mechanism
+// Design: docs/architecture/mcp/overview.md -- MCP form-mode elicitation
+// Related: mrtr.go -- the InputRequiredResult that carries the emitted ElicitRequest
+// Related: tools.go -- ze_execute, the one handler that asks a client for input
 
-// MCP 2025-06-18 elicitation/create support.
+// MCP 2026-07-28 form-mode elicitation.
 //
-// Tool handlers call session.Elicit(ctx, message, schema) mid-dispatch. The
-// server validates the schema against the flat-primitive subset the spec
-// permits, serializes an elicitation/create JSON-RPC request, and writes it
-// to the per-POST reply sink (upgrading the POST response from
-// application/json to text/event-stream on the first Elicit call). The
-// handler blocks on a per-elicit channel until the client POSTs a JSON-RPC
-// response correlated by id.
+// The server never sends an `elicitation/create` JSON-RPC *request*. Under
+// Multi Round-Trip Requests the ElicitRequest is a VALUE inside the
+// `inputRequests` map of an InputRequiredResult, and the client answers it by
+// retrying the original request with `inputResponses`.
 //
-// Reference: https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation
+// The requested-schema validator below is the flat-primitive subset Ze has
+// always emitted, recovered unchanged. It is deliberately NARROWER than
+// 2026-07-28 permits (which also allows `oneOf`-titled enums and array
+// multi-select enums): a server that uses fewer optional schema forms than the
+// specification offers is conformant, and Ze's one elicitation asks for a
+// single string. Per-function comments name 2025-06-18 because that is the
+// revision the subset was written from; this revision does not change it.
+//
+// Reference: https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation
 
 package mcp
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
+	"strings"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// ErrElicit* are the typed sentinels session.Elicit callers use to
-// distinguish expected outcomes from infrastructure failures.
+// ErrElicit* are the typed sentinels that distinguish expected client answers
+// from infrastructure failures.
 var (
-	// ErrElicitUnsupported — the client did not declare the elicitation
-	// capability at initialize, so the server must not emit
-	// elicitation/create frames. Handlers receive this when they call
-	// Elicit on a session whose client-side capability is not set.
-	ErrElicitUnsupported = errors.New("mcp: elicitation: client did not declare capability")
-
-	// ErrElicitDeclined — the client user explicitly declined the request.
-	// The content field is empty per spec.
+	// ErrElicitDeclined -- the user explicitly declined the request. The
+	// content field is empty per spec. Terminal: the server does not ask again,
+	// or a user who has said no would be looped.
 	ErrElicitDeclined = errors.New("mcp: elicitation: declined")
 
-	// ErrElicitCanceled — the client dismissed without an explicit choice
-	// (e.g. closed the dialog). Distinct from ctx cancel. Spelling matches
-	// context.Canceled (US stdlib convention).
+	// ErrElicitCanceled -- the user dismissed without an explicit choice (e.g.
+	// closed the dialog). Distinct from ctx cancel. Spelling matches
+	// context.Canceled (US stdlib convention). Terminal, like decline.
 	ErrElicitCanceled = errors.New("mcp: elicitation: canceled")
 
-	// ErrElicitSchemaInvalid — the caller's requestedSchema violates the
+	// ErrElicitSchemaInvalid -- the caller's requestedSchema violates the
 	// flat-primitive subset. Wrapped with the offending path.
 	ErrElicitSchemaInvalid = errors.New("mcp: elicitation: schema invalid")
 
-	// ErrElicitMalformed — the client response body was syntactically
-	// valid JSON-RPC but the result was not parseable as an elicit response
-	// (missing action, unknown action value, content not an object).
+	// ErrElicitMalformed -- an inputResponses entry was present but not a
+	// parseable elicit response (missing action, unknown action value, entry
+	// not an object).
 	ErrElicitMalformed = errors.New("mcp: elicitation: malformed client response")
-
-	// ErrElicitTooMany — the session already has the maximum number of
-	// pending elicitations; the call is rejected without sending a frame.
-	ErrElicitTooMany = errors.New("mcp: elicitation: too many pending")
 )
 
 // elicitTypeString / number / integer / boolean name the JSON Schema
@@ -98,17 +94,19 @@ var elicitForbiddenKeywords = []string{
 //
 // The caller passes the map form (after json.Unmarshal into map[string]any);
 // this matches Ze's MCP convention of decoding external-spec bodies into
-// generic maps to keep check-json-kebab.sh happy.
+// generic maps to keep the kebab-case JSON check happy.
 func validateElicitSchema(schema map[string]any) error {
 	if schema == nil {
 		return wrapSchemaErr("", "schema is nil")
 	}
 	if t, _ := schema["type"].(string); t != "object" {
-		return wrapSchemaErr("", "root type must be \"object\", got "+describeType(schema["type"]))
+		var tb textbuf.Buffer
+		return wrapSchemaErr("", tb.Str(`root type must be "object", got `).Str(describeType(schema["type"])).String())
 	}
 	for _, kw := range elicitForbiddenKeywords {
 		if _, present := schema[kw]; present {
-			return wrapSchemaErr("", "forbidden keyword "+kw+" at root")
+			var tb textbuf.Buffer
+			return wrapSchemaErr("", tb.Str("forbidden keyword ").Str(kw).Str(" at root").String())
 		}
 	}
 	props, ok := schema["properties"].(map[string]any)
@@ -130,9 +128,10 @@ func validateElicitSchema(schema map[string]any) error {
 // validateElicitProperty runs the per-property checks. path is the property
 // name (used in error messages to help callers locate the offending spot).
 func validateElicitProperty(path string, prop map[string]any) error {
+	var tb textbuf.Buffer
 	for _, kw := range elicitForbiddenKeywords {
 		if _, present := prop[kw]; present {
-			return wrapSchemaErr(path, "forbidden keyword "+kw)
+			return wrapSchemaErr(path, tb.Reset().Str("forbidden keyword ").Str(kw).String())
 		}
 	}
 	typ, _ := prop["type"].(string)
@@ -140,7 +139,7 @@ func validateElicitProperty(path string, prop map[string]any) error {
 		return wrapSchemaErr(path, "missing type")
 	}
 	if _, ok := elicitPrimitiveTypes[typ]; !ok {
-		return wrapSchemaErr(path, "type "+typ+" not supported (need string/number/integer/boolean)")
+		return wrapSchemaErr(path, tb.Reset().Str("type ").Str(typ).Str(" not supported (need string/number/integer/boolean)").String())
 	}
 	// Strings with format: format must be in the allowlist.
 	if typ == elicitTypeString {
@@ -150,7 +149,7 @@ func validateElicitProperty(path string, prop map[string]any) error {
 				return wrapSchemaErr(path, "format must be string")
 			}
 			if _, allowed := elicitStringFormats[fs]; !allowed {
-				return wrapSchemaErr(path, "format "+fs+" not supported")
+				return wrapSchemaErr(path, tb.Reset().Str("format ").Str(fs).Str(" not supported").String())
 			}
 		}
 	}
@@ -184,7 +183,8 @@ type elicitSchemaError struct {
 }
 
 func (e *elicitSchemaError) Error() string {
-	return "mcp: elicitation: schema invalid at " + e.path + ": " + e.reason
+	var tb textbuf.Buffer
+	return tb.Str("mcp: elicitation: schema invalid at ").Str(e.path).Str(": ").Str(e.reason).String()
 }
 
 func (e *elicitSchemaError) Unwrap() error { return ErrElicitSchemaInvalid }
@@ -196,7 +196,8 @@ func describeType(v any) string {
 		return "missing"
 	}
 	if s, ok := v.(string); ok {
-		return "\"" + s + "\""
+		var tb textbuf.Buffer
+		return tb.Byte('"').Str(s).Byte('"').String()
 	}
 	return "non-string"
 }
@@ -209,94 +210,97 @@ const (
 	elicitActionCancel  = "cancel"
 )
 
-// Elicit sends an MCP elicitation/create request to the client and blocks
-// until the client POSTs a JSON-RPC response with a matching id. Returns
-// the parsed content (on accept) or a typed sentinel (ErrElicitDeclined /
-// ErrElicitCanceled / ErrElicitMalformed). Fails fast with
-// ErrElicitUnsupported when the client did not declare the capability and
-// with ErrElicitSchemaInvalid when the schema violates the flat-primitive
-// subset.
+// methodElicitationCreate is the request method an ElicitRequest carries.
 //
-// Lifecycle: must be called from within a POST handler goroutine; relies on
-// SetActivePostSink having bound a replySink for the current POST. On first
-// Elicit within a POST, the sink is upgraded from jsonReplySink to
-// sseReplySink so the elicitation/create request rides the same HTTP
-// response as the terminal tool result.
+// It is a VALUE in an inputRequests map, never a JSON-RPC method this server
+// dispatches and never a frame it writes. MCP 2026-07-28
+// basic/transports/streamable-http Section "Listening for Messages from the
+// Server": "The server MUST NOT send independent JSON-RPC requests on this
+// stream. Server-to-client interactions (sampling, elicitation, list-roots) are
+// embedded as input requests inside an InputRequiredResult per MRTR ..., not
+// delivered as separate requests on this or any other stream" -- so this
+// constant names a payload, not a route.
+const methodElicitationCreate = "elicitation/create"
+
+// elicitModeForm and elicitModeURL are the two modes the capability names.
 //
-// Reference: https://modelcontextprotocol.io/specification/2025-06-18/client/elicitation
-func (s *session) Elicit(ctx context.Context, message string, schema map[string]any) (map[string]any, error) {
-	if !s.ClientSupportsElicit() {
-		return nil, ErrElicitUnsupported
+// MCP 2026-07-28 client/elicitation Section "Capabilities": "Servers MUST NOT
+// send elicitation requests with modes that are not supported by the client."
+// Ze emits form mode only and states it explicitly on every request rather than
+// leaning on the implicit default, so the url-mode gap is visible at the call
+// site. Url mode is not implemented: its completion is out of band, which is
+// the first flow that would need a real `requestState`.
+const (
+	elicitModeForm = "form"
+	elicitModeURL  = "url"
+)
+
+// ElicitRequest wire keys. MCP uses camelCase externally, so these are literals
+// rather than struct tags.
+const (
+	elicitKeyMethod          = "method"
+	elicitKeyParams          = "params"
+	elicitKeyMode            = "mode"
+	elicitKeyMessage         = "message"
+	elicitKeyRequestedSchema = "requestedSchema"
+	elicitKeyAction          = "action"
+	elicitKeyContent         = "content"
+)
+
+// elicitSecretMarkers name the credential-shaped property names a form-mode
+// elicitation must never ask for.
+//
+// MCP 2026-07-28 client/elicitation Section "Security Considerations": "Servers
+// MUST NOT use form mode elicitation to request sensitive information such as
+// passwords, API keys, access tokens, or payment credentials." Matched as
+// substrings of the normalized (lowercased, separator-stripped) property name,
+// so `user_passphrase` and `apiKey` are both caught. The check constrains only
+// what THIS server emits, so a broad match costs nothing and a missed one is a
+// specification violation.
+var elicitSecretMarkers = []string{
+	"password", "passwd", "passphrase", "secret", "token",
+	"apikey", "credential", "privatekey", "cvv",
+}
+
+// elicitFieldIsSecret reports whether a requested-schema property name looks
+// like a credential.
+func elicitFieldIsSecret(name string) bool {
+	normalized := strings.ToLower(name)
+	normalized = strings.ReplaceAll(normalized, "-", "")
+	normalized = strings.ReplaceAll(normalized, "_", "")
+	for _, marker := range elicitSecretMarkers {
+		if strings.Contains(normalized, marker) {
+			return true
+		}
 	}
+	return false
+}
+
+// newElicitRequest builds one form-mode ElicitRequest for an inputRequests
+// entry.
+//
+// The schema is validated first, so a malformed or credential-shaped requested
+// schema fails here rather than reaching a client. Refusing the credential case
+// at the single emission point makes the specification's MUST NOT an enforced
+// property of the server rather than a claim about the code as it stands today.
+func newElicitRequest(message string, schema map[string]any) (map[string]any, error) {
 	if err := validateElicitSchema(schema); err != nil {
 		return nil, err
 	}
-	id, ch, err := s.RegisterElicit()
-	if err != nil {
-		return nil, err
-	}
-	// Ensure cleanup on every early-exit path; the successful-wait path
-	// flips resolved=true so CancelElicit becomes a no-op on the already-
-	// removed entry.
-	resolved := false
-	defer func() {
-		if !resolved {
-			s.CancelElicit(id)
+	props, _ := schema["properties"].(map[string]any)
+	for name := range props {
+		if elicitFieldIsSecret(name) {
+			var tb textbuf.Buffer
+			return nil, wrapSchemaErr(name, tb.Str("form mode must not request sensitive information; ").
+				Str("property name looks like a credential").String())
 		}
-	}()
-
-	frame, err := buildElicitFrame(id, message, schema)
-	if err != nil {
-		return nil, err
 	}
-	if err := s.UpgradeCurrentSinkToSSE(); err != nil {
-		return nil, err
-	}
-	sink := s.CurrentPostSink()
-	if sink == nil {
-		return nil, errors.New("mcp: elicitation: no active POST sink (Elicit called outside a handler?)")
-	}
-	if err := sink.WriteFrame(frame); err != nil {
-		return nil, fmt.Errorf("mcp: elicitation: write frame: %w", err)
-	}
-
-	select {
-	case resp := <-ch:
-		resolved = true
-		return resolveElicitAction(resp)
-	case <-ctx.Done():
-		return nil, fmt.Errorf("mcp: elicitation: %w", ctx.Err())
-	}
-}
-
-// resolveElicitAction maps a three-action response to a (content, error)
-// pair. Separate function so the switch is testable in isolation.
-func resolveElicitAction(resp elicitResponse) (map[string]any, error) {
-	switch resp.Action {
-	case elicitActionAccept:
-		return resp.Content, nil
-	case elicitActionDecline:
-		return nil, ErrElicitDeclined
-	case elicitActionCancel:
-		return nil, ErrElicitCanceled
-	default:
-		return nil, fmt.Errorf("%w: action=%q", ErrElicitMalformed, resp.Action)
-	}
-}
-
-// buildElicitFrame renders the JSON-RPC request for a server-initiated
-// elicitation/create message. MCP uses camelCase externally; this project
-// decodes via generic maps to keep check-json-kebab.sh happy, and marshals
-// the same way for symmetry.
-func buildElicitFrame(id, message string, schema map[string]any) ([]byte, error) {
-	frame := map[string]any{
-		"jsonrpc": "2.0",
-		"id":      id,
-		"method":  "elicitation/create",
-		"params": map[string]any{
-			"message":         message,
-			"requestedSchema": schema,
+	return map[string]any{
+		elicitKeyMethod: methodElicitationCreate,
+		elicitKeyParams: map[string]any{
+			elicitKeyMode:            elicitModeForm,
+			elicitKeyMessage:         message,
+			elicitKeyRequestedSchema: schema,
 		},
-	}
-	return json.Marshal(frame)
+	}, nil
 }

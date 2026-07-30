@@ -926,3 +926,125 @@ func TestExtractGNMIConfig_NilTree(t *testing.T) {
 	_, ok := ExtractGNMIConfig(nil)
 	assert.False(t, ok)
 }
+
+// -----------------------------------------------------------------------------
+// ExtractMCPSettings -- auth settings apply regardless of `enabled`
+// -----------------------------------------------------------------------------
+
+// parseTreeForTest parses config text into a Tree, failing the test on error.
+func parseTreeForTest(t *testing.T, input string) *Tree {
+	t.Helper()
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+	tree, err := NewParser(schema).Parse(input)
+	require.NoError(t, err)
+	return tree
+}
+
+// VALIDATES: ExtractMCPSettings returns the operator's auth settings for a
+// block that neither sets `enabled true` nor names a port, while
+// ExtractMCPConfig still reports ok=false for the same block.
+// PREVENTS: the fail-open where `ze --mcp <port>` with `auth-mode bearer`
+// configured produced an ACCEPT-ALL listener, because ExtractMCPConfig returned
+// ok=false and every caller discarded auth-mode, token, identities and oauth
+// with it. `enabled` answers "does config start a listener"; it must not also
+// decide whether the operator's authentication instruction applies.
+func TestExtractMCPSettings_AppliesWithoutEnabledOrPort(t *testing.T) {
+	tree := parseTreeForTest(t, `
+environment {
+	mcp {
+		auth-mode bearer;
+		token secret-1234;
+	}
+}
+`)
+	// Config does not ask for a listener: no `enabled`, no server/port.
+	_, listenOK := ExtractMCPConfig(tree)
+	assert.False(t, listenOK, "ExtractMCPConfig must still refuse to start a listener")
+
+	// But the settings are the operator's instruction and must survive.
+	cfg, ok := ExtractMCPSettings(tree)
+	require.True(t, ok, "settings must be returned whenever the mcp block exists")
+	assert.Equal(t, "bearer", cfg.AuthMode)
+	assert.Equal(t, "secret-1234", cfg.Token)
+}
+
+// VALIDATES: the same for bearer-list, including the identity table, and for
+// oauth, so no auth mode is silently downgraded to accept-all.
+func TestExtractMCPSettings_AllAuthModesSurvive(t *testing.T) {
+	t.Run("bearer-list", func(t *testing.T) {
+		tree := parseTreeForTest(t, `
+environment {
+	mcp {
+		auth-mode bearer-list;
+		identity alice {
+			token alice-token;
+			scope read;
+		}
+		identity bob {
+			token bob-token;
+		}
+	}
+}
+`)
+		cfg, ok := ExtractMCPSettings(tree)
+		require.True(t, ok)
+		assert.Equal(t, "bearer-list", cfg.AuthMode)
+		require.Len(t, cfg.Identities, 2, "the identity table must survive; without it bearer-list authenticates nobody")
+	})
+
+	t.Run("oauth", func(t *testing.T) {
+		tree := parseTreeForTest(t, `
+environment {
+	mcp {
+		auth-mode oauth;
+		oauth {
+			authorization-server https://as.example/;
+			audience https://mcp.example/;
+		}
+	}
+}
+`)
+		cfg, ok := ExtractMCPSettings(tree)
+		require.True(t, ok)
+		assert.Equal(t, "oauth", cfg.AuthMode)
+		assert.Equal(t, "https://as.example/", cfg.OAuth.AuthorizationServer)
+		assert.Equal(t, "https://mcp.example/", cfg.OAuth.Audience)
+	})
+}
+
+// VALIDATES: an absent mcp block yields ok=false from both extractors, so the
+// split did not turn "no config at all" into a zero-value config that reads as
+// an instruction (ai/rules/fail-closed-guards.md).
+func TestExtractMCPSettings_AbsentBlockIsNotAnInstruction(t *testing.T) {
+	tree := parseTreeForTest(t, "environment {\n\tlog {\n\t\tlevel warn;\n\t}\n}\n")
+	_, ok := ExtractMCPSettings(tree)
+	assert.False(t, ok)
+	_, listenOK := ExtractMCPConfig(tree)
+	assert.False(t, listenOK)
+}
+
+// VALIDATES: the normal path is unchanged -- a fully enabled block with a port
+// still returns ok=true from ExtractMCPConfig with its servers and settings.
+// PREVENTS: the split regressing the case that already worked.
+func TestExtractMCPConfig_EnabledPathUnchanged(t *testing.T) {
+	tree := parseTreeForTest(t, `
+environment {
+	mcp {
+		enabled true;
+		auth-mode bearer;
+		token secret-1234;
+		server a {
+			ip 127.0.0.1;
+			port 8080;
+		}
+	}
+}
+`)
+	cfg, ok := ExtractMCPConfig(tree)
+	require.True(t, ok)
+	assert.Equal(t, "bearer", cfg.AuthMode)
+	assert.Equal(t, "secret-1234", cfg.Token)
+	require.Len(t, cfg.Servers, 1)
+	assert.Equal(t, "8080", cfg.Servers[0].Port)
+}

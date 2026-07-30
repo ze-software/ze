@@ -1278,17 +1278,45 @@ class API:
         except RuntimeError:
             return False
 
+    #: Floor for the post-startup wait, in seconds. See wait_for_post_startup.
+    POST_STARTUP_FLOOR = 30.0
+
     def wait_for_post_startup(self, timeout: float = 10.0) -> bool:
         """Wait for the engine's post-startup callback.
 
         All plugins have completed their 5-stage handshake and the dispatcher
         command registry is frozen. Safe to dispatch cross-plugin commands.
 
+        `timeout` is a HINT, not a cap: the wait is floored at
+        POST_STARTUP_FLOOR. Callers pass values tuned against an uncontended run
+        -- 226 call sites in this tree, most of them `timeout=5.0` -- and a
+        startup event is exactly the gate that a 20-way parallel suite blows
+        first. The Go runner already treats its own fixed inner readiness gates
+        this way (`withParallelHeadroom`, internal/test/runner/runner_exec_util.go,
+        whose godoc names "fixed startup deadlines fail under CPU
+        oversubscription" as the class it exists for); this is the same
+        correction on the Python side, which has no signal telling it whether the
+        run is parallel.
+
+        Raising the floor costs nothing when the event is on time: it arrives in
+        milliseconds on an idle host, and the loop below returns as soon as it
+        does. It only changes the behaviour of a run that would otherwise have
+        given up early.
+
+        The failure this fixes was silent rather than loud, which is why it
+        mattered. `cli-grammar-action-first` waited 5 s, timed out, **ignored the
+        False**, and dispatched anyway -- before the command registry was frozen
+        -- so the observable symptom was a missing End-of-RIB on a BGP peer with
+        nothing pointing at startup. Most of the 226 callers discard the return
+        value the same way, so a premature timeout does not stop the observer, it
+        just makes everything after it wrong. Callers that want a hard stop
+        should check the result and `runtime_fail`.
+
         Returns True if received, False on timeout.
         """
         import time
 
-        deadline = time.monotonic() + timeout
+        deadline = time.monotonic() + max(timeout, self.POST_STARTUP_FLOOR)
         while not self._post_startup_received and not self._shutdown:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
@@ -1532,18 +1560,38 @@ class API:
         an EOR and the forward can arrive in any order. The caller MUST have called
         `subscribe(['update'])` before `ready()`.
 
-        Returns True once both conditions hold, or False on `timeout` (a caller may
-        `runtime_fail` on False to turn a stuck establishment into a loud failure).
+        Returns True once both conditions hold, or False once `timeout` elapses
+        with NO further progress -- each EOR, and the forward, rearms that window
+        (a caller may `runtime_fail` on False to turn a stuck establishment into a
+        loud failure). An absolute backstop of `timeout * 8` bounds a replay that
+        makes progress forever.
         """
         import time
 
         eor_peers: set[str] = set()
         forward_seen = forward_prefix is None
-        deadline = time.monotonic() + timeout
+        # `timeout` bounds a LACK OF PROGRESS, not the total replay.
+        #
+        # It used to be a flat wall-clock deadline, and that is a fixed duration
+        # standing in for a condition (`ai/rules/fix-dont-record.md`): a replay
+        # that is still delivering EORs has not stalled, however slow the host,
+        # but an 8-way parallel suite could consume 30 s while the engine was
+        # forwarding fine. That surfaced as
+        # `ZE-OBSERVER-FAIL: route server did not replay within 30.0s` at 45 s
+        # against a 15 s average -- a green-on-retry flake with no product fault
+        # behind it.
+        #
+        # Each EOR observed, and the forward when it arrives, is progress and
+        # rearms the window. `hard_deadline` stays as a backstop so a genuinely
+        # wedged replay still fails loudly instead of hanging until the outer
+        # test timeout kills ze.
+        hard_deadline = time.monotonic() + timeout * 8
+        idle_deadline = time.monotonic() + timeout
         while (
             len(eor_peers) < expected_peers or not forward_seen
         ) and not self._shutdown:
-            remaining = deadline - time.monotonic()
+            now = time.monotonic()
+            remaining = min(idle_deadline, hard_deadline) - now
             if remaining <= 0:
                 break
             ev = self.wait_for_event(timeout=min(remaining, 0.5))
@@ -1562,10 +1610,12 @@ class API:
             if not update.get("nlri"):
                 # No NLRI -> an EOR (an empty UPDATE).
                 addr = bgp.get("peer", {}).get("remote", {}).get("address")
-                if addr:
+                if addr and addr not in eor_peers:
                     eor_peers.add(addr)
+                    idle_deadline = time.monotonic() + timeout
             elif not forward_seen and forward_prefix in json.dumps(update):
                 forward_seen = True
+                idle_deadline = time.monotonic() + timeout
         return len(eor_peers) >= expected_peers and forward_seen
 
     def shutdown_fire_and_forget(self) -> None:

@@ -341,7 +341,7 @@ Total: 618 packages, 615 described, 3 TODO
 | `internal/component/lg` | provides the looking glass HTTP server for Ze |  |
 | `internal/component/lg/yang` | embeds and registers the looking-glass configuration YANG module |  |
 | `internal/component/managed` | implements the managed configuration client |  |
-| `internal/component/mcp` | session management |  |
+| `internal/component/mcp` | implements the MCP (Model Context Protocol) server surface: JSON-RPC tool dispatch wrapping Ze's command dispatcher, served over the Streamable HTTP transport (streamable.go) |  |
 | `internal/component/mcp/yang` | embeds and registers the MCP configuration YANG module |  |
 | `internal/component/mpls` | reads the kernel MPLS forwarding table and serves the show mpls forwarding command |  |
 | `internal/component/ping/cmd` | owns the entire ping feature surface as a dedicated feature module (see ai/rules/plugin-self-containment.md "Dedicated feature modules") |  |

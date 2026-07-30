@@ -1,0 +1,58 @@
+# mcp-tools-list-stateless - tools are listed with no handshake and no session.
+#
+# VALIDATES: spec-mcp2026-1-stateless-core AC-1 (a conformant 2026-07-28 request
+# is served with no handshake and no Mcp-Session-Id minted, required or echoed).
+#
+# tools/list is the very first byte this client sends: no initialize, no
+# session-id header on the way out, and two independent POSTs both succeed, so
+# nothing the first request created is needed by the second. If the server still
+# required a handshake the FIRST probe would be refused; if it minted a session
+# the client (which carries none) would be refused on the SECOND.
+#
+# PREVENTS: a session layer returning under another name -- any per-client state
+# the server expects a request to carry would show up here as a first-request
+# rejection or a second-request rejection.
+
+stdin=mcp:terminator=EOF_MCP
+probe tools/list
+probe tools/list
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=ze_execute
+expect=stdout:pattern="resultType":"complete"
+# Two 200s in sequence: the second request carried nothing the first produced.
+expect=stdout:pattern=(?s)probe status=200 code=ok.*probe status=200 code=ok
+# Neither the request nor the response may name a session anywhere. The client
+# holds no session state by construction, so any mention would come from the
+# server echoing one back through an error or a result.
+reject=stdout:contains=Mcp-Session-Id
+reject=stdout:contains=sessionId

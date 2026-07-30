@@ -1,18 +1,35 @@
+// test-relax: four capability-gate tests are replaced, not dropped, because the
+// gate they asserted was itself the defect. `resources` is a member of
+// *ServerCapabilities*; the five ClientCapabilities members in MCP 2026-07-28
+// are `experimental`, `roots`, `sampling`, `elicitation` and `extensions`. No
+// conformant client can declare `resources`, so gating on it refused every
+// conformant caller while server/discover advertised the capability and
+// tools/list published `_meta.ui.resourceUri` pointing at these assets.
+//
+// Removed: TestResources_NilSessionDeniesRatherThanPanics and
+// TestInitialize_ClientCapabilityResources (their subjects, the *session
+// pointer and the initialize handshake, no longer exist), plus
+// TestResourcesRejectWithoutCapability and TestResourcesDenyOnZeroCapability-
+// Value (they asserted the removed gate), plus TestResources_ListWithCapability
+// and TestResources_ReadWithCapability (a capability the client cannot declare
+// cannot be the precondition they named). Their assertions are folded into
+// TestResourcesServedWithoutClientCapability and
+// TestResourcesServedForEveryCapabilityShape below, which assert strictly more:
+// the same list/read content across three declared-capability shapes instead of
+// one, plus the resultType envelope. Per-request capability PARSING is asserted
+// in meta_test.go TestParseRequestMeta; the surviving -32021 gate (the Tasks
+// extension, a real client capability) is asserted in streamable_test.go
+// TestStreamable_ToolsCallTaskWithoutCapability.
+
 // Design: docs/architecture/mcp/overview.md -- MCP resources capability tests
 
 package mcp
 
 import (
-	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
-
-	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 func TestResources_ListWalksEmbeddedFS(t *testing.T) {
@@ -140,174 +157,135 @@ func TestResources_ReadBinaryUsesBlob(t *testing.T) {
 	}
 }
 
-func TestResources_ReadNoCapability(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
-		},
-	})
+// TestResourcesServedWithoutClientCapability covers AC-13 as corrected: the
+// client-capability gate the AC described is the defect, not the requirement
+// (see the test-relax note at the top of this file).
+//
+// VALIDATES: a client sending the conformant `clientCapabilities: {}` -- the
+// only shape a conformant client CAN send, since `resources` is a
+// ServerCapabilities member -- is served resources/list and resources/read with
+// HTTP 200 and a "complete" result carrying real content.
+// PREVENTS: the client-capability gate returning. It closed a loop that was
+// broken end to end: server/discover advertised `capabilities.resources`,
+// tools/list published `_meta.ui.resourceUri` pointing at these very assets,
+// and resources/read then refused every conformant caller with -32021 whose
+// data.requiredCapabilities was not even a legal ClientCapabilities value.
+func TestResourcesServedWithoutClientCapability(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{})
 	defer cleanup()
 
-	sid := initializeWithCapabilities(t, hs, map[string]any{"tools": map[string]any{}})
+	t.Run(methodResourcesList, func(t *testing.T) {
+		status, parsed := postMCP(t, hs, methodResourcesList, capsNone, "")
+		if status != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (body %v)", status, parsed)
+		}
+		res := resultOf(t, parsed)
+		if res["resultType"] != resultTypeComplete {
+			t.Fatalf("resultType = %v, want %q", res["resultType"], resultTypeComplete)
+		}
+		resources, _ := res["resources"].([]any)
+		if len(resources) == 0 {
+			t.Fatal("resources/list returned empty for a {}-capability client")
+		}
+	})
 
-	body := `{"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":"ui://bgp-peer/index.html"}}`
-	resp := postWithSession(t, hs, sid, body)
-	defer closeBody(t, resp.Body)
+	t.Run(methodResourcesRead, func(t *testing.T) {
+		status, parsed := postMCP(t, hs, methodResourcesRead, capsNone,
+			`{"uri":"ui://bgp-peer/index.html"}`)
+		if status != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (body %v)", status, parsed)
+		}
+		res := resultOf(t, parsed)
+		if res["resultType"] != resultTypeComplete {
+			t.Fatalf("resultType = %v, want %q", res["resultType"], resultTypeComplete)
+		}
+		contents, _ := res["contents"].([]any)
+		if len(contents) == 0 {
+			t.Fatal("resources/read returned empty contents")
+		}
+		first, _ := contents[0].(map[string]any)
+		if first["mimeType"] != "text/html" {
+			t.Fatalf("mimeType = %v, want text/html", first["mimeType"])
+		}
+		text, _ := first["text"].(string)
+		if !strings.Contains(text, "<!DOCTYPE html>") {
+			t.Fatal("returned text does not contain DOCTYPE")
+		}
+	})
+}
 
-	var result map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		t.Fatalf("decode: %v", err)
+// VALIDATES: what resources/list and resources/read answer does not depend on
+// what the request declared in clientCapabilities -- an empty object, the tasks
+// extension, and even a stray server-capability name all get the same result.
+// PREVENTS: a capability gate reappearing on either handler under any name. A
+// gate keyed on ANY declared value would make one of these rows diverge.
+func TestResourcesServedForEveryCapabilityShape(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{})
+	defer cleanup()
+
+	shapes := []struct {
+		name string
+		caps string
+	}{
+		{"empty object", capsNone},
+		{"tasks extension only", capsTasks},
+		{"a server capability name the client cannot legally declare", `{"resources":{}}`},
 	}
-	errObj, _ := result["error"].(map[string]any)
-	if errObj == nil {
-		t.Fatal("expected error response for resources/read without capability")
-	}
-	code, _ := errObj["code"].(float64)
-	if code != -32601 {
-		t.Errorf("error code = %v, want -32601", code)
+
+	var wantList int
+	var wantText string
+	for i, shape := range shapes {
+		t.Run(shape.name, func(t *testing.T) {
+			status, parsed := postMCP(t, hs, methodResourcesList, shape.caps, "")
+			if status != http.StatusOK {
+				t.Fatalf("resources/list status = %d, want 200 (body %v)", status, parsed)
+			}
+			resources, _ := resultOf(t, parsed)["resources"].([]any)
+			if len(resources) == 0 {
+				t.Fatal("resources/list returned empty")
+			}
+
+			status, parsed = postMCP(t, hs, methodResourcesRead, shape.caps,
+				`{"uri":"ui://bgp-peer/index.html"}`)
+			if status != http.StatusOK {
+				t.Fatalf("resources/read status = %d, want 200 (body %v)", status, parsed)
+			}
+			contents, _ := resultOf(t, parsed)["contents"].([]any)
+			if len(contents) == 0 {
+				t.Fatal("resources/read returned empty contents")
+			}
+			first, _ := contents[0].(map[string]any)
+			text, _ := first["text"].(string)
+
+			if i == 0 {
+				wantList, wantText = len(resources), text
+				return
+			}
+			if len(resources) != wantList {
+				t.Fatalf("resources/list returned %d entries, want %d -- the answer varies with declared capabilities", len(resources), wantList)
+			}
+			if text != wantText {
+				t.Fatal("resources/read returned different content -- the answer varies with declared capabilities")
+			}
+		})
 	}
 }
 
-func TestResources_ListNoCapability(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
-		},
-	})
+// VALIDATES: server/discover advertises the resources capability, which is what
+// tells a client it may declare and use it.
+// PREVENTS: serving resources the client is never told about.
+func TestServerDiscoverAdvertisesResources(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{})
 	defer cleanup()
 
-	sid := initializeWithCapabilities(t, hs, map[string]any{"tools": map[string]any{}})
-
-	body := `{"jsonrpc":"2.0","id":2,"method":"resources/list"}`
-	resp := postWithSession(t, hs, sid, body)
-	defer closeBody(t, resp.Body)
-
-	var result map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		t.Fatalf("decode: %v", err)
+	status, parsed := postMCP(t, hs, methodServerDiscover, capsNone, "")
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (body %v)", status, parsed)
 	}
-	errObj, _ := result["error"].(map[string]any)
-	if errObj == nil {
-		t.Fatal("expected error response for resources/list without capability")
-	}
-	code, _ := errObj["code"].(float64)
-	if code != -32601 {
-		t.Errorf("error code = %v, want -32601", code)
-	}
-}
-
-func TestResources_ListWithCapability(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
-		},
-	})
-	defer cleanup()
-
-	sid := initializeWithCapabilities(t, hs, map[string]any{"resources": map[string]any{}})
-
-	body := `{"jsonrpc":"2.0","id":2,"method":"resources/list"}`
-	resp := postWithSession(t, hs, sid, body)
-	defer closeBody(t, resp.Body)
-
-	var result map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if result["error"] != nil {
-		t.Fatalf("unexpected error: %v", result["error"])
-	}
-	resResult, _ := result["result"].(map[string]any)
-	resources, _ := resResult["resources"].([]any)
-	if len(resources) == 0 {
-		t.Fatal("resources/list returned empty with capability declared")
-	}
-}
-
-func TestResources_ReadWithCapability(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
-		},
-	})
-	defer cleanup()
-
-	sid := initializeWithCapabilities(t, hs, map[string]any{"resources": map[string]any{}})
-
-	body := `{"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":"ui://bgp-peer/index.html"}}`
-	resp := postWithSession(t, hs, sid, body)
-	defer closeBody(t, resp.Body)
-
-	var result map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if result["error"] != nil {
-		t.Fatalf("unexpected error: %v", result["error"])
-	}
-	resResult, _ := result["result"].(map[string]any)
-	contents, _ := resResult["contents"].([]any)
-	if len(contents) == 0 {
-		t.Fatal("resources/read returned empty contents")
-	}
-	first, _ := contents[0].(map[string]any)
-	if first["mimeType"] != "text/html" {
-		t.Errorf("mimeType = %v, want text/html", first["mimeType"])
-	}
-	text, _ := first["text"].(string)
-	if !strings.Contains(text, "<!DOCTYPE html>") {
-		t.Error("returned text does not contain DOCTYPE")
-	}
-}
-
-func TestInitialize_ServerAdvertisesResources(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
-		},
-	})
-	defer cleanup()
-
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{}}}`
-	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, hs.URL+Endpoint, strings.NewReader(body))
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("Do: %v", err)
-	}
-	defer closeBody(t, resp.Body)
-
-	var result map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	res, _ := result["result"].(map[string]any)
+	res := resultOf(t, parsed)
 	caps, _ := res["capabilities"].(map[string]any)
 	if caps["resources"] == nil {
 		t.Error("server capabilities missing 'resources'")
-	}
-}
-
-func TestInitialize_ClientCapabilityResources(t *testing.T) {
-	srv, hs, cleanup := newTestStreamable(t, StreamableConfig{
-		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
-		},
-	})
-	defer cleanup()
-
-	sid := initializeWithCapabilities(t, hs, map[string]any{"resources": map[string]any{}})
-	sess, ok := srv.registry.Get(sid)
-	if !ok {
-		t.Fatalf("session %q not found", sid)
-	}
-	if !sess.ClientSupportsResources() {
-		t.Error("ClientSupportsResources() = false, want true")
 	}
 }
 
@@ -331,94 +309,6 @@ func TestMimeType_Sniffing(t *testing.T) {
 			got := sniffMIME(tt.name)
 			if got != tt.want {
 				t.Errorf("sniffMIME(%q) = %q, want %q", tt.name, got, tt.want)
-			}
-		})
-	}
-}
-
-func initializeWithCapabilities(t *testing.T, hs *httptest.Server, caps map[string]any) string {
-	t.Helper()
-	body, err := json.Marshal(map[string]any{
-		"jsonrpc": "2.0",
-		"id":      1,
-		"method":  "initialize",
-		"params": map[string]any{
-			"protocolVersion": ProtocolVersion,
-			"capabilities":    caps,
-		},
-	})
-	if err != nil {
-		t.Fatalf("marshal: %v", err)
-	}
-	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, hs.URL+Endpoint, strings.NewReader(string(body)))
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("Do: %v", err)
-	}
-	defer closeBody(t, resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("status = %d, want 200", resp.StatusCode)
-	}
-	return resp.Header.Get("Mcp-Session-Id")
-}
-
-func postWithSession(t *testing.T, hs *httptest.Server, sid, body string) *http.Response {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, hs.URL+Endpoint, strings.NewReader(body))
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Mcp-Session-Id", sid)
-	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
-	resp, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("Do: %v", err)
-	}
-	return resp
-}
-
-// TestResources_NilSessionDeniesRatherThanPanics covers the Provider-mode
-// (ze-chaos) path, where handlePOST dispatches runMethod with a nil *session
-// because such clients POST without an Mcp-Session-Id.
-//
-// VALIDATES: resources/list and resources/read deny with -32601 when the
-// session is nil, matching the fail-closed contract the tasks/* handlers
-// already honor and the comment above the Provider branch in streamable.go.
-// PREVENTS: a remote client panicking the handler goroutine by POSTing
-// resources/list to a Provider-mode listener. ClientSupportsResources
-// dereferences its receiver unconditionally, so an unguarded call on a nil
-// session is a nil-pointer dereference, not a denial.
-func TestResources_NilSessionDeniesRatherThanPanics(t *testing.T) {
-	s, err := NewStreamable(StreamableConfig{})
-	if err != nil {
-		t.Fatalf("NewStreamable: %v", err)
-	}
-	defer s.Close()
-
-	for _, tc := range []struct {
-		method string
-		run    func(*request) *response
-	}{
-		{"resources/list", func(r *request) *response { return s.resourcesList(nil, r) }},
-		{"resources/read", func(r *request) *response { return s.resourcesRead(nil, r) }},
-	} {
-		t.Run(tc.method, func(t *testing.T) {
-			id := json.RawMessage(`1`)
-			resp := tc.run(&request{JSONRPC: "2.0", ID: &id, Method: tc.method})
-			if resp == nil || resp.Error == nil {
-				t.Fatalf("%s with nil session: want a JSON-RPC error, got %+v", tc.method, resp)
-			}
-			if resp.Error.Code != -32601 {
-				t.Errorf("%s with nil session: error code = %d, want -32601", tc.method, resp.Error.Code)
 			}
 		})
 	}

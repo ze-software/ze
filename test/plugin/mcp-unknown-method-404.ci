@@ -1,0 +1,66 @@
+# mcp-unknown-method-404 - an unknown JSON-RPC method answers HTTP 404 with
+# -32601, so a client can tell a modern server from a legacy one.
+#
+# VALIDATES: spec-mcp2026-1-stateless-core AC-10. MCP 2026-07-28
+# basic/transports/streamable-http: "If the server does not implement the
+# requested RPC method, it MUST respond with 404 Not Found and a JSON-RPC error
+# with code -32601 (Method not found). The JSON-RPC error body distinguishes
+# this case from a 404 returned by a legacy HTTP+SSE server that does not host
+# the modern MCP endpoint." A 200-with-error would be ordinary JSON-RPC and
+# would lose that distinction, which is why the status is pinned to the code
+# rather than defaulted (httpStatusForDispatch, streamable.go).
+#
+# The second probe is initialize sent WITH conformant headers, which is the only
+# way that method reaches dispatch at all (a header-less initialize is refused
+# earlier -- see mcp-legacy-initialize-rejected.ci). It is the unknown-method
+# path, so it is 404/-32601 too, and the versioning SHOULD still applies: the
+# message names the supported revision.
+#
+# PREVENTS: an unknown method answering 200, and the initialize arm quietly
+# returning a synthesised handshake result to a client that asked for one.
+
+stdin=mcp:terminator=EOF_MCP
+probe ze/not-a-real-method
+probe initialize
+probe tools/list
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=probe status=404 code=-32601
+# pattern= rather than contains=: the needle carries a colon, and a contains=
+# value is split on it (ci.ParseKVPairs), which would shorten this to "method
+# not found" -- a needle the initialize probe below satisfies on its own.
+expect=stdout:pattern=method not found: ze/not-a-real-method
+# initialize reaching dispatch is the same unknown-method verdict, and still
+# names the revision a legacy reader needs.
+expect=stdout:pattern=code=-32601 message=method not found.*2026-07-28
+expect=stdout:pattern=(?s)status=404 code=-32601.*status=404 code=-32601.*probe status=200 code=ok
+reject=stdout:contains=Mcp-Session-Id

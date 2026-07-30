@@ -1,0 +1,66 @@
+# mcp-get-method-not-allowed - GET and DELETE on /mcp are refused with 405.
+#
+# VALIDATES: spec-mcp2026-1-stateless-core AC-4. MCP 2026-07-28
+# basic/transports/streamable-http "Earlier Streamable HTTP Revisions": a server
+# that supports only this revision and receives such traffic from an older
+# client "SHOULD respond as follows: HTTP GET or DELETE to the MCP endpoint:
+# respond with 405 Method Not Allowed." The endpoint is POST-only here: the GET
+# SSE stream and the DELETE session-termination call of the 2025-03-26 through
+# 2025-11-25 shape do not exist.
+#
+# The probes are interleaved GET -> POST -> DELETE and asserted in that ORDER,
+# so the test distinguishes the two 405s from each other and proves the POST
+# path is untouched between them. A test that only asserted "405 appears
+# somewhere" would pass if just one of the two verbs were refused.
+#
+# PREVENTS: a GET handler returning 200 with an empty SSE stream (which an older
+# client would sit on forever), and a DELETE that silently succeeds.
+
+stdin=mcp:terminator=EOF_MCP
+probe-method GET
+probe tools/list
+probe tools/list
+probe-method DELETE
+probe tools/list
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=probe status=405 code=none message=method not allowed
+# GET refused, POST still served, DELETE refused -- in that order.
+expect=stdout:pattern=(?s)status=405 code=none.*probe status=200 code=ok.*status=405 code=none
+reject=stdout:contains=Mcp-Session-Id
+# // test-relax: `reject=stdout:contains=text/event-stream` was removed, not
+# weakened. It could never match: the string appears nowhere in the server, and
+# this client prints no response header, so no server behaviour could put it on
+# stdout. What it meant to guard -- "the GET was not answered with an SSE
+# stream" -- is guarded live by the two expectations above: an SSE answer would
+# be a 200 with a frame, and the ordered pattern requires a 405 before the
+# served POST and another after it.

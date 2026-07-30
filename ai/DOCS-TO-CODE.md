@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 301 design docs, 3131 files
+Total: 301 design docs, 3138 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -1284,21 +1284,25 @@ Total: 301 design docs, 3131 files
 
 | File | Topic |
 |------|-------|
+| `internal/component/mcp/apps.go` | MCP Apps UI extension negotiation |
 | `internal/component/mcp/as_metadata.go` | MCP OAuth resource server |
 | `internal/component/mcp/auth.go` | MCP authentication dispatcher and identity types |
 | `internal/component/mcp/bearer.go` | MCP bearer + bearer-list auth strategies |
-| `internal/component/mcp/elicit.go` | MCP server-initiated elicitation |
+| `internal/component/mcp/caching.go` | cacheable result hints (ttlMs, cacheScope) |
+| `internal/component/mcp/discover.go` | server/discover capability advertisement |
+| `internal/component/mcp/elicit.go` | MCP form-mode elicitation |
+| `internal/component/mcp/headers.go` | standard request header validation |
 | `internal/component/mcp/jwks.go` | MCP OAuth resource server |
 | `internal/component/mcp/jwt.go` | MCP OAuth resource server |
+| `internal/component/mcp/meta.go` | per-request protocol metadata |
+| `internal/component/mcp/mrtr.go` | multi round-trip requests |
 | `internal/component/mcp/oauth.go` | MCP OAuth resource server |
-| `internal/component/mcp/reply_sink.go` | per-POST reply sinks for MCP 2025-06-18 |
 | `internal/component/mcp/resources.go` | MCP resources capability and UI asset serving |
 | `internal/component/mcp/resources_test.go` | MCP resources capability tests |
-| `internal/component/mcp/session.go` | MCP session registry and SSE writer |
 | `internal/component/mcp/streamable.go` | Streamable HTTP transport for MCP |
 | `internal/component/mcp/streamable_auth.go` | OAuth/bearer authentication and origin validation |
 | `internal/component/mcp/streamable_tools.go` | Tool dispatch and task management |
-| `internal/component/mcp/task_state.go` | MCP task state machine (2025-11-25) |
+| `internal/component/mcp/task_state.go` | MCP task state machine (io.modelcontextprotocol/tasks) |
 | `internal/component/mcp/tasks.go` | MCP task registry and worker orchestration |
 
 ## `docs/architecture/memory/lifetime-contracts.md`
@@ -1513,6 +1517,9 @@ Total: 301 design docs, 3131 files
 | `internal/test/cli/cmd_exabgp.go` | predecessor encoding test runner |
 | `internal/test/cli/cmd_l2tp_scale.go` | L2TP scale test tooling |
 | `internal/test/cli/cmd_mcp.go` | MCP test client |
+| `internal/test/cli/cmd_mcp_calls.go` | MCP test client |
+| `internal/test/cli/cmd_mcp_client.go` | MCP test client |
+| `internal/test/cli/cmd_mcp_mrtr.go` | MCP test client |
 | `internal/test/cli/cmd_peer.go` | test runner CLI |
 | `internal/test/cli/cmd_peer_test.go` | test runner CLI |
 | `internal/test/cli/cmd_plugin_external.go` | test plugin runner |

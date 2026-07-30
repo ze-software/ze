@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
 | Phase | 1/4 |
 | Deferral shard | `plan/deferrals/mcp2026-1-stateless-core.md` |
-| Updated | 2026-07-28 |
+| Updated | 2026-07-30 |
 
 Parent: `plan/spec-mcp2026-0-umbrella.md`. Siblings: `plan/spec-mcp2026-2-mrtr.md`,
 `plan/spec-mcp2026-3-tasks-extension.md`, `plan/spec-mcp2026-4-caching-apps.md`.
@@ -40,7 +40,10 @@ version or capabilities.
 
 | What | Requirement |
 |------|-------------|
-| Per-request `_meta` parsing | `io.modelcontextprotocol/protocolVersion`, `clientInfo`, `clientCapabilities` on every request |
+| Per-request `_meta` parsing | `io.modelcontextprotocol/protocolVersion`, `clientInfo`, `clientCapabilities` on every request. **Corrected 2026-07-29 from the specification text** (`tmp/mcp-2026-07-28-spec-extract.md`, PART E): `_meta` sits **inside `params`**, not at the JSON-RPC message top level; `protocolVersion` and `clientCapabilities` are **required**, `clientInfo` is not (clients only SHOULD send it) |
+| `-32602` on a malformed `_meta` | **Added 2026-07-29.** "A request missing any required field is malformed; the server **MUST** reject it with JSON-RPC error code `-32602` (Invalid params). On HTTP, the response status **MUST** be `400 Bad Request`." This is a *different* failure from a header mismatch and must not be collapsed into `-32020` |
+| `-32021 MissingRequiredClientCapabilityError` | **Added 2026-07-29.** "A server **MUST NOT** rely on capabilities the client has not declared. If processing a request requires a capability the client did not include in `io.modelcontextprotocol/clientCapabilities`, the server **MUST** return a `MissingRequiredClientCapabilityError` (`-32021`) whose `data.requiredCapabilities` lists the missing capabilities. On HTTP, the response status **MUST** be `400 Bad Request`." This replaces the pre-cutover `-32601` capability gate on resources and tasks |
+| `io.modelcontextprotocol/serverInfo` on every result | **Added 2026-07-29.** "Servers **SHOULD** include the following `io.modelcontextprotocol/*` field in **every result's** `_meta`". Emit it from the shared `ok()` helper beside `resultType`, so one site covers every method rather than only `server/discover` |
 | Per-request authentication | Today identity binds at initialize and later requests are trusted by session-id validity alone (`streamable.go:391-401`). Every request now authenticates. `authenticator.Authenticate` already takes an `*http.Request` (A-1, confirmed), so this is a call-site move, not an interface change |
 | `MCP-Protocol-Version` header validation | MUST equal the body's `_meta` version; mismatch or absence returns HTTP 400 + `-32020` |
 | `Mcp-Method` header validation | MUST equal `method` |
@@ -77,7 +80,7 @@ must be named in the Security Review are these:
 |-----------------|-------|----------|-------------|-------|
 | Request body size | 1 MB (`maxRequestBody = 1 << 20`, `tools.go:673`) | `streamable.go:152-155` selects it whenever `MaxBodyBytes` is zero | `streamable.go:412` (`http.MaxBytesReader`), HTTP 413 at `:415` | per request |
 | Concurrent tasks | 8 (`defaultMaxConcurrentTasks`, `tasks.go:16`) | `activeCount` (`tasks.go:311-312`), called by `taskRegistry.Create` (`:103`) | `tasks.go:104-106`, returns `errTaskConcurrencyCap` | **per principal** |
-| Retained terminal tasks | 128 (`defaultMaxTerminalTasks`, `tasks.go:17`) | `newTaskRegistry` (`tasks.go:85`) | task GC | registry |
+| ~~Retained terminal tasks~~ **NO SUCH BOUND -- corrected 2026-07-29** | ~~128~~ | `defaultMaxTerminalTasks` (`tasks.go:17`) is assigned to `maxTerminal` (`tasks.go:98`) and **never read anywhere** | nothing: `sweep()` (`tasks.go:350-371`) reaps solely on TTL (`:357-358`) | -- |
 | Task lifetime | default 5 min, clamped to 1 s .. 1 h (`tasks.go:18-20`) | `clampTTL` (`tasks.go:332`), called from `Create` (`:99`) | task GC (`taskGCInterval`, `tasks.go:21`) | per task |
 | Concurrent in-flight requests | no Ze-level cap | Go `net/http` server accept loop | connection layer | process |
 
@@ -181,7 +184,7 @@ cache hints. Umbrella ACs covered: AC-1, AC-2, AC-3, AC-4, AC-5, AC-9, AC-10.
   → Decision: `supportedProtocolVersions` (`streamable.go:49-53`) drops `2025-03-26` and `2024-11-05` and the `LegacyProtocolVersion` constant (`streamable.go:39`) is deleted rather than retained as a rejection label.
 - [ ] `ai/rules/fail-closed-guards.md` - header and version validation are guards; a missing header must deny, never default
   → Constraint: absence and mismatch are the same verdict. A missing `MCP-Protocol-Version` may not fall back to a default revision the way `LegacyProtocolVersion` does today; it returns `-32020`.
-  → Constraint: the pre-cutover code carries a live instance of the zero-value trap this rule names, at `resources.go:136-137` and `:143-144` (see Design Insights). The rewrite must not reintroduce an "optional session" shape under a new name.
+  → Constraint: ~~the pre-cutover code carries a live instance of the zero-value trap this rule names, at `resources.go:136-137` and `:143-144` (see Design Insights).~~ **Superseded 2026-07-29:** the nil dereference was fixed on 2026-07-29 by commit `e53e2f24f` ("fix(mcp): resources handlers deny a nil session, not panic"), one day after this spec was written. `resources.go:142` and `:151` now read `if sess == nil || !sess.ClientSupportsResources()`, and Go's `||` short-circuit means the method is never called on a nil receiver. The rewrite must still not reintroduce an "optional session" shape under a new name; that obligation is unchanged. What changed is that it is now a regression guard, not a bug fix.
 
 ### Protocol Specification (Scope: protocol)
 - [ ] `https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http` - the binding, header table, `-32020` server validation, Base64 sentinel encoding
@@ -315,9 +318,9 @@ cache hints. Umbrella ACs covered: AC-1, AC-2, AC-3, AC-4, AC-5, AC-9, AC-10.
 |-------------|---|--------------|------|
 | Client POSTs `server/discover` to a running daemon | → | `startMCPServer` → `Streamable.ServeHTTP` → discover handler | `test/plugin/mcp-discover-daemon.ci` |
 | Client POSTs `tools/list` with conformant headers and `_meta` | → | header validation → per-request auth → `runMethod` | `test/plugin/mcp-tools-list-stateless.ci` |
-| Client POSTs `initialize` | → | unknown-method path | `test/plugin/mcp-legacy-initialize-rejected.ci` |
+| Client POSTs `initialize` | → | ~~unknown-method path~~ **header validation** (`headers.go`), which runs before dispatch and rejects the header-less legacy request first (corrected 2026-07-29, delta 6) | `test/plugin/mcp-legacy-initialize-rejected.ci` |
 | Client sends HTTP GET to `/mcp` | → | `ServeHTTP` method dispatch | `test/plugin/mcp-get-method-not-allowed.ci` |
-| `ze-chaos` Provider-mode listener answers `tools/list` | → | `run.go:535` → `Streamable.ServeHTTP` | `test/chaos/chaos-mcp-tools-list.ci` |
+| `ze-chaos` Provider-mode listener answers `tools/list` | → | `run.go:535` → `Streamable.ServeHTTP` | ~~`test/chaos/chaos-mcp-tools-list.ci`~~ **corrected 2026-07-29:** `test/chaos-web/mcp-status.ci` step 2, which already asserts `tools/list`. Both existing MCP chaos tests live in `test/chaos-web/`, not `test/chaos/` (which holds four simulation smoke tests and no HTTP checks). **`test/chaos-web/` is NOT a `ze-verify` stage** — `ze-functional-test` does not run it and `stagesForMode` has no chaos stage — so `make ze-chaos-test` must be run explicitly to close this row. This is umbrella R-6, confirmed |
 
 ## Acceptance Criteria
 
@@ -335,9 +338,12 @@ cache hints. Umbrella ACs covered: AC-1, AC-2, AC-3, AC-4, AC-5, AC-9, AC-10.
 | AC-10 | Unknown method | HTTP 404 with `-32601` |
 | AC-11 | Request with no credential under `auth-mode bearer` | 401, on **every** method, not only the first |
 | AC-12 | `grep -rn "sessionRegistry\|Mcp-Session-Id" --include=*.go internal/ cmd/` excluding tests | No production hit outside a rejection path |
-| AC-13 | `resources/list` and `resources/read` sent to a `ze-chaos` Provider-mode listener | A JSON-RPC error response, never a panic. Pre-cutover this path nil-dereferences (`resources.go:136-137` and `:143-144` call `ClientSupportsResources`, `session.go:364`, on the nil `*session` passed at `streamable.go:468`), so this AC is both a conformance assertion and the regression test that the rewrite removed the optional-session shape rather than renaming it (R-3) |
+| AC-13 | `resources/list` and `resources/read` sent by a client whose `_meta.clientCapabilities` is `{}` (the conformant shape every spec example uses) | **RESTATED 2026-07-29 after independent review.** Both are **served normally**, with `resultType: "complete"`. The previous wording -- a `-32021` capability gate -- was wrong and was a functional break: `2026-07-28` `ClientCapabilities` has exactly five members (`experimental`, `roots`, `sampling`, `elicitation`, `extensions`) and **`resources` is not one of them**; it is a *ServerCapabilities* member. Gating on it meant no conformant client could ever read a resource, while `server/discover` advertised `capabilities.resources` and `tools/list` published `_meta.ui.resourceUri` pointing at `ui://` assets -- so Ze instructed clients to fetch what it then refused. `data.requiredCapabilities` is additionally typed `ClientCapabilities` in the schema, so `{"resources":{}}` was not even a legal value of that field. The gate is deleted; `resourcesList`/`resourcesRead` no longer take a capability argument at all, so it cannot be reintroduced by accident |
 | AC-14 | Two different principals each start 8 concurrent tasks under `auth-mode bearer-list` | Both reach 8; the 9th for either is refused with the concurrency-cap error. Proves the surviving bound is per principal (`tasks.go:103-106`), not per session and not global, which is what D-1 relies on |
-| AC-15 | `ze_execute` called with no `command` argument, from any client | HTTP 200 with a tool error naming the missing argument (`tools.go:738`), and no `elicitation/create` frame is ever produced. Proves elicitation fails closed rather than half-wired (`ai/rules/no-parking.md`) |
+| AC-15 | `ze_execute` called with no `command` argument, from any client | HTTP 200 with a tool error naming the missing argument (`tools.go:738`), and no `elicitation/create` frame is ever produced. Proves elicitation fails closed rather than half-wired (`ai/rules/no-parking.md`). **PARTLY SUPERSEDED BY PHASE 2, 2026-07-30.** "from any client" and the unconditional half of this row no longer hold: Phase 2 (`spec-mcp2026-2-mrtr`) restored elicitation as Multi Round-Trip Requests, so a client declaring **form-mode elicitation** that omits `command` now gets `resultType: "input_required"` rather than an error. The row survives unchanged for every OTHER client -- one declaring nothing, or declaring `url` mode only -- which is the branch `askForCommand` (`mrtr.go`) still takes and which `test/plugin/mcp-execute-missing-command.ci` and `TestExecuteWithoutCommandFailsClosed` still gate. **What Phase 2 missed and this correction fixes:** the *published* `inputSchema` kept `"required": ["command"]` and a description asserting the unconditional error, written for this AC. That contract made Phase 2's only user story unreachable through the advertised interface -- a schema-validating host will not construct a call its own schema rejects. The descriptor is now derived from the same capability the handler branches on (`gateExecuteCommandRequired`, `mrtr.go`), gated by `TestExecuteDescriptorMatchesElicitationCapability` |
+| AC-16 | A request whose `params._meta` omits `io.modelcontextprotocol/protocolVersion`, or omits `io.modelcontextprotocol/clientCapabilities` | HTTP 400 with JSON-RPC `-32602`. **Added 2026-07-29**, delta 1. Distinct from AC-9: a missing `_meta` field is not a header mismatch, and collapsing the two into `-32020` would emit a reserved-range code with a meaning the specification does not give it (`basic/index`: implementations "**MUST** use defined codes only with their specified meanings"). `clientInfo` absent is **not** an error |
+| AC-17 | Any successful result from any method | Carries `_meta["io.modelcontextprotocol/serverInfo"]` with `name` and `version`. **Added 2026-07-29**, delta 4. Asserted over the same table as AC-5 so one test proves both, since both are emitted from the shared `ok()` helper |
+| AC-18 | A legacy client POSTs `initialize` with no MCP headers and no `_meta` | HTTP 400 with `-32020`, whose message names the supported protocol version. **Added 2026-07-29**, delta 6: header validation runs before dispatch, so this request never reaches the unknown-method path the Wiring Test row describes. The versioning page makes naming the version a **SHOULD** — "legacy clients have no fall-forward mechanism, and this message may be the only diagnostic they can surface to users" |
 
 ## End-to-End User Stories
 
@@ -362,7 +368,10 @@ cache hints. Umbrella ACs covered: AC-1, AC-2, AC-3, AC-4, AC-5, AC-9, AC-10.
 | `TestProviderModeAuthenticatesLikeEveryOtherPath` | `internal/component/mcp/streamable_test.go` | D-2: with `Provider` set and `AuthBearer` configured, a credential-less request is 401. Guards against the deleted bypass returning | |
 | `TestBodyLimitBoundary` | `internal/component/mcp/streamable_test.go` | Boundary table row 1: 1048576 bytes served, 1048577 returns 413, empty body returns `-32700` | |
 | `TestTaskConcurrencyCapIsPerPrincipal` | `internal/component/mcp/tasks_test.go` | Boundary table row 2 and AC-14: 8 per identity, 9th refused, a second identity still reaches 8 | |
-| `TestResourcesRejectWithoutCapability` | `internal/component/mcp/resources_test.go` | AC-13: a request whose `_meta.clientCapabilities` omits resources gets `-32601`, and no code path can be reached without a capability value present | |
+| ~~`TestResourcesRejectWithoutCapability`~~ **`TestResourcesServedWithoutClientCapability` + `TestResourcesServedForEveryCapabilityShape`** | `internal/component/mcp/resources_test.go` | AC-13 as restated: resources are served to a `{}`-capability client, and list/read are byte-identical across `{}`, tasks-only, and a stray `{"resources":{}}` -- so any gate keyed on any declared value makes a row diverge. Replaces the `-32021` assertion, which locked in the functional break | |
+| `TestMalformedMetaRejected` | `internal/component/mcp/meta_test.go` | AC-16: `_meta` missing `protocolVersion` → 400 + `-32602`; missing `clientCapabilities` → 400 + `-32602`; missing `clientInfo` → **accepted**, since it is only a SHOULD | |
+| `TestEveryResultCarriesServerInfo` | `internal/component/mcp/streamable_test.go` | AC-17: same method table as `TestEveryResultCarriesResultType`, asserting `result._meta["io.modelcontextprotocol/serverInfo"]` | |
+| `TestLegacyInitializeNamesSupportedVersion` | `internal/component/mcp/headers_test.go` | AC-18: a header-less POST whose body method is `initialize` returns 400 + `-32020` and the message contains `2026-07-28` | |
 | `TestExecuteWithoutCommandFailsClosed` | `internal/component/mcp/tools_test.go` | AC-15: missing `command` returns the argument error, and no elicit frame is produced | |
 
 ### Boundary Tests (numeric inputs)
@@ -376,7 +385,7 @@ re-homed, so there is no boundary left to test.
 |-------|-------|------------|---------------|---------------|
 | Request body size, bytes (`maxRequestBody`, `tools.go:673`; enforced `streamable.go:412`) | 1 .. 1048576 | 1048576 body bytes, request served normally | 0 bytes, which is a distinct failure: `json.Unmarshal` fails and the server returns JSON-RPC `-32700` (`streamable.go:420-426`), not a size rejection. Assert the code, not a 413 | 1048577 bytes, `http.MaxBytesReader` errors and the server returns HTTP 413 (`streamable.go:414-417`) |
 | Concurrent tasks per principal (`defaultMaxConcurrentTasks`, `tasks.go:16`; enforced `tasks.go:104`) | 0 .. 8 | the 8th concurrent `tools/call` task for one identity is created | n/a, zero active tasks is the normal idle state | the 9th concurrent task for the same identity is refused with `errTaskConcurrencyCap` (`tasks.go:106`). The boundary is per identity, so a second principal must still reach 8 in the same test, which is what proves the cap is scoped and not global |
-| Task TTL, seconds (`clampTTL`, `tasks.go:99`; bounds `tasks.go:19-20`) | 1 .. 3600 | a requested TTL of 3600 s is kept | a requested TTL of 0 s clamps up to `minTaskTTL` = 1 s, it does not error | a requested TTL of 3601 s clamps down to `maxTaskTTL` = 3600 s, it does not error. Both directions are silent clamps today, so the assertion is on the clamped value |
+| Task TTL, seconds (`clampTTL`, `tasks.go:323-334`; bounds `tasks.go:19-20`) | 1 .. 3600 | a requested TTL of 3600 s is kept | ~~a requested TTL of 0 s clamps up to `minTaskTTL` = 1 s~~ **CORRECTED 2026-07-29:** `clampTTL` returns `r.ttl`, the registry-configured DEFAULT, for any `requested <= 0` (`tasks.go:324-326`); the `minTaskTTL` floor applies only to *positive* values below it (`:327-329`). `TestTaskRegistry_TTLExpiry` depends on that sentinel, so the code is right and this row was wrong. Assert: 0 and negative -> registry default; 1 ns and 999 ms -> `minTaskTTL` | a requested TTL of 3601 s clamps down to `maxTaskTTL` = 3600 s, it does not error. Both directions are silent clamps, so the assertion is on the clamped value |
 | `data.supported` length in a `-32022` response | exactly 1 | the array is `["2026-07-28"]`, length 1 | length 0 would mean the server advertises no version it speaks, which fails closed into unreachability | length 2 or more would mean a dropped revision survived as an advertised version, contradicting `ai/rules/compatibility.md` and the umbrella cutover decision. Assert the exact array, not a `contains` |
 
 Two candidate bounds were considered and rejected as not real. There is no
@@ -397,7 +406,7 @@ range: its tests are equality and rejection cases (AC-2), not boundaries.
 | `mcp-get-method-not-allowed` | `test/plugin/*.ci` | GET stream attempt refused cleanly | |
 | `mcp-header-mismatch-rejected` | `test/plugin/*.ci` | Forged `Mcp-Name` refused | |
 | `mcp-execute-missing-command` | `test/plugin/*.ci` | AC-15: a tool call with no `command` gets a clear argument error instead of hanging on a prompt that can never arrive | |
-| `chaos-mcp-resources-list` | `test/chaos/*.ci` | AC-13: a Provider-mode listener answers `resources/list` with a JSON-RPC error and the daemon stays up | |
+| `mcp-resources-no-capability` | ~~`test/chaos/*.ci`~~ **`test/chaos-web/*.ci`** (corrected 2026-07-29 — that is where both existing MCP chaos tests live and the suite `ze-chaos-web-test` drives) | AC-13: a Provider-mode listener answers `resources/list` with `-32021` and `data.requiredCapabilities`, and the daemon stays up | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -408,7 +417,7 @@ range: its tests are equality and rejection cases (AC-2), not boundaries.
 - `internal/component/mcp/streamable.go` - transport rewrite
 - `internal/component/mcp/streamable_tools.go` - dispatch
 - `internal/component/mcp/streamable_auth.go` - per-request auth call site
-- `internal/component/mcp/resources.go` - capability gate moves off the session, and the unguarded nil dereference at `:136-137` and `:143-144` goes with it
+- `internal/component/mcp/resources.go` - capability gate moves off the session onto the per-request capability value. ~~and the unguarded nil dereference at `:136-137` and `:143-144` goes with it~~ **Corrected 2026-07-29:** there is no unguarded dereference left to remove; `e53e2f24f` added the `sess == nil ||` guard at `:142` and `:151`. The gate still moves off the session, and the nil case disappears with the type rather than with a bug fix
 - `internal/component/mcp/tasks.go` - session scoping removed: the `sessionID` field (`:36`, `:120`), `CancelAllForSession` (`:277`), `TaskElicit` (`:456-513`) and `buildTaskStatusNotification` (`:517`). `byIdentity` and every cap stay
 - `internal/component/mcp/tools.go` - the elicit arm under `ze_execute` (`:740-766`) and the tool description advertising it (`:836`)
 - `internal/component/mcp/yang/ze-mcp-conf.yang` - **no leaf is removed** (D-3). Reword the three `description` strings at lines 74, 79 and 90 that say scopes and principal names are attached to or carried on the session
@@ -475,7 +484,7 @@ range: its tests are equality and rejection cases (AC-2), not boundaries.
 2. **Phase: Per-request metadata and headers** - `meta.go`, `headers.go`, `-32020`, `-32022`
 3. **Phase: Delete the session layer** - remove `session.go`, `reply_sink.go`, `elicit.go`, GET/DELETE, initialize, `handleElicitResponse` (`streamable.go:562`), `TaskElicit` (`tasks.go:456-513`), the task `sessionID` field and `CancelAllForSession`, and `buildTaskStatusNotification` (`tasks.go:517`); move auth to per-request; move the tasks and resources capability gates from session bits to per-request `_meta.clientCapabilities`, passing identity and capabilities **by value** so no handler can run without them (R-3)
    - Nothing in this step is optional or splittable: A-4 records that `Elicit`, `TaskElicit` and `handleElicitResponse` all name the `session` type and cannot compile without it
-   - Tests: `TestProviderModeAuthenticatesLikeEveryOtherPath`, `TestResourcesRejectWithoutCapability`, `TestExecuteWithoutCommandFailsClosed`
+   - Tests: `TestProviderModeAuthenticatesLikeEveryOtherPath`, `TestResourcesServedWithoutClientCapability` (renamed 2026-07-29 with AC-13's restatement), `TestExecuteWithoutCommandFailsClosed`
 4. **Phase: Result envelope** - `resultType` on every method
 5. **Phase: Consumers** - `ze-chaos`, `ze-test mcp` client (drop `-elicit`, `internal/test/cli/cmd_mcp.go:33`, and the `elicitation/create` handling at `:543`; drop the five `Mcp-Session-Id` sites at `:461`, `:476`, `:499`, `:579`, `:613`), `help_ai.go`, the three YANG `description` strings (D-3), `tools.go:836`, docs, digest
 
@@ -511,7 +520,7 @@ range: its tests are equality and rejection cases (AC-2), not boundaries.
 | Header/body confusion | Validation before dispatch, comparison after decoding |
 | Resource exhaustion | Answered by D-1: session caps bounded an object that no longer exists, and the surviving bounds are the 1 MB body cap (`tools.go:673`, enforced `streamable.go:412`) and the per-principal task caps (`tasks.go:16-17`, enforced `tasks.go:104`). The residual review obligation is the inverse of the original question: confirm the rewrite introduces **no new** per-client structure that outlives a request. Any new map, cache, or registry keyed by client, connection, or identity is a finding |
 | Identity-keyed map growth | `byIdentity` (`tasks.go:52`) must stay keyed by the authenticator's `Identity().Name` and never by a client-supplied field from `_meta.clientInfo`. Confirm the per-request identity is the only thing that reaches the registry |
-| No optional-ness reintroduced (R-3) | The pre-cutover code has a live fail-open instance: `resourcesList`/`resourcesRead` (`resources.go:136-137`, `:143-144`) dereference a possibly-nil `*session` through `ClientSupportsResources` (`session.go:364`), which has no nil guard, so a Provider-mode `resources/list` panics rather than degrading. Confirm the replacement passes per-request identity and capabilities **by value**, so the compiler forces every handler to have them and no handler can be reached with a "maybe absent" context |
+| No optional-ness reintroduced (R-3) | ~~The pre-cutover code has a live fail-open instance: `resourcesList`/`resourcesRead` (`resources.go:136-137`, `:143-144`) dereference a possibly-nil `*session` ... so a Provider-mode `resources/list` panics rather than degrading.~~ **Corrected 2026-07-29:** fixed by `e53e2f24f`; the guard is present at `:142`/`:151`. The review obligation is unchanged and is the important half: confirm the replacement passes per-request identity and capabilities **by value**, so the compiler forces every handler to have them and no handler can be reached with a "maybe absent" context. The lesson the deleted example taught still stands — optional-ness the compiler does not force you to handle is what produced that bug — it is now a historical example rather than a live one |
 | Error leakage | `-32020` messages must not echo unvalidated header bytes |
 
 ### Failure Routing
@@ -539,24 +548,31 @@ What the code does not say, found while designing this phase.
   and none of the new surface (`-32020`, `-32022`, `resultType`,
   `server/discover`) exists anywhere in the component today, so it is all new
   code rather than edits to code with existing callers and tests.
-- **"Session-less" is currently modelled as a nil pointer, and that is a live
-  fail-open bug the rewrite must not carry forward in a new shape.** Provider mode
-  passes a nil `*session` into `runMethod` (`streamable.go:468`), and the comment
-  above it (`streamable.go:459-462`) claims "runMethod handlers are nil-session
-  aware (tasks/resources degrade to method-not-found)". That claim is true for the
-  four task handlers, which each test `sess == nil` (`streamable_tools.go:176`,
-  `:189`, `:204`, `:219`), and **false for resources**: `resourcesList`
+- **"Session-less" is currently modelled as a nil pointer, and that shape is what
+  R-3 exists to stop the rewrite from recreating.** Provider mode passes a nil
+  `*session` into `runMethod` (`streamable.go:468`), and the comment above it
+  (`streamable.go:459-462`) claims "runMethod handlers are nil-session aware
+  (tasks/resources degrade to method-not-found)". ~~That claim is true for the four
+  task handlers ... and **false for resources**: `resourcesList`
   (`resources.go:136-137`) and `resourcesRead` (`:143-144`) call
-  `sess.ClientSupportsResources()` with no nil check, and that method dereferences
-  its receiver unconditionally (`session.go:364`). A `resources/list` sent to a
-  Provider-mode listener therefore panics rather than degrading. This is exactly
-  the `ai/rules/fail-closed-guards.md` evidence corollary: a comment asserting a
-  safety property that the producing function does not hold up. Phase 1 fixes it
-  by construction, since deleting the type removes both the nil case and the
-  capability bit it guards, but the lesson is why R-3 exists: optional-ness that
-  the compiler does not force you to handle is what produced this, and a nil-able
-  per-request context or a zero-value-means-supported capability struct would
-  reproduce it under a new name.
+  `sess.ClientSupportsResources()` with no nil check ... A `resources/list` sent to
+  a Provider-mode listener therefore panics rather than degrading.~~
+  **Superseded 2026-07-29.** That was true when this spec was written and is not
+  true now: commit `e53e2f24f` ("fix(mcp): resources handlers deny a nil session,
+  not panic") landed on 2026-07-29 and added the guard, so `resources.go:142` and
+  `:151` now read `if sess == nil || !sess.ClientSupportsResources()` and the
+  short-circuit prevents the dereference. Every handler reached with a nil session
+  now degrades to method-not-found, and the comment at `streamable.go:459-462` is
+  accurate as written.
+  The insight the example was carrying survives its own repair, and is the reason
+  to keep the paragraph rather than delete it: optional-ness that the compiler does
+  not force you to handle is what produced the bug in the first place, and the fix
+  was a hand-written guard at each of two call sites rather than a shape that makes
+  the mistake impossible. A nil-able per-request context, or a capability struct
+  whose zero value reads as "supported", would reproduce exactly this under a new
+  name and would again be caught only by whoever remembers to write the guard.
+  Phase 1 removes the class rather than the instance: per-request identity and
+  capabilities are **values**, so there is no nil case for a handler to forget.
 - **`MaxSessions` was never reachable from config, so removing it changes no
   deployed behavior.** `SessionTTL`, `MaxSessions` and `MaxSessionLifetime` are
   `StreamableConfig` fields (`streamable.go:72`, `:76`, `:81`) that no caller ever
@@ -596,14 +612,23 @@ What the code does not say, found while designing this phase.
 Scope boundaries this phase accepts. Each is either owned by a later phase, or
 owned by the umbrella and recorded there.
 
-- **The server is conformant but incomplete between Phase 1 and Phase 4.** After
-  this phase Ze speaks `2026-07-28` with no MRTR (`resultType: "input_required"`
-  is never produced), no Tasks extension shape, and no `ttlMs` / `cacheScope`
-  cache hints. Every successful result carries `resultType: "complete"` and
-  nothing else. That is a conformant subset, not a violation: those three are
-  additive capabilities, and a server that does not advertise them is not obliged
-  to implement them. It is still a real limitation for a reader who expects the
-  umbrella's AC-6, AC-7 and AC-8 to hold after this phase. They do not.
+- **The server is incomplete between Phase 1 and Phase 4, and for one item it is
+  NOT conformant.** ~~That is a conformant subset, not a violation.~~
+  **Corrected 2026-07-29 after independent review.** Two of the three gaps really
+  are additive and a server that does not advertise them owes nothing: MRTR
+  (`resultType: "input_required"` is never produced, Phase 2) and the Tasks
+  extension shape (Phase 3). The third is not: `ttlMs` and `cacheScope` are
+  **non-optional** fields on `CacheableResult`, which `DiscoverResult` extends,
+  and changelog minor #5 requires them on `tools/list`, `resources/list`,
+  `resources/read` and `server/discover`. Ze emits neither, and
+  `discover_test.go` currently asserts their absence. So the intermediate state
+  omits fields the schema makes mandatory, which is a conformance gap and is
+  recorded as such in `plan/deferrals/mcp2026-1-stateless-core.md` with
+  `plan/spec-mcp2026-4-caching-apps.md` as its destination -- a spec that has
+  already done the design. The intermediate state never ships: phases 1-4 land as
+  one series. Calling it "a conformant subset, not a violation" was wrong, and the
+  distinction matters because `ai/rules/rfc-compliance.md` treats phasing a MUST
+  as an escalation trigger rather than a scheduling decision.
 - **Elicitation is gone with no replacement until Phase 2.** `ze_execute` invoked
   without a `command` argument returns "missing required argument: command"
   (`tools.go:738`) instead of prompting. That is the pre-existing behavior for

@@ -1,0 +1,76 @@
+# mcp-mrtr-url-only-capability - a client declaring ONLY url mode is never sent
+# a form-mode elicitation.
+#
+# VALIDATES: spec-mcp2026-2-mrtr AC-6 and assumption A-4. The 2026-07-28
+# elicitation capability is mode-structured -- elicitation?: { form?: JSONObject;
+# url?: JSONObject; } -- and client/elicitation states "Servers MUST NOT send
+# elicitation requests with modes that are not supported by the client". So the
+# gate is form-mode SUPPORT, not the presence of the elicitation key: this
+# client declares {"url":{}}, which means it supports elicitation and does not
+# support the one mode Ze can emit.
+#
+# This is the discriminating case. mcp-mrtr-no-capability passes under both a
+# bare-presence check and a mode check; this one passes only under the mode
+# check, and Ze's pre-cutover parser was exactly a bare-presence check.
+#
+# The client polices the server from its side too: ze-test refuses to answer an
+# elicitation whose mode it did not declare, so a regression here fails with
+# "which this client did not declare" rather than quietly succeeding.
+#
+# PREVENTS: regressing the gate to "the elicitation key is present", which would
+# send a form-mode request to a url-only client and violate a MUST NOT.
+
+stdin=mcp:terminator=EOF_MCP
+probe tools/call {"name":"ze_execute","arguments":{}}
+elicit-answer accept show bgp peer list
+@ze_execute {}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT --elicit url:stdin=mcp:timeout=20s
+expect=exit:code=1
+expect=stdout:pattern=probe status=200 code=ok
+expect=stdout:pattern=missing required argument: command
+expect=stdout:pattern="isError":true
+expect=stdout:pattern="resultType":"complete"
+expect=stderr:contains=missing required argument
+reject=stdout:contains=input_required
+reject=stdout:contains=inputRequests
+reject=stdout:pattern="mode":"form"
+# The regression tell: a form-mode prompt sent to this client is refused by the
+# client with this phrase, so its ABSENCE plus the missing-argument error above
+# is what proves the server never sent one.
+reject=stderr:pattern=did not declare
+reject=stdout:contains=peer1

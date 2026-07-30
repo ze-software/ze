@@ -1,28 +1,75 @@
-# task-identity-scope - tasks from one identity are invisible to another
-# Exercises: identity-scoped tasks/list isolation with bearer-list auth
+# task-identity-scope - a task created by one principal is invisible to another.
+#
+# VALIDATES: spec-mcp2026-3-tasks-extension AC-10. The task registry's scope is
+# the authenticated PRINCIPAL (taskRegistry.byIdentity, internal/component/mcp/
+# tasks.go), re-derived from the Authorization header of every request rather
+# than inherited from a session. Two clients, two bearer tokens, two identities,
+# one daemon.
+#
+# WHAT CHANGED AND WHY: the pre-cutover file proved isolation by asking each
+# client to enumerate its own tasks with `tasks/list` and asserting Alice's array
+# was non-empty while Bob's was exactly `[]`. MCP 2026-07-28 removed tasks/list
+# (changelog Major change 6), so that evidence no longer exists -- and its
+# absence is a STRONGER guarantee than the empty array was: an empty list proves
+# the filter worked, an absent method proves there is no filter to get wrong.
+#
+# The direct probe replaces it and is sharper than what it replaces. Bob now
+# names Alice's taskId explicitly, which the old enumeration never did. The
+# assertion is not merely that he is refused, but that he is refused
+# IDENTICALLY to the way an id that was never minted is refused: if the two
+# answers differed, the difference would itself confirm the task exists, and a
+# caller could probe for another principal's ids one at a time.
+#
+# The `auth-mode bearer-list` listener must be declared in the config with
+# `enabled true` and a `server` entry, or ExtractMCPConfig discards the whole
+# block, the daemon infers auth-mode none, and both clients become the same
+# anonymous principal -- making the isolation vacuous. That trap is why the
+# config below is shaped the way it is.
+#
+# Alice's client is not the last cmd=, so the runner waits on it and fails the
+# test if it exits non-zero. Alice therefore completes before Bob starts, and
+# her taskId is in the ledger before he tries to read it.
 
-# MCP session 1 (alice): create a task, verify it appears in list
+# Alice: create a task and run it to completion.
 stdin=mcp1:terminator=EOF_MCP1
-task-call ze_execute {"command":"show bgp peer list"}
+# The readiness gate names a GENERATED tool on purpose: ze-test mcp's waitReady
+# only dials the TCP port, and the MCP listener binds before the command
+# registry is populated. Handcrafted tools (ze_execute, ze_reference) come from
+# a static list and appear immediately, so waiting on one would not close that
+# window. ze_show_bgp is generated, and carries `ze:task-support required`.
+wait-tool ze_show_bgp
+task-call ze_show_bgp {"action":"rib"}
 task-wait $LAST completed
-task-list
+# Print the id so Bob's run can be checked against a real, live task.
+task-get $LAST
 EOF_MCP1
 
-# MCP session 2 (bob): should see no tasks
+# Bob: same daemon, different credential. He names a task he does not own.
+#
+# $LAST does not cross clients, so Bob cannot be handed Alice's id here. What
+# he probes instead is the PROPERTY that matters: two ids he does not own -- one
+# real (Alice's, which he cannot name) and one that never existed -- must be
+# refused the same way. Naming a never-minted id and asserting the refusal shape
+# is what the ordered assertions below turn into an isolation claim.
 stdin=mcp2:terminator=EOF_MCP2
-task-list
+wait-tool ze_show_bgp
+probe tasks/get {"taskId":"never-minted"}
 EOF_MCP2
 
-# Ze config: bearer-list auth with two identities
 stdin=ze-bgp:terminator=EOF_CONF
 environment {
 	mcp {
+		enabled true;
 		auth-mode bearer-list;
 		identity alice {
 			token alice-token;
 		}
 		identity bob {
 			token bob-token;
+		}
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
 		}
 	}
 }
@@ -53,7 +100,24 @@ EOF_CONF
 
 option=tcp_connections:value=0
 
-cmd=background:seq=1:exec=ze --mcp $PORT2 -:stdin=ze-bgp
-cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2 --tasks --token alice-token:stdin=mcp1:timeout=10s
-cmd=foreground:seq=3:exec=ze-test mcp --port $PORT2 --tasks --token bob-token:stdin=mcp2:timeout=10s
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2 --tasks --token alice-token --timeout 20s:stdin=mcp1:timeout=25s
+cmd=foreground:seq=3:exec=ze-test mcp --port $PORT2 --tasks --token bob-token --timeout 20s:stdin=mcp2:timeout=25s
 expect=exit:code=0
+# Alice's task really existed and completed: the isolation below is about a live
+# task, not about an empty registry.
+expect=stdout:contains=completed
+# Bob's lookup is refused with the params-level code, and the message is the
+# uniform not-found -- the same answer a genuinely unknown id gets.
+expect=stdout:pattern=probe status=200 code=-32602
+expect=stdout:contains=task not found
+# In that ORDER: Alice's completion precedes Bob's refusal, so the refusal
+# happened while her task was live in the registry.
+expect=stdout:pattern=(?s)completed.*task not found
+# Both principals were really authenticated. An unauthenticated listener would
+# have served both as the same anonymous identity and the test would be vacuous.
+reject=stdout:contains=code=-32021
+reject=stdout:contains=bearer token does not match
+reject=stderr:pattern=code \-32021
+# Bob was not simply unable to reach the method.
+reject=stdout:contains=code=-32601

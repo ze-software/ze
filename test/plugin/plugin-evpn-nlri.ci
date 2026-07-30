@@ -6,5 +6,9 @@
 
 cmd=foreground:seq=1:exec=ze plugin bgp-nlri-evpn --nlri 02250001000100010001000000000000000000006400112233445510000000020000c8
 expect=exit:code=0
-expect=stdout:contains="code":2
+# pattern=, not contains=: a `contains=` value is cut at its first colon
+# (internal/test/ci/ciformat.go), so `contains="code":2` asserted only `"code"`
+# and passed regardless of the value. The decoder pretty-prints, emitting
+# `"code": 2` with a space, so the needle also has to tolerate that.
+expect=stdout:pattern="code":\s*2
 expect=stdout:contains=raw

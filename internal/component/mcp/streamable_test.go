@@ -1,14 +1,35 @@
+// test-relax: this file lost the assertions belonging to features MCP
+// 2026-07-28 removes and this phase deletes: the initialize handshake
+// (TestStreamableInitializeAssignsSessionID, TestStreamableInitializeRejects-
+// UnsupportedVersion, TestStreamable_InitializeReadsClientCapabilities,
+// TestStreamableParseInitializeProtocolVersion), the session registry and its
+// caps (TestStreamableExpiredSession404, TestStreamableMissingSessionIDFails,
+// TestStreamableConcurrentSessionsIsolated, TestStreamableTouchOnClosed-
+// SessionIsNoop, TestStreamableInitializeCapExhaustion,
+// TestStreamableNewStreamableRejectsMaxLifetimeShorterThanTTL), the GET SSE
+// stream (TestStreamableGETOpensSSEStream, TestStreamableGETClearsWriteDeadline,
+// TestStreamableGETBadAcceptReturns406, TestStreamableGETHeartbeat*,
+// TestStreamableDuplicateGETReturns409, TestStreamableGETStreamActive-
+// ReleasedAfterCancel, TestStreamableSSEResponseHasAntiBufferingHeader,
+// TestStreamableAcceptsEventStream, TestStreamableHeartbeatIntervalClampedToMin)
+// and DELETE (TestStreamableDELETEClosesSession). Every one of those names a
+// function or field that no longer exists. The fail-open assertion in
+// TestStreamableProtocolVersionMissingAssumesLegacy is deliberately INVERTED,
+// not dropped: a missing MCP-Protocol-Version is now -32020, asserted in
+// headers_test.go TestHeaderMismatchRejected. Coverage the cutover keeps is
+// carried forward below (origin, bearer auth, the task-support table); coverage
+// it adds lives in headers_test.go, meta_test.go and discover_test.go.
+
 package mcp
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -18,7 +39,7 @@ import (
 
 // newTestStreamable returns a Streamable wired with a trivial dispatcher and
 // an httptest.Server. Caller MUST call returned cleanup.
-func newTestStreamable(t *testing.T, cfg StreamableConfig) (*Streamable, *httptest.Server, func()) {
+func newTestStreamable(t *testing.T, cfg StreamableConfig) (*httptest.Server, func()) {
 	t.Helper()
 	if cfg.Dispatch == nil {
 		cfg.Dispatch = func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
@@ -30,7 +51,7 @@ func newTestStreamable(t *testing.T, cfg StreamableConfig) (*Streamable, *httpte
 		t.Fatalf("NewStreamable: %v", err)
 	}
 	hs := httptest.NewServer(srv)
-	return srv, hs, func() {
+	return hs, func() {
 		hs.Close()
 		srv.Close()
 	}
@@ -44,418 +65,881 @@ func closeBody(t *testing.T, body io.Closer) {
 	}
 }
 
-type deadlineResponseRecorder struct {
-	header      http.Header
-	status      int
-	deadlineSet bool
-	deadline    time.Time
-	flushed     bool
+// Client-capability literals the helpers below accept. Empty is the conformant
+// "I declare nothing" form, and tasks is the only capability this server gates
+// on -- `resources` is a ServerCapabilities member, so there is deliberately no
+// literal for declaring it.
+//
+// capsTasks is spelled as an EXTENSION declaration, not as a bare `tasks`
+// member. MCP 2026-07-28 moved tasks out of the core protocol onto the
+// io.modelcontextprotocol/tasks extension, and extensions are declared through
+// the `extensions` map (basic/versioning "Extension Negotiation"). The bare
+// member was the 2025-11-25 core spelling and is no longer accepted:
+// TestBareTasksMemberIsNotAnExtensionDeclaration pins that.
+const (
+	capsNone  = `{}`
+	capsTasks = `{"extensions":{"io.modelcontextprotocol/tasks":{}}}`
+)
+
+// metaBlock returns the params._meta JSON literal a conformant request carries.
+func metaBlock(version, capsJSON string) string {
+	return `{"io.modelcontextprotocol/protocolVersion":"` + version +
+		`","io.modelcontextprotocol/clientCapabilities":` + capsJSON + `}`
 }
 
-func newDeadlineResponseRecorder() *deadlineResponseRecorder {
-	return &deadlineResponseRecorder{header: make(http.Header)}
-}
-
-func (r *deadlineResponseRecorder) Header() http.Header { return r.header }
-
-func (r *deadlineResponseRecorder) Write(p []byte) (int, error) {
-	if r.status == 0 {
-		r.status = http.StatusOK
-	}
-	return len(p), nil
-}
-
-func (r *deadlineResponseRecorder) WriteHeader(status int) { r.status = status }
-
-func (r *deadlineResponseRecorder) Flush() { r.flushed = true }
-
-func (r *deadlineResponseRecorder) SetWriteDeadline(t time.Time) error {
-	r.deadlineSet = true
-	r.deadline = t
-	return nil
-}
-
-// initializeResult runs the initialize handshake and returns the negotiated
-// session id, the full response status, and the decoded result body. The
-// response body is closed inside the helper.
-func initializeResult(t *testing.T, hs *httptest.Server) (sid string, status int, result map[string]any) {
+// postRaw POSTs body with exactly the given headers (plus Content-Type) and
+// returns the status and the decoded JSON body. Nothing is injected: this is
+// the helper for tests that control the headers themselves.
+func postRaw(t *testing.T, hs *httptest.Server, body string, headers map[string]string) (int, map[string]any) {
 	t.Helper()
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{}}}`
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, hs.URL+Endpoint, strings.NewReader(body))
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
 	resp, err := hs.Client().Do(req)
 	if err != nil {
-		t.Fatalf("initialize: %v", err)
+		t.Fatalf("POST: %v", err)
 	}
 	defer closeBody(t, resp.Body)
-	status = resp.StatusCode
-	sid = resp.Header.Get("Mcp-Session-Id")
+	raw, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		t.Fatalf("read body: %v", readErr)
+	}
+	// Best-effort decode: the auth and origin guards answer with http.Error,
+	// whose body is plain text rather than a JSON-RPC envelope. Callers that
+	// need the envelope assert on it through rpcErrorOf / resultOf, which fail
+	// loudly when it is absent.
 	var parsed map[string]any
-	if resp.StatusCode == http.StatusOK {
-		if decodeErr := json.NewDecoder(resp.Body).Decode(&parsed); decodeErr != nil {
-			t.Fatalf("decode: %v", decodeErr)
-		}
-		if r, ok := parsed["result"].(map[string]any); ok {
-			result = r
-		}
-	}
-	return sid, status, result
-}
-
-// initializeSession returns only the negotiated session ID (fails the test on
-// any non-200 response).
-func initializeSession(t *testing.T, hs *httptest.Server) string {
-	t.Helper()
-	sid, status, _ := initializeResult(t, hs)
-	if status != http.StatusOK {
-		t.Fatalf("initialize status = %d, want 200", status)
-	}
-	return sid
-}
-
-// initializeOrigin runs initialize with a custom Origin header, returning only
-// the response status (body closed inside helper).
-func initializeOrigin(t *testing.T, hs *httptest.Server, origin string) int {
-	t.Helper()
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, hs.URL+Endpoint, strings.NewReader(body))
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if origin != "" {
-		req.Header.Set("Origin", origin)
-	}
-	resp, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("Do: %v", err)
-	}
-	defer closeBody(t, resp.Body)
-	return resp.StatusCode
-}
-
-// initializeWithAuth runs initialize with an optional Authorization header and
-// returns the response status.
-func initializeWithAuth(t *testing.T, hs *httptest.Server, bearer string) int {
-	t.Helper()
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, hs.URL+Endpoint, strings.NewReader(body))
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if bearer != "" {
-		req.Header.Set("Authorization", "Bearer "+bearer)
-	}
-	resp, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("Do: %v", err)
-	}
-	defer closeBody(t, resp.Body)
-	return resp.StatusCode
-}
-
-// deleteSession sends DELETE /mcp with the given session id. Response body is
-// closed inside the helper.
-func deleteSession(t *testing.T, hs *httptest.Server, sid string) int {
-	t.Helper()
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodDelete, hs.URL+Endpoint, http.NoBody)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	if sid != "" {
-		req.Header.Set("Mcp-Session-Id", sid)
-	}
-	resp, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("DELETE: %v", err)
-	}
-	defer closeBody(t, resp.Body)
-	return resp.StatusCode
-}
-
-// postMethod sends a JSON-RPC request on an existing session and returns the
-// status + parsed body (body closed inside helper).
-func postMethod(t *testing.T, hs *httptest.Server, sid, protoVersion, body string) (int, map[string]any) {
-	t.Helper()
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, hs.URL+Endpoint, strings.NewReader(body))
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if sid != "" {
-		req.Header.Set("Mcp-Session-Id", sid)
-	}
-	if protoVersion != "" {
-		req.Header.Set("MCP-Protocol-Version", protoVersion)
-	}
-	resp, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("Do: %v", err)
-	}
-	defer closeBody(t, resp.Body)
-	var parsed map[string]any
-	if resp.StatusCode == http.StatusOK {
-		if decodeErr := json.NewDecoder(resp.Body).Decode(&parsed); decodeErr != nil {
-			t.Fatalf("decode: %v", decodeErr)
+	if len(raw) > 0 {
+		if decodeErr := json.Unmarshal(raw, &parsed); decodeErr != nil {
+			parsed = nil
 		}
 	}
 	return resp.StatusCode, parsed
 }
 
-func TestStreamableInitializeAssignsSessionID(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{})
-	defer cleanup()
-
-	sid, status, result := initializeResult(t, hs)
-	if status != http.StatusOK {
-		t.Fatalf("status = %d, want 200", status)
+// buildMCPBody assembles a conformant 2026-07-28 request: the caller's params
+// with the required `_meta` block merged in. Returns the marshaled body and
+// the params object, which the header builder reads Mcp-Name out of.
+func buildMCPBody(t *testing.T, id any, method, capsJSON, paramsJSON string) (string, map[string]any) {
+	t.Helper()
+	params := map[string]any{}
+	if paramsJSON != "" {
+		if err := json.Unmarshal([]byte(paramsJSON), &params); err != nil {
+			t.Fatalf("params %q: %v", paramsJSON, err)
+		}
 	}
-	if sid == "" {
-		t.Fatal("Mcp-Session-Id header missing on initialize response")
+	caps := map[string]any{}
+	if capsJSON != "" {
+		if err := json.Unmarshal([]byte(capsJSON), &caps); err != nil {
+			t.Fatalf("caps %q: %v", capsJSON, err)
+		}
 	}
-	if !validSessionID(sid) {
-		t.Fatalf("Mcp-Session-Id %q fails validity check", sid)
+	params[metaKey] = map[string]any{
+		metaKeyProtocolVersion:    ProtocolVersion,
+		metaKeyClientCapabilities: caps,
 	}
-	if result == nil {
-		t.Fatal("no result in response")
+	msg := map[string]any{"jsonrpc": "2.0", "method": method, "params": params}
+	if id != nil {
+		msg["id"] = id
 	}
-	if got, _ := result["protocolVersion"].(string); got != ProtocolVersion {
-		t.Fatalf("protocolVersion = %q, want %q", got, ProtocolVersion)
-	}
-}
-
-func TestStreamableProtocolVersionMissingAssumesLegacy(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{})
-	defer cleanup()
-
-	sid := initializeSession(t, hs)
-	status, _ := postMethod(t, hs, sid, "", `{"jsonrpc":"2.0","id":2,"method":"tools/list"}`)
-	if status != http.StatusOK {
-		t.Fatalf("status = %d, want 200", status)
-	}
-}
-
-func TestStreamableProtocolVersionUnknownRejects(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{})
-	defer cleanup()
-
-	sid := initializeSession(t, hs)
-	status, _ := postMethod(t, hs, sid, "9999-99-99", `{"jsonrpc":"2.0","id":2,"method":"tools/list"}`)
-	if status != http.StatusBadRequest {
-		t.Fatalf("status = %d, want 400", status)
-	}
-}
-
-func TestStreamableGETOpensSSEStream(t *testing.T) {
-	srv, hs, cleanup := newTestStreamable(t, StreamableConfig{})
-	defer cleanup()
-
-	sid := initializeSession(t, hs)
-
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, hs.URL+Endpoint, http.NoBody)
+	data, err := json.Marshal(msg)
 	if err != nil {
-		t.Fatalf("new request: %v", err)
+		t.Fatalf("marshal: %v", err)
 	}
-	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("Mcp-Session-Id", sid)
+	return string(data), params
+}
 
-	got, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("GET: %v", err)
+// mcpHeaders mirrors the body into the standard request headers exactly as a
+// conformant client must. Mcp-Name is sourced through the production rule so
+// the helper cannot disagree with the server about which methods need it;
+// headers_test.go drives that rule directly with hand-written headers.
+func mcpHeaders(method string, params map[string]any) map[string]string {
+	h := map[string]string{
+		"MCP-Protocol-Version": ProtocolVersion,
+		"Mcp-Method":           method,
 	}
-	defer closeBody(t, got.Body)
-	if got.StatusCode != http.StatusOK {
-		t.Fatalf("GET status = %d, want 200", got.StatusCode)
+	if source, required := mcpNameSource(method, params); required {
+		h["Mcp-Name"] = source
 	}
-	if ct := got.Header.Get("Content-Type"); ct != "text/event-stream" {
-		t.Fatalf("Content-Type = %q, want text/event-stream", ct)
-	}
+	return h
+}
 
-	sess, ok := srv.registry.Get(sid)
+// postMCP sends a fully conformant request and returns status + decoded body.
+func postMCP(t *testing.T, hs *httptest.Server, method, capsJSON, paramsJSON string) (int, map[string]any) {
+	t.Helper()
+	return postMCPAuth(t, hs, "", method, capsJSON, paramsJSON)
+}
+
+// postMCPAuth is postMCP with an Authorization: Bearer credential.
+func postMCPAuth(t *testing.T, hs *httptest.Server, bearer, method, capsJSON, paramsJSON string) (int, map[string]any) {
+	t.Helper()
+	body, params := buildMCPBody(t, 1, method, capsJSON, paramsJSON)
+	headers := mcpHeaders(method, params)
+	if bearer != "" {
+		headers["Authorization"] = "Bearer " + bearer
+	}
+	return postRaw(t, hs, body, headers)
+}
+
+// postOrigin sends a conformant tools/list with a custom Origin header and
+// returns only the status.
+func postOrigin(t *testing.T, hs *httptest.Server, origin string) int {
+	t.Helper()
+	body, params := buildMCPBody(t, 1, methodToolsList, capsNone, "")
+	headers := mcpHeaders(methodToolsList, params)
+	if origin != "" {
+		headers["Origin"] = origin
+	}
+	status, _ := postRaw(t, hs, body, headers)
+	return status
+}
+
+// rpcErrorOf extracts the JSON-RPC error object, failing the test when absent.
+func rpcErrorOf(t *testing.T, parsed map[string]any) map[string]any {
+	t.Helper()
+	e, ok := parsed["error"].(map[string]any)
 	if !ok {
-		t.Fatal("session not found in registry")
+		t.Fatalf("no error object in %v", parsed)
 	}
-	if err := sess.Send([]byte(`{"msg":"hello"}`)); err != nil {
-		t.Fatalf("Send: %v", err)
-	}
+	return e
+}
 
-	reader := bufio.NewReader(got.Body)
-	line, err := readWithTimeout(reader, time.Second)
-	if err != nil {
-		t.Fatalf("read SSE frame: %v", err)
+// resultOf extracts the JSON-RPC result object, failing the test when absent.
+func resultOf(t *testing.T, parsed map[string]any) map[string]any {
+	t.Helper()
+	r, ok := parsed["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("no result object in %v", parsed)
 	}
-	if !strings.HasPrefix(line, "data: ") {
-		t.Fatalf("SSE frame missing 'data: ' prefix: %q", line)
+	return r
+}
+
+// TestProtocolVersionIsCurrentRevision pins the cutover.
+//
+// VALIDATES: the version constant is 2026-07-28 and the supported set holds
+// that and nothing else.
+// PREVENTS: a dropped revision surviving as an accepted or advertised version
+// (ai/rules/compatibility.md: no shim for a dropped revision).
+func TestProtocolVersionIsCurrentRevision(t *testing.T) {
+	if ProtocolVersion != "2026-07-28" {
+		t.Fatalf("ProtocolVersion = %q, want 2026-07-28", ProtocolVersion)
 	}
-	if !strings.Contains(line, `"hello"`) {
-		t.Fatalf("SSE frame missing payload: %q", line)
+	if len(supportedProtocolVersions) != 1 {
+		t.Fatalf("supportedProtocolVersions = %v, want exactly one entry", supportedProtocolVersions)
+	}
+	if supportedProtocolVersions[0] != ProtocolVersion {
+		t.Fatalf("supportedProtocolVersions[0] = %q, want %q", supportedProtocolVersions[0], ProtocolVersion)
+	}
+	for _, dropped := range []string{"2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"} {
+		if isSupportedProtocolVersion(dropped) {
+			t.Errorf("dropped revision %q still accepted", dropped)
+		}
 	}
 }
 
-func TestStreamableGETClearsWriteDeadline(t *testing.T) {
-	srv, err := NewStreamable(StreamableConfig{})
+// TestUnsupportedVersionListsSupported covers AC-2.
+//
+// VALIDATES: a request declaring a version this server does not implement is
+// answered with HTTP 400, -32022, data.supported == ["2026-07-28"] exactly, and
+// data.requested echoing what the client asked for.
+// PREVENTS: an empty supported list (which fails closed into unreachability) or
+// a list longer than one (which would mean a dropped revision survived).
+func TestUnsupportedVersionListsSupported(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{})
+	defer cleanup()
+
+	for _, requested := range []string{"2025-06-18", "2025-11-25", "1900-01-01"} {
+		t.Run(requested, func(t *testing.T) {
+			// Header and body agree, so this reaches the version check rather
+			// than header validation.
+			body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
+				metaBlock(requested, capsNone) + `}}`
+			status, parsed := postRaw(t, hs, body, map[string]string{
+				"MCP-Protocol-Version": requested,
+				"Mcp-Method":           "tools/list",
+			})
+			if status != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400 (body %v)", status, parsed)
+			}
+			rpcErr := rpcErrorOf(t, parsed)
+			if rpcErr["code"] != float64(rpcUnsupportedProtocolVersion) {
+				t.Fatalf("code = %v, want %d", rpcErr["code"], rpcUnsupportedProtocolVersion)
+			}
+			data, ok := rpcErr["data"].(map[string]any)
+			if !ok {
+				t.Fatalf("no data object in %v", rpcErr)
+			}
+			supported, ok := data["supported"].([]any)
+			if !ok {
+				t.Fatalf("data.supported = %v, want an array", data["supported"])
+			}
+			if len(supported) != 1 || supported[0] != ProtocolVersion {
+				t.Fatalf("data.supported = %v, want exactly [%q]", supported, ProtocolVersion)
+			}
+			if data["requested"] != requested {
+				t.Fatalf("data.requested = %v, want %q", data["requested"], requested)
+			}
+		})
+	}
+}
+
+// methodProbe is one row of the every-method result table.
+type methodProbe struct {
+	method string
+	caps   string
+	params string
+}
+
+// resultBearingMethods returns one conformant, result-producing call per method
+// this server dispatches, so a table can assert an envelope invariant across all
+// of them. taskID is spliced into the task lookups, and names a TERMINAL task so
+// tasks/get carries a result payload rather than a bare working status.
+//
+// Every method in runMethod's switch must appear here. tasks/list and
+// tasks/result are gone (changelog Major change 6) and tasks/update took their
+// place in this table.
+func resultBearingMethods(taskID string) []methodProbe {
+	taskParams := `{"taskId":"` + taskID + `"}`
+	return []methodProbe{
+		{method: methodServerDiscover, caps: capsNone},
+		{method: methodToolsList, caps: capsNone},
+		{method: methodToolsCall, caps: capsNone, params: `{"name":"ze_execute","arguments":{"command":"show version"}}`},
+		{method: methodTasksGet, caps: capsTasks, params: taskParams},
+		{method: methodTasksUpdate, caps: capsTasks, params: taskParams},
+		{method: methodTasksCancel, caps: capsTasks, params: taskParams},
+		{method: methodResourcesList, caps: capsNone},
+		{method: methodResourcesRead, caps: capsNone, params: `{"uri":"ui://bgp-peer/index.html"}`},
+	}
+}
+
+// taskCapableCommands is the command set a test server needs before it can
+// produce a task at all.
+//
+// Under the server-directed model (D-1) the annotation is the ONLY thing that
+// creates a task, and the handcrafted tools (ze_execute, ze_reference) resolve
+// to TaskSupportOptional, which means synchronous. So a test that wants a task
+// must configure a `required` command; there is no request it can send to opt
+// one into existence.
+func taskCapableCommands() []CommandInfo {
+	return []CommandInfo{
+		{Name: "slow cmd", Help: "Long", TaskSupport: TaskSupportRequired},
+	}
+}
+
+// createTestTask calls the `required` tool, waits for the task to reach a
+// terminal state, and returns its id. Waiting is what makes the tasks/get row
+// carry a result payload rather than a bare working status.
+func createTestTask(t *testing.T, hs *httptest.Server) string {
+	t.Helper()
+	status, parsed := postMCP(t, hs, methodToolsCall, capsTasks,
+		`{"name":"ze_slow","arguments":{"action":"cmd"}}`)
+	if status != http.StatusOK {
+		t.Fatalf("create task: status = %d (body %v)", status, parsed)
+	}
+	result := resultOf(t, parsed)
+	if got := result[resultTypeKey]; got != resultTypeTask {
+		t.Fatalf("create task: resultType = %v, want %q (body %v)", got, resultTypeTask, parsed)
+	}
+	id, _ := result["taskId"].(string)
+	if id == "" {
+		t.Fatalf("no taskId in %v", result)
+	}
+	waitTaskTerminal(t, hs, id)
+	return id
+}
+
+// waitTaskTerminal polls tasks/get over the transport until the task leaves the
+// working state. It waits on the CONDITION, not on a duration
+// (ai/rules/fix-dont-record.md).
+func waitTaskTerminal(t *testing.T, hs *httptest.Server, taskID string) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	var last any
+	for time.Now().Before(deadline) {
+		status, parsed := postMCP(t, hs, methodTasksGet, capsTasks, `{"taskId":"`+taskID+`"}`)
+		if status != http.StatusOK {
+			t.Fatalf("tasks/get: status = %d (body %v)", status, parsed)
+		}
+		last = resultOf(t, parsed)["status"]
+		if last != TaskWorking.String() {
+			return
+		}
+		time.Sleep(time.Millisecond) // poll interval; the loop returns as soon as the task leaves "working"
+	}
+	t.Fatalf("task %s never left %q (last status %v)", taskID, TaskWorking.String(), last)
+}
+
+// TestEveryResultCarriesResultType covers AC-5.
+//
+// VALIDATES: every successful result from every dispatched method carries
+// resultType "complete".
+// PREVENTS: a handler that bypasses the shared ok() helper and ships a result a
+// 2026-07-28 client must reject as untyped.
+func TestEveryResultCarriesResultType(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{Commands: taskCapableCommands})
+	defer cleanup()
+
+	taskID := createTestTask(t, hs)
+	for _, probe := range resultBearingMethods(taskID) {
+		t.Run(probe.method, func(t *testing.T) {
+			status, parsed := postMCP(t, hs, probe.method, probe.caps, probe.params)
+			if status != http.StatusOK {
+				t.Fatalf("status = %d, want 200 (body %v)", status, parsed)
+			}
+			result := resultOf(t, parsed)
+			if result["resultType"] != resultTypeComplete {
+				t.Fatalf("resultType = %v, want %q", result["resultType"], resultTypeComplete)
+			}
+		})
+	}
+}
+
+// TestEveryResultCarriesServerInfo covers AC-17.
+//
+// VALIDATES: every successful result carries
+// _meta["io.modelcontextprotocol/serverInfo"] with a name and a version.
+// PREVENTS: emitting serverInfo only from server/discover, which is where the
+// pre-cutover shape carried it.
+func TestEveryResultCarriesServerInfo(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{Commands: taskCapableCommands})
+	defer cleanup()
+
+	taskID := createTestTask(t, hs)
+	for _, probe := range resultBearingMethods(taskID) {
+		t.Run(probe.method, func(t *testing.T) {
+			status, parsed := postMCP(t, hs, probe.method, probe.caps, probe.params)
+			if status != http.StatusOK {
+				t.Fatalf("status = %d, want 200 (body %v)", status, parsed)
+			}
+			result := resultOf(t, parsed)
+			meta, ok := result[metaKey].(map[string]any)
+			if !ok {
+				t.Fatalf("result._meta = %v, want an object", result[metaKey])
+			}
+			info, ok := meta[metaKeyServerInfo].(map[string]any)
+			if !ok {
+				t.Fatalf("result._meta[%q] = %v, want an object", metaKeyServerInfo, meta[metaKeyServerInfo])
+			}
+			if name, _ := info["name"].(string); name == "" {
+				t.Error("serverInfo.name empty")
+			}
+			if version, _ := info["version"].(string); version == "" {
+				t.Error("serverInfo.version empty")
+			}
+		})
+	}
+}
+
+// TestToolsCallCarriesNoCacheHints is spec-mcp2026-4-caching-apps AC-15's named
+// test, covering BOTH result shapes tools/call can answer with. It was named in
+// the spec's TDD plan and never written; the one that did exist
+// (TestNonCacheableResultsCarryNoHints, caching_test.go) drives only the
+// complete shape, because resultBearingMethods calls ze_execute synchronously.
+//
+// The two shapes have DIFFERENT invariants, and conflating them is the trap:
+//
+//   - complete: neither ttlMs nor cacheScope. tools/call is absent from the
+//     caching page's operation list.
+//   - task (CreateTaskResult): ttlMs and pollIntervalMs are REQUIRED -- the
+//     io.modelcontextprotocol/tasks extension specifies a Task object
+//     "containing a unique taskId, initial status, ttlMs, and pollIntervalMs"
+//     -- and cacheScope must be absent. cacheScope is the discriminator: a
+//     caching hint is the (ttlMs, cacheScope) pair, and only cacheTTLByMethod
+//     can emit it.
+//
+// VALIDATES: the complete shape carries neither hint; the task shape carries
+// ttlMs and pollIntervalMs and no cacheScope.
+// PREVENTS: two opposite regressions. Adding tools/call to cacheTTLByMethod (a
+// conformance error), and "fixing" the task result by deleting its ttlMs
+// because a comment claimed tools/call carries no ttlMs in any shape -- which
+// would strip a field the extension makes mandatory and leave a polling client
+// with no retention bound.
+func TestToolsCallCarriesNoCacheHints(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{Commands: taskCapableCommands})
+	defer cleanup()
+
+	t.Run("complete", func(t *testing.T) {
+		status, parsed := postMCP(t, hs, methodToolsCall, capsNone,
+			`{"name":"ze_execute","arguments":{"command":"show version"}}`)
+		if status != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (body %v)", status, parsed)
+		}
+		result := resultOf(t, parsed)
+		if got := result[resultTypeKey]; got != resultTypeComplete {
+			t.Fatalf("resultType = %v, want %q", got, resultTypeComplete)
+		}
+		for _, key := range []string{resultKeyTTLMs, resultKeyCacheScope} {
+			if raw, present := result[key]; present {
+				t.Errorf("%s = %v on a complete tools/call result; tools/call is not a cacheable operation", key, raw)
+			}
+		}
+	})
+
+	t.Run("task", func(t *testing.T) {
+		status, parsed := postMCP(t, hs, methodToolsCall, capsTasks,
+			`{"name":"ze_slow","arguments":{"action":"cmd"}}`)
+		if status != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (body %v)", status, parsed)
+		}
+		result := resultOf(t, parsed)
+		if got := result[resultTypeKey]; got != resultTypeTask {
+			t.Fatalf("resultType = %v, want %q (body %v)", got, resultTypeTask, parsed)
+		}
+
+		// cacheScope is what must never appear: its presence would mean the
+		// caching table stamped this result.
+		if raw, present := result[resultKeyCacheScope]; present {
+			t.Errorf("%s = %v on a CreateTaskResult; only cacheTTLByMethod may emit a cache scope", resultKeyCacheScope, raw)
+		}
+
+		// ttlMs and pollIntervalMs must BOTH be present: they are the extension's
+		// retention fields, not caching hints, and a polling client needs them.
+		for _, key := range []string{resultKeyTTLMs, resultKeyPollIntervalMs} {
+			raw, present := result[key]
+			if !present {
+				t.Fatalf("%s missing from a CreateTaskResult: %v", key, result)
+			}
+			value, isNumber := raw.(float64)
+			if !isNumber {
+				t.Fatalf("%s = %v (%T), want a JSON number", key, raw, raw)
+			}
+			if value <= 0 {
+				t.Errorf("%s = %v, want > 0", key, value)
+			}
+		}
+
+		// The invariant retentionHints exists to hold, asserted on the wire.
+		ttl, _ := result[resultKeyTTLMs].(float64)
+		poll, _ := result[resultKeyPollIntervalMs].(float64)
+		if poll > ttl/2 {
+			t.Errorf("pollIntervalMs %v exceeds half of ttlMs %v: a conforming client could sleep past its result", poll, ttl)
+		}
+	})
+}
+
+// TestTasksGetDoesNotAliasRegistryState guards the hazard ok()'s own godoc
+// names: a task handler hands back the map the registry stored, and mutating it
+// would persist envelope fields into registry state.
+//
+// VALIDATES: two tasks/get calls for the same terminal task return identical
+// result payloads, and the map the registry still owns gains neither
+// `resultType` nor `_meta`.
+// PREVENTS: ok() stamping the envelope in place. That would leak protocol
+// fields into stored tool output, and each further call would stamp over the
+// previous one's -- a defect no per-call assertion can see, because every
+// individual response would still look correct.
+//
+// The hazard survived the removal of tasks/result: tasks/get now carries the
+// stored map as its `result` member, so the aliasing question is the same one.
+func TestTasksGetDoesNotAliasRegistryState(t *testing.T) {
+	srv, err := NewStreamable(StreamableConfig{
+		Commands: taskCapableCommands,
+		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
+			return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok: "+cmd)), nil
+		},
+	})
 	if err != nil {
 		t.Fatalf("NewStreamable: %v", err)
 	}
 	defer srv.Close()
+	hs := httptest.NewServer(srv)
+	defer hs.Close()
 
-	sess, err := srv.registry.Create(ProtocolVersion, Identity{})
+	taskID := createTestTask(t, hs)
+	params := `{"taskId":"` + taskID + `"}`
+
+	first := fetchTaskResult(t, hs, params)
+	second := fetchTaskResult(t, hs, params)
+
+	// Both calls answer identically: the second did not read back a result the
+	// first had polluted.
+	if fmt.Sprint(first["content"]) != fmt.Sprint(second["content"]) {
+		t.Fatalf("tasks/get result content differs between calls:\n first  = %v\n second = %v",
+			first["content"], second["content"])
+	}
+
+	// And the registry's own copy carries no envelope field at all. Auth mode
+	// is none, so the authenticated principal is the empty identity.
+	info, err := srv.tasks.Get("", taskID)
 	if err != nil {
-		t.Fatalf("Create session: %v", err)
+		t.Fatalf("registry Get: %v", err)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	req := httptest.NewRequest(http.MethodGet, Endpoint, http.NoBody).WithContext(ctx)
-	req.Header.Set("Accept", mimeEventStream)
-	req.Header.Set("Mcp-Session-Id", sess.ID())
-	rec := newDeadlineResponseRecorder()
-
-	srv.handleGET(rec, req)
-
-	if rec.status != http.StatusOK {
-		t.Fatalf("status = %d, want 200", rec.status)
+	stored := info.Result
+	if stored == nil {
+		t.Fatalf("registry retained no result for terminal task %s", taskID)
 	}
-	if !rec.deadlineSet {
-		t.Fatal("SetWriteDeadline was not called")
+	for _, envelope := range []string{"resultType", metaKey} {
+		if _, leaked := stored[envelope]; leaked {
+			t.Errorf("registry-stored result gained the envelope field %q: %v", envelope, stored)
+		}
 	}
-	if !rec.deadline.IsZero() {
-		t.Fatalf("deadline = %v, want zero time", rec.deadline)
-	}
-	if !rec.flushed {
-		t.Fatal("Flush was not called")
+	if stored["content"] == nil {
+		t.Errorf("registry-stored result lost its content: %v", stored)
 	}
 }
 
-func readWithTimeout(r *bufio.Reader, d time.Duration) (string, error) {
-	type result struct {
-		line string
-		err  error
+// fetchTaskResult posts one tasks/get and returns the tool-result object it
+// carries for a terminal task.
+func fetchTaskResult(t *testing.T, hs *httptest.Server, params string) map[string]any {
+	t.Helper()
+	status, parsed := postMCP(t, hs, methodTasksGet, capsTasks, params)
+	if status != http.StatusOK {
+		t.Fatalf("tasks/get: status = %d (body %v)", status, parsed)
 	}
-	ch := make(chan result, 1)
-	go func() {
-		line, err := r.ReadString('\n')
-		ch <- result{line: line, err: err}
-	}()
-	select {
-	case res := <-ch:
-		return res.line, res.err
-	case <-time.After(d):
-		return "", context.DeadlineExceeded
+	result := resultOf(t, parsed)
+	if result["resultType"] != resultTypeComplete {
+		t.Fatalf("tasks/get resultType = %v, want %q", result["resultType"], resultTypeComplete)
+	}
+	if _, ok := result[metaKey].(map[string]any); !ok {
+		t.Fatalf("tasks/get carries no %s object: %v", metaKey, result)
+	}
+	// AC-3: a terminal task carries its tool output on tasks/get. This is the
+	// payload that used to require a second, blocking tasks/result call.
+	inner, ok := result["result"].(map[string]any)
+	if !ok {
+		t.Fatalf("terminal task carries no result object on tasks/get: %v", result)
+	}
+	return inner
+}
+
+// TestNoSessionIsMintedRequiredOrEchoed covers AC-1 and AC-12.
+//
+// VALIDATES: a conformant request is served with no handshake, no response
+// carries an Mcp-Session-Id header, and an inbound Mcp-Session-Id or
+// Last-Event-ID is ignored rather than honored or echoed.
+// PREVENTS: any credential-equivalent identifier surviving the cutover.
+func TestNoSessionIsMintedRequiredOrEchoed(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{})
+	defer cleanup()
+
+	body, params := buildMCPBody(t, 1, methodToolsList, capsNone, "")
+	headers := mcpHeaders(methodToolsList, params)
+	// A stale client threading the removed headers must be served anyway.
+	headers["Mcp-Session-Id"] = "stale-session-from-an-older-client"
+	headers["Last-Event-ID"] = "42"
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, hs.URL+Endpoint, strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	resp, err := hs.Client().Do(req)
+	if err != nil {
+		t.Fatalf("POST: %v", err)
+	}
+	defer closeBody(t, resp.Body)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	if got := resp.Header.Get("Mcp-Session-Id"); got != "" {
+		t.Fatalf("response minted Mcp-Session-Id = %q, want none", got)
+	}
+	if strings.Contains(corsExposeHeaders, "Mcp-Session-Id") {
+		t.Error("CORS expose list still advertises Mcp-Session-Id")
+	}
+	if strings.Contains(corsAllowHeaders, "Mcp-Session-Id") {
+		t.Error("CORS allow list still advertises Mcp-Session-Id")
+	}
+}
+
+// TestGETAndDELETEMethodNotAllowed covers AC-4.
+//
+// VALIDATES: the GET stream endpoint and the DELETE session-termination call of
+// earlier revisions both answer 405 with an Allow header naming only what the
+// endpoint still supports.
+// PREVENTS: leaving either endpoint reachable after the mechanism behind it is
+// gone.
+func TestGETAndDELETEMethodNotAllowed(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{})
+	defer cleanup()
+
+	for _, method := range []string{http.MethodGet, http.MethodDelete, http.MethodPut, http.MethodPatch} {
+		t.Run(method, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(t.Context(), method, hs.URL+Endpoint, http.NoBody)
+			if err != nil {
+				t.Fatalf("new request: %v", err)
+			}
+			// An older client would send both of these on its GET.
+			req.Header.Set("Accept", "text/event-stream")
+			req.Header.Set("Mcp-Session-Id", "whatever")
+			resp, err := hs.Client().Do(req)
+			if err != nil {
+				t.Fatalf("%s: %v", method, err)
+			}
+			defer closeBody(t, resp.Body)
+			if resp.StatusCode != http.StatusMethodNotAllowed {
+				t.Fatalf("status = %d, want 405", resp.StatusCode)
+			}
+			allow := resp.Header.Get("Allow")
+			if !strings.Contains(allow, "POST") {
+				t.Fatalf("Allow = %q, want it to name POST", allow)
+			}
+			if strings.Contains(allow, "GET") || strings.Contains(allow, "DELETE") {
+				t.Fatalf("Allow = %q still advertises a removed method", allow)
+			}
+			if got := resp.Header.Get("Mcp-Session-Id"); got != "" {
+				t.Fatalf("405 echoed Mcp-Session-Id = %q", got)
+			}
+		})
+	}
+}
+
+// TestUnknownMethodReturns404 covers AC-10.
+//
+// VALIDATES: an unknown JSON-RPC method is answered with HTTP 404 AND a -32601
+// JSON-RPC error body.
+// PREVENTS: a 200-with-error body, which a dual-era client cannot tell from a
+// modern server, and a bare 404, which it cannot tell from a legacy HTTP+SSE
+// server that does not host this endpoint.
+func TestUnknownMethodReturns404(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{})
+	defer cleanup()
+
+	status, parsed := postMCP(t, hs, "does/not/exist", capsNone, "")
+	if status != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404 (body %v)", status, parsed)
+	}
+	rpcErr := rpcErrorOf(t, parsed)
+	if rpcErr["code"] != float64(rpcMethodNotFound) {
+		t.Fatalf("code = %v, want %d", rpcErr["code"], rpcMethodNotFound)
+	}
+	if msg, _ := rpcErr["message"].(string); !strings.Contains(msg, "does/not/exist") {
+		t.Fatalf("message %q does not name the method", msg)
+	}
+}
+
+// TestAuthRunsOnEveryRequest covers AC-11.
+//
+// VALIDATES: under auth-mode bearer EVERY request presents its own credential --
+// a second, third and fourth credential-less call is rejected exactly like the
+// first, on every method.
+// PREVENTS: the pre-cutover shape returning, where identity was bound once and
+// later requests were trusted by an identifier's validity alone.
+func TestAuthRunsOnEveryRequest(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{Token: "secret"})
+	defer cleanup()
+
+	// A valid credential first, so any state a regression might bind is bound.
+	if status, parsed := postMCPAuth(t, hs, "secret", methodToolsList, capsNone, ""); status != http.StatusOK {
+		t.Fatalf("authenticated tools/list: status = %d (body %v)", status, parsed)
+	}
+
+	// tasks/get carries params because it needs a taskId; the others take none.
+	// tasks/list used to fill this row and needed no params, but MCP 2026-07-28
+	// removed it, and a tasks/* method has to stay in this table: authentication
+	// running on the task surface is exactly what the deleted session layer used
+	// to be trusted for.
+	probes := []struct{ method, params string }{
+		{methodToolsList, ""},
+		{methodServerDiscover, ""},
+		{methodTasksGet, `{"taskId":"never-minted"}`},
+		{methodResourcesList, ""},
+	}
+	for _, probe := range probes {
+		t.Run(probe.method, func(t *testing.T) {
+			// Repeat so a "first request only" auth policy would show up.
+			for attempt := range 3 {
+				status, _ := postMCP(t, hs, probe.method, capsTasks, probe.params)
+				if status != http.StatusUnauthorized {
+					t.Fatalf("attempt %d: status = %d, want 401", attempt, status)
+				}
+			}
+			// And a valid credential still gets past AUTH in between. The
+			// assertion is "not 401" rather than "200" because tasks/get with
+			// an id that was never minted is legitimately refused at the params
+			// layer -- which is itself proof the request reached dispatch.
+			status, parsed := postMCPAuth(t, hs, "secret", probe.method, capsTasks, probe.params)
+			if status == http.StatusUnauthorized {
+				t.Fatalf("authenticated %s: status = 401, want the credential to be accepted (body %v)",
+					probe.method, parsed)
+			}
+		})
+	}
+}
+
+// TestProviderModeAuthenticatesLikeEveryOtherPath guards D-2.
+//
+// VALIDATES: with a Provider set AND bearer auth configured, a credential-less
+// request is 401 -- Provider mode is not an auth bypass.
+// PREVENTS: the deleted Provider-mode short-circuit returning, which was the one
+// code shape from which an unauthenticated path could be reached.
+func TestProviderModeAuthenticatesLikeEveryOtherPath(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{
+		Provider: fakeProvider{},
+		Token:    "secret",
+	})
+	defer cleanup()
+
+	for _, method := range []string{methodToolsList, methodServerDiscover} {
+		t.Run(method, func(t *testing.T) {
+			if status, _ := postMCP(t, hs, method, capsNone, ""); status != http.StatusUnauthorized {
+				t.Fatalf("credential-less %s: status = %d, want 401", method, status)
+			}
+			if status, _ := postMCPAuth(t, hs, "secret", method, capsNone, ""); status != http.StatusOK {
+				t.Fatalf("authenticated %s: status = %d, want 200", method, status)
+			}
+		})
+	}
+}
+
+// TestProviderModeUnauthenticatedByConfigStillServes is the other half of D-2:
+// ze-chaos sets Provider with no Token and no AuthMode, so auth-mode inference
+// selects none and every request succeeds with a zero Identity.
+//
+// VALIDATES: running ze-chaos through the uniform per-request auth path is
+// observably identical to the deleted bypass.
+// PREVENTS: the cutover breaking ze-chaos by turning "unauthenticated by
+// configuration" into a rejection.
+func TestProviderModeUnauthenticatedByConfigStillServes(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{Provider: fakeProvider{}})
+	defer cleanup()
+
+	status, parsed := postMCP(t, hs, methodToolsList, capsNone, "")
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (body %v)", status, parsed)
+	}
+	result := resultOf(t, parsed)
+	tools, ok := result["tools"].([]any)
+	if !ok || len(tools) == 0 {
+		t.Fatalf("tools = %v, want the provider's tools", result["tools"])
+	}
+}
+
+// TestBodyLimitBoundary covers the request-body boundary row.
+//
+// VALIDATES: exactly maxRequestBody bytes is served, one byte more is 413, and
+// an empty body is a distinct failure (-32700 parse error), not a size
+// rejection.
+// PREVENTS: an off-by-one at the only per-request size bound the transport has.
+func TestBodyLimitBoundary(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{})
+	defer cleanup()
+
+	// Pad a conformant tools/list to an exact byte length with an ignored
+	// params member, so the JSON stays valid at both boundary sizes.
+	build := func(total int) string {
+		prefix := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
+			metaBlock(ProtocolVersion, capsNone) + `,"pad":"`
+		suffix := `"}}`
+		padLen := total - len(prefix) - len(suffix)
+		if padLen < 0 {
+			t.Fatalf("target %d shorter than the minimum body", total)
+		}
+		return prefix + strings.Repeat("x", padLen) + suffix
+	}
+	headers := map[string]string{
+		"MCP-Protocol-Version": ProtocolVersion,
+		"Mcp-Method":           "tools/list",
+	}
+
+	t.Run("exactly at the cap is served", func(t *testing.T) {
+		body := build(maxRequestBody)
+		if len(body) != maxRequestBody {
+			t.Fatalf("body length = %d, want %d", len(body), maxRequestBody)
+		}
+		status, parsed := postRaw(t, hs, body, headers)
+		if status != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (body %v)", status, parsed)
+		}
+	})
+
+	t.Run("one byte over the cap is 413", func(t *testing.T) {
+		body := build(maxRequestBody + 1)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, hs.URL+Endpoint, strings.NewReader(body))
+		if err != nil {
+			t.Fatalf("new request: %v", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		for k, v := range headers {
+			req.Header.Set(k, v)
+		}
+		resp, err := hs.Client().Do(req)
+		if err != nil {
+			t.Fatalf("POST: %v", err)
+		}
+		defer closeBody(t, resp.Body)
+		if resp.StatusCode != http.StatusRequestEntityTooLarge {
+			t.Fatalf("status = %d, want 413", resp.StatusCode)
+		}
+	})
+
+	t.Run("empty body is a parse error not a size rejection", func(t *testing.T) {
+		status, parsed := postRaw(t, hs, "", headers)
+		if status != http.StatusOK {
+			t.Fatalf("status = %d, want 200 with a JSON-RPC error body", status)
+		}
+		rpcErr := rpcErrorOf(t, parsed)
+		if rpcErr["code"] != float64(rpcParseError) {
+			t.Fatalf("code = %v, want %d", rpcErr["code"], rpcParseError)
+		}
+	})
+}
+
+// VALIDATES: a JSON-RPC notification (no id) is acknowledged with 202 and an
+// empty body.
+// PREVENTS: answering a notification with a JSON-RPC response, which the
+// transport forbids.
+func TestNotificationAcknowledgedWith202(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{})
+	defer cleanup()
+
+	body, params := buildMCPBody(t, nil, "notifications/anything", capsNone, "")
+	headers := mcpHeaders("notifications/anything", params)
+	status, parsed := postRaw(t, hs, body, headers)
+	if status != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202 (body %v)", status, parsed)
+	}
+	if parsed != nil {
+		t.Fatalf("202 carried a body: %v", parsed)
 	}
 }
 
 func TestStreamableOriginRejection(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
+	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		AllowedOrigins: []string{"https://friend.example.com"},
 	})
 	defer cleanup()
 
-	status := initializeOrigin(t, hs, "https://evil.example.com")
-	if status != http.StatusForbidden {
+	if status := postOrigin(t, hs, "https://evil.example.com"); status != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403", status)
 	}
 }
 
 func TestStreamableOriginAllowListAccepts(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
+	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		AllowedOrigins: []string{"https://friend.example.com"},
 	})
 	defer cleanup()
 
-	status := initializeOrigin(t, hs, "https://friend.example.com")
-	if status != http.StatusOK {
+	if status := postOrigin(t, hs, "https://friend.example.com"); status != http.StatusOK {
 		t.Fatalf("status = %d, want 200", status)
 	}
 }
 
-func TestStreamableExpiredSession404(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{})
-	defer cleanup()
-
-	status, _ := postMethod(t, hs, "nonexistent-session-id-xxx", "", `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)
-	if status != http.StatusNotFound {
-		t.Fatalf("status = %d, want 404", status)
-	}
-}
-
-func TestStreamableMissingSessionIDFails(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{})
-	defer cleanup()
-
-	status, parsed := postMethod(t, hs, "", "", `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`)
-	if status != http.StatusOK {
-		t.Fatalf("status = %d, want 200 (JSON-RPC error body)", status)
-	}
-	if _, ok := parsed["error"].(map[string]any); !ok {
-		t.Fatalf("no error in response: %v", parsed)
-	}
-}
-
-func TestStreamableDELETEClosesSession(t *testing.T) {
-	srv, hs, cleanup := newTestStreamable(t, StreamableConfig{})
-	defer cleanup()
-
-	sid := initializeSession(t, hs)
-	if _, ok := srv.registry.Get(sid); !ok {
-		t.Fatal("session not in registry after initialize")
-	}
-
-	if status := deleteSession(t, hs, sid); status != http.StatusNoContent {
-		t.Fatalf("DELETE status = %d, want 204", status)
-	}
-
-	if _, ok := srv.registry.Get(sid); ok {
-		t.Fatal("session still in registry after DELETE")
-	}
-
-	status, _ := postMethod(t, hs, sid, "", `{"jsonrpc":"2.0","id":2,"method":"tools/list"}`)
-	if status != http.StatusNotFound {
-		t.Fatalf("post-DELETE status = %d, want 404", status)
-	}
-}
-
-func TestStreamableConcurrentSessionsIsolated(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{})
-	defer cleanup()
-
-	var (
-		wg   sync.WaitGroup
-		mu   sync.Mutex
-		seen = make(map[string]struct{})
-	)
-	for range 10 {
-		wg.Go(func() {
-			sid := initializeSession(t, hs)
-			if sid == "" {
-				t.Error("empty session id")
-				return
-			}
-			mu.Lock()
-			if _, dup := seen[sid]; dup {
-				t.Errorf("duplicate session id %q", sid)
-			}
-			seen[sid] = struct{}{}
-			mu.Unlock()
-		})
-	}
-	wg.Wait()
-	if len(seen) != 10 {
-		t.Fatalf("unique sessions = %d, want 10", len(seen))
-	}
-}
-
 func TestStreamableBearerAuthRejectsMissingToken(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{Token: "secret"})
+	hs, cleanup := newTestStreamable(t, StreamableConfig{Token: "secret"})
 	defer cleanup()
 
-	if status := initializeWithAuth(t, hs, ""); status != http.StatusUnauthorized {
+	if status, _ := postMCP(t, hs, methodToolsList, capsNone, ""); status != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", status)
+	}
+}
+
+func TestStreamableBearerAuthAcceptsValidToken(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{Token: "secret"})
+	defer cleanup()
+
+	if status, _ := postMCPAuth(t, hs, "secret", methodToolsList, capsNone, ""); status != http.StatusOK {
+		t.Fatalf("status = %d, want 200", status)
 	}
 }
 
@@ -470,10 +954,13 @@ func TestStreamableBearerAuthFailureAuditRecord(t *testing.T) {
 	}
 	defer srv.Close()
 
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}`
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
+		metaBlock(ProtocolVersion, capsNone) + `}}`
 	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Authorization", "Bearer alice:wrong")
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
+	req.Header.Set("Mcp-Method", "tools/list")
 	req.RemoteAddr = "192.0.2.10:4444"
 	rec := httptest.NewRecorder()
 
@@ -497,15 +984,6 @@ func TestStreamableBearerAuthFailureAuditRecord(t *testing.T) {
 	}
 	if entries[0].Outcome != audit.OutcomeDenied {
 		t.Fatalf("outcome = %q, want %q", entries[0].Outcome, audit.OutcomeDenied)
-	}
-}
-
-func TestStreamableBearerAuthAcceptsValidToken(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{Token: "secret"})
-	defer cleanup()
-
-	if status := initializeWithAuth(t, hs, "secret"); status != http.StatusOK {
-		t.Fatalf("status = %d, want 200", status)
 	}
 }
 
@@ -559,12 +1037,12 @@ func TestStreamableCanonicalOrigin(t *testing.T) {
 func TestStreamableOriginCanonicalisedBothSides(t *testing.T) {
 	// Allowlist entry with default port; request with explicit default port.
 	// Both canonicalize to the same key and the request is accepted.
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
+	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		AllowedOrigins: []string{"https://friend.example.com:443"},
 	})
 	defer cleanup()
 
-	if status := initializeOrigin(t, hs, "https://friend.example.com/"); status != http.StatusOK {
+	if status := postOrigin(t, hs, "https://friend.example.com/"); status != http.StatusOK {
 		t.Fatalf("canonicalised origin match: status = %d, want 200", status)
 	}
 }
@@ -572,18 +1050,18 @@ func TestStreamableOriginCanonicalisedBothSides(t *testing.T) {
 func TestStreamableLoopbackRejectedWhenAllowListSet(t *testing.T) {
 	// Allowlist is non-empty. Loopback origin NOT in allowlist must be rejected —
 	// once the operator has enumerated friends, localhost is no longer free.
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
+	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		AllowedOrigins: []string{"https://friend.example.com"},
 	})
 	defer cleanup()
 
-	if status := initializeOrigin(t, hs, "http://localhost:3000"); status != http.StatusForbidden {
+	if status := postOrigin(t, hs, "http://localhost:3000"); status != http.StatusForbidden {
 		t.Fatalf("loopback with explicit allowlist: status = %d, want 403", status)
 	}
 }
 
 func TestStreamableLoopbackOriginAcceptedWhenAllowListEmpty(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{})
+	hs, cleanup := newTestStreamable(t, StreamableConfig{})
 	defer cleanup()
 
 	cases := []string{
@@ -597,7 +1075,7 @@ func TestStreamableLoopbackOriginAcceptedWhenAllowListEmpty(t *testing.T) {
 	}
 	for _, origin := range cases {
 		t.Run(origin, func(t *testing.T) {
-			if status := initializeOrigin(t, hs, origin); status != http.StatusOK {
+			if status := postOrigin(t, hs, origin); status != http.StatusOK {
 				t.Fatalf("loopback default-allowlist %q: status = %d, want 200", origin, status)
 			}
 		})
@@ -616,264 +1094,17 @@ func TestStreamableNewStreamableRejectsBadOrigin(t *testing.T) {
 	}
 }
 
-func TestStreamableGETBadAcceptReturns406(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{})
-	defer cleanup()
-
-	sid := initializeSession(t, hs)
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, hs.URL+Endpoint, http.NoBody)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Mcp-Session-Id", sid)
-	resp, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("Do: %v", err)
-	}
-	defer closeBody(t, resp.Body)
-	if resp.StatusCode != http.StatusNotAcceptable {
-		t.Fatalf("status = %d, want 406", resp.StatusCode)
-	}
-}
-
-func TestStreamableGETHeartbeatTickerTouchesLastSeen(t *testing.T) {
-	// Exercise the heartbeat-ticker branch of handleGET (distinct from the
-	// frame-delivery branch covered by TestStreamableGETHeartbeatTouchesLastSeen).
-	srv, hs, cleanup := newTestStreamable(t, StreamableConfig{SessionTTL: minSessionTTL})
-	defer cleanup()
-	srv.heartbeatEvery = 40 * time.Millisecond
-
-	sid := initializeSession(t, hs)
-	sess, ok := srv.registry.Get(sid)
-	if !ok {
-		t.Fatal("session not found")
-	}
-	// Force an older baseline so refresh is observable at millisecond resolution.
-	sess.mu.Lock()
-	baseline := sess.lastSeenAt.Add(-time.Second)
-	sess.lastSeenAt = baseline
-	sess.mu.Unlock()
-
-	ctx, cancel := context.WithCancel(t.Context())
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, hs.URL+Endpoint, http.NoBody)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("Mcp-Session-Id", sid)
-	resp, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("GET: %v", err)
-	}
-	defer closeBody(t, resp.Body)
-
-	// Read the first heartbeat frame to prove the ticker fired.
-	reader := bufio.NewReader(resp.Body)
-	line, err := readWithTimeout(reader, 2*time.Second)
-	if err != nil {
-		t.Fatalf("read heartbeat: %v", err)
-	}
-	if !strings.HasPrefix(line, ": heartbeat") {
-		t.Fatalf("expected heartbeat comment, got %q", line)
-	}
-	cancel()
-
-	sess.mu.Lock()
-	seen := sess.lastSeenAt
-	sess.mu.Unlock()
-	if !seen.After(baseline) {
-		t.Fatalf("lastSeenAt not refreshed by heartbeat: baseline=%v now=%v", baseline, seen)
-	}
-}
-
-func TestStreamableTouchOnClosedSessionIsNoop(t *testing.T) {
-	r := newSessionRegistry(time.Minute, 0, 0)
-	defer r.Close()
-
-	s, err := r.Create("v1", Identity{})
-	if err != nil {
-		t.Fatalf("Create: %v", err)
-	}
-	before := s.lastSeenAt
-	s.Close()
-
-	s.Touch(time.Now().Add(time.Hour))
-	if !s.lastSeenAt.Equal(before) {
-		t.Fatalf("Touch mutated lastSeenAt on closed session: before=%v after=%v", before, s.lastSeenAt)
-	}
-}
-
-func TestStreamableDuplicateGETReturns409(t *testing.T) {
-	// Regression for pass-4 finding 2: only one concurrent SSE stream per
-	// session; a second GET with the same Mcp-Session-Id must be rejected.
-	srv, hs, cleanup := newTestStreamable(t, StreamableConfig{})
-	defer cleanup()
-
-	sid := initializeSession(t, hs)
-
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	first, err := http.NewRequestWithContext(ctx, http.MethodGet, hs.URL+Endpoint, http.NoBody)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	first.Header.Set("Accept", "text/event-stream")
-	first.Header.Set("Mcp-Session-Id", sid)
-	firstResp, err := hs.Client().Do(first)
-	if err != nil {
-		t.Fatalf("first GET: %v", err)
-	}
-	defer closeBody(t, firstResp.Body)
-	if firstResp.StatusCode != http.StatusOK {
-		t.Fatalf("first GET status = %d, want 200", firstResp.StatusCode)
-	}
-	// Prove streamActive is set by inspecting the session directly. No sleep
-	// needed: hs.Client().Do returns after response headers, which is AFTER
-	// the CompareAndSwap call in handleGET.
-	sess, ok := srv.registry.Get(sid)
-	if !ok {
-		t.Fatal("session not found")
-	}
-	if !sess.streamActive.Load() {
-		t.Fatal("streamActive not set after first GET")
-	}
-
-	second, err := http.NewRequestWithContext(t.Context(), http.MethodGet, hs.URL+Endpoint, http.NoBody)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	second.Header.Set("Accept", "text/event-stream")
-	second.Header.Set("Mcp-Session-Id", sid)
-	secondResp, err := hs.Client().Do(second)
-	if err != nil {
-		t.Fatalf("second GET: %v", err)
-	}
-	defer closeBody(t, secondResp.Body)
-	if secondResp.StatusCode != http.StatusConflict {
-		t.Fatalf("second GET status = %d, want 409", secondResp.StatusCode)
-	}
-	body, readErr := io.ReadAll(secondResp.Body)
-	if readErr != nil {
-		t.Fatalf("read 409 body: %v", readErr)
-	}
-	if strings.Contains(string(body), "mcp:") {
-		t.Fatalf("409 body leaks internal prefix: %q", body)
-	}
-}
-
-func TestStreamableGETStreamActiveReleasedAfterCancel(t *testing.T) {
-	// Regression for pass-5 finding 2: after the first stream ends (context
-	// cancel → handler returns → deferred Store(false) runs), a second GET
-	// on the same session must succeed.
-	srv, hs, cleanup := newTestStreamable(t, StreamableConfig{})
-	defer cleanup()
-
-	sid := initializeSession(t, hs)
-
-	ctx, cancel := context.WithCancel(t.Context())
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, hs.URL+Endpoint, http.NoBody)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("Mcp-Session-Id", sid)
-	resp, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("first GET: %v", err)
-	}
-	defer closeBody(t, resp.Body)
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("first GET status = %d, want 200", resp.StatusCode)
-	}
-	sess, ok := srv.registry.Get(sid)
-	if !ok {
-		t.Fatal("session not found")
-	}
-	if !sess.streamActive.Load() {
-		t.Fatal("streamActive not set after first GET")
-	}
-
-	// Cancel the first stream. The server's r.Context() cancels, handleGET's
-	// select observes ctx.Done(), returns, deferred Store(false) fires.
-	cancel()
-
-	// Poll briefly for the deferred Store(false) — the server handler runs
-	// on its own goroutine.
-	deadline := time.Now().Add(2 * time.Second)
-	for sess.streamActive.Load() {
-		if time.Now().After(deadline) {
-			t.Fatal("streamActive not released after stream cancel")
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-
-	// Second GET on the same session must now succeed.
-	req2, err := http.NewRequestWithContext(t.Context(), http.MethodGet, hs.URL+Endpoint, http.NoBody)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req2.Header.Set("Accept", "text/event-stream")
-	req2.Header.Set("Mcp-Session-Id", sid)
-	resp2, err := hs.Client().Do(req2)
-	if err != nil {
-		t.Fatalf("second GET: %v", err)
-	}
-	defer closeBody(t, resp2.Body)
-	if resp2.StatusCode != http.StatusOK {
-		t.Fatalf("second GET after cancel: status = %d, want 200", resp2.StatusCode)
-	}
-}
-
 func TestStreamableIDNOriginEndToEnd(t *testing.T) {
 	// Integration counterpart to TestStreamableIDNOriginMatch: configure the
 	// allowlist with the unicode form, send Origin in punycode form, expect
 	// the request to be accepted.
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
+	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		AllowedOrigins: []string{"https://münchen.example.com"},
 	})
 	defer cleanup()
 
-	if status := initializeOrigin(t, hs, "https://xn--mnchen-3ya.example.com"); status != http.StatusOK {
+	if status := postOrigin(t, hs, "https://xn--mnchen-3ya.example.com"); status != http.StatusOK {
 		t.Fatalf("punycode origin against unicode allowlist: status = %d, want 200", status)
-	}
-}
-
-func TestStreamableNewStreamableRejectsMaxLifetimeShorterThanTTL(t *testing.T) {
-	_, err := NewStreamable(StreamableConfig{
-		Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-			return plugin.NewResponse(plugin.StatusDone, nil), nil
-		},
-		SessionTTL:         30 * time.Minute,
-		MaxSessionLifetime: 10 * time.Minute,
-	})
-	if err == nil {
-		t.Fatal("NewStreamable accepted MaxSessionLifetime < SessionTTL; want error")
-	}
-}
-
-func TestStreamableSSEResponseHasAntiBufferingHeader(t *testing.T) {
-	// Regression for pass-4 finding 5: X-Accel-Buffering: no must be set so
-	// nginx / CDN fronts don't batch the SSE heartbeat.
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{})
-	defer cleanup()
-
-	sid := initializeSession(t, hs)
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, hs.URL+Endpoint, http.NoBody)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("Mcp-Session-Id", sid)
-	resp, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("GET: %v", err)
-	}
-	defer closeBody(t, resp.Body)
-	if got := resp.Header.Get("X-Accel-Buffering"); got != "no" {
-		t.Fatalf("X-Accel-Buffering = %q, want no", got)
 	}
 }
 
@@ -894,70 +1125,6 @@ func TestStreamableIDNOriginMatch(t *testing.T) {
 	}
 	if !strings.HasPrefix(got, "https://xn--mnchen-3ya") {
 		t.Fatalf("expected ASCII-compatible form, got %q", got)
-	}
-}
-
-func TestStreamableHeartbeatIntervalClampedToMin(t *testing.T) {
-	// Regression for pass-4 finding 6: sub-minimum overrides must not
-	// saturate the scheduler.
-	srv := &Streamable{}
-	srv.heartbeatEvery = 1 * time.Nanosecond
-	if got := srv.heartbeatInterval(); got < minHeartbeatInterval {
-		t.Fatalf("heartbeatInterval = %v, want >= %v", got, minHeartbeatInterval)
-	}
-	srv.heartbeatEvery = 100 * time.Millisecond
-	if got := srv.heartbeatInterval(); got != 100*time.Millisecond {
-		t.Fatalf("heartbeatInterval = %v, want 100ms", got)
-	}
-	srv.heartbeatEvery = 0
-	if got := srv.heartbeatInterval(); got != sessionHeartbeatWindow {
-		t.Fatalf("heartbeatInterval = %v, want default %v", got, sessionHeartbeatWindow)
-	}
-}
-
-func TestStreamableGETHeartbeatTouchesLastSeen(t *testing.T) {
-	// Regression for /ze-review finding: an idle GET stream must refresh the
-	// session's lastSeenAt so TTL sweep does not reap it.
-	srv, hs, cleanup := newTestStreamable(t, StreamableConfig{SessionTTL: minSessionTTL})
-	defer cleanup()
-
-	sid := initializeSession(t, hs)
-	sess, ok := srv.registry.Get(sid)
-	if !ok {
-		t.Fatal("session not found")
-	}
-	baseline := sess.lastSeenAt
-
-	ctx, cancel := context.WithCancel(t.Context())
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, hs.URL+Endpoint, http.NoBody)
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Accept", "text/event-stream")
-	req.Header.Set("Mcp-Session-Id", sid)
-	resp, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("GET: %v", err)
-	}
-	defer closeBody(t, resp.Body)
-
-	// Force a frame so Touch fires on delivery, without waiting for the
-	// 20 s heartbeat ticker in CI.
-	if err := sess.Send([]byte(`{"tick":1}`)); err != nil {
-		t.Fatalf("Send: %v", err)
-	}
-	reader := bufio.NewReader(resp.Body)
-	if _, err := readWithTimeout(reader, time.Second); err != nil {
-		t.Fatalf("read frame: %v", err)
-	}
-	cancel()
-
-	// After the stream write, lastSeenAt must be strictly after baseline.
-	sess.mu.Lock()
-	seen := sess.lastSeenAt
-	sess.mu.Unlock()
-	if !seen.After(baseline) {
-		t.Fatalf("lastSeenAt not refreshed on stream write: baseline=%v now=%v", baseline, seen)
 	}
 }
 
@@ -988,241 +1155,31 @@ func TestStreamableIsLoopbackOrigin(t *testing.T) {
 	}
 }
 
-func TestStreamableAcceptsEventStream(t *testing.T) {
-	cases := []struct {
-		accept string
-		want   bool
-	}{
-		{"text/event-stream", true},
-		{"application/json, text/event-stream", true},
-		{"*/*", true},
-		{"application/json", false},
-		{"", false},
-		{"text/event-stream;q=1", true},
-	}
-	for _, tc := range cases {
-		t.Run(tc.accept, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, "/mcp", http.NoBody)
-			if tc.accept != "" {
-				req.Header.Set("Accept", tc.accept)
-			}
-			if got := acceptsEventStream(req); got != tc.want {
-				t.Fatalf("acceptsEventStream(%q) = %v, want %v", tc.accept, got, tc.want)
-			}
-		})
-	}
-}
-
-func TestStreamableToolsListAfterInit(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{})
+func TestStreamableToolsList(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{})
 	defer cleanup()
 
-	sid := initializeSession(t, hs)
-	status, parsed := postMethod(t, hs, sid, ProtocolVersion, `{"jsonrpc":"2.0","id":2,"method":"tools/list"}`)
+	status, parsed := postMCP(t, hs, methodToolsList, capsNone, "")
 	if status != http.StatusOK {
 		t.Fatalf("status = %d, want 200", status)
 	}
-	result, ok := parsed["result"].(map[string]any)
-	if !ok {
-		t.Fatalf("no result: %v", parsed)
-	}
+	result := resultOf(t, parsed)
 	tools, ok := result["tools"].([]any)
 	if !ok || len(tools) == 0 {
 		t.Fatalf("tools list empty: %v", result)
 	}
 }
 
-func TestStreamableParseInitializeProtocolVersion(t *testing.T) {
-	cases := []struct {
-		name      string
-		body      string
-		want      string
-		expectErr bool
-	}{
-		{"2025-06-18", `{"protocolVersion":"2025-06-18"}`, "2025-06-18", false},
-		{"2025-03-26", `{"protocolVersion":"2025-03-26"}`, "2025-03-26", false},
-		{"2024-11-05", `{"protocolVersion":"2024-11-05"}`, "2024-11-05", false},
-		{"unknown -> error", `{"protocolVersion":"9999-99-99"}`, "", true},
-		{"empty params -> default", ``, ProtocolVersion, false},
-		{"invalid json -> default", `not-json`, ProtocolVersion, false},
-		{"missing field -> default", `{"capabilities":{}}`, ProtocolVersion, false},
-		{"empty string -> default", `{"protocolVersion":""}`, ProtocolVersion, false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			var raw json.RawMessage
-			if tc.body != "" {
-				raw = json.RawMessage(tc.body)
-			}
-			req := &request{Params: raw}
-			got, err := parseInitializeProtocolVersion(req)
-			if tc.expectErr {
-				if err == nil {
-					t.Fatalf("expected error for %q, got %q", tc.body, got)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("parseInitializeProtocolVersion(%q) error: %v", tc.body, err)
-			}
-			if got != tc.want {
-				t.Fatalf("parseInitializeProtocolVersion(%q) = %q, want %q", tc.body, got, tc.want)
-			}
-		})
-	}
-}
-
-func TestStreamableInitializeRejectsUnsupportedVersion(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{})
-	defer cleanup()
-
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"9999-99-99"}}`
-	status, parsed := postMethod(t, hs, "", "", body)
-	// parseInitialize failure lands as a JSON-RPC error body with -32602.
-	if status != http.StatusOK {
-		t.Fatalf("status = %d, want 200 with JSON-RPC error body", status)
-	}
-	errObj, ok := parsed["error"].(map[string]any)
-	if !ok {
-		t.Fatalf("no error in response: %v", parsed)
-	}
-	code, _ := errObj["code"].(float64)
-	if int(code) != -32602 {
-		t.Fatalf("error code = %v, want -32602", code)
-	}
-}
-
-func TestStreamableInitializeCapExhaustion(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{MaxSessions: 2})
-	defer cleanup()
-
-	for i := range 2 {
-		if status := initializeWithAuth(t, hs, ""); status != http.StatusOK {
-			t.Fatalf("session %d: status = %d, want 200", i, status)
-		}
-	}
-	// Third initialize must be rejected with 429.
-	body := `{"jsonrpc":"2.0","id":3,"method":"initialize","params":{}}`
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, hs.URL+Endpoint, strings.NewReader(body))
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("Do: %v", err)
-	}
-	defer closeBody(t, resp.Body)
-	if resp.StatusCode != http.StatusTooManyRequests {
-		t.Fatalf("status = %d, want 429", resp.StatusCode)
-	}
-	if ra := resp.Header.Get("Retry-After"); ra == "" {
-		t.Fatal("Retry-After header missing")
-	}
-}
-
-// VALIDATES: capabilities.elicitation = {} in the initialize params flips
-// the session's clientElicit bit on; session.Elicit will therefore proceed
-// instead of returning ErrElicitUnsupported.
-// PREVENTS: a regression where the server sends elicitation/create even
-// though the client never declared support (spec MUST violation).
-func TestStreamable_InitializeReadsClientCapabilities(t *testing.T) {
-	tests := []struct {
-		name         string
-		capabilities map[string]any
-		wantElicit   bool
-	}{
-		{"empty caps", map[string]any{}, false},
-		{"elicitation declared", map[string]any{"elicitation": map[string]any{}}, true},
-		{"other cap only", map[string]any{"tools": map[string]any{}}, false},
-		{"elicitation null", map[string]any{"elicitation": nil}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			srv, hs, cleanup := newTestStreamable(t, StreamableConfig{
-				Dispatch: func(_ context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
-					return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON("ok")), nil
-				},
-			})
-			defer cleanup()
-
-			body, err := json.Marshal(map[string]any{
-				"jsonrpc": "2.0",
-				"id":      1,
-				"method":  "initialize",
-				"params": map[string]any{
-					"protocolVersion": ProtocolVersion,
-					"capabilities":    tt.capabilities,
-				},
-			})
-			if err != nil {
-				t.Fatalf("marshal: %v", err)
-			}
-			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
-			defer cancel()
-			req, err := http.NewRequestWithContext(ctx, http.MethodPost, hs.URL+Endpoint, strings.NewReader(string(body)))
-			if err != nil {
-				t.Fatalf("NewRequest: %v", err)
-			}
-			req.Header.Set("Content-Type", "application/json")
-			resp, err := hs.Client().Do(req)
-			if err != nil {
-				t.Fatalf("Do: %v", err)
-			}
-			defer closeBody(t, resp.Body)
-			if resp.StatusCode != http.StatusOK {
-				t.Fatalf("status = %d, want 200", resp.StatusCode)
-			}
-			sid := resp.Header.Get("Mcp-Session-Id")
-			sess, ok := srv.registry.Get(sid)
-			if !ok {
-				t.Fatalf("session %q missing from registry", sid)
-			}
-			if got := sess.ClientSupportsElicit(); got != tt.wantElicit {
-				t.Errorf("ClientSupportsElicit = %v, want %v", got, tt.wantElicit)
-			}
-		})
-	}
-}
-
-func initializeWithTasks(t *testing.T, hs *httptest.Server) string {
-	t.Helper()
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{"tasks":{}}}}`
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, hs.URL+Endpoint, strings.NewReader(body))
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("initialize: %v", err)
-	}
-	defer closeBody(t, resp.Body)
-	return resp.Header.Get("Mcp-Session-Id")
-}
-
-func postTaskCall(t *testing.T, hs *httptest.Server, sid, body string) map[string]any {
-	t.Helper()
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, hs.URL+Endpoint, strings.NewReader(body))
-	if err != nil {
-		t.Fatalf("new request: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Mcp-Session-Id", sid)
-	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
-	resp, err := hs.Client().Do(req)
-	if err != nil {
-		t.Fatalf("post: %v", err)
-	}
-	defer closeBody(t, resp.Body)
-	var result map[string]any
-	data, _ := io.ReadAll(resp.Body)
-	_ = json.Unmarshal(data, &result)
-	return result
-}
-
-func TestStreamable_ToolsCallForbiddenRejected(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
+// VALIDATES: AC-12 -- a command annotated `ze:task-support forbidden`, called by
+// a client that DID declare the tasks extension, is never returned as a task
+// handle and runs synchronously.
+// PREVENTS: R-1 -- the server-directed inversion auto-tasking a mutating
+// command (the four rib commands are the real annotated set).
+//
+// Both halves are asserted. "No task handle" alone would pass against a server
+// that simply failed the request, which is the failure this rule exists to stop.
+func TestStreamable_ForbiddenNeverTasked(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		Commands: func() []CommandInfo {
 			return []CommandInfo{
 				{Name: "fast cmd", Help: "Quick", TaskSupport: TaskSupportForbidden},
@@ -1231,22 +1188,26 @@ func TestStreamable_ToolsCallForbiddenRejected(t *testing.T) {
 	})
 	defer cleanup()
 
-	sid := initializeWithTasks(t, hs)
-	body := `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ze_fast","arguments":{"action":"cmd"},"task":{}}}`
-	result := postTaskCall(t, hs, sid, body)
-
-	if errObj, ok := result["error"].(map[string]any); ok {
-		msg, _ := errObj["message"].(string)
-		if !strings.Contains(msg, "does not support task") {
-			t.Errorf("expected forbidden rejection, got: %s", msg)
-		}
-	} else {
-		t.Errorf("expected error response, got: %v", result)
+	status, parsed := postMCP(t, hs, methodToolsCall, capsTasks,
+		`{"name":"ze_fast","arguments":{"action":"cmd"}}`)
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200: a forbidden command must still RUN (body %v)", status, parsed)
+	}
+	res := resultOf(t, parsed)
+	if got := res[resultTypeKey]; got != resultTypeComplete {
+		t.Errorf("resultType = %v, want %q: a forbidden command must never be tasked", got, resultTypeComplete)
+	}
+	if id, _ := res["taskId"].(string); id != "" {
+		t.Errorf("forbidden command returned a task handle %q", id)
 	}
 }
 
-func TestStreamable_ToolsCallRequiredWithoutTaskRejected(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
+// VALIDATES: AC-1 -- a `ze:task-support required` command called by a client
+// that declared the extension returns resultType "task" with taskId, status,
+// ttlMs and pollIntervalMs -- with NO `task` member in the request params.
+// PREVENTS: regressing to the client-directed opt-in D-1 removed.
+func TestStreamable_RequiredIsTaskedServerDirected(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		Commands: func() []CommandInfo {
 			return []CommandInfo{
 				{Name: "slow cmd", Help: "Long", TaskSupport: TaskSupportRequired},
@@ -1255,42 +1216,344 @@ func TestStreamable_ToolsCallRequiredWithoutTaskRejected(t *testing.T) {
 	})
 	defer cleanup()
 
-	sid := initializeWithTasks(t, hs)
-	body := `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ze_slow","arguments":{"action":"cmd"}}}`
-	result := postTaskCall(t, hs, sid, body)
-
-	if errObj, ok := result["error"].(map[string]any); ok {
-		msg, _ := errObj["message"].(string)
-		if !strings.Contains(msg, "requires task") {
-			t.Errorf("expected required rejection, got: %s", msg)
-		}
-	} else {
-		t.Errorf("expected error response, got: %v", result)
+	status, parsed := postMCP(t, hs, methodToolsCall, capsTasks,
+		`{"name":"ze_slow","arguments":{"action":"cmd"}}`)
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200 (body %v)", status, parsed)
+	}
+	res := resultOf(t, parsed)
+	if got := res[resultTypeKey]; got != resultTypeTask {
+		t.Fatalf("resultType = %v, want %q (server did not create a task unasked)", got, resultTypeTask)
+	}
+	if id, _ := res[resultKeyTaskID].(string); id == "" {
+		t.Errorf("CreateTaskResult carries no %s: %v", resultKeyTaskID, res)
+	}
+	if res[resultKeyStatus] != taskStateWireWorking {
+		t.Errorf("status = %v, want %q", res[resultKeyStatus], taskStateWireWorking)
+	}
+	ttlMs, _ := res[resultKeyTTLMs].(float64)
+	if ttlMs <= 0 {
+		t.Errorf("%s = %v, want a positive retention window", resultKeyTTLMs, res[resultKeyTTLMs])
+	}
+	pollMs, _ := res[resultKeyPollIntervalMs].(float64)
+	if pollMs <= 0 {
+		t.Errorf("%s = %v, want a positive poll hint", resultKeyPollIntervalMs, res[resultKeyPollIntervalMs])
+	}
+	// D-6: a client obeying the hint must poll at least twice inside the
+	// retention window, or it can sleep straight past a terminal result.
+	if pollMs > ttlMs/2 {
+		t.Errorf("%s = %v exceeds half of %s = %v: a conforming client could miss the result",
+			resultKeyPollIntervalMs, pollMs, resultKeyTTLMs, ttlMs)
 	}
 }
 
-func TestStreamable_ToolsCallWithTaskParam(t *testing.T) {
-	_, hs, cleanup := newTestStreamable(t, StreamableConfig{
+// VALIDATES: AC-6, both halves -- a client that did NOT declare the tasks
+// extension never receives a task handle for a `required` command, AND the
+// command still runs, answering with the ordinary synchronous result.
+// PREVENTS: R-2 (a task handle reaching a client that cannot read one) and the
+// opposite over-correction D-2 rejects (refusing the call outright, which would
+// make 9 commands unreachable to any client that has not adopted an optional
+// extension).
+func TestTaskNotReturnedWithoutExtension(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		Commands: func() []CommandInfo {
 			return []CommandInfo{
-				{Name: "demo cmd", Help: "Test"},
+				{Name: "slow cmd", Help: "Long", TaskSupport: TaskSupportRequired},
 			}
 		},
 	})
 	defer cleanup()
 
-	sid := initializeWithTasks(t, hs)
-	body := `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ze_demo","arguments":{"action":"cmd"},"task":{}}}`
-	result := postTaskCall(t, hs, sid, body)
+	status, parsed := postMCP(t, hs, methodToolsCall, capsNone,
+		`{"name":"ze_slow","arguments":{"action":"cmd"}}`)
+	if status != http.StatusOK {
+		t.Fatalf("status = %d, want 200: the command must still run for a client without the extension (body %v)",
+			status, parsed)
+	}
+	res := resultOf(t, parsed)
+	if got := res[resultTypeKey]; got != resultTypeComplete {
+		t.Errorf("resultType = %v, want %q", got, resultTypeComplete)
+	}
+	if id, _ := res[resultKeyTaskID].(string); id != "" {
+		t.Errorf("client without the tasks extension was handed task handle %q", id)
+	}
+}
 
-	res, ok := result["result"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected result, got: %v", result)
+// VALIDATES: a tasks/* method from a client that did NOT declare the tasks
+// extension is refused with -32021 and HTTP 400.
+// PREVENTS: serving the extension's own methods to a client that never
+// declared it.
+func TestStreamable_TasksMethodWithoutCapability(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{
+		Commands: func() []CommandInfo {
+			return []CommandInfo{{Name: "demo cmd", Help: "Test"}}
+		},
+	})
+	defer cleanup()
+
+	for _, method := range []string{methodTasksGet, methodTasksUpdate, methodTasksCancel} {
+		t.Run(method, func(t *testing.T) {
+			status, parsed := postMCP(t, hs, method, capsNone, `{"taskId":"whatever"}`)
+			if status != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400 (body %v)", status, parsed)
+			}
+			rpcErr := rpcErrorOf(t, parsed)
+			if rpcErr["code"] != float64(rpcMissingRequiredClientCapability) {
+				t.Fatalf("code = %v, want %d", rpcErr["code"], rpcMissingRequiredClientCapability)
+			}
+		})
 	}
-	if res["taskId"] == nil {
-		t.Error("missing taskId in CreateTaskResult")
+}
+
+// VALIDATES: AC-5 -- tasks/list and tasks/result are unknown methods, answered
+// HTTP 404 with -32601.
+// PREVENTS: leaving either handler wired after MCP 2026-07-28 changelog Major
+// change 6 removed both.
+func TestRemovedTaskMethods(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{
+		Commands: func() []CommandInfo {
+			return []CommandInfo{{Name: "demo cmd", Help: "Test"}}
+		},
+	})
+	defer cleanup()
+
+	for _, method := range []string{"tasks/list", "tasks/result"} {
+		t.Run(method, func(t *testing.T) {
+			// Declaring the capability is the point: these must be gone for a
+			// client that COULD have used them, not merely gated behind a
+			// capability check.
+			status, parsed := postMCP(t, hs, method, capsTasks, `{"taskId":"whatever"}`)
+			if status != http.StatusNotFound {
+				t.Fatalf("status = %d, want 404 (body %v)", status, parsed)
+			}
+			rpcErr := rpcErrorOf(t, parsed)
+			if rpcErr["code"] != float64(rpcMethodNotFound) {
+				t.Fatalf("code = %v, want %d (method not found)", rpcErr["code"], rpcMethodNotFound)
+			}
+		})
 	}
-	if res["status"] != "working" {
-		t.Errorf("status = %v, want working", res["status"])
+}
+
+// VALIDATES: the CORS preflight advertises only the methods and headers that
+// still exist in this revision.
+// PREVENTS: telling a browser client it may send a GET or a session header.
+func TestStreamableEndpointPreflight(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{})
+	defer cleanup()
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodOptions, hs.URL+Endpoint, http.NoBody)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
 	}
+	req.Header.Set("Origin", "http://localhost:3000")
+	resp, err := hs.Client().Do(req)
+	if err != nil {
+		t.Fatalf("OPTIONS: %v", err)
+	}
+	defer closeBody(t, resp.Body)
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204", resp.StatusCode)
+	}
+	methods := resp.Header.Get("Access-Control-Allow-Methods")
+	if !strings.Contains(methods, "POST") {
+		t.Fatalf("Allow-Methods = %q, want it to name POST", methods)
+	}
+	if strings.Contains(methods, "GET") || strings.Contains(methods, "DELETE") {
+		t.Fatalf("Allow-Methods = %q still advertises a removed method", methods)
+	}
+	allowHeaders := resp.Header.Get("Access-Control-Allow-Headers")
+	for _, want := range []string{"MCP-Protocol-Version", "Mcp-Method", "Mcp-Name"} {
+		if !strings.Contains(allowHeaders, want) {
+			t.Errorf("Allow-Headers = %q, missing %q", allowHeaders, want)
+		}
+	}
+	if strings.Contains(allowHeaders, "Mcp-Session-Id") {
+		t.Errorf("Allow-Headers = %q still advertises Mcp-Session-Id", allowHeaders)
+	}
+}
+
+// VALIDATES: NewStreamable leaves MaxBodyBytes at the 1 MB default when the
+// caller sets none, and honors an explicit value.
+// PREVENTS: the surviving per-request size bound being deleted alongside the
+// session fields it sat next to.
+func TestStreamableMaxBodyBytesDefault(t *testing.T) {
+	srv, err := NewStreamable(StreamableConfig{})
+	if err != nil {
+		t.Fatalf("NewStreamable: %v", err)
+	}
+	defer srv.Close()
+	if srv.maxBody != maxRequestBody {
+		t.Fatalf("maxBody = %d, want %d", srv.maxBody, maxRequestBody)
+	}
+
+	custom, err := NewStreamable(StreamableConfig{MaxBodyBytes: 4096})
+	if err != nil {
+		t.Fatalf("NewStreamable: %v", err)
+	}
+	defer custom.Close()
+	if custom.maxBody != 4096 {
+		t.Fatalf("maxBody = %d, want 4096", custom.maxBody)
+	}
+}
+
+// VALIDATES: httpStatusForDispatch pins the two codes whose HTTP status the
+// binding mandates, and leaves every other outcome on 200.
+// PREVENTS: a handler choosing a code whose mandated status is silently dropped.
+func TestHTTPStatusForDispatch(t *testing.T) {
+	cases := []struct {
+		name string
+		resp *response
+		want int
+	}{
+		{"nil response", nil, http.StatusOK},
+		{"success", &response{}, http.StatusOK},
+		{"method not found", &response{Error: &rpcError{Code: rpcMethodNotFound}}, http.StatusNotFound},
+		{"missing capability", &response{Error: &rpcError{Code: rpcMissingRequiredClientCapability}}, http.StatusBadRequest},
+		{"invalid params stays 200", &response{Error: &rpcError{Code: rpcInvalidParams}}, http.StatusOK},
+		{"internal error stays 200", &response{Error: &rpcError{Code: rpcInternalError}}, http.StatusOK},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := httpStatusForDispatch(tc.resp); got != tc.want {
+				t.Fatalf("httpStatusForDispatch = %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
+// VALIDATES: an unsupported content type is still refused with 415.
+// PREVENTS: losing the guard while rewriting the POST pipeline around it.
+func TestStreamableUnsupportedContentType(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{})
+	defer cleanup()
+
+	body, _ := buildMCPBody(t, 1, methodToolsList, capsNone, "")
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, hs.URL+Endpoint, strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Content-Type", "text/plain")
+	resp, err := hs.Client().Do(req)
+	if err != nil {
+		t.Fatalf("POST: %v", err)
+	}
+	defer closeBody(t, resp.Body)
+	if resp.StatusCode != http.StatusUnsupportedMediaType {
+		t.Fatalf("status = %d, want 415", resp.StatusCode)
+	}
+}
+
+// VALIDATES: a POST to a path other than the MCP endpoint is a 404 and carries
+// CORS headers so a browser client can read the description.
+// PREVENTS: regressing the wrong-path branch while reshaping ServeHTTP.
+func TestStreamableWrongPathIs404(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{})
+	defer cleanup()
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, hs.URL+"/not-mcp", http.NoBody)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Origin", "http://localhost:3000")
+	resp, err := hs.Client().Do(req)
+	if err != nil {
+		t.Fatalf("POST: %v", err)
+	}
+	defer closeBody(t, resp.Body)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", resp.StatusCode)
+	}
+	if got := resp.Header.Get("Access-Control-Allow-Origin"); got == "" {
+		t.Error("404 on wrong path carries no CORS origin header")
+	}
+}
+
+// TestTasksUpdateAcknowledgesAndIgnores covers AC-7 and AC-8.
+//
+// VALIDATES: tasks/update on a task the caller owns is acknowledged with an
+// empty result and leaves the task's state unchanged, and inputResponses
+// carrying unknown keys are ignored rather than rejected.
+// PREVENTS: advertising the tasks extension while refusing one of its methods,
+// and the opposite error of letting attacker-controlled inputResponses reach
+// anything. Ze raises no inputRequests (D-4), so every key is unknown by
+// construction and the extension's own tolerance rule is the whole contract.
+func TestTasksUpdateAcknowledgesAndIgnores(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{Commands: taskCapableCommands})
+	defer cleanup()
+
+	taskID := createTestTask(t, hs)
+	before := taskStatus(t, hs, taskID)
+
+	cases := []struct {
+		name   string
+		params string
+	}{
+		{"no inputResponses at all", `{"taskId":"` + taskID + `"}`},
+		{"empty inputResponses", `{"taskId":"` + taskID + `","inputResponses":{}}`},
+		{"unknown key", `{"taskId":"` + taskID + `","inputResponses":{"no_such_request":{"content":{"x":1}}}}`},
+		{"several unknown keys", `{"taskId":"` + taskID + `","inputResponses":{"a":{},"b":{"deeply":{"nested":[1,2,3]}}}}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			status, parsed := postMCP(t, hs, methodTasksUpdate, capsTasks, tc.params)
+			if status != http.StatusOK {
+				t.Fatalf("status = %d, want 200 (body %v)", status, parsed)
+			}
+			result := resultOf(t, parsed)
+			if result[resultTypeKey] != resultTypeComplete {
+				t.Errorf("resultType = %v, want %q", result[resultTypeKey], resultTypeComplete)
+			}
+			// The acknowledgement is EMPTY: only the two envelope fields every
+			// result carries. Anything else would mean the server acted on
+			// responses it has nothing to match against.
+			for key := range result {
+				if key != resultTypeKey && key != metaKey {
+					t.Errorf("acknowledgement carries unexpected key %q: %v", key, result)
+				}
+			}
+			// AC-7: the task's state is unchanged.
+			if got := taskStatus(t, hs, taskID); got != before {
+				t.Errorf("task status changed from %q to %q across tasks/update", before, got)
+			}
+		})
+	}
+}
+
+// TestTasksUpdateRejectsForeignTask covers the ownership half of AC-8.
+//
+// VALIDATES: a malformed or foreign taskId is still rejected, even though the
+// inputResponses payload is ignored.
+// PREVENTS: reading "ignore unknown keys" as "ignore the taskId too". The id is
+// the one thing this handler acts on, and it is ownership-checked first.
+func TestTasksUpdateRejectsForeignTask(t *testing.T) {
+	hs, cleanup := newTestStreamable(t, StreamableConfig{Commands: taskCapableCommands})
+	defer cleanup()
+
+	for _, tc := range []struct{ name, params string }{
+		{"unknown id", `{"taskId":"never-minted","inputResponses":{"a":{}}}`},
+		{"empty id", `{"taskId":""}`},
+		{"absent id", `{}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, parsed := postMCP(t, hs, methodTasksUpdate, capsTasks, tc.params)
+			// rpcErrorOf fails the test when the response carries no error
+			// object, so reaching past it IS the assertion that the call was
+			// refused.
+			rpcErr := rpcErrorOf(t, parsed)
+			if rpcErr["code"] == nil {
+				t.Fatalf("tasks/update %s: error object carries no code: %v", tc.name, rpcErr)
+			}
+		})
+	}
+}
+
+// taskStatus reads one task's current status over the transport.
+func taskStatus(t *testing.T, hs *httptest.Server, taskID string) string {
+	t.Helper()
+	status, parsed := postMCP(t, hs, methodTasksGet, capsTasks, `{"taskId":"`+taskID+`"}`)
+	if status != http.StatusOK {
+		t.Fatalf("tasks/get: status = %d (body %v)", status, parsed)
+	}
+	got, _ := resultOf(t, parsed)["status"].(string)
+	return got
 }

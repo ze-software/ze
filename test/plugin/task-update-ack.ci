@@ -1,0 +1,83 @@
+# task-update-ack - tasks/update acknowledges, ignores unknown keys, and changes
+# nothing.
+#
+# VALIDATES: spec-mcp2026-3-tasks-extension AC-7 and AC-8. The
+# io.modelcontextprotocol/tasks extension requires a server to ignore unknown or
+# already-satisfied `inputResponses` keys and acknowledge with an empty result.
+#
+# For Ze every key is unknown BY CONSTRUCTION: no Ze task can raise
+# `inputRequests` (D-4), so there is nothing outstanding for a response to
+# satisfy. That tolerance rule is exactly what makes the method fully
+# implementable here rather than a stub -- and implementing it is why the
+# extension can be advertised at all (ai/rules/no-parking.md: no method is
+# advertised before it is implemented).
+#
+# The ownership check is asserted alongside the tolerance, because the two pull
+# in opposite directions and only testing one would licence the other. Unknown
+# inputResponses keys are ignored; an unknown or foreign taskId is NOT. The
+# taskId is the one thing this handler acts on.
+
+stdin=mcp:terminator=EOF_MCP
+wait-tool ze_show_bgp
+# Create a real task the caller owns. No `task` member in the request: the
+# server decides from the annotation (D-1).
+task-call ze_show_bgp {"action":"rib"}
+task-wait $LAST completed
+# Owned task, no inputResponses at all: acknowledged.
+task-update $LAST
+# Owned task, unknown keys: ignored, same empty acknowledgement. The directive
+# itself fails if the acknowledgement carries anything beyond the two envelope
+# fields, so "empty" is enforced rather than pattern-matched.
+task-update $LAST {"no_such_request":{"content":{"answer":"ignored"}}}
+# The task's state is unchanged by either call.
+task-get $LAST
+# Ownership still applies: an id that was never minted is refused even though
+# the inputResponses payload would have been ignored.
+probe tasks/update {"taskId":"never-minted","inputResponses":{"a":{}}}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=tcp_connections:value=0
+
+cmd=background:seq=1:exec=ze --mcp $PORT2 -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2 --tasks:stdin=mcp:timeout=20s
+expect=exit:code=0
+# Both acknowledgements landed.
+expect=stdout:contains=task-update acknowledged
+expect=stdout:pattern=(?s)task-update acknowledged.*task-update acknowledged
+# AC-7: the task is still completed after both updates -- tasks/update changed
+# nothing. task-get prints the status on its own line.
+expect=stdout:contains=completed
+# The ownership check fired for the unknown id, with the params-level code
+# rather than a 404: tasks/update EXISTS, it just refused that id.
+expect=stdout:pattern=probe status=200 code=-32602
+# Not a capability refusal -- the client declared the extension.
+reject=stdout:contains=code=-32021
+reject=stderr:pattern=code \-32021
+# And tasks/update is not an unknown method.
+reject=stdout:contains=code=-32601

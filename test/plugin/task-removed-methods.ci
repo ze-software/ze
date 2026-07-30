@@ -1,0 +1,85 @@
+# task-removed-methods - tasks/list and tasks/result no longer exist.
+#
+# VALIDATES: spec-mcp2026-3-tasks-extension AC-5. MCP 2026-07-28 changelog Major
+# change 6 moved tasks onto the io.modelcontextprotocol/tasks extension, whose
+# redesign "replaces the blocking tasks/result method with polling via tasks/get
+# and a new tasks/update for client-to-server input, removes tasks/list". Both
+# are now unknown methods, and an unknown method MUST answer HTTP 404 with
+# JSON-RPC -32601 (streamable-http, Protocol Version Header section).
+#
+# The client DECLARES the tasks extension on every request. That is the point:
+# these two must be gone for a client that could legitimately have used them
+# under the old revision, not merely gated behind a capability check. A -32021
+# would mean "you did not declare the capability", which is a different answer
+# and is rejected below.
+#
+# The surviving three are probed in the same run, so the test cannot pass by the
+# server having lost its whole task surface -- which is exactly how an
+# over-broad deletion would look if only the absences were asserted.
+
+stdin=mcp:terminator=EOF_MCP
+# Readiness: a GENERATED tool proves the command registry is populated. The MCP
+# listener binds before that, and probing early would answer differently.
+wait-tool ze_show_bgp
+# The two removed methods.
+probe tasks/list
+probe tasks/result {"taskId":"never-minted"}
+# The three that survive. tasks/get and tasks/cancel answer -32602 for an id
+# that was never minted, and tasks/update does the same: all three are DISPATCHED
+# (a params-level refusal), which is what distinguishes them from a 404.
+probe tasks/get {"taskId":"never-minted"}
+probe tasks/update {"taskId":"never-minted"}
+probe tasks/cancel {"taskId":"never-minted"}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=tcp_connections:value=0
+
+cmd=background:seq=1:exec=ze --mcp $PORT2 -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT2 --tasks:stdin=mcp:timeout=15s
+expect=exit:code=0
+# The two removed methods: 404 + -32601, exactly as the transport requires.
+# pattern= rather than contains=: the needle "status=404 code=-32601" carries no
+# colon at all, but pattern= keeps it uniform with the other probe assertions.
+# (This note previously claimed contains= truncates at the first colon --
+# true of ParseKVPairs, internal/test/ci/ciformat.go, until 2026-07-30, when it
+# was made boundary-aware. An ordinary colon now stays in the value; only a colon
+# introducing a key= token still splits.)
+expect=stdout:pattern=probe status=404 code=-32601
+# Both of them, not just one: two distinct 404 lines must appear.
+expect=stdout:pattern=(?s)status=404 code=-32601.*status=404 code=-32601
+# The surviving three reached dispatch and were refused on their params, which
+# is a 200 carrying -32602 rather than a 404.
+expect=stdout:pattern=probe status=200 code=-32602
+# Not a capability refusal: the client declared the extension, so -32021 would
+# mean the gate rejected it before dispatch and the 404s would prove nothing
+# about the methods being gone.
+reject=stdout:contains=code=-32021
+# Not a transport or version rejection either.
+reject=stdout:contains=code=-32020
+reject=stdout:contains=code=-32022

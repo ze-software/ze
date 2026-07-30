@@ -1,0 +1,55 @@
+# mcp-resources-served - resources/* is served to a conformant client that
+# declares the empty clientCapabilities object, and the daemon stays up.
+#
+# VALIDATES: spec-mcp2026-1-stateless-core AC-13 as corrected. `resources` is a
+# member of *ServerCapabilities*, not of ClientCapabilities, whose complete
+# member set in MCP 2026-07-28 is `experimental`, `roots`, `sampling`,
+# `elicitation` and `extensions`. A conformant client therefore CANNOT declare
+# `resources`, so a client-capability gate on it refused every conformant caller
+# -- while server/discover advertised `capabilities.resources` and tools/list
+# published `_meta.ui.resourceUri` pointing at those very assets. Resources is a
+# server capability: a server that offers it just serves it. The -32021 rule
+# ("a server MUST NOT rely on capabilities the client has not declared") governs
+# capabilities the CLIENT provides, and still gates the Tasks extension.
+#
+# WHY THIS RUNS AGAINST ze-chaos: Provider mode is where the old code modeled
+# "no session" as a nil *session pointer and handed it to every handler, and
+# resourcesList/resourcesRead dereferenced it. Provider mode is now the same
+# branch as every other caller (internal/component/mcp/resources.go), so this is
+# both the R-3 guard -- neither a panic nor a denial may reach a resources call
+# -- and the guard against the client-capability gate coming back. A gate
+# returning under any name turns each 200 below into a 400.
+#
+# The final check is the liveness half: after three resource calls the listener
+# still answers tools/list, so serving is a per-request verdict and not a crash.
+
+cmd=background:seq=1:exec=ze-chaos --in-process --web :$PORT --mcp :$PORT2 --duration 10s --peers 2 --seed 42 --routes 5 --quiet
+
+# Readiness: GET the POST-only endpoint until it answers 405.
+http=wait:seq=1:url=http://127.0.0.1:$PORT2/mcp:status=405:contains=method not allowed:timeout=20s
+
+# clientCapabilities is present and EMPTY: the well-formed shape every
+# conformant client sends, so this is not a -32602 malformed-_meta case and
+# there is nothing left for a capability gate to key on.
+tmpfs=reslist.json:terminator=EOF_RESLIST
+{"jsonrpc":"2.0","id":1,"method":"resources/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+EOF_RESLIST
+
+http=post:seq=1:url=http://127.0.0.1:$PORT2/mcp:status=200:contains="resultType":"complete":sendfile=reslist.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: resources/list
+http=post:seq=2:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=ui://bgp-peer/index.html:sendfile=reslist.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: resources/list
+
+# resources/read is ungated the same way and returns the asset's real bytes. It
+# carries an Mcp-Name mirroring params.uri, so the header contract is satisfied
+# too and nothing but the resource lookup decides the outcome.
+tmpfs=resread.json:terminator=EOF_RESREAD
+{"jsonrpc":"2.0","id":2,"method":"resources/read","params":{"uri":"ui://bgp-peer/index.html","_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+EOF_RESREAD
+
+http=post:seq=3:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=DOCTYPE html:sendfile=resread.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: resources/read:header=Mcp-Name: ui://bgp-peer/index.html
+
+# Liveness: the orchestrator survived all three calls and still serves its tools.
+tmpfs=list.json:terminator=EOF_LIST
+{"jsonrpc":"2.0","id":3,"method":"tools/list","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+EOF_LIST
+
+http=post:seq=4:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=chaos_status:sendfile=list.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/list

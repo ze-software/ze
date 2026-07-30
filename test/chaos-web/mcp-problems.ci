@@ -1,18 +1,37 @@
-# mcp-problems - verify chaos MCP chaos_problems and chaos_peers tools
-# Tests that problems and peers endpoints return valid JSON
+# mcp-problems - the chaos MCP listener answers chaos_problems and chaos_peers.
+#
+# Drives ze-chaos's Provider-mode MCP server through the runner's own HTTP
+# directive rather than through ze-test mcp, so it is the one place that checks
+# the raw 2026-07-28 wire shape a hand-written client has to produce.
+#
+# WHAT CHANGED AND WHY: every POST now carries the three standard request
+# headers and a params._meta block. Provider mode goes through the SAME
+# handlePOST as the ze daemon (the pre-cutover session-less special case was
+# deleted, spec-mcp2026-1-stateless-core D-2), so header validation and _meta
+# parsing run before dispatch here too: without the headers these calls answer
+# 400/-32020 and without _meta they answer 400/-32602. Nothing about the tools
+# changed; what changed is that a request must now say which revision it speaks
+# and which method it is calling in its headers as well as its body.
+#
+# Mcp-Name mirrors params.name because tools/call is one of the three methods
+# that require it; a value that disagreed would be refused with -32020.
 
 cmd=background:seq=1:exec=ze-chaos --in-process --web :$PORT --mcp :$PORT2 --duration 10s --peers 2 --seed 42 --routes 5 --quiet
 
 # chaos_problems returns JSON array (may be empty or have items)
 tmpfs=problems.json:terminator=EOF_PROBLEMS
-{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"chaos_problems","arguments":{}}}
+{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"chaos_problems","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
 EOF_PROBLEMS
 
-http=post:seq=1:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=result:sendfile=problems.json
+http=post:seq=1:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=result:sendfile=problems.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:header=Mcp-Name: chaos_problems
 
 # chaos_peers returns peer array
 tmpfs=peers.json:terminator=EOF_PEERS
-{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"chaos_peers","arguments":{}}}
+{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"chaos_peers","arguments":{},"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
 EOF_PEERS
 
-http=post:seq=2:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=routes-sent:sendfile=peers.json
+http=post:seq=2:url=http://127.0.0.1:$PORT2/mcp:status=200:contains=routes-sent:sendfile=peers.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:header=Mcp-Name: chaos_peers
+
+# Every successful result carries the envelope discriminator, on this transport
+# as much as on the daemon's: one ok() helper stamps both servers.
+http=post:seq=3:url=http://127.0.0.1:$PORT2/mcp:status=200:contains="resultType":"complete":sendfile=problems.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:header=Mcp-Name: chaos_problems

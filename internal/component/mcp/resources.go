@@ -1,5 +1,6 @@
 // Design: docs/architecture/mcp/overview.md -- MCP resources capability and UI asset serving
 // Related: streamable.go -- method dispatch for resources/list and resources/read
+// Related: caching.go -- supplies both results' ttlMs and cacheScope
 
 package mcp
 
@@ -133,41 +134,46 @@ func readResource(uri string) (map[string]any, error) {
 	return rc, nil
 }
 
-func (s *Streamable) resourcesList(sess *session, req *request) *response {
-	// Nil session is the Provider-mode (ze-chaos) path (streamable.go handlePOST),
-	// which POSTs without Mcp-Session-Id. A nil client never declared
-	// capabilities.resources, so the capability gate denies exactly as it does
-	// for a session that omitted it. Guarding here rather than dereferencing
-	// keeps the fail-closed contract the task handlers already honor.
-	if sess == nil || !sess.ClientSupportsResources() {
-		return s.fail(req.ID, -32601, "method not found: resources/list")
-	}
+// resourcesList answers resources/list for every conformant caller.
+//
+// There is deliberately NO client-capability gate here. `resources` is a member
+// of ServerCapabilities, not of ClientCapabilities -- whose complete member set
+// in MCP 2026-07-28 is `experimental`, `roots`, `sampling`, `elicitation` and
+// `extensions`. A conformant client therefore never declares `resources`, and
+// gating on it refused every conformant caller while server/discover advertised
+// `capabilities.resources` and tools/list published `_meta.ui.resourceUri`
+// pointing at these very assets.
+//
+// The -32021 requirement it was modeled on ("a server MUST NOT rely on
+// capabilities the client has not declared") governs capabilities the CLIENT
+// provides, which this server still enforces for the Tasks extension. Serving a
+// capability the server itself advertises is not relying on the client for
+// anything.
+func (s *Streamable) resourcesList(req *request) *response {
 	return s.ok(req.ID, map[string]any{"resources": s.cachedResources})
 }
 
-func (s *Streamable) resourcesRead(sess *session, req *request) *response {
-	// Nil session: same Provider-mode path and same fail-closed reasoning as
-	// resourcesList above.
-	if sess == nil || !sess.ClientSupportsResources() {
-		return s.fail(req.ID, -32601, "method not found: resources/read")
-	}
+// resourcesRead answers resources/read. Ungated for the same reason as
+// resourcesList; see its godoc.
+func (s *Streamable) resourcesRead(req *request) *response {
 	var params struct {
 		URI string `json:"uri"`
 	}
 	if len(req.Params) > 0 {
-		_ = json.Unmarshal(req.Params, &params)
+		if err := json.Unmarshal(req.Params, &params); err != nil {
+			return s.fail(req.ID, rpcInvalidParams, "invalid uri")
+		}
 	}
 	if params.URI == "" {
-		return s.fail(req.ID, -32602, "invalid uri")
+		return s.fail(req.ID, rpcInvalidParams, "invalid uri")
 	}
 	content, err := readResource(params.URI)
 	if err != nil {
-		code := -32602
 		msg := "invalid uri"
 		if errors.Is(err, errResourceNotFound) {
 			msg = "resource not found"
 		}
-		return s.fail(req.ID, code, msg)
+		return s.fail(req.ID, rpcInvalidParams, msg)
 	}
 	return s.ok(req.ID, map[string]any{"contents": []map[string]any{content}})
 }

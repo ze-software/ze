@@ -1,0 +1,81 @@
+# mcp-mrtr-reask - a retry that omits the answer is asked again, not refused;
+# unrecognised inputResponses keys are ignored.
+#
+# VALIDATES: spec-mcp2026-2-mrtr AC-7 and AC-9. The MRTR error-handling clause
+# says to ask again when "the client fails to send all the information
+# requested", and server requirement 8 makes repeating explicit: "Servers MAY
+# choose to return an InputRequiredResult on multiple attempts at the same
+# request if they want to repeatedly prompt the user for information until they
+# have what they need." The same section tells servers to tolerate unexpected
+# InputResponses parameters.
+#
+# Three retries, in order:
+#   1. inputResponses {}                     -- nothing answered, ask again
+#   2. inputResponses with only a key nobody -- the extra is ignored, and since
+#      asked for                                the real key is still absent,
+#                                               ask again
+#   3. the answer plus that same extra key   -- extras ignored, request proceeds
+#
+# The re-ask is unbounded on purpose and costs the server nothing: no state is
+# held between rounds, so an unanswered prompt pins no goroutine and grows no
+# map. That is why the pre-cutover maxPendingElicits cap was deleted rather than
+# reimplemented (spec R-4, Design Insight 2).
+#
+# PREVENTS: an omitted answer being turned into an error (which would break a
+# client that prompts its user across several turns), an unrecognised key
+# failing an otherwise good retry, and an extra key being mistaken FOR the
+# answer -- retry 2 is what separates "ignored" from "accepted".
+
+stdin=mcp:terminator=EOF_MCP
+wait-peers
+probe tools/call {"name":"ze_execute","arguments":{},"inputResponses":{}}
+probe tools/call {"name":"ze_execute","arguments":{},"inputResponses":{"nobody_asked":{"action":"accept","content":{"command":"show version"}}}}
+probe tools/call {"name":"ze_execute","arguments":{},"inputResponses":{"nobody_asked":{"action":"accept","content":{}},"ze_execute_command":{"action":"accept","content":{"command":"show bgp peer list"}}}}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT --elicit form:stdin=mcp:timeout=20s
+expect=exit:code=0
+# Two re-asks then a completion, in that order. The ordered match is what proves
+# retry 2 did not accept the extra key's value as the answer.
+expect=stdout:pattern=(?s)"resultType":"input_required".*"resultType":"input_required".*"resultType":"complete"
+# All three answered 200 code=ok: a re-ask is an interim SUCCESS, never an error.
+expect=stdout:pattern=(?s)probe status=200 code=ok.*probe status=200 code=ok.*probe status=200 code=ok
+# The third retry dispatched the answered command.
+expect=stdout:contains=peer1
+# Retry 2's extra key named a command; if the server had read it, that command
+# would have run and this needle would be absent from the re-ask.
+reject=stdout:pattern="isError":true
+reject=stdout:contains=requestState

@@ -1,0 +1,71 @@
+# mcp-discover-daemon - server/discover answers a live daemon before any other
+# call is made.
+#
+# VALIDATES: spec-mcp2026-1-stateless-core AC-3 (server/discover returns
+# supportedVersions, capabilities and resultType "complete", with serverInfo
+# under the result's _meta), plus AC-5 and AC-17 on the same result: every
+# successful result carries the resultType discriminator and the server
+# identity, both stamped by the shared ok() helper
+# (internal/component/mcp/streamable_tools.go).
+#
+# MCP 2026-07-28 basic/versioning makes implementing server/discover a MUST.
+# With the initialize handshake deleted it is the ONLY call a client can make to
+# learn which protocol versions a server speaks, so a daemon that answers
+# tools/list but not server/discover is unusable by a client that has not
+# already guessed the revision.
+#
+# PREVENTS: server/discover regressing to method-not-found, supportedVersions
+# advertising a revision this build does not implement, and a result envelope
+# that drops resultType or io.modelcontextprotocol/serverInfo.
+
+# server/discover is the FIRST request this client makes: no handshake, no
+# readiness call, no prior state on the server.
+stdin=mcp:terminator=EOF_MCP
+probe server/discover
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=probe status=200 code=ok
+# data.supported is pinned exactly: the closing bracket right after the single
+# entry proves no dropped revision survived as an advertised version.
+expect=stdout:pattern="supportedVersions":\["2026-07-28"\]
+# The extensions map carries BOTH extensions this server implements: MCP Apps
+# (spec-mcp2026-4-caching-apps AC-7) and Tasks (spec-mcp2026-3-tasks-extension
+# AC-11). Each is asserted by NAME rather than by position: the previous form
+# pinned `"capabilities":{"extensions":{"io.modelcontextprotocol/ui"`, which
+# silently depended on `ui` sorting first and broke the moment `tasks` was
+# added ahead of it. Its own comment already said the intent was to name the
+# capabilities only; the regex did not achieve that, and now it does.
+expect=stdout:pattern="capabilities":\{"extensions":\{
+expect=stdout:pattern="io\.modelcontextprotocol/ui":\{\}
+expect=stdout:pattern="io\.modelcontextprotocol/tasks":\{\}
+expect=stdout:pattern="resultType":"complete"
+expect=stdout:pattern="io\.modelcontextprotocol/serverInfo":\{"name":"ze-mcp","version":

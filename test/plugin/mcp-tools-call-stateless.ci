@@ -1,0 +1,86 @@
+# mcp-tools-call-stateless - a ze command runs through tools/call, with the
+# bearer credential presented on (and checked against) every single request.
+#
+# VALIDATES: spec-mcp2026-1-stateless-core end-to-end user story 2 (a command
+# executed through tools/call under bearer auth) and AC-11 (a request with no
+# valid credential is refused on EVERY method, not only the first): identity is
+# no longer bound once at initialize and inherited, it is re-derived from the
+# Authorization header of each POST.
+#
+# The third probe replaces the Authorization header with a wrong token AFTER two
+# accepted calls. Under the deleted session model that request would have been
+# trusted on session-id validity alone; here it is a 401. That is what makes
+# this test discriminating rather than a second copy of tools-list-stateless.
+#
+# PREVENTS: authentication drifting back to a once-per-connection check, and a
+# tools/call path that dispatches without an authenticated principal.
+
+stdin=mcp:terminator=EOF_MCP
+wait-tool ze_execute
+# Wait on the CONDITION the assertion needs (the BGP plugin has loaded the
+# peer), not on a duration: wait-peers polls show bgp peer list until the peers
+# map is non-empty.
+wait-peers
+probe tools/call {"name":"ze_execute","arguments":{"command":"show bgp peer list"}}
+probe tools/call {"name":"ze_execute","arguments":{"command":"show bgp peer list"}}
+probe-header Authorization Bearer wrong-token
+probe tools/list
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	mcp {
+		# The listener is declared HERE rather than with `ze --mcp $PORT`, and
+		# both `enabled true` and the `server` block are load-bearing:
+		# ExtractMCPConfig (internal/component/config/loader_extract.go:281,
+		# :337) discards the WHOLE environment.mcp block -- auth-mode and token
+		# included -- unless it is enabled AND carries a server entry with a
+		# port. A daemon started with `--mcp $PORT` and this block minus the
+		# server entry serves the same tools with NO authentication at all, so
+		# writing it that way would make every credential assertion below
+		# vacuous while still looking like an auth test.
+		enabled true;
+		auth-mode bearer;
+		token mcp-secret-token;
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT --token mcp-secret-token:stdin=mcp:timeout=20s
+expect=exit:code=0
+# The dispatched command really ran: the configured peer name is in the result.
+expect=stdout:contains=peer1
+expect=stdout:pattern="resultType":"complete"
+# Two credentialed calls accepted, then a wrongly-credentialed one refused --
+# in that order, on one client, with no reconnect in between.
+expect=stdout:pattern=(?s)probe status=200 code=ok.*probe status=200 code=ok.*probe status=401
+expect=stdout:contains=bearer token does not match
+reject=stdout:contains=Mcp-Session-Id

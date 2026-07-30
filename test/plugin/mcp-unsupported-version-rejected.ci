@@ -1,0 +1,69 @@
+# mcp-unsupported-version-rejected - a client that consistently declares a
+# dropped revision is told which revision to retry with.
+#
+# VALIDATES: spec-mcp2026-1-stateless-core AC-2. The header and params._meta
+# both say 2025-06-18, so this is NOT a header mismatch: it passes header
+# validation and _meta parsing and is refused by the version check with HTTP 400
+# and JSON-RPC -32022, carrying data.supported and data.requested.
+#
+# MCP 2026-07-28 basic/versioning: "If the server does not implement the
+# requested version ... it MUST respond with an UnsupportedProtocolVersionError
+# listing the versions it does support", and the HTTP binding pins the status to
+# 400 Bad Request. data.supported is what the client retries against, so it is
+# asserted EXACTLY -- a one-element array, closing bracket immediately after --
+# rather than with a substring match that a surviving legacy revision would also
+# satisfy (ai/rules/compatibility.md: no shim for a dropped revision).
+#
+# The distinction from -32020 is load-bearing: a client that gets -32022 knows
+# to renegotiate, a client that gets -32020 knows to fix its headers, and
+# collapsing the two would leave it unable to tell which.
+#
+# PREVENTS: 2025-06-18, 2025-03-26 or 2024-11-05 quietly remaining in the
+# supported set, a version rejection reported as a header mismatch, and a 200
+# for a revision this server no longer speaks.
+
+stdin=mcp:terminator=EOF_MCP
+# probe-meta drives BOTH the body _meta and the derived MCP-Protocol-Version
+# header, so header and body agree and the header guard has nothing to say.
+probe-meta protocolVersion 2025-06-18
+probe tools/list
+# The rejection is per request, not a latch: a conformant call still works.
+probe tools/list
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=probe status=400 code=-32022
+expect=stdout:contains=unsupported protocol version
+expect=stdout:pattern="requested":"2025-06-18"
+expect=stdout:pattern="supported":\["2026-07-28"\]
+expect=stdout:pattern=(?s)status=400 code=-32022.*probe status=200 code=ok
+# A dropped revision must not come back as a header-contract failure.
+reject=stdout:contains=code=-32020

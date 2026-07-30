@@ -1,5 +1,6 @@
 // Design: docs/guide/mcp/overview.md -- MCP tool auto-generation from command registry
 // Related: streamable.go -- Streamable HTTP transport (the only HTTP entry point)
+// Related: apps.go -- gates the _meta.ui object buildToolDef emits below
 
 // Package mcp implements the MCP (Model Context Protocol) server surface:
 // JSON-RPC tool dispatch wrapping Ze's command dispatcher, served over the
@@ -373,6 +374,16 @@ func buildToolDef(g toolGroup) map[string]any {
 	tool["execution"] = map[string]any{
 		"taskSupport": g.taskSupport.String(),
 	}
+	// MCP Apps (the io.modelcontextprotocol/ui extension). The three keys are
+	// the extension's own, verbatim: its overview names "_meta.ui.resourceUri
+	// field pointing to a ui:// resource", says the "_meta.ui object can include
+	// permissions to request additional capabilities (e.g., microphone,
+	// camera)", and names "_meta.ui.csp" for "what external origins the app can
+	// load resources from".
+	//
+	// Emitted unconditionally here and removed downstream by gateUIMeta when the
+	// requesting client did not declare the extension (apps.go). The gate lives
+	// there rather than here so that ONE site covers provider descriptors too.
 	if g.uiResource != nil {
 		uiMap := map[string]any{
 			"resourceUri": uiScheme + g.uiResource.Path,
@@ -383,7 +394,7 @@ func buildToolDef(g toolGroup) map[string]any {
 		if g.uiResource.CSP != "" {
 			uiMap["csp"] = g.uiResource.CSP
 		}
-		tool["_meta"] = map[string]any{"ui": uiMap}
+		tool[metaKey] = map[string]any{metaKeyUI: uiMap}
 	}
 	return tool
 }
@@ -399,24 +410,44 @@ func groupUIResource(actions []action) *UIResourceInfo {
 }
 
 // groupTaskSupport derives the group-level taskSupport from its actions.
-// If any action is required, the group is required. If all are forbidden,
-// the group is forbidden. Otherwise optional.
+//
+// Precedence is FORBIDDEN-WINS, and that is the whole point of this function.
+//
+// # Why the precedence had to be inverted (D-1b)
+//
+// The eligibility decision is made per TOOL, not per command: lookupTaskSupport
+// (streamable_tools.go) resolves a tool name to a command group, and a group
+// folds several actions into one level. Under the old client-directed model the
+// client still had to ask for a task and a per-action check ran on the way in,
+// so letting `required` win here was harmless. Under the server-directed model
+// this value IS the promotion rule: `required` means the server hands back a
+// task handle unasked. Required-wins would therefore auto-task an action its
+// YANG explicitly annotated `forbidden` -- the four mutating rib commands
+// (`clear bgp rib in/out`, `request bgp rib inject/withdraw`) are exactly the
+// set that annotation exists to protect.
+//
+// So a single `forbidden` action poisons the whole group. The cost of being
+// wrong in this direction is one genuinely long action running synchronously;
+// the cost in the other direction is auto-tasking a route injection
+// (ai/rules/fail-closed-guards.md).
+//
+// No group mixes levels today -- the forbidden rib actions sit under the
+// `clear` and `request` roots while the required one sits under `show`, so they
+// land in different tools. The fix is free now and expensive later. If a mixed
+// group is ever authored, the right repair is to split the tool, not to relax
+// this guard.
 func groupTaskSupport(actions []action) TaskSupportLevel {
 	hasRequired := false
-	allForbidden := true
 	for _, a := range actions {
+		if a.taskSupport == TaskSupportForbidden {
+			return TaskSupportForbidden
+		}
 		if a.taskSupport == TaskSupportRequired {
 			hasRequired = true
-		}
-		if a.taskSupport != TaskSupportForbidden {
-			allForbidden = false
 		}
 	}
 	if hasRequired {
 		return TaskSupportRequired
-	}
-	if allForbidden && len(actions) > 0 {
-		return TaskSupportForbidden
 	}
 	return TaskSupportOptional
 }
@@ -541,30 +572,55 @@ func spliceSelector(full, sel string) (string, bool) {
 // server runs one tool dispatch.
 //
 // Lifetime: one *server per HTTP request. `Streamable.callTool` creates it
-// per tools/call; the task worker builds one per task run. ctx and session
-// carry request-scoped state; storing them on the struct keeps the
-// `toolHandlers` map signature compact. DO NOT hoist the construction out of
-// the request scope -- sharing a *server across concurrent requests would
-// race on the ctx/session fields. When a handler needs ctx or session it
-// reads the field directly and degrades on nil (unit tests construct
-// *server directly without either).
+// per tools/call; the task worker builds one per task run. ctx carries
+// request-scoped state; storing it on the struct keeps the `toolHandlers` map
+// signature compact. DO NOT hoist the construction out of the request scope --
+// sharing a *server across concurrent requests would race on the ctx field.
 type server struct {
 	dispatch CommandDispatcher
 	commands CommandLister
-	// session carries the active POST's session so tool handlers (notably
-	// ze_execute's missing-command branch) can call session.Elicit. Nil
-	// when dispatch runs outside a session context (isolated handler
-	// tests). Nil-aware handlers must degrade gracefully.
-	session *session
-	// ctx is the active HTTP request's context. Tool handlers that call
-	// into session.Elicit (or any other blocking op) MUST pass this ctx
-	// through so a client disconnect unblocks the suspended handler via
-	// ctx.Done() -- otherwise the correlation lingers until the session
-	// TTL sweeps it. Nil in unit tests; use context.Background() as the
-	// fallback in that case.
-	ctx        context.Context //nolint:containedctx // per-request state; see godoc above
+	// ctx is the active HTTP request's context, or a task worker's
+	// deadline-bearing context. Every dispatch MUST run under it so a client
+	// disconnect and the task execution deadline both reach the dispatcher; read
+	// it through the context accessor below rather than directly, which is what
+	// gives the nil case (a bare *server in a unit test) one defined answer.
+	ctx context.Context //nolint:containedctx // per-request state; see godoc above
+	// username is the authenticated principal the dispatched command runs as.
+	// It comes from the per-request authenticator, never from a request body.
 	username   string
 	remoteAddr string
+	// caps is what THIS request's client declared. A handler that wants to ask
+	// the user for something reads caps.ElicitForm before emitting an
+	// inputRequests entry: MCP 2026-07-28 basic/patterns/mrtr Section "Server
+	// Requirements": "7. Servers MUST NOT send an inputRequests that the client
+	// has not declared support for in its capabilities." The zero value denies,
+	// so a runner built without capabilities never prompts.
+	caps clientCapabilities
+	// inputResponses is params.inputResponses from a Multi Round-Trip retry:
+	// the answers to the inputRequests a previous InputRequiredResult asked
+	// for. Nil on a first attempt. It is the ONLY thing that crosses between
+	// the two requests -- nothing is held server-side between them.
+	inputResponses map[string]any
+}
+
+// context returns the context every dispatch this runner makes MUST run under.
+//
+// It is the ONE reader of the ctx field, so there is a single place the
+// request's deadline and its cancellation enter the command dispatcher. Both
+// call sites used to hard-code context.Background(), which silently severed
+// two mechanisms that are documented elsewhere as working: a task worker's
+// execution deadline (tasks.go, Create) and a client disconnect unblocking a
+// handler (streamable_tools.go, runMethod). A canceled context that nothing
+// observes cancels nothing.
+//
+// The nil fallback is for unit tests that build a bare *server. Falling back to
+// Background is safe in exactly that case and nowhere else: every production
+// path (callTool, createTask) sets the field.
+func (s *server) context() context.Context {
+	if s.ctx == nil {
+		return context.Background()
+	}
+	return s.ctx
 }
 
 // dispatchGenerated handles a tools/call for an auto-generated tool.
@@ -708,18 +764,37 @@ type response struct {
 type rpcError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
+	// Data carries the structured payload a few MCP-defined error codes
+	// require: `supported`/`requested` on -32022, `requiredCapabilities` on
+	// -32021. Omitted when absent -- notably on -32020, whose schema defines
+	// no data object at all and whose detail rides in Message.
+	Data any `json:"data,omitempty"`
 }
 
+// callParams is the `params` object of a tools/call request.
+//
+// There is deliberately no `task` member. MCP 2026-07-28 changelog Major change
+// 6 moved tasks onto the io.modelcontextprotocol/tasks extension, which "allows
+// servers to return task handles unsolicited without per-request opt-in": the
+// SERVER decides a call runs as a task, from the command's `ze:task-support`
+// annotation, so there is no client-supplied field to read (D-1).
 type callParams struct {
 	Name      string          `json:"name"`
 	Arguments json.RawMessage `json:"arguments"`
-	Task      json.RawMessage `json:"task,omitempty"`
 }
+
+// toolNameExecute is the handcrafted raw-dispatch tool. It is named once
+// because three places must agree on it: the handler map below, the descriptor
+// in handcraftedTools, and gateExecuteCommandRequired (mrtr.go), which reshapes
+// that descriptor for a client this server cannot prompt. A literal in each
+// would let the descriptor and the handler drift, which is exactly the defect
+// that made the elicitation path unreachable.
+const toolNameExecute = "ze_execute"
 
 // toolHandlers maps handcrafted MCP tool names to their implementations.
 // ze_execute is a raw command dispatch escape hatch (equivalent to ze_system dispatch).
 var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]any{
-	"ze_execute": func(s *server, args json.RawMessage) map[string]any {
+	toolNameExecute: func(s *server, args json.RawMessage) map[string]any {
 		var input struct {
 			Command string `json:"command"`
 		}
@@ -730,42 +805,20 @@ var toolHandlers = map[string]func(s *server, args json.RawMessage) map[string]a
 		if s.dispatch == nil {
 			return ErrResult("dispatcher not available")
 		}
-		// Missing command: if the client declared the elicitation capability,
-		// prompt for one. Otherwise fail fast so the caller re-invokes with a
-		// command instead of blocking on an Elicit that will never be answered.
-		if input.Command == "" {
-			if s.session == nil || !s.session.ClientSupportsElicit() {
-				return ErrResult("missing required argument: command")
-			}
-			// Prefer the POST's context so a client disconnect unblocks the
-			// suspended handler; fall back to Background when the server was
-			// constructed without one (unit tests).
-			ctx := s.ctx
-			if ctx == nil {
-				ctx = context.Background()
-			}
-			content, err := s.session.Elicit(ctx,
-				"Which ze command would you like to run?",
-				map[string]any{
-					"type": "object",
-					"properties": map[string]any{
-						"command": map[string]any{
-							"type":        "string",
-							"description": "A ze CLI command, e.g. 'show bgp peer list' or 'show bgp summary'",
-						},
-					},
-					"required": []any{"command"},
-				})
-			if err != nil {
-				return ErrResult(tb.Str("elicit: ").Err(err).String())
-			}
-			cmd, _ := content["command"].(string)
-			if cmd == "" {
-				return ErrResult("elicit returned empty command")
-			}
-			input.Command = cmd
+		command, outcome := s.resolveExecuteCommand(input.Command)
+		switch outcome {
+		case inputAccepted:
+			// fall through to dispatch
+		case inputMissing:
+			return s.askForCommand()
+		case inputDeclined:
+			return ErrResult(tb.Reset().Str("no command was supplied: ").Err(ErrElicitDeclined).String())
+		case inputCanceled:
+			return ErrResult(tb.Reset().Str("no command was supplied: ").Err(ErrElicitCanceled).String())
+		case inputMalformed:
+			return ErrResult(tb.Reset().Str("could not read the supplied command: ").Err(ErrElicitMalformed).String())
 		}
-		result, err := s.dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, input.Command)
+		result, err := s.dispatch.JSON(s.context(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, command)
 		if err != nil {
 			return ErrResult(err.Error())
 		}
@@ -805,8 +858,12 @@ func noSpaces(field, value string) error {
 }
 
 // run dispatches a command and returns the result as MCP content.
+//
+// This is the path EVERY auto-generated tool takes, and therefore the path
+// every task takes, so the request-scoped context (s.context) is what makes the
+// task execution deadline and a client disconnect reach the dispatcher at all.
 func (s *server) run(command string) map[string]any {
-	output, err := s.dispatch.JSON(context.Background(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, command)
+	output, err := s.dispatch.JSON(s.context(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, command)
 	if err != nil {
 		return ErrResult(err.Error())
 	}
@@ -830,16 +887,29 @@ func ErrResult(msg string) map[string]any {
 }
 
 // handcraftedTools defines tool schemas for handcrafted tools.
+//
+// The ze_execute descriptor carries NO `required` array here, and that is the
+// capability-dependent half of the contract rather than an omission:
+// gateExecuteCommandRequired (mrtr.go) adds it back for a client that did not
+// declare form-mode elicitation, because that client genuinely must supply the
+// argument. A client that DID declare it may omit `command` and receive the
+// Multi Round-Trip input request instead, so publishing an unconditional
+// `required` here would tell a schema-validating host that the one call which
+// reaches Ze's only elicitation is malformed, and the host would never make it.
 var handcraftedTools = []map[string]any{
 	{
-		"name":        "ze_execute",
-		"description": "Execute a ze CLI command and return the result. When invoked with a client that declared capabilities.elicitation, omitting 'command' causes the server to prompt for one via elicitation/create.",
+		"name": toolNameExecute,
+		"description": "Execute a ze CLI command and return the result. Supply 'command'. " +
+			"A client that declared form-mode elicitation may omit it: the call then returns " +
+			"resultType \"input_required\" asking for the command, which the client answers by " +
+			"retrying the call with 'inputResponses'. A client that did not declare form-mode " +
+			"elicitation must supply it; omitting it returns an error naming the missing argument.",
 		"inputSchema": map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"command": map[string]any{
+				elicitFieldCommand: map[string]any{
 					"type":        "string",
-					"description": "The ze command to execute (e.g., 'show bgp peer list', 'show bgp summary'). Optional only when the client supports elicitation.",
+					"description": "The ze command to execute (e.g., 'show bgp peer list', 'show bgp summary').",
 				},
 			},
 		},

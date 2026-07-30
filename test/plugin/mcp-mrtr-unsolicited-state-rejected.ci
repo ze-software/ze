@@ -1,0 +1,71 @@
+# mcp-mrtr-unsolicited-state-rejected - a requestState this server never issued
+# is refused before the tool runs, and the refusal does not echo it back.
+#
+# VALIDATES: spec-mcp2026-2-mrtr AC-4. Ze emits no requestState (its one
+# elicitation suspends nothing, so there is no continuation state to sign), and
+# MRTR client requirement 2 says that when a result carries none "the client
+# MUST NOT include one in the retry". Every arriving value therefore came from a
+# confused or hostile client, and server requirement 4 says to treat it as
+# attacker-controlled input and reject state that fails verification -- which,
+# with no key and no minting path, every value does, vacuously.
+#
+# The tool must NOT run: the request carries a perfectly good command, so a
+# server that ignored the field instead of rejecting it would answer 200 with
+# the command output and this test would see it.
+#
+# PREVENTS: a silent "treat as absent" path that a future requestState
+# implementation could inherit without meeting server requirement 5 (principal,
+# TTL, originating-request digest, each verified). The rejection is the tripwire
+# that forces that obligation to be met deliberately, and it cannot be relaxed
+# into an accept path without a visible edit.
+
+stdin=mcp:terminator=EOF_MCP
+probe tools/call {"name":"ze_execute","arguments":{"command":"show bgp peer list"},"requestState":"forgedZm9yZ2Vk"}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT --elicit form:stdin=mcp:timeout=20s
+expect=exit:code=0
+# 400 with -32602: a params-level malformation, in the same class as a missing
+# required _meta field, not a header mismatch and not a transport refusal.
+expect=stdout:pattern=probe status=400 code=-32602
+expect=stdout:contains=requestState
+expect=stdout:contains=is not accepted
+# The tool did not run: the command in the rejected request names a peer that
+# would otherwise appear in the output.
+reject=stdout:contains=peer1
+# The message names the failure class only. Echoing the supplied bytes would
+# turn the error into a reflection surface (ai/rules/error-messages.md).
+reject=stdout:contains=forgedZm9yZ2Vk

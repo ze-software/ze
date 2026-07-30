@@ -1,0 +1,66 @@
+# mcp-tools-list-cache-hints - tools/list carries the cache metadata a client
+# needs to stop re-listing tools on every turn.
+#
+# VALIDATES: spec-mcp2026-4-caching-apps AC-1 and AC-14 (tools/list returns
+# ttlMs 60000 and cacheScope "private"), plus AC-5 on the same result.
+#
+# MCP 2026-07-28 server/utilities/caching: "Servers MUST include caching hints
+# on results with resultType: "complete" returned by the following operations",
+# and tools/list is on that list. 60 s is the registry-derived class: the
+# command list is re-read from the dispatcher on every call, so it changes when
+# a plugin registers or a config reload lands, and this TTL is the only
+# invalidation lever Ze has without subscriptions/listen.
+#
+# Every needle below is pattern= rather than contains=: ParseKVPairs
+# (internal/test/ci/ciformat.go) splits a directive on ':' and only json=,
+# text=, hex= and pattern= keep a colon-bearing value, so a contains= needle
+# holding a colon is silently truncated at it and asserts something weaker than
+# it reads.
+#
+# PREVENTS: the hints being dropped from tools/list while server/discover keeps
+# them, which is exactly what a per-handler call site allows; and cacheScope
+# regressing to "public", which the same page warns "may be shared outside of
+# the initial requests authorization context".
+
+stdin=mcp:terminator=EOF_MCP
+probe tools/list
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=probe status=200 code=ok
+expect=stdout:pattern="ttlMs":60000
+expect=stdout:pattern="cacheScope":"private"
+expect=stdout:pattern="resultType":"complete"
+# A public scope from an authenticated endpoint is the cross-principal leak the
+# caching page's Security Considerations describes. No surface may emit it.
+reject=stdout:pattern="cacheScope":"public"
+# The embedded-asset TTL must not leak onto a registry-derived surface.
+reject=stdout:pattern="ttlMs":3600000

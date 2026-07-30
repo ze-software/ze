@@ -405,14 +405,21 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 		webEnabled = true
 	}
-	mcpCfg, mcpCfgOK := zeconfig.ExtractMCPConfig(loadResult.Tree)
-	if mcpCfgOK {
-		if len(mcpAddrs) == 0 {
-			mcpAddrs = endpointsToAddrs(mcpCfg.Servers)
-		}
-		if mcpToken == "" && mcpCfg.Token != "" {
-			mcpToken = mcpCfg.Token
-		}
+	// Two questions, deliberately asked separately (see ExtractMCPSettings).
+	//
+	// ADDRESSES come only from a config block that asks for a listener, so
+	// `enabled false` still means "config does not start MCP".
+	if mcpListenCfg, mcpListenOK := zeconfig.ExtractMCPConfig(loadResult.Tree); mcpListenOK && len(mcpAddrs) == 0 {
+		mcpAddrs = endpointsToAddrs(mcpListenCfg.Servers)
+	}
+	// SETTINGS (auth-mode, token, identities, oauth, tls) apply whenever the
+	// block exists, whatever supplied the address. Gating these on `enabled`
+	// silently discarded the operator's authentication instruction when the
+	// listener came from `--mcp <port>` or ze.mcp.listen, leaving an accept-all
+	// server (ai/rules/exact-or-reject.md).
+	mcpCfg, mcpCfgOK := zeconfig.ExtractMCPSettings(loadResult.Tree)
+	if mcpCfgOK && mcpToken == "" && mcpCfg.Token != "" {
+		mcpToken = mcpCfg.Token
 	}
 	if lgCfg, ok := zeconfig.ExtractLGConfig(loadResult.Tree); ok {
 		if len(lgAddrs) == 0 {
@@ -913,7 +920,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	// (bind-remote without auth, bearer without token, oauth without TLS): these
 	// catch config-level inconsistencies the loopback/auth guard alone would
 	// miss, with the same messages `ze config validate` prints.
-	if serviceFactoryRegistered("mcp") && mcpCfgOK {
+	// Gated on the listener actually binding, not merely on the block existing:
+	// ExtractMCPSettings now returns a config for any environment.mcp block, so
+	// without the address check a dormant block (enabled false, MCP never
+	// started) could refuse boot over an inconsistency that can harm nobody.
+	if serviceFactoryRegistered("mcp") && mcpCfgOK && len(mcpAddrs) > 0 {
 		if err := mcpCfg.Validate(); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			logStartupFailure("mcp config", err)

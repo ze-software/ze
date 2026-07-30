@@ -137,6 +137,16 @@ func TestNewStreamable_OAuth_RejectsIssuerMismatch(t *testing.T) {
 // End-to-end OAuth auth through NewStreamable + ServeHTTP
 // -----------------------------------------------------------------------------
 
+// rfc-test-change-approved: 2026-07-29 Thomas approved a carrier-only change to
+// the RFC-tagged OAuth tests during the MCP 2026-07-28 cutover
+// (spec-mcp2026-1-stateless-core). The request that carries the token changed
+// from `initialize` to `tools/list`, because `initialize` is no longer a method
+// this server implements and the old carrier would be rejected by header
+// validation before ever reaching the OAuth layer. Every RFC assertion is
+// unchanged: tag count 12 before and after, no polarity lost, and
+// `make ze-rfc-check` reports no coverage change. The session-id assertion was
+// additionally INVERTED to assert that no session is minted, which is strictly
+// stronger than what it replaced.
 func TestNewStreamable_OAuth_AcceptsValidToken(t *testing.T) {
 	// RFC requirement: RFC8414-3.3-2 positive -- when the AS-reported issuer equals the configured authorization-server, NewStreamable builds and the minted token verifies
 	as := newTestAS(t)
@@ -153,9 +163,12 @@ func TestNewStreamable_OAuth_AcceptsValidToken(t *testing.T) {
 	defer s.Close()
 
 	token := as.MintToken(t, nil)
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}`
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
+		metaBlock(ProtocolVersion, capsNone) + `}}`
 	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
+	req.Header.Set("Mcp-Method", "tools/list")
 	req.Header.Set("Authorization", "Bearer "+token)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
@@ -163,19 +176,26 @@ func TestNewStreamable_OAuth_AcceptsValidToken(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
-	sid := w.Header().Get("Mcp-Session-Id")
-	if sid == "" {
-		t.Fatal("no Mcp-Session-Id on valid-token initialize")
+	if got := w.Header().Get("Mcp-Session-Id"); got != "" {
+		t.Fatalf("response minted Mcp-Session-Id = %q; this revision has no sessions", got)
 	}
-	sess, ok := s.registry.Get(sid)
-	if !ok {
-		t.Fatalf("session %q not found after initialize", sid)
+	// The verified token's subject is the per-request Identity every handler
+	// runs as. Asserted at the producer rather than through a session, which
+	// no longer exists.
+	identity, aerr := s.authenticate(req)
+	if aerr != nil {
+		t.Fatalf("authenticate: %v", aerr)
 	}
-	if got := sess.Identity().Name; got != "alice" {
-		t.Fatalf("identity.Name = %q, want alice", got)
+	if identity.Name != "alice" {
+		t.Fatalf("identity.Name = %q, want alice", identity.Name)
 	}
 }
 
+// rfc-test-change-approved: 2026-07-29 Thomas approved a carrier-only change
+// during the MCP 2026-07-28 cutover (spec-mcp2026-1-stateless-core): the request
+// body moved from `initialize` to `tools/list` and gained the two now-required
+// headers. The RFC9728-5.1-1 assertion below -- that the 401 WWW-Authenticate
+// challenge carries resource_metadata -- is untouched.
 func TestNewStreamable_OAuth_RejectsMissingBearer(t *testing.T) {
 	as := newTestAS(t)
 	s, err := NewStreamable(StreamableConfig{
@@ -190,9 +210,12 @@ func TestNewStreamable_OAuth_RejectsMissingBearer(t *testing.T) {
 	}
 	defer s.Close()
 
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}`
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
+		metaBlock(ProtocolVersion, capsNone) + `}}`
 	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
+	req.Header.Set("Mcp-Method", "tools/list")
 	// No Authorization header.
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
@@ -230,9 +253,12 @@ func TestNewStreamable_OAuth_RejectsWrongAudience(t *testing.T) {
 	defer s.Close()
 
 	token := as.MintToken(t, map[string]any{"aud": "https://wrong/"})
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}`
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
+		metaBlock(ProtocolVersion, capsNone) + `}}`
 	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
+	req.Header.Set("Mcp-Method", "tools/list")
 	req.Header.Set("Authorization", "Bearer "+token)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
@@ -367,6 +393,11 @@ func TestAudClaim_MatchesCanonicalVariants(t *testing.T) {
 	}
 }
 
+// rfc-test-change-approved: 2026-07-29 Thomas approved a carrier-only change
+// during the MCP 2026-07-28 cutover (spec-mcp2026-1-stateless-core): the request
+// body moved from `initialize` to `tools/list` and gained the two now-required
+// headers. Both RFC8707 assertions below -- that a trailing-slash-divergent aud
+// still authenticates and returns 200 OK -- are untouched.
 func TestNewStreamable_OAuth_AcceptsSlashDivergentAudience(t *testing.T) {
 	// Regression test: Streamable audience has trailing slash, token
 	// audience does not. Exact-string compare rejected this; canonical
@@ -386,9 +417,12 @@ func TestNewStreamable_OAuth_AcceptsSlashDivergentAudience(t *testing.T) {
 	defer s.Close()
 
 	token := as.MintToken(t, map[string]any{"aud": "https://mcp.example"}) // no trailing slash
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}`
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
+		metaBlock(ProtocolVersion, capsNone) + `}}`
 	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
+	req.Header.Set("Mcp-Method", "tools/list")
 	req.Header.Set("Authorization", "Bearer "+token)
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
@@ -526,7 +560,7 @@ func TestStreamable_MainPathResponseCORSEchoesOrigin(t *testing.T) {
 	// real POST. The response MUST carry Access-Control-Allow-Origin,
 	// Access-Control-Allow-Credentials, and Access-Control-Expose-Headers
 	// so the browser surfaces the response and the JS caller can read
-	// Mcp-Session-Id / WWW-Authenticate.
+	// WWW-Authenticate.
 	cfg := StreamableConfig{
 		AuthMode:       AuthBearerList,
 		BearerList:     []BearerListEntry{{Name: "alice", Token: "t"}},
@@ -538,16 +572,19 @@ func TestStreamable_MainPathResponseCORSEchoesOrigin(t *testing.T) {
 	}
 	defer s.Close()
 
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}`
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
+		metaBlock(ProtocolVersion, capsNone) + `}}`
 	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
+	req.Header.Set("Mcp-Method", "tools/list")
 	req.Header.Set("Authorization", "Bearer t")
 	req.Header.Set("Origin", "https://app.example/")
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
 
 	if w.Code != http.StatusOK {
-		t.Fatalf("initialize status = %d, body = %s", w.Code, w.Body.String())
+		t.Fatalf("tools/list status = %d, body = %s", w.Code, w.Body.String())
 	}
 	if ao := w.Header().Get("Access-Control-Allow-Origin"); ao != "https://app.example/" {
 		t.Fatalf("ACAO on success = %q, want echoed origin", ao)
@@ -555,8 +592,11 @@ func TestStreamable_MainPathResponseCORSEchoesOrigin(t *testing.T) {
 	if ac := w.Header().Get("Access-Control-Allow-Credentials"); ac != "true" {
 		t.Fatalf("ACAC on success = %q, want true", ac)
 	}
-	if expose := w.Header().Get("Access-Control-Expose-Headers"); !strings.Contains(expose, "Mcp-Session-Id") {
-		t.Fatalf("ACEH missing Mcp-Session-Id: %q", expose)
+	if expose := w.Header().Get("Access-Control-Expose-Headers"); !strings.Contains(expose, "WWW-Authenticate") {
+		t.Fatalf("ACEH missing WWW-Authenticate: %q", expose)
+	}
+	if expose := w.Header().Get("Access-Control-Expose-Headers"); strings.Contains(expose, "Mcp-Session-Id") {
+		t.Fatalf("ACEH still advertises the removed Mcp-Session-Id: %q", expose)
 	}
 	// Vary: Origin defends shared caches.
 	if vary := w.Header().Get("Vary"); !strings.Contains(vary, "Origin") {
@@ -579,9 +619,12 @@ func TestStreamable_MainPath401CORSEchoesOrigin(t *testing.T) {
 	}
 	defer s.Close()
 
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}`
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
+		metaBlock(ProtocolVersion, capsNone) + `}}`
 	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
+	req.Header.Set("Mcp-Method", "tools/list")
 	req.Header.Set("Authorization", "Bearer wrong")
 	req.Header.Set("Origin", "https://app.example/")
 	w := httptest.NewRecorder()
@@ -698,9 +741,12 @@ func TestStreamable_MainPathNoOriginNoCORS(t *testing.T) {
 	}
 	defer s.Close()
 
-	body := `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}`
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{"_meta":` +
+		metaBlock(ProtocolVersion, capsNone) + `}}`
 	req := httptest.NewRequest(http.MethodPost, Endpoint, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("MCP-Protocol-Version", ProtocolVersion)
+	req.Header.Set("Mcp-Method", "tools/list")
 	w := httptest.NewRecorder()
 	s.ServeHTTP(w, req)
 

@@ -1,0 +1,67 @@
+# mcp-mrtr-elicit-declined - a declined prompt is terminal: the tool reports the
+# refusal and the server does not ask again.
+#
+# VALIDATES: spec-mcp2026-2-mrtr AC-8 and end-to-end user story 2. The client
+# declares form mode, is prompted, and answers {"action":"decline"} on the
+# retry. That is an ANSWER, not an omission, so the handler completes with an
+# error naming the outcome instead of returning a second InputRequiredResult.
+#
+# WHAT CHANGED AND WHY: this replaces elicitation-decline.ci, whose decline
+# travelled as a client JSON-RPC response correlated to a server-initiated
+# request -- a message the 2026-07-28 transport forbids the client to send.
+# The distinction being proved is the same one and is now load-bearing for a
+# different reason: under MRTR a server MAY prompt repeatedly, so if a decline
+# were treated as "the client did not answer", a user who has explicitly said no
+# would be asked forever.
+#
+# PREVENTS: a decline collapsing into the re-ask path (an unbounded prompt loop
+# driven by a refusing client), and a decline being dispatched as an empty
+# command.
+
+stdin=mcp:terminator=EOF_MCP
+elicit-answer decline
+@ze_execute {}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT --elicit form:stdin=mcp:timeout=20s
+# ze-test mcp prints the tool error to stderr and exits non-zero.
+expect=exit:code=1
+expect=stderr:contains=declined
+expect=stderr:contains=command error
+# One round trip only. The client bounds itself at maxInputRounds and reports
+# "still required input after N attempts" if the server kept prompting; seeing
+# the decline text instead is what proves the loop terminated on the answer.
+reject=stderr:pattern=still required input

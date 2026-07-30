@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | spec-mcp2026-1-stateless-core |
 | Phase | 4/4 |
 | Deferral shard | `plan/deferrals/mcp2026-4-caching-apps.md` |
-| Updated | 2026-07-28 |
+| Updated | 2026-07-30 |
 
 Parent: `plan/spec-mcp2026-0-umbrella.md`. Depends on Phase 1 only, so it may run
 concurrently with Phase 3 if capacity allows.
@@ -59,6 +59,10 @@ What must change:
 - Read the client's declared UI extension settings from per-request `clientCapabilities` instead of the initialize-time `clientResources` session bit (`session.go:57`), which Phase 1 deleted.
 - Verify `_meta.ui.*` field names and the `ui://` scheme against the current extension specification. Ze's shape came from a draft and may have drifted.
 - Reconcile the resources capability gate: today `resources/list` and `resources/read` are gated on the client having declared `capabilities.resources` (`resources.go:144`, `streamable_tools.go:38-41`). Under per-request capabilities that gate moves; decide whether resources stay gated at all, since the spec treats `resources` as a normal server capability rather than something requiring client opt-in.
+  → **Evidence added 2026-07-29, and it sharpens the question into a likely "remove the gate".** The `2026-07-28` `ClientCapabilities` type has exactly five members — `experimental`, `roots`, `sampling`, `elicitation`, `extensions` (schema.ts, recorded in `tmp/mcp-2026-07-28-spec-extract.md`). **`resources` is not among them**: it is a *server* capability, advertised by the server in `server/discover`, not something a client declares. So Ze is currently gating a server capability on a client declaration that no conformant client has any reason to send.
+  → Phase 1 kept the gate deliberately, moved onto the per-request capability value, because removing it is a behaviour change this phase owns and AC-13 needed *some* gate to assert against. Phase 1 also emits `-32021 MissingRequiredClientCapability` for the denial rather than the pre-cutover `-32601`, which is the right code for a capability gate but is now arguably the right code for a gate that should not exist.
+  → The specification does say the capability set is open ("this is not a closed set: any client can define its own, additional capabilities"), so the current shape is *legal*. The question is whether it is *correct*, and the likely answer is no: a conformant third-party client will never declare `resources`, so Ze's UI resources would be unreachable to every real client. That is a functional bug wearing a conformance costume, and it is exactly the kind of thing R-1 in the umbrella predicted would only surface when a real client appears.
+  → **RESOLVED IN PHASE 1, 2026-07-29, and this row is now history rather than an open question.** An independent review escalated it from a design question to a functional break: the gate meant no conformant client could read a resource, while `server/discover` advertised `capabilities.resources` and `tools/list` published `_meta.ui.resourceUri` pointing at `ui://` assets, so Ze told clients to fetch what it then refused -- and `data.requiredCapabilities` is typed `ClientCapabilities`, so the error named a value that field cannot legally hold. Phase 1 deleted the gate: `resourcesList`/`resourcesRead` no longer take a capability argument. AC-13 was restated, `TestResourcesRejectWithoutCapability` was replaced by `TestResourcesServedWithoutClientCapability` and `TestResourcesServedForEveryCapabilityShape`, and `docs/architecture/api/commands.md` was corrected. **Phase 4 inherits no decision here** -- only the `_meta.ui` extension-settings gate, which is a different question and remains open above.
 
 **Open design questions:** (all three resolved during design, 2026-07-28; the
 answers and their evidence are recorded immediately below and carried into Key
@@ -295,7 +299,7 @@ Umbrella AC covered: AC-8.
 |------|------|-----------|--------|
 | `TestListResultsCarryCacheHints` | `internal/component/mcp/streamable_test.go` | AC-1..AC-4, AC-14, table over the four implemented methods | |
 | `TestCacheScopeIsAlwaysPrivate` | `internal/component/mcp/streamable_test.go` | AC-5, asserts `"public"` appears on no surface | |
-| `TestToolsCallCarriesNoCacheHints` | `internal/component/mcp/streamable_test.go` | AC-15, both result shapes | |
+| `TestToolsCallCarriesNoCacheHints` | `internal/component/mcp/streamable_test.go` | AC-15, both result shapes | done 2026-07-30 (written late: an independent review found it had never existed. The `complete` shape was covered by `TestNonCacheableResultsCarryNoHints`; the `task` shape was covered by nothing, and the invariant `caching.go` stated for it was wrong. A CreateTaskResult legitimately carries `ttlMs` and `pollIntervalMs` -- the tasks extension requires them -- so what must be absent there is `cacheScope`, which is the discriminator between a caching hint and the extension's retention fields) |
 | `TestToolOrderDeterministic` | `internal/component/mcp/tools_test.go` | AC-6, repeated generation from a shuffled lister, plus AC-13 uniqueness of enums and tool names | |
 | `TestBuildCommandMeta_DedupesPluginProxiedCommand` | `cmd/ze/hub/command_meta_test.go` | A-4 fix: a name present in both the dispatcher and the plugin registry appears once, keeping the YANG-bearing entry | done 2026-07-29 |
 | `TestBuildCommandMeta_DedupeIsCaseInsensitive` | `cmd/ze/hub/command_meta_test.go` | Dedupe matches on the lowercase key both sources store under | done 2026-07-29 |
@@ -324,7 +328,7 @@ Umbrella AC covered: AC-8.
 | `mcp-discover-ui-extension` | `test/plugin/*.ci` | UI extension advertised | |
 | `mcp-ui-extension-fallback` | `test/plugin/*.ci` | A host without MCP Apps still gets every tool, without `_meta.ui` | |
 | `mcp-resources-no-client-capability` | `test/plugin/*.ci` | Resources served without a client opt-in declaration | |
-| `mcp-tools-list-deterministic-order` | `test/plugin/*.ci` | Two `tools/list` calls return byte-identical tool arrays | |
+| `mcp-tools-list-deterministic-order` | `test/plugin/*.ci` | Two `tools/list` calls return byte-identical tool arrays | done 2026-07-30 (corrected: `tools-order-stable` compared only the tool NAME sequence, which is weaker than AC-6 -- a wobbling action enum or description leaves every name in place. Byte identity was proved at generation level by `TestToolOrderDeterministic` and by nothing on the wire, which is where the map ranges that build the enums reach a client. The directive now compares the raw `tools` bytes and prints a SHA-256 prefix of them, and the `.ci` asserts that digest's shape so the byte comparison cannot silently stop happening) |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |

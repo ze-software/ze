@@ -844,10 +844,12 @@ func nextMarker(line string, offset int, markers ...string) int {
 	return best
 }
 
-// parseHTTP handles http=method:seq=N:url=URL:status=CODE[:contains=TEXT][:timeout=DUR] lines.
+// parseHTTP handles http=method:seq=N:url=URL:status=CODE[:contains=TEXT][:header=NAME: VALUE][:timeout=DUR] lines.
 // Uses marker-based parsing (nextMarker) because URLs contain colons that would
 // confuse simple colon-splitting. Each marker's value extends to the next known
 // marker or end-of-line, so marker order in the input does not matter.
+// header= is the only repeatable key: it is scanned for every occurrence, and each
+// value is split on its first colon into a field name and value.
 // Method "wait" polls until the condition is met (retries on content mismatch).
 func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 	isWait := method == "wait"
@@ -862,6 +864,7 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 	bodyfileMarker := ":bodyfile="
 	sendfileMarker := ":sendfile="
 	contentTypeMarker := ":content-type="
+	headerMarker := ":header="
 	insecureTLSMarker := ":insecure-tls="
 	timeoutMarker := ":timeout="
 
@@ -885,7 +888,10 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 		return errHttpMissingStatus
 	}
 
-	allMarkers := []string{seqMarker, urlMarker, statusMarker, containsMarker, bodyfileMarker, sendfileMarker, contentTypeMarker, insecureTLSMarker, timeoutMarker}
+	// headerMarker is deliberately in this set even though header= has no single
+	// index above: it is the one REPEATABLE key, so every other key's value must
+	// still terminate when a header= follows it on the same line.
+	allMarkers := []string{seqMarker, urlMarker, statusMarker, containsMarker, bodyfileMarker, sendfileMarker, contentTypeMarker, headerMarker, insecureTLSMarker, timeoutMarker}
 
 	// Extract seq value: from after ":seq=" to next known marker or end.
 	seqStart := seqIdx + len(seqMarker)
@@ -942,6 +948,29 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 		contentType = line[contentTypeStart:contentTypeEnd]
 	}
 
+	// Extract optional request headers. Unlike every other key, header= is
+	// repeatable, so scan for ALL occurrences instead of a single strings.Index.
+	// Each value runs to the next known marker (including the next header=), so a
+	// header value may itself contain colons -- "Referer: http://host:8080/" is one
+	// header, split on its FIRST colon only.
+	var headers []httpHeader
+	for from := 0; ; {
+		idx := strings.Index(line[from:], headerMarker)
+		if idx < 0 {
+			break
+		}
+		start := from + idx + len(headerMarker)
+		end := nextMarker(line, start, allMarkers...)
+		raw := line[start:end]
+		name, value, found := strings.Cut(raw, ":")
+		name = strings.TrimSpace(name)
+		if !found || name == "" {
+			return fmt.Errorf("http= invalid header=%q (want header=Name: Value)", raw)
+		}
+		headers = append(headers, httpHeader{Name: name, Value: strings.TrimSpace(value)})
+		from = end
+	}
+
 	// Extract optional insecure TLS flag for self-signed HTTPS test servers.
 	var insecureTLS bool
 	if insecureTLSIdx >= 0 {
@@ -974,6 +1003,7 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 		BodyFile:    bodyfile,
 		SendFile:    sendfile,
 		ContentType: contentType,
+		Headers:     headers,
 		InsecureTLS: insecureTLS,
 		Timeout:     timeout,
 	}

@@ -1,0 +1,81 @@
+# mcp-meta-malformed-rejected - a request whose params._meta omits a REQUIRED
+# protocol field is refused with -32602; omitting the optional one is served.
+#
+# VALIDATES: spec-mcp2026-1-stateless-core AC-16. MCP 2026-07-28 basic/index
+# "_meta" marks io.modelcontextprotocol/protocolVersion and
+# io.modelcontextprotocol/clientCapabilities Required=Yes and
+# io.modelcontextprotocol/clientInfo Required=No, then: "A request missing any
+# required field is malformed; the server MUST reject it with JSON-RPC error
+# code -32602 (Invalid params). On HTTP, the response status MUST be 400 Bad
+# Request."
+#
+# The fourth probe is the half that makes this test more than a rejection list:
+# clientInfo alone is omitted and the request MUST still succeed, because
+# clients only SHOULD send it. A server that required all three would pass every
+# negative case here and fail only this one.
+#
+# -32602 is deliberately NOT -32020: a missing body field is not a header
+# mismatch, and reusing the reserved header code for it would give a defined
+# code a meaning the specification does not assign it (basic/index:
+# implementations "MUST use defined codes only with their specified meanings").
+#
+# PREVENTS: a missing required field defaulting to something (a zero capability
+# set that reads as "everything declared", or an assumed protocol version), and
+# the three failures collapsing into one indistinguishable code.
+
+stdin=mcp:terminator=EOF_MCP
+# _meta present but missing the required protocol version.
+probe-meta protocolVersion -
+probe tools/list
+# _meta present but missing the required capability object.
+probe-meta clientCapabilities -
+probe tools/list
+# No _meta block at all.
+probe-meta protocolVersion -
+probe-meta clientInfo -
+probe-meta clientCapabilities -
+probe tools/list
+# Only the OPTIONAL field omitted: this one must be served.
+probe-meta clientInfo -
+probe tools/list
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=probe status=400 code=-32602
+expect=stdout:pattern=code=-32602 message=invalid params.*protocolVersion.*is required
+expect=stdout:pattern=code=-32602 message=invalid params.*clientCapabilities.*is required
+expect=stdout:pattern=code=-32602 message=invalid params: params\._meta is required
+# Three rejections, then the clientInfo-only omission served.
+expect=stdout:pattern=(?s)code=-32602.*code=-32602.*code=-32602.*probe status=200 code=ok
+expect=stdout:pattern="resultType":"complete"
+# A malformed _meta is not a header failure and not a version failure.
+reject=stdout:contains=code=-32020
+reject=stdout:contains=code=-32022

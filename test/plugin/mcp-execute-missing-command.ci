@@ -1,0 +1,81 @@
+# mcp-execute-missing-command - ze_execute called with no command fails closed
+# with a clear argument error.
+#
+# VALIDATES: spec-mcp2026-1-stateless-core AC-15, on the branch Phase 2 left
+# intact. This client declares NO elicitation capability (no --elicit flag), so
+# askForCommand (internal/component/mcp/mrtr.go) takes the fail-closed path: the
+# call returns HTTP 200 with a tool-level error naming the missing argument, and
+# no elicitation/create frame is produced.
+#
+# CORRECTED 2026-07-30: the header used to say `command` is required
+# "unconditionally now ... for anyone", which was written when Phase 1 had
+# deleted elicitation. Phase 2 restored it as Multi Round-Trip Requests, so a
+# client that DOES declare form mode is prompted instead -- see
+# mcp-mrtr-elicit-roundtrip.ci. Only the no-capability branch is this test's
+# subject, and that is the branch the absence of --elicit selects.
+#
+# WHAT CHANGED AND WHY: this file was elicitation-no-capability.ci, and its
+# subject was capability NEGOTIATION -- it proved the server did not prompt a
+# client that had not declared capabilities.elicitation at initialize. MCP
+# 2026-07-28 removed both halves of that: there is no initialize handshake to
+# declare a capability at, and a server may no longer send an independent
+# JSON-RPC request on any stream, so there is no round trip left to prompt on.
+# Every client is now a no-prompt client, which makes this the canonical test
+# for the one behavior that remains: the missing argument is reported, not
+# waited on. The test body is unchanged because it was always driving the branch
+# that survived; only what it means changed.
+#
+# PREVENTS: a caller hanging on a prompt that can never arrive, and a silent
+# dispatch of an empty command string. The failure must be immediate, named, and
+# on the response the caller is already waiting for.
+
+stdin=mcp:terminator=EOF_MCP
+@ze_execute {"command":""}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=15s
+expect=exit:code=1
+# pattern= rather than contains= because the needle carries a colon, and a
+# contains= value is split on it (ci.ParseKVPairs) -- which would silently
+# shorten this to "missing required argument" and stop proving WHICH argument.
+expect=stderr:pattern=missing required argument: command
+# The error is a TOOL-level error on a normal 200 response, not a transport
+# refusal: the request itself was conformant and only its arguments were wrong.
+expect=stderr:contains=command error
+reject=stdout:contains=elicitation/create
+# reject=stderr takes a regex, not contains= (parseReject, record_parse.go):
+# a contains= here parses as an empty pattern and is a hard parse error.
+reject=stderr:pattern=elicitation/create

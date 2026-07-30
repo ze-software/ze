@@ -1,0 +1,107 @@
+# task-no-extension - a client that did not declare the tasks extension is
+# never handed a task, and still gets its answer.
+#
+# VALIDATES: spec-mcp2026-3-tasks-extension AC-6, BOTH halves, and D-2.
+#
+# MCP 2026-07-28 basic/versioning "Extension Negotiation": "If one party
+# supports an extension but the other does not, the supporting party MUST either
+# revert to core protocol behavior or reject the request with an appropriate
+# error." Ze reverts. The extension is an optimization over a synchronous call,
+# never a precondition for the work -- rejecting would make every
+# `ze:task-support required` command unreachable to any client that has not
+# adopted an optional extension, which is a conformance regression wearing
+# strictness as a disguise.
+#
+# WHY BOTH HALVES: a test asserting only "no task handle" would pass against a
+# server that simply FAILED every such request. The positive half -- the command
+# ran and returned real routing data -- is what makes the negative half mean
+# anything.
+#
+# THIS FILE IS THE A/B TWIN OF task-rib-routes.ci. Same peer, same route, same
+# tool, same assertions on the data. The ONLY difference is the absent --tasks
+# flag on the client, so the pair isolates the extension declaration as the
+# single variable: with it the answer arrives as a task handle to be polled,
+# without it the identical answer arrives synchronously.
+
+# ze-peer: send one route then expect EOR from ze
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1:origin-as=65001
+# The peer MUST hold the session open after its EOR expectation is met. Without
+# linger it closes as soon as it is satisfied, ze reads that as session-down and
+# withdraws the peer's routes -- so the RIB query below would race an empty RIB.
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+stdin=mcp:terminator=EOF_MCP
+wait-established
+# No readiness signal: wait-established polls until ze reports the peer up, but
+# nothing this client can query says the peer's UPDATE has been installed in the
+# Adj-RIB-In. ze-test mcp has no "poll a command until its output contains X"
+# directive, so this remains a fixed hold rather than a condition wait.
+wait 1s
+# ze_show_bgp carries `ze:task-support required`, so this is the exact call that
+# task-rib-routes.ci gets a task handle for. call-sync REQUIRES resultType
+# "complete" and refuses a taskId, so both halves of AC-6 are enforced by the
+# directive itself rather than by pattern matching alone.
+call-sync ze_show_bgp {"action":"rib"}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze --mcp $PORT2 -:stdin=ze-bgp
+# NOTE the absent --tasks flag. That is the whole experiment.
+cmd=foreground:seq=3:exec=ze-test mcp --port $PORT2:stdin=mcp:timeout=20s
+expect=exit:code=0
+# The positive half: the command RAN and produced the route the peer announced.
+# Without this, "no task handle" would also be satisfied by a server that
+# refused the call outright -- which is the D-2 failure mode.
+expect=stdout:contains=10.0.0.0/24
+expect=stdout:contains=adj-rib-in
+# The negative half: no task handle reached a client that cannot read one. A
+# CreateTaskResult would carry both of these, and neither may appear.
+reject=stdout:contains=taskId
+reject=stdout:pattern="resultType":"task"
+# And it was not refused instead of served: none of the rejection codes.
+#
+# // test-relax: the two stdout needles here (`contains=code -32021` and
+# `contains=code -32602`) were removed, not weakened. They could never match
+# whatever the server did: formatProbeResult prints `code=<n>` and the
+# space-separated spelling exists only in a client error string that goes to
+# stderr -- and this file sends no probe at all, so stdout carries no `code=`
+# token in either spelling. The stderr rejects below are the live guards and
+# are unchanged; a refusal here fails the client, which `expect=exit:code=0`
+# already catches. A needle that cannot fire is not coverage, it is noise that
+# reads as protection.
+reject=stderr:pattern=code \-32021
+reject=stderr:pattern=code \-32602

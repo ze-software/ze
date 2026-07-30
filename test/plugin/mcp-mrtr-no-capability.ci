@@ -1,0 +1,85 @@
+# mcp-mrtr-no-capability - a client that declared no elicitation capability is
+# never prompted; it gets the missing-argument error instead.
+#
+# VALIDATES: spec-mcp2026-2-mrtr AC-5. MRTR server requirement 7: "Servers MUST
+# NOT send an inputRequests that the client has not declared support for in its
+# capabilities. For example, if a client does not declare support for
+# elicitation, the server MUST NOT include any elicitation/create requests in
+# the inputRequests field."
+#
+# The capability is read from THIS request's
+# _meta.io.modelcontextprotocol/clientCapabilities. With the initialize
+# handshake gone there is nowhere else it could come from, so a server that
+# prompted here would be prompting a client that never said it could answer.
+#
+# WHAT CHANGED AND WHY: this is the successor to elicitation-no-capability.ci,
+# whose subject was capability negotiation at initialize. Phase 1 retargeted
+# that file to mcp-execute-missing-command.ci, where "command is required
+# unconditionally" was the only behavior left. Phase 2 restores the real
+# distinction -- the capability gate is live again, so not prompting is once
+# more a CHOICE the server makes rather than the only thing it can do.
+#
+# The second directive makes a regression loud rather than silent: an answer is
+# queued, so a server that wrongly prompted would drive the client's retry loop
+# and the stderr rejection below would fire. Without it, a wrongly-emitted
+# prompt would surface only as a missing needle.
+#
+# PREVENTS: the gate degrading to "always prompt", which would send an
+# elicitation to a client with no way to answer it.
+
+stdin=mcp:terminator=EOF_MCP
+probe tools/call {"name":"ze_execute","arguments":{}}
+elicit-answer accept show bgp peer list
+@ze_execute {}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+# The @ze_execute call ends in a tool error, which ze-test reports and exits 1.
+expect=exit:code=1
+# The probe result, in full: a tool-level error on a normal 200, because the
+# request was conformant and only its arguments were wrong.
+expect=stdout:pattern=probe status=200 code=ok
+expect=stdout:pattern=missing required argument: command
+expect=stdout:pattern="isError":true
+expect=stdout:pattern="resultType":"complete"
+expect=stderr:contains=missing required argument
+# Nothing about elicitation reaches a client that did not ask for it.
+reject=stdout:contains=input_required
+reject=stdout:contains=inputRequests
+reject=stdout:contains=elicitation/create
+# If the server had prompted anyway, the client would have answered and the
+# command would have run -- the configured peer name is the tell.
+reject=stdout:contains=peer1

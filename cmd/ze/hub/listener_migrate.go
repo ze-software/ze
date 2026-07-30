@@ -75,7 +75,7 @@ func (m *ListenerMigrator) SetWeb(web Reconfigurable) { m.web = web }
 func (m *ListenerMigrator) SetLG(s Reconfigurable) { m.lg = s }
 
 // SetMCP updates the MCP server reference. Takes Reconfigurable (not
-// *MCPServerHandle) so always-on code never imports the mcp package: mcp is
+// *mcpServerHandle) so always-on code never imports the mcp package: mcp is
 // built through the construction registry and may be compiled out
 // (//go:build ze_mcp).
 func (m *ListenerMigrator) SetMCP(s Reconfigurable) { m.mcp = s }

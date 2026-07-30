@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | spec-mcp2026-2-mrtr |
 | Phase | 3/4 |
 | Deferral shard | `plan/deferrals/mcp2026-3-tasks-extension.md` |
-| Updated | 2026-07-28 |
+| Updated | 2026-07-30 |
 
 Parent: `plan/spec-mcp2026-0-umbrella.md`.
 
@@ -250,7 +250,7 @@ already exist and are rewritten rather than created.
 |---|-----------|--------------------|-----------------------|
 | 1 | Starts a long-running operation and polls it to completion | `tools/call` → `CreateTaskResult` → `tasks/get` × N → terminal | `test/plugin/task-rib-routes.ci` |
 | 2 | Runs the same operation from a client that has not adopted the extension, and still gets an answer | `tools/call` → no extension declared → synchronous dispatch → `resultType: "complete"` | `test/plugin/task-no-extension.ci` |
-| 3 | Cancels a running operation | `tasks/cancel` → cooperative stop | `test/plugin/task-cancel.ci` |
+| 3 | Cancels a running operation | `tasks/cancel` → cooperative stop | `TestTasksCancelAcknowledgesWithAnEmptyResult/working_task` (`internal/component/mcp/tasks_test.go`) for the RUNNING task, over the real HTTP transport with the dispatcher blocked on `ctx.Done()`; `test/plugin/task-cancel.ci` for the empty acknowledgement and terminal-state idempotence. Corrected 2026-07-30: the `.ci` alone was cited, and it cancels an already-terminal task. No `ze:task-support required` command blocks, so a `.ci` cannot win that race deterministically and asserting `cancelled` there would be a timing assumption (`ai/rules/fix-dont-record.md`) |
 | 4 | Tries to run a route-injecting command as a task and cannot | `tools/call` on a `forbidden` command → synchronous dispatch, no task handle | `test/plugin/task-forbidden.ci` |
 
 ## 🧪 TDD Test Plan
@@ -262,6 +262,7 @@ already exist and are rewritten rather than created.
 | `TestTaskNotReturnedWithoutExtension` | `internal/component/mcp/tasks_test.go` | AC-6, both halves: no task handle, and a `complete` result | |
 | `TestTaskScopedToPrincipal` | `internal/component/mcp/tasks_test.go` | AC-10 | |
 | `TestTasksUpdateAcknowledgesAndIgnores` | `internal/component/mcp/tasks_test.go` | AC-7, AC-8 | |
+| `TestTasksCancelAcknowledgesWithAnEmptyResult` | `internal/component/mcp/tasks_test.go` | AC-9, both halves: the acknowledgement is empty, and the cancellation still took effect | done 2026-07-30 (written late: an independent review found AC-9's result shape had NO wire-level test, and the handler had drifted to `{"taskId":…, "status":…}` against an AC and an extension that both say "empty result". The handler is now empty-acknowledging and this test pins it; the running-task half also covers user story 3) |
 | `TestRemovedTaskMethods` | `internal/component/mcp/streamable_test.go` | AC-5 | |
 | `TestTaskGCIndependentOfSessions` | `internal/component/mcp/tasks_test.go` | R-3: the sweep runs with no session registry in the picture | |
 | `TestStuckTaskForcedTerminalAtDeadline` | `internal/component/mcp/tasks_test.go` | AC-13, and that the concurrency slot is released afterwards | |

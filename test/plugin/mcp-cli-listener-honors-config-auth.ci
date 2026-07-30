@@ -1,0 +1,50 @@
+# mcp-cli-listener-honors-config-auth - the environment.mcp auth settings apply
+# to a listener started by `ze --mcp <port>`, not only to one the config itself
+# started.
+#
+# VALIDATES: ExtractMCPSettings (internal/component/config/loader_extract.go)
+# returns auth-mode and token for ANY environment.mcp block, and
+# cmd/ze/hub/main.go applies them whenever an MCP listener runs.
+#
+# PREVENTS: the fail-open this test was written for. ExtractMCPConfig returns
+# ok=false unless the block sets `enabled true` AND names a server port, and
+# main.go used to skip the entire config on that ok=false -- so `auth-mode
+# bearer` plus a token, combined with `--mcp <port>`, produced a listener with
+# AuthMode zero. NewStreamable's mode inference then selected AuthNone and
+# noneAuthenticator accepted every request. The operator asked for bearer auth
+# and got accept-all, silently (ai/rules/exact-or-reject.md).
+#
+# The config below deliberately omits BOTH `enabled true` and the `server`
+# block: that is precisely the shape that used to discard the credential. Two
+# probes run with no Authorization header at all. Before the fix they returned
+# 200; they must now be 401.
+
+stdin=mcp:terminator=EOF_MCP
+probe tools/list
+probe tools/call {"name":"ze_execute","arguments":{"command":"show version"}}
+EOF_MCP
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	mcp {
+		# No `enabled true`, no `server` block: the listener comes from the
+		# --mcp flag on the command line below. These two leaves are the
+		# operator's authentication instruction and must survive that.
+		auth-mode bearer;
+		token mcp-secret-token;
+	}
+}
+EOF_CONF
+
+# The client sends NO --token, so every request is credential-less.
+cmd=background:seq=1:exec=ze --mcp $PORT -:stdin=ze-bgp
+cmd=foreground:seq=2:exec=ze-test mcp --port $PORT:stdin=mcp:timeout=20s
+expect=exit:code=0
+# Both methods refused, proving the check is per request rather than once.
+expect=stdout:pattern=(?s)probe status=401.*probe status=401
+# And refused for the RIGHT reason: the bearer authenticator ran. A 401 from
+# some other cause would satisfy the status assertion alone.
+expect=stdout:contains=missing or malformed Authorization header
+# Nothing was served: a tools/list that leaked through would name a real tool.
+reject=stdout:contains=ze_execute
+reject=stdout:contains="resultType":"complete"
