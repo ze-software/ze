@@ -916,14 +916,16 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		}
 	}
 
-	// Run the existing precise MCP semantic checks on the boot path too
-	// (bind-remote without auth, bearer without token, oauth without TLS): these
-	// catch config-level inconsistencies the loopback/auth guard alone would
-	// miss, with the same messages `ze config validate` prints.
-	// Gated on the listener actually binding, not merely on the block existing:
-	// ExtractMCPSettings now returns a config for any environment.mcp block, so
-	// without the address check a dormant block (enabled false, MCP never
-	// started) could refuse boot over an inconsistency that can harm nobody.
+	// Run the existing precise MCP semantic checks on the boot path too:
+	// bind-remote without auth, bearer without token, and oauth without TLS.
+	// They catch config-level inconsistencies that the loopback and auth guard
+	// alone does not find. They print the same messages as `ze config validate`.
+	//
+	// The gate is the listener that binds, not the block that exists.
+	// ExtractMCPSettings returns a config for any environment.mcp block. Without
+	// the address check, a dormant block refuses boot over an inconsistency that
+	// harms nobody. A dormant block is one with enabled false, where MCP never
+	// starts.
 	if serviceFactoryRegistered("mcp") && mcpCfgOK && len(mcpAddrs) > 0 {
 		if err := mcpCfg.Validate(); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)

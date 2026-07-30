@@ -42,6 +42,23 @@ nearest-to-enrollable first, each as its own reviewable unit.
 → Constraint (`ai/rules/testing.md`, "Back-Fill New Test Types"): the un-enrolled remainder
   must be explicit tracked backlog, never implicit. This spec IS that tracking; the ledger's
   "not enrolled" rollup is its derived, un-rottable record.
+
+**Also decide whether a non-IETF specification can enter this machinery at all.**
+Received 2026-07-30 from `plan/deferrals/mcp2026-0-umbrella.md`, whose own spec
+closed with the MCP 2026-07-28 cutover. The MCP protocol specification carries
+MUST-level obligations, and Ze now implements revision `2026-07-28` in full. No
+part of it sits under `make ze-rfc-check`, so no ratchet holds that conformance.
+
+The question is for Thomas, and an implementing session must not answer it
+(`ai/rules/rfc-compliance.md`, "Ask Thomas Whenever Full Compliance Is On The
+Table"). A refusal to enroll lowers what Ze owes, and that is a compliance
+decision.
+
+Two things need an answer. First, does `rfc/short/` accept a summary of a
+document that is not an RFC. Second, does `rfc/enrolled.txt` accept a stem that
+`rfc/full/<stem>.txt` cannot hold, because the MCP specification is a website
+rather than a text file. No enrollment is the status quo, so this blocks
+nothing.
 → Constraint (`ai/rules/derive-not-hardcode.md`): only the test-side `RFC requirement:` tag is
   authored; the ledger derives the reverse. Enrolment adds tags, never hand-written back-links.
 

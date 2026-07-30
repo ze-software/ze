@@ -1,31 +1,35 @@
-# Spec: <task-name>
-
-<!-- DESIGN-TIME template: everything that must exist BEFORE code is written.
-     The closure half (Implementation Summary, Audit, Goal Validation, Review
-     Gate, Pre-Commit Verification, Mistake Log) lives in
-     plan/TEMPLATE-CLOSURE.md and is APPENDED by /ze-close at step 1.
-     Do not copy it in advance: sections copied 300 lines ahead of their use
-     reach closure untouched, the ones created when needed get filled. -->
+# Spec: fixit-mcp-serves-before-registry-freeze
 
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Scope | protocol \| cli \| plugin \| config \| tooling \| docs |
 | Depends | - |
 | Phase | - |
-| Deferral shard | `plan/deferrals/<stem>.md` (or `-` if nothing deferred) |
-| Updated | YYYY-MM-DD |
-
-<!-- Scope drives which optional blocks below apply. Say which one this is, so
-     an absent section reads as "inapplicable" rather than "skipped".
-     Deferral shard: every deferred item lands there (ai/rules/deferral-tracking.md)
-     and closure must resolve its rows, so name the file from the start. -->
-
-Recovery after compaction: `.claude/rules/post-compaction.md`.
+| Updated | 2026-07-30 |
 
 ## Task
 
-<description: the problem, the symptom, the goal>
+The MCP listener answers `tools/list` before the plugin command registry is
+frozen, so an early client caches a tool set that is missing commands.
+
+Found 2026-07-30 during the deferrals review that closed the MCP 2026-07-28
+series. It is pre-existing and it is not caused by that series. The series did
+make the consequence last longer, and that is recorded under Risk below.
+
+The producing path, read rather than inferred:
+
+| Step | Site |
+|------|------|
+| MCP binds and serves | `buildServices` (`cmd/ze/hub/main.go:961`) |
+| The registry freezes | `cr.Freeze()` (`internal/component/plugin/server/startup.go:206`) |
+| The daemon waits for that freeze | `apiServer.WaitForStartupComplete` (`cmd/ze/hub/main.go:1123`) |
+| The tool list re-reads the registry on every call | `commandMetaSource` (`cmd/ze/hub/command_meta.go:95`) |
+
+`buildServices` runs at line 961 and the wait runs at line 1123. Every plugin
+command that registers between those two points is absent from a `tools/list`
+answered in the window. The list is not cached inside the daemon.
+It is rebuilt per call from `d.Registry().All()`, so two calls inside the window
+legitimately differ.
 
 ## Required Reading
 
@@ -85,22 +89,15 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Risks & Assumptions
 
-<!-- LIVE: written during RESEARCH/DESIGN, statuses updated during implementation.
-     Gate answers from /ze-spec (assumption challenge, Failure Mode Analysis)
-     land HERE, not only in conversation. -->
+| Id | Assumption | Basis | Validation | Status |
+|----|------------|-------|------------|--------|
+| A-1 | The window is reachable by a real client, not only by a test | `buildServices` binds the listener at `main.go:961`, before the wait at `:1123` | Connect an MCP client during startup and call `tools/list` twice | unvalidated |
+| A-2 | No other service in `buildServices` depends on binding before the freeze | Not yet read. The product fix moves every service in that call, not only MCP | Read `buildServices` and list what it starts | unvalidated |
 
-### Assumptions
-<!-- Every row needs a validation method. `unvalidated` is not a valid final
-     status: closure re-checks each one. A broken assumption also gets a
-     Mistake Log row and a Deviations entry. -->
-| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
-|----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | [what this design assumes] | [where the assumption comes from] | [impact on design] | [test/grep/user confirmation] | unvalidated |
-
-### Risks
-| ID | Risk | Early signal | Mitigation / fallback |
-|----|------|--------------|----------------------|
-| R-1 | [what goes wrong] | [how we notice it] | [what we do about it] |
+| Id | Risk | Early signal | Mitigation |
+|----|------|--------------|------------|
+| R-1 | A client caches the incomplete list for a full minute. `tools/list` advertises `ttlMs` 60000 (`ttlRegistryDerivedMs`, `internal/component/mcp/caching.go:136`), which the MCP 2026-07-28 caching work added. Before that work the client re-fetched at will, so the same race healed on the next call | An MCP client offers fewer tools than `ze show commands` lists, and keeps doing so for about a minute after start | The product direction closes the window. The test direction does NOT: it leaves this consequence in place |
+| R-2 | Delaying the bind turns an incomplete answer into a refused connection | A client that connects during startup fails instead of degrading | Decide deliberately which failure an operator prefers, and document it |
 
 ## Blast Radius
 
@@ -326,3 +323,40 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+## Task items
+
+1. Decide the direction. Two candidates, and the choice is a real design
+   question rather than a formality.
+   - **Product.** Serve MCP only after the registry freezes. This removes the
+     window. It also delays the port bind, so a client that connects during
+     startup gets a refused connection instead of an incomplete answer. Confirm
+     that is the wanted behavior before you write it.
+   - **Test only.** Give `test/plugin/mcp-tools-list-deterministic-order.ci` a
+     readiness wait. The test asserts that two calls agree under unchanged
+     registrations, and it has no wait today, so this makes the test assert its
+     own premise. It leaves the product behavior as it is.
+2. Implement the chosen direction with a functional test that fails before the
+   fix and passes after it (`ai/rules/functional-test-gate.md`, mutation
+   verification).
+3. Re-run `test/plugin/mcp-tools-list-deterministic-order.ci` under concurrency
+   and record the pass rate against the measured baseline below.
+
+## Measured baseline (2026-07-30)
+
+`test/plugin/mcp-tools-list-deterministic-order.ci` under concurrency, with the
+hidden-command test withdrawn from the suite so it cannot interfere:
+
+| Tree | Failures |
+|------|----------|
+| HEAD-equivalent | 2 of 10 |
+| With the hidden-command fix | 1 of 10 |
+
+The hidden-command fix removes exactly one command from the list, so it cannot
+change whether the payload differs between two calls. The difference between
+2 and 1 is noise at this sample size, and neither number is evidence about the
+fix. Both are evidence that the failure is pre-existing.
+
+## Notes
+
+Do NOT weaken or delete the deterministic-order test to reach green
+(`ai/rules/no-test-deletion.md`). It found a real product wart.
