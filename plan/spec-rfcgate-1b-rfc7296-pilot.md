@@ -907,6 +907,88 @@ not to an SA proposal. The published text stands, so row `RFC7296-1.7-1` still q
 WP-9 must implement the reading the verifier recorded. It must ignore that one attribute
 alone, and never the whole proposal. The phase-1 findings cover the other seven errata.
 
+**Quote fidelity measured 2026-07-30 (phase 2a).** Every one of the 47 rows lifted in
+phase 2a was re-measured against `rfc/full/rfc7296.txt`. The text was flattened first,
+because the RFC wraps its lines. 28 rows quote the source exactly. 19 carry a verbatim run
+of half the row or more. No row states an obligation the source does not carry.
+
+Two rows put a clarifying noun inside the quoted span, so both are corrected above. §3.14
+reads "recipients MUST accept any value", not "any IV value". It reads "MUST accept any
+length that results in proper alignment", not "any Pad Length". Each row now carries the
+field name as a leading label. The normative words are verbatim. The form follows
+`RFC1035-2.3.4-1`.
+
+The other 19 partial rows are condensations, not paraphrases. Some split one compound RFC
+sentence into two testable rows. `RFC7296-3.1-7` and `RFC7296-3.1-8` divide one sentence
+about the X bits. A reader who diffs a partial row against the RFC will find fewer words,
+never different ones.
+
+**Triage corrected 2026-07-30 (phase 2a).** Nine rows carry the class `impl-untested`, but
+a plain Go unit test proves each one. The nine are `RFC7296-2.10-3`, `2.13-2`, `2.13-4`,
+`2.15-1`, `2.15-2`, `3.12-3`, `3.14-3`, `3.14-4` and `3.14-5`. Their tests use
+`establishPSK` and `parseMsg` from `internal/component/ike/engine/responder_test.go`, plus
+`decryptAndParse` from `internal/component/ike/engine/inbound.go`. All three already
+existed. No new infrastructure was built for them.
+
+The class column stays as the walk wrote it, because it is the walk's record. Read these
+nine as `impl-testable`. The count of rows that genuinely need new infrastructure is
+therefore 16, not 25.
+
+Phase 2b must not accept `impl-untested` at face value. The walk assigned that class and
+did not search for a seam. Each remaining row gets a search for an existing harness first.
+
+**Coverage gap found in phase 2a.** Six rows depend on logic that exists at two sites.
+`Message.ReadFrom` parses the outer chain (`internal/component/ike/wire/message.go:117-127`).
+`ParsePayloadChain` parses the decrypted inner chain
+(`internal/component/ike/wire/chain.go:33-41`). Both reject an unrecognized critical payload
+and both demote a non-critical one. The first batch of tagged tests drove only the outer
+parser.
+
+The six are `RFC7296-2.5-8`, `2.5-9`, `2.5-11`, `2.5-13`, `3.2-2` and `3.2-3`. After
+IKE_SA_INIT almost every IKEv2 payload arrives inside an Encrypted payload, so the inner
+parser carries most of the traffic. A row proven on the outer path alone is a claim with half
+its surface untested. `ai/rules/integration-completeness.md` names this shape: one
+implementation found is not proof there is only one.
+
+Phase 2a adds `internal/component/ike/wire/rfc7296_innerchain_test.go`. It drives
+`ParsePayloadChain` directly and carries its own tagged pair for `RFC7296-2.5-8`, `2.5-9`,
+`2.5-11` and `3.2-2`. The mutation proved the gap was real. It removed the whole reject at
+`chain.go:38-40`. That turned the two new critical tests red and left every outer-path test
+green.
+
+`RFC7296-2.5-13` and `3.2-3` keep one proof each. Payload order and the set of understood
+types are properties of `decodePayload`, which both parsers call (`message.go:117`,
+`chain.go:33`). Neither parser holds an order table, so both accept any order for the same
+structural reason.
+
+**Mutation verification (phase 2a).** Ten requirements were verified across four packages.
+Each check broke the producing code and confirmed the tagged test went red. The harness
+restored every mutation and re-ran the test to prove it went green again. All ten gate. No
+test survived its mutation.
+
+| Requirement | Producer broken | Verdict |
+|-------------|-----------------|---------|
+| `RFC7296-3.9-1`, `2.10-2` | `payload_nonce.go` `NonceMinLen` 16 to 1 | gates |
+| `RFC7296-3.9-1` | `payload_nonce.go` `NonceMaxLen` 256 to 4096 | gates |
+| `RFC7296-2.5-9` | `message.go` critical reject deleted | gates |
+| `RFC7296-2.5-9` | `chain.go` critical reject deleted | gates |
+| `RFC7296-3.11-1` | `payload_delete.go` Protocol ID forced to 0 | gates |
+| `RFC7296-5-2` | `transform.go` AUTH_NONE registered as "none" | gates |
+| `RFC7296-3.1-7` | `header.go` flags octet given a stray X bit | gates |
+| `RFC7296-3.1-5` | `header.go` major version forced to 3 | gates |
+| `RFC7296-2.5-6` | `payload_ke.go` reserved field set to 0xffff | gates |
+| `RFC7296-2.5-7` | `payload.go` critical bit read from the whole octet | gates |
+
+The two `RFC7296-2.5-9` lines are one requirement at its two producers. Breaking one
+producer leaves the other producer's test green. That is why the row needs both proofs.
+
+**The two parsers disagree about truncation.** `Message.ReadFrom` returns `ErrTruncated` when
+a payload runs past the buffer (`message.go:113-114`). `ParsePayloadChain` breaks out of the
+loop and returns the payloads it already holds (`chain.go:29-31`). A truncated inner chain
+therefore reports a short payload list rather than an error. A required payload then looks
+absent instead of malformed. This is one concrete case of `RFC7296-2.21.2-1`, which is
+already `NOT IMPL` and owned by a phase 4-15 work package.
+
 **The `Class` column is the walk's triage, mechanically re-derived while authoring this
 spec** from the walk's three explicit id lists with `NOT IMPL` as the complement. The four
 classes are disjoint and exhaustive: 63 `impl-testable` + 25 `impl-untested` +
@@ -1118,9 +1200,9 @@ the Obligation text.
 | `RFC7296-3.13.1-3` | MUST | Systems that wish to indicate OPAQUE ports, but not ANY ports, MUST set the start port to 65535 and the end port to 0 (§3.13.1) | **NOT IMPL** |
 | `RFC7296-3.14-1` | MUST NOT | Peers MUST NOT negotiate transforms for which no such specification exists (§3.14) | **NOT IMPL** |
 | `RFC7296-3.14-2` | MUST | Senders MUST select a new unpredictable IV for every message (§3.14) | impl-testable |
-| `RFC7296-3.14-3` | MUST | Recipients MUST accept any IV value (§3.14) | impl-untested |
+| `RFC7296-3.14-3` | MUST | Initialization Vector -- recipients MUST accept any value (§3.14) | impl-untested |
 | `RFC7296-3.14-4` | MUST | Padding MAY contain any value chosen by the sender, and MUST have a length that makes the combination of the payloads, the Padding, and the Pad Length to be a multiple of the encryption block size (§3.14) | impl-untested |
-| `RFC7296-3.14-5` | MUST | The recipient MUST accept any Pad Length that results in proper alignment (§3.14) | impl-untested |
+| `RFC7296-3.14-5` | MUST | Pad Length -- the recipient MUST accept any length that results in proper alignment (§3.14) | impl-untested |
 | `RFC7296-3.14-6` | MUST | The checksum MUST be computed over the encrypted message (§3.14) | impl-testable |
 | `RFC7296-3.15.1-1` | MUST | Only one netmask is allowed in the request and response messages, and it MUST be used only with an INTERNAL_IP4_ADDRESS attribute (§3.15.1) | **NOT IMPL** |
 | `RFC7296-3.15.1-2` | MUST NOT | Non-empty values for the INTERNAL_IP4_NETMASK attribute in a CFG_REQUEST do not make sense and thus MUST NOT be included (§3.15.1) | **NOT IMPL** |
@@ -1253,3 +1335,50 @@ assert that it is the only one.
 
 **261 sites must be classified against 232 gated ids.** Roughly 29 sites need an
 exclusion or a `duplicate-of` mapping. That is the arithmetic the final phase closes.
+
+## Phase 3 -- the 18 uncertain rows resolved (2026-07-30)
+
+Each row was resolved by reading the producing code, never by reading a caller. The tally
+below replaces the walk's `uncertain` class for all 18.
+
+| Bucket | Count |
+|--------|-------|
+| `impl-testable` | 11 |
+| `impl-untested` | 0 |
+| `NOT IMPL` | 5 |
+| Owner ruling | 2 |
+
+Nothing landed in `impl-untested`. Every behaviour that exists is reachable from a
+package-visible entry, so phase 3 hands no new infrastructure debt to phase 2b. This agrees
+with the phase 2a triage correction recorded in Appendix A.
+
+**The eleven that are provable now.** `RFC7296-2.5-4`, `2.16-3`, `2.16-6`, `2.16-7`,
+`2.16-8`, `3.4-1`, `3.10.1-2`, `3.16-1`, `3.16-2`, `3.16-3` and `3.16-4`. Each joins the
+phase 2b row set and needs a tagged pair.
+
+**The five that move into phases 4-15.**
+
+| Row | What is absent |
+|-----|----------------|
+| `RFC7296-2.12-1` | The IKE SA's `SKKeys` are never cleared on close. `SKKeys.Clear` is called from `established.go:161` and `reconcile.go:167` only, and both are rekey paths. |
+| `RFC7296-3.5-1` | No terminator check exists. `encodeIKEID` returns `[]byte(id)` unexamined (`auth.go:473`), and the YANG leaf is a bare string. A `local-id` holding NUL or CR reaches the wire. |
+| `RFC7296-3.10.1-1` | No code classifies a notify by the 0 to 16383 error range. The only use of 16384 is the `NotifyInitialContact` constant (`payload_notify.go:27`). |
+| `RFC7296-2.24-1` | No ECN field exists. `SAParams` carries none (`dataplane.go:81-108`). |
+| `RFC7296-2.24-2` | The XFRM and VPP backends set no ECN flag. |
+
+**Owner rulings (Thomas, 2026-07-30).** All three were raised under
+`ai/rules/rfc-compliance.md`, which reserves a compliance judgement to the owner.
+
+OR-D: `RFC7296-2.5-3` is discharged by proof, never by annotation. Ze supports the singleton
+{2}, and the inbound gate is an equality test on the raw header byte (`register.go:455` and
+`register.go:625`). A tagged pair must assert that Ze accepts major version 2 and drops every
+other value. The row stays gated, so a future second supported version cannot pass unnoticed.
+
+OR-E: `RFC7296-2.16-5` is discharged by proof, never by annotation. Ze refuses every EAP
+method that derives no shared key (`eap.go:141-142`). A tagged pair must assert that refusal,
+which keeps the keyless mode the MUST governs unreachable. The row stays gated, so a wider
+accepted-method set cannot pass unnoticed.
+
+OR-F: `RFC7296-2.24-1` and `2.24-2` are not classified yet. The Linux XFRM and the VPP IPsec
+sources must be read first. VPP is vendored at `third_party/`. The ruling then follows their
+code, rather than an inference about a foreign system.
