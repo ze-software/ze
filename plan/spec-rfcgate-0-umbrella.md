@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | tooling |
 | Depends | - |
-| Phase | - |
+| Phase | 4/4 |
 | Deferral shard | `plan/deferrals/rfcgate-0-umbrella.md` |
-| Updated | 2026-07-29 |
+| Updated | 2026-07-30 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -1216,3 +1216,264 @@ Two exceptions, both from D7 and D8, and both DOCUMENTARY rather than behavioura
 - [ ] Learned summary written to `plan/learned/NNN-rfcgate-0-umbrella.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-rfcgate-0-umbrella.md` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+This umbrella wrote no gate logic. It owned the sequencing, the drain policy,
+and the scope boundary. All four children landed in the ordered sequence.
+
+| Child | Commits | What it added |
+|-------|---------|---------------|
+| 1, extraction | `2b1f84827`, `cb9f72609` | Bounded extraction against source text. The `rfc/extraction/*.json` sign-off format, the derived register grades, and the published backlog |
+| 2, evidence | `5c8600718`, `c037c3b01` | Evidence tiers. A tag is credited by the pipeline that runs it, and an unrun suite is refused |
+| 3, audit teeth | `d92762ef1`, `ae9c571bf` | An audit verdict schema, staleness, and a consequence. A `weak` verdict removes proven status |
+| 4, ledger | this change set | The public ledger's five edge guards, plus `rfc/not-enrolled.txt` |
+
+The drain policy shipped as `rfc/drain-budget.txt`. It reads `start 2026-07-29`
+and `rate 0`. The comparison that reads it is child 1's `check_drain_floor`
+(`scripts/dev/rfc_requirements.py:6045`).
+
+### Bugs Found/Fixed
+
+The set's machinery found five compliance defects the first time anyone drove
+the paths it measures. Each is now owned by a named spec that exists on disk,
+and each carries an owner ruling.
+
+| Defect | Home spec | What was found |
+|--------|-----------|----------------|
+| IKEv2 extraction gap | `plan/spec-rfcgate-1b-rfc7296-pilot.md` | 214 unextracted MUSTs, 108 of them unimplemented. No guard on Message ID exhaustion, and DPD probes sent unencrypted |
+| DNS conformance | `plan/spec-fixit-dns-rfc1035-conformance.md` | 27 MUSTs, six with no code path. No 512-octet bound, no TC bit, and the TTL is never raised against the SOA MINIMUM. OR-C ruled full compliance, including AXFR and IXFR |
+| IS-IS hostname | `plan/spec-fixit-isis-hostname-ascii.md` | Ze emits non-ASCII on the IS-IS wire. `internal/plugins/isis/lsdb/encode.go:60` writes a bare `[]byte(name)` |
+| BGP shutdown | `plan/spec-fixit-bgp-shutdown-cease-notification.md` | Ze sends no NOTIFICATION with error code 6 on SIGTERM. `Session.Close` has no reachable production caller |
+| Per-family prefix limits | `plan/spec-fixit-bgp-per-family-prefix-enforcement.md` | Three per-family YANG leaves stored as scalars, so one family's setting silently wins |
+
+### Documentation Updates
+
+- `ai/rules/rfc-compliance.md` carries the ratchet table the set extended. It
+  reads "the six ratchets" at `:115`.
+- `ai/RFC-REQUIREMENTS.md` is the set's published surface. It now carries the
+  extraction sign-off section at `:365`, the audit coverage partitions at
+  `:203-211`, the evidence legend, and child 4's three backlog tables at
+  `:5708`, `:5747` and `:5761`.
+- `docs/features/rfc-status.md:9-19` states which of its own properties a
+  machine checks.
+
+### Deviations from Plan
+
+| # | Planned | Delivered | Why |
+|---|---------|-----------|-----|
+| U-a | AC-12: each of the 32 rowless enrolments has a row before child 4 tightens the check | The 32 stay rowless. Child 4 shipped a git-HEAD ratchet instead | Owner Ruling OR-3 in child 4. Writing the rows rests on `{not-applicable}` annotations that `ai/rules/rfc-compliance.md:53` voided as authority. The spec already flagged this overstatement at `:892` |
+| U-b | AC-19: all four D1 stems enrolled with a sign-off | Two enrolled. Two carry a sign-off and stay declared `backlog` | Owner Rulings OR-B and OR-C in child 4 |
+| U-c | AC-11: all four known cases resolved before the check is armed | The check is armed and green. Two cases are resolved, two are converted from silent to declared debt | The guard fires only on a summary declaring zero gated rows. Both remaining stems now declare real ones, so the guard cannot see them. Stated as a limit, not as a pass |
+| U-d | Sizing: 2720 gated across 166 enrolled, 44 of 974 audited (4.5%) | 2721 gated across 168 enrolled. 49 of 1345 auditable audited (3.64%) | Child 3 corrected the denominator and child 4 added two enrolments. The percentage fell because the old denominator was wrong, not because coverage shrank |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | The audit coverage figure was 4.52% of a 974 denominator | 3.64% of a 1345 denominator. Eight verdicts sat in no column at all | Child 3 defined `auditable` and partitioned the two populations | `ai/RFC-REQUIREMENTS.md:209` now publishes both partitions and states why one denominator cannot carry both questions |
+| assumption | AC-12 assumed child 4 would write the 32 rows | Child 4 shipped a ratchet and deferred the rows behind the annotation re-derivation | Owner Ruling OR-3 | Deviation U-a. The overstatement was recorded in this spec at `:892` before closure |
+| approach | Interop evidence was believed to prove requirements on the merge path | 104 scenarios existed and none ran in any automated pipeline. Two tags are nightly-tier | Child 2's evidence tiering | `interop/nightly` is its own class, and a nightly-only requirement is marked on its ledger row |
+| escalation | The set was scoped as machinery, so finding defects was not planned for | The machinery found five real compliance defects immediately | Driving the paths the gates measure | Each defect got a named spec and an owner ruling, never a known-failure shard (`ai/rules/no-parking.md`) |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Bounded extraction with per-RFC sign-off | Done | `check_extraction_signoff`, `check_extraction_ratchet`, `rfc/extraction/` | Child 1 |
+| Evidence tiers that separate merge-path proof from nightly | Done | `evidence_tier`, `evidence_label`, `check_evidence_ratchet` | Child 2 |
+| An audit verdict with a schema and a consequence | Done | `check_audit_schema`, `check_audit_freshness`, `check_audit_verdict_ratchet` | Child 3 |
+| A public-ledger cross-check that runs unconditionally | Done | Five guards wired into `run_check` | Child 4 |
+| The set drains none of the backlog | Done | `rfc/drain-budget.txt` reads `rate 0` | Owner decision D5. Deliberately inert |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `make ze-rfc-check` exit 0 on the working tree. `--selftest` 665 tests OK | No child reds the tree for pre-existing backlog |
+| AC-2 | Done | `check_enrolment` gates a new enrolment on a sign-off (child 1 AC-1) | Both phase-6 enrolments carried one |
+| AC-3 | Done | `ai/RFC-REQUIREMENTS.md:365-376` | Publishes per-register counts, the 166 unsigned backlog, and per-entry rows. All derived |
+| AC-4 | Done | `check_drain_floor:6045` | A missing policy file is a hard error, never a floor of 0 |
+| AC-4a | Done | The backlog is derived as `enrolled - signed` | Measured: 4 artifacts on disk, 2 for enrolled stems, 166 unsigned of 168 |
+| AC-5 | Done | `source-sha` staleness in child 1's artifact check | The review proved it with a one-byte source edit |
+| AC-6 | Done | `TestInteropRunnerFailsClosedWithoutDocker` (`test/interop/run_test.go:34`) | A missing lab is a failure |
+| AC-7 | Done | `ai/RFC-REQUIREMENTS.md` evidence legend. Measured tiers: unit/verify 2573, functional/verify 7, interop/nightly 2 | Nightly is never merged into the verify-proven total |
+| AC-8 | Done | `check_audit_schema` rejects a verdict word outside the four | Child 3 |
+| AC-9 | Changed | Child 3 decomposed this rather than banning every empty `tests` map | An `enforced` verdict with no test is rejected. An `unimplemented` one needs a `code` map that stales. Recorded in this spec at `:889` |
+| AC-10 | Done | `check_audit_verdict_ratchet`, and the worklist naming every non-proven verdict | Measured: 49 proven, 3 audited-but-not-proven, of 52 records |
+| AC-11 | Changed | `check_unproven_support:2269` armed and green. `status_is_a_support_claim:2038` covers `Experimental` | Two of four cases resolved. Deviation U-c |
+| AC-12 | Changed | The 32 stay rowless behind a git-HEAD ratchet | Owner Ruling OR-3. Deviation U-a |
+| AC-13 | Done | `rfc/drain-budget.txt` reads `rate 0`. Gate exit 0 while the backlog is still published | The forcing function is inert by design |
+| AC-14 | Done | Six commits in three ordered pairs: `2b1f84827`/`cb9f72609`, `5c8600718`/`c037c3b01`, `d92762ef1`/`ae9c571bf` | Each child landed alone. Child 4 is the fourth and last |
+| AC-15 | Done | `ai/RFC-REQUIREMENTS.md:369` states every register counts toward the quota | `rfc3765` signs under `manual-walk` and counts |
+| AC-16 | Done | `:369` reads "rfc2119 1, prose 0, manual-walk 1" | Three separate figures. No summed "signed off" number anywhere |
+| AC-17 | Done | Child 1 AC-31 and AC-32: an unknown register is a hard error, and `rfc2119` over a weaker source is rejected | Never defaults to the strong grade |
+| AC-18 | Deferred | `plan/spec-rfcgate-1b-rfc7296-pilot.md` | The pilot found 214 unextracted MUSTs, which is a spec's worth of work rather than a phase's. Owner-ruled into its own child |
+| AC-19 | Changed | Two of four enrolled. All four carry a sign-off whose derived register reflects the source | `rfc1035` derives `prose` from lowercase pre-2119 text, as planned. Deviation U-b |
+| AC-20 | Done | The arming body and the four-stem resolution are in one uncommitted change set | Commit A carries both, so the forbidden intermediate state never exists |
+| AC-21 | Done | Child 1 is on HEAD dated 2026-07-29. Every phase-6 file is still uncommitted | Child 1's extraction bar precedes every enrolment by construction |
+
+### Tests from TDD Plan
+
+Every row of the umbrella's TDD table names a test a CHILD carries. All were
+renamed during the set to the names the children actually use, and each rename
+is recorded inline in this spec at `:873-892`. The two the umbrella can be
+checked against directly:
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestInteropRunnerFailsClosedWithoutDocker` | Done | `test/interop/run_test.go:34` | AC-6. Carrier is `.go`, not `.py`, as recorded at `:887` |
+| `TestUnprovenSupport`, `TestStatusCompleteness` | Done | `scripts/dev/rfc_requirements_test.py:8655`, `:8546` | AC-11 and AC-12 |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| `rfc/drain-budget.txt` | Done | `start 2026-07-29`, `rate 0` |
+| `rfc/extraction/` | Done | Format plus README, four artifacts |
+| `rfc/not-enrolled.txt` | Done | Child 4. Seven declared stems |
+| `scripts/dev/rfc_requirements.py` | Done | Grew from 1,769 lines to 6,488 across the set |
+| `ai/RFC-REQUIREMENTS.md` | Done | The set's published surface |
+| `ai/rules/rfc-compliance.md` | Done | Ratchet table, six ratchets |
+
+### Audit Summary
+
+- **Total items:** 22 acceptance criteria (AC-1 through AC-21, with AC-4a)
+- **Done:** 17
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 4 (AC-9, AC-11, AC-12, AC-19), each with an owner ruling behind it
+- **Deferred:** 1 (AC-18, owner-ruled into `plan/spec-rfcgate-1b-rfc7296-pilot.md`)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| The gate's green means what a reader takes it to mean | functional | Four new summary lines on every `make ze-rfc-check` run. Extraction, evidence, audit and requirement counts are each published with their denominator |
+| Extraction is bounded, not assumed | functional | `extraction: rfc2119 1, prose 0, manual-walk 1 signed off of 168 enrolled; 166 unsigned (grandfathered backlog)` |
+| Proof is distinguished by what runs it | functional | `evidence: unit/verify 2573, functional/verify 7, editor/verify 0, interop/nightly 2`. Re-derived in this closure by folding `evidence_label` over all 2582 tags |
+| An audit verdict has a consequence | functional | `audit: 49 proven, 3 audited-but-not-proven, of 52 verdict(s); 49 of 1345 auditable requirement(s) audited (3.64%)` |
+| The public ledger is cross-checked unconditionally | functional | Child 4's five guards, all wired into `run_check`, which runs in both verify modes |
+| The machinery finds real defects | escalation record | Five compliance defects, five named specs, five owner rulings. Listed under Bugs Found/Fixed |
+| The set ships inert with respect to the backlog | functional | `rfc/drain-budget.txt` reads `rate 0`. Gate exit 0. Owner decision D5 |
+
+Three of the four new summary lines report figures WORSE than the gate implied
+before. That is the deliverable, not a regression.
+
+- The extraction backlog was always 166. It was invisible.
+- Interop evidence had no automation at all. 104 scenarios, zero runs.
+- Audit coverage fell from a reported 4.52% to 3.64%, because the denominator
+  had been wrong and eight verdicts sat in no column.
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| The drain itself: sign-offs, audit verdicts, and re-derivation of the voided annotations (2026-07-29, D4) | deferred | `plan/spec-followup-rfc-enrollment.md`, which exists. Unchanged |
+| Arming the drain quota (2026-07-29, D5, R-2) | deferred | **Re-homed** to `plan/spec-followup-rfc-enrollment.md`. The old Destination was this spec, which closes now. That spec already owns `rfc/enrolled.txt` and the coverage rollup, so it is the same programme |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | **NONE for this umbrella.** `tmp/review/` holds a clean artifact for each of the four children: `rfcgate-1-extraction`, `rfcgate-2-evidence`, `rfcgate-3-audit-teeth`, `rfcgate-4-ledger`, each suffixed with this session id |
+| `review_gate.py check` | not run for the umbrella. Verified clean for child 4 in this closure (`review_gate: OK`, hashes match) |
+| Reviewer lenses used | Per child. The umbrella contributes no code of its own, so it pins no code file |
+
+The umbrella carries no code, so an artifact over it would pin zero files. It
+was not recorded, and this closure did not fabricate one. `commit_helper.py`
+runs `review_gate.py check` on a closure commit, so the caller must record an
+artifact for this spec before commit B, or the commit is refused. Flagged rather
+than worked around.
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| — | — | Every finding was raised and fixed inside a child's own review gate. The five that child 4 found are listed in its Review Gate table | per child | per child |
+
+## Pre-Commit Verification
+
+Independently re-verified in this closure session by driving the module's own
+functions over the working tree.
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `rfc/drain-budget.txt` | yes | Reads `start 2026-07-29` and `rate 0` |
+| `rfc/extraction/` | yes | Holds `README.md` plus four `.json` artifacts |
+| `rfc/not-enrolled.txt` | yes | `load_dispositions()` returns seven stems |
+| `test/interop/run_test.go` | yes | `TestInteropRunnerFailsClosedWithoutDocker` at `:34` |
+| `plan/spec-rfcgate-1b-rfc7296-pilot.md` | yes | AC-18's destination |
+| The four fixit specs | yes | All four named under Bugs Found/Fixed exist on disk |
+| `plan/spec-followup-rfc-enrollment.md` | yes | Destination for both deferral rows |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | The tree is green | `python3 scripts/dev/rfc_requirements.py --selftest`: **Ran 665 tests, OK**. `_collect_for_check()` returns 0 parse errors |
+| AC-3, AC-15, AC-16 | Registers are published apart, with no summed figure | `ai/RFC-REQUIREMENTS.md:369` reads "rfc2119 1, prose 0, manual-walk 1. Unsigned (grandfathered) backlog: 166 of 168 enrolled" |
+| AC-4, AC-13 | The policy file exists and reads rate 0 | `rfc/drain-budget.txt` non-comment lines: `start 2026-07-29`, `rate 0` |
+| AC-4a | An absent record reads as a full backlog | 4 artifacts, 2 for enrolled stems, 166 unsigned of 168. The polarity is derivation, not a guard |
+| AC-6 | The interop runner fails closed | `grep -n` returns `test/interop/run_test.go:34` |
+| AC-7 | Nightly evidence is a distinct class | Folded `evidence_label` over all 2582 tags: 2573 unit/verify, 7 functional/verify, 2 interop/nightly. The three sets are disjoint |
+| AC-10 | A verdict that is not proven is named | `ai/RFC-REQUIREMENTS.md:205` and `:209`. 49 proven, 3 not proven, 52 records |
+| AC-11 | The guard is armed and covers `Experimental` | `status_is_a_support_claim:2038` returns True for everything except `Unsupported` and `Future`. Driving the guard over the live tree returns zero errors |
+| AC-14, AC-21 | The merge order held | `git log -1` on all six child SHAs: 1 and 2 dated 2026-07-29, 3 dated 2026-07-30. Child 4 uncommitted |
+| AC-19 | Sign-offs exist for all four, enrolment for two | Registers read back: rfc4486 `rfc2119`, rfc3765 `manual-walk`, rfc1035 `prose`, rfc5301 `prose`. `load_enrolled()` holds the first two only |
+| AC-20 | The arming commit resolves the stems | `git status --porcelain` shows `scripts/dev/rfc_requirements.py`, `rfc/enrolled.txt` and the four artifacts all uncommitted together |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | Test file | Verified |
+|-------------|-----------|----------|
+| `make ze-rfc-check` to all four children's guards | `scripts/dev/rfc_requirements_test.py` | yes. 665 tests pass, and `run_check:6174` calls every check listed in the audit above |
+| `python3 test/interop/run.py` without Docker | `test/interop/run_test.go:34` | yes. Read the file: the Go test shells to the runner and asserts a non-zero exit |
+| `make ze-rfc-index` to the published counters | `scripts/dev/rfc_requirements_test.py` | yes. `render_ledger:4350` emits the extraction, audit and backlog sections, and `check_ledger_fresh:6107` is green on the committed ledger |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | The 166-entry backlog does not red the gate. Selftest and gate both green |
+| A-2 | confirmed | Every ratchet derives its baseline from git, never from a checked-in allowlist |
+| A-3 | confirmed | A pre-2119 source cannot claim `rfc2119`. `rfc1035` derives `prose` and signs under it |
+| A-4 | confirmed | The drain floor caps at the backlog size, so the quota self-retires |
+| A-5 | confirmed | The live tag scanner and the git-baseline scanner accept identical extension sets, which is what let the `.ci` tag be credited |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| `ai/RFC-REQUIREMENTS.md` extraction section is derived | `render_extraction_table:5848` builds it from `rfc/extraction/` and the live summaries | yes |
+| The audit partitions are stated with their denominators | `:203`, `:205`, `:209` each name the population and why one denominator cannot carry both questions | yes |
+| `ai/rules/rfc-compliance.md` ratchet count | `:115` reads "the six ratchets" | yes |
+| The drain quota's inertness is documented, not hidden | `rfc/drain-budget.txt` carries `rate 0` in the file the gate reads, and the deferral row records it as an accepted risk | yes |
+| The five found defects each name a spec that exists | Checked all five paths with `ls` | yes |
+
+## Core Insight
+
+The same failure appeared at every altitude of this work: **prose asserting a
+property that nothing checked, with green tests beside it.**
+
+- A docstring claimed a delegation that was never wired. Ten assertions covered
+  a dead function.
+- A documented authoring path produced a permanently red gate. Its remedy was
+  false in all three clauses.
+- A guard against dead tokens kept its own uncoupled copy of the token list.
+- A gated structural fact read a field off a metric that never carried it.
+- A comment asserted that a sibling audit was complete before it was performed.
+
+In each case the fix was cheap. Finding it required someone to drive the path, or
+to grep the call sites, rather than read the claim.
+
+That is what the four gates now do mechanically. It is also why three of the
+set's four new counters report worse figures than the silence they replaced.
