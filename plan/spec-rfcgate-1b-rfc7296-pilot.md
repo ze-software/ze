@@ -1382,3 +1382,34 @@ accepted-method set cannot pass unnoticed.
 OR-F: `RFC7296-2.24-1` and `2.24-2` are not classified yet. The Linux XFRM and the VPP IPsec
 sources must be read first. VPP is vendored at `third_party/`. The ruling then follows their
 code, rather than an inference about a foreign system.
+
+## Phase 2b -- first three groups (2026-07-30)
+
+19 rows landed, each with a positive and a negative tagged test, and each
+mutation-verified. The gate moved from 2768 to 2787 gated requirements, and from 2685 to
+2726 resolved tags.
+
+| Group | Rows landed | File |
+|-------|-------------|------|
+| A, retransmission and message id | `2.1-3`, `2.1-4`, `2.1-5`, `2.1-6`, `2.1-7`, `2.1-8`, `2.2-1`, `2.18-2` | `engine/rfc7296_retransmit_test.go` |
+| A, the window pair | `2.3-2`, `2.3-4` | `engine/rfc7296_window_test.go` |
+| D, rekey and collision | `1.3-1`, `2.8-5`, `2.8-6`, `2.8-7`, `2.8.1-1` | `engine/rfc7296_rekey_test.go` |
+| F, EAP message format | `3.16-1`, `3.16-2`, `3.16-3`, `3.16-4` | `eap/` and `wire/rfc7296_eap_test.go` |
+
+Groups B, C, E and G remain, which is 28 rows.
+
+**The window pair needed a production fix, not a test.** Group A refused to tag `2.3-2`
+and `2.3-4`, because Ze emitted requests from four uncoupled paths that share one
+`sa.NextMsgID`. The owner ruled the same day, and
+`plan/spec-fixit-ike-request-window.md` carries the trace, the design and the fix. Both
+rows are now proven.
+
+**Three rows found a gap instead of a proof.** Each one is a wire-visible deviation, and
+`ai/rules/rfc-compliance.md` reserves the decision to the owner. None is tagged, because
+a green tag over the IKE_SA_INIT half alone would publish "proven" over the gap.
+
+| Row | What is absent | Consequence |
+|-----|----------------|-------------|
+| `RFC7296-1.3-2` | `respondIKERekey` negotiates at `rekey.go:459`, builds DH from `chosen.DHGroup.ID` at `rekey.go:464`, and never compares that to the request's `PayloadKE.DHGroup`. It builds no Notify. The IKE_SA_INIT half IS implemented (`responder.go:135-142`) | `DHExchange.SharedSecret` (`crypto/dh.go:79-87`) accepts any value in (1, p-1), so a mismatched group yields a bogus shared secret. Silent wrong keys, rather than INVALID_KE_PAYLOAD |
+| `RFC7296-2.8.2-1` | `resolveRekeyCollision` (`rekey.go:418`) has one caller, `inbound.go:163`, inside the CHILD rekey branch. The IKE rekey branch (`inbound.go:193-205`) never reads `ps.pendingRekey` | An inbound IKE rekey is answered while our own IKE rekey is in flight. No nonce comparison, and no deletion of the lowest-nonce new SA |
+| `RFC7296-3.3.6-3` | The accepted offer is re-checked at IKE_SA_INIT (`fsm.go:437-441`) and nowhere else. Absent at IKE_AUTH SAr2 (`fsm.go:561-566`), `applyChildRekeyResponse` (`rekey.go:102-135`) and `applyIKERekeyResponse` (`rekey.go:345-414`) | `respondIKERekey` genuinely re-negotiates, so a responder that picks a different suite leaves the two sides deriving the new IKE SA with different algorithms |

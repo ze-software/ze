@@ -1,0 +1,195 @@
+// VALIDATES: RFC 7296 Section 3.16 EAP message format for the packets Ze produces.
+// It covers the Identifier echo in a response, the four-octet form of Success and
+// Failure, and the Type of a response.
+// PREVENTS: an EAP response that answers the wrong request, a Success or Failure that
+// carries a Type octet, and a response whose Type is neither Nak nor the requested
+// type. Each of the three breaks the exchange for a conformant peer.
+package eap
+
+import (
+	"encoding/binary"
+	"testing"
+
+	"github.com/ze-software/ze/internal/component/ike/wire"
+)
+
+// eapfmtNewMSCHAPv2Server returns an authenticator-side MS-CHAPv2 method that builds
+// real Challenge and Success packets for the peer under test.
+func eapfmtNewMSCHAPv2Server(password string) *mschapv2Method {
+	return &mschapv2Method{password: password}
+}
+
+// eapfmtWireOctets encodes a packet the way the engine bridges do, then writes the
+// result as a wire EAP payload and returns those octets. The responder bridge keeps
+// octet 0, octet 1, and octet 4 onward (engine/responder_eap.go:90-95). The initiator
+// bridge keeps octet 1 and octet 4 onward, and it always sets the code to Response
+// (engine/auth.go:147-152). Neither bridge keeps the two length octets. The bridges
+// are engine code and stay outside this test.
+func eapfmtWireOctets(t *testing.T, p *Packet) []byte {
+	t.Helper()
+	enc := p.Encode()
+	if len(enc) < 4 {
+		t.Fatalf("Encode produced %d octets, want at least 4", len(enc))
+	}
+	payload := &wire.PayloadEAP{Code: enc[0], Identifier: enc[1], EAPData: enc[4:]}
+	buf := make([]byte, payload.Len())
+	n := payload.WriteTo(buf, 0)
+	return buf[:n]
+}
+
+// RFC requirement: RFC7296-3.16-1 positive -- the peer copies the request Identifier into
+// every response it builds (peer.go:139 for Identity, peer.go:225 for the MS-CHAPv2
+// Challenge, peer.go:248 for the MS-CHAPv2 Success acknowledgement). Packet.Encode
+// places that value in octet 1 (eap.go:56), and PayloadEAP.WriteTo puts it in octet 1
+// of the wire payload (payload_eap.go:26).
+// RFC requirement: RFC7296-3.16-1 negative -- the value is read from the request rather than
+// counted. The three request identifiers below are 200, 7, and 91, so a round counter
+// or a constant fails every round.
+func TestEapfmtResponseIdentifierMatchesRequest(t *testing.T) {
+	const password = "TestPassword"
+	ps := NewPeerSession(TypeMSCHAPv2, "testuser", password)
+	server := eapfmtNewMSCHAPv2Server(password)
+
+	// Round 1: Identity request with an identifier no counter would reach first.
+	identityReq := &Packet{Code: CodeRequest, Identifier: 200, Type: TypeIdentity}
+	res := ps.Process(identityReq)
+	if res.Err != nil {
+		t.Fatalf("identity round: %v", res.Err)
+	}
+	if res.Response == nil {
+		t.Fatal("identity round produced no response")
+	}
+	if res.Response.Identifier != identityReq.Identifier {
+		t.Fatalf("identity response identifier %d, want %d", res.Response.Identifier, identityReq.Identifier)
+	}
+
+	// The identifier survives the encoder and the wire payload writer.
+	octets := eapfmtWireOctets(t, res.Response)
+	if octets[1] != identityReq.Identifier {
+		t.Fatalf("wire octet 1 is %d, want %d", octets[1], identityReq.Identifier)
+	}
+
+	// Round 2: MS-CHAPv2 Challenge with a lower identifier than round 1.
+	challenge := server.Start(7)
+	if challenge == nil {
+		t.Fatal("server built no challenge")
+	}
+	res = ps.Process(challenge)
+	if res.Err != nil {
+		t.Fatalf("challenge round: %v", res.Err)
+	}
+	if res.Response == nil {
+		t.Fatal("challenge round produced no response")
+	}
+	if res.Response.Identifier != challenge.Identifier {
+		t.Fatalf("challenge response identifier %d, want %d", res.Response.Identifier, challenge.Identifier)
+	}
+
+	// Round 3: MS-CHAPv2 Success with a third unrelated identifier.
+	serverRes := server.Process(res.Response)
+	if serverRes.Err != nil {
+		t.Fatalf("server refused the peer response: %v", serverRes.Err)
+	}
+	if serverRes.Response == nil {
+		t.Fatal("server built no success packet")
+	}
+	successReq := serverRes.Response
+	successReq.Identifier = 91
+	res = ps.Process(successReq)
+	if res.Err != nil {
+		t.Fatalf("success round: %v", res.Err)
+	}
+	if res.Response == nil {
+		t.Fatal("success round produced no response")
+	}
+	if res.Response.Identifier != successReq.Identifier {
+		t.Fatalf("success response identifier %d, want %d", res.Response.Identifier, successReq.Identifier)
+	}
+}
+
+// RFC requirement: RFC7296-3.16-3 positive -- Packet.Encode gives a Success or a Failure a
+// four-octet buffer with the length octets set to 4 (eap.go:45-52). It copies neither
+// Type nor TypeData into that buffer. The responder bridge forwards octet 4 onward as
+// the payload body, which is empty here. PayloadEAP.WriteTo then emits four octets and
+// a Length of four (payload_eap.go:27-30).
+// RFC requirement: RFC7296-3.16-3 negative -- the four-octet result belongs to the code, and
+// the Request below keeps its Type octet.
+func TestEapfmtSuccessAndFailureCarryNoTypeField(t *testing.T) {
+	for _, code := range []uint8{CodeSuccess, CodeFailure} {
+		// Type and TypeData are set on purpose. A conformant encoder drops both.
+		p := &Packet{Code: code, Identifier: 42, Type: TypeMSCHAPv2, TypeData: []byte{9, 9, 9}}
+		enc := p.Encode()
+		if len(enc) != 4 {
+			t.Fatalf("code %d: Encode produced %d octets, want 4", code, len(enc))
+		}
+		if got := binary.BigEndian.Uint16(enc[2:4]); got != 4 {
+			t.Fatalf("code %d: EAP Length %d, want 4", code, got)
+		}
+		if len(enc[4:]) != 0 {
+			t.Fatalf("code %d: body forwarded to the payload is %x, want empty", code, enc[4:])
+		}
+
+		octets := eapfmtWireOctets(t, p)
+		if len(octets) != 4 {
+			t.Fatalf("code %d: wire payload holds %d octets, want 4", code, len(octets))
+		}
+		if got := binary.BigEndian.Uint16(octets[2:4]); got != 4 {
+			t.Fatalf("code %d: wire EAP Length %d, want 4", code, got)
+		}
+	}
+
+	// A Request keeps the Type octet, so the four-octet rule above is a property of
+	// the Success and Failure codes.
+	req := &Packet{Code: CodeRequest, Identifier: 42, Type: TypeMSCHAPv2, TypeData: []byte{9, 9, 9}}
+	enc := req.Encode()
+	if len(enc) != 8 {
+		t.Fatalf("request Encode produced %d octets, want 8", len(enc))
+	}
+	if enc[4] != TypeMSCHAPv2 {
+		t.Fatalf("request type octet is %d, want %d", enc[4], TypeMSCHAPv2)
+	}
+}
+
+// RFC requirement: RFC7296-3.16-4 positive -- every response the peer builds carries the type
+// of the request it answers. The Identity branch sets Type to Identity only after an
+// Identity request arrives (peer.go:134-143). The MS-CHAPv2 branch sets Type to
+// MS-CHAPv2 only after the type guard passes (peer.go:171-173, peer.go:226).
+// RFC requirement: RFC7296-3.16-4 negative -- a mismatched request yields no response at all.
+// The final round below sends a valid MS-CHAPv2 body under the EAP-TLS type.
+func TestEapfmtPeerResponseTypeIsNakOrMatchesRequest(t *testing.T) {
+	const password = "TestPassword"
+	ps := NewPeerSession(TypeMSCHAPv2, "testuser", password)
+	server := eapfmtNewMSCHAPv2Server(password)
+
+	requests := []*Packet{
+		{Code: CodeRequest, Identifier: 1, Type: TypeIdentity},
+		server.Start(2),
+	}
+	for _, req := range requests {
+		res := ps.Process(req)
+		if res.Err != nil {
+			t.Fatalf("type %d: %v", req.Type, res.Err)
+		}
+		if res.Response == nil {
+			t.Fatalf("type %d: no response", req.Type)
+		}
+		if res.Response.Code != CodeResponse {
+			t.Fatalf("type %d: code %d, want %d", req.Type, res.Response.Code, CodeResponse)
+		}
+		if res.Response.Type != TypeNAK && res.Response.Type != req.Type {
+			t.Fatalf("response type %d, want Nak (%d) or the requested %d", res.Response.Type, TypeNAK, req.Type)
+		}
+	}
+
+	// A well-formed MS-CHAPv2 challenge body under the wrong EAP type. Without the
+	// type guard the peer would answer it as MS-CHAPv2 and break the obligation.
+	wrong := server.Start(3)
+	wrong.Type = TypeTLS
+	res := ps.Process(wrong)
+	if res.Response != nil {
+		t.Fatalf("mismatched request drew a response of type %d", res.Response.Type)
+	}
+	if res.Err == nil {
+		t.Fatal("mismatched request drew no error")
+	}
+}
