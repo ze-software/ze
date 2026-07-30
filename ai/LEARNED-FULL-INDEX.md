@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1268 summaries
+Total: 1269 summaries
 
 ## 000-099
 
@@ -1342,3 +1342,4 @@ Total: 1268 summaries
 | 1294 | Closing the shared-store contention, and the residuals a fix leaves behind | `plan/learned/1294-shared-store-contention-and-gate-residuals.md` |
 | 1295 | rfcgate-1-extraction | `plan/learned/1295-rfcgate-1-extraction.md` |
 | 1296 | rfcgate-2 -- wire-level evidence for RFC requirements | `plan/learned/1296-rfcgate-2-evidence.md` |
+| 1297 | rfcgate-3 -- giving the RFC audit record teeth | `plan/learned/1297-rfcgate-3-audit-teeth.md` |
