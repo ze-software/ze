@@ -30,6 +30,7 @@ plan/spec-flow-export-2-flow-records.md
 plan/spec-followup-bgp-feature.md
 plan/spec-followup-l2tp-call.md
 plan/spec-lg-birdwatcher-peer-fields.md
+plan/spec-mcp2026-0-umbrella.md
 plan/spec-ospf-0-umbrella.md
 plan/spec-ospf-ext-1-opaque-framework.md
 plan/spec-ospfv3-0-umbrella.md
@@ -43,8 +44,10 @@ plan/spec-release-audit-6-system-linux.md
 plan/spec-release-audit-7-resilience-security.md
 plan/spec-rfc-requirement-coverage.md
 plan/spec-rfc7606-close-gaps.md
+plan/spec-rfcgate-0-umbrella.md
 plan/spec-rfcgate-1-extraction.md
 plan/spec-rfcgate-2-evidence.md
+plan/spec-rfcgate-4-ledger.md
 plan/spec-rib-arch-8-nlri-rewrite.md
 plan/spec-startup-resilience.md
 plan/spec-static-routes.md

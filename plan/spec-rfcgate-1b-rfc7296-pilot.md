@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
-| Depends | spec-rfcgate-4-ledger |
+| Depends | - |
 | Phase | - |
 | Deferral shard | `plan/deferrals/rfcgate-1b-rfc7296-pilot.md` |
-| Updated | 2026-07-29 |
+| Updated | 2026-07-30 |
 
 Part of the `rfcgate` spec set; the umbrella is `plan/spec-rfcgate-0-umbrella.md`.
 This spec is phase 8 of `plan/spec-rfcgate-1-extraction.md`, separated out of it by
@@ -272,16 +272,16 @@ Two flows meet in this spec: the compliance-gate flow (a requirement row becomes
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The 214 count holds on a second, independent reading | The walk's mechanical pass mapped all 289 keyword sites to sections and classified each; 43 restatement sites were collapsed and 8 judged non-normative. The row set parses cleanly through `parse_checklist_line` with 0 errors | If it deflates, the extraction is smaller and cheaper; if it INFLATES, rows are missing from Appendix A and the sign-off cannot close. Either way the sign-off's forward arithmetic is the detector | Phase 1 re-walks the source against Appendix A before any row is committed; `check_extraction_signoff` is the mechanical backstop | unvalidated |
+| A-1 | The 214 count holds on a second, independent reading | The walk's mechanical pass mapped all 289 keyword sites to sections and classified each; 43 restatement sites were collapsed and 8 judged non-normative. The row set parses cleanly through `parse_checklist_line` with 0 errors | If it deflates, the extraction is smaller and cheaper; if it INFLATES, rows are missing from Appendix A and the sign-off cannot close. Either way the sign-off's forward arithmetic is the detector | Phase 1 re-walks the source against Appendix A before any row is committed; `check_extraction_signoff` is the mechanical backstop | **confirmed** (2026-07-30, phase 1: 214 rows, 63/25/18/108, 168 MUST + 46 MUST NOT, 0 parse errors, every obligation located inside its cited section) |
 | A-2 | The four triage classes are disjoint and exhaustive over the 214 | Re-derived mechanically while writing this spec from the walk's own three explicit id lists (63 / 25 / 18) with `NOT IMPLEMENTED` as the complement: 63+25+18+108 = 214, no overlaps, no id outside the set, levels 168 MUST + 46 MUST NOT = 214 | A misclassified row is worked in the wrong phase; cost, not correctness | Re-derived while authoring this spec; Appendix A carries the per-row class | confirmed |
-| A-3 | rfc7296 is grandfathered from the enrolment precondition, so the sign-off is voluntary here | `check_enrolment` demands an artifact only for a stem enrolled since HEAD; grandfathering is scope, not an allowlist (`rfc/extraction/README.md:121-126`). rfc7296 is enrolled at `rfc/enrolled.txt:159` | If wrong, the sign-off becomes a hard precondition rather than the pilot's deliverable -- which changes nothing about doing it | Run `make ze-rfc-check` on an unmodified tree at phase start and confirm rfc7296 is not accused | unvalidated |
-| A-4 | Only dispositions and reasons are authored in the artifact; everything else is derived and cross-checked | `rfc/extraction/README.md:45-52` and the field table at `:78-92` | Hand-typing a derived field to reach green fails the check naming the field and the locator, which is the intended failure | Write the skeleton with `make ze-rfc-extract STEM=rfc7296` (`Makefile:452`) and classify only what it leaves null | unvalidated |
-| A-5 | All 214 proposed ids are free: no collision with the 23 existing, no internal duplicate, no ordinal below an existing per-section high-water mark | The walk ran the ids through `_validate_id` and reported 0 collisions, 0 internal duplicates, 0 ordinal collisions; per-section high-water marks were respected (§1.2 to 2, §1.4 to 2, §2.1 to 3, §2.4 to 5, §2.6 to 2, §2.7 to 2, §2.8 to 4, §2.9 to 2, §2.23 to 4, §3.3 to 3, §3.3.6 to 2) | An id collision is a hard red from `check_id_allocation` and forces renumbering of the NEW row (never the existing one) | Re-run the parse over the committed summary in phase 1; `check_id_allocation` is the gate | unvalidated |
-| A-6 | rfc7296 derives the `rfc2119` register | The source carries 289 capitalised MUST-level keyword lines, far more than the gated row count, which is the derived condition for `rfc2119` (`rfc/extraction/README.md:67-71`) | A weaker derived register (`prose`) changes which inventory the arithmetic runs over and enlarges the site set | The skeleton emitted by `make ze-rfc-extract STEM=rfc7296` states the derived register; an artifact may declare it or weaker, never stronger | unvalidated |
+| A-3 | rfc7296 is grandfathered from the enrolment precondition, so the sign-off is voluntary here | `check_enrolment` demands an artifact only for a stem enrolled since HEAD; grandfathering is scope, not an allowlist (`rfc/extraction/README.md:121-126`). rfc7296 is enrolled at `rfc/enrolled.txt:159` | If wrong, the sign-off becomes a hard precondition rather than the pilot's deliverable -- which changes nothing about doing it | Run `make ze-rfc-check` on an unmodified tree at phase start and confirm rfc7296 is not accused | **confirmed** (2026-07-30: exit 0, and rfc7296 appears nowhere in the output) |
+| A-4 | Only dispositions and reasons are authored in the artifact; everything else is derived and cross-checked | `rfc/extraction/README.md:45-52` and the field table at `:78-92` | Hand-typing a derived field to reach green fails the check naming the field and the locator, which is the intended failure | Write the skeleton with `make ze-rfc-extract STEM=rfc7296` (`Makefile:452`) and classify only what it leaves null | **confirmed** (2026-07-30: the skeleton carries every derived field and leaves all 261 sites and 104 sections null) |
+| A-5 | All 214 proposed ids are free: no collision with the 23 existing, no internal duplicate, no ordinal below an existing per-section high-water mark | The walk ran the ids through `_validate_id` and reported 0 collisions, 0 internal duplicates, 0 ordinal collisions; per-section high-water marks were respected (§1.2 to 2, §1.4 to 2, §2.1 to 3, §2.4 to 5, §2.6 to 2, §2.7 to 2, §2.8 to 4, §2.9 to 2, §2.23 to 4, §3.3 to 3, §3.3.6 to 2) | An id collision is a hard red from `check_id_allocation` and forces renumbering of the NEW row (never the existing one) | Re-run the parse over the committed summary in phase 1; `check_id_allocation` is the gate | **confirmed** (2026-07-30: 0 collisions, 0 internal duplicates, 0 ordinals at or below a high-water mark, `check_id_allocation` clean, and the union has no ordinal gap) |
+| A-6 | rfc7296 derives the `rfc2119` register | The source carries 289 capitalised MUST-level keyword lines, far more than the gated row count, which is the derived condition for `rfc2119` (`rfc/extraction/README.md:67-71`) | A weaker derived register (`prose`) changes which inventory the arithmetic runs over and enlarges the site set | The skeleton emitted by `make ze-rfc-extract STEM=rfc7296` states the derived register; an artifact may declare it or weaker, never stronger | **confirmed** (2026-07-30: `derive_inventory("rfc7296", 18)` returns register `rfc2119`, 261 sites, 104 sections, source-sha `a6f1a101b818977b`) |
 | A-7 | The 18 `uncertain` rows resolve into implemented or not-implemented by reading alone, without new infrastructure | The walk names exactly which files were not read: `internal/component/ike/eap/**`, `wire/payload_eap.go`, `wire/payload_id.go`, `crypto/dh.go`, `dataplane/xfrm_linux.go`, and `handleAuthResponse`'s notify handling from `fsm.go:507` | If a row resolves to not-implemented, it joins the 108 and its work package grows. That is a schedule risk, not a scope change: OR-1 already owns it | Phase 4 reads each named file and records the producing `file:line` per row | unvalidated |
 | A-8 | The 31 existing tagged tests survive the re-authoring unchanged | They map to the 23 existing ids, none of which is renumbered or re-texted by this spec | A behaviour change to a tagged test needs Thomas's approval; the `rfc-tagged-test` hook blocks it and `// test-relax:` does not satisfy that gate | `make ze-unit-test` over `internal/component/ike/...` at every phase boundary; `check_coverage_ratchet` at every commit | unvalidated |
 | A-9 | Every row in the `implemented-and-testable` class can be proven without touching production code | The walk names a producing `file:line` and a target test file for each of the 63 | A row that needs code moves from phase 2 into a work package in phase 3. Cost, not scope | Phase 2 writes the pair; a red that is not the test's own fault reclassifies the row | unvalidated |
-| A-10 | The errata for RFC 7296 introduce no obligation absent from `rfc/full/rfc7296.txt` | Not established. The walk explicitly did not check `https://www.rfc-editor.org/errata/rfc7296` (no network access) and flagged it rather than deferring it | A verified erratum that changes normative text means Appendix A is wrong at that row and the source-sha pin is over stale text | Phase 1 fetches the errata page and reconciles it before the first row is committed (`ai/skills/ze-rfc.md` step 4) | unvalidated |
+| A-10 | The errata for RFC 7296 introduce no obligation absent from `rfc/full/rfc7296.txt` | Not established. The walk explicitly did not check `https://www.rfc-editor.org/errata/rfc7296` (no network access) and flagged it rather than deferring it | A verified erratum that changes normative text means Appendix A is wrong at that row and the source-sha pin is over stale text | Phase 1 fetches the errata page and reconciles it before the first row is committed (`ai/skills/ze-rfc.md` step 4) | **broken** (2026-07-30). No erratum adds an obligation, so the literal claim holds. Two errata still make Appendix A wrong. Verified erratum 6940 corrects text that row `RFC7296-3.10-3` quoted. Held erratum 5056 contradicts how row `RFC7296-1.7-1` reads. Appendix A's preamble records both |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -296,6 +296,9 @@ Two flows meet in this spec: the compliance-gate flow (a requirement row becomes
 | R-8 | **WP-9 adds a whole operator-facing feature surface** (remote-access configuration: virtual IP, DNS, netmask attributes) that needs YANG, validation, completion, doctor checks and documentation, not just wire code | The work package's file list starts naming `yang/` and `docs/guide/` | WP-9 is scheduled last among the implementation packages and carries its own Integration Checklist pass. If it turns out to be a spec-sized feature in its own right, that is a scope question for Thomas -- raised as a question, never resolved by dropping the rows |
 | R-9 | **The 18 `uncertain` rows resolve badly**: if a majority land in NOT IMPLEMENTED, the implementation set grows from 108 toward 126 | Phase 4's reads | Phase 4 runs BEFORE the implementation packages are sized in detail, so the growth is absorbed into planning rather than discovered mid-flight |
 | R-10 | **The source-sha pin stales the sign-off** if `rfc/full/rfc7296.txt` is normalized or re-fetched | `check_extraction_signoff` reports a sha mismatch | Do not touch `rfc/full/rfc7296.txt`. If an erratum forces a source change (A-10), the sign-off is re-derived and `signed-off` is bumped in the same commit |
+| R-14 | **The corpus moved under the spec** (found 2026-07-30, phase 1). The spec assumes 166 enrolled stems and zero sign-offs. The tree now holds 168 enrolled stems and four signed artifacts. They are `rfc1035`, `rfc3765`, `rfc4486` and `rfc5301`, and `spec-rfcgate-4-ledger` phase 6 signed all four. Two of them are enrolled. AC-5 and one Deliverables row are already false | `ls rfc/extraction/*.json` returns 4. `ze-rfc-check` reports 168 enrolled and 166 unsigned | At closure the true figures are five artifacts, three signed enrolled stems and 165 enrolled unsigned. AC-5's arithmetic survives by coincidence. Its premise of "exactly one sign-off" does not. Re-author AC-5 and the Deliverables row against the live corpus. The figure moves again each time a sibling spec signs a stem |
+| R-12 | **A red-first test in `scripts/dev/rfc_requirements_test.py` reds the gate it tests** (found 2026-07-30, phase 1). `make ze-rfc-check` runs `--selftest` and then `--check` (`Makefile:437-439`). `--selftest` runs that whole file (`rfc_requirements.py:6440`). `python_tests_test.go` also globs `scripts/dev/*_test.py`. No location under `scripts/dev/` holds a red Python test that leaves both gates green. The spec's two phase-1 Verify bullets contradict each other | Any red `TestRealTree` pilot case makes `make ze-rfc-check` exit 2 before `--check` runs | **Needs an owner ruling.** The five cases are written, and phase 1 proved each one red. They are staged at `tmp/rfcgate1b/rfc7296_pilot_wiring.py.staged` with their insertion point, so the shared tree stays green. Either they land in the commit that turns them green, or the pilot needs an incubator for Python gate tests. `ai/rules/testing.md` gives `.ci` tests such an incubator at `test/draft/`. Every later phase meets this same wall |
+| R-13 | **An unsigned skeleton cannot live in `rfc/extraction/`** (found 2026-07-30, phase 1). The Landing Strategy calls it "a legal intermediate state that still parses". It does parse, but parsing is not passing. The skeleton produces 385 gate errors, and `ze-rfc-check` exits 2. They are 261 unclassified sites, 104 unclassified sections, an empty `signed-off` and `reviewer`, and 18 reverse-arithmetic errors | `make ze-rfc-check` exits 2 as soon as the skeleton is committed | Generate the skeleton on demand and keep it out of the tree until it is fully classified. It lands once, signed, in the final phase. Run the mid-walk check against the skeleton in place while it stays uncommitted. Remove it again before any commit |
 | R-11 | **Interop coverage becomes the bottleneck**: 11 of the 25 `implemented-untested` rows need a second daemon, and several need a driven clock the engine does not expose | Phase 3 stalls on rows whose only proof path is a scenario that does not exist | The test infrastructure (clock injection into `maintainSA`, new strongSwan scenarios) is itself a deliverable of phase 3, listed in Files to Create. Building it is in scope; skipping the rows is not |
 
 ## Blast Radius
@@ -884,6 +887,26 @@ every id's section segment matches its `(§X.Y)` citation. Against the 23 existi
 zero collisions, zero internal duplicates, zero ordinals colliding with an existing
 per-section high-water mark. Levels: 168 MUST and 46 MUST NOT.
 
+**Revalidated 2026-07-30 (phase 1, A-1 and A-5).** A second independent pass re-measured
+this table against `rfc/full/rfc7296.txt`. The count holds at 214. The class tally holds at
+63 / 25 / 18 / 108, and the level tally at 168 / 46. All 214 rows parse with zero errors.
+
+`check_id_allocation` is clean over the 23 existing ids plus these 214. The source carries
+every obligation inside the section its row cites. No run of four or more words fell
+outside a cited section.
+
+**Errata reconciled 2026-07-30 (A-10).** RFC 7296 carries nine errata, and two touch this
+table. Erratum 6940 is Verified and Technical. It corrects §3.10 from "the field must be
+empty" to "the SPI field must be empty". Row `RFC7296-3.10-3` now quotes the corrected
+text.
+
+Erratum 5056 is Held for Document Update and Technical. It reports that the word
+"proposals" in §1.7 is wrong. Configuration attribute 5 belongs to a Configuration payload,
+not to an SA proposal. The published text stands, so row `RFC7296-1.7-1` still quotes it.
+
+WP-9 must implement the reading the verifier recorded. It must ignore that one attribute
+alone, and never the whole proposal. The phase-1 findings cover the other seven errata.
+
 **The `Class` column is the walk's triage, mechanically re-derived while authoring this
 spec** from the walk's three explicit id lists with `NOT IMPL` as the complement. The four
 classes are disjoint and exhaustive: 63 `impl-testable` + 25 `impl-untested` +
@@ -1081,7 +1104,7 @@ the Obligation text.
 | `RFC7296-3.9-2` | MUST NOT | Nonce values MUST NOT be reused (§3.9) | impl-testable |
 | `RFC7296-3.10-1` | MUST | For notifications concerning Child SAs, the Protocol ID field MUST contain either (2) to indicate AH or (3) to indicate ESP (§3.10) | **NOT IMPL** |
 | `RFC7296-3.10-2` | MUST | If the SPI field is empty, the Protocol ID field MUST be sent as zero and MUST be ignored on receipt (§3.10) | **NOT IMPL** |
-| `RFC7296-3.10-3` | MUST | For a notification concerning the IKE SA, the SPI Size MUST be zero and the field must be empty (§3.10) | impl-testable |
+| `RFC7296-3.10-3` | MUST | For a notification concerning the IKE SA, the SPI Size MUST be zero and the SPI field must be empty (§3.10) | impl-testable |
 | `RFC7296-3.10.1-1` | MUST | An implementation receiving a Notify payload with one of these types that it does not recognize in a response MUST assume that the corresponding request has failed entirely (§3.10.1) | uncertain |
 | `RFC7296-3.10.1-2` | MUST | Unrecognized error types in a request and status types in a request or response MUST be ignored, and they should be logged (§3.10.1) | uncertain |
 | `RFC7296-3.10.1-3` | MUST | To avoid leaking information to someone probing a node, this status MUST be sent in response to any error not covered by one of the other status types (§3.10.1) | **NOT IMPL** |
@@ -1116,3 +1139,117 @@ the Obligation text.
 | `RFC7296-4-4` | MUST | For an implementation to be called conforming to this specification, it MUST be possible to configure it to accept PKIX certificates containing and signed by RSA keys of size 1024 or 2048 bits, and shared secret authentication (§4) | **NOT IMPL** |
 | `RFC7296-5-1` | MUST NOT | A PRF whose output is less than 128 bits MUST NOT be used with this protocol (§5) | **NOT IMPL** |
 | `RFC7296-5-2` | MUST NOT | Implementations MUST NOT negotiate NONE as the IKE integrity protection algorithm or ENCR_NULL as the IKE encryption algorithm (§5) | impl-testable |
+
+## Phase 1 Results and Four Resolutions (2026-07-30)
+
+Phase 1 revalidated the walk, fetched the errata, and found three structural problems
+with the plan. All four resolutions below are mechanical readings of existing rules.
+None needed an owner ruling.
+
+### Revalidation verdicts
+
+| Assumption | Verdict | Evidence |
+|------------|---------|----------|
+| A-1, the 214 count | **confirmed** | A second independent pass re-measured 214 rows. Classes 63/25/18/108. Levels 168 MUST and 46 MUST NOT. Zero parse errors |
+| A-5, id freeness | **confirmed** | Zero collisions with the 23 existing ids. Zero internal duplicates. Zero ordinals at or below a per-section high-water mark. `check_id_allocation` clean when driven |
+| A-6, derived register | **confirmed** | `derive_inventory("rfc7296", 18)` returns `rfc2119`, 261 sites, 104 sections, `source-sha a6f1a101b818977b` |
+| A-4, skeleton parses | **confirmed** | 261 sites and 104 sections, all unclassified. It re-parses through `parse_extraction_artifact` |
+| A-10, errata | **broken** | Nine errata exist. Two touch Appendix A |
+| A-8, the 31 tags map to 23 ids | **broken** | They map to **16**. `RFC7296-2.9-1` and `-1.4-1` are both `{gap}` and carry no tags. The five SHOULD rows carry none |
+
+### Resolution 1: the errata, and the one that would have caused a wrong implementation
+
+**EID 6940, Verified, Technical, section 3.10.** Row `RFC7296-3.10-3` quoted the
+UNCORRECTED text. "the field must be empty" is corrected to "the SPI field must be
+empty". Appendix A now carries the corrected text. The id contract pins quoted text by
+sha, so an uncorrected quote would have made a misquote into the obligation.
+
+**EID 5056, Held for Doc Update, Technical, section 1.7, is the substantive one.**
+
+Implementing `RFC7296-1.7-1` as literally quoted would ignore an ENTIRE SA proposal:
+
+- The correct behaviour ignores ONE configuration attribute.
+- Attribute type 5 is a Configuration payload attribute. It is not a proposal attribute.
+- The erratum verifier's words: `only the attribute type should be ignored, not the entire proposal`.
+
+→ Constraint: the row keeps the verbatim text. That is what the id contract pins, and
+what a reader compares against the source. WP-9 implements the CORRECTED semantics.
+
+→ Constraint: the row records the erratum beside the quote. A later reader must not
+implement the literal reading by accident.
+
+→ Constraint: WP-9 settles whether `RFC7296-1.7-1` duplicates `RFC7296-3.15.1-4`, which
+says unrecognized attributes MUST be ignored. Both cover an ignored attribute. When they
+are one obligation, the sign-off excludes one site as `duplicate-of` the other.
+
+**EID 9027, Reported, section 2.21.1** says COOKIE is a status, not an error type. No row
+cites that section. It bears on how WP-3 and WP-4 frame the cookie exchange.
+
+No erratum requires editing `rfc/full/rfc7296.txt`. The `source-sha` pin is intact.
+
+### Resolution 2, for R-12: a red-first Python test cannot be committed red, and need not be
+
+`make ze-rfc-check` runs `--selftest` then `--check` (`Makefile:437-439`). `--selftest`
+runs the whole of `scripts/dev/rfc_requirements_test.py` (`rfc_requirements.py:6440`).
+`scripts/dev/python_tests_test.go:43-52` globs that same file into `ze-unit-test`. So a
+red test under `scripts/dev/` reds BOTH verify stages, and `commit_helper.py` then
+refuses every session's commits.
+
+**This is not a conflict between TDD and the gate.** `ai/rules/tdd.md` requires the test
+to FAIL before the implementation exists. It does not require committing it red.
+
+| Step | Where it happens |
+|------|------------------|
+| Write the test, observe red, record the message | Working tree, uncommitted |
+| Implement | Working tree |
+| Commit test and implementation together, green | One commit |
+
+That is the rule the Landing Strategy already states for checklist rows. A row and its
+proof land in the same commit. The five wiring tests land in the commit that turns them
+green. Phase 1's red evidence is the recorded failure message for each.
+
+| Test | Red observed in phase 1 |
+|------|-------------------------|
+| `test_rfc7296_signoff_is_valid_and_the_rest_stay_grandfathered` | `rfc/extraction/rfc7296.json does not exist` |
+| `test_rfc7296_every_gated_row_is_proven_in_both_polarities` | `237 != 23 : the pilot lands 237 rows` |
+| `test_rfc7296_ledger_is_fresh_after_the_pilot` | `237 != 23 : the pilot lands 237 rows` |
+| `test_rfc7296_summary_carries_the_section_2_2_requirements` | `missing from rfc/short/rfc7296.md` |
+| `test_rfc7296_ids_are_neither_retired_nor_demoted` | `237 != 23 : the pilot lands 237 rows` |
+
+→ Constraint: no Python gate-test incubator is built. That would be new infrastructure
+for a problem correct commit discipline already solves.
+
+### Resolution 3, for R-13: the unsigned skeleton stays OUT of the tree until signed
+
+An unsigned skeleton parses. It does not pass. It yields 385 gate errors and exit 2.
+
+The 385 break down as:
+
+- 261 unclassified sites.
+- 104 unclassified sections.
+- An empty `signed-off` and an empty `reviewer`.
+- 18 reverse-arithmetic errors, one per gated row at HEAD.
+
+~~The Landing Strategy says the artifact can be checked mid-walk.~~ **Corrected
+2026-07-30.** It can be checked mid-walk only while UNCOMMITTED. The skeleton lives in
+the working tree during the walk. It is committed once, signed, in the final phase.
+
+### Resolution 4, for R-14: AC-5's closure figures were already false
+
+`spec-rfcgate-4-ledger` signed four artifacts on 2026-07-30 and enrolled two stems. The
+corpus is at 168 enrolled, not 166.
+
+| Claim | Was | Corrected |
+|-------|-----|-----------|
+| AC-5, exactly one sign-off present | 1 | **5 artifacts, of which 3 are signed AND enrolled** |
+| Deliverables, one file from `ls rfc/extraction/*.json` | 1 | **5** |
+| 165 unsigned | coincidence | **165 enrolled stems unsigned**, which holds only because two of child 4's four are not enrolled |
+
+→ Constraint: a closure check that counts artifacts is wrong by construction, because the
+fleet drain adds them continuously. Assert that `rfc7296` is signed and valid. Never
+assert that it is the only one.
+
+### One planning datum for the sign-off
+
+**261 sites must be classified against 232 gated ids.** Roughly 29 sites need an
+exclusion or a `duplicate-of` mapping. That is the arithmetic the final phase closes.
