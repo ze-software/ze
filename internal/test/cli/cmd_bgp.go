@@ -272,14 +272,26 @@ func zeTestRunEncodingOrAPI(ctx context.Context, cli *zeTestRunCLIFlags, baseDir
 	}
 	defer r.Cleanup()
 
+	// ze-chaos drives an in-process BGP reactor, so it must also set ze_bgp.
+	// The ze_chaos tag alone does not add ZE_FEATURES. Without ze_bgp, the BGP
+	// YANG modules are not linked.
+	//
+	// The binary still BUILDS. It then stops at startup with "resolve YANG
+	// modules: no such module: ze-bgp-conf". Every chaos-web and
+	// chaos-integration test then fails on a refused connection, and no client
+	// output explains it.
+	//
+	// The Makefile `chaos` rule carries the same pair for the same reason.
+	// These two must not drift apart.
+	const chaosTags = "ze_chaos ze_bgp"
 	switch cli.command {
 	case cmdChaosWeb:
 		r.SetExtraBinaries(map[string]runner.ExtraBinary{
-			"ze-chaos": {Pkg: "./cmd/ze", Tags: "ze_chaos"},
+			"ze-chaos": {Pkg: "./cmd/ze", Tags: chaosTags},
 		})
 	case cmdChaosIntg:
 		r.SetExtraBinaries(map[string]runner.ExtraBinary{
-			"ze-chaos": {Pkg: "./cmd/ze", Tags: "ze_chaos"},
+			"ze-chaos": {Pkg: "./cmd/ze", Tags: chaosTags},
 			"ze":       {Pkg: "./cmd/ze"},
 		})
 	}
