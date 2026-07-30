@@ -127,13 +127,13 @@ func cmdMcp(args []string) int {
 	timeout := fs.Duration("timeout", 10*time.Second, "Connection timeout")
 	tasksHelp := text.Str("Declare the ").Str(extensionTasks).Str(" extension in every request's _meta.clientCapabilities").String()
 	// Tasks is the only capability a client can usefully declare to this
-	// server. There is deliberately no --resources flag: `resources` is a
-	// ServerCapabilities member, so declaring it in clientCapabilities is not
-	// something a conformant client does, and the daemon no longer gates on it.
+	// server. There is deliberately no --resources flag. `resources` is a
+	// ServerCapabilities member, so a conformant client never declares it in
+	// clientCapabilities, and the daemon no longer gates on it.
 	tasks := fs.Bool("tasks", false, tasksHelp)
 	// The elicitation capability is mode-structured, so the flag takes modes
-	// rather than being a bare bool: a client declaring only "url" supports
-	// elicitation and must never be sent a form-mode request.
+	// rather than a bare bool. A client that declares only "url" supports
+	// elicitation, and this server must never send it a form-mode request.
 	elicit := fs.String("elicit", "", `Declare the elicitation capability: "form", "url", "form,url", or "empty" for {} (form mode only)`)
 
 	fs.Usage = func() {
@@ -263,9 +263,9 @@ func (c *mcpClient) directive(line string, timeout time.Duration) error {
 
 // orderDirective handles tools-order-stable, reporting whether the line was it.
 //
-// The count is optional; three calls is enough to catch a wobble that Go's
-// per-range map-iteration randomization would produce, and a .ci that wants
-// more confidence passes a bigger number.
+// The count is optional. Three calls are enough to catch a wobble that Go's
+// per-range map-iteration randomization would produce. A .ci that wants more
+// confidence passes a bigger number.
 func (c *mcpClient) orderDirective(line string) (bool, error) {
 	rest, ok := strings.CutPrefix(line, "tools-order-stable")
 	if !ok {
@@ -329,8 +329,8 @@ func (c *mcpClient) taskDirective(line string, timeout time.Duration) (bool, err
 			return true, fmt.Errorf("task-cancel: %w", err)
 		}
 		// Deliberately does NOT update lastOutput, for the same reason
-		// task-update does not: tasks/cancel acknowledges with an empty result
-		// rather than an identifier, so $LAST must keep naming the taskId
+		// task-update does not. tasks/cancel acknowledges with an empty result
+		// rather than an identifier, so $LAST must keep naming the taskId that
 		// task-call produced.
 		mcpPrintln(ack)
 		return true, nil
@@ -361,9 +361,9 @@ func (c *mcpClient) taskDirective(line string, timeout time.Duration) (bool, err
 			return true, fmt.Errorf("task-update: %w", err)
 		}
 		// Deliberately does NOT update lastOutput. tasks/update returns an empty
-		// acknowledgement, not an identifier, so $LAST must keep naming the
-		// taskId that task-call produced -- otherwise a second task-update
-		// $LAST would substitute this line's prose as the id.
+		// acknowledgment, not an identifier, so $LAST must keep naming the
+		// taskId that task-call produced. Otherwise a second task-update $LAST
+		// would substitute this line's prose as the id.
 		mcpPrintln(ack)
 		return true, nil
 	}
@@ -411,8 +411,8 @@ func (c *mcpClient) probeDirective(line string) (bool, error) {
 
 // queueMeta parses a `probe-meta <key> <value|->` argument onto the pending
 // mutation. Short key names expand to the reserved io.modelcontextprotocol/
-// spellings; a key already carrying a "/" is used verbatim, so a test can reach
-// any _meta key at all.
+// spellings. A key that already carries a "/" is used verbatim, so a test can
+// reach any _meta key at all.
 func (c *mcpClient) queueMeta(rest string) error {
 	key, value, found := strings.Cut(rest, " ")
 	if !found {
@@ -450,9 +450,10 @@ func (c *mcpClient) queueMeta(rest string) error {
 	return nil
 }
 
-// probe sends one request under the queued deviations and prints a single line
-// carrying the HTTP status, the JSON-RPC error code (or "ok"), the error data
-// and the message, so a .ci can assert on the status and the code together.
+// probe sends one request under the queued deviations and prints a single line.
+// That line carries the HTTP status, the JSON-RPC error code (or "ok"), the
+// error data and the message. A .ci can then assert on the status and the code
+// together.
 func (c *mcpClient) probe(rest string) error {
 	method, rawParams, _ := strings.Cut(rest, " ")
 	method = strings.TrimSpace(method)

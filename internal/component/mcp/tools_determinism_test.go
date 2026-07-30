@@ -11,15 +11,15 @@ import (
 // determinismRuns is how many times a generation is repeated before its output
 // is called stable. Go randomizes map iteration order per range statement, and
 // groupCommands ranges over two maps, so a single pass can be lucky. Fifty
-// passes over a set with several groups and several actions each makes a
-// surviving ordering bug vanishingly unlikely, and the explicit sortedness
-// assertion below catches the rest without relying on luck at all.
+// passes over a set with several groups and several actions each leave almost
+// no room for a surviving ordering bug. The explicit sortedness assertion below
+// catches the rest, and it uses no luck at all.
 const determinismRuns = 50
 
 // orderProbeCommands is a command set shaped to exercise every branch of
-// groupCommands: a first token with several depth-2 subgroups (show), depth-2
-// groups with several actions each, a two-token command, and a first token with
-// only depth-1 commands (metrics).
+// groupCommands. The set holds a first token with several depth-2 subgroups
+// (show), and depth-2 groups with several actions each. It also holds a
+// two-token command, and a first token with only depth-1 commands (metrics).
 func orderProbeCommands() []CommandInfo {
 	return []CommandInfo{
 		{Name: "show bgp rib status", Help: "RIB summary"},
@@ -40,14 +40,14 @@ func orderProbeCommands() []CommandInfo {
 // TestToolOrderDeterministic covers AC-6 and AC-13.
 //
 // VALIDATES: repeated generation from the same command set, fed in a different
-// order each time, produces byte-identical tool JSON; groups come out sorted by
-// prefix; no two tools share a name; and no `action` enum repeats a value.
-// PREVENTS: map iteration in groupCommands reaching the wire. MCP 2026-07-28
-// server/tools: "Servers SHOULD return tools in a deterministic order (i.e.,
-// the same ordering across requests when the underlying set of tools has not
-// changed)", and "Tool names SHOULD be unique within a server". A wobbling
-// order silently defeats both client caching and LLM prompt-cache hits, and a
-// repeated enum value is invalid JSON Schema.
+// order each time, produces byte-identical tool JSON. Groups come out sorted by
+// prefix. No two tools share a name. And no `action` enum repeats a value.
+// PREVENTS: map iteration in groupCommands that reaches the wire. MCP
+// 2026-07-28 server/tools: "Servers SHOULD return tools in a deterministic
+// order (i.e., the same ordering across requests when the underlying set of
+// tools has not changed)", and "Tool names SHOULD be unique within a server". A
+// wobbling order silently defeats both client caching and LLM prompt-cache
+// hits, and a repeated enum value is invalid JSON Schema.
 func TestToolOrderDeterministic(t *testing.T) {
 	base := orderProbeCommands()
 
@@ -55,8 +55,8 @@ func TestToolOrderDeterministic(t *testing.T) {
 	var want string
 
 	for run := range determinismRuns {
-		// Feed the same set in a different order every run: the lister is a
-		// registry walk upstream, so its order is not something MCP may rely on.
+		// Feed the same set in a different order every run. The lister is a
+		// registry walk upstream, so MCP must not rely on its order.
 		shuffled := slices.Clone(base)
 		shuffler.Shuffle(len(shuffled), func(i, j int) {
 			shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
@@ -98,11 +98,11 @@ func TestToolOrderDeterministic(t *testing.T) {
 //
 // VALIDATES: no two generated tools share a `name`, and no `action` enum
 // repeats a value.
-// PREVENTS: R-4, two group prefixes differing only by a space-versus-hyphen
-// separator collapsing onto one tool name through toolName; and the duplicated
-// action A-4 produced, which put the same value in an enum twice and made the
-// tool description vary between identical calls. Both are invisible to a test
-// that only compares array lengths.
+// PREVENTS: R-4, two group prefixes that differ only by a space-versus-hyphen
+// separator and collapse onto one tool name through toolName. It also prevents
+// the duplicated action A-4 produced. That duplicate put the same value in an
+// enum twice, and made the tool description vary between identical calls. Both
+// are invisible to a test that only compares array lengths.
 func TestGeneratedToolsHaveUniqueNamesAndEnums(t *testing.T) {
 	tools := generateTools(groupCommands(orderProbeCommands()), handcraftedNames())
 	if len(tools) == 0 {
@@ -155,7 +155,7 @@ func TestToolsListOrderStableAcrossRequests(t *testing.T) {
 	if len(firstNames) < 2 {
 		t.Fatalf("tools/list returned %d tools, too few to judge order", len(firstNames))
 	}
-	// Handcrafted tools lead the list; that position is part of the contract.
+	// Handcrafted tools lead the list. That position is part of the contract.
 	if firstNames[0] != "ze_execute" || firstNames[1] != "ze_reference" {
 		t.Errorf("list starts %v, want the handcrafted tools first", firstNames[:2])
 	}

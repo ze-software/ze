@@ -14,7 +14,7 @@ The single place this happens is the `ze_execute` tool called without a
 ## The round trip
 
 A server that needs more input answers the original request with
-`resultType: "input_required"` and an `inputRequests` map, which **terminates**
+`resultType: "input_required"` and an `inputRequests` map, which **ends**
 that request. The client gathers the input and retries the original request,
 under a different JSON-RPC id, carrying `inputResponses`.
 
@@ -63,20 +63,23 @@ handshake in this revision).
 | `{"url":{}}` | no | no |
 
 The gate is form-mode **support**, not the presence of the `elicitation` key:
-"Servers **MUST NOT** send elicitation requests with modes that are not
-supported by the client." A client declaring only `url` supports elicitation and
-does not support the one mode Ze emits, so it is treated exactly like a client
+
+> Servers **MUST NOT** send elicitation requests with modes that are not
+> supported by the client.
+
+A client that declares only `url` supports elicitation, and it does not support
+the one mode Ze emits. Ze therefore treats that client exactly like a client
 that declared nothing.
 
 <!-- source: internal/component/mcp/mrtr.go -- elicitationFormSupported -->
 <!-- source: internal/component/mcp/meta.go -- parseClientCapabilities, clientCapabilities.ElicitForm -->
 
 The same capability shapes the tool descriptor, so a client does not have to
-know this page to find the round trip. Declare form mode and the `ze_execute`
-entry in `tools/list` omits `command` from its `inputSchema.required`, which is
-what tells a schema-validating host the argument-less call is legal. Declare
-nothing, or `url` only, and `required` names `command`, which is honest: that
-client will get an error rather than a prompt.
+know this page to find the round trip. Declare form mode, and the `ze_execute`
+entry in `tools/list` omits `command` from its `inputSchema.required`. That
+omission tells a schema-validating host that the argument-less call is legal.
+Declare nothing, or `url` only, and `required` names `command`, which is honest:
+that client will get an error rather than a prompt.
 
 <!-- source: internal/component/mcp/mrtr.go -- gateExecuteCommandRequired -->
 <!-- source: internal/component/mcp/streamable_tools.go -- allTools -->
@@ -145,17 +148,19 @@ The retry is the original request plus `inputResponses`, under a new id.
 
 | `action` | Ze's response |
 |----------|---------------|
-| `accept` with a non-empty `command` | the command is dispatched; `resultType: "complete"` |
+| `accept` with a non-empty `command` | the command is dispatched. `resultType: "complete"` |
 | `accept` with an empty or absent `command` | a **new** `input_required`: an empty answer is an omission, not a refusal |
-| `decline` | a terminal tool error naming the refusal; Ze does not ask again |
-| `cancel` | a terminal tool error naming the cancellation; Ze does not ask again |
+| `decline` | a terminal tool error naming the refusal. Ze does not ask again |
+| `cancel` | a terminal tool error naming the cancellation. Ze does not ask again |
 | key absent entirely | a **new** `input_required` |
-| keys Ze did not ask for | ignored; the request proceeds on the keys it did ask for |
+| keys Ze did not ask for | ignored. The request proceeds on the keys it did ask for |
 
-Distinguishing an omission from a refusal is what stops a user who has said no
-from being prompted forever, and repeating the prompt on an omission is
-explicitly permitted: "Servers **MAY** choose to return an `InputRequiredResult`
-on multiple attempts at the same request."
+Ze distinguishes an omission from a refusal. That distinction stops a repeated
+prompt to a user who has said no. And a repeated prompt after an omission is
+explicitly permitted:
+
+> Servers **MAY** choose to return an `InputRequiredResult` on multiple attempts
+> at the same request.
 
 <!-- source: internal/component/mcp/mrtr.go -- resolveElicitedValue, inputOutcome -->
 <!-- source: internal/component/mcp/mrtr.go -- resolveExecuteCommand, askForCommand -->
@@ -164,21 +169,20 @@ on multiple attempts at the same request."
 
 MRTR lets a server attach an opaque `requestState` blob to an
 `InputRequiredResult` and have the client echo it on the retry. **Ze never
-does.** Its one elicitation suspends nothing: the value being asked for is a
-tool argument the retry carries anyway, so there is no continuation state to
+does.** Ze's one elicitation suspends nothing. The value it asks for is a tool
+argument that the retry carries anyway, so there is no continuation state to
 encode. Requirement 6's "at least one of `inputRequests` or `requestState`" is
 satisfied by `inputRequests` alone, and requirement 3 makes `requestState` a
-MAY, so omitting it is conformant rather than a gap.
+MAY. The omission is therefore conformant, not a gap.
 
 That omission is a security property, not just a simplification. A retry is a
-self-contained, independently authenticated request; there is no carried
-authority that could be replayed by another principal, and none that survives a
-daemon restart to go stale.
+self-contained, independently authenticated request. No carried authority exists
+for another principal to replay, and none survives a daemon restart to go stale.
 
 The consequence for clients: because the result carries no `requestState`, "the
-client **MUST NOT** include one in the retry." Ze enforces that. A request
-carrying a `requestState` on any method is refused before dispatch with JSON-RPC
-`-32602` and HTTP 400, and the rejection names the field without echoing the
+client **MUST NOT** include one in the retry." Ze enforces that. A request that
+carries a `requestState` on any method is refused before dispatch, with JSON-RPC
+`-32602` and HTTP 400. The rejection names the field, and it does not echo the
 supplied value.
 
 ```
@@ -193,26 +197,27 @@ accepted; this server issues no requestState, so a retry must not carry one
 
 - **Form mode only.** URL-mode elicitation is not implemented. Ze asks for a
   `ze` CLI command, which is not a credential, so form mode is the correct mode
-  here: "Servers **MUST NOT** use form mode elicitation to request sensitive
-  information such as passwords, API keys, access tokens, or payment
-  credentials." Ze's request builder refuses a schema whose property name looks
-  like a credential, so that prohibition is enforced rather than merely observed.
+  here. The revision says: "Servers **MUST NOT** use form mode elicitation to
+  request sensitive information such as passwords, API keys, access tokens, or
+  payment credentials." Ze's request builder refuses a schema whose property
+  name looks like a credential, so Ze enforces that prohibition rather than
+  merely observes it.
 - **One request per result.** `ze_execute` asks for one value, so exactly one
   `inputRequests` entry is ever emitted.
-- **Sampling and roots are never requested.** An `inputRequests` value may be an
-  `ElicitRequest`, a `CreateMessageRequest` or a `ListRootsRequest`; Ze emits
+- **Sampling and roots are never requested.** An `inputRequests` value can be an
+  `ElicitRequest`, a `CreateMessageRequest` or a `ListRootsRequest`. Ze emits
   only the first. The other two are deprecated in this revision and Ze
   implements neither.
 - **Narrower schema subset than the revision permits.** `2026-07-28` also allows
-  `oneOf`-titled enums and array multi-select enums in a requested schema; Ze's
-  validator accepts only flat primitive properties and emits only a single
-  string. Using fewer optional schema forms than the specification offers is
-  conformant.
+  `oneOf`-titled enums and array multi-select enums in a requested schema. Ze's
+  validator accepts only flat primitive properties, and it emits only a single
+  string. Ze uses fewer optional schema forms than the specification offers,
+  which is conformant.
 - **Tasks do not elicit.** A task worker runs long after its `tools/call` has
   returned, so an `input_required` result produced there would be stored as the
-  task's result and handed back on a later `tasks/get`. Ze closes that off at
-  the source: the worker is handed a zero capability set, so a handler that
-  would otherwise elicit reads form-mode support as undeclared and takes the
+  task's result and delivered on a later `tasks/get`. Ze prevents that at the
+  source. The worker gets a zero capability set, so a handler that would
+  otherwise elicit reads form-mode support as undeclared. That handler takes the
   missing-argument path instead. No Ze task can raise `inputRequests`, and none
   can reach the `input_required` state.
 

@@ -37,18 +37,18 @@ func ParseKVPairs(parts []string) map[string]string {
 	//
 	// Split on a colon ONLY where a new `key=` token begins. A naive
 	// SplitSeq(joined, ":") cuts every colon, which silently truncates any
-	// value that legitimately contains one: `expect=stdout:contains=error: no
+	// value that legitimately contains one. `expect=stdout:contains=error: no
 	// such peer` became `contains=error`, an assertion that passes on almost
 	// any output. A tree-wide sweep on 2026-07-29 found 203 `.ci` assertions
-	// weakened exactly that way across 15 suites -- tests that could not fail.
+	// weakened exactly that way across 15 suites. Those tests cannot fail.
 	//
 	// splitOnKeyBoundary keeps the 33 legitimate uses working: a colon followed
 	// by `timeout=` IS a new key and still splits, so the engine-step
 	// `contains=aes-cbc:timeout=25` form is unaffected.
-	// Extracting a complex key above leaves the separator that preceded it, so
+	// A complex key extracted above leaves the separator that preceded it, so
 	// `conn=1:seq=1:text=...` becomes `conn=1:seq=1:`. The old split-on-every-colon
-	// dropped that as an empty part; a boundary-aware split would instead carry it
-	// into the final value as `seq=1:`. Trim it before splitting.
+	// dropped that as an empty part. A boundary-aware split would instead carry it
+	// into the final value as `seq=1:`. Trim it before the split.
 	joined = strings.TrimSuffix(joined, ":")
 
 	for _, part := range splitOnKeyBoundary(joined) {
@@ -67,15 +67,15 @@ func ParseKVPairs(parts []string) map[string]string {
 // splitOnKeyBoundary splits s on each colon that introduces a new `key=` token,
 // leaving colons inside a value intact.
 //
-// A boundary is a colon followed by an identifier and then `=`, where the
-// identifier is the shape a .ci directive key actually takes: a letter, then
-// letters, digits, `-` or `_`. `:contains=` and `:timeout=` are boundaries;
-// `: no such peer` and `:8080/path` are not.
+// A boundary is a colon followed by an identifier and then `=`. The identifier
+// is the shape a .ci directive key actually takes: a letter, then letters,
+// digits, `-` or `_`. `:contains=` and `:timeout=` are boundaries. `: no such
+// peer` and `:8080/path` are not.
 //
 // The remaining ambiguity is a value containing a colon followed by something
-// that looks like a key, e.g. `contains=note:level=high`. That splits, because
-// nothing in the format distinguishes it from a real key. Authors who need such
-// a value use `pattern=`, which is consumed whole before this runs.
+// that looks like a key, for example `contains=note:level=high`. That splits,
+// because nothing in the format distinguishes it from a real key. Authors who
+// need such a value use `pattern=`, which is consumed whole before this runs.
 func splitOnKeyBoundary(s string) []string {
 	var parts []string
 	start := 0

@@ -2,7 +2,7 @@
 // Required Reading, "Deleted code this phase must RECOVER, not reinvent").
 //
 // These eleven functions test the flat-primitive requestedSchema validator,
-// which has nothing to do with the deleted session type: they were collateral
+// which has nothing to do with the deleted session type. They were collateral
 // in a type-driven deletion, not obsolete code. They are restored UNMODIFIED,
 // which is the check that the validator itself came back unrewritten. An edit
 // needed here would mean the validator was reinvented (Phase 1 R-4).

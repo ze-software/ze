@@ -53,7 +53,7 @@ func TestParseKVPairsKeepsColonsInsideValues(t *testing.T) {
 }
 
 // Exactly the argument record_parse.go:280 passes for the real directive
-// `expect=stdout:contains=name: peer1` (parts[1:] after splitting the line).
+// `expect=stdout:contains=name: peer1` (parts[1:] after the line is split).
 func TestParseKVPairsRealWorldExpectLine(t *testing.T) {
 	got := ParseKVPairs([]string{"contains=name", " peer1"})
 	if got["contains"] != "name: peer1" {

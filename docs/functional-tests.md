@@ -880,15 +880,16 @@ Driver flags:
 <!-- source: internal/test/cli/cmd_mcp.go — cmdMcp flag set -->
 <!-- source: internal/test/cli/cmd_mcp_mrtr.go — parseElicitCapability -->
 
-`--elicit` takes modes rather than being a bare boolean because the capability
-is mode-structured: a client declaring `url` supports elicitation and must never
-be sent a form-mode request, so `--elicit url` and `--elicit form` are different
-tests, not different spellings of one.
+`--elicit` takes modes, not a bare boolean, because the capability is
+mode-structured. A client that declares `url` supports elicitation, and a server
+must never send it a form-mode request. `--elicit url` and `--elicit form` are
+therefore different tests, not two spellings of one.
 
 There is no `--resources` flag. `resources` is a `ServerCapabilities` member,
 not one of the five `ClientCapabilities` members (`experimental`, `roots`,
-`sampling`, `elicitation`, `extensions`), so a conformant client never declares
-it and the daemon serves `resources/list` and `resources/read` to every caller.
+`sampling`, `elicitation`, `extensions`). A conformant client therefore never
+declares `resources`, and the daemon serves `resources/list` and
+`resources/read` to every caller.
 
 <!-- source: internal/component/mcp/resources.go — resourcesList, resourcesRead -->
 
@@ -905,68 +906,70 @@ probe tools/list
 
 **Multi Round-Trip Requests.** When the daemon answers
 `resultType: "input_required"`, the client builds `inputResponses` from the
-queued answer and retries the ORIGINAL request under a new JSON-RPC id, up to
-four rounds. Without a queued answer the call fails instead, so a round trip is
-never taken by accident and a test that did not ask for one still sees the
-interim result as a failure.
+queued answer. The client then retries the ORIGINAL request under a new JSON-RPC
+id, up to four rounds. Without a queued answer the call fails instead. No round
+trip is therefore taken by accident. A test that did not ask for one still sees
+the interim result as a failure.
 
 | Directive | Effect |
 |-----------|--------|
 | `elicit-answer accept <value>` | Supply `<value>` under the property name the server's `requestedSchema` declares |
-| `elicit-answer decline` / `cancel` | Answer with that action; both are terminal |
+| `elicit-answer decline` / `cancel` | Answer with that action. Both are terminal |
 | `elicit-answer omit` | Retry carrying an empty `inputResponses`, which drives the server's re-ask path |
 | `elicit-answer none` | Forget the queued answer |
-| `elicit-extra <key>` | Also send an `inputResponses` entry under `<key>`, which no server asked for; `-` clears it |
+| `elicit-extra <key>` | Also send an `inputResponses` entry under `<key>`, which no server asked for. `-` clears it |
 
-The client reads the answer's field name off the server's `requestedSchema`
-rather than assuming one, and refuses to answer an elicitation whose `mode` it
-did not declare. Both keep it an independent reading of the protocol instead of
-a restatement of the daemon: a server that sent a form-mode request to a
-url-only client fails the run with a named error rather than being quietly
-accommodated.
+The client reads the answer's field name off the server's `requestedSchema`, and
+it assumes no name. The client also refuses to answer an elicitation whose
+`mode` it did not declare. Both rules keep the client an independent reading of
+the protocol, not a restatement of the daemon. A server that sent a form-mode
+request to a url-only client therefore fails the run with a named error. The
+client does not accommodate it quietly.
 
 <!-- source: internal/test/cli/cmd_mcp_mrtr.go — send retry loop, answerElicitRequest, elicitDirective -->
 
 `tools-order-stable [<calls>]` calls `tools/list` `<calls>` times (default 3)
 against an unchanged daemon and prints
 `tools-order stable=<true|false> calls=<n> tools=<n> digest=<hex>`. The
-comparison is over the RAW bytes of the `tools` array, not over the tool names:
-a wobbling action enum or a drifting description leaves every name in place and
-still defeats client caching, so names alone would under-assert the acceptance
-criterion (a byte-identical array, "including every action enum and every
-description string"). The digest on the stable line is a SHA-256 prefix over
-that array, so a `.ci` can assert the byte comparison actually ran.
+comparison is over the RAW bytes of the `tools` array, not over the tool names.
+A wobbling action enum or a drifting description leaves every name in place, and
+it still defeats client caching. Names alone would therefore under-assert the
+acceptance criterion (a byte-identical array, "including every action enum and
+every description string"). The digest on the stable line is a SHA-256 prefix
+over that array, so a `.ci` can assert the byte comparison actually ran.
 
-On drift the line names the diverging call, and then either the first differing
-tool index with both name sequences, or -- when the names are identical and only
-the payload moved -- the byte offset and both digests. The comparison is done in
-the driver rather than by a `.ci` expectation because Go's RE2 has no
-backreference, so "these two responses are identical" cannot be written as a
-pattern.
+On drift the line names the diverging call. It then names the first differing
+tool index with both name sequences. When the names are identical and only the
+payload moved, it names the byte offset and both digests instead.
+
+The driver compares the responses, and a `.ci` expectation does not, because
+Go's RE2 has no backreference. "These two responses are identical" cannot be
+written as a pattern.
 
 <!-- source: internal/test/cli/cmd_mcp_calls.go — toolsOrderStable, toolsList, toolsDigest, firstDifference -->
 
 **Colons in expectation values.** `ParseKVPairs` splits a `.ci` directive on
-`:`, but only where a colon introduces a real key token — a letter followed by
-letters, digits, `-` or `_`, then `=`. An ordinary colon stays in the value, so
-`contains=error: no such peer` asserts the whole sentence. `json=`, `text=`,
-`hex=` and `pattern=` are consumed whole and keep everything after them.
+`:`, but only where a colon introduces a real key token. A real key token is a
+letter, then letters, digits, `-` or `_`, then `=`. An ordinary colon stays in
+the value, so `contains=error: no such peer` asserts the whole sentence.
+`json=`, `text=`, `hex=` and `pattern=` are consumed whole and keep everything
+after them.
 
 The shape that still splits is a value carrying something that looks like a key:
-`contains=note:level=high` breaks at `:level=`. That is deliberate — it is how
-the engine-step form `contains=aes-cbc:timeout=25` keeps working — so a needle of
-that shape needs `pattern=`, which must come last on the line since it consumes
-the remainder.
+`contains=note:level=high` breaks at `:level=`. That split is deliberate,
+because it is how the engine-step form `contains=aes-cbc:timeout=25` keeps
+working. A needle of that shape therefore needs `pattern=`. `pattern=` must come
+last on the line, because it consumes the remainder.
 
 **This was not always so, and the history is the reason to keep the rule in
 mind.** Until 2026-07-30 every colon split, so a `contains=` needle was silently
 cut at its first colon: `contains="cacheScope":"public"` asserted only
 `"cacheScope"`. A sweep found **203 assertions across 15 suites** weakened that
-way. Re-arming them turned up a security test,
+way. The re-armed assertions then exposed a security test,
 `test/appliance/appliance-push-image-escape.ci`, that had never once exercised
-the path-traversal guard it was named for — its symlink resolved to a
-nonexistent file, so the code returned "not found" long before the escape check,
-and the truncated needle `error` accepted that happily.
+the path-traversal guard it was named for. Its symlink resolved to a nonexistent
+file, so the code returned "not found" long before the escape check. And the
+truncated needle `error` accepted that result.
 
 <!-- source: internal/test/ci/ciformat.go — ParseKVPairs complexKeys, splitOnKeyBoundary -->
 
@@ -981,10 +984,10 @@ Eight files cover the `io.modelcontextprotocol/tasks` extension:
 Most pass the `--tasks` flag to `ze-test mcp`, which declares the
 `io.modelcontextprotocol/tasks` identifier under
 `_meta.clientCapabilities.extensions` on every request.
-`task-no-extension.ci` deliberately omits the flag: it is the A/B twin of
-`task-rib-routes.ci`, same peer and same tool, asserting that a client which
-never declared the extension still gets its answer, synchronously, instead of a
-task handle.
+`task-no-extension.ci` deliberately omits the flag. It is the A/B twin of
+`task-rib-routes.ci`, with the same peer and the same tool. It asserts that a
+client which never declared the extension still gets its answer synchronously,
+not a task handle.
 
 Task creation is server-directed. The client sends an ordinary `tools/call`, and
 the daemon decides from the command's `ze:task-support` YANG annotation whether
@@ -992,27 +995,27 @@ to answer with a task handle. There is no per-call opt-in field to set.
 
 | Directive | Purpose |
 |-----------|---------|
-| `task-call <tool> [<args>]` | Ordinary `tools/call` the server must answer with `resultType: "task"`; prints the taskId |
+| `task-call <tool> [<args>]` | Ordinary `tools/call` the server must answer with `resultType: "task"`. Prints the taskId |
 | `call-sync <tool> [<args>]` | Ordinary `tools/call` the server must answer synchronously (`resultType: "complete"`, no taskId) |
 | `task-get <id>` | Call `tasks/get`, print the status |
 | `task-result <id>` | Print the result a terminal task carries, read off `tasks/get` |
-| `task-update <id> [<json>]` | Call `tasks/update` with optional `inputResponses`; requires an empty acknowledgement |
-| `task-cancel <id>` | Call `tasks/cancel`; requires an empty acknowledgement |
+| `task-update <id> [<json>]` | Call `tasks/update` with optional `inputResponses`. Requires an empty acknowledgement |
+| `task-cancel <id>` | Call `tasks/cancel`. Requires an empty acknowledgement |
 | `task-wait <id> <state>` | Poll `tasks/get` until the state matches |
 
 <!-- source: internal/test/cli/cmd_mcp.go -- taskDirective -->
 
-`$LAST` substitutes the most recent directive output (typically the taskId from
+`$LAST` substitutes the most recent directive output (usually the taskId from
 `task-call`). `task-update` and `task-cancel` deliberately do not update it,
 because both return an empty acknowledgement rather than an identifier.
 
-Tasks are polled, never pushed: `2026-07-28` has no server-to-client stream on
-this transport, so `task-wait` polls `tasks/get` rather than waiting on a
+Tasks are polled, never pushed. `2026-07-28` has no server-to-client stream on
+this transport, so `task-wait` polls `tasks/get` and does not wait on a
 notification. The surviving method set is exactly `tasks/get`, `tasks/update`
-and `tasks/cancel`; `tasks/list` and `tasks/result` are gone, the terminal
-payload now rides on `tasks/get`, and `task-removed-methods.ci` asserts the two
-removed names answer as unknown methods while probing the surviving three in the
-same run.
+and `tasks/cancel`. `tasks/list` and `tasks/result` are gone, and the terminal
+payload now rides on `tasks/get`. `task-removed-methods.ci` asserts that the two
+removed names answer as unknown methods, and it probes the surviving three in
+the same run.
 
 <!-- source: internal/component/mcp/streamable_tools.go -- callTool, createTask, tasksUpdate -->
 <!-- source: internal/component/mcp/tasks.go -- TaskInfo.toWire -->

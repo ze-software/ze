@@ -119,12 +119,13 @@ func TestServerDiscoverProviderName(t *testing.T) {
 //
 // VALIDATES: server/discover names io.modelcontextprotocol/tasks in
 // capabilities.extensions, with an empty settings object.
-// PREVENTS: the inconsistency this phase closes -- the server advertised an
-// empty extension set while already serving tasks/*, claiming non-support while
-// serving. It also underwrites the wire contract: MCP 2026-07-28 basic/index
-// says a client's legal ResultType set is the core set plus "any additional
-// values of supported extensions that are advertised via capabilities", so
-// resultType "task" is only interpretable because this row exists.
+// PREVENTS: the inconsistency this phase closes. The server advertised an empty
+// extension set and already served tasks/*, so it claimed non-support for what
+// it served. This row also underwrites the wire contract. MCP 2026-07-28
+// basic/index says a client's legal ResultType set is the core set plus "any
+// additional values of supported extensions that are advertised via
+// capabilities". So resultType "task" is only interpretable because this row
+// exists.
 func TestDiscoverAdvertisesTasksExtension(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{})
 	defer cleanup()
@@ -153,13 +154,13 @@ func TestDiscoverAdvertisesTasksExtension(t *testing.T) {
 // TestBareTasksMemberIsNotAnExtensionDeclaration pins the negotiation cutover.
 //
 // VALIDATES: the 2025-11-25 bare `tasks` capability member no longer declares
-// task support; only the io.modelcontextprotocol/tasks identifier under
+// task support. Only the io.modelcontextprotocol/tasks identifier under
 // `extensions` does.
-// PREVENTS: pushing an unsolicited task handle at a legacy client. Under the
-// old model that client asked for each task itself; under the server-directed
-// model (D-1) honoring its stale declaration would hand it a resultType it
-// never agreed to receive. `tasks` is not a ClientCapabilities member in this
-// revision in any case.
+// PREVENTS: an unsolicited task handle pushed at a legacy client. Under the old
+// model that client asked for each task itself. Under the server-directed model
+// (D-1), a server that honored its stale declaration would hand it a resultType
+// it never agreed to receive. `tasks` is not a ClientCapabilities member in
+// this revision in any case.
 func TestBareTasksMemberIsNotAnExtensionDeclaration(t *testing.T) {
 	if got := parseClientCapabilities(map[string]any{"tasks": map[string]any{}}); got.Tasks {
 		t.Errorf(`bare {"tasks":{}} declared task support, want it ignored`)

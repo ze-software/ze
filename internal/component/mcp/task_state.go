@@ -6,7 +6,7 @@ package mcp
 import "errors"
 
 // TaskState is the typed state-machine enum for MCP task lifecycle.
-// Zero value (TaskUnspecified) is invalid; a read that encounters it
+// The zero value (TaskUnspecified) is invalid. A read that encounters it
 // indicates corruption.
 //
 // Reference: https://github.com/modelcontextprotocol/ext-tasks
@@ -19,22 +19,27 @@ import "errors"
 // not exist.
 //
 // This is an omission with a reason, not an oversight. A task raises
-// `inputRequests` only if the work it runs elicits, and no Ze task can: task
-// eligibility is decided by the `ze:task-support` annotation (lookupTaskSupport,
-// streamable_tools.go), every annotated command dispatches through
-// dispatchGenerated, and the task worker is handed a zero capability set so an
-// elicitation degrades to the missing-argument path rather than an interim
-// result (createTask, streamable_tools.go). `tasks/update` is implemented in
-// full regardless, because for a server that raises no input requests the
-// extension's own tolerance rule -- verify ownership, acknowledge empty, ignore
-// unknown keys -- IS the complete implementation.
+// `inputRequests` only if the work it runs elicits, and no Ze task can. Three
+// links make that true:
+//
+//   - The `ze:task-support` annotation decides task eligibility
+//     (lookupTaskSupport, streamable_tools.go).
+//   - Every annotated command dispatches through dispatchGenerated.
+//   - The task worker is handed a zero capability set, so an elicitation
+//     degrades to the missing-argument path rather than an interim result
+//     (createTask, streamable_tools.go).
+//
+// `tasks/update` is implemented in full regardless. For a server that raises no
+// input requests, the extension's own tolerance rule IS the complete
+// implementation: verify ownership, acknowledge empty, ignore unknown keys.
 //
 // The trigger that reintroduces the state: a command annotated
 // `ze:task-support required` gains an elicitation, or a handcrafted tool that
-// elicits becomes task-eligible. At that point `TaskInputRequired`, the
-// `inputRequests` payload on `tasks/get` and real `inputResponses` matching in
-// `tasks/update` all become reachable and must be implemented together, reusing
-// the MRTR types in mrtr.go. See docs/guide/mcp/tasks.md "Known limitations".
+// elicits becomes task-eligible. At that point three things become reachable:
+// `TaskInputRequired`, the `inputRequests` payload on `tasks/get`, and real
+// `inputResponses` matching in `tasks/update`. They must be implemented
+// together, and they reuse the MRTR types in mrtr.go. See
+// docs/guide/mcp/tasks.md "Known limitations".
 type TaskState uint8
 
 const (

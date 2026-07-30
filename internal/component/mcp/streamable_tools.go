@@ -40,12 +40,13 @@ const (
 	methodResourcesList  = "resources/list"
 	methodResourcesRead  = "resources/read"
 	// methodPromptsGet is not dispatched by this server. It is named because
-	// the Mcp-Name header rule covers it and header validation runs before
-	// dispatch, so a prompts/get POST is header-checked on its way to a 404.
+	// the Mcp-Name header rule covers it, and header validation runs before
+	// dispatch. A prompts/get POST is therefore header-checked on its way to
+	// a 404.
 	methodPromptsGet = "prompts/get"
-	// initializeMethod is the handshake MCP 2026-07-28 removed. Named only so
-	// a client still sending it receives a diagnostic naming the protocol
-	// version this server does speak.
+	// initializeMethod is the handshake MCP 2026-07-28 removed. It is named
+	// only so a client that still sends it receives a diagnostic naming the
+	// protocol version this server does speak.
 	initializeMethod = "initialize"
 )
 
@@ -80,21 +81,24 @@ const headerMismatchLead = "header mismatch"
 // resultTypeComplete is the ResultType discriminator for a finished result.
 //
 // MCP 2026-07-28 basic/index Section "Result Responses": "The result MUST
-// include a resultType field to indicate the type of the result." It is the
-// default every handler gets; the one other legal value, "input_required", is
-// set by the handler itself (mrtr.go) and preserved by ok().
+// include a resultType field to indicate the type of the result."
+//
+// It is the default every handler gets. The one other legal value,
+// "input_required", is set by the handler itself (mrtr.go) and preserved by
+// ok().
 const resultTypeComplete = "complete"
 
-// resultTypeTask is the ResultType discriminator the tasks extension adds for a
-// CreateTaskResult: the call was accepted and is running in the background, and
+// resultTypeTask is the ResultType discriminator the tasks extension adds for
+// a CreateTaskResult. The call was accepted and runs in the background, and
 // the result carries a handle rather than the work's output.
 //
 // MCP 2026-07-28 basic/index Section "ResultType": "Extensions MAY add
 // additional ResultType values. The set of supported ResultType values MUST be
 // created from the set defined in the core protocol and include any additional
-// values of supported extensions that are advertised via capabilities." This
-// value is therefore only ever emitted to a client that declared the extension
-// -- the gate in callTool is what makes that true.
+// values of supported extensions that are advertised via capabilities."
+//
+// This value is therefore only ever emitted to a client that declared the
+// extension. The gate in callTool is what makes that true.
 const resultTypeTask = "task"
 
 // CreateTaskResult wire keys. MCP is camelCase on the wire, so these are the
@@ -108,14 +112,14 @@ const (
 // requestScope is the per-request protocol state every handler runs against.
 //
 // Value type, built once in handlePOST after authentication and copied into
-// every handler that needs it. Deliberately not a pointer and deliberately not
-// optional: the compiler forces each handler to receive an identity and a
-// capability set, so there is no nil case a handler can forget to guard and no
-// "maybe absent" context to dereference. Its zero value denies every gated
-// capability (ai/rules/fail-closed-guards.md).
+// every handler that needs it. It is deliberately not a pointer, and it is
+// deliberately not optional. The compiler forces each handler to receive an
+// identity and a capability set. No nil case is therefore left for a handler
+// to forget, and no "maybe absent" context is left to dereference. Its zero value
+// denies every gated capability (ai/rules/fail-closed-guards.md).
 type requestScope struct {
 	// Identity is the authenticated principal. A zero Identity means
-	// "anonymous under auth-mode none"; it never means "not authenticated",
+	// "anonymous under auth-mode none". It never means "not authenticated",
 	// because an unauthenticated request is rejected before a scope exists.
 	Identity Identity
 	// Capabilities is what the client declared for THIS request.
@@ -129,23 +133,27 @@ type requestScope struct {
 	ClientInfo clientInfo
 }
 
-// runMethod runs a JSON-RPC method handler to completion synchronously. ctx is
-// the originating HTTP request's context; it reaches the command dispatcher
-// through server.context (tools.go), so a client disconnect unblocks a dispatch
-// that selects on ctx.Done(). MCP 2026-07-28 makes stream close the
-// cancellation signal for a request and says the server SHOULD stop work on a
-// canceled request "as soon as practical", which is the obligation that
-// propagation discharges. scope carries the request's authenticated identity
-// and declared capabilities by value.
+// runMethod runs a JSON-RPC method handler to completion synchronously.
+//
+// ctx is the originating HTTP request's context. It reaches the command
+// dispatcher through server.context (tools.go), so a client disconnect
+// unblocks a dispatch that selects on ctx.Done(). MCP 2026-07-28 makes stream
+// close the cancellation signal for a request. It also says the server SHOULD
+// stop work on a canceled request "as soon as practical", which is the
+// obligation that propagation discharges. scope carries the request's
+// authenticated identity and declared capabilities by value.
 //
 // Two things are applied HERE, on the way out, rather than by each handler.
-// Cache hints: membership of cacheTTLByMethod (caching.go) is the whole
-// decision, so a method added to the switch below cannot silently miss the
-// stamp, and cannot silently gain it either; tools/call must carry none in
-// either result shape. And the input-required guard (mrtr.go), which refuses to
-// let an interim result leave on a method the specification forbids it on. The
-// guard runs FIRST so an illegal interim result becomes an error before any
-// cache hint is considered for it.
+//
+// The first is the cache hints. Membership of cacheTTLByMethod (caching.go) is
+// the whole decision. A method added to the switch below can therefore neither
+// silently miss the stamp nor silently gain it. tools/call must carry none in
+// either result shape.
+//
+// The second is the input-required guard (mrtr.go), which refuses to let an
+// interim result leave on a method the specification forbids it on. The guard
+// runs FIRST, so an illegal interim result becomes an error before any cache
+// hint is considered for it.
 func (s *Streamable) runMethod(ctx context.Context, scope requestScope, req *request, remoteAddr string) *response {
 	return stampCacheHints(req.Method, s.guardInputRequired(req.Method, s.dispatchMethod(ctx, scope, req, remoteAddr)))
 }
@@ -186,19 +194,20 @@ func (s *Streamable) dispatchMethod(ctx context.Context, scope requestScope, req
 // allTools returns the provider's tools (Provider mode), or the combined
 // handcrafted + auto-generated tool list (command-registry mode).
 //
-// caps is the requesting client's declared capability set, and it is a
-// parameter rather than a field so the compiler forces every caller to decide
-// what the client supports. Two gates read it, and both are applied here rather
-// than at descriptor construction so one call site covers every origin:
+// caps is the requesting client's declared capability set. It is a parameter
+// rather than a field, so the compiler forces every caller to decide what the
+// client supports. Two gates read it, and both are applied here rather than at
+// descriptor construction, so one call site covers every origin:
 //
 //   - gateUIMeta (apps.go) strips `_meta.ui` from every descriptor when the
-//     client did not declare the MCP Apps extension. Applied to the ASSEMBLED
-//     list, so it covers provider descriptors as well as generated ones.
+//     client did not declare the MCP Apps extension. It is applied to the
+//     ASSEMBLED list, so it covers provider descriptors as well as generated
+//     ones.
 //   - gateExecuteCommandRequired (mrtr.go) marks ze_execute's `command`
 //     argument required for a client that did not declare form-mode
-//     elicitation, which is precisely the client that will be answered with the
-//     missing-argument error rather than an input request. Applied to the
-//     handcrafted descriptors only: a ToolProvider owns its own handlers, so a
+//     elicitation. That is precisely the client the server answers with the
+//     missing-argument error rather than an input request. It is applied to the
+//     handcrafted descriptors only. A ToolProvider owns its own handlers, so a
 //     same-named tool there is not the handler this schema describes.
 //
 // The order is part of the contract: handcrafted tools first, then generated
@@ -223,20 +232,22 @@ func (s *Streamable) allTools(caps clientCapabilities) []map[string]any {
 	return gateUIMeta(result, caps.UIApps)
 }
 
-// callTool executes a tools/call request. ctx is the originating HTTP
-// request's context; it flows onto runner.ctx, and from there into every
-// dispatch through server.context (tools.go), so a client disconnect reaches
-// the command dispatcher. scope supplies the authenticated identity the
-// dispatched command runs as.
+// callTool executes a tools/call request.
+//
+// ctx is the originating HTTP request's context. It flows onto runner.ctx, and
+// from there into every dispatch through server.context (tools.go). A client
+// disconnect therefore reaches the command dispatcher. scope supplies the
+// authenticated identity the dispatched command runs as.
 func (s *Streamable) callTool(ctx context.Context, req *request, scope requestScope, remoteAddr string) *response {
 	var tb textbuf.Buffer
 	var params callParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		return s.fail(req.ID, rpcInvalidParams, tb.Str("invalid params: ").Err(err).String())
 	}
-	// Provider mode: delegate directly. A provider supplies its own tool set with
-	// no YANG behind it, so no descriptor can carry `ze:task-support` and the
-	// server-directed rule below has nothing to read.
+	// Provider mode: delegate directly. A provider supplies its own tool set
+	// with no YANG behind it. No descriptor can therefore carry
+	// `ze:task-support`, and the server-directed rule below has nothing to
+	// read.
 	if s.cfg.Provider != nil {
 		result := s.cfg.Provider.CallTool(params.Name, params.Arguments)
 		if result == nil {
@@ -246,8 +257,8 @@ func (s *Streamable) callTool(ctx context.Context, req *request, scope requestSc
 	}
 
 	// The server-directed eligibility decision (D-1). The client no longer opts
-	// a call into task execution; this server decides from the command's
-	// `ze:task-support` annotation, and the client only says once, per request,
+	// a call into task execution. This server decides from the command's
+	// `ze:task-support` annotation. And the client only says once, per request,
 	// whether it can understand a task handle at all.
 	//
 	// MCP 2026-07-28 changelog Major change 6: the tasks extension "allows
@@ -256,15 +267,17 @@ func (s *Streamable) callTool(ctx context.Context, req *request, scope requestSc
 	// MCP 2026-07-28 basic/versioning Section "Extension Negotiation": "If one
 	// party supports an extension but the other does not, the supporting party
 	// MUST either revert to core protocol behavior or reject the request with an
-	// appropriate error." Ze reverts: a client that did not declare the tasks
-	// extension gets its answer synchronously rather than an error (D-2). The
-	// extension is an optimization over a synchronous call, never a precondition
-	// for the work, so refusing would make the 9 annotated commands unreachable
-	// to every client that has not adopted an optional extension.
+	// appropriate error."
+	//
+	// Ze reverts. A client that did not declare the tasks extension gets its
+	// answer synchronously rather than an error (D-2). The extension is an
+	// optimization over a synchronous call, never a precondition for the work.
+	// A refusal would therefore make the 9 annotated commands unreachable to
+	// every client that has not adopted an optional extension.
 	//
 	// Both halves of the guard matter, and they fail closed in opposite
-	// directions: `forbidden` and `optional` never produce a task whatever the
-	// client declared, and `required` produces one ONLY for a client that
+	// directions. `forbidden` and `optional` never produce a task, whatever the
+	// client declared. And `required` produces one ONLY for a client that
 	// declared the extension. There is no path to a task handle that skips
 	// either check.
 	if s.lookupTaskSupport(params.Name) == TaskSupportRequired && scope.Capabilities.Tasks {
@@ -278,10 +291,10 @@ func (s *Streamable) callTool(ctx context.Context, req *request, scope requestSc
 		username:   scope.Identity.Name,
 		remoteAddr: remoteAddr,
 		// The capability gate is read ONCE, here, from this request's `_meta`,
-		// and handed to the handler; no handler re-parses it. inputResponses is
-		// the client's answers to a previous InputRequiredResult, and it is the
-		// only thing that connects the two attempts -- nothing is retained
-		// server-side between them.
+		// and handed to the handler. No handler re-parses it. inputResponses
+		// carries the client's answers to a previous InputRequiredResult, and
+		// it is the only thing that connects the two attempts. Nothing is
+		// retained server-side between them.
 		caps:           scope.Capabilities,
 		inputResponses: decodeInputResponses(req.Params),
 	}
@@ -365,15 +378,15 @@ func parseTaskID(raw json.RawMessage) (string, error) {
 // For Ze every key is unknown BY CONSTRUCTION: no Ze task can raise
 // `inputRequests` (see the comment on TaskState in task_state.go), so there is
 // nothing outstanding for a response to satisfy. The handler therefore acts on
-// exactly one thing, the `taskId`, and it ownership-checks it before anything
-// else. The `inputResponses` payload is attacker-controlled and is discarded
-// unread; that is safe precisely because nothing consumes it. If a Ze task ever
-// gains the ability to elicit, this becomes a real validation requirement and
-// must be written then rather than assumed now.
+// exactly one thing, the `taskId`, and it ownership-checks that id first. The
+// `inputResponses` payload is attacker-controlled and is discarded unread. That
+// is safe precisely because nothing consumes it. If a Ze task ever gains the
+// ability to elicit, this becomes a real validation requirement and must be
+// written then rather than assumed now.
 //
-// This method is implemented rather than stubbed on purpose: advertising the
-// extension in server/discover while refusing one of its methods would be
-// claiming a shape this server does not speak (ai/rules/no-parking.md).
+// This method is implemented rather than stubbed on purpose. A server that
+// advertises the extension in server/discover and refuses one of its methods
+// claims a shape it does not speak (ai/rules/no-parking.md).
 func (s *Streamable) tasksUpdate(scope requestScope, req *request) *response {
 	if !scope.Capabilities.Tasks {
 		return s.failMissingTasksCapability(req.ID)
@@ -416,13 +429,15 @@ func (s *Streamable) tasksGet(scope requestScope, req *request) *response {
 // result, exactly like tasksUpdate.
 //
 // It deliberately does not report the resulting state, even though
-// taskRegistry.Cancel returns one. Cancellation is cooperative: the worker's
+// taskRegistry.Cancel returns one. Cancellation is cooperative. The worker's
 // context is canceled and the entry is marked, but a worker already past its
-// last cancellation check still runs to completion, so a status read at
-// acknowledgement time is a snapshot that may be stale before the client parses
-// it. Reporting it would invite a client to treat the ack as the final word;
-// tasks/get is the method that answers "what state is it in now", and it is the
-// one whose answer is fresh when it is read.
+// last cancellation check still runs to completion. A status read at
+// acknowledgement time is therefore a snapshot, and it can be stale before the
+// client parses it.
+//
+// A reported state would invite a client to treat the ack as the final word.
+// tasks/get is the method that answers "what state is it in now", and it is
+// the one whose answer is fresh when it is read.
 func (s *Streamable) tasksCancel(scope requestScope, req *request) *response {
 	if !scope.Capabilities.Tasks {
 		return s.failMissingTasksCapability(req.ID)
@@ -432,9 +447,9 @@ func (s *Streamable) tasksCancel(scope requestScope, req *request) *response {
 		var tb textbuf.Buffer
 		return s.fail(req.ID, rpcInvalidParams, tb.Str("invalid params: ").Err(err).String())
 	}
-	// Ownership first, and the state Cancel reports is deliberately discarded:
-	// a foreign or unknown taskId is refused identically to an owned one that
-	// does not exist, so the reply cannot be used to probe for another
+	// Ownership first, and the state Cancel reports is deliberately discarded.
+	// A foreign or unknown taskId is refused identically to an owned one that
+	// does not exist. The reply therefore cannot be used to probe for another
 	// principal's task ids.
 	if _, err := s.tasks.Cancel(scope.Identity.Name, taskID); err != nil {
 		return s.fail(req.ID, rpcInvalidParams, err.Error())
@@ -448,16 +463,16 @@ func (s *Streamable) tasksCancel(scope requestScope, req *request) *response {
 //
 // The capability check is repeated here rather than trusted from the caller.
 // This is the function that mints a task handle, so it is the last place the
-// guard can sit and still be the guard: a future second call site that forgot
-// the check would otherwise hand a task to a client that cannot read one
+// guard can sit and still be the guard. A future second call site that forgot
+// the check would otherwise give a task to a client that cannot read one
 // (R-2, ai/rules/fail-closed-guards.md).
 func (s *Streamable) createTask(req *request, scope requestScope, remoteAddr string, params callParams) *response {
 	if !scope.Capabilities.Tasks {
 		return s.failMissingTasksCapability(req.ID)
 	}
 
-	// Resolve tool BEFORE allocating task entry (finding #1: avoid wasting
-	// concurrency slots on unknown tools).
+	// Resolve the tool BEFORE the task entry is allocated (finding #1: do not
+	// waste concurrency slots on unknown tools).
 	handler, isHandcrafted := toolHandlers[params.Name]
 	var prefix string
 	var validActions map[string]bool
@@ -475,11 +490,11 @@ func (s *Streamable) createTask(req *request, scope requestScope, remoteAddr str
 
 	identity := scope.Identity.Name
 
-	// The TTL is the server's, not the client's. The client-requested TTL branch
-	// died with `params.task` (D-1): with no per-call opt-in there is no per-call
-	// field to carry it, and retention is a server-side resource decision in any
-	// case. The one TTL input is now TaskRegistryConfig.TTL, clamped once at
-	// construction (newTaskRegistry, tasks.go).
+	// The TTL is the server's, not the client's. The client-requested TTL
+	// branch died with `params.task` (D-1). With no per-call opt-in there is no
+	// per-call field to carry it, and retention is a server-side resource
+	// decision in any case. The one TTL input is now TaskRegistryConfig.TTL,
+	// clamped once at construction (newTaskRegistry, tasks.go).
 	taskID, taskCtx, _, err := s.tasks.Create(identity)
 	if err != nil {
 		return s.fail(req.ID, rpcInvalidParams, err.Error())
@@ -502,12 +517,12 @@ func (s *Streamable) createTask(req *request, scope requestScope, remoteAddr str
 			// caps and inputResponses are deliberately left zero, and this is
 			// what makes the `input_required` task state unreachable (D-4).
 			//
-			// A task worker finishes long after its tools/call returned, so an
-			// InputRequiredResult produced here would be stored as the task's
-			// RESULT and handed back on a later tasks/get. Zeroing the
+			// A task worker finishes long after its tools/call returned. An
+			// InputRequiredResult produced here would therefore be stored as
+			// the task's RESULT and returned on a later tasks/get. A zero
 			// capability set makes any handler that would elicit take the
-			// missing-argument path instead, so no task can raise
-			// `inputRequests` and no task can enter `input_required`. See the
+			// missing-argument path instead. No task can therefore raise
+			// `inputRequests`, and no task can enter `input_required`. Read the
 			// TaskState comment in task_state.go for the trigger that would
 			// reopen this.
 		}
@@ -520,14 +535,16 @@ func (s *Streamable) createTask(req *request, scope requestScope, remoteAddr str
 	runTaskWorker(taskCtx, s.tasks, taskID, work)
 
 	// The entry is registered and the worker launched BEFORE this response is
-	// built, so a client that polls the instant it reads the handle always finds
-	// the task. A handle that could arrive before the registry knew about it
-	// would make a legitimate immediate poll indistinguishable from a forged id.
+	// built. A client that polls the instant it reads the handle therefore
+	// always finds the task. A handle that arrived before the registry knew
+	// about it would make a legitimate immediate poll indistinguishable from a
+	// forged id.
 	//
-	// pollIntervalMs is derived from the TTL rather than fixed (D-6): a constant
-	// larger than half the retention window would let a client obeying the hint
-	// sleep past a terminal result and find it already swept. Deriving it keeps
-	// `pollIntervalMs <= ttlMs/2` true for every legal TTL.
+	// pollIntervalMs is derived from the TTL rather than fixed (D-6). A
+	// constant larger than half the retention window is too long. A client that
+	// obeys such a hint sleeps past a terminal result and finds it already
+	// swept. The derivation keeps `pollIntervalMs <= ttlMs/2` true for every
+	// legal TTL.
 	ttlMs, pollMs := s.tasks.retentionHints()
 	return s.ok(req.ID, map[string]any{
 		resultTypeKey:           resultTypeTask,
@@ -538,23 +555,23 @@ func (s *Streamable) createTask(req *request, scope requestScope, remoteAddr str
 	})
 }
 
-// ok wraps a successful method result in a JSON-RPC response, stamping the two
-// envelope fields this revision requires on EVERY result: the resultType
+// ok wraps a successful method result in a JSON-RPC response. It stamps the
+// two envelope fields this revision requires on EVERY result: the resultType
 // discriminator and the server's identity under `_meta`. Every successful path
-// in this server returns through here, so both are emitted from one site rather
-// than per method.
+// in this server returns through here, so both are emitted from one site
+// rather than per method.
 //
-// The caller's map is copied rather than stamped in place: tasksResult hands
-// back the map the registry stored, and mutating it would persist envelope
-// fields into registry state.
+// The caller's map is copied rather than stamped in place. tasksResult returns
+// the map the registry stored, and a mutation would persist envelope fields
+// into registry state.
 func (s *Streamable) ok(id *json.RawMessage, result map[string]any) *response {
 	out := make(map[string]any, len(result)+2)
 	maps.Copy(out, result)
-	// A handler that already chose a discriminator keeps it; everything else is
+	// A handler that already chose a discriminator keeps it. Everything else is
 	// complete. Two handlers choose: mrtr.go sets "input_required" on an interim
-	// result, and createTask sets "task" on a CreateTaskResult. Stamping
-	// unconditionally here would relabel both as finished -- a client would read
-	// a prompt, or a bare task handle, as the answer it asked for.
+	// result, and createTask sets "task" on a CreateTaskResult. An
+	// unconditional stamp here would relabel both as finished. A client would
+	// then read a prompt, or a bare task handle, as the answer it asked for.
 	//
 	// The test is "did the handler set one", not "is it one of these two", so a
 	// future extension result type cannot be silently overwritten by forgetting
@@ -591,9 +608,9 @@ func (s *Streamable) fail(id *json.RawMessage, code int, msg string) *response {
 // mutually supported version from this list and retry", and `data.requested`
 // echoes "the protocol version that was requested by the client".
 //
-// The supported list is cloned from supportedProtocolVersions so it cannot
-// drift from what the version check actually accepts, and `requested` is the
-// value already parsed out of the body rather than a raw header.
+// The supported list is cloned from supportedProtocolVersions, so it cannot
+// drift from what the version check accepts. And `requested` is the value
+// already parsed out of the body rather than a raw header.
 func (s *Streamable) failUnsupportedVersion(id *json.RawMessage, requested string) *response {
 	return &response{
 		JSONRPC: "2.0",
@@ -618,17 +635,18 @@ func (s *Streamable) failUnsupportedVersion(id *json.RawMessage, requested strin
 // ClientCapabilities shape. This is NOT -32601: an undeclared capability is a
 // method the client cannot be served, not a method the server does not have.
 //
-// Tasks is the only capability this server may demand, so the capability is
+// Tasks is the only capability this server can demand, so the capability is
 // fixed here rather than passed in. Every OTHER capability Ze offers -- notably
-// resources -- is a *ServerCapabilities* member: a conformant client cannot
-// declare one, so demanding it would refuse every conformant caller.
-// The requiredCapabilities payload is spelled in the EXTENSION shape, because
-// that is the shape a client must actually send to be served: an identifier
-// under `extensions`, per MCP 2026-07-28 basic/versioning Section "Extension
+// resources -- is a *ServerCapabilities* member. A conformant client cannot
+// declare one, so a demand for it would refuse every conformant caller.
+//
+// The requiredCapabilities payload is spelled in the EXTENSION shape. That is
+// the shape a client must send to be served: an identifier under
+// `extensions`, per MCP 2026-07-28 basic/versioning Section "Extension
 // Negotiation" ("Extensions are advertised in the `extensions` field of
 // capabilities, which is a map of extension identifiers to per-extension
-// settings objects"). Echoing a bare `tasks` member would tell the client to
-// send something this server no longer accepts.
+// settings objects"). A bare `tasks` member would tell the client to send
+// something this server no longer accepts.
 func (s *Streamable) failMissingTasksCapability(id *json.RawMessage) *response {
 	var tb textbuf.Buffer
 	msg := tb.Str("client did not declare the ").Str(extensionTasks).

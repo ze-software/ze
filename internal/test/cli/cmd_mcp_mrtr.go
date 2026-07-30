@@ -5,15 +5,16 @@
 // Multi Round-Trip Requests, client half.
 //
 // Written from the specification text (basic/patterns/mrtr and
-// client/elicitation), NOT from Ze's server code, so that a functional test
-// asserting on this behavior is an independent reading of the protocol rather
-// than a restatement of the implementation under test.
+// client/elicitation), NOT from Ze's server code. A functional test that
+// asserts on this behavior is therefore an independent reading of the protocol.
+// It is not a restatement of the implementation under test.
 //
-// The loop: send the request; if the result is `input_required`, construct the
-// inputs its `inputRequests` asks for, then retry THE ORIGINAL REQUEST carrying
-// `inputResponses` under a new JSON-RPC id. Nothing is echoed back to the
-// server except the answers -- when a result carries no `requestState`, "the
-// client MUST NOT include one in the retry".
+// The loop has three steps. Send the request. If the result is
+// `input_required`, construct the inputs that its `inputRequests` asks for.
+// Then retry THE ORIGINAL REQUEST with `inputResponses` under a new JSON-RPC
+// id. Nothing is echoed back to the server except the answers, and when a
+// result carries no `requestState`, "the client MUST NOT include one in the
+// retry".
 
 package cli
 
@@ -72,9 +73,9 @@ func (c *mcpClient) send(method string, params map[string]any) (json.RawMessage,
 // elicitDirective handles the elicit-* directives, reporting whether the line
 // was one of them.
 //
-// The answer is QUEUED rather than consumed: a server may prompt on more than
-// one round (server requirement 8), and a test that answered once should not
-// silently stop answering.
+// The answer is QUEUED rather than consumed. A server can prompt on more than
+// one round (server requirement 8), and a test that answered once must keep
+// answering.
 func (c *mcpClient) elicitDirective(line string) (bool, error) {
 	if rest, ok := strings.CutPrefix(line, "elicit-answer "); ok {
 		action, value, _ := strings.Cut(strings.TrimSpace(rest), " ")
@@ -111,7 +112,7 @@ func (c *mcpClient) elicitDirective(line string) (bool, error) {
 //
 // Every entry the server asked for is answered from the queued plan. The plan's
 // "omit" form answers nothing, which is how a test drives the server's re-ask
-// path; an unexpected extra key is added when the plan names one, because a
+// path. An unexpected extra key is added when the plan names one, because a
 // server must tolerate unrecognized InputResponses parameters.
 func (c *mcpClient) answerInputRequests(result map[string]any) (map[string]any, error) {
 	requests, ok := result[keyInputRequests].(map[string]any)
@@ -153,11 +154,11 @@ func (c *mcpClient) answerInputRequests(result map[string]any) (map[string]any, 
 
 // answerElicitRequest answers one elicitation/create request.
 //
-// It checks the mode the server asked in against what this client declared:
-// "Servers MUST NOT send elicitation requests with modes that are not supported
-// by the client." A client that answered a mode it never declared could not
-// prove the server honors that, so the check lives here rather than in a test
-// assertion.
+// It checks the mode the server asked in against what this client declared.
+// client/elicitation: "Servers MUST NOT send elicitation requests with modes
+// that are not supported by the client." A client that answered a mode it never
+// declared cannot prove that the server honors that rule. The check therefore
+// lives here rather than in a test assertion.
 func (c *mcpClient) answerElicitRequest(key string, request map[string]any) (map[string]any, error) {
 	params, _ := request[keyParams].(map[string]any)
 	mode, _ := params[keyMode].(string)
@@ -190,8 +191,9 @@ func (c *mcpClient) answerElicitRequest(key string, request map[string]any) (map
 }
 
 // singleSchemaProperty returns the one property name a requestedSchema
-// declares. The client reads the field name off the schema rather than assuming
-// one, which is what keeps it a generic MCP client instead of a Ze-shaped one.
+// declares. The client reads the field name from the schema rather than
+// assuming one. That reading is what keeps it a generic MCP client instead of a
+// Ze-shaped one.
 func singleSchemaProperty(params map[string]any) (string, error) {
 	schema, ok := params[keyRequestedSchema].(map[string]any)
 	if !ok {
@@ -213,10 +215,11 @@ func singleSchemaProperty(params map[string]any) (string, error) {
 // parseElicitCapability turns the --elicit flag value into the capability
 // object sent on every request.
 //
-// declared says whether the `elicitation` member is sent at all; it is separate
-// from the map because an EMPTY declared object is a real declaration ("an
-// empty capabilities object is equivalent to declaring support for `form` mode
-// only"), so len(caps)==0 cannot stand in for "absent".
+// declared says whether the `elicitation` member is sent at all. It is separate
+// from the map because an EMPTY declared object is a real declaration. The
+// specification says that "an empty capabilities object is equivalent to
+// declaring support for `form` mode only".
+// So len(caps)==0 cannot mean "absent".
 //
 // "" declares nothing. "empty" declares `{}`. Anything else is a
 // comma-separated mode list.

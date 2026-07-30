@@ -252,18 +252,21 @@ claim that none exists anywhere.
 
 **Ze's elicitation changed shape, and the row names the shape.** Ze shipped
 server-initiated `elicitation/create` under revision `2025-06-18`. Revision
-`2026-07-28` removed protocol-level sessions and the server-to-client stream and
-states that a server "**MUST NOT** send independent JSON-RPC *requests*" on any
-stream, so a prompt can no longer be pushed. It is returned instead, as a Multi
-Round-Trip Request: `ze_execute` called without a `command` answers
-`resultType: "input_required"` with an `inputRequests` map, and the client
-supplies the value by retrying the original call with `inputResponses`.
+`2026-07-28` removed protocol-level sessions and the server-to-client stream.
+That revision also states that a server "**MUST NOT** send independent JSON-RPC
+*requests*" on any stream.
 
-Two limits qualify the `Yes`. Ze emits **form mode only** (url mode is not
-implemented), and it attaches no `requestState`, which is conformant --
-requirement 6's "at least one of `inputRequests` or `requestState`" is met by
-`inputRequests` alone -- but means Ze carries no continuation state across a
-retry and could not yet support a flow that needed one.
+A server can therefore no longer push a prompt. The server returns the prompt
+instead, as a Multi Round-Trip Request: `ze_execute` called without a `command`
+answers `resultType: "input_required"` with an `inputRequests` map. The client
+then retries the original call with `inputResponses`, which carries the value.
+
+Two limits qualify the `Yes`. Ze emits **form mode only**, and url mode is not
+implemented. Ze also attaches no `requestState`. That omission is conformant,
+because requirement 6 asks for "at least one of `inputRequests` or
+`requestState`" and `inputRequests` alone meets it. But Ze holds no
+continuation state across a retry, and Ze does not support a flow that needs
+one.
 <!-- source: internal/component/mcp/mrtr.go -- inputRequiredForMissingCommand, rejectUnsolicitedRequestState -->
 <!-- source: internal/component/mcp/elicit.go -- newElicitRequest, elicitModeForm -->
 

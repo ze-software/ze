@@ -415,27 +415,28 @@ func groupUIResource(actions []action) *UIResourceInfo {
 //
 // # Why the precedence had to be inverted (D-1b)
 //
-// The eligibility decision is made per TOOL, not per command: lookupTaskSupport
+// The eligibility decision is made per TOOL, not per command. lookupTaskSupport
 // (streamable_tools.go) resolves a tool name to a command group, and a group
 // folds several actions into one level. Under the old client-directed model the
-// client still had to ask for a task and a per-action check ran on the way in,
-// so letting `required` win here was harmless. Under the server-directed model
-// this value IS the promotion rule: `required` means the server hands back a
-// task handle unasked. Required-wins would therefore auto-task an action its
-// YANG explicitly annotated `forbidden` -- the four mutating rib commands
-// (`clear bgp rib in/out`, `request bgp rib inject/withdraw`) are exactly the
-// set that annotation exists to protect.
+// client still had to ask for a task, and a per-action check ran on the way in.
+// A `required` win here was therefore harmless.
 //
-// So a single `forbidden` action poisons the whole group. The cost of being
-// wrong in this direction is one genuinely long action running synchronously;
-// the cost in the other direction is auto-tasking a route injection
+// Under the server-directed model this value IS the promotion rule. `required`
+// means the server returns a task handle unasked. Required-wins would therefore
+// auto-task an action its YANG explicitly annotated `forbidden`. The four
+// mutating rib commands (`clear bgp rib in/out`, `request bgp rib
+// inject/withdraw`) are exactly the set that annotation exists to protect.
+//
+// So a single `forbidden` action poisons the whole group. The cost of an error
+// in this direction is one genuinely long action that runs synchronously. The
+// cost in the other direction is an auto-tasked route injection
 // (ai/rules/fail-closed-guards.md).
 //
-// No group mixes levels today -- the forbidden rib actions sit under the
-// `clear` and `request` roots while the required one sits under `show`, so they
-// land in different tools. The fix is free now and expensive later. If a mixed
-// group is ever authored, the right repair is to split the tool, not to relax
-// this guard.
+// No group mixes levels today. The forbidden rib actions sit under the `clear`
+// and `request` roots, and the required one sits under `show`, so they land in
+// different tools. The fix is free now and expensive later. If a mixed group is
+// ever authored, the right repair is to split the tool, not to relax this
+// guard.
 func groupTaskSupport(actions []action) TaskSupportLevel {
 	hasRequired := false
 	for _, a := range actions {
@@ -580,38 +581,41 @@ type server struct {
 	dispatch CommandDispatcher
 	commands CommandLister
 	// ctx is the active HTTP request's context, or a task worker's
-	// deadline-bearing context. Every dispatch MUST run under it so a client
-	// disconnect and the task execution deadline both reach the dispatcher; read
-	// it through the context accessor below rather than directly, which is what
-	// gives the nil case (a bare *server in a unit test) one defined answer.
+	// deadline-bearing context. Every dispatch MUST run under it, so that a
+	// client disconnect and the task execution deadline both reach the
+	// dispatcher. Read it through the context accessor below rather than
+	// directly. The accessor is what gives the nil case (a bare *server in a
+	// unit test) one defined answer.
 	ctx context.Context //nolint:containedctx // per-request state; see godoc above
 	// username is the authenticated principal the dispatched command runs as.
 	// It comes from the per-request authenticator, never from a request body.
 	username   string
 	remoteAddr string
 	// caps is what THIS request's client declared. A handler that wants to ask
-	// the user for something reads caps.ElicitForm before emitting an
-	// inputRequests entry: MCP 2026-07-28 basic/patterns/mrtr Section "Server
+	// the user for something reads caps.ElicitForm before it emits an
+	// inputRequests entry. MCP 2026-07-28 basic/patterns/mrtr Section "Server
 	// Requirements": "7. Servers MUST NOT send an inputRequests that the client
 	// has not declared support for in its capabilities." The zero value denies,
 	// so a runner built without capabilities never prompts.
 	caps clientCapabilities
-	// inputResponses is params.inputResponses from a Multi Round-Trip retry:
-	// the answers to the inputRequests a previous InputRequiredResult asked
-	// for. Nil on a first attempt. It is the ONLY thing that crosses between
-	// the two requests -- nothing is held server-side between them.
+	// inputResponses is params.inputResponses from a Multi Round-Trip retry. It
+	// holds the answers to the inputRequests a previous InputRequiredResult
+	// asked for, and it is nil on a first attempt. It is the ONLY thing that
+	// crosses between the two requests. Nothing is held server-side between
+	// them.
 	inputResponses map[string]any
 }
 
 // context returns the context every dispatch this runner makes MUST run under.
 //
-// It is the ONE reader of the ctx field, so there is a single place the
-// request's deadline and its cancellation enter the command dispatcher. Both
-// call sites used to hard-code context.Background(), which silently severed
-// two mechanisms that are documented elsewhere as working: a task worker's
-// execution deadline (tasks.go, Create) and a client disconnect unblocking a
-// handler (streamable_tools.go, runMethod). A canceled context that nothing
-// observes cancels nothing.
+// It is the ONE reader of the ctx field, so one place exists where the
+// request's deadline and its cancellation enter the command dispatcher.
+//
+// Both call sites used to hard-code context.Background(). That silently severed
+// two mechanisms documented elsewhere as working: a task worker's execution
+// deadline (tasks.go, Create), and a client disconnect that unblocks a handler
+// (streamable_tools.go, runMethod). A canceled context that nothing observes
+// cancels nothing.
 //
 // The nil fallback is for unit tests that build a bare *server. Falling back to
 // Background is safe in exactly that case and nowhere else: every production
@@ -775,9 +779,11 @@ type rpcError struct {
 //
 // There is deliberately no `task` member. MCP 2026-07-28 changelog Major change
 // 6 moved tasks onto the io.modelcontextprotocol/tasks extension, which "allows
-// servers to return task handles unsolicited without per-request opt-in": the
-// SERVER decides a call runs as a task, from the command's `ze:task-support`
-// annotation, so there is no client-supplied field to read (D-1).
+// servers to return task handles unsolicited without per-request opt-in".
+//
+// The SERVER decides a call runs as a task, from the command's
+// `ze:task-support` annotation. No client-supplied field is therefore left to
+// read (D-1).
 type callParams struct {
 	Name      string          `json:"name"`
 	Arguments json.RawMessage `json:"arguments"`
@@ -785,10 +791,10 @@ type callParams struct {
 
 // toolNameExecute is the handcrafted raw-dispatch tool. It is named once
 // because three places must agree on it: the handler map below, the descriptor
-// in handcraftedTools, and gateExecuteCommandRequired (mrtr.go), which reshapes
-// that descriptor for a client this server cannot prompt. A literal in each
-// would let the descriptor and the handler drift, which is exactly the defect
-// that made the elicitation path unreachable.
+// in handcraftedTools, and gateExecuteCommandRequired (mrtr.go). That last one
+// reshapes the descriptor for a client this server cannot prompt. A literal in
+// each would let the descriptor and the handler drift, which is exactly the
+// defect that made the elicitation path unreachable.
 const toolNameExecute = "ze_execute"
 
 // toolHandlers maps handcrafted MCP tool names to their implementations.
@@ -860,8 +866,9 @@ func noSpaces(field, value string) error {
 // run dispatches a command and returns the result as MCP content.
 //
 // This is the path EVERY auto-generated tool takes, and therefore the path
-// every task takes, so the request-scoped context (s.context) is what makes the
-// task execution deadline and a client disconnect reach the dispatcher at all.
+// every task takes. The request-scoped context (s.context) is what makes the
+// task execution deadline and a client disconnect reach the dispatcher at
+// all.
 func (s *server) run(command string) map[string]any {
 	output, err := s.dispatch.JSON(s.context(), plugin.CallerIdentity{Username: s.username, RemoteAddr: s.remoteAddr}, command)
 	if err != nil {
@@ -888,14 +895,16 @@ func ErrResult(msg string) map[string]any {
 
 // handcraftedTools defines tool schemas for handcrafted tools.
 //
-// The ze_execute descriptor carries NO `required` array here, and that is the
-// capability-dependent half of the contract rather than an omission:
-// gateExecuteCommandRequired (mrtr.go) adds it back for a client that did not
-// declare form-mode elicitation, because that client genuinely must supply the
-// argument. A client that DID declare it may omit `command` and receive the
-// Multi Round-Trip input request instead, so publishing an unconditional
-// `required` here would tell a schema-validating host that the one call which
-// reaches Ze's only elicitation is malformed, and the host would never make it.
+// The ze_execute descriptor carries NO `required` array here. That is the
+// capability-dependent half of the contract, and not an omission.
+// gateExecuteCommandRequired (mrtr.go) adds the array back for a client that
+// did not declare form-mode elicitation, because that client must supply the
+// argument.
+//
+// A client that DID declare it can omit `command` and receive the Multi
+// Round-Trip input request instead. An unconditional `required` here would
+// therefore tell a schema-validating host that the one call which reaches Ze's
+// only elicitation is malformed. And the host would never make that call.
 var handcraftedTools = []map[string]any{
 	{
 		"name": toolNameExecute,

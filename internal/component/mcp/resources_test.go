@@ -1,10 +1,11 @@
 // test-relax: four capability-gate tests are replaced, not dropped, because the
 // gate they asserted was itself the defect. `resources` is a member of
-// *ServerCapabilities*; the five ClientCapabilities members in MCP 2026-07-28
+// *ServerCapabilities*. The five ClientCapabilities members in MCP 2026-07-28
 // are `experimental`, `roots`, `sampling`, `elicitation` and `extensions`. No
-// conformant client can declare `resources`, so gating on it refused every
-// conformant caller while server/discover advertised the capability and
-// tools/list published `_meta.ui.resourceUri` pointing at these assets.
+// conformant client can declare `resources`, so the gate refused every
+// conformant caller. At the same time server/discover advertised the
+// capability, and tools/list published `_meta.ui.resourceUri` that points at
+// these assets.
 //
 // Removed: TestResources_NilSessionDeniesRatherThanPanics and
 // TestInitialize_ClientCapabilityResources (their subjects, the *session
@@ -14,12 +15,12 @@
 // and TestResources_ReadWithCapability (a capability the client cannot declare
 // cannot be the precondition they named). Their assertions are folded into
 // TestResourcesServedWithoutClientCapability and
-// TestResourcesServedForEveryCapabilityShape below, which assert strictly more:
-// the same list/read content across three declared-capability shapes instead of
-// one, plus the resultType envelope. Per-request capability PARSING is asserted
-// in meta_test.go TestParseRequestMeta; the surviving -32021 gate (the Tasks
-// extension, a real client capability) is asserted in streamable_test.go
-// TestStreamable_ToolsCallTaskWithoutCapability.
+// TestResourcesServedForEveryCapabilityShape below. Those two assert strictly
+// more: the same list/read content across three declared-capability shapes
+// instead of one, plus the resultType envelope. Per-request capability PARSING
+// is asserted in meta_test.go TestParseRequestMeta. The surviving -32021 gate
+// (the Tasks extension, a real client capability) is asserted in
+// streamable_test.go TestStreamable_ToolsCallTaskWithoutCapability.
 
 // Design: docs/architecture/mcp/overview.md -- MCP resources capability tests
 
@@ -161,15 +162,17 @@ func TestResources_ReadBinaryUsesBlob(t *testing.T) {
 // client-capability gate the AC described is the defect, not the requirement
 // (see the test-relax note at the top of this file).
 //
-// VALIDATES: a client sending the conformant `clientCapabilities: {}` -- the
-// only shape a conformant client CAN send, since `resources` is a
-// ServerCapabilities member -- is served resources/list and resources/read with
-// HTTP 200 and a "complete" result carrying real content.
-// PREVENTS: the client-capability gate returning. It closed a loop that was
-// broken end to end: server/discover advertised `capabilities.resources`,
-// tools/list published `_meta.ui.resourceUri` pointing at these very assets,
-// and resources/read then refused every conformant caller with -32021 whose
-// data.requiredCapabilities was not even a legal ClientCapabilities value.
+// VALIDATES: a client that sends the conformant `clientCapabilities: {}` is
+// served resources/list and resources/read. The answer is HTTP 200 and a
+// "complete" result that carries real content. That empty object is the only
+// shape a conformant client CAN send, because `resources` is a
+// ServerCapabilities member.
+// PREVENTS: a return of the client-capability gate. The gate closed a loop that
+// was broken end to end. server/discover advertised `capabilities.resources`,
+// and tools/list published `_meta.ui.resourceUri` that points at these very
+// assets. resources/read then refused every conformant caller with -32021, and
+// that error's data.requiredCapabilities was not even a legal
+// ClientCapabilities value.
 func TestResourcesServedWithoutClientCapability(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{})
 	defer cleanup()
@@ -272,7 +275,7 @@ func TestResourcesServedForEveryCapabilityShape(t *testing.T) {
 }
 
 // VALIDATES: server/discover advertises the resources capability, which is what
-// tells a client it may declare and use it.
+// tells a client it can declare and use it.
 // PREVENTS: serving resources the client is never told about.
 func TestServerDiscoverAdvertisesResources(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{})

@@ -1,14 +1,18 @@
 // test-relax: TestTaskRegistry_CancelAllForSession,
 // TestTaskNotifications_StatusFrameShape and TestBuildTaskStatusNotification
-// are removed with their subjects. CancelAllForSession existed only to cancel a
-// session's tasks on session expiry, and MCP 2026-07-28 has no sessions to
-// expire; the per-identity cancel path it shared is still asserted by
-// TestTaskRegistry_CreateGetCancel (the happy path plus the terminal no-op) and
-// TestTaskRegistry_IdentityScope (a cross-identity Cancel is a not-found).
+// are removed with their subjects. CancelAllForSession canceled a session's
+// tasks when the session expired, and MCP 2026-07-28 has no sessions to expire.
+//
+// Two tests still assert the per-identity cancel path that
+// CancelAllForSession shared. TestTaskRegistry_CreateGetCancel covers the happy
+// path and the terminal no-op. TestTaskRegistry_IdentityScope covers a
+// cross-identity Cancel, which is a not-found.
+//
 // buildTaskStatusNotification pushed notifications/tasks/status onto the GET SSE
-// stream this phase deletes, and the revision defines no server-to-client stream
-// to replace it -- a client observes a task by polling tasks/get. Every cap, the
-// identity index and the TTL clamp keep their tests below, unchanged.
+// stream that this phase deletes. The revision defines no server-to-client
+// stream to replace that stream. A client observes a task when it polls
+// tasks/get. Every cap, the identity index and the TTL clamp keep their tests
+// below, unchanged.
 
 package mcp
 
@@ -122,13 +126,14 @@ func TestTaskRegistry_IdentityScope(t *testing.T) {
 	if _, err := r.Get("bob", id); !errors.Is(err, errTaskNotFound) {
 		t.Errorf("cross-identity Get: got %v, want errTaskNotFound", err)
 	}
-	// test-relax: registry.Result and registry.List no longer exist -- MCP
+	// test-relax: registry.Result and registry.List no longer exist. MCP
 	// 2026-07-28 changelog Major change 6 removed the tasks/result and
-	// tasks/list methods they backed, so the two cross-identity assertions
-	// naming them cannot be written. The scoping property they proved is
-	// preserved and strengthened below: Get is checked from both directions,
-	// and the foreign/unknown indistinguishability that List's emptiness only
-	// implied is now asserted directly.
+	// tasks/list methods that backed them. The two cross-identity assertions
+	// that named those methods therefore cannot be written. The scoping
+	// property that those assertions proved is preserved and strengthened
+	// below. Get is checked from both directions, and the assertions below
+	// state directly that a foreign id and an unknown id are
+	// indistinguishable. List proved that property only through an empty list.
 	if _, err := r.Cancel("bob", id); !errors.Is(err, errTaskNotFound) {
 		t.Errorf("cross-identity Cancel: got %v, want errTaskNotFound", err)
 	}
@@ -142,9 +147,10 @@ func TestTaskRegistry_IdentityScope(t *testing.T) {
 		t.Errorf("alice Cancel on her own task: %v, want it to be permitted", err)
 	}
 
-	// A foreign id is indistinguishable from an unknown one: bob's denial and
-	// the denial for an id that never existed are the SAME error, so a caller
-	// cannot use the difference to probe for another principal's task ids.
+	// A foreign id is indistinguishable from an unknown id. Bob's denial and
+	// the denial for an id that never existed are the SAME error. A caller
+	// therefore cannot use the difference to probe for another principal's
+	// task ids.
 	_, foreignErr := r.Get("bob", id)
 	_, unknownErr := r.Get("bob", "never-minted")
 	if foreignErr == nil || unknownErr == nil {
@@ -193,13 +199,14 @@ func TestTaskRegistry_ConcurrencyCap(t *testing.T) {
 // concurrent tasks, its next task is refused with the concurrency-cap error,
 // and a DIFFERENT authenticated principal independently reaches 8 at the same
 // time.
-// PREVENTS: a global cap masquerading as a per-principal one (bob would be
-// refused while alice holds 8), and the identity being taken from anywhere but
-// the credential -- a body-supplied or shared identity would collapse the two
-// principals into one bucket and refuse bob's very first task.
+// PREVENTS: a global cap that acts as a per-principal one. Bob would be refused
+// while alice holds 8. It also prevents an identity taken from anywhere but the
+// credential. A body-supplied or shared identity would collapse the two
+// principals into one bucket, and it would refuse bob's first task.
 func TestTaskConcurrencyCapIsPerPrincipal(t *testing.T) {
-	// The dispatcher blocks so every created task stays non-terminal and keeps
-	// occupying a concurrency slot; releasing it lets the workers finish.
+	// The dispatcher blocks, so every created task stays non-terminal and holds
+	// a concurrency slot. The workers finish when the deferred close releases
+	// that channel.
 	release := make(chan struct{})
 	defer close(release)
 
@@ -285,14 +292,15 @@ func createTaskAs(t *testing.T, hs *httptest.Server, token string) (taskID, errM
 // handler returning {"taskId":..., "status":...} while AC-9 and the extension
 // both say "empty result" went unnoticed through the whole phase.
 //
-// VALIDATES: a tasks/cancel acknowledgement carries NOTHING beyond the two
-// envelope fields ok() stamps on every result -- no taskId, no status -- for a
-// working task and for one that already reached a terminal state; and the
-// cancellation still took effect, read back through tasks/get.
-// PREVENTS: the acknowledgement growing a payload again. A status reported here
-// is a snapshot taken before the client can read it (cancellation is
-// cooperative, so a worker past its last check still completes), and a client
-// that treated the ack as final would record the wrong terminal state.
+// VALIDATES: a tasks/cancel acknowledgment carries NOTHING beyond the two
+// envelope fields that ok() stamps on every result. It carries no taskId and no
+// status, for a working task and for one that already reached a terminal state.
+// The cancellation still took effect, and the test confirms it through
+// tasks/get.
+// PREVENTS: a second payload on the acknowledgment. A status reported here is a
+// snapshot taken before the client can read it. Cancellation is cooperative, so
+// a worker past its last check still completes. A client that treated the
+// acknowledgment as final would then record the wrong terminal state.
 func TestTasksCancelAcknowledgesWithAnEmptyResult(t *testing.T) {
 	// The two envelope fields every result carries. Anything else in a
 	// cancellation acknowledgement is a payload the extension does not sanction.
@@ -354,8 +362,8 @@ func TestTasksCancelAcknowledgesWithAnEmptyResult(t *testing.T) {
 		}
 		assertEmptyAck(t, resultOf(t, parsed))
 
-		// Canceling a terminal task is a no-op, and the ack says nothing about
-		// that either way -- which is why the state has to be read back.
+		// A cancel on a terminal task is a no-op. The acknowledgment says nothing
+		// about the outcome, so the test confirms the state through tasks/get.
 		_, got := postMCP(t, hs, methodTasksGet, capsTasks, `{"taskId":"`+taskID+`"}`)
 		if state := resultOf(t, got)["status"]; state != TaskCompleted.String() {
 			t.Errorf("post-cancel status = %v, want %q; a cancel rewrote a terminal state", state, TaskCompleted.String())
@@ -403,17 +411,17 @@ func TestClampTTLBoundaries(t *testing.T) {
 		})
 	}
 
-	// The same table again, driven from the ENTRY POINT the clamp now sits on
-	// rather than from the helper (ai/rules/fail-closed-guards.md: test a guard
-	// where it fires, not the helper alone).
+	// The same table again, driven from the ENTRY POINT that the clamp now sits
+	// on rather than from the helper (ai/rules/fail-closed-guards.md: test a
+	// guard where it fires, not the helper alone).
 	//
-	// Calling clampTaskTTL directly cannot see the regression that matters.
-	// newTaskRegistry is the one caller, and retentionHints re-clamps on the way
-	// out, so deleting the constructor's clamp leaves the CLIENT-facing ttlMs
-	// correct while r.ttl -- copied onto every entry at Create and read by the
-	// sweep as the retention window -- keeps an unclamped value. A 24h configured
-	// TTL would then retain terminal tasks for 24 hours while telling every
-	// client they expire in one.
+	// A direct call to clampTaskTTL cannot see the regression that matters.
+	// newTaskRegistry is the one caller, and retentionHints clamps the value
+	// again before it reaches the client. If you delete the constructor's clamp,
+	// the CLIENT-facing ttlMs stays correct and r.ttl keeps an unclamped value.
+	// Create copies r.ttl onto every entry, and the sweep reads r.ttl as the
+	// retention window. A configured TTL of 24h would then retain terminal tasks
+	// for 24 hours, and every client would read an expiry of one hour.
 	t.Run("entry point", func(t *testing.T) {
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
@@ -492,12 +500,13 @@ func TestTaskRegistry_TransitionAndResult(t *testing.T) {
 	id, _, _, _ := r.Create("alice")
 
 	// test-relax: registry.Result is gone with tasks/result (changelog Major
-	// change 6). The payload now rides on the Get snapshot, and the
-	// "not readable while working" property it proved is asserted directly
-	// below rather than through a removed method's error.
+	// change 6). The payload now rides on the Get snapshot. registry.Result
+	// proved that a task in the working state exposes no result. The assertions
+	// below prove that same property directly rather than through a removed
+	// method's error.
 	//
-	// A working task exposes no result: that is what lets a polling client tell
-	// "still running" from "finished with no output".
+	// A working task exposes no result. That absence is what lets a polling
+	// client tell "still running" from "finished with no output".
 	working, err := r.Get("alice", id)
 	if err != nil {
 		t.Fatalf("Get on working: %v", err)
@@ -536,18 +545,18 @@ func TestTaskRegistry_TransitionAndResult(t *testing.T) {
 // TestStuckTaskForcedTerminalAtDeadline covers AC-13 and closes R-3.
 //
 // VALIDATES: a task whose work never returns is forced to a terminal state at
-// its execution deadline, releasing the concurrency slot it held, and is then
-// deleted by the retention sweep.
-// PREVENTS: the hole MCP 2026-07-28 opened by removing sessions.
-// CancelAllForSession was the only path that could force a NON-terminal task
-// terminal; the TTL sweep deletes only entries that already reached a terminal
-// state, so without the deadline a wedged worker would hold one of its
+// its execution deadline. The task releases the concurrency slot that it held,
+// and the retention sweep then deletes the task.
+// PREVENTS: the hole that MCP 2026-07-28 opened when it removed sessions.
+// CancelAllForSession was the only path that forced a NON-terminal task
+// terminal. The TTL sweep deletes only entries that already reached a terminal
+// state. Without the deadline, a wedged worker would hold one of its
 // principal's maxConcurrent slots forever.
 //
-// The work function here deliberately IGNORES its context, which is the whole
-// point: canceling the worker's context is not the guarantee, because a
-// genuinely wedged dispatch never observes cancellation. The registry must make
-// the ENTRY terminal on its own.
+// The work function here deliberately IGNORES its context, and that is the
+// whole point. A cancel of the worker's context is not the guarantee, because a
+// wedged dispatch never observes the cancellation. The registry must make the
+// ENTRY terminal on its own.
 func TestStuckTaskForcedTerminalAtDeadline(t *testing.T) {
 	const execDeadline = time.Minute
 	r := newTaskRegistry(TaskRegistryConfig{
@@ -628,28 +637,30 @@ func TestStuckTaskForcedTerminalAtDeadline(t *testing.T) {
 }
 
 // TestLateWorkerReturnDoesNotOverwriteTerminalEntry is the regression test for
-// the deadline sweep racing the worker's own terminal transition.
+// the race between the deadline sweep and the worker's own terminal transition.
 //
 // The sweep (pass 1) makes a past-deadline WORKING entry terminal: state
 // TaskFailed, terminalAt, and errTaskExecDeadline as the error message. Only
 // Transition refused terminal -> any. storeResult and setErrorMsg had no such
-// check, and runTaskWorker calls both BEFORE its Transition -- so a worker that
-// eventually returned wrote its result and its error over an entry the sweep had
-// already closed. toWire then emitted `error` AND `result` on one entry: a
-// client polling tasks/get saw status "failed" with a deadline diagnostic beside
-// a complete, correct answer. toWire's own godoc says a terminal task carries
-// one or the other.
+// check, and runTaskWorker calls both BEFORE its Transition. A worker that
+// returned late therefore wrote its result and its error over an entry that the
+// sweep had already closed.
 //
-// TestStuckTaskForcedTerminalAtDeadline cannot see this: it keeps its worker
-// blocked until cleanup, so the late return never happens. This test releases
-// the worker after the sweep and asserts on what the entry looks like
-// afterwards.
+// toWire then emitted `error` AND `result` on one entry. A client that polled
+// tasks/get saw status "failed" with a deadline diagnostic beside a complete,
+// correct answer. toWire's own godoc says that a terminal task carries one or
+// the other.
+//
+// TestStuckTaskForcedTerminalAtDeadline cannot see this race. That test keeps
+// its worker blocked until cleanup, so the late return never happens. This test
+// releases the worker after the sweep, and it then asserts on the entry.
 //
 // VALIDATES: after a deadline-forced failure, a worker's late storeResult and
-// setErrorMsg are both dropped; the wire form keeps the deadline error and
+// setErrorMsg are both dropped. The wire form keeps the deadline error and
 // carries no result.
-// PREVENTS: the guard being removed as redundant with Transition's. It is not:
-// these are two different writers, and the payload writers run first.
+// PREVENTS: removal of the guard as redundant with Transition's guard. The
+// guard is not redundant: these are two different writers, and the payload
+// writers run first.
 func TestLateWorkerReturnDoesNotOverwriteTerminalEntry(t *testing.T) {
 	const execDeadline = time.Minute
 	r := newTaskRegistry(TaskRegistryConfig{
@@ -702,13 +713,14 @@ func TestLateWorkerReturnDoesNotOverwriteTerminalEntry(t *testing.T) {
 	<-workReturned
 
 	// A write that is correctly DROPPED leaves no signal, so there is nothing to
-	// wait ON: the join above puts the worker one statement away from its first
-	// registry call, and the loop below re-reads the entry across many scheduling
-	// opportunities, failing the instant the overwrite appears. Yielding rather
-	// than sleeping keeps it off the clock entirely. The direction of any
-	// residual imprecision is the safe one -- an unobserved write makes this test
-	// pass, never fail -- and the mutation check (remove either guard, watch it
-	// go red on the first iteration) is what proves it is sensitive.
+	// wait ON. The join above puts the worker one statement away from its first
+	// registry call. The loop below re-reads the entry across many scheduling
+	// opportunities, and it fails the instant the overwrite appears. A yield
+	// rather than a sleep keeps the test independent of wall-clock time. Any
+	// residual imprecision runs in the safe direction, because an unobserved
+	// write makes this test pass and never fail. The mutation check proves that
+	// the test is sensitive: remove either guard and the test goes red on the
+	// first iteration.
 	for range lateWriteObservations {
 		after, err := r.Get("alice", id)
 		if err != nil {
@@ -735,11 +747,11 @@ func TestLateWorkerReturnDoesNotOverwriteTerminalEntry(t *testing.T) {
 		runtime.Gosched()
 	}
 
-	// setErrorMsg's guard is defense in depth and cannot be reached through the
-	// path above: sweep pass 1 cancels the worker's context, so runTaskWorker
-	// always computes finalState TaskCancelled with an empty errMsg and never
-	// calls it. Driving it directly is the only way to hold all three writers to
-	// one rule.
+	// setErrorMsg's guard is defense in depth, and the path above cannot reach
+	// it. Sweep pass 1 cancels the worker's context, so runTaskWorker always
+	// computes finalState TaskCancelled with an empty errMsg. runTaskWorker
+	// therefore never calls setErrorMsg. A direct call is the only way to hold
+	// all three writers to one rule.
 	r.setErrorMsg(id, "a later, wrong explanation")
 	if final, getErr := r.Get("alice", id); getErr != nil {
 		t.Fatalf("Get after the direct setErrorMsg: %v", getErr)
@@ -749,25 +761,26 @@ func TestLateWorkerReturnDoesNotOverwriteTerminalEntry(t *testing.T) {
 }
 
 // lateWriteObservations is how many times the loop above re-reads an entry that
-// must not change. Large enough that a runnable goroutine three mutex
-// acquisitions from done will have finished, cheap enough to cost microseconds
-// when nothing is wrong.
+// must not change. The count is large enough that a runnable goroutine three
+// mutex acquisitions from done finishes first. The count is also small enough
+// to cost microseconds when the code is correct.
 const lateWriteObservations = 2000
 
 // TestCloseCancelsInFlightWorkers is the regression test for a godoc that
 // promised a cancellation nothing performed.
 //
 // taskWorkerFunc's godoc says "ctx is canceled on tasks/cancel and on
-// task-registry shutdown". Only the first half was true: Close closed r.stop and
-// waited for the GC goroutine, and never walked r.tasks. An in-flight worker
-// therefore survived Streamable.Close() with a live context and no sweeper left
-// to force its entry terminal -- a real leak on shutdown, not just a stale
-// comment.
+// task-registry shutdown". Only the first half was true. Close closed r.stop
+// and waited for the GC goroutine, and Close never walked r.tasks. An in-flight
+// worker therefore survived Streamable.Close() with a live context, and no
+// sweeper was left to force its entry terminal. That is a real leak on
+// shutdown, not a stale comment.
 //
 // VALIDATES: Close cancels the context of every task still working.
-// PREVENTS: the walk being dropped again as "the process is exiting anyway". It
-// is not: Streamable.Close runs on a config reload and in every test that builds
-// a server, so a leaked worker outlives its registry inside one process.
+// PREVENTS: a second removal of the walk as "the process is exiting anyway".
+// The process is not exiting. Streamable.Close runs on a config reload and in
+// every test that builds a server. A leaked worker therefore outlives its
+// registry inside one process.
 func TestCloseCancelsInFlightWorkers(t *testing.T) {
 	r := newTestTaskRegistry(8, time.Minute)
 
@@ -994,11 +1007,12 @@ func retainedFor(r *taskRegistry, identity string) map[string]bool {
 
 // VALIDATES: evictTerminalOverCap bounds retained terminal tasks at the cap and
 // drops the OLDEST terminal entries first.
-// PREVENTS: unbounded growth of the task registry, which after the session
-// layer's deletion is the only long-lived per-client structure. A completed
-// task frees its concurrency slot immediately (activeCount counts non-terminal
-// only), so without this cap a client can cycle tasks to completion and
-// accumulate result maps for the whole client-chosen TTL.
+// PREVENTS: unbounded growth of the task registry. The registry is the only
+// long-lived per-client structure that survives the deletion of the session
+// layer. A completed task frees its concurrency slot immediately, because
+// activeCount counts non-terminal entries only. Without this cap, a client can
+// cycle tasks to completion and accumulate result maps for the whole
+// client-chosen TTL.
 func TestTerminalCapEvictsOldestFirst(t *testing.T) {
 	const cap = 3
 	r := newCappedTaskRegistry(cap)
@@ -1020,7 +1034,7 @@ func TestTerminalCapEvictsOldestFirst(t *testing.T) {
 	if len(retained) != cap {
 		t.Fatalf("retained %d terminal tasks, want the cap of %d", len(retained), cap)
 	}
-	// The three newest survive; the three oldest are gone.
+	// The three newest survive. The three oldest are gone.
 	for _, id := range ids[:3] {
 		if retained[id] {
 			t.Errorf("oldest task %s survived; eviction is not oldest-first", id)
@@ -1120,9 +1134,9 @@ func TestTerminalCapKeepsIdentityIndexConsistent(t *testing.T) {
 		terminalTask(t, r, "alice")
 	}
 
-	// Assert eviction actually ran before checking the index it maintains.
-	// Without this the test passes with eviction disabled -- the index is
-	// trivially consistent when nothing is ever removed from it.
+	// Assert that eviction ran, then check the index that eviction maintains.
+	// Without this assertion the test passes with eviction disabled, because an
+	// index that never loses an entry is consistent for free.
 	if got := len(retainedFor(r, "alice")); got != cap {
 		t.Fatalf("retained %d, want the cap of %d; eviction did not run so this test would prove nothing", got, cap)
 	}

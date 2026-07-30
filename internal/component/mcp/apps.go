@@ -5,11 +5,11 @@
 
 // MCP Apps as the io.modelcontextprotocol/ui extension (SEP-1865).
 //
-// Ze has served MCP Apps since the 2026-01-26 draft: a tool descriptor carries
-// _meta.ui.resourceUri pointing at a ui:// asset, which the host fetches
-// through resources/read and renders in a sandboxed iframe. In 2026-07-28 that
-// arrangement became a first-class extension, negotiated through the
-// `extensions` capability map rather than assumed.
+// Ze has served MCP Apps since the 2026-01-26 draft. A tool descriptor carries
+// _meta.ui.resourceUri, which points at a ui:// asset. The host fetches that
+// asset through resources/read and renders it in a sandboxed iframe. In
+// 2026-07-28 that arrangement became a first-class extension, negotiated
+// through the `extensions` capability map rather than assumed.
 //
 // The payload did NOT change. The MCP Apps overview names "_meta.ui.resourceUri
 // field pointing to a ui:// resource", says apps "can also load external
@@ -29,12 +29,14 @@ import "strings"
 // extensionUI is the specification-registered identifier for MCP Apps.
 //
 // MCP 2026-07-28 basic/versioning Section "Extension Negotiation": "Extension
-// identifiers MUST follow the _meta key naming rules, with a mandatory prefix",
-// and names this exact string in its worked example, a client advertising
-// {"io.modelcontextprotocol/ui": {"mimeTypes": ["text/html;profile=mcp-app"]}}.
+// identifiers MUST follow the _meta key naming rules, with a mandatory prefix".
+// That section names this exact string in its worked example. The example is a
+// client that advertises
+// `{"io.modelcontextprotocol/ui": {"mimeTypes": ["text/html;profile=mcp-app"]}}`.
 //
-// One constant shared by the server's advertisement (discover.go) and the
-// client-side gate below, so the two can never name different extensions.
+// The server's advertisement (discover.go) and the client-side gate below
+// share this one constant. The two can therefore never name different
+// extensions.
 const extensionUI = "io.modelcontextprotocol/ui"
 
 // uiSettingsMIMETypes is the one settings-object member this server reads from
@@ -42,8 +44,8 @@ const extensionUI = "io.modelcontextprotocol/ui"
 const uiSettingsMIMETypes = "mimeTypes"
 
 // uiMediaTypeHTML is the base media type of every bundle Ze serves. The UI
-// filesystem holds HTML entry points whose type is sniffed from the file
-// extension (resources.go), so this is the whole of what Ze can offer a host.
+// filesystem holds HTML entry points, and resources.go reads the type from the
+// file extension. Ze can therefore offer a host no other media type.
 const uiMediaTypeHTML = "text/html"
 
 // metaKeyUI is the `ui` member of a tool descriptor's `_meta` object.
@@ -52,27 +54,28 @@ const metaKeyUI = "ui"
 // clientSupportsUIApps resolves whether this request's client declared the MCP
 // Apps extension in a form compatible with the bundles Ze serves.
 //
-// The five cases, and why each answers as it does:
+// Ze emits _meta.ui for these three declarations of the extension:
 //
-//	| Declared io.modelcontextprotocol/ui settings   | Emit _meta.ui |
-//	|------------------------------------------------|---------------|
-//	| extension absent from `extensions`              | no            |
-//	| {} (support, no settings)                       | yes           |
-//	| present, no `mimeTypes` key                     | yes           |
-//	| `mimeTypes` holds a text/html base type         | yes           |
-//	| `mimeTypes` holds no text/html base type        | no            |
+//	The declared settings are `{}`, which is support with no settings.
+//	The declared settings hold no `mimeTypes` key.
+//	The declared `mimeTypes` array holds a text/html base type.
 //
-// An empty or absent settings object means yes because MCP 2026-07-28
+// Ze removes _meta.ui for these two:
+//
+//	The extension is absent from `extensions`.
+//	The declared `mimeTypes` array holds no text/html base type.
+//
+// An empty or absent settings object means yes. MCP 2026-07-28
 // basic/versioning Section "Extension Negotiation" says "Each extension
 // specifies the schema of its settings object; an empty object indicates
-// support with no additional settings" -- a client that declared the extension
+// support with no additional settings". A client that declared the extension
 // and constrained nothing accepts what the extension offers.
 //
-// Matching is on the BASE media type with parameters stripped, so a client
-// declaring bare "text/html" is served, as is one declaring
-// "text/html;profile=mcp-app". `;profile=mcp-app` is a media-type parameter, so
-// bare text/html is the superset; exact string equality would refuse a host
-// that can render Ze's bundle perfectly well.
+// Ze matches the BASE media type and ignores the parameters. A client that
+// declares bare `text/html` is served, and so is a client that declares
+// `text/html;profile=mcp-app`. The `;profile=mcp-app` part is a media-type
+// parameter, so bare text/html is the superset. Exact string equality would
+// refuse a host that can render Ze's bundle.
 //
 // Anything malformed -- a `mimeTypes` that is not an array, entries that are
 // not strings, an empty array -- answers no. That is the fail-closed direction
@@ -106,10 +109,10 @@ func clientSupportsUIApps(caps map[string]any) bool {
 	return false
 }
 
-// baseMediaType strips any media-type parameters and normalizes case, turning
-// "text/html;profile=mcp-app" into "text/html". RFC 9110 makes the type and
-// subtype case-insensitive, and everything after the first semicolon is a
-// parameter rather than part of the type.
+// baseMediaType strips any media-type parameter and normalizes the case. It
+// turns `text/html;profile=mcp-app` into `text/html`. RFC 9110 makes the type
+// and the subtype case-insensitive. And everything after the first semicolon
+// is a parameter rather than part of the type.
 func baseMediaType(mediaType string) string {
 	base, _, _ := strings.Cut(mediaType, ";")
 	return strings.ToLower(strings.TrimSpace(base))
@@ -121,18 +124,22 @@ func baseMediaType(mediaType string) string {
 // MCP 2026-07-28 basic/versioning Section "Extension Negotiation": "If one
 // party supports an extension but the other does not, the supporting party
 // MUST either revert to core protocol behavior or reject the request with an
-// appropriate error." Ze reverts. A tool descriptor without _meta.ui is a
-// valid core descriptor, so omission IS the revert branch, and the tool stays
-// listed and callable. Rejecting a whole tools/list because the host cannot
-// render HTML panels would break every non-Apps client for no benefit.
+// appropriate error."
 //
-// Applied here, over the ASSEMBLED list, rather than inside buildToolDef, so
-// one gate covers descriptors from both origins: the ones Ze generates from the
-// command registry and the ones a ToolProvider hands over. A provider owns its
-// descriptor maps and may return the same maps on every call, so nothing is
-// mutated in place: the slice and any descriptor that actually loses a key are
-// copied, and when the gate is open or no descriptor carries _meta.ui the
-// input is returned untouched and nothing is allocated.
+// Ze reverts. A tool descriptor without _meta.ui is a valid core descriptor,
+// so the omission IS the revert branch. The tool therefore stays listed and
+// callable. A rejected tools/list would break every non-Apps client for no
+// benefit, only because the host cannot render HTML panels.
+//
+// The gate runs here, over the ASSEMBLED list, and not inside buildToolDef.
+// One gate therefore covers descriptors from both origins: the ones Ze
+// generates from the command registry, and the ones a ToolProvider returns.
+//
+// A provider owns its descriptor maps, and it can return the same maps on
+// every call. Nothing is therefore mutated in place. Ze copies the slice, and
+// Ze copies any descriptor that loses a key. When the gate is open, or when no
+// descriptor carries _meta.ui, the input is returned untouched and nothing is
+// allocated.
 func gateUIMeta(tools []map[string]any, supportsUI bool) []map[string]any {
 	if supportsUI {
 		return tools
@@ -155,10 +162,11 @@ func gateUIMeta(tools []map[string]any, supportsUI bool) []map[string]any {
 }
 
 // withoutUIMeta returns a copy of a tool descriptor with the `ui` member
-// removed from its `_meta` object, reporting whether anything was removed. When
-// `_meta` holds nothing else afterwards it is dropped entirely rather than left
-// as an empty object, so an ungated descriptor is byte-identical to one that
-// never had a UI annotation.
+// removed from its `_meta` object. The second return value reports whether
+// withoutUIMeta removed anything. When `_meta` then holds nothing else,
+// withoutUIMeta drops `_meta` rather than leave an empty object. An ungated
+// descriptor is therefore byte-identical to a descriptor that never had a UI
+// annotation.
 func withoutUIMeta(tool map[string]any) (map[string]any, bool) {
 	meta, hasMeta := tool[metaKey].(map[string]any)
 	if !hasMeta {

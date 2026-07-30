@@ -22,9 +22,9 @@ type captured struct {
 	body    map[string]any
 }
 
-// fakeMCP stands up an HTTP server that records every request and answers with
-// the supplied JSON body, so a test can assert on what the client PUT ON THE
-// WIRE rather than on what a real server chose to accept.
+// fakeMCP starts an HTTP server that records every request and answers with the
+// supplied JSON body. A test can then assert on what the client PUT ON THE WIRE
+// rather than on what a real server chose to accept.
 func fakeMCP(t *testing.T, status int, response string) (*mcpClient, *[]captured) {
 	t.Helper()
 	seen := make([]captured, 0, 4)
@@ -125,13 +125,13 @@ func TestConformantRequestShape(t *testing.T) {
 // request's _meta rather than a one-off handshake.
 //
 // test-relax: the two --resources rows are removed with the flag itself, not
-// weakened. `resources` is a member of *ServerCapabilities*; the five
+// weakened. `resources` is a member of *ServerCapabilities*. The five
 // ClientCapabilities members in MCP 2026-07-28 are `experimental`, `roots`,
-// `sampling`, `elicitation` and `extensions`. A client declaring `resources`
-// was declaring something no server may key on, and the daemon's gate on it
-// (which refused every conformant caller) is gone. The rows are replaced by the
-// stronger assertion below: whatever the flag, NOTHING that is not a real
-// client capability is ever emitted.
+// `sampling`, `elicitation` and `extensions`. A client that declared
+// `resources` declared something no server can key on, and the daemon's gate on
+// it (which refused every conformant caller) is gone. A stronger assertion
+// below replaces the rows: whatever the flag, NOTHING that is not a real client
+// capability is ever emitted.
 //
 // VALIDATES: --tasks declares the tasks extension, its absence yields the
 // conformant empty object, and neither shape ever names a server capability.
@@ -176,8 +176,8 @@ func TestClientCapabilitiesPerRequest(t *testing.T) {
 			if !ok {
 				t.Fatalf("clientCapabilities absent from _meta")
 			}
-			// No shape may name a SERVER capability: a client declaring one is
-			// inviting a server to gate on something it can never send.
+			// No shape names a SERVER capability. A client that declared one
+			// would invite a server to gate on something it can never send.
 			for _, serverCap := range []string{"resources", "tools", "prompts", "logging", "completions"} {
 				if _, present := caps[serverCap]; present {
 					t.Errorf("clientCapabilities names the server capability %q: %v", serverCap, caps)
@@ -229,7 +229,7 @@ func TestHeaderValueEncoding(t *testing.T) {
 }
 
 // TestMcpNameSource pins which methods carry Mcp-Name and where its value comes
-// from: params.name for tools/call and prompts/get, params.uri for
+// from. The value is params.name for tools/call and prompts/get, params.uri for
 // resources/read, and nothing for every other method.
 func TestMcpNameSource(t *testing.T) {
 	tests := []struct {
@@ -256,15 +256,15 @@ func TestMcpNameSource(t *testing.T) {
 	}
 }
 
-// TestResultTypeContract pins the ResultType rules: absent means "complete",
-// an unrecognized value is invalid, and an MRTR interim result the client has
-// queued no answer for fails closed rather than being reported as a completed
-// call.
+// TestResultTypeContract pins the ResultType rules. An absent value means
+// "complete", and an unrecognized value is invalid. An MRTR interim result that
+// the client has queued no answer for fails closed, rather than reporting as a
+// completed call.
 //
 // Driven through send(), the entry point every directive uses, rather than
-// through the classifier alone: the input_required verdict is now taken by the
-// multi round-trip loop (cmd_mcp_mrtr.go), so asserting on the classifier by
-// itself would no longer prove the call fails closed.
+// through the classifier alone. The multi round-trip loop (cmd_mcp_mrtr.go) now
+// takes the input_required verdict. An assertion on the classifier alone would
+// therefore no longer prove that the call fails closed.
 func TestResultTypeContract(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -290,9 +290,9 @@ func TestResultTypeContract(t *testing.T) {
 }
 
 // TestSSEResponseStreamIsPerRequest proves the client handles the SSE answer a
-// server MAY return: keep-alive comments are ignored, request-scoped
-// notifications are skipped, multi-line data payloads accumulate, and the final
-// response terminates the read.
+// server MAY return. Keep-alive comments are ignored, and request-scoped
+// notifications are skipped. Multi-line data payloads accumulate, and the final
+// response ends the read.
 func TestSSEResponseStreamIsPerRequest(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -317,8 +317,8 @@ func TestSSEResponseStreamIsPerRequest(t *testing.T) {
 	}
 }
 
-// TestProbeMutationsReachTheWire proves the malformed-request directives really
-// change the bytes sent: a dropped header is absent, an overridden header wins
+// TestProbeMutationsReachTheWire proves the malformed-request directives change
+// the bytes sent. A dropped header is absent, an overridden header wins
 // verbatim, and a dropped _meta field is gone from params._meta.
 func TestProbeMutationsReachTheWire(t *testing.T) {
 	client, seen := fakeMCP(t, http.StatusOK, `{"jsonrpc":"2.0","id":1,"result":{"resultType":"complete"}}`)
@@ -498,7 +498,7 @@ func TestRPCErrorCarriesStatusAndCode(t *testing.T) {
 }
 
 // TestWaitReadyFailsOnADeadPort proves the readiness probe reports the endpoint
-// it could not reach rather than hanging.
+// it failed to reach, and does not hang.
 func TestWaitReadyFailsOnADeadPort(t *testing.T) {
 	client := &mcpClient{addr: "127.0.0.1:1", http: &http.Client{}}
 	err := client.waitReady(150 * time.Millisecond)

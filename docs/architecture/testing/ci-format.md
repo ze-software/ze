@@ -772,24 +772,26 @@ Two gotchas, both load-bearing:
   run the `dump` readback against a second stdin block that prepends a minimal `bgp
   { router-id ... }`.
 - **A needle containing `:` followed by something shaped like `key=` must use
-  `pattern=`.** ~~Only `json=`/`text=`/`hex=`/`pattern=` preserve colons;
-  `contains=` truncates at the first colon.~~ **Corrected 2026-07-30:** that was
-  true until `ParseKVPairs` was made boundary-aware. `contains=` now keeps an
-  ordinary colon, so `contains=error: no such peer` asserts the whole sentence.
-  What still splits is a colon that introduces a real key token — a letter
-  followed by letters, digits, `-` or `_`, then `=`. That is deliberate, because
-  it is how the engine-step form `contains=aes-cbc:timeout=25` keeps working.
-  So `contains=note:level=high` still splits at `:level=` and is the one shape
-  that needs `pattern=`.
-  The old behavior was not harmless while it lasted: a sweep on 2026-07-29 found
-  **203 assertions across 15 suites** silently reduced to the text before their
-  first colon, and re-arming them exposed a security test
-  (`test/appliance/appliance-push-image-escape.ci`) that had never once executed
-  the path-traversal guard it was named for.
+  `pattern=`.** ~~Only `json=`/`text=`/`hex=`/`pattern=` preserve colons, and
+  `contains=` truncates at the first colon.~~
+  - **Corrected 2026-07-30.** That claim was true until `ParseKVPairs` became
+    boundary-aware. `contains=` now keeps an ordinary colon, so
+    `contains=error: no such peer` asserts the whole sentence.
+  - What still splits is a colon that introduces a real key token: a letter,
+    then letters, digits, `-` or `_`, then `=`. That split is deliberate,
+    because it is how the engine-step form `contains=aes-cbc:timeout=25` keeps
+    working. So `contains=note:level=high` still splits at `:level=`, and it is
+    the one shape that needs `pattern=`.
+  - The old behavior was not harmless while it lasted. A sweep on 2026-07-29
+    found **203 assertions across 15 suites** silently reduced to the text
+    before their first colon. The re-armed assertions then exposed a security
+    test (`test/appliance/appliance-push-image-escape.ci`). That test had never
+    once executed the path-traversal guard it was named for.
 - **Keep a `pattern=` needle free of the substrings `json=`, `text=`, and `hex=`.**
   `ParseKVPairs` extracts a complex-key value by `strings.Index` of the first such
   marker, so a needle that itself contains one of them is mis-split. None of the
-  readback needles above contain these; this is forward guidance for new ones.
+  readback needles above contain these markers. This note is forward guidance for
+  new needles.
 <!-- source: internal/test/ci/ciformat.go -- ParseKVPairs, complexKeys (json/text/hex/pattern consumed whole), splitOnKeyBoundary (an ordinary colon stays in the value; only a colon introducing a key= token splits) -->
 <!-- source: internal/component/config/cli/cmd_dump.go -- cmdDump reads stdin and prints the parsed tree -->
 
@@ -892,14 +894,15 @@ http=post:seq=N:url=URL:status=CODE[:contains=TEXT][:bodyfile=PATH][:sendfile=PA
 | `bodyfile` | No | Path to file with expected body (exact match, resolved relative to `.ci` file) |
 | `sendfile` | No | Path to file sent as POST request body, resolved from tmpfs first |
 | `content-type` | No | Request body content type for `sendfile`, defaults to `application/json` |
-| `header` | No | Request header in `Name: Value` wire form. **Repeatable** -- the only key that may appear more than once on one line |
+| `header` | No | Request header in `Name: Value` wire form. **Repeatable** -- the only key that can appear more than once on one line |
 | `insecure-tls` | No | Set `true` for self-signed local HTTPS endpoints |
 <!-- source: internal/test/runner/runner_validate.go -- executeOneHTTPCheck -->
 
 #### Request Headers (`header=`)
 
-`header=` takes the header exactly as it appears on the wire, `Name: Value`, and may
-be repeated to set several headers on one check. It works on `get`, `post`, and `wait`.
+`header=` takes the header exactly as it appears on the wire, `Name: Value`.
+Repeat `header=` to set several headers on one check. It works on `get`, `post`,
+and `wait`.
 
 ```
 http=post:seq=1:url=http://127.0.0.1:$PORT/mcp:status=200:sendfile=call.json:header=MCP-Protocol-Version: 2026-07-28:header=Mcp-Method: tools/call:header=Mcp-Name: ze
@@ -907,13 +910,13 @@ http=post:seq=1:url=http://127.0.0.1:$PORT/mcp:status=200:sendfile=call.json:hea
 
 | Behavior | Detail |
 |----------|--------|
-| Splitting | On the **first** colon only, so a value may contain colons (`header=Referer: http://127.0.0.1:8080/page`) |
+| Splitting | On the **first** colon only, so a value can contain colons (`header=Referer: http://127.0.0.1:8080/page`) |
 | Whitespace | Trimmed around both name and value, so `header=Foo: bar` and `header=Foo:bar` are equivalent |
 | Precedence | Applied **after** the `sendfile` default `Content-Type`, so an explicit `header=Content-Type: ...` wins |
-| Repeats of one name | The first occurrence replaces, later ones are appended as additional values of that field |
+| Repeats of one name | The first occurrence replaces the value. Each later occurrence adds one more value to that field |
 | `Host` | Routed to the request's Host field, because `net/http` ignores a `Host` entry in the header map |
 | Malformed | A `header=` value with no colon is a **parse error** naming the offending value, never a silent drop |
-| Value terminates at | The next known key marker (`:status=`, `:contains=`, the next `:header=`, ...), like every other key |
+| Value stops at | The next known key marker (`:status=`, `:contains=`, the next `:header=`, ...), like every other key |
 <!-- source: internal/test/runner/record_parse.go -- parseHTTP header scan loop -->
 <!-- source: internal/test/runner/runner_validate.go -- applyCheckHeaders -->
 

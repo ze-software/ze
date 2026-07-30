@@ -4,8 +4,8 @@ import "testing"
 
 // test-relax: D-4 removes TaskInputRequired, so the rows naming it cannot
 // reference the constant. Every one of them is replaced by a NEGATIVE assertion
-// that the state is unreachable and its wire name is rejected, plus
-// TestTaskStateWireVocabulary below which pins the whole enumeration (AC-15).
+// that the state is unreachable and its wire name is rejected.
+// TestTaskStateWireVocabulary below also pins the whole enumeration (AC-15).
 // The assertion count goes up, not down.
 
 func TestTaskState_String(t *testing.T) {
@@ -37,7 +37,7 @@ func TestTaskState_String(t *testing.T) {
 // implementing the inputRequests payload and inputResponses matching that make
 // it meaningful.
 //
-// This asserts an ENUMERATION rather than an absence: it walks every value the
+// This asserts an ENUMERATION rather than an absence. It walks every value the
 // type can hold, so a newly added state fails here whether or not anyone
 // remembers this test exists.
 func TestTaskStateWireVocabulary(t *testing.T) {
@@ -59,8 +59,8 @@ func TestTaskStateWireVocabulary(t *testing.T) {
 		}
 	}
 
-	// The decoder must not accept the state either: a round-trip through a
-	// stored value is the other way the state could re-enter the registry.
+	// The decoder must not accept the state either. A round-trip through a
+	// stored value is the other way the state can re-enter the registry.
 	var s TaskState
 	if err := s.UnmarshalText([]byte("input_required")); err == nil {
 		t.Errorf(`UnmarshalText("input_required") = %v, want an error: D-4 removed the state`, s)

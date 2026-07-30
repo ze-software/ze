@@ -3,8 +3,8 @@
 ## Context
 
 Ze's MCP server spoke protocol revision `2025-06-18` and additionally accepted
-`2025-03-26` and `2024-11-05`. The specification published `2026-07-28`, which is
-not an additive release: it removes the `initialize` handshake, protocol-level
+`2025-03-26` and `2024-11-05`. The specification published `2026-07-28`, and that
+revision is not additive. It removes the `initialize` handshake, protocol-level
 sessions and the `Mcp-Session-Id` header, the GET stream endpoint, and
 server-initiated JSON-RPC requests on SSE streams. Those four are exactly what
 Ze's transport was built on. Ze had also skipped `2025-11-25` entirely, so it was
@@ -22,7 +22,7 @@ stateless core, MRTR, the Tasks extension, and caching + Apps.
   permits. Dual-era would have preserved the session registry, the SSE sink
   upgrade and the correlation map permanently *alongside* their replacements.
   The accepted cost is recorded in the spec's own compatibility matrix: a legacy
-  client against a modern server simply fails, with no fall-forward.
+  client against a modern server fails, with no fall-forward.
 - **Four sequenced phases over one cutover spec.** Phase 1 was atomic and not
   splittable -- `(*session).Elicit`, `TaskElicit` and `handleElicitResponse` all
   name the `session` type, so deleting `session.go` breaks the build unless all
@@ -30,26 +30,28 @@ stateless core, MRTR, the Tasks extension, and caching + Apps.
   the one the umbrella originally gave (about learning the client's version).
 - **The `ze-test mcp` client was rewritten from the specification text, not from
   Ze's server.** MCP has no third-party interop lab in-tree, so the test client
-  is the only independent reading available; deriving it from the server would
-  make every functional test tautological. This paid off twice -- see Gotchas.
-- **Live state (the event bus) stays out.** Surfacing it is a new feature, not a
-  conformance obligation. When it is wanted the design is fixed: model the state
-  as MCP resources under a `ze://` URI space and let `resourceSubscriptions`
-  carry the change signal, rather than piping internal typed Go values through a
-  Ze-defined notification type. Deferred to `plan/spec-mcp2026-5-state-resources.md`.
+  is the only independent reading available. A client derived from the server
+  would make every functional test tautological. This choice found two defects,
+  and the Gotchas section records both.
+- **Live state (the event bus) is not exposed.** To expose it is a new feature,
+  not a conformance obligation. When it is wanted, the design is already fixed.
+  Model the state as MCP resources under a `ze://` URI space, and let
+  `resourceSubscriptions` carry the change signal. Do not pipe internal typed Go
+  values through a Ze-defined notification type. Deferred to
+  `plan/spec-mcp2026-5-state-resources.md`.
 
 ## Consequences
 
 - The cutover is a **net deletion** of operational complexity. Sessions were the
   reason Ze needed TTL garbage collection, an absolute-lifetime cap, a
-  max-session cap, a single-stream-per-session guard, a per-session outbound
-  queue, and a documented requirement for sticky load-balancer routing. All of
-  that is gone with no replacement, because the protocol no longer has the
-  concept.
-- Every request now authenticates. This is **strictly stronger** than what it
-  replaced: a stolen `Mcp-Session-Id` used to be a bearer credential in its own
-  right, and revoking a token now takes effect on the next request rather than
-  at session expiry.
+  max-session cap, a single-stream-per-session guard, and a per-session outbound
+  queue. Sessions also forced a documented requirement for sticky load-balancer
+  routing. All of that is gone with no replacement, because the protocol no
+  longer has the concept.
+- Every request now authenticates. That change is **strictly stronger** than what
+  it replaced. A stolen `Mcp-Session-Id` used to be a bearer credential in its
+  own right. A revoked token now takes effect on the next request rather than at
+  session expiry.
 - `subscriptions/listen` is not implemented and that is conformant, not a gap:
   no server-side MUST obliges it, and after the GET stream is deleted Ze has
   nothing to advertise on a stream.
@@ -59,35 +61,35 @@ stateless core, MRTR, the Tasks extension, and caching + Apps.
 ## Gotchas
 
 - **Independent implementation caught two real defects that a shared reading
-  would have hidden.** The client agent, working only from the specification,
-  found that `resources` is not a member of `ClientCapabilities` at all (it is a
-  *ServerCapabilities* member) -- so Ze's gate on a client declaring it meant no
-  conformant client could ever read a `ui://` resource, while `tools/list`
-  actively advertised those resources. It also transcribed a Base64 test vector
-  wrongly and found the implementation right, which is what proved the sentinel
-  is standard Base64 rather than base64url.
-- **A cross-phase seam produced a working feature nobody could reach.** Phase 1
-  hardened `ze_execute`'s schema to `required: ["command"]` for its AC-15, which
-  was correct while elicitation was deleted. Phase 2 restored elicitation and
-  never reverted the contract. The handler worked; the published `inputSchema`
-  told every client not to try. Each phase was locally correct. The fix is to
-  derive the descriptor from the same capability the handler branches on, so the
-  two cannot drift.
-- **Two claims in this work were recorded as fact without reading the producing
-  function, and both were false.** One asserted `ze:task-support forbidden` was
-  inert; a live probe returned
+  would have hidden.** The client agent worked only from the specification. It
+  found that `resources` is not a `ClientCapabilities` member at all, because
+  `resources` is a *ServerCapabilities* member. Ze gated on a client that
+  declares it, so no conformant client was able to read a `ui://` resource. And
+  `tools/list` advertised those resources at the same time. The agent also
+  transcribed a Base64 test vector wrongly and found the implementation right,
+  which proved the sentinel is standard Base64 rather than base64url.
+- **A cross-phase seam produced a working feature that no client was able to
+  reach.** Phase 1 hardened `ze_execute`'s schema to `required: ["command"]` for
+  its AC-15, which was correct while elicitation was deleted. Phase 2 restored
+  elicitation and never reverted the contract. The handler worked, and the
+  published `inputSchema` told every client not to try. Each phase was locally
+  correct. The fix is to derive the descriptor from the same capability the
+  handler branches on, so the two cannot drift.
+- **Two claims in this work were recorded as fact, and nobody read the producing
+  function. Both claims were false.** One claim asserted that
+  `ze:task-support forbidden` was inert, and a live probe returned
   `-32602 tool ze_clear_bgp does not support task-augmented calls`. The other
-  blamed a flaky test on a fixed timeout, when the runner already multiplies
-  every per-test budget by `ParallelTimeoutHeadroom` (`internal/test/runner/parallel.go`).
-  Both were plausible, both cited real line numbers, and neither survived
-  `ai/rules/no-fabrication.md` applied properly. A coherent narrative is a
-  hypothesis until the producer is read.
+  claim blamed a flaky test on a fixed timeout, when the runner already
+  multiplies every per-test budget by `ParallelTimeoutHeadroom`
+  (`internal/test/runner/parallel.go`). Both were plausible, both cited real line
+  numbers, and neither survived `ai/rules/no-fabrication.md` applied properly. A
+  coherent narrative is a hypothesis until the producer is read.
 - **A green test run proved nothing once.** A `make ze-test` killed by a timeout
-  finished as an orphan process *after* the verification that depended on it, so
-  a full functional suite ran against a stale binary and passed. Only a
-  discriminating mutation -- corrupting the part of an assertion that the old
-  code discarded -- exposed it. When a build and a test race, the green is not
-  evidence.
+  finished as an orphan process *after* the verification that depended on it. A
+  full functional suite therefore ran against a stale binary and passed. Only a
+  discriminating mutation exposed it, and that mutation corrupted the part of an
+  assertion that the old code discarded. When a build and a test race, the green
+  is not evidence.
 
 ## Files
 

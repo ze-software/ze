@@ -203,10 +203,10 @@ func TestStreamable_BearerListIdentityOnEveryRequest(t *testing.T) {
 		},
 		// test-relax: the inline `demo cmd` literal is replaced by the shared
 		// taskCapableCommands fixture, not deleted. Its TaskSupport was
-		// optional, and under the server-directed model (D-1) an optional
-		// command can no longer be made into a task by any request shape --
-		// `task:{}` is gone. The fixture supplies a `required` command so this
-		// test can still mint the task its ownership assertions are about.
+		// optional, and under the server-directed model (D-1) no request shape
+		// can turn an optional command into a task. `task:{}` is gone. The
+		// fixture supplies a `required` command so this test can still mint the
+		// task its ownership assertions are about.
 		Commands: taskCapableCommands,
 	})
 	defer cleanup()
@@ -242,11 +242,11 @@ func TestStreamable_BearerListIdentityOnEveryRequest(t *testing.T) {
 		t.Fatalf("bob tasks/get on alice's task: message = %q, want a not-found denial", msg)
 	}
 
-	// And there is no enumeration surface to leak through at all: MCP
-	// 2026-07-28 removed tasks/list, so bob cannot ask "what tasks exist" in
-	// the first place. This is a stronger guarantee than the empty list this
-	// assertion used to check -- an empty list proves the filter worked, an
-	// absent method proves there is no filter to get wrong.
+	// And there is no enumeration surface to leak through at all. MCP 2026-07-28
+	// removed tasks/list, so bob cannot ask "what tasks exist" in the first
+	// place. That is a stronger guarantee than the empty list this assertion
+	// used to check. An empty list proves the filter worked, and an absent
+	// method proves there is no filter to get wrong.
 	status, parsed = postMCPAuth(t, hs, "bob-token", "tasks/list", capsTasks, "")
 	if status != http.StatusNotFound {
 		t.Fatalf("bob tasks/list: status = %d, want 404 (method removed) (body %v)", status, parsed)

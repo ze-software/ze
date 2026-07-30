@@ -17,7 +17,7 @@
 // TestStreamableProtocolVersionMissingAssumesLegacy is deliberately INVERTED,
 // not dropped: a missing MCP-Protocol-Version is now -32020, asserted in
 // headers_test.go TestHeaderMismatchRejected. Coverage the cutover keeps is
-// carried forward below (origin, bearer auth, the task-support table); coverage
+// carried forward below (origin, bearer auth, the task-support table). Coverage
 // it adds lives in headers_test.go, meta_test.go and discover_test.go.
 
 package mcp
@@ -67,8 +67,8 @@ func closeBody(t *testing.T, body io.Closer) {
 
 // Client-capability literals the helpers below accept. Empty is the conformant
 // "I declare nothing" form, and tasks is the only capability this server gates
-// on -- `resources` is a ServerCapabilities member, so there is deliberately no
-// literal for declaring it.
+// on. `resources` is a ServerCapabilities member, so there is deliberately no
+// literal that declares it.
 //
 // capsTasks is spelled as an EXTENSION declaration, not as a bare `tasks`
 // member. MCP 2026-07-28 moved tasks out of the core protocol onto the
@@ -321,10 +321,10 @@ func resultBearingMethods(taskID string) []methodProbe {
 // produce a task at all.
 //
 // Under the server-directed model (D-1) the annotation is the ONLY thing that
-// creates a task, and the handcrafted tools (ze_execute, ze_reference) resolve
-// to TaskSupportOptional, which means synchronous. So a test that wants a task
-// must configure a `required` command; there is no request it can send to opt
-// one into existence.
+// creates a task. The handcrafted tools (ze_execute, ze_reference) resolve to
+// TaskSupportOptional, which means synchronous. So a test that wants a task
+// must configure a `required` command. There is no request that a test can
+// send to create one.
 func taskCapableCommands() []CommandInfo {
 	return []CommandInfo{
 		{Name: "slow cmd", Help: "Long", TaskSupport: TaskSupportRequired},
@@ -436,8 +436,8 @@ func TestEveryResultCarriesServerInfo(t *testing.T) {
 }
 
 // TestToolsCallCarriesNoCacheHints is spec-mcp2026-4-caching-apps AC-15's named
-// test, covering BOTH result shapes tools/call can answer with. It was named in
-// the spec's TDD plan and never written; the one that did exist
+// test, and it covers BOTH result shapes tools/call can answer with. The spec's
+// TDD plan named this test and nobody wrote it. The test that did exist
 // (TestNonCacheableResultsCarryNoHints, caching_test.go) drives only the
 // complete shape, because resultBearingMethods calls ze_execute synchronously.
 //
@@ -452,13 +452,13 @@ func TestEveryResultCarriesServerInfo(t *testing.T) {
 //     caching hint is the (ttlMs, cacheScope) pair, and only cacheTTLByMethod
 //     can emit it.
 //
-// VALIDATES: the complete shape carries neither hint; the task shape carries
+// VALIDATES: the complete shape carries neither hint. The task shape carries
 // ttlMs and pollIntervalMs and no cacheScope.
-// PREVENTS: two opposite regressions. Adding tools/call to cacheTTLByMethod (a
-// conformance error), and "fixing" the task result by deleting its ttlMs
-// because a comment claimed tools/call carries no ttlMs in any shape -- which
-// would strip a field the extension makes mandatory and leave a polling client
-// with no retention bound.
+// PREVENTS: two opposite regressions. The first is an entry for tools/call in
+// cacheTTLByMethod, which is a conformance error. The second is a "fix" of the
+// task result that deletes its ttlMs, because a comment claimed tools/call
+// carries no ttlMs in any shape. That deletion would strip a field the
+// extension makes mandatory and leave a polling client with no retention bound.
 func TestToolsCallCarriesNoCacheHints(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{Commands: taskCapableCommands})
 	defer cleanup()
@@ -522,19 +522,19 @@ func TestToolsCallCarriesNoCacheHints(t *testing.T) {
 	})
 }
 
-// TestTasksGetDoesNotAliasRegistryState guards the hazard ok()'s own godoc
-// names: a task handler hands back the map the registry stored, and mutating it
-// would persist envelope fields into registry state.
+// TestTasksGetDoesNotAliasRegistryState guards the hazard that ok()'s own godoc
+// names. A task handler hands back the map the registry stored, and a mutation
+// of that map would persist envelope fields into registry state.
 //
 // VALIDATES: two tasks/get calls for the same terminal task return identical
 // result payloads, and the map the registry still owns gains neither
 // `resultType` nor `_meta`.
-// PREVENTS: ok() stamping the envelope in place. That would leak protocol
-// fields into stored tool output, and each further call would stamp over the
-// previous one's -- a defect no per-call assertion can see, because every
-// individual response would still look correct.
+// PREVENTS: an in-place stamp of the envelope by ok(). That stamp would leak
+// protocol fields into stored tool output, and each further call would stamp
+// over the previous one. No per-call assertion can see that defect, because
+// every individual response would still look correct.
 //
-// The hazard survived the removal of tasks/result: tasks/get now carries the
+// The hazard survived the removal of tasks/result. tasks/get now carries the
 // stored map as its `result` member, so the aliasing question is the same one.
 func TestTasksGetDoesNotAliasRegistryState(t *testing.T) {
 	srv, err := NewStreamable(StreamableConfig{
@@ -728,16 +728,16 @@ func TestAuthRunsOnEveryRequest(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{Token: "secret"})
 	defer cleanup()
 
-	// A valid credential first, so any state a regression might bind is bound.
+	// A valid credential first, so any state that a regression can bind is bound.
 	if status, parsed := postMCPAuth(t, hs, "secret", methodToolsList, capsNone, ""); status != http.StatusOK {
 		t.Fatalf("authenticated tools/list: status = %d (body %v)", status, parsed)
 	}
 
-	// tasks/get carries params because it needs a taskId; the others take none.
+	// tasks/get carries params because it needs a taskId. The others take none.
 	// tasks/list used to fill this row and needed no params, but MCP 2026-07-28
-	// removed it, and a tasks/* method has to stay in this table: authentication
-	// running on the task surface is exactly what the deleted session layer used
-	// to be trusted for.
+	// removed it. A tasks/* method has to stay in this table. Authentication on
+	// the task surface is exactly what the deleted session layer used to be
+	// trusted for.
 	probes := []struct{ method, params string }{
 		{methodToolsList, ""},
 		{methodServerDiscover, ""},
@@ -753,10 +753,10 @@ func TestAuthRunsOnEveryRequest(t *testing.T) {
 					t.Fatalf("attempt %d: status = %d, want 401", attempt, status)
 				}
 			}
-			// And a valid credential still gets past AUTH in between. The
-			// assertion is "not 401" rather than "200" because tasks/get with
-			// an id that was never minted is legitimately refused at the params
-			// layer -- which is itself proof the request reached dispatch.
+			// And a valid credential still passes AUTH in between. The assertion
+			// is "not 401" rather than "200", because tasks/get with an id that
+			// was never minted is legitimately refused at the params layer. That
+			// refusal is itself proof that the request reached dispatch.
 			status, parsed := postMCPAuth(t, hs, "secret", probe.method, capsTasks, probe.params)
 			if status == http.StatusUnauthorized {
 				t.Fatalf("authenticated %s: status = 401, want the credential to be accepted (body %v)",
@@ -770,8 +770,8 @@ func TestAuthRunsOnEveryRequest(t *testing.T) {
 //
 // VALIDATES: with a Provider set AND bearer auth configured, a credential-less
 // request is 401 -- Provider mode is not an auth bypass.
-// PREVENTS: the deleted Provider-mode short-circuit returning, which was the one
-// code shape from which an unauthenticated path could be reached.
+// PREVENTS: a return of the deleted Provider-mode short-circuit, which was the
+// one code shape that reached an unauthenticated path.
 func TestProviderModeAuthenticatesLikeEveryOtherPath(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		Provider: fakeProvider{},
@@ -791,9 +791,9 @@ func TestProviderModeAuthenticatesLikeEveryOtherPath(t *testing.T) {
 	}
 }
 
-// TestProviderModeUnauthenticatedByConfigStillServes is the other half of D-2:
-// ze-chaos sets Provider with no Token and no AuthMode, so auth-mode inference
-// selects none and every request succeeds with a zero Identity.
+// TestProviderModeUnauthenticatedByConfigStillServes is the other half of D-2.
+// ze-chaos sets Provider with no Token and no AuthMode. Auth-mode inference
+// therefore selects none, and every request succeeds with a zero Identity.
 //
 // VALIDATES: running ze-chaos through the uniform per-request auth path is
 // observably identical to the deleted bypass.
@@ -1177,7 +1177,7 @@ func TestStreamableToolsList(t *testing.T) {
 // command (the four rib commands are the real annotated set).
 //
 // Both halves are asserted. "No task handle" alone would pass against a server
-// that simply failed the request, which is the failure this rule exists to stop.
+// that failed the request, which is the failure this rule exists to stop.
 func TestStreamable_ForbiddenNeverTasked(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{
 		Commands: func() []CommandInfo {

@@ -25,12 +25,12 @@ import (
 // MCP protocol revision 2026-07-28 wire constants.
 //
 // This client is written from the specification text rather than from Ze's
-// server, so that a functional test asserting on its behavior is an
-// independent reading of the protocol and not a restatement of the
-// implementation under test.
+// server. A functional test that asserts on this client's behavior is
+// therefore an independent reading of the protocol. It is not a restatement of
+// the implementation under test.
 const (
 	// mcpProtocolVersion rides both in the MCP-Protocol-Version header and in
-	// params._meta; the two MUST agree or the server answers -32020.
+	// params._meta. The two MUST agree, or the server answers -32020.
 	mcpProtocolVersion = "2026-07-28"
 	mcpEndpoint        = "/mcp"
 
@@ -46,8 +46,8 @@ const (
 	extensionTasks = "io.modelcontextprotocol/tasks"
 
 	// Standard request headers (streamable-http "Standard Request Headers").
-	// The casing is deliberately not Go's canonical MIME form: these names are
-	// written straight into the header map so the bytes on the wire match the
+	// The casing is deliberately not Go's canonical MIME form. These names are
+	// written straight into the header map, so the bytes on the wire match the
 	// specification's examples. Header field names are case-insensitive per
 	// RFC 9110, so a conforming server accepts either spelling.
 	headerProtocolVersion = "MCP-Protocol-Version"
@@ -66,12 +66,12 @@ const (
 	resultTypeComplete      = "complete"
 	resultTypeInputRequired = "input_required"
 
-	// resultTypeTask is contributed by the io.modelcontextprotocol/tasks
-	// EXTENSION, not by the core protocol, and it is legal for this client only
-	// when it declared that extension (--tasks). basic/index "ResultType": "The
-	// set of supported ResultType values MUST be created from the set defined in
-	// the core protocol and include any additional values of supported
-	// extensions that are advertised via capabilities".
+	// resultTypeTask comes from the io.modelcontextprotocol/tasks EXTENSION,
+	// not from the core protocol. The value is legal for this client only when
+	// the client declared that extension (--tasks). basic/index "ResultType":
+	// "The set of supported ResultType values MUST be created from the set
+	// defined in the core protocol and include any additional values of
+	// supported extensions that are advertised via capabilities".
 	resultTypeTask = "task"
 
 	// Wire keys and method names repeated across these files. MCP wire keys are
@@ -84,8 +84,9 @@ const (
 	keyError        = "error"
 
 	// Multi Round-Trip Requests (basic/patterns/mrtr). An InputRequiredResult
-	// carries inputRequests; the client answers by retrying the ORIGINAL
-	// request, with a different JSON-RPC id, carrying inputResponses.
+	// carries inputRequests. The client answers when it retries the ORIGINAL
+	// request with a different JSON-RPC id, and that retry carries
+	// inputResponses.
 	keyInputRequests   = "inputRequests"
 	keyInputResponses  = "inputResponses"
 	keyResultType      = "resultType"
@@ -110,23 +111,23 @@ const (
 
 	// maxInputRounds bounds the retry loop. A server MAY prompt repeatedly
 	// (server requirement 8), so a client that answered and was asked again
-	// must not spin forever; this turns "the server keeps asking" into a named
-	// failure rather than a hang.
+	// must not loop forever. The bound turns "the server keeps asking" into a
+	// named failure rather than a hang.
 	maxInputRounds = 4
 )
 
 var (
 	errCommandErrorNoDetail = errors.New("command error (no detail)")
 	errEmptyResponseBody    = errors.New("server returned no response body")
-	// errInputRequired fires when a server asks for input this client has no
-	// queued answer for. The retry loop is driven by the elicit-answer
-	// directive; without one, reporting the call as complete would be a lie, so
-	// the client fails closed.
+	// errInputRequired fires when a server asks for input that this client has
+	// no queued answer for. The elicit-answer directive drives the retry loop.
+	// Without that directive, a report of the call as complete would be false,
+	// so the client fails closed.
 	errInputRequired = errors.New(`server returned resultType "input_required" and no elicit-answer is queued`)
 )
 
 // mcpClient speaks MCP revision 2026-07-28 over Streamable HTTP. It holds no
-// session state by construction: the only fields outliving a request are the
+// session state by construction. Only these fields outlive a request: the
 // endpoint, the credential, the declared capabilities, the JSON-RPC id counter,
 // and the deviations queued for the next probe.
 type mcpClient struct {
@@ -149,9 +150,9 @@ type mcpClient struct {
 
 // elicitPlan is how the client answers an inputRequests entry.
 //
-// Its zero value is "no answer queued", which makes an InputRequiredResult a
-// reported failure rather than a silent retry: a test that did not ask for the
-// round trip must not get one.
+// The zero value of elicitPlan is "no answer queued". That zero value makes an
+// InputRequiredResult a reported failure rather than a silent retry. A test
+// that did not ask for the round trip must not get one.
 type elicitPlan struct {
 	queued bool
 	// action is accept, decline or cancel. Empty with queued set means "omit":
@@ -270,13 +271,13 @@ func (c *mcpClient) waitReady(timeout time.Duration) error {
 
 // clientCapabilities builds the io.modelcontextprotocol/clientCapabilities
 // value sent on every request. Every field of ClientCapabilities is optional,
-// so an empty object is the conformant default; --tasks adds the one capability
-// the daemon gates on, the Tasks extension.
+// so an empty object is the conformant default. The --tasks flag adds the one
+// capability the daemon gates on, the Tasks extension.
 //
-// Nothing here declares `resources`: that is a ServerCapabilities member, not
-// one of the five ClientCapabilities members (`experimental`, `roots`,
-// `sampling`, `elicitation`, `extensions`), so a conformant client never sends
-// it and the daemon never asks for it.
+// Nothing here declares `resources`. That name is a ServerCapabilities member,
+// and it is not one of the five ClientCapabilities members (`experimental`,
+// `roots`, `sampling`, `elicitation`, `extensions`). A conformant client
+// therefore never sends `resources`, and the daemon never asks for it.
 func (c *mcpClient) clientCapabilities() map[string]any {
 	caps := map[string]any{}
 	if c.declareTasks {
@@ -293,11 +294,11 @@ func (c *mcpClient) clientCapabilities() map[string]any {
 
 // supportsElicitMode reports whether this client declared the given mode.
 //
-// An empty declared object means form mode only, so the check has to read the
-// declaration the way the specification defines it rather than looking the mode
-// up as a key. Used to police the server: "Servers MUST NOT send elicitation
-// requests with modes that are not supported by the client", and a client that
-// silently answered a mode it never declared could not prove that.
+// An empty declared object means form mode only. The check therefore reads the
+// declaration the way the specification defines it, rather than as a key
+// lookup. This check polices the server: "Servers MUST NOT send elicitation
+// requests with modes that are not supported by the client". A client that
+// silently answered a mode it never declared cannot prove that rule.
 func (c *mcpClient) supportsElicitMode(mode string) bool {
 	if c.elicitCaps == nil {
 		return false
@@ -352,21 +353,23 @@ func (c *mcpClient) sendOnce(method string, params map[string]any) (json.RawMess
 	return result, nil
 }
 
-// classifyResult enforces the ResultType contract: an absent resultType means
-// "complete", because servers on earlier revisions omit the field, and a value
+// classifyResult enforces the ResultType contract. An absent resultType means
+// "complete", because servers on earlier revisions omit the field. A value that
 // the client does not recognize is invalid.
 //
 // tasksDeclared widens the legal set by exactly one value. basic/index
 // "ResultType" builds a client's supported set from "the set defined in the core
 // protocol" plus "any additional values of supported extensions that are
-// advertised via capabilities", so "task" is legal for a client that declared
-// io.modelcontextprotocol/tasks and invalid for one that did not. Keeping the
-// gate here rather than accepting "task" unconditionally is what lets
-// task-no-extension.ci mean something: a server that pushed a task handle at a
-// non-declaring client would be caught by this client, not merely unasserted.
+// advertised via capabilities". The value "task" is therefore legal for a client
+// that declared io.modelcontextprotocol/tasks, and invalid for one that did not.
 //
-// Returns the resultType and the decoded result object, so the caller can read
-// inputRequests off an interim result without decoding it twice.
+// The gate stays here rather than accepting "task" unconditionally, and that is
+// what lets task-no-extension.ci mean something. This client catches a server
+// that pushes a task handle at a non-declaring client, so the behavior is not
+// merely unasserted.
+//
+// Returns the resultType and the decoded result object. The caller can then
+// read inputRequests from an interim result and decode it only once.
 func classifyResult(result json.RawMessage, tasksDeclared bool) (string, map[string]any, error) {
 	var fields map[string]any
 	if err := json.Unmarshal(result, &fields); err != nil {
@@ -447,9 +450,9 @@ func (c *mcpClient) exchange(method string, params map[string]any, mut *probeMut
 	return c.do(httpMethod, headers, encoded, reqID)
 }
 
-// standardHeaders builds the request metadata headers the transport mirrors out
-// of the body. MCP-Protocol-Version is derived from the _meta value so the pair
-// is consistent by construction; a test forces a mismatch with probe-header.
+// standardHeaders builds the request metadata headers that the transport mirrors
+// out of the body. MCP-Protocol-Version is derived from the _meta value, so the
+// pair is consistent by construction. A test forces a mismatch with probe-header.
 func (c *mcpClient) standardHeaders(method string, params, meta map[string]any) map[string]string {
 	headers := map[string]string{
 		"Content-Type": "application/json",
@@ -489,10 +492,11 @@ func mcpNameFor(method string, params map[string]any) (string, bool) {
 	}
 }
 
-// encodeHeaderValue applies the Base64 sentinel encoding to any value that
-// cannot ride as a plain ASCII header field value, and to any plain-ASCII value
-// that would otherwise be mistaken for an encoded one. The encoding is standard
-// Base64 with padding over the UTF-8 bytes, not base64url.
+// encodeHeaderValue applies the Base64 sentinel encoding to two kinds of value.
+// The first is any value that cannot ride as a plain ASCII header field value.
+// The second is any plain-ASCII value that a reader would otherwise mistake for
+// an encoded one. The encoding is standard Base64 with padding over the UTF-8
+// bytes, not base64url.
 func encodeHeaderValue(value string) string {
 	if headerSafe(value) {
 		return value
@@ -537,7 +541,7 @@ func (c *mcpClient) do(httpMethod string, headers map[string]string, body []byte
 		return transportResult{}, fmt.Errorf("build %s %s: %w", httpMethod, endpoint, err)
 	}
 	// Assigned into the map rather than through Set, so the header names keep
-	// the casing the specification prints; Set would canonicalize them.
+	// the casing that the specification prints. Set would canonicalize them.
 	for name, value := range headers {
 		req.Header[name] = []string{value}
 	}
@@ -574,10 +578,10 @@ func (c *mcpClient) do(httpMethod string, headers map[string]string, body []byte
 	return out, nil
 }
 
-// sseScanner is the only SSE parser in this client. Per the SSE specification a
-// line beginning with a colon is a comment carrying no event data (servers emit
-// them as keep-alives), and consecutive `data:` lines accumulate into one
-// payload that the next blank line dispatches.
+// sseScanner is the only SSE parser in this client. Per the SSE specification, a
+// line that begins with a colon is a comment and carries no event data. Servers
+// emit such lines as keep-alives. Consecutive `data:` lines accumulate into one
+// payload, and the next blank line dispatches that payload.
 type sseScanner struct {
 	scanner *bufio.Scanner
 }
@@ -616,10 +620,10 @@ func (s *sseScanner) next() (string, error) {
 	return "", io.EOF
 }
 
-// readSSEResponse consumes a per-request SSE response stream: request-scoped
-// notifications may precede the final response, and the final response
-// terminates the stream. A reqID below zero accepts the first response frame,
-// which is what a raw-body probe needs since it owns its own id.
+// readSSEResponse consumes a per-request SSE response stream. Request-scoped
+// notifications can precede the final response, and the final response ends the
+// stream. A reqID below zero accepts the first response frame, which is what a
+// raw-body probe needs because the probe owns its own id.
 func readSSEResponse(body io.Reader, reqID int) (map[string]json.RawMessage, error) {
 	scanner := newSSEScanner(body)
 	for {

@@ -12,19 +12,19 @@ pieces interlock, and the type system makes it so -- `(*session).Elicit`,
 
 ## Decisions
 
-- **Nothing replaces `MaxSessions`.** It bounded *sessions*, an object that
-  ceases to exist. After the cutover Ze holds no long-lived per-client state at
-  all. Inventing a replacement cap would be inventing state.
-- **The Provider-mode branch disappears rather than being exempted.** `ze-chaos`
+- **Nothing replaces `MaxSessions`.** It bounded *sessions*, and that object no
+  longer exists. After the cutover Ze holds no long-lived per-client state at
+  all. A replacement cap would invent new state.
+- **The Provider-mode branch is deleted rather than exempted.** `ze-chaos`
   is unauthenticated *by configuration* (no `Token`, no `AuthMode`, so
-  `NewStreamable` infers `AuthNone`), not by that branch. Running it through the
-  uniform path is observably identical while removing the only code shape from
-  which an unauthenticated path could later be reached by accident. A carve-out
-  that is not needed is one that will outlive its reason.
+  `NewStreamable` infers `AuthNone`), not by that branch. The uniform path gives
+  an observably identical result. It also deletes the only code shape that can
+  later reach an unauthenticated path by accident. A carve-out that is not needed
+  is one that will outlive its reason.
 - **Absence and mismatch of a required header are the same verdict.** No header
   gets a default. The pre-cutover code defaulted a missing version to
-  `LegacyProtocolVersion`, which is the fail-open shape `fail-closed-guards.md`
-  bans; with no handshake there is nothing to fall back to.
+  `LegacyProtocolVersion`. That is the fail-open shape `fail-closed-guards.md`
+  bans. With no handshake, there is no value to use instead.
 - **Per-request identity and capabilities are passed by VALUE.** No pointer, no
   nil-able context, no capability struct whose zero value reads as "supported".
   The compiler forces every handler to have them.
@@ -37,43 +37,47 @@ pieces interlock, and the type system makes it so -- `(*session).Elicit`,
   conformant.
 - Validation order is now load-bearing and fixed: header (`-32020`) → `_meta`
   (`-32602`) → version (`-32022`) → authenticate → dispatch. Header validation
-  before dispatch is the entire point of `-32020`; a load balancer routing on the
-  header while the server executes on the body is the attack it closes.
-- Four requirements the spec had missed were found by reading the specification
-  text rather than the changelog: `-32602` for a malformed `_meta` is distinct
-  from `-32020`; `-32021 MissingRequiredClientCapability` is a MUST; `serverInfo`
-  belongs in *every* result's `_meta`; and `_meta` sits inside `params`, not at
-  the message top level.
+  before dispatch is the entire point of `-32020`. It closes one attack: a load
+  balancer routes on the header while the server executes on the body.
+- Four requirements the spec had missed were found in the specification text
+  rather than in the changelog:
+  - `-32602` for a malformed `_meta` is distinct from `-32020`.
+  - `-32021 MissingRequiredClientCapability` is a MUST.
+  - `serverInfo` belongs in *every* result's `_meta`.
+  - `_meta` sits inside `params`, not at the message top level.
 
 ## Gotchas
 
-- **A spec premise can go stale within a day.** The spec built AC-13 on a live
-  nil-dereference in `resources.go`; it had been fixed the previous day. Re-read
-  cited code before relying on it, especially in an active tree.
-- **`resources` is not a client capability.** Ze gated `resources/list`/`read` on
-  the client declaring it, but `ClientCapabilities` has exactly five members and
-  `resources` is not among them -- it is a *server* capability. The gate meant no
-  conformant client could read a `ui://` asset while `tools/list` advertised
-  those assets, and the `-32021` `data.requiredCapabilities` named a value that
-  field cannot legally hold. Removed: `resourcesList`/`resourcesRead` no longer
-  take a capability argument at all, so it cannot come back by accident.
+- **A spec premise can become stale within a day.** The spec built AC-13 on a
+  live nil-dereference in `resources.go`. That defect had been fixed the previous
+  day. Re-read cited code before you rely on it, especially in an active tree.
+- **`resources` is not a client capability.** Ze gated `resources/list` and
+  `resources/read` on a client that declares it. But `ClientCapabilities` has
+  exactly five members, and `resources` is not among them, because `resources` is
+  a *server* capability. The gate meant that no conformant client was able to
+  read a `ui://` asset, and `tools/list` advertised those assets at the same
+  time. The `-32021` `data.requiredCapabilities` also named a value that field
+  cannot legally hold. `resourcesList` and `resourcesRead` no longer take a
+  capability argument at all, so the gate cannot return by accident.
 - **`chaos-web` is not a `ze-verify` stage.** Neither `ze-functional-test` nor
   `stagesForMode` runs it, so both MCP chaos tests are invisible to the main
-  gate. A build-tag bug (`ze-chaos` compiled without `ze_bgp`, dying at startup
-  with `no such module: ze-bgp-conf`) had been failing all six of them since the
-  gate landed, unnoticed. `make ze-chaos-test` must be run explicitly.
+  gate. A build-tag bug had been failing all six of them since the gate landed,
+  and nobody saw it. `ze-chaos` compiled without `ze_bgp` and died at startup
+  with `no such module: ze-bgp-conf`. `make ze-chaos-test` must be run
+  explicitly.
 - **`defaultMaxTerminalTasks` was assigned and never read.** Decision D-1 cited
-  it as a surviving bound justifying the deletion of the session caps, while
-  `sweep()` reaped on TTL alone. Implemented rather than weakening the argument:
-  per-principal, oldest-terminal-first. Per-principal because a global cap hands
-  every caller a cross-principal eviction primitive.
-- **`enabled` was answering two questions.** `ExtractMCPConfig` returned
-  `ok=false` unless the block was `enabled true` with a ported server, and the
-  caller then discarded `auth-mode`, `token`, `BearerList` and `OAuth` with it --
-  so `ze --mcp <port>` plus a configured bearer token produced an *accept-all*
-  listener. Split: `enabled` answers "does config start a listener";
-  `ExtractMCPSettings` answers "how does this listener authenticate". Found by
-  strengthening a test whose title claim ("identity scope") was untested.
+  it as a surviving bound that justified the deletion of the session caps, while
+  `sweep()` deleted on TTL alone. The cap is now implemented, and the argument
+  was not weakened. It deletes per principal, oldest terminal task first. A
+  global cap would hand every caller a cross-principal eviction primitive.
+- **`enabled` answered two questions.** `ExtractMCPConfig` returned `ok=false`
+  unless the block was `enabled true` with a ported server. The caller then
+  discarded `auth-mode`, `token`, `BearerList` and `OAuth` with it. So
+  `ze --mcp <port>` plus a configured bearer token produced an *accept-all*
+  listener. The two questions are now split: `enabled` answers "does config start
+  a listener", and `ExtractMCPSettings` answers "how does this listener
+  authenticate". A stronger test found the defect, because the old test left its
+  own title claim ("identity scope") untested.
 
 ## Files
 

@@ -113,27 +113,28 @@ func (c *mcpClient) waitTool(name string, timeout time.Duration) error {
 }
 
 // toolsSnapshot is one tools/list answer, kept in the two forms the stability
-// check needs: the RAW bytes of the `tools` array, and the tool names in wire
-// order for the drift diagnostic.
+// check needs. The first form is the RAW bytes of the `tools` array. The second
+// is the tool names in wire order, for the drift diagnostic.
 //
-// The raw bytes are the assertion. Names alone were what this check used to
-// compare, and that is weaker than the acceptance criterion it stands for
+// The raw bytes are the assertion. This check used to compare names alone, and
+// names are weaker than the acceptance criterion the check stands for
 // (spec-mcp2026-4-caching-apps AC-6: "byte-identical tools array, including
 // every action enum and every description string"). A wobble in an action enum,
-// a description, or a nested `_meta` would leave the name sequence identical and
-// still defeat both the client caching this revision enables and the LLM
-// prompt-cache hits that motivate the SHOULD -- which is the whole point of the
-// requirement.
+// a description, or a nested `_meta` would leave the name sequence identical.
+// That wobble would still defeat the client caching this revision enables, and
+// the LLM prompt-cache hits that motivate the SHOULD. That is the whole point
+// of the requirement.
 type toolsSnapshot struct {
 	raw   []byte
 	names []string
 }
 
-// toolsList returns one tools/list answer. Order is the point: MCP 2026-07-28
+// toolsList returns one tools/list answer. Order is the point. MCP 2026-07-28
 // server/tools says "Servers SHOULD return tools in a deterministic order (i.e.,
 // the same ordering across requests when the underlying set of tools has not
-// changed)", so nothing here is sorted and the array is never re-marshaled --
-// re-encoding would canonicalize away exactly the drift being looked for.
+// changed)". So nothing here is sorted and the array is never re-marshaled.
+// A re-encode would canonicalize away exactly the drift this check exists to
+// find.
 func (c *mcpClient) toolsList() (toolsSnapshot, error) {
 	result, err := c.send(methodToolsList, map[string]any{})
 	if err != nil {
@@ -177,23 +178,23 @@ func toolsDigest(raw []byte) string {
 // toolsOrderStable calls tools/list `calls` times against an unchanged daemon
 // and reports whether every call returned a BYTE-IDENTICAL tools array.
 //
-// The comparison lives here rather than in the .ci because a .ci can only match
+// The comparison lives here rather than in the .ci. A .ci can only match
 // patterns, and Go's RE2 has no backreference, so "these two responses are
-// identical" is not expressible as an expectation. Comparing two server
+// identical" is not expressible as an expectation. A comparison of two server
 // responses is client work in any case, the same way wait-established is.
 //
 // Byte identity, not name identity. spec-mcp2026-4-caching-apps AC-6 asks for a
 // "byte-identical tools array, including every action enum and every
-// description string", and this used to compare only the name sequence -- which
-// TestToolOrderDeterministic already covers at generation level. What no test
-// covered was the same property ON THE WIRE, where a wobbling action enum
-// (built from a map range) or a drifting description defeats the client caching
-// this revision enables while every tool name stays put.
+// description string". This check used to compare only the name sequence, which
+// TestToolOrderDeterministic already covers at generation level. No test covered
+// the same property ON THE WIRE. There a wobbling action enum (built from a map
+// range) or a drifting description defeats the client caching this revision
+// enables, while every tool name stays put.
 //
-// On drift the line names what diverged: the call, the first differing tool
-// index and both name sequences when the names moved, and the byte offset plus
-// both digests when only the payload did. That second case is the one names
-// could never report.
+// On drift the line names what diverged. It names the call, the first differing
+// tool index and both name sequences when the names moved. It names the byte
+// offset plus both digests when only the payload moved. Names alone can never
+// report that second case.
 func (c *mcpClient) toolsOrderStable(calls int) (string, error) {
 	if calls < 2 {
 		return "", fmt.Errorf("tools-order-stable needs at least 2 calls, got %d", calls)
@@ -265,16 +266,16 @@ func firstDifference(a, b []string) (int, bool) {
 // task handle.
 //
 // There is no `task` member in the params, because there is no client-side
-// opt-in any more: MCP 2026-07-28 moved tasks onto the
-// io.modelcontextprotocol/tasks extension, where the SERVER decides a call runs
-// in the background from the command's `ze:task-support` annotation. The client
-// declares the extension once per request (--tasks) and handles whichever result
-// shape arrives.
+// opt-in any more. MCP 2026-07-28 moved tasks onto the
+// io.modelcontextprotocol/tasks extension. There the SERVER decides that a call
+// runs in the background, from the command's `ze:task-support` annotation. The
+// client declares the extension once per request (--tasks) and handles
+// whichever result shape arrives.
 //
-// The resultType is checked, not just the taskId: a server that regressed to
-// answering synchronously would return a perfectly valid `complete` result with
-// no taskId, and "carries no taskId" alone would report that as a malformed
-// response rather than as the missing feature it is.
+// The resultType is checked, not just the taskId. A server that regressed to a
+// synchronous answer would return a valid `complete` result with no taskId. The
+// check "carries no taskId" alone would report that as a malformed response
+// rather than as the missing feature it is.
 func (c *mcpClient) taskCall(tool string, args json.RawMessage) (string, error) {
 	result, err := c.send(methodToolsCall, map[string]any{
 		keyName:     tool,
@@ -302,8 +303,8 @@ func (c *mcpClient) taskCall(tool string, args json.RawMessage) (string, error) 
 // create a task, returning the synchronous result text instead.
 //
 // This is the positive half of the no-extension and forbidden-command
-// assertions. Asserting only "no task handle" would pass against a server that
-// simply failed the request, so the test also has to prove the work still ran.
+// assertions. An assertion of "no task handle" alone would pass against a
+// server that failed the request, so the test also has to prove the work ran.
 func (c *mcpClient) taskCallSync(tool string, args json.RawMessage) (string, error) {
 	result, err := c.send(methodToolsCall, map[string]any{
 		keyName:     tool,
@@ -342,7 +343,7 @@ func (c *mcpClient) taskGet(taskID string) (string, error) {
 // taskResultText returns the tool output a TERMINAL task carries on tasks/get.
 //
 // tasks/result is gone (changelog Major change 6 replaced it with polling), so
-// the payload rides on the same call that reports the status: a terminal task
+// the payload rides on the same call that reports the status. A terminal task
 // carries `result` when it completed and `error` when it failed.
 func (c *mcpClient) taskResultText(taskID string) (string, error) {
 	raw, err := c.send("tasks/get", map[string]any{keyTaskID: taskID})
@@ -371,14 +372,14 @@ func (c *mcpClient) taskResultText(taskID string) (string, error) {
 	return extractText(encoded)
 }
 
-// taskCancel sends tasks/cancel and requires the empty acknowledgement the
+// taskCancel sends tasks/cancel and requires the empty acknowledgment the
 // extension specifies.
 //
 // The shape is checked here rather than discarded, which is what the reply used
-// to be: MCP 2026-07-28 ext-tasks tells a server to "Acknowledge cancellation
-// requests with an empty result", and a client that threw the result away could
-// not tell an empty ack from a server volunteering a status field. Reporting a
-// status in the ack would also be a stale snapshot -- cancellation is
+// to be. MCP 2026-07-28 ext-tasks tells a server to "Acknowledge cancellation
+// requests with an empty result". A client that discarded the result cannot
+// tell an empty acknowledgment from a server that volunteers a status field. A
+// status in the acknowledgment would also be a stale snapshot. Cancellation is
 // cooperative, so tasks/get is the method that answers "what state is it in
 // now".
 func (c *mcpClient) taskCancel(taskID string) (string, error) {

@@ -6,16 +6,16 @@
 //
 // The server never sends an `elicitation/create` JSON-RPC *request*. Under
 // Multi Round-Trip Requests the ElicitRequest is a VALUE inside the
-// `inputRequests` map of an InputRequiredResult, and the client answers it by
-// retrying the original request with `inputResponses`.
+// `inputRequests` map of an InputRequiredResult. The client answers it when it
+// retries the original request with `inputResponses`.
 //
 // The requested-schema validator below is the flat-primitive subset Ze has
 // always emitted, recovered unchanged. It is deliberately NARROWER than
 // 2026-07-28 permits (which also allows `oneOf`-titled enums and array
-// multi-select enums): a server that uses fewer optional schema forms than the
+// multi-select enums). A server that uses fewer optional schema forms than the
 // specification offers is conformant, and Ze's one elicitation asks for a
 // single string. Per-function comments name 2025-06-18 because that is the
-// revision the subset was written from; this revision does not change it.
+// revision the subset was written from. This revision does not change it.
 //
 // Reference: https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation
 
@@ -213,23 +213,27 @@ const (
 // methodElicitationCreate is the request method an ElicitRequest carries.
 //
 // It is a VALUE in an inputRequests map, never a JSON-RPC method this server
-// dispatches and never a frame it writes. MCP 2026-07-28
-// basic/transports/streamable-http Section "Listening for Messages from the
-// Server": "The server MUST NOT send independent JSON-RPC requests on this
-// stream. Server-to-client interactions (sampling, elicitation, list-roots) are
-// embedded as input requests inside an InputRequiredResult per MRTR ..., not
-// delivered as separate requests on this or any other stream" -- so this
-// constant names a payload, not a route.
+// dispatches and never a frame it writes.
+//
+// MCP 2026-07-28 basic/transports/streamable-http Section "Listening for
+// Messages from the Server": "The server MUST NOT send independent JSON-RPC
+// requests on this stream. Server-to-client interactions (sampling,
+// elicitation, list-roots) are embedded as input requests inside an
+// InputRequiredResult per MRTR ..., not delivered as separate requests on this
+// or any other stream".
+//
+// This constant therefore names a payload, not a route.
 const methodElicitationCreate = "elicitation/create"
 
 // elicitModeForm and elicitModeURL are the two modes the capability names.
 //
 // MCP 2026-07-28 client/elicitation Section "Capabilities": "Servers MUST NOT
 // send elicitation requests with modes that are not supported by the client."
-// Ze emits form mode only and states it explicitly on every request rather than
-// leaning on the implicit default, so the url-mode gap is visible at the call
-// site. Url mode is not implemented: its completion is out of band, which is
-// the first flow that would need a real `requestState`.
+//
+// Ze emits form mode only, and it states that mode explicitly on every request
+// rather than rely on the implicit default. The url-mode gap is therefore
+// visible at the call site. Url mode is not implemented. Its completion is out
+// of band, which is the first flow that would need a real `requestState`.
 const (
 	elicitModeForm = "form"
 	elicitModeURL  = "url"
@@ -252,11 +256,12 @@ const (
 //
 // MCP 2026-07-28 client/elicitation Section "Security Considerations": "Servers
 // MUST NOT use form mode elicitation to request sensitive information such as
-// passwords, API keys, access tokens, or payment credentials." Matched as
-// substrings of the normalized (lowercased, separator-stripped) property name,
-// so `user_passphrase` and `apiKey` are both caught. The check constrains only
-// what THIS server emits, so a broad match costs nothing and a missed one is a
-// specification violation.
+// passwords, API keys, access tokens, or payment credentials."
+//
+// Ze normalizes each property name to lowercase and strips the separators,
+// then matches these markers as substrings. `user_passphrase` and `apiKey` are
+// both caught. The check constrains only what THIS server emits. A broad match
+// therefore costs nothing, and a missed one is a specification violation.
 var elicitSecretMarkers = []string{
 	"password", "passwd", "passphrase", "secret", "token",
 	"apikey", "credential", "privatekey", "cvv",
@@ -279,10 +284,11 @@ func elicitFieldIsSecret(name string) bool {
 // newElicitRequest builds one form-mode ElicitRequest for an inputRequests
 // entry.
 //
-// The schema is validated first, so a malformed or credential-shaped requested
-// schema fails here rather than reaching a client. Refusing the credential case
-// at the single emission point makes the specification's MUST NOT an enforced
-// property of the server rather than a claim about the code as it stands today.
+// newElicitRequest validates the schema first. A malformed or
+// credential-shaped requested schema therefore fails here, and it never
+// reaches a client. Ze refuses the credential case at the single emission
+// point. The specification's MUST NOT is therefore an enforced property of the
+// server, not a claim about the code as it stands today.
 func newElicitRequest(message string, schema map[string]any) (map[string]any, error) {
 	if err := validateElicitSchema(schema); err != nil {
 		return nil, err

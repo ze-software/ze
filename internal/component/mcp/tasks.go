@@ -23,29 +23,30 @@ const (
 	minTaskTTL                = time.Second
 	maxTaskTTL                = time.Hour
 	taskGCInterval            = 30 * time.Second
-	// defaultTaskExecDeadline bounds how long a worker may run before the
+	// defaultTaskExecDeadline bounds how long a worker can run before the
 	// registry forces its entry terminal (D-3).
 	//
 	// This is a LIVENESS bound, not a retention one, and it exists because MCP
 	// 2026-07-28 removed sessions. Under the previous revision
-	// CancelAllForSession was wired to session expiry and was the only path that
-	// could force a NON-terminal task terminal; the TTL sweep cannot do it,
+	// CancelAllForSession was wired to session expiry. It was the only path that
+	// forced a NON-terminal task terminal. The TTL sweep cannot do it,
 	// because it deletes only entries that ALREADY reached a terminal state.
-	// Removing sessions therefore removed a liveness guarantee, not just a
-	// cleanup hook: a worker whose dispatch never returns would hold one of its
-	// principal's maxConcurrent slots forever and never be swept.
 	//
-	// 10 minutes is deliberately far longer than any annotated command should
-	// take. It is a backstop against a wedged dispatch, not a timeout operators
-	// are expected to tune around.
+	// The removal of sessions therefore removed a liveness guarantee, not just a
+	// cleanup hook. A worker whose dispatch never returns would hold one of its
+	// principal's maxConcurrent slots forever, and no sweep would reach it.
+	//
+	// 10 minutes is deliberately far longer than any annotated command takes. It
+	// is a backstop against a wedged dispatch, not a timeout operators are
+	// expected to tune around.
 	defaultTaskExecDeadline = 10 * time.Minute
 	// defaultPollInterval is the ceiling on the pollIntervalMs hint. The value
 	// actually sent is min(this, ttl/2) -- see retentionHints.
 	defaultPollInterval = time.Second
 	// taskIDRawBytes is the entropy behind a task id: 128 bits, base64url
-	// encoded. A task id is a capability-free handle -- the registry checks the
-	// authenticated principal on every lookup -- but it is still unguessable so
-	// a task cannot be probed for by enumeration.
+	// encoded. A task id is a capability-free handle, because the registry
+	// checks the authenticated principal on every lookup. But the id is still
+	// unguessable, so a task cannot be probed for by enumeration.
 	taskIDRawBytes = 16
 )
 
@@ -63,9 +64,9 @@ var (
 	errTaskNotFound       = errors.New("mcp: task not found")
 	errTaskConcurrencyCap = errors.New("mcp: task concurrency cap reached")
 	// errTaskExecDeadline is the error text stored on a task the sweep forced
-	// terminal for outrunning its execution deadline (D-3). A client polling
-	// tasks/get reads it as the task's `error`, so it says what happened and
-	// what to do rather than only that the task failed.
+	// terminal for outrunning its execution deadline (D-3). A client that polls
+	// tasks/get reads it as the task's `error`. It therefore says what happened
+	// and what to do, rather than only that the task failed.
 	errTaskExecDeadline = errors.New("mcp: task exceeded its server-side execution deadline and was terminated; re-run the command, and if it legitimately needs longer, raise TaskRegistryConfig.ExecDeadline")
 )
 
@@ -132,10 +133,10 @@ func newTaskRegistry(cfg TaskRegistryConfig) *taskRegistry {
 		maxConcurrent: maxC,
 		maxTerminal:   maxT,
 		// The TTL is clamped ONCE, here. It used to be clamped per Create,
-		// because the client could request a TTL on each task-augmented call;
-		// with the client-directed opt-in gone (D-1) the config field is the only
-		// TTL input that exists, so the bound belongs at the single point it
-		// enters the registry rather than on a path taken per task.
+		// because the client requested a TTL on each task-augmented call.
+		// With the client-directed opt-in gone (D-1), the config field is the
+		// only TTL input that exists. The bound therefore belongs at the single
+		// point it enters the registry, and not on a path taken per task.
 		ttl:          clampTaskTTL(cfg.TTL),
 		execDeadline: deadline,
 		now:          time.Now,
@@ -161,15 +162,16 @@ func clampTaskTTL(requested time.Duration) time.Duration {
 	}
 }
 
-// retentionHints returns the two client-facing timing numbers a CreateTaskResult
-// carries, in milliseconds: how long a terminal result is retained, and how
-// often the client should poll.
+// retentionHints returns the two client-facing timing numbers a
+// CreateTaskResult carries, in milliseconds. The first is how long a terminal
+// result is retained. The second is how often the client polls.
 //
-// pollIntervalMs is DERIVED, never configured (D-6). A fixed constant can exceed
-// the retention window -- at the 1 s minimum TTL a 1 s poll hint would let a
-// conforming client sleep exactly past the result and find it swept -- so the
-// hint is capped at half the TTL. That keeps one invariant true for every legal
-// TTL: a client obeying the hint polls at least twice inside the window.
+// pollIntervalMs is DERIVED, never configured (D-6). A fixed constant can
+// exceed the retention window. At the 1 s minimum TTL, a 1 s poll hint would
+// let a conforming client sleep exactly past the result and find it swept. The
+// hint is therefore capped at half the TTL. That keeps one invariant true for
+// every legal TTL: a client that obeys the hint polls at least twice inside
+// the window.
 func (r *taskRegistry) retentionHints() (ttlMs, pollMs int64) {
 	ttl := clampTaskTTL(r.ttl)
 	poll := min(defaultPollInterval, ttl/2)
@@ -181,8 +183,8 @@ func (r *taskRegistry) retentionHints() (ttlMs, pollMs int64) {
 // the returned cancel func.
 //
 // identity is the authenticated principal the task belongs to. It comes from
-// the per-request authenticator, never from a request body field, and it is
-// the only key the registry indexes by: the concurrency cap, every lookup and
+// the per-request authenticator, never from a request body field. And it is
+// the only key the registry indexes by. The concurrency cap, every lookup and
 // the visibility rule are all per principal.
 func (r *taskRegistry) Create(identity string) (string, context.Context, context.CancelFunc, error) {
 	now := r.now()
@@ -305,11 +307,12 @@ func (r *taskRegistry) Transition(taskID string, to TaskState) bool {
 	identity := entry.identity
 	entry.mu.Unlock()
 
-	// Enforce the retention cap here, not only on the GC ticker: this is the
+	// Enforce the retention cap here, not only on the GC ticker. This is the
 	// moment the terminal set grows, and a burst can cross the cap many times
-	// between two taskGCInterval ticks, so the invariant would not hold at the
-	// points a caller can observe it. entry.mu is released first: the registry
-	// lock order is r.mu before entry.mu (see sweep and activeCount).
+	// between two taskGCInterval ticks. The invariant would otherwise not hold
+	// at the points a caller can observe it. entry.mu is released first,
+	// because the registry lock order is r.mu before entry.mu (see sweep and
+	// activeCount).
 	if becameTerminal {
 		r.evictTerminalOverCap(identity)
 	}
@@ -318,7 +321,7 @@ func (r *taskRegistry) Transition(taskID string, to TaskState) bool {
 
 // setErrorMsg stores the error message for a task that has not yet finished.
 //
-// Terminal entries are immutable. See the note on storeResult: a worker that
+// Terminal entries are immutable. Read the note on storeResult. A worker that
 // returns after the deadline sweep already failed its entry must not overwrite
 // the diagnostic that explains why the task ended.
 func (r *taskRegistry) setErrorMsg(taskID, msg string) {
@@ -425,13 +428,15 @@ func (r *taskRegistry) activeCount(identity string) int {
 
 // terminalCap returns the retained-terminal-task cap for one principal.
 //
-// newTaskRegistry normalises a non-positive MaxTerminal to the default, exactly
-// as it does for MaxConcurrent and the TTL, so a registry built through the
-// constructor always carries a positive value. This helper repeats that one
-// convention for any registry that was not, so a zero can never be read as
-// "unlimited": a zero-valued cap silently meaning "no cap" is the fail-open
-// shape ai/rules/fail-closed-guards.md exists to stop. There is deliberately no
-// third convention -- nothing in this registry spells "uncapped".
+// newTaskRegistry normalizes a non-positive MaxTerminal to the default, exactly
+// as it does for MaxConcurrent and the TTL. A registry built through the
+// constructor therefore always carries a positive value. This helper repeats
+// that one convention for any registry that was not.
+//
+// A zero can therefore never be read as "unlimited". A zero-valued cap that
+// silently means "no cap" is the fail-open shape
+// ai/rules/fail-closed-guards.md exists to stop. There is deliberately no third
+// convention, and nothing in this registry spells "uncapped".
 func (r *taskRegistry) terminalCap() int {
 	if r.maxTerminal <= 0 {
 		return defaultMaxTerminalTasks
@@ -439,7 +444,7 @@ func (r *taskRegistry) terminalCap() int {
 	return r.maxTerminal
 }
 
-// deleteLocked removes one task and prunes the identity index, dropping the
+// deleteLocked removes one task and prunes the identity index. It drops the
 // identity key once its last id goes. Caller must hold r.mu.
 //
 // Both reapers -- the TTL sweep and the retention cap -- go through here. A
@@ -457,45 +462,49 @@ func (r *taskRegistry) deleteLocked(id, identity string) {
 	}
 }
 
-// evictTerminalOverCap bounds the terminal tasks retained for one principal,
-// dropping oldest-terminal-first until at most terminalCap remain.
+// evictTerminalOverCap bounds the terminal tasks retained for one principal.
+// It drops the oldest terminal task first, until at most terminalCap remain.
 //
 // # Why this cap exists
 //
-// The registry is the only long-lived per-client structure on this transport,
-// and a terminal entry retains a full result map (storeResult) until its TTL
-// expires -- a client-chosen window of up to an hour (clampTTL). The
-// concurrency cap counts only non-terminal tasks (activeCount), so a completed
-// task frees its slot immediately and a client can cycle tasks to completion
-// indefinitely. Without this cap the map grows without bound.
+// The registry is the only long-lived per-client structure on this transport.
+// A terminal entry retains a full result map (storeResult) until its TTL
+// expires. That window is client-chosen and can be as long as an hour
+// (clampTTL).
+//
+// The concurrency cap counts only non-terminal tasks (activeCount). A completed
+// task therefore frees its slot immediately, and a client can cycle tasks to
+// completion indefinitely. Without this cap the map grows without bound.
 //
 // # Why the cap is per principal and not global
 //
-// A GLOBAL cap would bound the map at one flat number, but it would also hand
-// every authenticated caller a cross-principal denial: a burst of quick tasks
-// would evict every other principal's results. That is one principal
-// destroying another's data, which is a worse failure than the growth it
+// A GLOBAL cap would bound the map at one flat number. But it would also give
+// every authenticated caller a cross-principal denial. A burst of quick tasks
+// would evict every other principal's results. That is one principal that
+// destroys another's data, which is a worse failure than the growth it
 // prevents.
 //
 // PER PRINCIPAL bounds the map at principals x cap, and no principal can reach
 // another's entries. The multiplier is set by the auth mode, not by the caller:
 //
-//   - none and bearer both authenticate to the anonymous identity, so every
-//     caller collapses onto one key and the bound is a hard cap. This is the
-//     default for `ze --mcp` and for ze-chaos, and the deployment where the
-//     unbounded growth was actually reachable.
+//   - none and bearer both authenticate to the anonymous identity. Every
+//     caller therefore collapses onto one key, and the bound is a hard cap.
+//     This is the default for `ze --mcp` and for ze-chaos, and it is the
+//     deployment where the unbounded growth was reachable.
+//
 //   - bearer-list is bounded by the operator's configured identity list.
+//
 //   - oauth is bounded by the subjects the trusted issuer has signed tokens
 //     for. Admission there belongs to the authorization server, which Ze
-//     already trusts for authentication itself. Buying a smaller multiplier by
-//     handing every tenant an eviction primitive against every other tenant is
-//     the worse trade.
+//     already trusts for authentication itself. A smaller multiplier bought
+//     with an eviction primitive that every tenant holds against every other
+//     tenant is the worse trade.
 //
-// It also keeps the sibling caps coherent: maxConcurrent is already per
-// principal, so a global maxTerminal would be a second, contradictory scoping
-// convention inside one registry.
+// It also keeps the sibling caps coherent. maxConcurrent is already per
+// principal, so a global maxTerminal would be a second and contradictory
+// scoping convention inside one registry.
 //
-// A non-terminal task is never evicted: an in-flight task must not vanish
+// A non-terminal task is never evicted. An in-flight task must not vanish
 // because other tasks completed.
 func (r *taskRegistry) evictTerminalOverCap(identity string) {
 	r.mu.Lock()
@@ -505,8 +514,8 @@ func (r *taskRegistry) evictTerminalOverCap(identity string) {
 
 // evictTerminalOverCapLocked is evictTerminalOverCap with r.mu already held.
 // It takes entry.mu per entry, which is the registry's lock order (r.mu before
-// entry.mu, as in sweep and activeCount), so no caller may hold an entry lock
-// when calling it.
+// entry.mu, as in sweep and activeCount). A caller MUST NOT hold an entry lock
+// when it calls this function.
 func (r *taskRegistry) evictTerminalOverCapLocked(identity string) {
 	ids, ok := r.byIdentity[identity]
 	if !ok {
@@ -514,7 +523,8 @@ func (r *taskRegistry) evictTerminalOverCapLocked(identity string) {
 	}
 	limit := r.terminalCap()
 	// len(ids) counts terminal and non-terminal alike, so it is an upper bound
-	// on the terminal count: at or under the cap here means nothing to evict.
+	// on the terminal count. A length at or under the cap here means there is
+	// nothing to evict.
 	if len(ids) <= limit {
 		return
 	}
@@ -542,8 +552,8 @@ func (r *taskRegistry) evictTerminalOverCapLocked(identity string) {
 		return
 	}
 
-	// Oldest terminal first. The id breaks ties so eviction is deterministic
-	// rather than dependent on map iteration order, which matters when a coarse
+	// Oldest terminal first. The id breaks ties, so eviction is deterministic
+	// rather than dependent on map iteration order. That matters when a coarse
 	// or injected clock stamps several tasks with one instant.
 	slices.SortFunc(refs, func(a, b terminalRef) int {
 		return cmp.Or(a.at.Compare(b.at), cmp.Compare(a.id, b.id))
@@ -570,10 +580,10 @@ func (r *taskRegistry) runGC() {
 // sweep runs both reapers, in the order they depend on.
 //
 // Pass 1 forces a past-deadline WORKING task terminal (D-3). Pass 2 deletes a
-// terminal task whose retention TTL has expired. The order matters only in that
-// a task forced terminal here starts its retention window now rather than being
-// deleted in the same tick, so a client that polls once more still learns how
-// its task ended rather than finding it vanished.
+// terminal task whose retention TTL has expired. The order matters for one
+// reason. A task forced terminal here starts its retention window now, and pass
+// 2 does not delete it in the same tick. A client that polls once more
+// therefore learns how its task ended, rather than finds it gone.
 func (r *taskRegistry) sweep() {
 	now := r.now()
 	r.mu.Lock()
@@ -581,14 +591,14 @@ func (r *taskRegistry) sweep() {
 
 	// Pass 1: the liveness backstop the deleted session reaper used to provide.
 	//
-	// Canceling the worker's context is not enough on its own: the goroutine
-	// may be blocked somewhere that never observes cancellation, and until the
-	// ENTRY is terminal it keeps counting against activeCount and holds one of
-	// its principal's maxConcurrent slots. So the entry is transitioned here,
-	// independently of whether the goroutine ever returns.
+	// A canceled worker context is not enough on its own. The goroutine can be
+	// blocked somewhere that never observes cancellation. And until the ENTRY
+	// is terminal it keeps counting against activeCount, so it holds one of its
+	// principal's maxConcurrent slots. The entry is therefore transitioned
+	// here, whether or not the goroutine ever returns.
 	//
-	// The worker's own later Transition (if it does eventually return) is a
-	// no-op: Transition refuses terminal -> any.
+	// The worker's own later Transition is a no-op, because Transition refuses
+	// terminal -> any.
 	for _, entry := range r.tasks {
 		entry.mu.Lock()
 		overdue := !entry.state.IsTerminal() && !entry.deadline.IsZero() &&
@@ -643,13 +653,15 @@ type TaskInfo struct {
 
 // toWire converts to the MCP camelCase wire format.
 //
-// The terminal payload rule is the whole reason tasks/result could be deleted.
-// MCP 2026-07-28 changelog Major change 6: the extension "replaces the blocking
-// tasks/result method with polling via tasks/get". A polling client must be able
-// to learn the OUTCOME from the same call that reports the status, so a terminal
-// task carries `result` when it completed and `error` when it failed. A
-// non-terminal task carries neither, which is what makes "still working" and
-// "finished with nothing to say" distinguishable.
+// The terminal payload rule is the whole reason tasks/result was deleted. MCP
+// 2026-07-28 changelog Major change 6: the extension "replaces the blocking
+// tasks/result method with polling via tasks/get".
+//
+// A polling client must be able to learn the OUTCOME from the same call that
+// reports the status. A terminal task therefore carries `result` when it
+// completed, and `error` when it failed. A non-terminal task carries neither,
+// which is what makes "still working" and "finished with nothing to say"
+// distinguishable.
 func (t TaskInfo) toWire() map[string]any {
 	m := map[string]any{
 		"taskId":       t.ID,
@@ -706,13 +718,15 @@ func runTaskWorker(ctx context.Context, reg *taskRegistry, taskID string, work t
 		// The payload is stored BEFORE the state goes terminal, and the order is
 		// load-bearing now that tasks/get is the only way to collect a result.
 		//
-		// A client polls on an interval it was handed; the instant it sees a
-		// terminal status it reads `result`/`error` from that SAME response and
-		// stops polling. Transitioning first would open a window where the task
-		// reads terminal with an empty payload, and the client would correctly
-		// conclude the task finished with no output and never look again. Under
-		// the old blocking tasks/result the window was invisible, because the
-		// client made a second call that arrived after the store.
+		// A client polls on an interval it was given. The instant it sees a
+		// terminal status, it reads `result`/`error` from that SAME response
+		// and stops polling.
+		//
+		// A transition first would open a window where the task reads terminal
+		// with an empty payload. The client would then correctly conclude that
+		// the task finished with no output, and it would never look again.
+		// Under the old blocking tasks/result the window was invisible, because
+		// the client made a second call that arrived after the store.
 		if result != nil {
 			reg.storeResult(taskID, result)
 		}

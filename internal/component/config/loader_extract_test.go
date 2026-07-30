@@ -947,7 +947,7 @@ func parseTreeForTest(t *testing.T, input string) *Tree {
 // PREVENTS: the fail-open where `ze --mcp <port>` with `auth-mode bearer`
 // configured produced an ACCEPT-ALL listener, because ExtractMCPConfig returned
 // ok=false and every caller discarded auth-mode, token, identities and oauth
-// with it. `enabled` answers "does config start a listener"; it must not also
+// with it. `enabled` answers "does config start a listener". It must not also
 // decide whether the operator's authentication instruction applies.
 func TestExtractMCPSettings_AppliesWithoutEnabledOrPort(t *testing.T) {
 	tree := parseTreeForTest(t, `

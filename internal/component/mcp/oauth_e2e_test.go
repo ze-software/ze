@@ -140,13 +140,13 @@ func TestNewStreamable_OAuth_RejectsIssuerMismatch(t *testing.T) {
 // rfc-test-change-approved: 2026-07-29 Thomas approved a carrier-only change to
 // the RFC-tagged OAuth tests during the MCP 2026-07-28 cutover
 // (spec-mcp2026-1-stateless-core). The request that carries the token changed
-// from `initialize` to `tools/list`, because `initialize` is no longer a method
-// this server implements and the old carrier would be rejected by header
-// validation before ever reaching the OAuth layer. Every RFC assertion is
-// unchanged: tag count 12 before and after, no polarity lost, and
-// `make ze-rfc-check` reports no coverage change. The session-id assertion was
-// additionally INVERTED to assert that no session is minted, which is strictly
-// stronger than what it replaced.
+// from `initialize` to `tools/list`. `initialize` is no longer a method this
+// server implements. Header validation would reject the old carrier before it
+// reached the OAuth layer. Every RFC assertion is unchanged: tag count 12
+// before and after, no polarity lost, and `make ze-rfc-check` reports no
+// coverage change. The session-id assertion was additionally INVERTED. It now
+// asserts that no session is minted, and that is strictly stronger than what it
+// replaced.
 func TestNewStreamable_OAuth_AcceptsValidToken(t *testing.T) {
 	// RFC requirement: RFC8414-3.3-2 positive -- when the AS-reported issuer equals the configured authorization-server, NewStreamable builds and the minted token verifies
 	as := newTestAS(t)

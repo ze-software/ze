@@ -623,7 +623,7 @@ func TestParseCmdExec(t *testing.T) {
 // header= keys (including values that themselves contain colons), and any marker order.
 // PREVENTS: Panics on reordered markers, colons in URLs truncating values, a header=
 // swallowing a following key's value, and a malformed header= being silently dropped.
-// The header-free cases double as the no-regression proof: they compare the WHOLE
+// The header-free cases double as the no-regression proof. They compare the WHOLE
 // httpCheck, so a stray Headers entry on a line without header= would fail them.
 func TestParseHTTP(t *testing.T) {
 	tests := []struct {

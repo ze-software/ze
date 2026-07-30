@@ -207,10 +207,11 @@ func TestAnswerInputRequests(t *testing.T) {
 // VALIDATES: classifyResult treats an absent resultType as complete, refuses a
 // value it does not recognize, and accepts the extension-contributed "task"
 // value only when the client declared the tasks extension.
-// PREVENTS: a client silently accepting a future resultType as a finished
-// answer, which basic/index forbids; and the extension-gated half -- a server
-// pushing a task handle at a client that never declared the extension would
-// otherwise be accepted here and task-no-extension.ci would prove nothing.
+// PREVENTS: a client that silently accepts a future resultType as a finished
+// answer, which basic/index forbids. It also covers the extension-gated half.
+// A server that pushed a task handle at a client that never declared the
+// extension would otherwise be accepted here. And task-no-extension.ci would
+// prove nothing.
 func TestClassifyResult(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -228,8 +229,8 @@ func TestClassifyResult(t *testing.T) {
 		// The extension-contributed value, both ways round.
 		{name: "task with the extension declared", body: `{"resultType":"task"}`, declared: true, want: resultTypeTask},
 		{name: "task without the extension declared", body: `{"resultType":"task"}`, wantErr: true},
-		// Declaring the extension widens the set by exactly one value; it does
-		// not make the client permissive in general.
+		// A declared extension widens the set by exactly one value. It does not
+		// make the client permissive anywhere else.
 		{name: "unknown stays invalid with the extension declared", body: `{"resultType":"partial"}`, declared: true, wantErr: true},
 	}
 	for _, tt := range tests {

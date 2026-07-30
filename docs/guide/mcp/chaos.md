@@ -92,14 +92,15 @@ at most once per 10 seconds.
 ## Protocol
 
 The chaos MCP server speaks JSON-RPC 2.0 over the MCP 2026-07-28 Streamable
-HTTP transport at the `/mcp` endpoint, sharing the same implementation as the
-ze daemon's MCP server (`NewStreamable` with the chaos `ToolProvider`).
+HTTP transport at the `/mcp` endpoint. This server uses the same implementation
+as the ze daemon's MCP server: `NewStreamable` with the chaos `ToolProvider`.
 <!-- source: internal/chaos/orchestrator/run.go -- NewStreamable(Provider) mount -->
 
 The transport is stateless, so every request stands alone: no handshake, no
-session id to thread. Provider mode changes only which tools are offered, not
-how a request is validated, so a chaos request carries the same standard
-headers and the same `params._meta` block as any other MCP request.
+session id to thread. Provider mode changes only which tools the server offers.
+Provider mode does not change how the server validates a request. A chaos
+request therefore carries the same standard headers and the same
+`params._meta` block as any other MCP request.
 <!-- source: internal/component/mcp/streamable.go -- StreamableConfig.Provider, handlePOST -->
 
 `ze-chaos` configures no token and no auth mode, which infers `auth-mode none`:

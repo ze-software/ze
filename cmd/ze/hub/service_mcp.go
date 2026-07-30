@@ -35,8 +35,8 @@ import (
 	zemcp "github.com/ze-software/ze/internal/component/mcp"
 )
 
-// mcpService adapts *mcpServerHandle to the Service interface (the handle
-// already satisfies Reconfigurable + Shutdown; only Name is added).
+// mcpService adapts *mcpServerHandle to the Service interface. The handle
+// already satisfies Reconfigurable and Shutdown, so this type adds only Name.
 type mcpService struct {
 	*mcpServerHandle
 }
@@ -161,9 +161,9 @@ func parseTaskSupportLevel(s string) zemcp.TaskSupportLevel {
 	}
 }
 
-// mcpServerHandle bundles the running HTTP server with the Streamable handler
-// so the shutdown path can close both: http.Server.Shutdown drains the TCP
-// listener, handler.Close drains the task registry's GC goroutine.
+// mcpServerHandle bundles the running HTTP server with the Streamable handler,
+// so the shutdown path can close both. http.Server.Shutdown drains the TCP
+// listener. And handler.Close drains the task registry's GC goroutine.
 type mcpServerHandle struct {
 	Server    *http.Server
 	Handler   *zemcp.Streamable

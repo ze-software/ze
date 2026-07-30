@@ -9,11 +9,11 @@
 // Streamable HTTP (MCP 2026-07-28 basic/transports) dispatcher.
 //
 // One HTTP endpoint answering POST only. There is no handshake, no session and
-// no server-to-client stream: every request carries its own protocol version,
-// client identity and client capabilities in `params._meta`, mirrors selected
-// body fields into HTTP headers the server cross-checks, and authenticates on
-// its own. GET and DELETE, which earlier revisions used for the SSE stream and
-// session termination, answer 405.
+// no server-to-client stream. Every request carries its own protocol version,
+// client identity and client capabilities in `params._meta`. Every request
+// also mirrors selected body fields into HTTP headers the server cross-checks,
+// and every request authenticates on its own. GET and DELETE, which earlier
+// revisions used for the SSE stream and session termination, answer 405.
 
 package mcp
 
@@ -111,14 +111,15 @@ type OAuthConfig struct {
 
 // Streamable is the Streamable HTTP MCP server. Implements http.Handler.
 //
-// The server holds no per-client state: identity and capabilities are rebuilt
-// from each request and passed by value into dispatch, so there is nothing
-// keyed by client, connection or session to bound or expire. The task registry
-// is the one long-lived structure, and it is keyed by authenticated principal
-// with its own concurrency, retention and TTL caps.
+// The server holds no per-client state. Identity and capabilities are rebuilt
+// from each request and passed by value into dispatch. Nothing keyed by
+// client, connection or session is therefore left to bound or expire. The task
+// registry is the one long-lived structure, and it is keyed by authenticated
+// principal with its own concurrency, retention and TTL caps.
 //
-// Lifecycle: create with NewStreamable; mount on any net/http listener; MUST
-// call Close before process exit so the task-GC goroutine stops.
+// Lifecycle: create with NewStreamable. Mount it on any net/http listener. And
+// the caller MUST call Close before process exit, so the task-GC goroutine
+// stops.
 type Streamable struct {
 	cfg       StreamableConfig
 	tasks     *taskRegistry
@@ -237,12 +238,14 @@ func (s *Streamable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // Response headers MCP clients need to read cross-origin. The fetch API only
-// exposes CORS-safelisted response headers unless listed here; without
-// WWW-Authenticate a browser-based client cannot discover the OAuth metadata
-// URL on a 401. No session-id header exists in this revision, so none is
-// exposed, and Retry-After is not listed either: its only emitter was the 429
-// session-limit response, which went with the session registry. Advertising a
-// header nothing sends tells a client to look for something that never arrives.
+// exposes CORS-safelisted response headers unless they are listed here.
+// Without WWW-Authenticate a browser-based client cannot discover the OAuth
+// metadata URL on a 401.
+//
+// No session-id header exists in this revision, so none is exposed. Retry-After
+// is not listed either. Its only emitter was the 429 session-limit response,
+// which went with the session registry. A header nothing sends tells a client
+// to look for something that never arrives.
 const corsExposeHeaders = "WWW-Authenticate"
 
 // Headers the server accepts on non-safelisted cross-origin requests: the
@@ -361,10 +364,11 @@ func (s *Streamable) originAllowed(r *http.Request) bool {
 // authenticated Identity. Returns a non-nil *authError that the caller renders
 // into a 401 response.
 //
-// Runs on EVERY request. With the handshake gone there is no session id to
-// stand in for a credential, so each POST presents its own and each POST is
-// checked: a revoked token stops working on the next request rather than at
-// session expiry, and there is no long-lived identifier to steal.
+// It runs on EVERY request. With the handshake gone there is no session id to
+// stand in for a credential. Each POST therefore presents its own credential,
+// and each POST is checked. A revoked token stops working on the next request
+// rather than at session expiry, and no long-lived identifier is left to
+// steal.
 //
 // A zero Identity means "authenticated as anonymous under auth-mode none", not
 // "unauthenticated": an unauthenticated request is the *authError early return
@@ -378,9 +382,9 @@ func (s *Streamable) authenticate(r *http.Request) (Identity, *authError) {
 
 // handlePOST processes a client-initiated JSON-RPC message.
 //
-// The order below is the contract, not a convenience: header validation is a
-// transport-level guard that MUST run before dispatch, or the header/body
-// confusion it exists to prevent is already possible by the time it runs.
+// The order below is the contract, not a convenience. Header validation is a
+// transport-level guard that MUST run before dispatch. A guard that runs later
+// arrives after the header/body confusion it exists to prevent.
 //
 //  1. read and size-cap the body
 //  2. parse the JSON-RPC envelope        -> -32700
@@ -442,6 +446,7 @@ func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 	// version is unknown to the server, or is a known version the server has
 	// chosen not to support), it MUST respond with an
 	// UnsupportedProtocolVersionError listing the versions it does support."
+	//
 	// The binding pins the status: "For HTTP, the response status code MUST be
 	// 400 Bad Request."
 	if !isSupportedProtocolVersion(meta.ProtocolVersion) {
@@ -475,7 +480,7 @@ func (s *Streamable) handlePOST(w http.ResponseWriter, r *http.Request) {
 	// Messages": a JSON-RPC notification (no id) the server accepts "MUST
 	// return HTTP status code 202 Accepted with no body". This revision defines
 	// no client-to-server notification on this transport, so nothing is
-	// dispatched; the acknowledgement is the whole handling.
+	// dispatched. The acknowledgement is the whole handling.
 	if req.ID == nil {
 		w.WriteHeader(http.StatusAccepted)
 		return

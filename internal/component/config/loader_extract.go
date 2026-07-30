@@ -262,22 +262,24 @@ func (c MCPListenConfig) Validate() error {
 // ExtractMCPSettings returns the environment.mcp settings whenever the block
 // exists, WITHOUT regard to `enabled` or to whether a listen port was given.
 //
-// This exists because `enabled` answers one question -- "should config start an
-// MCP listener?" -- and was being read as if it answered a second, unrelated
-// one: "do the MCP auth settings apply?". They are not the same question,
-// because the listener can equally be started by `ze --mcp <port>` or by
-// `ze.mcp.listen`. Conflating them meant an operator who wrote
+// This exists because `enabled` answers one question: "does config ask for an
+// MCP listener?". Readers took `enabled` to answer a second, unrelated
+// question: "do the MCP auth settings apply?". The two questions differ,
+// because `ze --mcp <port>` and `ze.mcp.listen` also start the listener. One
+// answer for both questions meant that an operator who wrote
 //
 //	environment { mcp { auth-mode bearer; token secret; } }
 //
-// and started `ze --mcp 9718` got a fully UNAUTHENTICATED listener: ExtractMCPConfig
-// returned ok=false, every caller skipped the config, AuthMode stayed zero, and
-// NewStreamable's mode inference selected AuthNone. The operator's explicit
-// instruction was silently discarded, which ai/rules/exact-or-reject.md forbids.
+// and started `ze --mcp 9718` got an UNAUTHENTICATED listener. ExtractMCPConfig
+// returned ok=false, so every caller skipped the config. AuthMode then stayed
+// zero, and the mode inference in NewStreamable selected AuthNone. The daemon
+// discarded the operator's explicit instruction, which
+// ai/rules/exact-or-reject.md forbids.
 //
 // Callers that need "did config ask for a listener" must use ExtractMCPConfig.
-// Callers that need "how does this listener authenticate" must use this, so the
-// answer cannot depend on which mechanism supplied the address.
+// Callers that need "how does this listener authenticate" must use
+// ExtractMCPSettings, so the answer cannot depend on which mechanism supplied
+// the address.
 func ExtractMCPSettings(tree *Tree) (MCPListenConfig, bool) {
 	cfg, _, present := extractMCPBlock(tree)
 	if !present {
@@ -302,8 +304,8 @@ func ExtractMCPConfig(tree *Tree) (MCPListenConfig, bool) {
 	if !present || !enabled {
 		return MCPListenConfig{}, false
 	}
-	// A port leaf is mandatory; if the user left it blank and the YANG default
-	// is also empty, the block is effectively unusable.
+	// A port leaf is mandatory. If the user left it blank and the YANG default
+	// is also empty, the block is unusable.
 	if len(cfg.Servers) == 0 || cfg.Servers[0].Port == "" {
 		return MCPListenConfig{}, false
 	}
@@ -312,8 +314,8 @@ func ExtractMCPConfig(tree *Tree) (MCPListenConfig, bool) {
 
 // extractMCPBlock parses environment.mcp in full and reports both whether the
 // block exists at all (present) and whether it asks for a listener (enabled).
-// It applies no gate of its own: the two callers above decide what their own
-// ok value means, so neither can silently inherit the other's meaning.
+// It applies no gate of its own. Each of the two callers above decides what
+// its own ok value means. And neither caller can inherit the other's meaning.
 func extractMCPBlock(tree *Tree) (MCPListenConfig, bool, bool) {
 	envBlock := tree.GetContainer("environment")
 	if envBlock == nil {
@@ -380,9 +382,10 @@ func extractMCPBlock(tree *Tree) (MCPListenConfig, bool, bool) {
 		}
 	}
 
-	// The port gate lives in ExtractMCPConfig, not here: a block with auth
-	// settings and no port is unusable as a LISTENER source but is still the
-	// operator's authentication instruction for a listener started elsewhere.
+	// The port gate lives in ExtractMCPConfig, not here. A block with auth
+	// settings and no port is unusable as a LISTENER source. But that block is
+	// still the operator's authentication instruction for a listener that
+	// another mechanism starts.
 	return cfg, enabled, true
 }
 

@@ -1288,17 +1288,17 @@ Version hash is truncated SHA-256 (16 hex characters) of config bytes.
 ## MCP Methods
 
 The MCP Streamable HTTP transport (revision `2026-07-28`) is stateless and
-strictly client-to-server: every message is its own HTTP POST, and the server
+strictly client-to-server. Every message is its own HTTP POST, and the server
 never sends an independent JSON-RPC request on any stream. These methods are
-distinct from ze's own dispatcher commands (above) -- they are part of the MCP
+distinct from ze's own dispatcher commands (above). They are part of the MCP
 protocol contract, and each request carries the version and capabilities it
 speaks in its own `params._meta`.
 
 | Method | Direction | Purpose |
 |--------|-----------|---------|
-| `server/discover` | Client -> server | Advertise `supportedVersions`, `capabilities` (including `extensions["io.modelcontextprotocol/ui"]` for MCP Apps and `extensions["io.modelcontextprotocol/tasks"]` for background tasks), and `instructions`. Mandatory for a server to implement; optional for a client to call |
+| `server/discover` | Client -> server | Advertise `supportedVersions`, `capabilities` (including `extensions["io.modelcontextprotocol/ui"]` for MCP Apps and `extensions["io.modelcontextprotocol/tasks"]` for background tasks), and `instructions`. Mandatory for a server to implement, and optional for a client to call |
 | `tools/list` | Client -> server | The tool inventory, derived from the command registry at call time, in a deterministic order. A descriptor carries `_meta.ui` only when the request declared the `io.modelcontextprotocol/ui` extension compatibly |
-| `tools/call` | Client -> server | Run a tool. Answers `resultType: "task"` when the command's `ze:task-support` annotation is `required` and the request declared the tasks extension, and `resultType: "input_required"` when the tool needs a value the call did not supply |
+| `tools/call` | Client -> server | Run a tool. Answers `resultType: "task"` when the command's `ze:task-support` annotation is `required` and the request declared the tasks extension. Answers `resultType: "input_required"` when the tool needs a value the call did not supply |
 
 <!-- source: internal/component/mcp/streamable_tools.go -- runMethod dispatch switch -->
 <!-- source: internal/component/mcp/discover.go -- serverDiscover -->
@@ -1306,11 +1306,14 @@ speaks in its own `params._meta`.
 
 There are no server-initiated methods. `notifications/tasks/status` existed
 under the earlier revision and was removed with the session and the GET stream it
-required. `elicitation/create` survives, but no longer as a method: it is a
-**value** inside the `inputRequests` map of an `InputRequiredResult`, which a
-server RETURNS from `tools/call` (or `resources/read`) rather than sending. The
-client answers by retrying the original request with `inputResponses`. See
-[MCP Elicitation](../../guide/mcp/elicitation.md) for the full round trip.
+required.
+
+`elicitation/create` survives, but no longer as a method. `elicitation/create`
+is now a **value** inside the `inputRequests` map of an `InputRequiredResult`. A
+server RETURNS that result from `tools/call` (or `resources/read`), and the
+server does not send it. The client then retries the original request with
+`inputResponses`. See [MCP Elicitation](../../guide/mcp/elicitation.md) for the
+full round trip.
 
 See [MCP Architecture Overview](../mcp/overview.md#capability-negotiation)
 for how capabilities are declared per request.
@@ -1319,8 +1322,8 @@ for how capabilities are declared per request.
 
 These are the `io.modelcontextprotocol/tasks` extension, not core protocol. A
 `tools/call` on a command annotated `ze:task-support required` creates a
-background worker and returns a `CreateTaskResult` immediately; the client polls
-for status, and nothing is pushed.
+background worker and returns a `CreateTaskResult` immediately. The client then
+polls for status, and the server pushes nothing.
 
 | Method | Direction | Purpose |
 |--------|-----------|---------|
@@ -1329,10 +1332,10 @@ for status, and nothing is pushed.
 | `tasks/cancel` | Client -> server | Request cancellation of a working task |
 
 `tasks/list` and `tasks/result` were REMOVED this revision and are now unknown
-methods, answered HTTP 404 with `-32601`. The blocking `tasks/result` was
-replaced by polling `tasks/get`, which is why a terminal state carries its
-payload; `tasks/list` was dropped outright, so there is no way to enumerate
-tasks and a client tracks the ids it was given.
+methods, answered HTTP 404 with `-32601`. A poll of `tasks/get` replaced the
+blocking `tasks/result`. That change is why a terminal state carries its
+payload. `tasks/list` was dropped outright. No method enumerates tasks now, so a
+client tracks the ids it was given.
 
 All three surviving methods require the request's
 `_meta["io.modelcontextprotocol/clientCapabilities"]` to declare
@@ -1346,10 +1349,10 @@ HTTP 400, carrying `data.requiredCapabilities` in the extension shape.
 <!-- source: internal/component/mcp/meta.go -- parseClientCapabilities -->
 
 Task creation is server-directed. There is no `task` member on `tools/call`
-params: the server decides per tool from the YANG `ze:task-support` annotation
-(`required` always, `forbidden` never, `optional` synchronous), and a client that
-did not declare the extension gets the ordinary synchronous result rather than
-an error.
+params. The server decides per tool from the YANG `ze:task-support` annotation:
+`required` always, `forbidden` never, and `optional` synchronous. A client that
+did not declare the extension gets the ordinary synchronous result, not an
+error.
 
 <!-- source: internal/component/mcp/streamable_tools.go -- callTool, createTask -->
 <!-- source: internal/component/mcp/tools.go -- groupTaskSupport -->
@@ -1360,16 +1363,16 @@ an error.
 
 | Method | Direction | Description |
 |--------|-----------|-------------|
-| `resources/list` | Client -> server | List all available UI resources; response derived from embedded FS walk |
-| `resources/read` | Client -> server | Read a single resource by `ui://` URI; returns content as text or base64 blob |
+| `resources/list` | Client -> server | List all available UI resources. The response comes from an embedded FS walk |
+| `resources/read` | Client -> server | Read a single resource by `ui://` URI. Returns content as text or base64 blob |
 
 Both results carry cache hints (see MCP Result and Error Envelope below).
 
 Neither method is gated on a client capability. `resources` is a member of
 `ServerCapabilities`, not of `ClientCapabilities` (whose members are
-`experimental`, `roots`, `sampling`, `elicitation` and `extensions`), so no
-conformant client can declare it; a server that advertises the capability in
-`server/discover` simply serves it.
+`experimental`, `roots`, `sampling`, `elicitation` and `extensions`). No
+conformant client can therefore declare `resources`. A server that advertises
+the capability in `server/discover` serves it.
 
 <!-- source: internal/component/mcp/resources.go -- resourcesList, resourcesRead -->
 <!-- source: internal/component/mcp/meta.go -- clientCapabilities -->
@@ -1378,12 +1381,12 @@ conformant client can declare it; a server that advertises the capability in
 
 Every successful MCP result carries a `resultType` and
 `_meta["io.modelcontextprotocol/serverInfo"]`, stamped from one shared helper so
-no method can omit them. `resultType` is `complete` for a finished result and
-`input_required` for the MRTR interim result a handler produces when it needs a
-value the request did not supply; the shared helper preserves the latter rather
-than overwriting it, and a guard on the single path out of dispatch refuses to
-emit `input_required` on any method other than `prompts/get`, `resources/read`
-and `tools/call`.
+no method can omit them. `resultType` is `complete` for a finished result.
+`resultType` is `input_required` for the MRTR interim result a handler produces
+when it needs a value the request did not supply. The shared helper preserves
+`input_required` and does not overwrite it. And a guard on the single path out
+of dispatch refuses to emit `input_required` on any method other than
+`prompts/get`, `resources/read` and `tools/call`.
 
 <!-- source: internal/component/mcp/streamable_tools.go -- ok, resultMeta, runMethod -->
 <!-- source: internal/component/mcp/mrtr.go -- guardInputRequired, permitsInputRequired -->
@@ -1398,12 +1401,15 @@ Four methods additionally carry the `CacheableResult` fields, `ttlMs` and
 | `resources/list` | `3600000` | `private` |
 | `resources/read` | `3600000` | `private` |
 
-`tools/call` and every `tasks/*` method carry neither, in either result shape:
-`tools/call` is absent from the specification's cacheable-operation list,
-interim `input_required` results are explicitly not cacheable, and a result
-produced by an MRTR retry must not be cached at all. The hints are therefore
-applied from a per-method table on the way out of dispatch rather than by the
-shared `ok()` responder that `tools/call` also uses.
+`tools/call` and every `tasks/*` method carry neither field, in either result
+shape. Three reasons make that correct. `tools/call` is absent from the
+specification's cacheable-operation list. Interim `input_required` results are
+explicitly not cacheable. And a result produced by an MRTR retry must not be
+cached at all.
+
+Ze therefore applies the hints from a per-method table on the way out of
+dispatch. The shared `ok()` responder does not apply them, because `tools/call`
+also uses it.
 
 `cacheScope` is `private` on every cacheable result, which forbids a shared
 gateway or caching proxy from serving one authorization context's response to
@@ -1425,11 +1431,16 @@ authentication remains the gate.
 <!-- source: internal/component/mcp/headers.go -- validateStandardHeaders -->
 <!-- source: internal/component/mcp/streamable_tools.go -- failUnsupportedVersion -->
 
-Three HTTP request headers are mandatory on every POST and must agree with the
-body: `MCP-Protocol-Version` (mirrors the `_meta` protocol version),
-`Mcp-Method` (mirrors `method`), and `Mcp-Name` for `tools/call` and
-`prompts/get` (both mirror `params.name`) and for `resources/read` (mirrors
-`params.uri`), compared after decoding the `=?base64?...?=` sentinel.
+Three HTTP request headers are mandatory on every POST, and each one must agree
+with the body:
+
+- `MCP-Protocol-Version` mirrors the `_meta` protocol version.
+- `Mcp-Method` mirrors `method`.
+- `Mcp-Name` mirrors `params.name` for `tools/call` and `prompts/get`, and it
+  mirrors `params.uri` for `resources/read`.
+
+Ze decodes the `=?base64?...?=` sentinel in `Mcp-Name` first, then compares the
+decoded value with the body.
 
 <!-- source: internal/component/mcp/headers.go — mcpNameSource -->
 

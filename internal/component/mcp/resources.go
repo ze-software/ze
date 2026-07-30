@@ -139,8 +139,8 @@ func readResource(uri string) (map[string]any, error) {
 // There is deliberately NO client-capability gate here. `resources` is a member
 // of ServerCapabilities, not of ClientCapabilities -- whose complete member set
 // in MCP 2026-07-28 is `experimental`, `roots`, `sampling`, `elicitation` and
-// `extensions`. A conformant client therefore never declares `resources`, and
-// gating on it refused every conformant caller while server/discover advertised
+// `extensions`. A conformant client therefore never declares `resources`. A
+// gate on it refused every conformant caller, while server/discover advertised
 // `capabilities.resources` and tools/list published `_meta.ui.resourceUri`
 // pointing at these very assets.
 //
@@ -153,8 +153,8 @@ func (s *Streamable) resourcesList(req *request) *response {
 	return s.ok(req.ID, map[string]any{"resources": s.cachedResources})
 }
 
-// resourcesRead answers resources/read. Ungated for the same reason as
-// resourcesList; see its godoc.
+// resourcesRead answers resources/read. It is ungated for the same reason as
+// resourcesList. Read the godoc of resourcesList for that reason.
 func (s *Streamable) resourcesRead(req *request) *response {
 	var params struct {
 		URI string `json:"uri"`

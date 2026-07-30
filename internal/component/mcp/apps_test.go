@@ -17,8 +17,8 @@ const (
 )
 
 // uiAnnotatedCommands is a command set whose `show bgp` group carries a UI
-// bundle, so the generated descriptor has a _meta.ui object for the gate to
-// admit or remove.
+// bundle. The generated descriptor therefore has a _meta.ui object, and the
+// gate admits or removes it.
 func uiAnnotatedCommands() []CommandInfo {
 	return []CommandInfo{
 		{
@@ -41,11 +41,11 @@ func uiAnnotatedCommands() []CommandInfo {
 //
 // VALIDATES: clientSupportsUIApps answers per MCP 2026-07-28 basic/versioning
 // Section "Extension Negotiation" -- an empty settings object is support, a
-// mimeTypes list is a constraint, and base-type matching treats bare text/html
-// as compatible with text/html;profile=mcp-app.
-// PREVENTS: exact-string matching on "text/html;profile=mcp-app", which would
-// refuse a host that renders Ze's bundle perfectly well; and a malformed
-// settings object being read as support.
+// mimeTypes list is a constraint, and base-type matching treats bare
+// `text/html` as compatible with `text/html;profile=mcp-app`.
+// PREVENTS: exact-string matching on `text/html;profile=mcp-app`, which would
+// refuse a host that renders Ze's bundle perfectly well. It also prevents a
+// malformed settings object read as support.
 func TestUIExtensionSettingsGate(t *testing.T) {
 	cases := []struct {
 		name string
@@ -89,10 +89,11 @@ func TestUIExtensionSettingsGate(t *testing.T) {
 //
 // VALIDATES: a UI-annotated tool carries _meta.ui with resourceUri, permissions
 // and csp when the client declared the extension compatibly, and omits _meta
-// entirely when it did not -- while staying listed either way.
-// PREVENTS: the fallback becoming a rejection. MCP 2026-07-28 basic/versioning
+// entirely when it did not. The tool stays listed either way.
+// PREVENTS: a fallback that becomes a rejection. MCP 2026-07-28 basic/versioning
 // permits exactly two fallbacks, "revert to core protocol behavior or reject
-// the request"; rejecting a whole tools/list would break every non-Apps client.
+// the request". A rejection of a whole tools/list would break every non-Apps
+// client.
 func TestUIMetadataGatedOnExtensionSettings(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{Commands: uiAnnotatedCommands})
 	defer cleanup()
@@ -250,9 +251,9 @@ func TestUIGateOpenReturnsInputUnchanged(t *testing.T) {
 	}
 }
 
-// uiProvider is a ToolProvider whose single descriptor carries _meta.ui, and
-// which returns the SAME maps on every call, as a real provider holding a
-// prebuilt tool list would.
+// uiProvider is a ToolProvider whose single descriptor carries _meta.ui. It
+// returns the SAME maps on every call, as a real provider with a prebuilt tool
+// list would.
 type uiProvider struct {
 	tools []map[string]any
 }

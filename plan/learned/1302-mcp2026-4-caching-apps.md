@@ -2,8 +2,8 @@
 
 ## Context
 
-Phase 4 of the `2026-07-28` cutover, two additive conformance items Phase 1 left
-out so the transport cutover stayed atomic.
+Phase 4 of the `2026-07-28` cutover. Phase 1 excluded two additive conformance
+items, so the transport cutover stayed atomic.
 
 **Cacheable results (SEP-2549):** `ttlMs` and `cacheScope` are **non-optional**
 fields on `CacheableResult`, which `DiscoverResult` extends, required on
@@ -21,66 +21,68 @@ negotiated through the `extensions` capability map with a settings object.
   registry-derived surfaces (`tools/list`, `server/discover` -- the command list
   is re-read from the dispatcher on every call), 1 h for embedded assets
   (`resources/*` -- built once from `//go:embed`). The correct TTL is a function
-  of a surface's mutability, which the code knows and an operator does not;
-  exposing it would let someone set a lifetime contradicting the server's real
-  invalidation behaviour with no way for Ze to detect the contradiction.
+  of a surface's mutability. The code knows that mutability and an operator does
+  not. A config surface would let someone set a lifetime that contradicts the
+  server's real invalidation behavior, and Ze cannot detect that contradiction.
 - **`cacheScope` is `"private"` unconditionally.** Ze's tool list *is* identical
   for every principal today, so `"public"` would be accurate -- and was rejected
-  anyway. The endpoint is authenticated, `"public"` licenses sharing outside the
-  request's authorization context, and the auth modes already carry per-identity
+  anyway. The endpoint is authenticated, and `"public"` licenses a copy outside
+  the request's authorization context. The auth modes already carry per-identity
   scopes that a scope-filtered tool list would use. Nothing is lost by the
-  stricter value and no MUST requires advertising `"public"`.
+  stricter value, and no MUST requires `"public"`.
 - **The stamp lives in a closed table consulted at one site**, not in `ok()`.
   `ok()` is shared by every result including `tools/call`, which must carry no
   hints, so a blanket stamp there would be a conformance error.
 - **The `_meta.ui` gate went on the assembled tool list, not inside
-  `buildToolDef`**, so it also covers `ToolProvider` descriptors -- otherwise a
-  provider could emit `_meta.ui` to a non-declaring client and breach the
-  extension fallback rule. Fallback is to omit, never to reject.
+  `buildToolDef`**, so it also covers `ToolProvider` descriptors. Inside
+  `buildToolDef`, a provider can emit `_meta.ui` to a non-declaring client and
+  breach the extension fallback rule. Fallback is to omit, never to reject.
 
 ## Consequences
 
 - Without `subscriptions/listen` there is no push invalidation, so `ttlMs` is the
-  only lever: for up to 60 s after a config reload a client may still offer a
-  removed tool. The specification sanctions this ("A server **MAY** provide
-  `ttlMs` without advertising `listChanged`"), and the failure is
-  self-correcting, since calling a removed tool produces the error that prompts a
-  re-fetch. Documented as a Known Limitation with the bound named.
-- `_meta.ui` field names needed no reshaping. Verified against the live extension
-  page rather than the spec document: `resourceUri`, `csp` and `permissions` are
-  field-for-field what Ze already emitted.
+  only lever. For up to 60 s after a config reload, a client can still offer a
+  removed tool. The specification sanctions this:
+  <!-- The next line is a verbatim MCP specification sentence, kept as evidence. -->
+  <!-- ste: ignore -->
+  "A server **MAY** provide `ttlMs` without advertising `listChanged`."
+  The failure is self-correcting, because a call to a removed tool produces the
+  error that prompts a re-fetch. The bound is documented as a Known Limitation.
+- `_meta.ui` field names needed no change. They were verified against the live
+  extension page rather than the spec document. `resourceUri`, `csp` and
+  `permissions` are field-for-field what Ze already emitted.
 
 ## Gotchas
 
-- **`cacheScope: "public"` is made hard to reach rather than merely discouraged.**
-  There is no `cacheScopePublic` constant, so emitting it requires typing a bare
-  literal into a surface a test reads back over HTTP. A comment saying "do not"
-  would not have survived a future refactor; the absence of the constant does.
-- **`ttlMs` means two different things and the invariant was stated wrongly.**
-  `CreateTaskResult` legitimately carries `ttlMs` and `pollIntervalMs` -- those
-  are the tasks extension's *retention* fields -- while a caching hint is the
-  `(ttlMs, cacheScope)` **pair**. The code was right; `caching.go`'s comment and
-  its test both claimed `tools/call` carries no hints "in either result shape",
-  which would have led a future reader to "fix" the task result by deleting a
-  required field. Corrected with an explicit discriminator: no `cacheScope`
+- **`cacheScope: "public"` is hard to reach, not merely discouraged.** There is
+  no `cacheScopePublic` constant, so a bare literal must be typed into a surface
+  that a test reads over HTTP. A comment that says "do not" would not have
+  survived a future refactor. The absence of the constant does survive.
+- **`ttlMs` means two different things, and the invariant was stated wrongly.**
+  `CreateTaskResult` legitimately carries `ttlMs` and `pollIntervalMs`, which are
+  the tasks extension's *retention* fields. A caching hint is the
+  `(ttlMs, cacheScope)` **pair**. The code was right, but `caching.go`'s comment
+  and its test both claimed `tools/call` carries no hints "in either result
+  shape". That claim would have led a future reader to "fix" the task result and
+  delete a required field. An explicit discriminator corrects it: no `cacheScope`
   means it is not a caching hint.
 - **Determinism was already safe, and the reason is worth keeping.**
-  `groupCommands` builds from maps but sorts on `prefix`, which is a map key and
-  therefore unique -- a total order, so the non-stable `sort.Slice` cannot bite.
-  No change was needed; tests were added to hold the line, since the property
-  depends on an invariant a future edit could break silently.
+  `groupCommands` builds from maps but sorts on `prefix`. A `prefix` is a map key
+  and is therefore unique, so the sort has a total order and the non-stable
+  `sort.Slice` is safe. No change was needed. Tests were added anyway, because
+  the property depends on an invariant that a future edit can break in silence.
 - **A guard that derives from a hand-written list guards nothing.**
   `TestCacheableMethodsMatchSpecification` claimed to catch a new cacheable
-  method landing in the dispatch switch without hints, but derived its method set
-  from a hand-maintained table rather than from the switch. Proven vacuous by
-  adding two methods to the switch and watching it pass. It now parses the
-  dispatch switch from source, and five other tests that hung off the same
-  un-derived list are gated with it.
+  method that reaches the dispatch switch with no hints. But it derived its
+  method set from a hand-maintained table rather than from the switch. Two extra
+  methods were added to the switch, the test still passed, and that proved it
+  vacuous. It now parses the dispatch switch from source, and five other tests
+  that read the same un-derived list are gated with it.
 - **An assertion for the wire must compare the wire.** The tools-order test
-  compared tool *names*, while the AC asks for a byte-identical `tools` array
-  including every enum and description -- the thing prompt-cache hits actually
-  depend on. It now compares raw bytes and reports a SHA-256 prefix, so the
-  comparison cannot silently stop happening.
+  compared tool *names*. But the AC asks for a byte-identical `tools` array with
+  every enum and description, and that is what a prompt-cache hit depends on. It
+  now compares raw bytes and reports a SHA-256 prefix, so the comparison cannot
+  stop in silence.
 
 ## Files
 

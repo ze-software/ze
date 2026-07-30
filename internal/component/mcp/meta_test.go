@@ -123,11 +123,11 @@ func TestParseRequestMeta(t *testing.T) {
 			// Neither member declares anything this server gates on.
 			// `resources` is a ServerCapabilities member, not a
 			// ClientCapabilities one. And the bare `tasks` member is the
-			// 2025-11-25 core-protocol spelling: MCP 2026-07-28 moved tasks
+			// 2025-11-25 core-protocol spelling. MCP 2026-07-28 moved tasks
 			// onto the io.modelcontextprotocol/tasks EXTENSION, so task support
-			// is declared under `extensions` and nowhere else. Honoring the
-			// stale spelling would push an unsolicited task handle at a legacy
-			// client that never agreed to receive one (D-1).
+			// is declared under `extensions` and nowhere else. A server that
+			// honored the stale spelling would push an unsolicited task handle
+			// at a legacy client that never agreed to receive one (D-1).
 			name:   "full, with two capabilities this server does not gate on",
 			params: `{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"c","version":"1.2"},"io.modelcontextprotocol/clientCapabilities":{"resources":{},"tasks":{}}}}`,
 			want: requestMeta{
@@ -179,10 +179,10 @@ func TestParseRequestMeta(t *testing.T) {
 }
 
 // test-relax: the `zero.Resources` assertion is replaced, not dropped. Its
-// subject -- the resources CLIENT-capability gate -- was removed outright:
+// subject, the resources CLIENT-capability gate, was removed outright.
 // `resources` is a ServerCapabilities member and no conformant client can
-// declare it, so gating on it refused every conformant caller. The replacement
-// below asserts the removal did not turn into a silent re-declaration
+// declare it, so the gate refused every conformant caller. The replacement
+// below asserts that the removal did not turn into a silent re-declaration
 // elsewhere, and resources_test.go asserts the served behavior end to end.
 //
 // VALIDATES: the zero clientCapabilities denies every gated capability, and a

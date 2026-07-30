@@ -14,9 +14,9 @@ import (
 )
 
 // unwindFailureBound is how long TestDispatchRunsUnderTheRequestContext waits
-// before declaring that a canceled context never reached the dispatcher. It is
-// a failure detector, not a timing assumption: a correct build answers the
-// instant cancel() lands, so the bound is only consumed by a broken one.
+// before it declares that a canceled context never reached the dispatcher. It
+// is a failure detector, not a timing assumption. A correct build answers the
+// instant cancel() lands, so only a broken build consumes the bound.
 const unwindFailureBound = 10 * time.Second
 
 // test-relax: TestToolProviderInterface and
@@ -325,10 +325,9 @@ func TestAllToolsWithCommandLister(t *testing.T) {
 // It restores the coverage of TestZeExecute_MissingCommandNoCapability, which
 // was deleted wholesale with elicit_test.go even though its SUBJECT survived:
 // the `input.Command == ""` guard in toolHandlers["ze_execute"] is still there.
-// Only the guard's context changed -- the pre-cutover code could ask the client
-// for a command over the server-initiated request frame, and MCP 2026-07-28
-// removed that frame, so failing with the argument named is the only answer
-// left.
+// Only the guard's context changed. The pre-cutover code asked the client for a
+// command over the server-initiated request frame, and MCP 2026-07-28 removed
+// that frame. A failure that names the argument is the only answer left.
 //
 // VALIDATES: ze_execute with an empty `command` returns isError with "missing
 // required argument", and dispatches nothing.
@@ -372,13 +371,15 @@ func TestExecuteWithoutCommandFailsClosed(t *testing.T) {
 // field.
 //
 // server.ctx was written at both construction sites (callTool for a tools/call,
-// createTask for a task worker) and read NOWHERE: the two dispatch sites passed
-// context.Background(). Two documented mechanisms were inert as a result. A task
-// worker's execution deadline could cancel a context nothing observed, so
-// "a well-behaved dispatch that selects on ctx.Done() unwinds on its own"
-// (tasks.go, Create) was false and only the registry-side backstop worked, with
-// the goroutine leaking unconditionally. And a client disconnect could not
-// unblock a handler, which MCP 2026-07-28 makes the cancellation signal.
+// createTask for a task worker) and read NOWHERE. The two dispatch sites passed
+// context.Background(). Two documented mechanisms were inert as a result.
+//
+// First, a task worker's execution deadline canceled a context that nothing
+// observed. So "a well-behaved dispatch that selects on ctx.Done() unwinds on
+// its own" (tasks.go, Create) was false, only the registry-side backstop
+// worked, and the goroutine leaked unconditionally. Second, a client disconnect
+// did not unblock a handler, and MCP 2026-07-28 names that disconnect the
+// cancellation signal.
 //
 // VALIDATES: both dispatch paths -- the handcrafted ze_execute handler and
 // (*server).run, which every generated tool and therefore every task takes --
@@ -389,9 +390,8 @@ func TestExecuteWithoutCommandFailsClosed(t *testing.T) {
 // again. A dispatcher that never returns is what this test would then hang on.
 func TestDispatchRunsUnderTheRequestContext(t *testing.T) {
 	// blockingDispatch waits for its context and reports how it ended. A
-	// dispatcher that ignored the passed context would never return here, so the
-	// test fails by timing out rather than by asserting a proxy for the
-	// behavior.
+	// dispatcher that ignored the passed context would never return here. The
+	// test therefore fails on a timeout rather than on a proxy assertion.
 	blockingDispatch := func(ctx context.Context, _ plugin.CallerIdentity, _ string) (*plugin.Response, error) {
 		<-ctx.Done()
 		return nil, ctx.Err()
@@ -435,11 +435,11 @@ func TestDispatchRunsUnderTheRequestContext(t *testing.T) {
 						result["isError"], result)
 				}
 			case <-time.After(unwindFailureBound):
-				// Not a timing assumption: a correct build returns on the line
-				// above the instant cancel() lands, so this arm is only ever
-				// reached when the context genuinely did not reach the
-				// dispatcher. It exists so the mutation fails in seconds instead
-				// of deadlocking the package.
+				// Not a timing assumption. A correct build returns on the line
+				// above the instant cancel() lands. This arm is therefore
+				// reached only when the context did not reach the dispatcher. It
+				// exists so the mutation fails in seconds instead of a deadlock
+				// of the package.
 				t.Fatal("dispatch did not unwind after its context was canceled: the runner's ctx never reached the dispatcher")
 			}
 		})
@@ -499,12 +499,12 @@ func TestZeReferenceTool(t *testing.T) {
 // content.
 //
 // test-relax: the three tests below each lost a two-line `initialize` guard
-// (`if status != http.StatusOK || sid == ""`). Those asserted that the
-// handshake SETUP step succeeded, not any behavior under test; MCP 2026-07-28
+// (`if status != http.StatusOK || sid == ""`). Those guards asserted that the
+// handshake SETUP step succeeded, not any behavior under test. MCP 2026-07-28
 // removed the handshake, so there is no longer a setup step to guard. Each
-// test's real assertion -- on the dispatched command string and the framed
-// result -- is unchanged, and the single-POST form now exercises header and
-// _meta validation on the way in, which the handshake form did not.
+// test's real assertion is unchanged: the dispatched command string and the
+// framed result. And the single-POST form now exercises header and _meta
+// validation on the way in, which the handshake form did not.
 func TestCallToolGeneratedViaHTTP(t *testing.T) {
 	var dispatched string
 	hs, cleanup := newTestStreamable(t, StreamableConfig{
@@ -1203,10 +1203,10 @@ func TestPeerPropertyOnlyWhereUsable(t *testing.T) {
 // model becoming a promotion rule under the server-directed one. Required-wins
 // would auto-task an action whose YANG explicitly annotated it forbidden.
 //
-// The mixed case is the whole point. No group mixes levels today -- the
-// forbidden rib actions sit under `clear`/`request` while the required one sits
-// under `show`, so they land in different tools -- which is exactly why the
-// guard has to be tested rather than observed.
+// The mixed case is the whole point. No group mixes levels today. The forbidden
+// rib actions sit under `clear`/`request` while the required one sits under
+// `show`, so they land in different tools. That is exactly why the guard has to
+// be tested rather than observed.
 func TestGroupTaskSupportForbiddenWins(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -1294,7 +1294,7 @@ func TestTaskEligibilityFromAnnotation(t *testing.T) {
 				Commands: func() []CommandInfo {
 					return []CommandInfo{{Name: "probe cmd", Help: "Probe", TaskSupport: tc.level}}
 				},
-				// A dispatcher is required, not optional scaffolding: the
+				// A dispatcher is required, not optional scaffolding. The
 				// `required` case launches a real worker goroutine, and a nil
 				// dispatch would panic there rather than inside the request.
 				Dispatch: func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {

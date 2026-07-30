@@ -13,9 +13,9 @@ import (
 // "Servers MUST include caching hints on results with resultType: "complete"
 // returned by the following operations".
 //
-// Written out here rather than derived from cacheTTLByMethod so the two can
-// disagree, which is the whole point: the table is Ze's answer and this is the
-// question.
+// Written out here rather than derived from cacheTTLByMethod, so that the two
+// can disagree. That disagreement is the whole point: the table is Ze's answer
+// and this list is the question.
 var specCacheableOperations = []string{
 	"server/discover",
 	"tools/list",
@@ -31,10 +31,10 @@ var specCacheableOperations = []string{
 // VALIDATES: every method this server dispatches AND the caching page lists has
 // a cacheTTLByMethod entry, and every cacheTTLByMethod entry names a method
 // this server both dispatches and the caching page lists.
-// PREVENTS: a new cacheable method landing in the dispatch switch with no
-// hints (a MUST breached silently), and an entry being added for a method the
-// specification does not make cacheable -- notably tools/call, where the fields
-// would be a conformance error rather than a harmless extra.
+// PREVENTS: a new cacheable method that lands in the dispatch switch with no
+// hints, which breaches a MUST silently. It also prevents an entry for a method
+// that the specification does not make cacheable. tools/call is the example:
+// there the two fields would be a conformance error, not a harmless extra.
 func TestCacheableMethodsMatchSpecification(t *testing.T) {
 	dispatched := dispatchedMethods(t)
 
@@ -58,11 +58,11 @@ func TestCacheableMethodsMatchSpecification(t *testing.T) {
 		}
 	}
 
-	// tools/call is the specific trap: it IS dispatched, it IS the busiest
-	// method, and no shape of its result may carry a CACHING hint. The
-	// CreateTaskResult shape does carry a ttlMs, but that is the tasks
-	// extension's retention field and it never comes with a cacheScope; only a
-	// cacheTTLByMethod entry can produce the pair. See the discriminator table
+	// tools/call is the specific trap. It IS dispatched, it IS the busiest
+	// method, and no shape of its result carries a CACHING hint. The
+	// CreateTaskResult shape does carry a ttlMs, but that retention field
+	// belongs to the tasks extension and it never comes with a cacheScope. Only
+	// a cacheTTLByMethod entry can produce the pair. See the discriminator table
 	// in caching.go and TestToolsCallCarriesNoCacheHints.
 	if _, hinted := cacheTTLByMethod[methodToolsCall]; hinted {
 		t.Errorf("%s has a cache-hint entry; interim input_required results carry no hints and MRTR retries MUST NOT be cached", methodToolsCall)
@@ -73,13 +73,15 @@ func TestCacheableMethodsMatchSpecification(t *testing.T) {
 // result rather than method-not-found.
 //
 // Read out of the dispatch switch itself (dispatch_surface_test.go), minus the
-// cases that answer with an error. It used to be derived from
-// resultBearingMethods, a hand-written table, which made the PREVENTS above a
-// promise this test could not keep: a cacheable method added to the switch and
-// not to the table came back implemented=false, hinted=false, and neither arm of
-// the comparison fired. The table is now itself gated against the switch by
-// TestResultBearingMethodsMatchDispatchSwitch, and this reads the switch
-// directly so the caching verdict does not depend on that gate having run.
+// cases that answer with an error. This set was once derived from
+// resultBearingMethods, a hand-written table, and that made the PREVENTS above
+// a promise this test did not keep. A cacheable method added to the switch and
+// not to the table came back implemented=false and hinted=false, so neither arm
+// of the comparison fired.
+//
+// TestResultBearingMethodsMatchDispatchSwitch now gates that table against the
+// switch. This test reads the switch directly, so the caching verdict does not
+// depend on a previous run of that gate.
 func dispatchedMethods(t *testing.T) map[string]struct{} {
 	t.Helper()
 	out := dispatchSwitchMethods(t)
@@ -93,10 +95,11 @@ func dispatchedMethods(t *testing.T) map[string]struct{} {
 //
 // VALIDATES: every ttlMs this server can emit is an integer >= 0, and the two
 // freshness constants are exactly the values the design fixed.
-// PREVENTS: a negative ttlMs (MCP 2026-07-28 server/utilities/caching: "Servers
-// MUST provide a ttlMs value that is >= 0"), a 0 that would make every result
-// immediately stale and defeat SEP-2549 entirely, and an edit silently pinning
-// a client for longer than the longest declared class.
+// PREVENTS: three faults. The first is a negative ttlMs, which MCP 2026-07-28
+// server/utilities/caching forbids: "Servers MUST provide a ttlMs value that is
+// >= 0". The second is a 0, which would make every result immediately stale and
+// defeat SEP-2549. The third is an edit that silently pins a client for longer
+// than the longest declared class.
 func TestCacheTTLConstantsAreInRange(t *testing.T) {
 	if ttlRegistryDerivedMs != 60000 {
 		t.Errorf("ttlRegistryDerivedMs = %d, want 60000 (the documented 60 s reload window)", ttlRegistryDerivedMs)
@@ -175,23 +178,23 @@ func TestCacheableResultsCarryHints(t *testing.T) {
 // TestNonCacheableResultsCarryNoHints covers AC-15.
 //
 // VALIDATES: the COMPLETE and the INPUT_REQUIRED tools/call result, and every
-// tasks/* result, carry neither ttlMs nor cacheScope. The task-shaped tools/call
-// result is a separate case with a separate invariant and is covered by
-// TestToolsCallCarriesNoCacheHints (streamable_test.go): it legitimately carries
-// the tasks extension's own ttlMs and pollIntervalMs, and what must be absent
-// there is cacheScope.
+// tasks/* result, carry neither ttlMs nor cacheScope. The task-shaped
+// tools/call result is a separate case with a separate invariant, and
+// TestToolsCallCarriesNoCacheHints (streamable_test.go) covers it. That result
+// legitimately carries the tasks extension's own ttlMs and pollIntervalMs, and
+// cacheScope is the field that must be absent there.
 //
-// The input_required subtest was added 2026-07-30: AC-15 names both shapes and
+// The input_required subtest was added 2026-07-30. AC-15 names both shapes, and
 // only `complete` was driven, because resultBearingMethods calls ze_execute WITH
-// a command. resultTypeInputRequired appeared nowhere in this file, so the half
-// of the AC that the caching page states most explicitly -- an interim result
-// "is not cacheable and carries no caching hints" -- was asserted by nothing at
-// the wire level.
-// PREVENTS: the hints being folded into the shared ok() responder "for
-// consistency". tools/call is absent from the caching page's operation list,
-// interim input_required results "are not cacheable and carry no caching
-// hints", and MRTR retries "MUST NOT be cached" -- so a hint here is a
-// conformance error, not a harmless extra field.
+// a command. resultTypeInputRequired appeared nowhere in this file. Nothing at
+// the wire level therefore asserted the half of the AC that the caching page
+// states most explicitly: an interim result "is not cacheable and carries no
+// caching hints".
+// PREVENTS: a fold of the hints into the shared ok() responder for consistency.
+// tools/call is absent from the caching page's operation list. Interim
+// input_required results "are not cacheable and carry no caching hints", and
+// MRTR retries "MUST NOT be cached". A hint here is therefore a conformance
+// error, not a harmless extra field.
 func TestNonCacheableResultsCarryNoHints(t *testing.T) {
 	// taskCapableCommands supplies the `required` command createTestTask needs:
 	// under the server-directed model the annotation is the only thing that
@@ -220,11 +223,11 @@ func TestNonCacheableResultsCarryNoHints(t *testing.T) {
 		})
 	}
 
-	// The other half of AC-15: the INTERIM tools/call shape. ze_execute called
-	// with no command by a client declaring form-mode elicitation is the one
-	// input_required result this server can produce, and the caching page is
-	// explicit that such a result "is not cacheable and carries no caching
-	// hints". Driven over the same transport rather than through stampCacheHints
+	// The other half of AC-15: the INTERIM tools/call shape. A client that
+	// declares form-mode elicitation calls ze_execute with no command, and that
+	// is the one input_required result this server can produce. The caching page
+	// is explicit that such a result "is not cacheable and carries no caching
+	// hints". This subtest drives the same transport rather than stampCacheHints
 	// directly, so it covers the whole dispatch path the way the complete-shape
 	// rows above do.
 	t.Run(resultTypeInputRequired, func(t *testing.T) {
@@ -248,8 +251,8 @@ func TestNonCacheableResultsCarryNoHints(t *testing.T) {
 				t.Errorf("%s = %v on an input_required result; an interim result is not cacheable", key, raw)
 			}
 		}
-		// Nothing nested may smuggle one in either: the inputRequests entry is a
-		// server-built object and would carry a stamped hint with it.
+		// Nothing nested carries one either. The inputRequests entry is a
+		// server-built object, and it would carry a stamped hint with it.
 		encoded, err := json.Marshal(result)
 		if err != nil {
 			t.Fatalf("marshal result: %v", err)
@@ -267,10 +270,10 @@ func TestNonCacheableResultsCarryNoHints(t *testing.T) {
 // VALIDATES: no surface this server dispatches emits cacheScope "public", read
 // back off the wire rather than off the constant.
 // PREVENTS: R-1. The caching page warns that a "public" result from an
-// authenticated endpoint "may be shared outside of the initial requests
-// authorization context", so a single "public" here would let a shared gateway
-// serve one principal's tool list to another the moment the tool surface
-// becomes scope-filtered.
+// authenticated endpoint can be "shared outside of the initial requests
+// authorization context". A single "public" here would then let a shared
+// gateway serve one principal's tool list to another, at the moment the tool
+// surface becomes scope-filtered.
 func TestCacheScopeIsNeverPublic(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{Commands: taskCapableCommands})
 	defer cleanup()
@@ -288,7 +291,7 @@ func TestCacheScopeIsNeverPublic(t *testing.T) {
 				t.Errorf("%s = %v, want %q; a non-private scope may be shared across authorization contexts",
 					resultKeyCacheScope, scope, cacheScopePrivate)
 			}
-			// Nothing nested may smuggle one in either.
+			// Nothing nested carries one either.
 			encoded, err := json.Marshal(result)
 			if err != nil {
 				t.Fatalf("marshal result: %v", err)
@@ -302,10 +305,9 @@ func TestCacheScopeIsNeverPublic(t *testing.T) {
 
 // VALIDATES: an error response carries no cache hints even when the method is a
 // cacheable one.
-// PREVENTS: caching a failure. The caching page puts the requirement on
-// results; an error carries no result object, and a client that cached a
-// resources/read failure for an hour would keep serving it after the cause was
-// fixed.
+// PREVENTS: a cached failure. The caching page puts the requirement on results.
+// An error carries no result object. A client that cached a resources/read
+// failure for an hour would keep serving it after the cause was fixed.
 func TestCacheHintsAbsentFromErrorResponses(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{})
 	defer cleanup()
@@ -329,14 +331,15 @@ func TestCacheHintsAbsentFromErrorResponses(t *testing.T) {
 	}
 }
 
-// VALIDATES: stampCacheHints leaves a handler's own _meta and payload keys
-// untouched while adding the two fields.
-// PREVENTS: the stamp overwriting a result key, which a map write would do
-// silently.
+// VALIDATES: stampCacheHints adds the two fields and leaves a handler's own
+// _meta and payload keys untouched.
+// PREVENTS: an overwrite of a result key by the stamp, which a map write would
+// do silently.
 //
-// The fixture carries resultType "complete" because that is what ok() -- the
-// only constructor of a successful result -- always produces, and because
-// stampCacheHints now gates on it (see TestStampCacheHintsSkipsInterimResults).
+// The fixture carries resultType "complete" for two reasons. First, ok() is the
+// only constructor of a successful result, and it always produces that value.
+// Second, stampCacheHints now gates on it (see
+// TestStampCacheHintsSkipsInterimResults).
 func TestStampCacheHintsPreservesPayload(t *testing.T) {
 	resp := &response{
 		JSONRPC: "2.0",
@@ -366,17 +369,17 @@ func TestStampCacheHintsPreservesPayload(t *testing.T) {
 // TestStampCacheHintsSkipsInterimResults closes the one-line hole a review
 // found in the stamp's decision procedure.
 //
-// The quoted MUST is scoped to results "with resultType: \"complete\"", and the
-// same page says an interim input_required result "is not cacheable and carries
-// no caching hints". The stamp keyed solely on method membership, which cannot
-// express that: resources/read is in cacheTTLByMethod AND in
-// permitsInputRequired (mrtr.go), so the day resourcesRead learns to ask for
-// input, the table would have stamped caching hints onto a prompt.
+// The quoted MUST is scoped to results "with resultType: \"complete\"". The
+// same page says that an interim input_required result "is not cacheable and
+// carries no caching hints". The stamp keyed solely on method membership, and
+// method membership cannot express that scope. resources/read is in
+// cacheTTLByMethod AND in permitsInputRequired (mrtr.go). The day resourcesRead
+// learns to ask for input, the table would stamp caching hints onto a prompt.
 //
 // VALIDATES: a result whose resultType is not "complete" gets neither field,
 // even on a method the caching table names.
-// PREVENTS: the resultType check being removed as unreachable. It is
-// unreachable TODAY, which is what makes it free; the pairing of a cacheable
+// PREVENTS: removal of the resultType check as unreachable. The check is
+// unreachable TODAY, which is what makes it free. The pairing of a cacheable
 // method with an input-required-permitted method is what makes it necessary.
 func TestStampCacheHintsSkipsInterimResults(t *testing.T) {
 	// The pairing that makes this reachable at all. If it ever stops holding the

@@ -104,10 +104,9 @@ func TestHeaderMismatchRejected(t *testing.T) {
 		},
 		{
 			// Header validation is a TRANSPORT guard and runs before dispatch,
-			// so it wins even when the body is otherwise perfect: the tasks
-			// capability is declared here, and the answer is still -32020 (which
-			// carries no data object) rather than anything the handler would
-			// have produced.
+			// so it wins even when the body is otherwise perfect. The tasks
+			// capability is declared here, and the answer is still -32020, which
+			// carries no data object. The handler produced nothing.
 			name: "Mcp-Method disagrees on a tasks request that declared the capability",
 			body: `{"jsonrpc":"2.0","id":1,"method":"tasks/get","params":{"taskId":"nonexistent","_meta":` + metaBlock(ProtocolVersion, capsTasks) + `}}`,
 			headers: map[string]string{
@@ -150,8 +149,8 @@ func TestHeaderMismatchRejected(t *testing.T) {
 			}
 			// A -32020 message must not reflect unvalidated header bytes back
 			// to the client. Mcp-Name and MCP-Protocol-Version carry
-			// attacker-controlled values; Mcp-Method is validated against the
-			// body before any of them, and the method vocabulary appears in the
+			// attacker-controlled values. Mcp-Method is validated against the
+			// body before any of them. The method vocabulary appears in the
 			// messages as documentation of the rule, not as an echo.
 			for _, header := range []string{"Mcp-Name", "MCP-Protocol-Version"} {
 				v := tt.headers[header]
@@ -170,26 +169,28 @@ func TestHeaderMismatchRejected(t *testing.T) {
 // spec-mcp2026-2-mrtr AC-3: "no client JSON-RPC response is ever accepted".
 //
 // Nothing tested it. The five TestStreamable_JSONRPCResponse* tests that drove
-// the old intake path went with reply_sink_test.go in Phase 1, and the property
-// survived only as arithmetic: a response frame has no `method`, and the
-// Mcp-Method header "must repeat the body's method", so no header value could
-// match. Correct, but unnamed and unasserted -- a later change to header
-// validation (deriving the body method from the header, defaulting a missing
-// one) could have reopened the intake path with every test still green.
+// the old intake path went with reply_sink_test.go in Phase 1. The property
+// then survived only as arithmetic: a response frame has no `method`, and the
+// Mcp-Method header "must repeat the body's method", so no header value
+// matched. That is correct, but it was unnamed and unasserted. A later change
+// to header validation would have reopened the intake path with every test
+// still green. Two examples are a body method derived from the header, and a
+// default for a missing one.
 //
 // The refusal is now explicit (errBodyCarriesNoMethod, headers.go) and this
 // pins it from the outside.
 //
-// VALIDATES: a POST whose body is a JSON-RPC response -- result-shaped or
-// error-shaped, with a numeric or a string id -- is answered HTTP 400 and
-// -32020, whatever headers accompany it (conformant for a real method, absent
-// Mcp-Method, or an Mcp-Method naming the frame's own correlation target); the
-// answer carries no `result`, so nothing was dispatched; and it is never the
-// 202 Accepted that would mean "accepted, nothing to say".
-// PREVENTS: a client-to-server response frame becoming servable again. This
-// server writes no JSON-RPC request to a client, so any response it accepted
-// would be correlated against nothing -- the exact half-open channel MCP
-// 2026-07-28 removed when MRTR replaced server-initiated elicitation.
+// VALIDATES: a POST carrying a JSON-RPC response is answered 400 and -32020.
+// The body can be result-shaped or error-shaped, with a numeric or a string id.
+// The answer is the same whatever headers accompany it. Those headers can be
+// conformant for a real method, an absent Mcp-Method, or an Mcp-Method that
+// names the frame's own correlation target. The answer carries no `result`, so
+// nothing was dispatched. And the answer is never the 202 Accepted that would
+// mean "accepted, nothing to say".
+// PREVENTS: a servable client-to-server response frame. This server writes no
+// JSON-RPC request to a client, so any response it accepted would correlate
+// against nothing. That is the exact half-open channel MCP 2026-07-28 removed
+// when MRTR replaced server-initiated elicitation.
 func TestClientJSONRPCResponseIsRefused(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{})
 	defer cleanup()
@@ -223,8 +224,8 @@ func TestClientJSONRPCResponseIsRefused(t *testing.T) {
 		},
 	}
 
-	// Three header shapes a client might pair with such a frame. None may
-	// rescue it: the refusal is a property of the BODY.
+	// Three header shapes a client can pair with such a frame. None of them
+	// rescues it, because the refusal is a property of the BODY.
 	headerShapes := []struct {
 		name    string
 		headers map[string]string
@@ -258,10 +259,10 @@ func TestClientJSONRPCResponseIsRefused(t *testing.T) {
 			t.Run(frame.name+"/"+shape.name, func(t *testing.T) {
 				status, parsed := postRaw(t, hs, frame.body, shape.headers)
 
-				// 202 is the acknowledgement a notification earns. A response
-				// frame reaching it would mean the transport accepted the frame
-				// and simply had nothing to say about it, which is the failure
-				// this test exists to catch, not a pass.
+				// 202 is the acknowledgment a notification earns. A response
+				// frame that reached it would mean the transport accepted the
+				// frame and had nothing to say about it. That outcome is the
+				// failure this test exists to catch, not a pass.
 				if status == http.StatusAccepted {
 					t.Fatalf("a client JSON-RPC response was ACCEPTED with 202 (body %v)", parsed)
 				}
@@ -453,9 +454,9 @@ func TestMcpParamHeaderInvalidCharacters(t *testing.T) {
 // VALIDATES: a legacy client's header-less `initialize` POST is rejected with
 // HTTP 400 + -32020 whose message names the protocol version this server
 // supports.
-// PREVENTS: answering a legacy client with a bare "missing header" that gives
-// it nothing to act on -- it has no fall-forward mechanism, so this message
-// may be the only diagnostic it can surface.
+// PREVENTS: an answer to a legacy client that is a bare "missing header" and
+// gives it nothing to act on. A legacy client has no fall-forward mechanism, so
+// this message can be the only diagnostic it surfaces.
 func TestLegacyInitializeNamesSupportedVersion(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{})
 	defer cleanup()

@@ -79,10 +79,11 @@ All without parsing text output -- each tool returns structured data.
 ## Protocol (2026-07-28)
 
 Ze speaks MCP protocol revision `2026-07-28` and no other. The profile is
-stateless: every message is its own HTTP POST to `/mcp`, carrying its own
-protocol version, client capabilities and credential in three standard headers
-plus a `_meta` block inside `params`. There is no `initialize` handshake, no
-session, no `Mcp-Session-Id`, no GET stream, and no server-initiated request.
+stateless, and every message is its own HTTP POST to `/mcp`. Each POST carries
+its own protocol version, client capabilities and credential. Three standard
+headers and a `_meta` block inside `params` hold them. There is no `initialize`
+handshake, no session, no `Mcp-Session-Id`, no GET stream, and no
+server-initiated request.
 
 <!-- source: internal/component/mcp/streamable.go -- ProtocolVersion, supportedProtocolVersions, handlePOST -->
 <!-- source: internal/component/mcp/meta.go -- parseRequestMeta -->
@@ -93,15 +94,15 @@ Two consequences are worth stating plainly:
   the very next call rather than at session expiry, and there is no long-lived
   identifier that acts as a bearer credential in its own right.
   <!-- source: internal/component/mcp/streamable.go -- authenticate -->
-- **Elicitation is inverted, not gone.** The revision forbids a server from
-  sending an independent JSON-RPC request on any stream, so a prompt can no
-  longer be pushed. It is now RETURNED: `ze_execute` called without a `command`
-  answers `resultType: "input_required"` with an `inputRequests` map carrying an
-  `elicitation/create` request, and the client supplies the value by retrying
-  the original call with `inputResponses`. Ze attaches no `requestState`, so
-  nothing is held between the two requests and each is authenticated on its own.
-  A client that did not declare **form-mode** elicitation is never prompted; it
-  gets the missing-argument error instead.
+- **Elicitation is inverted, not gone.** The revision forbids a server to send
+  an independent JSON-RPC request on any stream, so a server can no longer push
+  a prompt. The server RETURNS the prompt instead: `ze_execute` called without a
+  `command` answers `resultType: "input_required"` with an `inputRequests` map,
+  and that map carries an `elicitation/create` request. The client then retries
+  the original call with `inputResponses`, which carries the value. Ze attaches
+  no `requestState`, so it holds nothing between the two requests and
+  authenticates each one on its own. A client that did not declare **form-mode**
+  elicitation is never prompted, and it gets the missing-argument error instead.
   See [MCP Elicitation](../guide/mcp/elicitation.md) for the full round trip.
   <!-- source: internal/component/mcp/mrtr.go -- inputRequiredForMissingCommand, elicitationFormSupported -->
   <!-- source: internal/component/mcp/tools.go -- ze_execute handler -->
@@ -110,27 +111,29 @@ Capability discovery is a single optional call: `server/discover` returns the
 supported versions, the server's capabilities, and natural-language
 instructions. Its `capabilities.extensions` names two extensions, each with an
 empty settings object: `io.modelcontextprotocol/ui`, the MCP Apps extension, and
-`io.modelcontextprotocol/tasks`, the Tasks extension. The second is what makes
-the `task` result type interpretable, since a client may reject a `resultType`
-no advertised extension defines.
+`io.modelcontextprotocol/tasks`, the Tasks extension. The second extension is
+what makes the `task` result type interpretable, because a client can reject a
+`resultType` that no advertised extension defines.
 
 <!-- source: internal/component/mcp/discover.go -- serverDiscover, serverCapabilities -->
 
 ### Cacheable results
 
 `server/discover`, `tools/list`, `resources/list` and `resources/read` return
-`ttlMs` and `cacheScope`, so a client can hold a result rather than re-fetching
-it every turn. The tool inventory and the discovery result are fresh for 60
-seconds; the embedded UI assets for an hour. Every one of them is scoped
-`private`, so a shared gateway may never serve one caller's response to another.
+`ttlMs` and `cacheScope`, so a client can hold a result and does not re-fetch it
+every turn. The tool inventory and the discovery result are fresh for 60
+seconds. The embedded UI assets are fresh for one hour. Every one of them is
+scoped `private`, so a shared gateway is not permitted to serve one caller's
+response to another.
 
-`tools/call` and the `tasks/*` methods return no hints; their results are not
+`tools/call` and the `tasks/*` methods return no hints. Their results are not
 cacheable.
 
-Because Ze has no push invalidation, that 60-second TTL is also the window in
-which a client may still offer a command a config reload has removed. Calling
-one returns an error, which is a signal the protocol names as grounds for
-re-fetching early, so the stale entry normally clears after a single failed call.
+Ze has no push invalidation. That 60-second TTL is therefore also the window in
+which a client can still offer a command that a config reload has removed. A
+call to that command returns an error. The protocol names such an error as
+grounds for an early re-fetch, so the stale entry usually clears after one
+failed call.
 
 <!-- source: internal/component/mcp/caching.go -- cacheTTLByMethod, cacheScopePrivate -->
 
@@ -141,23 +144,24 @@ include `_meta.ui`, pointing at a `ui://` asset the host renders in a sandboxed
 panel. That metadata is emitted only when the request declared the
 `io.modelcontextprotocol/ui` extension in a form compatible with the HTML
 bundles Ze serves. A host without MCP Apps support gets the same tool list, the
-same tools and the same behavior, minus the panel metadata; nothing is rejected.
+same tools and the same behavior, minus the panel metadata. Ze rejects nothing.
 
 <!-- source: internal/component/mcp/apps.go -- clientSupportsUIApps, gateUIMeta -->
 
 ## Testing
 
 `ze-test mcp` provides a functional test client with `wait-established`
-synchronization for CI pipelines and a `probe-*` directive family for driving
-deliberately-malformed requests at the conformance surface (header mismatch,
-unsupported version, malformed `_meta`, GET and DELETE).
+synchronization for CI pipelines. It also provides a `probe-*` directive family,
+which drives deliberately-malformed requests at the conformance surface (header
+mismatch, unsupported version, malformed `_meta`, GET and DELETE).
 
 Background execution is driven by `task-call` (an ordinary `tools/call` the
 server must answer with a task handle), its twin `call-sync` (which requires a
 synchronous answer and no taskId), then `task-get`, `task-result`,
 `task-update`, `task-cancel` and `task-wait`. The `--tasks` flag declares the
-`io.modelcontextprotocol/tasks` extension on every request; omitting it is
-itself a test, since an undeclaring client must still be served synchronously.
+`io.modelcontextprotocol/tasks` extension on every request. A run without the
+flag is itself a test, because the server must still serve an undeclaring client
+synchronously.
 
 <!-- source: internal/test/cli/cmd_mcp.go -- taskDirective -->
 

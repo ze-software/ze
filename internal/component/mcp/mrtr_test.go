@@ -13,8 +13,8 @@ import (
 )
 
 // errDispatchShouldNotRun is returned by a dispatcher fake that must never be
-// called. The t.Fatal above it is the real assertion; this exists so the fake
-// does not return a nil error beside a nil response.
+// called. The t.Fatal above it is the real assertion. This error exists so the
+// fake does not return a nil error beside a nil response.
 var errDispatchShouldNotRun = errors.New("dispatch must not run without a command")
 
 // formCaps is the clientCapabilities a client declaring form-mode elicitation
@@ -42,9 +42,9 @@ func TestInputRequiredResultShape(t *testing.T) {
 	if !ok {
 		t.Fatalf("inputRequests is not an object: %#v", result[inputRequestsKey])
 	}
-	// MRTR server requirement 6 is satisfied by inputRequests alone, so exactly
-	// one entry is the minimum AND the maximum this server emits: ze_execute
-	// asks for one value.
+	// inputRequests alone satisfies MRTR server requirement 6. One entry is
+	// therefore the minimum AND the maximum this server emits, because
+	// ze_execute asks for one value.
 	if len(requests) != 1 {
 		t.Fatalf("inputRequests has %d entries, want exactly 1: %#v", len(requests), requests)
 	}
@@ -101,10 +101,10 @@ func TestInputRequiredResultOmitsRequestState(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-4 -- any request carrying a requestState is rejected, and the
-// rejection names the failure class without echoing the supplied bytes.
-// PREVENTS: a silent "treat as absent" path that a future requestState
-// implementation could inherit without meeting MRTR server requirement 5.
+// VALIDATES: AC-4 -- any request that carries a requestState is rejected, and
+// the rejection names the failure class and does not echo the supplied bytes.
+// PREVENTS: a silent "treat as absent" path. A future requestState
+// implementation can inherit that path and still miss MRTR server requirement 5.
 func TestUnsolicitedRequestStateRejected(t *testing.T) {
 	secret := "forged-Zm9yZ2Vk-blob"
 	tests := []struct {
@@ -142,11 +142,11 @@ func TestUnsolicitedRequestStateRejected(t *testing.T) {
 }
 
 // VALIDATES: AC-5 and AC-6 -- the gate is form-mode SUPPORT, not the presence
-// of the elicitation key. An empty object means form only; a url-only client
+// of the elicitation key. An empty object means form only. A url-only client
 // does not support form mode.
-// PREVENTS: sending a form-mode request to a url-only client, which
-// client/elicitation forbids ("Servers MUST NOT send elicitation requests with
-// modes that are not supported by the client").
+// PREVENTS: a form-mode request to a url-only client, which client/elicitation
+// forbids ("Servers MUST NOT send elicitation requests with modes that are not
+// supported by the client").
 func TestElicitCapabilityFormMode(t *testing.T) {
 	tests := []struct {
 		name string
@@ -176,11 +176,11 @@ func TestElicitCapabilityFormMode(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-2, AC-7, AC-8, AC-9 -- an accepted answer yields the value; an
-// absent key re-asks; decline and cancel are terminal; unrecognized keys are
+// VALIDATES: AC-2, AC-7, AC-8, AC-9 -- an accepted answer yields the value. An
+// absent key re-asks. Decline and cancel are terminal. Unrecognized keys are
 // ignored.
-// PREVENTS: a decline being looped as though it were an omission, and an
-// unexpected extra key failing a retry that carried the answer.
+// PREVENTS: a decline that loops as though it were an omission, and an
+// unexpected extra key that fails a retry which carried the answer.
 func TestResolveCommandFromInputResponses(t *testing.T) {
 	accept := func(v string) map[string]any {
 		return map[string]any{elicitKeyAction: elicitActionAccept, elicitKeyContent: map[string]any{elicitFieldCommand: v}}
@@ -238,9 +238,9 @@ func TestInputRequiredOnlyOnSupportedMethods(t *testing.T) {
 		methodServerDiscover, methodToolsList, methodTasksGet,
 		methodTasksUpdate, methodTasksCancel, methodResourcesList, initializeMethod,
 		// The two methods MCP 2026-07-28 removed. They are no longer dispatched,
-		// so an interim result must be refused on them for the additional reason
-		// that they do not exist -- kept in the list so a reinstatement cannot
-		// quietly gain permission it never had.
+		// so an interim result must be refused on them for a second reason: they
+		// do not exist. They stay in the list so a reinstatement cannot quietly
+		// gain permission it never had.
 		"tasks/list", "tasks/result",
 		"notifications/progress", "",
 	}
@@ -291,8 +291,8 @@ func TestInputRequiredOnlyOnSupportedMethods(t *testing.T) {
 // credentials" being satisfied only by inspection.
 func TestEmittableElicitationsRequestNoSecrets(t *testing.T) {
 	// The complete emittable set: every production caller of newElicitRequest.
-	// One member today; a second one added without a row here fails the length
-	// assertion below rather than slipping past the prohibition.
+	// There is one member today. A second member added without a row here fails
+	// the length assertion below rather than passing the prohibition unseen.
 	emittable := []func() (map[string]any, error){inputRequiredForMissingCommand}
 	if len(emittable) != 1 {
 		t.Fatalf("emittable set has %d members; add each new one to this table", len(emittable))
@@ -386,10 +386,11 @@ func TestZeExecuteWithoutFormModeReturnsMissingArgument(t *testing.T) {
 }
 
 // VALIDATES: AC-2, AC-8, AC-9 wiring -- an accepted answer on the retry is
-// dispatched; a declined one is a terminal error naming the outcome; extra keys
-// do not disturb either.
-// PREVENTS: the retry being answered with a second prompt (which would loop a
-// user who already answered) or a decline being dispatched as an empty command.
+// dispatched. A declined answer is a terminal error that names the outcome.
+// Extra keys disturb neither case.
+// PREVENTS: a second prompt in answer to the retry, which would loop a user who
+// already answered. It also prevents a dispatch of a decline as an empty
+// command.
 func TestZeExecuteRetryOutcomes(t *testing.T) {
 	var dispatched string
 	newRunner := func(responses map[string]any) *server {
@@ -464,7 +465,7 @@ func TestZeExecuteRetryOutcomes(t *testing.T) {
 
 // Client capability literals for the descriptor test below. capsNone
 // (streamable_test.go) is the "declared nothing" form and reads as NO form
-// mode; these two are the declaring shapes, spelled the way a client sends
+// mode. These two are the declaring shapes, spelled the way a client sends
 // them.
 const (
 	capsElicitForm    = `{"elicitation":{}}`
@@ -477,20 +478,22 @@ const (
 // Phase 1 published `"required": ["command"]` on ze_execute unconditionally,
 // when elicitation had been deleted and the argument really was mandatory for
 // everyone. Phase 2 restored elicitation and did not revert the contract. The
-// handler worked -- a form-declaring client that omitted `command` did get
-// resultType "input_required" -- but tools/list told every client the argument
-// was mandatory, so a schema-validating host would never construct the call and
-// a model reading the descriptor would never try. The feature existed and no
-// client could reach it. A behavior the advertised interface forbids does not
-// ship.
+// handler worked, and a form-declaring client that omitted `command` did get
+// resultType "input_required". But tools/list told every client the argument
+// was mandatory.
+//
+// A schema-validating host would therefore never construct the call, and a
+// model that read the descriptor would never try. The feature existed and no
+// client reached it. A behavior the advertised interface forbids does not ship.
 //
 // VALIDATES: the PUBLISHED inputSchema tracks the same capability the handler
-// branches on. A client declaring form-mode elicitation is not told `command`
-// is required; a client that declared none, or url mode only, is.
-// PREVENTS: the descriptor and askForCommand drifting apart again in either
-// direction -- an unconditional `required` (the original defect, which hides
-// the feature), and an unconditional absence (which would promise a prompt to a
-// client this server may not prompt, MRTR server requirement 7).
+// branches on. A client that declares form-mode elicitation is not told that
+// `command` is required. A client that declared none, or url mode only, is.
+// PREVENTS: drift between the descriptor and askForCommand in either direction.
+// The first direction is an unconditional `required`, the original defect,
+// which hides the feature. The second is an unconditional absence, which would
+// promise a prompt to a client this server must not prompt (MRTR server
+// requirement 7).
 func TestExecuteDescriptorMatchesElicitationCapability(t *testing.T) {
 	hs, cleanup := newTestStreamable(t, StreamableConfig{})
 	defer cleanup()
@@ -511,7 +514,7 @@ func TestExecuteDescriptorMatchesElicitationCapability(t *testing.T) {
 			}
 			schema := publishedInputSchema(t, resultOf(t, parsed), toolNameExecute)
 
-			// The property is always advertised; only its obligation moves.
+			// The property is always advertised. Only its obligation moves.
 			properties, ok := schema["properties"].(map[string]any)
 			if !ok {
 				t.Fatalf("inputSchema carries no properties object: %v", schema)
@@ -528,9 +531,9 @@ func TestExecuteDescriptorMatchesElicitationCapability(t *testing.T) {
 		})
 	}
 
-	// The gate must not have mutated the package-level descriptor: it is shared
-	// by every concurrent request, so a write here would leak one client's
-	// capability verdict onto the next.
+	// The gate must not have mutated the package-level descriptor. Every
+	// concurrent request shares that descriptor, so a write here would leak one
+	// client's capability verdict onto the next.
 	for _, tool := range handcraftedTools {
 		if name, _ := tool[toolKeyName].(string); name != toolNameExecute {
 			continue
@@ -542,9 +545,9 @@ func TestExecuteDescriptorMatchesElicitationCapability(t *testing.T) {
 	}
 }
 
-// publishedInputSchema pulls one named tool's inputSchema out of a tools/list
-// result, so the assertion is on what a client actually receives rather than on
-// the package-level literal.
+// publishedInputSchema reads one named tool's inputSchema from a tools/list
+// result. The assertion is therefore on what a client receives, not on the
+// package-level literal.
 func publishedInputSchema(t *testing.T, result map[string]any, name string) map[string]any {
 	t.Helper()
 	tools, ok := result["tools"].([]any)
@@ -569,9 +572,9 @@ func publishedInputSchema(t *testing.T, result map[string]any, name string) map[
 	return nil
 }
 
-// requiredNames reads a JSON Schema `required` array off the wire, tolerating
-// its absence (which is what "nothing is required" looks like) and failing on a
-// shape a client could not read.
+// requiredNames reads a JSON Schema `required` array off the wire. It tolerates
+// an absent array, which is what "nothing is required" looks like. It fails on
+// a shape that a client cannot read.
 func requiredNames(t *testing.T, schema map[string]any) []string {
 	t.Helper()
 	raw, present := schema[schemaKeyRequired]

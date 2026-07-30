@@ -586,9 +586,10 @@ func (r *Runner) httpClientForCheck(chk *httpCheck) *http.Client {
 }
 
 // applyCheckHeaders puts the check's header= keys on the request. It runs AFTER
-// any default Content-Type so an explicit header=Content-Type: ... wins: the first
-// occurrence of a field name replaces whatever is already set, and any repeat of
-// that same name is appended, matching HTTP's multi-value field semantics.
+// any default Content-Type, so an explicit header=Content-Type: ... wins. The
+// first occurrence of a field name replaces whatever is already set. Any repeat
+// of that same name is appended, which matches HTTP's multi-value field
+// semantics.
 func applyCheckHeaders(req *http.Request, headers []httpHeader) {
 	if len(headers) == 0 {
 		return
@@ -613,7 +614,7 @@ func applyCheckHeaders(req *http.Request, headers []httpHeader) {
 
 // executeOneHTTPCheck performs a single HTTP request with retry+backoff.
 // Retries up to 20 times with 200ms intervals for connection-refused errors
-// (server may still be starting). Non-connection errors fail immediately.
+// (the server can still be starting). Non-connection errors fail immediately.
 func (r *Runner) executeOneHTTPCheck(ctx context.Context, client *http.Client, chk *httpCheck, url string) error {
 	// The retry budget is a server-startup readiness window (connection-refused ->
 	// wait -> retry). 20 x 200ms = 4s is fine unloaded, but a parallel run

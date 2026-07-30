@@ -207,8 +207,8 @@ func TestExecuteHTTPChecksLoop(t *testing.T) {
 	assert.Equal(t, []string{"/first", "/second"}, order)
 	assert.Equal(t, []string{"", `{"id":1}`}, sentBodies)
 	assert.Equal(t, []string{"2026-07-28", "2026-07-28"}, versions)
-	// The authored relative path must survive on the Record: only the loop's own
-	// defensive copy may be rewritten to an absolute path.
+	// The authored relative path must survive on the Record. Only the loop's own
+	// defensive copy is rewritten to an absolute path.
 	assert.Equal(t, "call.json", rec.HTTPChecks[0].SendFile)
 }
 

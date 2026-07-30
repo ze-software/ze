@@ -67,22 +67,26 @@ citation below re-verified against the working tree on 2026-07-16 during design.
 
 5. **[RESOLVED 2026-07-29 -- FIXED, not inherited] MCP auth settings were silently
    discarded when the block was not `enabled`, so a CLI/env-started listener ran
-   accept-all.** Fixed in `spec-mcp2026-1-stateless-core` rather than handed to this
-   spec: `extractMCPBlock` now reports "block exists" and "block asks for a listener"
-   separately, `ExtractMCPSettings` returns auth/TLS for any block, and
-   `cmd/ze/hub/main.go` takes addresses only from a listener-asking config while taking
-   settings from any block. Mutation-verified by four unit tests in
-   `internal/component/config/loader_extract_test.go` and by
+   accept-all.** It was fixed in `spec-mcp2026-1-stateless-core` rather than handed to
+   this spec. `extractMCPBlock` now reports "block exists" and "block asks for a
+   listener" separately, and `ExtractMCPSettings` returns auth and TLS for any block.
+   And `cmd/ze/hub/main.go` takes addresses only from a listener-asking config, and it
+   takes settings from any block. Four unit tests in
+   `internal/component/config/loader_extract_test.go` are mutation-verified, and so is
    `test/plugin/mcp-cli-listener-honors-config-auth.ci`, which returns `status=200` with
-   the full tool list when the fix is reverted. **This spec inherits nothing from it**;
-   the row is kept because the boot-path guard this spec builds should still cover the
-   case, and because the original analysis below explains why the exposure was bounded.
-   Original analysis, added 2026-07-29 from
-   `spec-mcp2026-1-stateless-core`, which found it by strengthening
-   `test/plugin/task-identity-scope.ci` -- that test had been asserting per-principal
-   task isolation while Alice and Bob were in fact the same anonymous principal, so its
-   title claim was untested. The strengthened version mutation-fails when reverted to the
-   old config, which is what proved both the vacuity and the defect.
+   the full tool list when the fix is reverted.
+
+   **This spec inherits nothing from it.** The row is kept for two reasons. The
+   boot-path guard this spec builds must still cover the case. And the original
+   analysis below explains why the exposure was bounded.
+
+   Original analysis, added 2026-07-29 from `spec-mcp2026-1-stateless-core`. That spec
+   found it with a stronger `test/plugin/task-identity-scope.ci`. The old test asserted
+   per-principal task isolation while Alice and Bob were in fact the same anonymous
+   principal, so its title claim was untested. The stronger version mutation-fails when
+   it is reverted to the old config, which is what proved both the vacuity and the
+   defect.
+
    `ExtractMCPConfig` returns `ok=false` unless the block sets `enabled true`
    (`internal/component/config/loader_extract.go:280-283`) **and** carries a server with a
    non-empty port (`:336-339`). `cmd/ze/hub/main.go:408-416` then skips the whole
@@ -92,18 +96,21 @@ citation below re-verified against the working tree on 2026-07-16 during design.
    then selects `AuthNone`, and `noneAuthenticator` accepts every request with a zero
    `Identity` (`internal/component/mcp/bearer.go:41-43`). So an operator who writes
    `environment { mcp { auth-mode bearer; token secret; } }` and starts
-   `ze --mcp 9718 <config>` gets an **unauthenticated** listener while believing they
+   `ze --mcp 9718 <config>` gets an **unauthenticated** listener, and they believe they
    configured bearer auth.
+
    **Bounded, and the bound is why this is MEDIUM rather than HIGH:**
-   `mcpListenerAuthenticated` (`cmd/ze/hub/mgmt_guard.go:119-124`) falls through to
-   `token != ""` when `cfgOK` is false, so it correctly reports *unauthenticated* and the
-   non-loopback guard this spec is building still refuses to publish it. The exposure is
-   local-only. It is still wrong: a config that asks for authentication must not silently
-   produce none (`ai/rules/exact-or-reject.md`), and the operator gets no diagnostic at
-   all. The fix belongs with the unifying guard below -- either apply the auth settings
-   independently of the `enabled` gate (that gate answers "start a listener from config",
-   which is a different question from "how does this service authenticate"), or refuse to
-   start when auth settings were parsed and then discarded.
+   `mcpListenerAuthenticated` (`cmd/ze/hub/mgmt_guard.go:119-124`) uses
+   `token != ""` when `cfgOK` is false. It therefore reports *unauthenticated*
+   correctly, and the non-loopback guard this spec builds still refuses to publish it.
+   The exposure is local-only. It is still wrong: a config that asks for authentication
+   must not silently produce none (`ai/rules/exact-or-reject.md`), and the operator gets
+   no diagnostic at all.
+
+   The fix belongs with the unifying guard below. The `enabled` gate answers "start a
+   listener from config", which is a different question from "how does this service
+   authenticate". So either apply the auth settings independently of that gate, or
+   refuse to start when auth settings were parsed and then discarded.
 
 The unifying fix: a boot-time guard, run unconditionally at ONE point in
 `cmd/ze/hub/main.go` after all listener resolution and before any management bind, that

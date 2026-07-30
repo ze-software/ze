@@ -7,9 +7,9 @@
 // server/discover for MCP 2026-07-28.
 //
 // With the initialize handshake gone, server/discover is the one call a client
-// can make to learn what a server speaks before committing to anything else.
-// Calling it is optional for the client and mandatory to implement for the
-// server.
+// can make to learn what a server speaks. The client makes that call before it
+// commits to anything else. The call is optional for the client, and it is
+// mandatory to implement for the server.
 
 package mcp
 
@@ -36,16 +36,17 @@ const defaultServerName = "ze-mcp"
 //
 // The DiscoverResult carries supportedVersions, capabilities and the optional
 // instructions string. serverInfo rides in the result's _meta rather than at
-// the top of result, stamped by ok() along with resultType -- MCP 2026-07-28
-// server/discover Section "Data Types":
+// the top of result. ok() stamps it there, together with resultType.
+//
+// MCP 2026-07-28 server/discover Section "Data Types":
 // "_meta['io.modelcontextprotocol/serverInfo']: Name and version of the server
 // software. Servers SHOULD include this field."
 //
 // ttlMs and cacheScope are the CacheableResult fields DiscoverResult inherits.
-// They are stamped by runMethod from cacheTTLByMethod (caching.go) rather than
-// added here, so the four cacheable surfaces cannot drift apart:
-// server/discover is registry-derived, so it carries the same 60 s freshness as
-// tools/list.
+// runMethod stamps them from cacheTTLByMethod (caching.go) rather than this
+// handler. The four cacheable surfaces therefore cannot drift apart.
+// server/discover is registry-derived, so it carries the same 60 s freshness
+// as tools/list.
 func (s *Streamable) serverDiscover(req *request) *response {
 	return s.ok(req.ID, map[string]any{
 		"supportedVersions": slices.Clone(supportedProtocolVersions),
@@ -61,36 +62,36 @@ func (s *Streamable) serverDiscover(req *request) *response {
 // (the resource set is walked from the embedded UI filesystem at construction,
 // independent of the tool surface).
 //
-// `extensions` names io.modelcontextprotocol/ui, the MCP Apps extension: tool
-// descriptors carry _meta.ui.resourceUri and the ui:// assets it points at are
-// served through resources/read, so the claim is backed by a surface a client
-// can actually use. Its settings object is empty because MCP 2026-07-28
-// basic/versioning Section "Extension Negotiation" says "an empty object
-// indicates support with no additional settings", and the extension defines
-// `mimeTypes` as something the CLIENT declares to constrain what it can render.
-// Inventing a server-side settings member would be asserting a schema the
-// extension does not specify (ai/rules/no-fabrication.md).
+// `extensions` names io.modelcontextprotocol/ui, the MCP Apps extension. Tool
+// descriptors carry _meta.ui.resourceUri, and resources/read serves the ui://
+// assets that field points at. A surface a client can use therefore backs the
+// claim. The extension defines `mimeTypes` as something the CLIENT declares to
+// constrain what it can render, so this server declares no settings of its own.
 //
 // `extensions` also names io.modelcontextprotocol/tasks, the Tasks extension.
-// This server serves tasks/get, tasks/update and tasks/cancel, and returns a
-// CreateTaskResult with resultType "task" for every command its YANG annotates
-// `ze:task-support required`, so the claim is backed by a surface a client can
-// use.
+// This server serves tasks/get, tasks/update and tasks/cancel. It also returns
+// a CreateTaskResult with resultType "task" for every command its YANG
+// annotates `ze:task-support required`. A surface a client can use therefore
+// backs this claim too.
 //
-// Advertising it is not optional bookkeeping. MCP 2026-07-28 basic/index
-// Section "ResultType": "The set of supported ResultType values MUST be created
-// from the set defined in the core protocol and include any additional values
-// of supported extensions that are advertised via capabilities." A client is
-// entitled to reject a `resultType` it does not recognize, and it recognizes
-// "task" only because this map says the extension is supported. An earlier
-// revision of this function advertised an empty extension set while the server
-// already served tasks/*, which claimed non-support while serving.
+// This advertisement is not optional bookkeeping.
+//
+// MCP 2026-07-28 basic/index Section "ResultType": "The set of supported
+// ResultType values MUST be created from the set defined in the core protocol
+// and include any additional values of supported extensions that are
+// advertised via capabilities."
+//
+// A client is entitled to reject a `resultType` it does not recognize. And a
+// client recognizes "task" only because this map says the extension is
+// supported. An earlier revision of this function advertised an empty
+// extension set while the server already served tasks/*. That revision claimed
+// non-support and served at the same time.
 //
 // Both settings objects are empty because MCP 2026-07-28 basic/versioning
 // Section "Extension Negotiation" says "an empty object indicates support with
 // no additional settings", and neither extension defines a server-side settings
-// member. Inventing one would assert a schema the extension does not specify
-// (ai/rules/no-fabrication.md).
+// member. An invented member would assert a schema the extension does not
+// specify (ai/rules/no-fabrication.md).
 func serverCapabilities() map[string]any {
 	return map[string]any{
 		"tools":     map[string]any{},
@@ -122,8 +123,8 @@ func (s *Streamable) instructions() string {
 //
 // MCP 2026-07-28 server/discover Section "Data Types" says serverInfo "is
 // self-reported by the server and is not verified by the protocol", and is
-// "intended for display, logging, and debugging" only -- so nothing here may
-// reach an authorization decision.
+// "intended for display, logging, and debugging" only. Nothing here therefore
+// reaches an authorization decision.
 func (s *Streamable) serverInfo() map[string]any {
 	name := defaultServerName
 	if s.cfg.Provider != nil {
