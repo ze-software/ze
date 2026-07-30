@@ -781,9 +781,17 @@ ABBREVIATIONS = (
     "Mr.",
     "Ms.",
     "Dr.",
-    "No.",
-    "Fig.",
 )
+# `No.` and `Fig.` abbreviate only in front of the number they label, as in
+# "No. 5". Everywhere else the dot is a real full stop, and an unconditional
+# hold glues the next sentence onto this one. That inflates a word count and
+# reports a run-on that nobody can fix, because the sentence is already two.
+#
+# This repository decides the shape of the rule. It writes "answered Yes/No."
+# and a table cell of "| No. Answer the person who asked" constantly, and it
+# numbers almost nothing: 38 occurrences against 1 when this was split out.
+# Filed as F-ste-2 in plan/learned/HOOK-FRICTION.md.
+NUMBERED_ABBREVIATION = re.compile(r"\b(No|Fig)\.(?=\s*\d)")
 INNER_DOT = re.compile(r"(?<=\w)\.(?=\w)")
 # Markdown emphasis and closing punctuation sit BETWEEN the full stop and the
 # space: "**... dictionary.** It cannot ...". Without them in the pattern, a
@@ -797,6 +805,7 @@ def sentences(text):
     held = text
     for abbreviation in ABBREVIATIONS:
         held = held.replace(abbreviation, abbreviation.replace(".", HELD))
+    held = NUMBERED_ABBREVIATION.sub(lambda m: m.group(1) + HELD, held)
     held = INNER_DOT.sub(HELD, held)
     parts = [p.strip() for p in SENTENCE_END.split(held) if p.strip()]
     return [p.replace(HELD, ".") for p in parts]

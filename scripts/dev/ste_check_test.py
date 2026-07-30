@@ -119,6 +119,26 @@ class TestFrozenVerbs(unittest.TestCase):
         ):
             self.assertNotIn("frozen-verbs", habits(text), text)
 
+    def test_numbered_abbreviation_still_holds(self):
+        # "No. 5" and "Fig. 3" label a number, so the dot is not a full stop.
+        from ste_check import sentences
+
+        self.assertEqual(len(sentences("Read No. 5 before you start.")), 1)
+        self.assertEqual(len(sentences("Fig. 3 shows the frame.")), 1)
+
+    def test_no_before_a_word_ends_the_sentence(self):
+        # `Required=No.` and "answered Yes/No." end sentences. Holding the dot
+        # glued the next sentence on and reported a run-on nobody could fix,
+        # because the text was already two sentences. Filed as F-ste-2.
+        from ste_check import sentences
+
+        self.assertEqual(
+            len(sentences("Each row is answered Yes/No. Every Yes names a file.")), 2
+        )
+        self.assertEqual(
+            len(sentences("The field is Required=No. The server omits it.")), 2
+        )
+
     def test_string_is_not_a_gerund(self):
         # This repository writes about strings. "when string parsing fails" is
         # ordinary prose here, and it is the entry most likely to recur.
