@@ -417,11 +417,15 @@ func TestNegIKERekeyCollisionResolves(t *testing.T) {
 	}
 	ps.setPendingIKESwap(nil)
 
-	// Positive, first ordering. Our nonce is the lower one, so our exchange survives
+	// rfc-test-change-approved: 2026-07-30 Thomas authorized correcting the RFC7296-2.8-1
+	// collision direction. RFC 7296 section 2.8.1 closes the LOWEST nonce, so the two
+	// orderings below swap which side sends the lower nonce. Every assertion is unchanged.
+	//
+	// Positive, first ordering. Our nonce is the higher one, so our exchange survives
 	// and the peer request is left alone. The peer runs the same comparison and
 	// abandons its own exchange.
 	pending := negStartIKERekey(t, ini, ps, ours)
-	collide := negIKERekeyInner(t, high, uint16(crypto.DH_MODP_2048), public)
+	collide := negIKERekeyInner(t, low, uint16(crypto.DH_MODP_2048), public)
 	out = ps.handleCreateChildSAOwned(ini, &wire.Message{Header: wire.Header{MessageID: 5}},
 		collide, false, myTr, nil, log)
 	if out.newSA != nil {
@@ -438,12 +442,15 @@ func TestNegIKERekeyCollisionResolves(t *testing.T) {
 	}
 	rtxExpectSilence(t, peerTr, myTr, remote, "peer IKE rekey that lost the collision")
 
-	// Positive, second ordering. The peer nonce is the lower one, so we abandon our
+	// rfc-test-change-approved: 2026-07-30 Thomas authorized correcting the RFC7296-2.8-1
+	// collision direction, so the peer nonce here is the higher one.
+	//
+	// Positive, second ordering. Our nonce is the lower one, so we abandon our
 	// exchange, free its window, and answer the peer. R-2 drives both orderings.
 	ps.pendingRekey = nil
 	ini.releaseRequestWindow()
 	negStartIKERekey(t, ini, ps, ours)
-	yield := negIKERekeyInner(t, low, uint16(crypto.DH_MODP_2048), public)
+	yield := negIKERekeyInner(t, high, uint16(crypto.DH_MODP_2048), public)
 	ps.handleCreateChildSAOwned(ini, &wire.Message{Header: wire.Header{MessageID: 6}},
 		yield, false, myTr, nil, log)
 	if ps.pendingRekey != nil {
@@ -479,10 +486,14 @@ func TestNegSurvivingSAInheritsChildren(t *testing.T) {
 		t.Fatal("the Child SA was not installed on the session before the rekey")
 	}
 
+	// rfc-test-change-approved: 2026-07-30 Thomas authorized correcting the RFC7296-2.8-1
+	// collision direction. The peer nonce is now the higher one, so the peer exchange is
+	// still the survivor. Every assertion is unchanged.
+	//
 	// Our rekey is in flight and the peer exchange wins, so the new IKE SA of the peer
 	// is the survivor.
 	negStartIKERekey(t, ini, ps, negNonce(0x80))
-	inner := negIKERekeyInner(t, negNonce(0x10), uint16(crypto.DH_MODP_2048), negModpPublic(t))
+	inner := negIKERekeyInner(t, negNonce(0xF0), uint16(crypto.DH_MODP_2048), negModpPublic(t))
 	ps.handleCreateChildSAOwned(ini, &wire.Message{Header: wire.Header{MessageID: 7}},
 		inner, false, myTr, dp, log)
 	survivor := ps.pendingIKESwap

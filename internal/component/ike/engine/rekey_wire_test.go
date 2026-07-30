@@ -308,17 +308,18 @@ func TestApplyIKERekeyResponse(t *testing.T) {
 }
 
 // VALIDATES: simultaneous-rekey collision resolution (AC-5, §2.8.1): when we have
-// initiated a Child SA rekey and the peer's competing request has a higher nonce,
-// we win and ignore the peer's request while keeping our own exchange.
+// initiated a Child SA rekey and the peer's competing request carries the LOWER nonce,
+// the peer closes its own exchange, so we ignore its request and keep ours.
 // PREVENTS: both peers installing duplicate replacement SAs on a rekey race.
 func TestChildRekeyCollisionWeWin(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	sa := testSA()
 	ps := &PeerSession{peerName: "test-peer"}
-	ps.pendingRekey = &pendingRekey{kind: rekeyChild, localNonce: make([]byte, nonceLen), messageID: 1}
+	localNonce := make([]byte, nonceLen)
+	localNonce[0] = 0xff // higher than the peer nonce below, so our exchange survives
+	ps.pendingRekey = &pendingRekey{kind: rekeyChild, localNonce: localNonce, messageID: 1}
 
-	peerNi := make([]byte, nonceLen)
-	peerNi[0] = 0xff // higher than our all-zero nonce, so we win
+	peerNi := make([]byte, nonceLen) // all zero, so the peer holds the lowest nonce
 	inner := []wire.PayloadEntry{
 		{Payload: &wire.PayloadNotify{ProtocolID: wire.ProtocolESP, SPISize: 4, NotifyMsgType: wire.NotifyRekeySA, SPI: []byte{0, 0, 0, 1}}},
 		{Payload: &wire.PayloadNonce{NonceData: peerNi}},
@@ -337,8 +338,8 @@ func TestChildRekeyCollisionWeWin(t *testing.T) {
 
 // VALIDATES: a malformed peer rekey request (REKEY_SA but no Nonce) does NOT make
 // us abandon our own in-flight rekey via a bogus collision resolution.
-// PREVENTS: resolveRekeyCollision(ours, nil) treating an empty peer nonce as a win
-// and clearing our pendingRekey.
+// PREVENTS: an empty peer nonce reaching localNonceIsLower and deciding a collision
+// the peer never opened.
 func TestChildRekeyCollisionMalformedKeepsPending(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	sa := testSA()

@@ -165,17 +165,18 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 
 	// Peer-initiated request.
 	if hasRekeySANotify(inner) {
-		// RFC 7296 §2.8.1: simultaneous Child SA rekey. If we already initiated one,
-		// the lower nonce wins; the loser abandons its own exchange. Only resolve a
-		// collision against a well-formed request that actually carries a nonce; a
-		// malformed request (no Ni) must not make us abandon our in-flight rekey.
+		// RFC 7296 §2.8.1: simultaneous Child SA rekey. The exchange that carries the
+		// lower nonce is the one its creator closes. Our own exchange goes when our
+		// nonce is the lower one. Only a well-formed request that carries a nonce
+		// resolves a collision. A malformed request (no Ni) must never make us abandon
+		// our in-flight rekey.
 		if p := ps.pendingRekey; p != nil && p.kind == rekeyChild {
 			if peerNi := nonceFromPayloads(inner); len(peerNi) > 0 {
-				if resolveRekeyCollision(p.localNonce, peerNi) {
-					log.Info("ike: simultaneous child rekey, we win (lower nonce), ignoring peer request", "peer", ps.peerName)
+				if !localNonceIsLower(p.localNonce, peerNi) {
+					log.Info("ike: simultaneous child rekey, our nonce is higher, ignoring peer request", "peer", ps.peerName)
 					return ownedOutcome{}
 				}
-				log.Info("ike: simultaneous child rekey, peer wins, abandoning our exchange", "peer", ps.peerName)
+				log.Info("ike: simultaneous child rekey, our nonce is lower, abandoning our exchange", "peer", ps.peerName)
 				// Our own request will never be answered now, so free the request
 				// window it holds (RFC 7296 §2.3). Without this the SA sends nothing
 				// more.
@@ -213,11 +214,11 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 		// request without Ni must never make us abandon our own exchange.
 		if p := ps.pendingRekey; p != nil && p.kind == rekeyIKE {
 			if peerNi := nonceFromPayloads(inner); len(peerNi) > 0 {
-				if resolveRekeyCollision(p.localNonce, peerNi) {
-					log.Info("ike: simultaneous IKE rekey, we win (lower nonce), ignoring peer request", "peer", ps.peerName)
+				if !localNonceIsLower(p.localNonce, peerNi) {
+					log.Info("ike: simultaneous IKE rekey, our nonce is higher, ignoring peer request", "peer", ps.peerName)
 					return ownedOutcome{}
 				}
-				log.Info("ike: simultaneous IKE rekey, peer wins, abandoning our exchange", "peer", ps.peerName)
+				log.Info("ike: simultaneous IKE rekey, our nonce is lower, abandoning our exchange", "peer", ps.peerName)
 				// Our own request will never be answered now, so free the request
 				// window it holds (RFC 7296 Section 2.3) and release the DH half we
 				// kept for it. Without this the SA sends nothing more.

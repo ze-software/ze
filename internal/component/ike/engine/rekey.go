@@ -434,9 +434,11 @@ func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.Payloa
 	return newSA, nil
 }
 
-// resolveRekeyCollision determines the winner of a simultaneous rekey.
-// RFC 7296 Section 2.8.1: the exchange with the lowest nonce wins.
-func resolveRekeyCollision(localNonce, remoteNonce []byte) bool {
+// localNonceIsLower reports whether our nonce sorts below the peer nonce, octet by octet.
+// RFC 7296 Section 2.8.1 closes the SA that carries the lowest of the four nonces. The
+// endpoint that created that SA is the one that closes it. A caller that reads true
+// therefore abandons its own exchange.
+func localNonceIsLower(localNonce, remoteNonce []byte) bool {
 	return bytes.Compare(localNonce, remoteNonce) < 0
 }
 
