@@ -326,12 +326,13 @@ almost always is), those modifications must be committed before deletion.
 
 Closure once depended on remembering the two-commit step, so it was routinely
 dropped and specs piled up in `plan/` as false "open work". Three mechanical
-gates now enforce it (registered in `ai/rules/hook-mapping.md`):
+gates exist for it. Only two of them run. The `Stop` array in
+`.claude/settings.json` is the authority on which:
 
 | Gate | Where | Fires when |
 |------|-------|-----------|
 | Detector | `scripts/dev/spec-closure-check.py` | `--list` reports completed-but-not-closed specs in two tiers; `--spec <s>` exits 3 only for a high-confidence one. High confidence = a **committed** `plan/learned/NNN-<slug>.md` whose slug **exactly equals** the spec stem while the spec is still `in-progress` and is **not an umbrella** (commit A ran, commit B did not). Weaker `[umbrella]` / `[weak-match]` candidates (child/sibling/predecessor summaries) are listed under NEEDS VERIFICATION and must be audited before closing — they are usually false positives. Only the high-confidence set triggers the `--spec` block. |
-| Stop-hook block | `.claude/hooks/block-premature-stop.sh` | This session's claimed spec is completed-but-not-closed: the session cannot end (exit 2) until commit B runs, or `tmp/session/.closure-ack-<stem>` records why the spec is genuinely still open. |
+| ~~Stop-hook block~~ **INERT** | `.claude/hooks/block-premature-stop.sh` | **Never. This hook is registered on no event.** Thomas removed it from `Stop` on 2026-06-29, in commit `41e5fa44f`. It was written to refuse the session an end (exit 2) until commit B ran, unless `tmp/session/.closure-ack-<stem>` recorded why the spec was genuinely open. None of that happens now. Closure is a discipline here, not a gate. |
 | Commit reminder | `scripts/dev/commit_helper.py` | A commit adds a learned summary but removes no spec: it prints the closure-commit reminder to stderr. |
 
 Run `scripts/dev/spec-closure-check.py --list` any time to see the backlog.

@@ -1,7 +1,12 @@
 #!/bin/bash
 # PostToolUse hook on Agent|Task: record that this session delegated at least
-# once, so block-premature-stop.sh can tell a supervising main thread from one
-# that did the phase inline (ai/rules/spec-delegation.md).
+# once (ai/rules/spec-delegation.md).
+#
+# NOTE: the marker currently has NO live consumer. It was written for
+# block-premature-stop.sh, which has been registered on no event since
+# 41e5fa44f (2026-06-29) and therefore never reads it. Check the Stop array in
+# .claude/settings.json before you cite that hook. The marker stays because it
+# is cheap and because a future Stop gate would want exactly this signal.
 #
 # Companion to mark-lsp-invoked.sh / mark-source-read.sh, same marker convention.
 # Marker path: tmp/session/.agent-spawned-<SID>. Content: ISO-8601 timestamp.

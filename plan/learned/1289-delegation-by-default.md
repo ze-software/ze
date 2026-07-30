@@ -41,11 +41,17 @@ whether a session that claimed a spec ever delegated at all.
   warns at Stop when a spec was claimed and no agent was ever spawned. Exit 1, not
   2: a session may legitimately claim a spec for one mechanical edit, and a Stop
   hook that traps it is a worse failure than the miss it catches.
+- **CORRECTION (2026-07-30).** That warning never fired.
+  `block-premature-stop.sh` left the `Stop` event in `41e5fa44f` on 2026-06-29,
+  before this summary was written. It is registered on no event today, and the
+  marker still gets written for nothing. See
+  `plan/learned/1306-delegation-reminder-position.md`.
 
 ## Consequences
 
-- Delegation is now the default in this repo without the user asking per session,
-  and a session that works a claimed spec inline is told so at Stop.
+- Delegation is now the default in this repo without the user asking per session.
+  The Stop-time notice for inline work never ran, because the hook that carried it
+  was already unregistered. See the CORRECTION above.
 - `subagent-context.sh` grew from static text to reading session state, so its
   hook timeout went 3s -> 5s (`.claude/settings.json`).
 - One more per-session marker exists (`tmp/session/.agent-spawned-<sid>`), aged

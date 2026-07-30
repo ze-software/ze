@@ -1324,3 +1324,53 @@ and it changes no true positive. `ai/rules/simplified-technical-english.md` asks
 for the case to land in `scripts/dev/ste_check_test.py` in the same change. The
 checker is untracked while its author is still writing it, so this session left
 the tool alone rather than edit another session's uncommitted file.
+
+### F-ste-3: the prose gate scopes per FILE, so two sessions in one file deadlock it
+
+**Status: OPEN.** No fix applied. The workaround is at the end.
+
+**Trigger.** `ste_problems` (`scripts/dev/commit_helper.py:1473`) hands the
+commit's own `.md`, `.go` and `.yang` paths to `ste_check.py --check` (`:1494`).
+The checker reads each path from the WORKING TREE and compares it against that
+path's HEAD version.
+
+The docstring gives the reason (`:1478-1484`). Several sessions share this
+checkout. A tree-wide prose gate reports a colleague's in-flight sentences, and
+such a gate gets disabled. The files of one commit are the right unit.
+
+**The hole.** The unit is one file. The assumption under it is one author per
+file. Two sessions that edit the SAME file break that assumption. The gate reads
+the whole working-tree copy, so it sees both authors at once. The second session
+cannot commit that file until the first session lands its work.
+
+**What it cost.** On 2026-07-30 this session added a new UserPromptSubmit hook
+and documented it in `ai/rules/hook-mapping.md`, which
+`ai/rules/discovery-updates.md` requires. A concurrent session was rewriting the
+`rfc-tagged-test` row in the same file, at line 119. That row grew habit 5.
+
+This session verified its own prose with `ste_check.py --check` over its own
+files and reached zero growth. The gate stayed red anyway, on line 119. The
+required documentation edit was therefore uncommittable, and neither session had
+done anything wrong. Read the gate's own output for the current findings. Any
+count written into a record like this one ages as either session edits the file.
+
+**Fault belongs to neither author.** The first session has not finished. The
+second session wrote clean prose. The gate is correct about the file and wrong
+about the commit.
+
+**Workaround.** Split the commit. Land everything except the contended file, then
+add that file once the other session commits. Establish ownership first with
+`git diff -U0 <file>` and compare its hunk line numbers against your own edits.
+
+**Suggested fix.** Judge the lines the commit ADDS, not the whole file. Note that
+nothing is staged at gate time: `ste_problems` runs from `commit_gate_problems`
+(`scripts/dev/commit_helper.py:1640`) during `create()`, and `git add` is only
+emitted into the generated script (`render_git_add`, `:380-385`). So the source
+is `git diff HEAD -- <add_paths>`, never `--cached`. That diff and
+`ste_check.py`, which already reports a line number for every finding, are the
+two halves. Intersect them.
+
+A habit that grows on a line you did not touch then belongs to whoever touched
+it. This keeps the per-author attribution the docstring asks for, and it removes
+the shared-file deadlock. `ai/rules/simplified-technical-english.md` asks for the
+case to land in `scripts/dev/ste_check_test.py` in the same change.

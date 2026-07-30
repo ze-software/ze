@@ -4,7 +4,15 @@ Automated enforcement of `ai/rules/` requirements.
 
 ## Summary
 
-**Total: 38 hooks** (26 blocking, 12 advisory)
+**Total: 40 rows below** (25 blocking, 14 advisory, 1 registered on no event)
+
+> **This file is STALE and it is not the inventory.** Most rows name per-check
+> shell scripts that no longer exist: they were folded into the three Python
+> dispatchers (`pretool-bash.py`, `pretool-writeedit.py`,
+> `posttool-writeedit.py`). Several registered hooks are missing from the table.
+> **`ai/rules/hook-mapping.md` is the real inventory, and `.claude/settings.json`
+> is the authority on what actually runs.** Check registration there before you
+> trust any row here.
 
 ## All Hooks
 
@@ -12,9 +20,11 @@ Automated enforcement of `ai/rules/` requirements.
 |------|---------|------|------|
 | `session-start.sh` | SessionStart | - | Advisory |
 | `block-until-lsp.sh` | PreToolUse:.* | session-start.md | **Blocking** |
-| `compaction-reminder.sh` | UserPromptSubmit | post-compaction.md | Advisory |
+| `compaction-reminder.sh` | UserPromptSubmit | post-compaction.md | Advisory (stderr, which by convention does not reach the model) |
+| `verify-claim-reminder.sh` | UserPromptSubmit | no-fabrication.md | Advisory (stdout, which by convention reaches the model) |
+| `delegation-reminder.sh` | UserPromptSubmit | spec-delegation.md | Advisory (stdout, which by convention reaches the model) |
 | `pre-compact-save.sh` | PreCompact | post-compaction.md | Advisory |
-| `block-premature-stop.sh` | Stop | - | **Blocking** |
+| `block-premature-stop.sh` | **none -- NOT REGISTERED** | - | **Never fires.** Removed from `Stop` on 2026-06-29, commit `41e5fa44f` |
 | `session-end-summary.sh` | Stop | - | Advisory |
 | `session-end-scratch.sh` | SessionEnd | bash-output.md | Advisory |
 | `block-destructive-git.sh` | PreToolUse:Bash | git-safety.md | **Blocking** |
@@ -93,9 +103,11 @@ Automated enforcement of `ai/rules/` requirements.
 | `session-start.sh` | Status summary at session start |
 | `block-until-lsp.sh` | Refuses every tool call until `ToolSearch select:LSP` loads the LSP tool |
 | `pre-compact-save.sh` | Auto-save session state before compaction |
-| `block-premature-stop.sh` | Blocks stop on ownership-dodging, permission-seeking, premature handoff |
+| `block-premature-stop.sh` | **NOTHING. Registered on no event.** It was written to block a stop on ownership-dodging, permission-seeking and premature handoff. It also refused a stop while a spec was implemented but not closed. None of that runs |
 | `session-end-summary.sh` | Append git state summary at session end |
 | `compaction-reminder.sh` | Re-read reminder after compaction |
+| `verify-claim-reminder.sh` | One line per turn: cite the producing `file:line` before a behavioral claim |
+| `delegation-reminder.sh` | One line per turn: subagent delegation is pre-approved, and which skills stay in the main thread |
 
 ### Planning (planning.md, post-compaction.md)
 | Hook | What it enforces |

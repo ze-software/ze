@@ -7,9 +7,14 @@ import (
 )
 
 // These tests drive scripts/dev/spec-closure-check.py, the mechanical detector
-// behind the Stop-hook closure gate (block-premature-stop.sh) and the
-// commit-time reminder in commit_helper.py. See ai/rules/planning.md
+// written for the Stop-hook closure gate (block-premature-stop.sh) and used by
+// the commit-time reminder in commit_helper.py. See ai/rules/planning.md
 // "Spec Closure" and ai/rules/hook-mapping.md.
+//
+// The Stop hook has been registered on no event since 41e5fa44f (2026-06-29).
+// The closure gate does not run, and only the commit-time reminder consumes this
+// detector. These tests still guard --spec, because the exit-3 contract is what
+// any future Stop gate would bind to.
 
 const specMetaInProgress = `# Spec: widget
 
