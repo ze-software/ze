@@ -1,0 +1,116 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5301",
+  "register": "prose",
+  "register-reason": "Standards Track with an RFC 2119 key-words section at 1.1, yet section 3 defines the TLV entirely in indicative prose: 'is defined here as TLV type 137', 'Value - a string of 1 to 255 bytes', 'The string is not null-terminated', 'The Value field is encoded in 7-bit ASCII'. No capitalised MUST, MUST NOT, SHALL or REQUIRED occurs anywhere outside the key-words paragraph, so the derivation grades the source 'prose' and the sign-off claims that grade.",
+  "source-path": "rfc/full/rfc5301.txt",
+  "source-sha": "d1ee0177891d12fe",
+  "signed-off": "2026-07-30",
+  "reviewer": "ze-implement agent, spec-rfcgate-4-ledger phase 6",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo, copyright notice and Abstract. The Abstract states what the document defines and directs nobody."
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Introduction. Motivates a name-to-systemID mapping and describes why static tables do not scale. Its one prose site is the burden static configuration imposes on an operator, excluded below."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Specification of Requirements: the RFC 2119 key-words paragraph. Tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory. It is also the whole of the document's capitalised-keyword content."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Possible Solutions. Compares static configuration and DNS against in-protocol advertisement, then states that this document defines a new TLV. Rationale only."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Dynamic Hostname TLV: the definitional section, and the source of every gated requirement this summary declares. Written wholly in indicative prose, so the site scan finds nothing here and each requirement is listed as unsourced against this section rather than mapped to a site.",
+      "unsourced-ids": [
+        "RFC5301-3-1",
+        "RFC5301-3-2",
+        "RFC5301-3-3",
+        "RFC5301-3-4",
+        "RFC5301-3-5",
+        "RFC5301-3-6",
+        "RFC5301-3-7",
+        "RFC5301-3-8",
+        "RFC5301-3-9",
+        "RFC5301-3-10",
+        "RFC5301-3-11"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Implementation. Four sentences, all permissive or advisory: a router MAY include the TLV, MAY ignore it on receipt, MAY insert it in a pseudonode LSP, and SHOULD replace a differing cached mapping. Captured as RFC5301-4-1 through RFC5301-4-4.",
+      "unsourced-ids": [
+        "RFC5301-4-1",
+        "RFC5301-4-2",
+        "RFC5301-4-3",
+        "RFC5301-4-4"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. Warns that a compromised router can inject false mapping information and that the mapping must be treated with suspicion during an incident. An operational caution, not a directive on the protocol machinery."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgments, crediting RFC 2763 and Henk Smit."
+    },
+    {
+      "id": "7",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "IANA Considerations. Records that TLV 137 was already allocated by RFC 2763 and that IANA need do nothing. Walked because the prose scan attributes one site here; it is excluded below."
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Informative References, followed by the authors' addresses and the copyright statement the prose scan attributes its last site to. Walked for that site rather than skipped."
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "These tables need to contain the names and system IDs of all routers in the network, and must be modified each time an addition, deletion, or change occurs.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Describes the maintenance burden of the STATIC mapping tables this document exists to replace. The 'must' binds a network operator keeping a hand-written table in step, not an IS-IS implementation."
+    },
+    {
+      "id": "7:1",
+      "quote": "As such, no new actions are required on the part of IANA.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "An IANA instruction, and a negative one: it states that no registry action is needed because RFC 2763 already allocated TLV 137. It binds no speaker."
+    },
+    {
+      "id": "8:1",
+      "quote": "The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The standard IETF copyright boilerplate. It addresses parties holding patents, not an IS-IS implementation."
+    }
+  ]
+}

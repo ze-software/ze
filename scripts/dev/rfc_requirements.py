@@ -77,9 +77,18 @@ PROJECT_DIR = os.path.abspath(os.path.join(_HERE, "..", ".."))
 
 SUMMARY_DIR = os.path.join(PROJECT_DIR, "rfc", "short")
 ENROLLED_FILE = os.path.join(PROJECT_DIR, "rfc", "enrolled.txt")
+# The declared remainder: every summary that is NOT enrolled says here why not. Without it
+# "not enrolled" is an absence, and an absence cannot be told apart from a decision
+# (plan/spec-rfcgate-4-ledger.md D3).
+NOT_ENROLLED_FILE = os.path.join(PROJECT_DIR, "rfc", "not-enrolled.txt")
 STATUS_FILE = os.path.join(PROJECT_DIR, "docs", "features", "rfc-status.md")
 LEDGER_FILE = os.path.join(PROJECT_DIR, "ai", "RFC-REQUIREMENTS.md")
 AUDIT_DIR = os.path.join(PROJECT_DIR, "rfc", "audit")
+
+# Repo-relative forms, for the batch HEAD reader (_git_cat_blobs takes paths, not abspaths).
+ENROLLED_REL = os.path.join("rfc", "enrolled.txt")
+NOT_ENROLLED_REL = os.path.join("rfc", "not-enrolled.txt")
+STATUS_REL = os.path.join("docs", "features", "rfc-status.md")
 
 TEST_ROOTS = ("internal", "pkg", "test")
 
@@ -100,6 +109,14 @@ ALL_LEVELS = GATED_LEVELS | ADVISORY_LEVELS
 POLARITIES = frozenset({"positive", "negative"})
 
 ANNOTATION_KINDS = frozenset({"not-applicable", "gap", "single-polarity"})
+
+# Why a summary is not enrolled. A closed set, exactly as ANNOTATION_KINDS is: a free-text
+# reason alone lets "not enrolled" read as "settled", and only `non-normative` is a claim
+# about conformance. `backlog` and `blocked` are DEBT and render as debt.
+DISPOSITION_KINDS = frozenset({"non-normative", "backlog", "blocked"})
+# The one kind that says the DOCUMENT imposes nothing, and therefore the only one that may
+# stand under a public support claim (check_unproven_support).
+DISPOSITION_NON_NORMATIVE = "non-normative"
 
 # Longest-first so "MUST NOT" wins over "MUST" and "NOT RECOMMENDED" over "RECOMMENDED".
 _LEVEL_ALT = "|".join(re.escape(k) for k in sorted(ALL_LEVELS, key=len, reverse=True))
@@ -1126,6 +1143,113 @@ def parse_enrolled(text: str) -> Set[str]:
     return out
 
 
+class Disposition(NamedTuple):
+    """One `rfc/not-enrolled.txt` row: why this summary is not enrolled."""
+
+    kind: str
+    reason: str
+
+
+def parse_dispositions(text: str) -> Dict[str, Disposition]:
+    """Read `rfc/not-enrolled.txt` into {stem: Disposition}.
+
+    Same comment and blank-line tolerance as `parse_enrolled`, and the same first-token
+    stem, so one reader serves both files. Everything after that is REJECTED rather than
+    skipped: a malformed line here would silently un-declare a summary, and an
+    un-declared summary is exactly the absence this file exists to abolish
+    (`ai/rules/fail-closed-guards.md`). A typo must cost a red gate, not a quiet hole.
+    """
+    out: Dict[str, Disposition] = {}
+    for n, raw in enumerate(text.split("\n"), 1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        fields = line.split(None, 2)
+        stem = fields[0]
+        if stem in out:
+            raise ParseError(
+                f"rfc/not-enrolled.txt:{n}: duplicate stem {stem!r}. One row per summary: "
+                f"two rows can carry two different kinds and nothing decides between them"
+            )
+        if len(fields) < 2:
+            raise ParseError(
+                f"rfc/not-enrolled.txt:{n}: {line!r} has no kind. Each row is "
+                f"'<stem> <kind> <reason>' with kind one of "
+                f"{sorted(DISPOSITION_KINDS)}"
+            )
+        kind = fields[1]
+        if kind not in DISPOSITION_KINDS:
+            raise ParseError(
+                f"rfc/not-enrolled.txt:{n}: kind {kind!r} for {stem} is not one of "
+                f"{sorted(DISPOSITION_KINDS)}. Use 'non-normative' when the DOCUMENT "
+                f"imposes nothing, 'backlog' when the extraction is owed, 'blocked' when "
+                f"something outside the summary prevents enrolment"
+            )
+        reason = fields[2].strip() if len(fields) > 2 else ""
+        if not reason:
+            raise ParseError(
+                f"rfc/not-enrolled.txt:{n}: {stem} is declared {kind} with no reason. A "
+                f"bare kind is an absence with a label on it: say what makes it true"
+            )
+        out[stem] = Disposition(kind=kind, reason=reason)
+    return out
+
+
+def load_dispositions() -> Dict[str, Disposition]:
+    """The declared remainder, or empty when the file does not exist yet.
+
+    An absent file is NOT an error here: `check_summary_disposition` reports every summary
+    that is neither enrolled nor declared, so an absent file surfaces as one violation per
+    un-enrolled summary -- which names the actual problem -- rather than as one message
+    about a missing path.
+    """
+    if not os.path.exists(NOT_ENROLLED_FILE):
+        return {}
+    with open(NOT_ENROLLED_FILE, encoding="utf-8") as fh:
+        return parse_dispositions(fh.read())
+
+
+def _git_baseline_dispositions() -> Set[str]:
+    """The stems declared at HEAD, or the empty set when git could not answer.
+
+    The empty set, and unlike its two `Optional` siblings that is the SAFE answer here:
+    this baseline has one consumer, the discharge ratchet (AC-8), which reads it as
+    `baseline - current`. An empty baseline therefore accuses nobody. The polarity is what
+    decides the return type, not a preference -- `_git_baseline_enrolment` documents the
+    same rule from the other side.
+
+    A HEAD blob that does not parse also yields the empty set. The working tree's copy is
+    parsed strictly by `load_dispositions`, so a malformed CURRENT file already reds the
+    gate; a malformed HEAD blob is history nobody can use, and guessing at its content
+    would accuse a stem of a discharge that may never have happened.
+    """
+    blobs = _git_cat_blobs([NOT_ENROLLED_REL])
+    if NOT_ENROLLED_REL not in blobs:
+        return set()
+    try:
+        return set(parse_dispositions(blobs[NOT_ENROLLED_REL]))
+    except ParseError:
+        return set()
+
+
+def _git_baseline_status_rows() -> Optional[Dict[str, Dict[str, str]]]:
+    """The status rows committed at HEAD, or None when git could not answer.
+
+    Read through `_git_cat_blobs` rather than a per-file `git show`: that reader's docstring
+    makes the batch interface a condition of the check being kept, and one more fork per
+    `make ze-verify` is exactly the cost it was written to avoid.
+
+    None, not {}: the completeness ratchet asks "did this stem HAVE a row at HEAD", and an
+    empty answer would say "no" for all 157 of them -- which turns a deleted-row check into
+    a wall of false accusations and teaches people to bypass the gate
+    (`_git_baseline_summary_stems` records the same trap).
+    """
+    blobs = _git_cat_blobs([STATUS_REL])
+    if STATUS_REL not in blobs:
+        return None
+    return parse_status_ledger(blobs[STATUS_REL])
+
+
 def _git_baseline_enrolment() -> Optional[Set[str]]:
     """The RFCs enrolled at HEAD, or None when git could not answer.
 
@@ -1856,14 +1980,24 @@ def check_status_agreement(
 
     Two ledgers that can disagree will disagree. docs/features/rfc-status.md is the
     public claim; a {gap} annotation is a private admission. They must match.
+
+    Enrolment no longer exempts a stem from the DISCLOSURE half. It used to gate the whole
+    check, so a `{gap}` on an un-enrolled summary was exempt even when its RFC carried a
+    public 'Supported' row -- the private admission and the public claim contradicting each
+    other with nothing to notice (plan/spec-rfcgate-4-ledger.md AC-15). Enrolment now gates
+    only the MISSING-ROW branch: an un-enrolled, un-rowed RFC makes no public claim to
+    contradict, and demanding a row for it would force rows for reference-only summaries
+    (AC-16).
     """
     errs: List[str] = []
     for req in requirements:
         ann = req.annotation
-        if not ann or ann.kind != "gap" or req.rfc not in enrolled:
+        if not ann or ann.kind != "gap":
             continue
         row = rows.get(req.rfc)
         if row is None:
+            if req.rfc not in enrolled:
+                continue
             errs.append(
                 f"{req.rid} is annotated {{gap}} but {req.rfc} has no row in "
                 f"docs/features/rfc-status.md; the public ledger must disclose it"
@@ -1878,6 +2012,480 @@ def check_status_agreement(
                 f"'{remaining[:40]}'. A known unmet MUST cannot be advertised as clean "
                 f"support -- update the row's Status/Remaining"
             )
+    return errs
+
+
+# --------------------------------------------------------------------------
+# The public ledger's edges (plan/spec-rfcgate-4-ledger.md)
+# --------------------------------------------------------------------------
+# check_status_agreement above reaches for a row only when a {gap} annotation exists, so
+# four whole classes of defect sit outside it: an enrolled RFC with no row at all, a summary
+# that is neither enrolled nor declared, a public support claim over an empty checklist, and
+# a hand-written gap count that disagrees with the summary. Each is guarded below.
+#
+# Two of the four are HEAD ratchets rather than hard requirements, for the reason
+# check_new_summaries records: the existing backlog (32 rowless enrolments) predates the
+# guard, and failing on it would block every unrelated commit until 32 product judgements
+# were made. Derived from git, never from a checked-in allowlist
+# (ai/rules/derive-not-hardcode.md).
+
+# A Status cell that is not a support claim. Exactly two values, and the test is EXACT
+# rather than a prefix: "Supported" must never be read as "Unsupported" reversed, and
+# "Unsupported on Linux" is a claim about a platform, not an absence of one.
+NON_CLAIM_STATUSES = frozenset({"Unsupported", "Future"})
+
+
+def status_is_a_support_claim(status: str) -> bool:
+    """Does this Status cell claim Ze supports the RFC?
+
+    Anything that is not literally `Unsupported` or `Future` is a claim, INCLUDING an empty
+    cell. An empty Status is the fail-open case: `row["status"]` is present, so an `ok`-style
+    test passes, and a blank cell under an empty checklist would then read as "no claim
+    made" when the row's own existence on a page titled "RFC support" is the claim
+    (`ai/rules/fail-closed-guards.md`, the zero-value trap). `Experimental` is a claim too:
+    it says the code exists, which is precisely what an empty checklist cannot support.
+    """
+    return status.strip() not in NON_CLAIM_STATUSES
+
+
+# Phrases that turn a disposition from a statement about the DOCUMENT into a judgement about
+# what Ze owes. `non-normative` may only say the RFC imposes nothing; the moment it says Ze
+# does not need it, it has laundered an unextracted obligation into a decision (R-4), and
+# ai/rules/rfc-compliance.md reserves that judgement to the owner.
+#
+# SIX SPELLINGS, and that is all this pattern is. It is the named, specific signal -- the
+# phrasings that laundering actually reaches for -- and it was never the rule on its own: a
+# blacklist accepts every wording nobody thought of, and seven rephrasings of the identical
+# laundering walked through it ("Ze is not required to do any of this", "No obligation falls on
+# us here", "This RFC is irrelevant for our implementation", and four more). The rule AC-14
+# states is carried by non_normative_reason_cites_the_document below, which is POSITIVE and
+# therefore fails closed on the wordings this list cannot enumerate
+# (ai/rules/fail-closed-guards.md).
+_NON_APPLICABILITY_RE = re.compile(
+    r"\b(?:not\s+applicable\s+to\s+ze"
+    r"|does\s+not\s+apply\s+to\s+ze"
+    r"|ze\s+(?:does\s+not|doesn't|never)\b"
+    r"|ze\s+has\s+no\b"
+    r"|we\s+(?:do\s+not|don't)\s+(?:implement|support|need)"
+    r"|out\s+of\s+scope\s+for\s+ze"
+    r"|no(?:t)?\s+relevant\s+to\s+ze)",
+    re.IGNORECASE,
+)
+
+# What a `non-normative` reason must CITE: a property of the document itself. Two arms, because
+# the two kinds of evidence differ in whether capitalisation carries the meaning.
+#
+# The category arm is case-insensitive. An IETF category (Informational, Experimental, Historic,
+# Best Current Practice) and the RFC 2119 / RFC 8174 / BCP 14 key-words machinery are named
+# things, and a reason that names one is talking about the text.
+_DOCUMENT_CATEGORY_RE = re.compile(
+    r"\bRFC\s*2119\b"
+    r"|\bRFC\s*8174\b"
+    r"|\bBCP\s*14\b"
+    r"|\bkey[-\s]?words?\b"
+    r"|\bInformational\b"
+    r"|\bExperimental\b"
+    r"|\bHistoric(?:al)?\b"
+    r"|\bBest\s+Current\s+Practice\b",
+    re.IGNORECASE,
+)
+
+
+def non_normative_reason_cites_the_document(reason: str) -> bool:
+    """Does this `non-normative` reason cite a property of the DOCUMENT?
+
+    The positive form of AC-14, and the half that actually guarantees something. A reason may
+    cite an IETF category, the presence or absence of the RFC 2119 key-words machinery, or the
+    result of a capitalised-keyword scan. A reason that cites none of those says nothing a
+    reader could check, and "the document imposes no obligation on any speaker" is exactly the
+    claim that must not be assertable by fiat.
+
+    The keyword arm reuses _SITE_KEYWORD_RE -- the same capitalised set the site inventory is
+    derived from, so "the keywords the corpus is read in" has one spelling
+    (ai/rules/derive-not-hardcode.md). It is CASE SENSITIVE on purpose: the arm exists for a
+    claim about the register the document is written in, and a lowercase "must" in ordinary
+    prose ("this must be out of scope") is not that claim.
+
+    What this does NOT establish, stated rather than implied: the gate checks that the reason
+    CITES a document property, never that the citation is TRUE. Nothing here reads
+    rfc/full/<stem>.txt to confirm the category or re-run the scan. It converts an unfalsifiable
+    assertion into a checkable one and names who checks it -- a reviewer, at the row -- which is
+    strictly more than a phrase blacklist did, and strictly less than proof.
+    """
+    return bool(_DOCUMENT_CATEGORY_RE.search(reason) or _SITE_KEYWORD_RE.search(reason))
+
+
+def check_summary_disposition(
+    stems: Set[str],
+    enrolled: Set[str],
+    dispositions: Dict[str, Disposition],
+    baseline_dispositions: Set[str],
+) -> List[str]:
+    """Every summary is enrolled or carries a declared disposition, and a disposition is
+    discharged only by enrolment.
+
+    Un-enrolment is the one state the gate could not previously read anything into. Nine
+    summaries sat outside every check with no recorded reason, and nothing distinguished
+    "the RFC imposes nothing" from "nobody extracted it" from "we do not even have the
+    text" (plan/spec-rfcgate-4-ledger.md D3). This makes the remainder a decision.
+
+    Unlike the two ratchets beside it this is a HARD requirement, not a HEAD comparison:
+    every summary in the tree is covered from the moment the file lands, because the file
+    lands seeded with every un-enrolled stem. There is no backlog to grandfather.
+
+    A `non-normative` reason is judged twice: it must not judge what Ze owes
+    (_NON_APPLICABILITY_RE, six named phrasings) and it MUST cite a property of the document
+    (non_normative_reason_cites_the_document, the positive requirement that fails closed). The
+    second is the one that carries AC-14; read its docstring for what it proves and what it does
+    not.
+
+    The discharge is enrolment, and the DELETION of the summary. Both branches used to fire on a
+    stem leaving the tree -- keep the row and the stale-disposition branch fires, delete both and
+    the left-without-enrolling branch fires -- so no summary could ever be removed. AC-8 exists
+    to stop an EXISTING summary returning to the undeclared state, and the first branch here can
+    only accuse a stem in `stems`, so a summary that is gone cannot be in that state. The AC-8
+    branch is therefore scoped to stems that still exist rather than to a departed-stem
+    subtraction: it also covers a row that named no summary at HEAD either, where deleting the
+    row is the FIX the stale-disposition branch asks for.
+    """
+    errs: List[str] = []
+    for stem in sorted(stems - enrolled - set(dispositions)):
+        errs.append(
+            f"rfc/short/{stem}.md is in neither rfc/enrolled.txt nor "
+            f"rfc/not-enrolled.txt. Every summary is enrolled or declared: an un-enrolled "
+            f"summary with no recorded reason cannot be told apart from one nobody has got "
+            f"to yet. Enrol it, or declare it with a kind from "
+            f"{sorted(DISPOSITION_KINDS)}"
+        )
+    for stem in sorted(enrolled & set(dispositions)):
+        errs.append(
+            f"{stem} is in BOTH rfc/enrolled.txt and rfc/not-enrolled.txt. The two files "
+            f"partition the summaries; a stem in both is a contradiction, and resolving it "
+            f"by precedence would let one file quietly overrule the other. Remove the "
+            f"rfc/not-enrolled.txt row -- enrolment is the discharge"
+        )
+    for stem in sorted(set(dispositions) - stems):
+        errs.append(
+            f"rfc/not-enrolled.txt declares {stem}, but rfc/short/{stem}.md does not "
+            f"exist. A disposition for a summary nobody wrote records a decision about "
+            f"nothing, and it hides the fact that the row is stale"
+        )
+    for stem in sorted(set(dispositions) & stems):
+        disp = dispositions[stem]
+        if disp.kind != DISPOSITION_NON_NORMATIVE:
+            continue
+        if _NON_APPLICABILITY_RE.search(disp.reason):
+            # The specific message wins when both halves fire: a reason can cite a category AND
+            # launder ("Informational, and ze has no resolver"), and the laundering is what the
+            # author has to fix.
+            errs.append(
+                f"rfc/not-enrolled.txt: {stem} is declared non-normative with a reason "
+                f"that judges what ZE owes rather than what the DOCUMENT states: "
+                f"{disp.reason[:80]!r}. 'non-normative' means the RFC imposes no MUST-level "
+                f"obligation on any speaker. Whether an obligation applies to Ze is a "
+                f"conformance judgement (ai/rules/rfc-compliance.md reserves it to the "
+                f"owner) -- record 'backlog' or 'blocked' instead"
+            )
+        elif not non_normative_reason_cites_the_document(disp.reason):
+            errs.append(
+                f"rfc/not-enrolled.txt: {stem} is declared non-normative with a reason that "
+                f"cites nothing about the DOCUMENT: {disp.reason[:80]!r}. 'non-normative' is "
+                f"the one kind that makes a claim about conformance, so its reason must rest "
+                f"on something a reviewer can check in the text: the RFC's IETF category "
+                f"(Informational, Experimental, Historic, Best Current Practice), the presence "
+                f"or absence of the RFC 2119 / RFC 8174 / BCP 14 key-words machinery, or the "
+                f"result of a capitalised MUST/SHALL/REQUIRED scan over the source. A reason "
+                f"that cites none of those cannot be checked or contradicted -- record "
+                f"'backlog' or 'blocked' instead"
+            )
+    # `baseline - current`, so an unreadable baseline is the empty set and accuses nobody.
+    #
+    # `& stems` is the third discharge: a summary DELETED from the tree. Without it the two
+    # branches above and this one closed every exit, so a declared stem could never leave
+    # rfc/short/ at all. AC-8 guards an existing summary against returning to the undeclared
+    # state, which is unreachable once the summary is gone.
+    for stem in sorted((baseline_dispositions & stems) - set(dispositions) - enrolled):
+        errs.append(
+            f"rfc/short/{stem}.md is still in the tree, but {stem} left "
+            f"rfc/not-enrolled.txt without entering rfc/enrolled.txt. A disposition over a "
+            f"LIVE summary is discharged by ENROLMENT and by nothing else: deleting the row "
+            f"returns the summary to the undeclared state the file exists to abolish. To "
+            f"retire the RFC instead, delete rfc/short/{stem}.md in the same commit"
+        )
+    return errs
+
+
+def check_status_completeness(
+    enrolled: Set[str],
+    rows: Dict[str, str],
+    baseline_rows: Optional[Dict[str, Dict[str, str]]],
+    newly_enrolled: Optional[Set[str]],
+    baseline_enrolled: Set[str],
+) -> List[str]:
+    """A newly enrolled RFC brings a public status row, and a row does not vanish while its
+    RFC stays enrolled.
+
+    32 enrolled RFCs have no row today and the gate is green only by coincidence: nothing
+    structural stops one of them from acquiring a `{gap}`, and the moment it does
+    check_status_agreement fires the missing-row branch with no warning that the row was
+    owed all along (plan/spec-rfcgate-4-ledger.md D2). Those 32 are GRANDFATHERED, exactly
+    as check_new_summaries grandfathers the pre-HEAD summary backlog: writing them is 32
+    product judgements, several of them deliberate non-implementations, and reddening the
+    build on them would get the check removed rather than obeyed. The backlog stays visible
+    because `ai/RFC-REQUIREMENTS.md` renders it.
+
+    Both halves judge NOTHING on a degraded baseline. `newly_enrolled` is None when the
+    enrolment baseline could not be read, and `baseline_rows` is None when the status blob
+    could not be read; in each case the corresponding half is skipped rather than evaluated
+    against an empty set, because `current - baseline` over an empty baseline accuses every
+    enrolled RFC at once (`_git_baseline_summary_stems` records what that does to a gate).
+    """
+    errs: List[str] = []
+    for stem in sorted(newly_enrolled or ()):
+        if stem in rows:
+            continue
+        errs.append(
+            f"{stem} is newly enrolled but has no row in docs/features/rfc-status.md. "
+            f"Enrolling gates its MUST-level requirements, so the public ledger must "
+            f"disclose the RFC: add a row with a Status, an Implemented coverage note and "
+            f"a Remaining note. RFCs enrolled before this ratchet existed are "
+            f"grandfathered and unaffected"
+        )
+    if baseline_rows is None:
+        return errs
+    for stem in sorted(enrolled & baseline_enrolled & set(baseline_rows)):
+        if stem in rows:
+            continue
+        errs.append(
+            f"{stem} had a row in docs/features/rfc-status.md at HEAD and does not now, "
+            f"while it stays enrolled. Deleting a row retires a public claim without "
+            f"retiring the obligation behind it, and it is the one edit that can make "
+            f"check_status_agreement's missing-row branch fire on unrelated work later. "
+            f"Restore the row, or correct it in place"
+        )
+    return errs
+
+
+def check_unproven_support(
+    requirements: Sequence[Requirement],
+    rows: Dict[str, Dict[str, str]],
+    stems: Set[str],
+    dispositions: Dict[str, Disposition],
+    signed: Dict[str, "Extraction"],
+    derived: Dict[str, str],
+) -> List[str]:
+    """A public support claim may not rest on an empty checklist.
+
+    Four summaries declared ZERO MUST-level requirements while the public page claimed
+    support for them, and check_status_agreement could see none of it: it reaches for a row
+    only when a `{gap}` annotation exists, and a summary with no gated requirement has no
+    annotation. Both ledgers agreed because both were empty
+    (plan/spec-rfcgate-4-ledger.md D1). Agreement on nothing is not conformance.
+
+    Two escapes, and both are EVIDENCE rather than assertion:
+
+    - a `non-normative` disposition in rfc/not-enrolled.txt, whose reason must say what
+      makes the DOCUMENT impose nothing (check_summary_disposition rejects one that judges
+      what Ze owes instead); or
+    - a VALID `manual-walk` extraction sign-off carrying a register-reason, over a source the
+      derivation does NOT grade `rfc2119`. That is the form Owner Ruling OR-A settled for RFC
+      3765, an Informational document with no RFC 2119 section and no capitalised keyword
+      anywhere: zero is a property of the text, and a gate that reddened on it would be
+      reddening on honest work (ai/rules/rfc-compliance.md).
+
+    OR-A requires the escape to establish that zero gated requirements is a property of the
+    DOCUMENT, and three of its four facts are about the artifact rather than the text: the walk
+    performed (every site and section classified, or the artifact is not in `signed`), the
+    register declared, and the reason recorded. The declared register constrains nothing on its
+    own -- `manual-walk` is the WEAKEST grade in _REGISTER_STRENGTH and _evaluate_extraction
+    refuses only a claim STRONGER than derived, so any stem in the corpus may declare it. A
+    source whose own sentences quote capitalised MUST, a summary declaring zero, a `Supported`
+    row and a manual-walk artifact excluding every site as `not-a-requirement` therefore walked
+    straight through, which is the reverse of what the escape was for.
+
+    The fourth fact is the DERIVED grade (`derived_registers`), and it is the only one read off
+    the text: `rfc2119` means the document's own sentences quote capitalised MUST/SHALL, so it
+    plainly imposes obligations and no register-reason can make zero a property of it. The line
+    is drawn there rather than at "any derived site", because `prose` is exactly the register
+    OR-A's own case derives -- rfc3765 has one lowercase modal and zero capitalised keywords --
+    and a walk may legitimately classify indicative prose away.
+
+    What the fourth fact does NOT establish, stated rather than implied: a `prose` grade is not
+    proof the classifications were right. It bounds the escape to documents whose obligations
+    are not written in the register the corpus is normally read in; judging the exclusions
+    themselves is /ze-rfc-audit's job, and ai/rules/rfc-compliance.md:53 voided every
+    annotation as authority.
+
+    Scoped to stems that HAVE a summary. 19 rows on the page name an RFC with no
+    `rfc/short/*.md` at all; those are a different defect (an unsummarised public claim)
+    and firing here would bury this one under them. The limit is stated in the message.
+    """
+    errs: List[str] = []
+    gated: Dict[str, int] = {}
+    for req in requirements:
+        if req.gated:
+            gated[req.rfc] = gated.get(req.rfc, 0) + 1
+    for stem in sorted(set(rows) & stems):
+        if gated.get(stem, 0):
+            continue
+        if not status_is_a_support_claim(rows[stem]["status"]):
+            continue
+        disp = dispositions.get(stem)
+        if disp is not None and disp.kind == DISPOSITION_NON_NORMATIVE:
+            continue
+        status = rows[stem]["status"].strip() or "(blank)"
+        art = signed.get(stem)
+        if (
+            art is not None
+            and art.register == REGISTER_MANUAL_WALK
+            and art.register_reason
+        ):
+            # The escape is REACHED. Whether it is EARNED is the derived grade's answer, and a
+            # refusal here gets its own message: telling an author who already wrote a
+            # manual-walk sign-off to write one is a dead end
+            # (ai/rules/error-messages.md leg 3, a remediation must be TRUE).
+            grade = derived.get(stem)
+            if grade is not None and grade != REGISTER_RFC2119:
+                continue
+            says = (
+                repr(grade)
+                if grade
+                else "no register at all (its text could not be read)"
+            )
+            errs.append(
+                f"{art.path} signs {stem} under {REGISTER_MANUAL_WALK!r} with a "
+                f"register-reason, but the source derives {says}"
+                f", so nothing establishes that zero MUST-level requirements is a property "
+                f"of the DOCUMENT -- and docs/features/rfc-status.md claims {stem} is "
+                f"'{status}'. A source graded {REGISTER_RFC2119!r} quotes capitalised "
+                f"MUST/SHALL in its own sentences: extract those obligations "
+                f"(/ze-rfc {stem}). {REGISTER_MANUAL_WALK!r} is the weakest grade and any "
+                f"stem may declare it, so the declared register cannot carry this claim"
+            )
+            continue
+        errs.append(
+            f"docs/features/rfc-status.md claims {stem} is '{status}', but "
+            f"rfc/short/{stem}.md declares no MUST-level requirement, so the claim rests "
+            f"on an empty checklist and nothing can contradict it. Extract the RFC's "
+            f"obligations (/ze-rfc {stem}); or, if the document genuinely imposes none, "
+            f"record the evidence -- a non-normative disposition in rfc/not-enrolled.txt, "
+            f"or a manual-walk extraction sign-off whose register-reason says why zero is "
+            f"a property of the text, over a source the derivation does not grade "
+            f"{REGISTER_RFC2119!r}. Rows naming an RFC with no summary at all are outside "
+            f"this check"
+        )
+    return errs
+
+
+# Spelled cardinals One..Ninety-nine. Built rather than listed so the compound forms cannot
+# drift from the units they are made of.
+_SPELLED_UNITS = (
+    "one two three four five six seven eight nine ten eleven twelve thirteen fourteen "
+    "fifteen sixteen seventeen eighteen nineteen"
+).split()
+_SPELLED_TENS = (
+    "twenty",
+    "thirty",
+    "forty",
+    "fifty",
+    "sixty",
+    "seventy",
+    "eighty",
+    "ninety",
+)
+SPELLED_NUMBERS: Dict[str, int] = {w: i for i, w in enumerate(_SPELLED_UNITS, 1)}
+for _i, _ten in enumerate(_SPELLED_TENS):
+    SPELLED_NUMBERS[_ten] = 20 + 10 * _i
+    for _j, _unit in enumerate(_SPELLED_UNITS[:9], 1):
+        SPELLED_NUMBERS[f"{_ten}-{_unit}"] = 20 + 10 * _i + _j
+
+# LONGEST FIRST, so "twenty-five" wins over "five" and is read as 25. A units-first
+# alternation matches the tail of every compound and turns "Twenty-five MUSTs" into 5 --
+# a false mismatch on an honest row, which is the way a check gets deleted rather than
+# obeyed. `\b` on the left additionally stops "-five" being reached at all.
+_SPELLED_ALT = "|".join(sorted(SPELLED_NUMBERS, key=len, reverse=True))
+
+# IMMEDIATE adjacency: the number, whitespace, then MUST or SHALL. Nothing between.
+#
+# Not a tolerance window, and this is the load-bearing decision of the check. The page uses
+# a SECOND convention: a spelled number immediately before MUST is the {gap} count, while a
+# spelled number NEAR MUST is often the {not-applicable} count ("Sixty-four further MUSTs
+# bind PE roles ze does not...", where 64 is the not-applicable count against 15 gaps).
+# Measured on the committed page: strict adjacency matches 60 rows and agrees with all 60.
+# A window matches the same 60 but would, on any looser boundary, read those four
+# not-applicable counts as gap counts and red four honest rows on day one.
+#
+# The keyword may be pluralised. Every one of the 60 rows on the page writes "Nine MUSTs",
+# not "Nine MUST", and `\b(?:MUST|SHALL)\b` matches neither: the boundary between `T` and `s`
+# is not a word boundary, so the whole check silently judged nothing. `s?` before the `\b` is
+# what makes the 60 rows reachable at all.
+_GAP_COUNT_RE = re.compile(
+    r"\b(?P<num>" + _SPELLED_ALT + r")\s+(?:MUST|SHALL)s?\b", re.IGNORECASE
+)
+
+
+def spelled_gap_count(remaining: str) -> Optional[int]:
+    """The gap count a Remaining cell spells out, or None when it spells none.
+
+    None is not zero. A cell with no spelled count is not claiming zero gaps, it is making
+    no numeric claim at all, and judging it against a real count would invent a
+    disagreement (`Zero MUSTs` is likewise no claim about a gap and does not parse: `zero`
+    is absent from SPELLED_NUMBERS).
+    """
+    m = _GAP_COUNT_RE.search(remaining)
+    if m is None:
+        return None
+    return SPELLED_NUMBERS[m.group("num").lower()]
+
+
+def check_gap_count_agreement(
+    requirements: Sequence[Requirement], rows: Dict[str, Dict[str, str]]
+) -> List[str]:
+    """A spelled MUST-gap count in a Remaining cell must equal the real count.
+
+    60 rows carry one and all 60 are correct, by discipline alone with nothing enforcing it
+    (plan/spec-rfcgate-4-ledger.md D6). This is the only fact on the page a machine can
+    own: Area is an editorial label, Implemented coverage is source-anchored prose, and
+    Status is a product judgement. A COUNT is a fact about how many annotations exist -- it
+    is never a claim that their classifications are right, which matters because
+    ai/rules/rfc-compliance.md:53 voided every annotation as authority. Deriving the
+    Remaining TEXT from those classifications would launder a void judgement into generated
+    prose; cross-checking their number does not.
+
+    Coverage limit, stated here because the gate's own message states it too: SEVEN rows carry a
+    number this check does not judge, against the 60 it does. Four spell it in DIGITS (rfc7166
+    "17 MUST", rfc7311 "2 MUST", rfc9012 "51 MUST", rfc9830 "20 MUST"), and three put words
+    between a spelled number and the keyword (rfc5575 "Four Section 6 validation MUSTs", rfc9085
+    and rfc9514 "origination/encode MUSTs"). This check reads a spelled number sitting
+    immediately before MUST/SHALL and nothing else. Widening it means first normalising the
+    page's two counting conventions, which is editorial work on the page rather than gate work.
+
+    `Sixty-four` is NOT one of the seven, and the earlier note here said it was: it parses to 64
+    perfectly well (SPELLED_NUMBERS covers One..Ninety-nine), it is skipped by ADJACENCY because
+    rfc7432 writes "Sixty-four further MUSTs", and that row is judged anyway on its first match,
+    "Fifteen MUST gaps". Two rows sit in both populations for the same reason -- rfc9012 and
+    rfc9830 each carry an unjudged digit count AND an unjudged separated count -- and they are
+    counted once, under digits. Re-measured 2026-07-30 against the committed page.
+    """
+    errs: List[str] = []
+    gaps: Dict[str, int] = {}
+    for req in requirements:
+        if req.annotation and req.annotation.kind == "gap":
+            gaps[req.rfc] = gaps.get(req.rfc, 0) + 1
+    for stem in sorted(rows):
+        claimed = spelled_gap_count(rows[stem]["remaining"])
+        if claimed is None:
+            continue
+        real = gaps.get(stem, 0)
+        if claimed == real:
+            continue
+        errs.append(
+            f"docs/features/rfc-status.md says {stem} has {claimed} MUST-level gap(s), but "
+            f"rfc/short/{stem}.md carries {real} {{gap}} annotation(s). One of the two is "
+            f"wrong. Only a spelled number sitting immediately before MUST or SHALL is "
+            f"read as a gap count; a digit count, or a number further from the keyword, is "
+            f"outside this check"
+        )
     return errs
 
 
@@ -3111,6 +3719,27 @@ def source_keyword_count(stem: str) -> Optional[int]:
     return len(_SRC_KEYWORD_RE.findall(text))
 
 
+# The same four words in LOWERCASE only, deliberately not case-insensitive. It is the
+# evidence a pre-RFC-2119 document offers instead of capitalised keywords: RFC 1035 (1987)
+# has 0 uppercase MUST and 23 lowercase `must`, and reading the uppercase count alone
+# declares the DNS wire format free of obligations. Evidence in the rendered verdict, never
+# a gate input -- whether a lowercase clause binds is a human judgement.
+_SRC_PROSE_KEYWORD_RE = re.compile(r"\b(must not|must|shall not|shall)\b")
+
+
+def source_prose_keyword_count(stem: str) -> Optional[int]:
+    """Count LOWERCASE must/shall in the RFC's own text, or None if we don't have it.
+
+    Read alongside `source_keyword_count`, not instead of it. A zero uppercase count with a
+    large lowercase count is the pre-2119 signature, and the pair is what tells it apart
+    from a genuinely non-normative document (both of which show 0 uppercase).
+    """
+    text = source_text(stem)
+    if text is None:
+        return None
+    return len(_SRC_PROSE_KEYWORD_RE.findall(text))
+
+
 def unconverted_summaries(captured: Set[str]) -> List[Dict[str, object]]:
     """Summaries that declare no MUST-level requirement, with the source keyword count.
 
@@ -3119,12 +3748,24 @@ def unconverted_summaries(captured: Set[str]) -> List[Dict[str, object]]:
     rfc5304 and rfc5310 have 23, 13 and 12 MUST-level keywords in rfc/full/ and captured
     ZERO. Reporting these is the point -- an absent summary is indistinguishable from a
     compliant one, which is how a standards claim rots.
+
+    `captured` must mean "captured a GATED requirement". Its caller passed every parsed
+    requirement at any level, so ONE advisory row bought a summary immunity from this table:
+    a summary with four SHOULDs and zero MUSTs counted as captured and never appeared here,
+    which is exactly the shape this table exists to expose. Seven advisory-only summaries
+    were hidden that way (plan/spec-rfcgate-4-ledger.md D5).
     """
     out: List[Dict[str, object]] = []
     for stem in sorted(summary_stems()):
         if stem in captured:
             continue
-        out.append({"stem": stem, "src": source_keyword_count(stem)})
+        out.append(
+            {
+                "stem": stem,
+                "src": source_keyword_count(stem),
+                "prose": source_prose_keyword_count(stem),
+            }
+        )
     return out
 
 
@@ -3649,9 +4290,84 @@ def _render_evidence_legend() -> List[str]:
     return out
 
 
+def _render_status_backlog(
+    enrolled: Set[str],
+    rows: Dict[str, Dict[str, str]],
+    dispositions: Dict[str, Disposition],
+) -> List[str]:
+    """The two backlogs the status ratchets grandfather, rendered rather than listed.
+
+    `check_status_completeness` lets 32 rowless enrolments through and
+    `check_summary_disposition` lets a declared summary through, so both would otherwise be
+    invisible until someone re-ran the census by hand. Deriving them here keeps them
+    countable in review without a second hand-maintained list, which is the shape
+    `ai/rules/derive-not-hardcode.md` requires and the shape `unconverted_summaries` already
+    uses. Sorted, because `check_ledger_fresh` compares bytes.
+    """
+    out: List[str] = []
+    missing = sorted(enrolled - set(rows))
+    out.append("## Enrolled without a public status row")
+    out.append("")
+    out.append(
+        f"{len(missing)} enrolled RFC(s) have no row in `docs/features/rfc-status.md`. "
+        "Every MUST-level requirement they declare is gated, so the obligation is enforced "
+        "while the public page says nothing about the RFC at all. `check_status_completeness` "
+        "grandfathers the ones that predate it and refuses any NEW enrolment without a row, "
+        "so this number can only shrink. It is derived from `enrolled - rows`, never listed."
+    )
+    out.append("")
+    if missing:
+        out.append("| RFC | Gated requirements enforced with no public row |")
+        out.append("|---|---|")
+        for stem in missing:
+            out.append(f"| `{stem}` | yes |")
+    else:
+        out.append("None: every enrolled RFC has a row.")
+    out.append("")
+
+    out.append("## Declared not enrolled")
+    out.append("")
+    out.append(
+        "`rfc/not-enrolled.txt` records why each un-enrolled summary is not enrolled, so the "
+        "remainder is a decision rather than an absence. Only `non-normative` is a claim "
+        "about the document; `backlog` and `blocked` are **DEBT** and are listed as such. A "
+        "disposition is discharged by enrolment and by nothing else."
+    )
+    out.append("")
+    if dispositions:
+        out.append("| Summary | Kind | Debt? | Reason |")
+        out.append("|---|---|---|---|")
+        for stem in sorted(dispositions):
+            disp = dispositions[stem]
+            debt = "no" if disp.kind == DISPOSITION_NON_NORMATIVE else "**DEBT**"
+            out.append(f"| `{stem}` | {disp.kind} | {debt} | {disp.reason} |")
+    else:
+        out.append("None: every summary is enrolled.")
+    out.append("")
+    return out
+
+
 def render_ledger(
-    requirements: Sequence[Requirement], tags: Sequence[Tag], enrolled: Set[str]
+    requirements: Sequence[Requirement],
+    tags: Sequence[Tag],
+    enrolled: Set[str],
+    rows: Optional[Dict[str, Dict[str, str]]] = None,
+    dispositions: Optional[Dict[str, Disposition]] = None,
 ) -> str:
+    """The generated `ai/RFC-REQUIREMENTS.md` body.
+
+    `rows` and `dispositions` are passed in by `run_check`, which has already read both, so
+    one run parses `docs/features/rfc-status.md` exactly once and every consumer shares that
+    parse. They default to reading from disk for `run_write` and `run_check_fresh`, whose
+    whole job is one render: the bytes are identical either way because both paths read the
+    same two files, which is what keeps `check_ledger_fresh`'s byte comparison meaningful.
+    """
+    if rows is None:
+        with open(STATUS_FILE, encoding="utf-8") as fh:
+            rows = parse_status_ledger(fh.read())
+    if dispositions is None:
+        dispositions = load_dispositions()
+
     by_rid: Dict[str, List[Tag]] = {}
     for t in tags:
         by_rid.setdefault(t.rid, []).append(t)
@@ -3747,33 +4463,57 @@ def render_ledger(
             )
         out.append("")
 
-    stale = unconverted_summaries({r.rfc for r in requirements})
+    out.extend(_render_status_backlog(enrolled, rows, dispositions))
+
+    # GATED, not "any requirement". The caller used to pass every parsed requirement at any
+    # level, so a summary with one SHOULD row counted as captured and never appeared below --
+    # seven advisory-only summaries hid behind that (D5). The table's own purpose is to name
+    # summaries that captured no OBLIGATION.
+    stale = unconverted_summaries({r.rfc for r in requirements if r.gated})
     if stale:
         out.append("## Summaries declaring no MUST-level requirement")
         out.append("")
         out.append(
-            "These summaries contribute nothing to the ledger. That is correct for a "
-            "genuinely non-normative reference, and a capture failure for anything else. "
-            "The source column is the count of MUST/MUST NOT/SHALL/SHALL NOT in the RFC's "
-            "own text: a non-zero source count with no captured requirement means the "
-            "summary needs re-authoring (`/ze-rfc <stem>`) before its RFC can ever be "
-            "enrolled."
+            "These summaries gate nothing. That is correct for a genuinely non-normative "
+            "reference, and a capture failure for anything else. The uppercase column counts "
+            "MUST/MUST NOT/SHALL/SHALL NOT in the RFC's own text; the lowercase column counts "
+            "the same four words in indicative prose, which is the only form a pre-RFC-2119 "
+            "document has. A non-zero uppercase count with nothing captured means the summary "
+            "needs re-authoring (`/ze-rfc <stem>`) before its RFC can ever be enrolled. A "
+            "summary appears here whenever it captured no MUST-level row, even if it captured "
+            "SHOULD or MAY rows."
         )
         out.append("")
-        out.append("| Summary | MUST-level keywords in source | Verdict |")
-        out.append("|---|---|---|")
+        out.append("| Summary | Uppercase | Lowercase | Verdict |")
+        out.append("|---|---|---|---|")
         for row in stale:
             src = row["src"]
+            prose = row["prose"]
+            prosetxt = "?" if prose is None else str(prose)
             if src is None:
                 verdict = "no source text under `rfc/full/` -- cannot judge"
                 srctxt = "?"
+            elif src == 0 and prose:
+                # The pre-2119 case, and the one the old verdict got wrong. RFC 1035 (1987)
+                # shows 0 uppercase and 23 lowercase `must`, and "consistent: source declares
+                # none" read a normative wire specification as non-normative (R-7).
+                verdict = (
+                    f"**UNDECIDED**: 0 uppercase keywords but {prose} lowercase -- a "
+                    "pre-RFC-2119 document states obligations in indicative prose, so a "
+                    "zero uppercase count is not evidence of a non-normative source. "
+                    "Needs a human reading, not a keyword count"
+                )
+                srctxt = "0"
             elif src == 0:
-                verdict = "consistent: source declares none"
+                verdict = (
+                    "consistent: source declares none in either register (0 uppercase, "
+                    "0 lowercase)"
+                )
                 srctxt = "0"
             else:
                 verdict = "**RE-AUTHOR**: source is normative, summary captured nothing"
                 srctxt = str(src)
-            out.append(f"| `{row['stem']}` | {srctxt} | {verdict} |")
+            out.append(f"| `{row['stem']}` | {srctxt} | {prosetxt} | {verdict} |")
         out.append("")
     return "\n".join(out)
 
@@ -3796,7 +4536,15 @@ EXTRACTION_SCHEMA_VERSION = 1
 
 # Strongest first. A sign-off may declare the DERIVED register or a WEAKER one; a stronger
 # claim than the source supports is refused (AC-9, AC-32).
-REGISTERS = ("rfc2119", "prose", "manual-walk")
+#
+# Named rather than spelled at each site: check_unproven_support reads the strongest grade by
+# name to refuse OR-A's escape over a source that quotes capitalised keywords, and a second
+# spelling of "rfc2119" is a second place for that condition to drift from the derivation that
+# produces it (ai/rules/derive-not-hardcode.md).
+REGISTER_RFC2119 = "rfc2119"
+REGISTER_PROSE = "prose"
+REGISTER_MANUAL_WALK = "manual-walk"
+REGISTERS = (REGISTER_RFC2119, REGISTER_PROSE, REGISTER_MANUAL_WALK)
 _REGISTER_STRENGTH = {name: len(REGISTERS) - i for i, name in enumerate(REGISTERS)}
 
 # Closed sets, validated at parse time exactly as ANNOTATION_KINDS:77 is. Anything outside
@@ -4033,10 +4781,10 @@ def derive_register(keyword_sites: int, prose_sites: int, gated: int) -> str:
     the strong grade are exactly the ones whose source cannot support it.
     """
     if keyword_sites and keyword_sites >= gated:
-        return "rfc2119"
+        return REGISTER_RFC2119
     if prose_sites:
-        return "prose"
-    return "manual-walk"
+        return REGISTER_PROSE
+    return REGISTER_MANUAL_WALK
 
 
 # Keyed on the SOURCE SHA, never on the stem alone. run_check derives the inventory of
@@ -4093,12 +4841,12 @@ def derive_inventory(stem: str, gated: int) -> Optional[Inventory]:
 
     keyword = _sites_for(stripped, _SITE_KEYWORD_RE)
     register = derive_register(len(keyword), 0, gated)
-    if register == "rfc2119":
+    if register == REGISTER_RFC2119:
         sites = keyword
     else:
         prose = _sites_for(stripped, _SITE_PROSE_RE)
         register = derive_register(len(keyword), len(prose), gated)
-        sites = prose if register == "prose" else []
+        sites = prose if register == REGISTER_PROSE else []
 
     counts: Dict[str, int] = {}
     for s in sites:
@@ -4140,6 +4888,37 @@ def derive_inventory(stem: str, gated: int) -> Optional[Inventory]:
     # above is never cached as an answer.
     _INVENTORY_MEMO[memo_key] = inv
     return inv
+
+
+def derived_registers(
+    signed: Dict[str, "Extraction"], requirements: Sequence[Requirement]
+) -> Dict[str, str]:
+    """{stem: the register the SOURCE derives} for each stem holding a valid sign-off.
+
+    check_unproven_support needs one fact the artifact cannot supply about itself: what register
+    the document is actually written in. `manual-walk` is the WEAKEST grade and
+    _evaluate_extraction refuses only a claim STRONGER than derived, so every stem in the corpus
+    may declare `manual-walk` -- which made the register-reason escape reachable by any RFC,
+    including ones whose own sentences quote capitalised MUST.
+
+    Scoped to `signed`, and free. evaluate_extractions already derived the inventory of exactly
+    these stems at exactly this gated count, and derive_inventory is memoised on
+    (stem, gated, source sha, path), so this re-reads answers rather than recomputing them.
+
+    A stem with no source text is ABSENT from the result, never defaulted. None is not a
+    register: "I could not look" and "the source states nothing" must not render alike
+    (ai/rules/fail-closed-guards.md, the zero-value trap), and the consumer refuses the escape
+    on an absent grade. Every VALID sign-off has derivable source in practice --
+    evaluate_extractions drops one that does not -- so the absent case is a degraded tree, which
+    is precisely when a permissive default would be wrong.
+    """
+    gated = gated_counts(requirements)
+    out: Dict[str, str] = {}
+    for stem in signed:
+        inv = derive_inventory(stem, gated.get(stem, 0))
+        if inv is not None:
+            out[stem] = inv.register
+    return out
 
 
 class ExtractionSite(NamedTuple):
@@ -5326,7 +6105,11 @@ def summary_stems() -> Set[str]:
 
 
 def check_ledger_fresh(
-    requirements: Sequence[Requirement], tags: Sequence[Tag], enrolled: Set[str]
+    requirements: Sequence[Requirement],
+    tags: Sequence[Tag],
+    enrolled: Set[str],
+    rows: Optional[Dict[str, Dict[str, str]]] = None,
+    dispositions: Optional[Dict[str, Disposition]] = None,
 ) -> List[str]:
     """The generated ledger must match what its sources render to right now.
 
@@ -5336,8 +6119,13 @@ def check_ledger_fresh(
     the same staleness `docs_to_code.py --check` guards for `ai/DOCS-TO-CODE.md`
     (`ai/rules/derive-not-hardcode.md`). It runs inside `ze-rfc-check`, which is in both
     verify branches, so a stale ledger fails the build rather than rotting silently.
+
+    `rows` and `dispositions` are forwarded to `render_ledger` so `run_check`'s single parse
+    of `docs/features/rfc-status.md` reaches this call too. Absent, the render reads them
+    itself; the bytes are the same, so a caller that omits them pays one extra parse and
+    never gets a different verdict.
     """
-    body = render_ledger(requirements, tags, enrolled) + "\n"
+    body = render_ledger(requirements, tags, enrolled, rows, dispositions) + "\n"
     current = ""
     if os.path.exists(LEDGER_FILE):
         with open(LEDGER_FILE, encoding="utf-8") as fh:
@@ -5356,9 +6144,17 @@ def _collect_for_check() -> Tuple[
     Shared by run_check and run_check_fresh so both render the ledger from identical
     inputs -- if they diverged, one could call fresh what the other rebuilds.
 
-    Returns the reported parse errors (enrolled summaries only) AND the per-stem map of
-    every parse failure. check_new_summaries needs the suppressed ones: a summary that is
-    new cannot hide behind the migration amnesty the un-enrolled backlog gets.
+    Returns EVERY parse error, and separately the per-stem map of the same failures.
+    check_new_summaries needs the map keyed by stem so it can name a new summary that does
+    not parse.
+
+    Enrolment no longer filters what is reported. It used to: the comment said the id
+    migration was per-RFC and un-enrolled summaries had not been converted, so their parse
+    failures were expected. The migration is complete -- zero of the 175 summaries fail to
+    parse -- so the filter suppressed nothing and only shielded a FUTURE un-enrolled summary
+    from a parse error it should report (plan/spec-rfcgate-4-ledger.md D4,
+    ai/rules/stale-comments.md, ai/rules/fail-closed-guards.md). A summary the gate cannot
+    read is a summary whose obligations nobody can see, enrolled or not.
     """
     enrolled = load_enrolled()
     stems = summary_stems()
@@ -5371,8 +6167,7 @@ def _collect_for_check() -> Tuple[
             reqs.extend(parse_summary_file(path))
         except ParseError as exc:
             by_stem[stem] = str(exc)
-            if stem in enrolled:
-                parse_errs.append(str(exc))
+            parse_errs.append(str(exc))
     return enrolled, reqs, parse_errs, scan_tree(), by_stem
 
 
@@ -5389,6 +6184,19 @@ def run_check() -> int:
 
         # Read once and shared by three consumers below. None means git could not answer.
         baseline_stems = _git_baseline_summary_stems()
+
+        # The public page, read ONCE per run and shared by every consumer below: the
+        # {gap}-disclosure check, the audit-disclosure check, the completeness ratchet, the
+        # unproven-support guard, the gap-count cross-check and the ledger render. It used to
+        # be opened late, immediately before its single consumer; five more consumers would
+        # have meant five more parses of the same 157 rows.
+        with open(STATUS_FILE, encoding="utf-8") as fh:
+            rows = parse_status_ledger(fh.read())
+        baseline_rows = _git_baseline_status_rows()
+        # Strictly parsed: a malformed line reaches the handler below as a clean exit 2, and
+        # must never be skipped into a silently undeclared summary.
+        dispositions = load_dispositions()
+        baseline_dispositions = _git_baseline_dispositions()
 
         errs: List[str] = []
         # The sign-off set is derived once and shared: check_enrolment gates a NEW
@@ -5455,9 +6263,8 @@ def run_check() -> int:
                     base_enrolled,
                 )
             )
-        # parse_errs holds only the errors for enrolled summaries; the migration to IDs
-        # is per-RFC and un-enrolled summaries have not been converted, so their parse
-        # failures are expected and not reported.
+        # Every parse error, enrolled or not. _collect_for_check's docstring records why the
+        # enrolment filter that used to sit here is gone.
         errs.extend(parse_errs)
 
         # IDs are allocated once and never reused. Compare the current id set against the
@@ -5468,9 +6275,37 @@ def run_check() -> int:
 
         errs.extend(evaluate(reqs, tags, enrolled))
 
-        with open(STATUS_FILE, encoding="utf-8") as fh:
-            rows = parse_status_ledger(fh.read())
         errs.extend(check_status_agreement(reqs, rows, enrolled))
+
+        # The public ledger's edges (plan/spec-rfcgate-4-ledger.md). Four guards over the
+        # same four inputs check_status_agreement already reads, each closing a case it
+        # cannot reach: a summary that is neither enrolled nor declared, an enrolled RFC with
+        # no public row, a support claim over an empty checklist, and a hand-written gap
+        # count that disagrees with the summary.
+        errs.extend(
+            check_summary_disposition(
+                stems, enrolled, dispositions, baseline_dispositions
+            )
+        )
+        errs.extend(
+            check_status_completeness(
+                enrolled, rows, baseline_rows, newly_enrolled, base_enrolled
+            )
+        )
+        # The derived grade of every signed stem, read off the SOURCE text. It is the one fact
+        # behind OR-A's escape that the artifact cannot assert about itself, and the memoised
+        # derivation means the walks were already paid for by signed_extractions above.
+        errs.extend(
+            check_unproven_support(
+                reqs,
+                rows,
+                stems,
+                dispositions,
+                signed,
+                derived_registers(signed, reqs),
+            )
+        )
+        errs.extend(check_gap_count_agreement(reqs, rows))
 
         # The audit half. Loaded ONCE through the validating parse and shared by every check
         # below, so the schema cannot be reached by one consumer and bypassed by another
@@ -5499,7 +6334,7 @@ def run_check() -> int:
         errs.extend(check_extraction_ratchet())
         errs.extend(check_drain_floor(enrolled, signed))
 
-        errs.extend(check_ledger_fresh(reqs, tags, enrolled))
+        errs.extend(check_ledger_fresh(reqs, tags, enrolled, rows, dispositions))
     except (ParseError, OSError) as exc:
         # OSError too: an unreadable rfc/enrolled.txt or a missing docs/features/rfc-status.md
         # must fail closed with a clean exit-2 message, not surface as an uncaught traceback

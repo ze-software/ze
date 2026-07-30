@@ -1,0 +1,58 @@
+# The declared remainder -- why each un-enrolled summary is not enrolled.
+#
+# columns: <rfc-stem>\t<kind>\t<why>
+#
+# This file is the sibling of rfc/enrolled.txt and the two PARTITION rfc/short/*.md: every
+# summary is in exactly one of them. check_summary_disposition (scripts/dev/rfc_requirements.py)
+# reds the gate on a summary in neither, on a stem in both, and on a row naming a summary that
+# does not exist. Nine summaries once sat outside every check with no recorded reason, and
+# nothing distinguished "the RFC imposes nothing" from "nobody extracted it" from "we do not
+# even have the text" (plan/spec-rfcgate-4-ledger.md D3). An un-enrolled summary is now a
+# decision, not an absence.
+#
+# A row leaves this file by arriving in rfc/enrolled.txt, or by its summary leaving rfc/short/.
+# Deleting the row while the summary stays returns that summary to the undeclared state, so the
+# gate refuses that: for a LIVE summary, enrolment is the one discharge. Retiring the RFC means
+# deleting rfc/short/<stem>.md and the row together, in one commit. Before the second path
+# existed both branches fired on a departing stem -- keep the row and it named a summary nobody
+# wrote, delete it and the row had "left without enrolling" -- so a declared summary could be
+# added to the tree and never removed from it.
+#
+# KINDS -- a closed set. Only the first is a claim about conformance.
+#
+#   non-normative  The DOCUMENT imposes no MUST-level obligation on any speaker. This is the one
+#                  kind that makes a claim about conformance, so the gate judges its reason
+#                  twice.
+#
+#                  It MUST cite something a reviewer can check in the text: the RFC's IETF
+#                  category (Informational, Experimental, Historic, Best Current Practice), the
+#                  presence or absence of the RFC 2119 / RFC 8174 / BCP 14 key-words machinery,
+#                  or the result of a capitalised MUST/SHALL/REQUIRED scan over the source. A
+#                  reason that cites none of those is refused. It cannot be checked and it
+#                  cannot be contradicted, which is exactly what a conformance claim must not
+#                  be. The gate reads the CITATION, not its truth: nothing here opens
+#                  rfc/full/<stem>.txt to confirm the category or re-run the scan, so a
+#                  reviewer still has to. What it removes is the unfalsifiable reason.
+#
+#                  It may NOT say that the obligation does not apply to Ze: whether Ze owes
+#                  something is a conformance judgement that ai/rules/rfc-compliance.md reserves
+#                  to the owner, and a reason phrased that way launders an unextracted
+#                  obligation into a decision. Six phrasings are named and refused by name. The
+#                  wordings nobody enumerated are caught by the citation requirement above,
+#                  which is why that one is positive rather than a longer blacklist.
+#   backlog        DEBT. The extraction is owed. Something in the summary is unfinished, or the
+#                  obligations it declares are not yet proven and not yet ruled on.
+#   blocked        DEBT. Something outside the summary prevents enrolment -- most often that we
+#                  do not have the RFC's own text, which check_enrolment requires before an
+#                  enrolment is legal at all.
+#
+# backlog and blocked render as **DEBT** in ai/RFC-REQUIREMENTS.md ("Declared not enrolled").
+# Neither asserts anything about conformance, and neither can silence a public support claim.
+
+rfc1035	backlog	Domain Names: Implementation and Specification. Re-authored 2026-07-30 and it now declares 27 MUST-level obligations read from the indicative prose of a 1987 document (0 capitalised keywords, 23 lowercase must), so this is no longer an empty checklist. It is not enrolled because the obligations are not all proven and the unproven ones need an owner ruling, not an implementer's annotation: 6 have no code path in Ze at all (the 512-octet UDP bound and the TC bit are never enforced -- internal/core/dnsserver/handler.go:62 writes whatever it is handed; the response TTL is never raised to the SOA MINIMUM -- internal/plugins/geodns/server.go:106; Ze performs no zone transfer of any kind, and an unsupported inverse query draws no Not Implemented reply -- the one obligation the 73-section walk found OUTSIDE the summary's declared scope and added to it), and about 6 more admit only a positive polarity because miekg/dns owns the wire codec and no Ze-side change can break them. Escalated for scoping per OR-1b.
+rfc5301	backlog	Dynamic Hostname Exchange Mechanism for IS-IS. Re-authored 2026-07-30 and it now declares 7 MUST-level obligations read from the indicative prose of section 3. TLV type 137 and the length field are proven in both directions, but three are not met by the code: the value is emitted as raw bytes with no 7-bit-ASCII restriction (internal/plugins/isis/lsdb/encode.go:60 does a bare []byte(name) and the YANG leaf carries no pattern), nothing validates the value as a domain name per RFC 2181, and there is no IDNA handling anywhere on the IS-IS path. Fixing the first two is one YANG pattern, but it narrows a config surface operators may already use, and the third needs a ruling on whether an interface that REFUSES Unicode satisfies a requirement conditioned on one that permits it. Escalated rather than decided.
+rfc6987	backlog	OSPF Stub Router Advertisement. Its five obligations sit behind bare [LSA]-style category tags, which parse_checklist_line reads as prose rather than as requirements, so the summary captures zero at any level while the source is normative. Declared backlog and not non-normative on purpose: calling it non-normative would launder five unparsed obligations into a decision, which is exactly the shape D5 exists to expose.
+rfc7999	blocked	BLACKHOLE Community. No source text at rfc/full/rfc7999.txt or rfc/drafts/rfc7999.txt, and check_enrolment refuses an enrolment without it: a summary validated only against itself can neither be caught stating a requirement the RFC does not contain nor be caught missing one it does. Fetch https://www.rfc-editor.org/rfc/rfc7999.txt, then extract.
+rfc8195	backlog	Use of BGP Large Communities. Source text is present, but the summary captures only advisory rows, so it gates nothing. It was invisible to the re-author table until the captured set was narrowed to GATED requirements (D5); the extraction is owed.
+rfc8326	blocked	Graceful BGP Session Shutdown. No source text at rfc/full/rfc8326.txt or rfc/drafts/rfc8326.txt, so check_enrolment refuses the enrolment. Fetch https://www.rfc-editor.org/rfc/rfc8326.txt, then extract.
+rfc9129	blocked	YANG Data Model for the OSPF Protocol. No source text at rfc/full/rfc9129.txt or rfc/drafts/rfc9129.txt, so check_enrolment refuses the enrolment. Fetch https://www.rfc-editor.org/rfc/rfc9129.txt, then extract.

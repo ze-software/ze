@@ -1581,6 +1581,24 @@ class TestIDAllocationWiring(unittest.TestCase):
             check_audit_note=lambda *a, **k: [],
             check_audit_findings=lambda *a, **k: [],
             check_audit_verdict_ratchet=lambda *a, **k: [],
+            # The four ledger-edge checks (plan/spec-rfcgate-4-ledger.md), neutralised for
+            # the same reason check_status_agreement above is: they read the REAL
+            # rfc/not-enrolled.txt and docs/features/rfc-status.md, and this driver
+            # declares a SYNTHETIC summary universe. Judging 157 real status rows and 7
+            # real dispositions against it produces a wall of violations that has nothing
+            # to do with this driver's subject. Each of the four has its own wiring class,
+            # which is where a lost call site is caught.
+            # The extraction half, neutralised for the same reason: evaluate_extractions
+            # reads the REAL rfc/extraction/*.json, whose sites name requirement ids from
+            # the REAL summaries, not from this driver's synthetic set.
+            signed_extractions=lambda reqs_: {},
+            check_extraction_signoff=lambda *a, **k: [],
+            check_extraction_ratchet=lambda *a, **k: [],
+            check_drain_floor=lambda *a, **k: [],
+            check_summary_disposition=lambda *a, **k: [],
+            check_status_completeness=lambda *a, **k: [],
+            check_unproven_support=lambda *a, **k: [],
+            check_gap_count_agreement=lambda *a, **k: [],
             check_ledger_fresh=lambda *a, **k: [],
         ):
             return _run_capturing(R.run_check)
@@ -2036,6 +2054,24 @@ class TestCoverageRatchetWiring(unittest.TestCase):
             check_audit_note=lambda *a, **k: [],
             check_audit_findings=lambda *a, **k: [],
             check_audit_verdict_ratchet=lambda *a, **k: [],
+            # The four ledger-edge checks (plan/spec-rfcgate-4-ledger.md), neutralised for
+            # the same reason check_status_agreement above is: they read the REAL
+            # rfc/not-enrolled.txt and docs/features/rfc-status.md, and this driver
+            # declares a SYNTHETIC summary universe. Judging 157 real status rows and 7
+            # real dispositions against it produces a wall of violations that has nothing
+            # to do with this driver's subject. Each of the four has its own wiring class,
+            # which is where a lost call site is caught.
+            # The extraction half, neutralised for the same reason: evaluate_extractions
+            # reads the REAL rfc/extraction/*.json, whose sites name requirement ids from
+            # the REAL summaries, not from this driver's synthetic set.
+            signed_extractions=lambda reqs_: {},
+            check_extraction_signoff=lambda *a, **k: [],
+            check_extraction_ratchet=lambda *a, **k: [],
+            check_drain_floor=lambda *a, **k: [],
+            check_summary_disposition=lambda *a, **k: [],
+            check_status_completeness=lambda *a, **k: [],
+            check_unproven_support=lambda *a, **k: [],
+            check_gap_count_agreement=lambda *a, **k: [],
             check_ledger_fresh=lambda *a, **k: [],
         ):
             return _run_capturing(R.run_check)
@@ -2225,6 +2261,24 @@ class TestEvidenceRatchetWiring(unittest.TestCase):
             check_audit_note=lambda *a, **k: [],
             check_audit_findings=lambda *a, **k: [],
             check_audit_verdict_ratchet=lambda *a, **k: [],
+            # The four ledger-edge checks (plan/spec-rfcgate-4-ledger.md), neutralised for
+            # the same reason check_status_agreement above is: they read the REAL
+            # rfc/not-enrolled.txt and docs/features/rfc-status.md, and this driver
+            # declares a SYNTHETIC summary universe. Judging 157 real status rows and 7
+            # real dispositions against it produces a wall of violations that has nothing
+            # to do with this driver's subject. Each of the four has its own wiring class,
+            # which is where a lost call site is caught.
+            # The extraction half, neutralised for the same reason: evaluate_extractions
+            # reads the REAL rfc/extraction/*.json, whose sites name requirement ids from
+            # the REAL summaries, not from this driver's synthetic set.
+            signed_extractions=lambda reqs_: {},
+            check_extraction_signoff=lambda *a, **k: [],
+            check_extraction_ratchet=lambda *a, **k: [],
+            check_drain_floor=lambda *a, **k: [],
+            check_summary_disposition=lambda *a, **k: [],
+            check_status_completeness=lambda *a, **k: [],
+            check_unproven_support=lambda *a, **k: [],
+            check_gap_count_agreement=lambda *a, **k: [],
             check_ledger_fresh=lambda *a, **k: [],
         ):
             return _run_capturing(R.run_check)
@@ -2492,6 +2546,24 @@ class TestRetiredRequirementsWiring(unittest.TestCase):
             check_audit_note=lambda *a, **k: [],
             check_audit_findings=lambda *a, **k: [],
             check_audit_verdict_ratchet=lambda *a, **k: [],
+            # The four ledger-edge checks (plan/spec-rfcgate-4-ledger.md), neutralised for
+            # the same reason check_status_agreement above is: they read the REAL
+            # rfc/not-enrolled.txt and docs/features/rfc-status.md, and this driver
+            # declares a SYNTHETIC summary universe. Judging 157 real status rows and 7
+            # real dispositions against it produces a wall of violations that has nothing
+            # to do with this driver's subject. Each of the four has its own wiring class,
+            # which is where a lost call site is caught.
+            # The extraction half, neutralised for the same reason: evaluate_extractions
+            # reads the REAL rfc/extraction/*.json, whose sites name requirement ids from
+            # the REAL summaries, not from this driver's synthetic set.
+            signed_extractions=lambda reqs_: {},
+            check_extraction_signoff=lambda *a, **k: [],
+            check_extraction_ratchet=lambda *a, **k: [],
+            check_drain_floor=lambda *a, **k: [],
+            check_summary_disposition=lambda *a, **k: [],
+            check_status_completeness=lambda *a, **k: [],
+            check_unproven_support=lambda *a, **k: [],
+            check_gap_count_agreement=lambda *a, **k: [],
             check_ledger_fresh=lambda *a, **k: [],
             check_id_allocation=lambda *a, **k: [],
         ):
@@ -2546,6 +2618,24 @@ class TestDegradedBaselineIsQuiet(unittest.TestCase):
             check_audit_note=lambda *a, **k: [],
             check_audit_findings=lambda *a, **k: [],
             check_audit_verdict_ratchet=lambda *a, **k: [],
+            # The four ledger-edge checks (plan/spec-rfcgate-4-ledger.md), neutralised for
+            # the same reason check_status_agreement above is: they read the REAL
+            # rfc/not-enrolled.txt and docs/features/rfc-status.md, and this driver
+            # declares a SYNTHETIC summary universe. Judging 157 real status rows and 7
+            # real dispositions against it produces a wall of violations that has nothing
+            # to do with this driver's subject. Each of the four has its own wiring class,
+            # which is where a lost call site is caught.
+            # The extraction half, neutralised for the same reason: evaluate_extractions
+            # reads the REAL rfc/extraction/*.json, whose sites name requirement ids from
+            # the REAL summaries, not from this driver's synthetic set.
+            signed_extractions=lambda reqs_: {},
+            check_extraction_signoff=lambda *a, **k: [],
+            check_extraction_ratchet=lambda *a, **k: [],
+            check_drain_floor=lambda *a, **k: [],
+            check_summary_disposition=lambda *a, **k: [],
+            check_status_completeness=lambda *a, **k: [],
+            check_unproven_support=lambda *a, **k: [],
+            check_gap_count_agreement=lambda *a, **k: [],
             check_ledger_fresh=lambda *a, **k: [],
         ):
             return _run_capturing(R.run_check)
@@ -2602,6 +2692,24 @@ class TestNewSummaryEnrolmentWiring(unittest.TestCase):
             check_audit_note=lambda *a, **k: [],
             check_audit_findings=lambda *a, **k: [],
             check_audit_verdict_ratchet=lambda *a, **k: [],
+            # The four ledger-edge checks (plan/spec-rfcgate-4-ledger.md), neutralised for
+            # the same reason check_status_agreement above is: they read the REAL
+            # rfc/not-enrolled.txt and docs/features/rfc-status.md, and this driver
+            # declares a SYNTHETIC summary universe. Judging 157 real status rows and 7
+            # real dispositions against it produces a wall of violations that has nothing
+            # to do with this driver's subject. Each of the four has its own wiring class,
+            # which is where a lost call site is caught.
+            # The extraction half, neutralised for the same reason: evaluate_extractions
+            # reads the REAL rfc/extraction/*.json, whose sites name requirement ids from
+            # the REAL summaries, not from this driver's synthetic set.
+            signed_extractions=lambda reqs_: {},
+            check_extraction_signoff=lambda *a, **k: [],
+            check_extraction_ratchet=lambda *a, **k: [],
+            check_drain_floor=lambda *a, **k: [],
+            check_summary_disposition=lambda *a, **k: [],
+            check_status_completeness=lambda *a, **k: [],
+            check_unproven_support=lambda *a, **k: [],
+            check_gap_count_agreement=lambda *a, **k: [],
             check_ledger_fresh=lambda *a, **k: [],
         ):
             return _run_capturing(R.run_check)
@@ -2664,6 +2772,24 @@ class TestSummaryParseErrorWiring(unittest.TestCase):
                 check_audit_note=lambda *a, **k: [],
                 check_audit_findings=lambda *a, **k: [],
                 check_audit_verdict_ratchet=lambda *a, **k: [],
+                # The four ledger-edge checks (plan/spec-rfcgate-4-ledger.md), neutralised for
+                # the same reason check_status_agreement above is: they read the REAL
+                # rfc/not-enrolled.txt and docs/features/rfc-status.md, and this driver
+                # declares a SYNTHETIC summary universe. Judging 157 real status rows and 7
+                # real dispositions against it produces a wall of violations that has nothing
+                # to do with this driver's subject. Each of the four has its own wiring class,
+                # which is where a lost call site is caught.
+                # The extraction half, neutralised for the same reason: evaluate_extractions
+                # reads the REAL rfc/extraction/*.json, whose sites name requirement ids from
+                # the REAL summaries, not from this driver's synthetic set.
+                signed_extractions=lambda reqs_: {},
+                check_extraction_signoff=lambda *a, **k: [],
+                check_extraction_ratchet=lambda *a, **k: [],
+                check_drain_floor=lambda *a, **k: [],
+                check_summary_disposition=lambda *a, **k: [],
+                check_status_completeness=lambda *a, **k: [],
+                check_unproven_support=lambda *a, **k: [],
+                check_gap_count_agreement=lambda *a, **k: [],
                 check_ledger_fresh=lambda *a, **k: [],
             ):
                 return _run_capturing(R.run_check)
@@ -3120,7 +3246,17 @@ class TestSiteInventory(unittest.TestCase):
 
     def test_a_duplicate_locator_from_the_derivation_fails_closed(self):
         """The invariant is asserted at its PRODUCER, not left for a downstream dict to
-        swallow (ai/rules/fail-closed-guards.md: a guard that cannot deny must say so)."""
+        swallow (ai/rules/fail-closed-guards.md: a guard that cannot deny must say so).
+
+        The memo is cleared first, and that is load-bearing rather than tidiness. This is the one
+        test whose subject is reached only by RUNNING the derivation, and derive_inventory answers
+        from _INVENTORY_MEMO before it looks at _section_bodies -- so any earlier test in the
+        process that derived this stem, this gated count and this body serves the cached
+        inventory and the patched duplicate is never produced. That is how it broke: a new class
+        deriving _SRC_TWO_SITES under "rfc9999" at gated=0 ran first (classes load alphabetically)
+        and this assertion started reporting "ParseError not raised". The clear makes the test
+        independent of what ran before it."""
+        R._INVENTORY_MEMO.clear()
         with _patched(
             _section_bodies=lambda text: [("2", "A speaker MUST do it.")] * 2
         ):
@@ -4841,6 +4977,17 @@ class _ExtractionDrive(unittest.TestCase):
             check_audit_note=lambda *a, **k: [],
             check_audit_findings=lambda *a, **k: [],
             check_audit_verdict_ratchet=lambda *a, **k: [],
+            # The four ledger-edge checks (plan/spec-rfcgate-4-ledger.md), neutralised for
+            # the same reason check_status_agreement above is: they read the REAL
+            # rfc/not-enrolled.txt and docs/features/rfc-status.md, and this driver
+            # declares a SYNTHETIC summary universe. Judging 157 real status rows and 7
+            # real dispositions against it produces a wall of violations that has nothing
+            # to do with this driver's subject. Each of the four has its own wiring class,
+            # which is where a lost call site is caught.
+            check_summary_disposition=lambda *a, **k: [],
+            check_status_completeness=lambda *a, **k: [],
+            check_unproven_support=lambda *a, **k: [],
+            check_gap_count_agreement=lambda *a, **k: [],
             check_ledger_fresh=lambda *a, **k: [],
         )
         overrides.update(kw)  # an explicit override wins over the default wiring
@@ -6871,6 +7018,17 @@ class _AuditDrive(_AuditFixture):
             check_extraction_signoff=lambda *a, **k: [],
             check_extraction_ratchet=lambda *a, **k: [],
             check_drain_floor=lambda *a, **k: [],
+            # The four ledger-edge checks (plan/spec-rfcgate-4-ledger.md), neutralised for
+            # the same reason check_status_agreement above is: they read the REAL
+            # rfc/not-enrolled.txt and docs/features/rfc-status.md, and this driver
+            # declares a SYNTHETIC summary universe. Judging 157 real status rows and 7
+            # real dispositions against it produces a wall of violations that has nothing
+            # to do with this driver's subject. Each of the four has its own wiring class,
+            # which is where a lost call site is caught.
+            check_summary_disposition=lambda *a, **k: [],
+            check_status_completeness=lambda *a, **k: [],
+            check_unproven_support=lambda *a, **k: [],
+            check_gap_count_agreement=lambda *a, **k: [],
             check_ledger_fresh=lambda *a, **k: [],
             # check_enrolment refuses an enrolled stem with no source text under rfc/full/, which
             # is child 1's rule and nothing to do with the audit record.
@@ -7033,6 +7191,17 @@ class TestAuditFilesWiring(_AuditDrive):
                 check_extraction_signoff=lambda *a, **k: [],
                 check_extraction_ratchet=lambda *a, **k: [],
                 check_drain_floor=lambda *a, **k: [],
+                # The four ledger-edge checks (plan/spec-rfcgate-4-ledger.md), neutralised for
+                # the same reason check_status_agreement above is: they read the REAL
+                # rfc/not-enrolled.txt and docs/features/rfc-status.md, and this driver
+                # declares a SYNTHETIC summary universe. Judging 157 real status rows and 7
+                # real dispositions against it produces a wall of violations that has nothing
+                # to do with this driver's subject. Each of the four has its own wiring class,
+                # which is where a lost call site is caught.
+                check_summary_disposition=lambda *a, **k: [],
+                check_status_completeness=lambda *a, **k: [],
+                check_unproven_support=lambda *a, **k: [],
+                check_gap_count_agreement=lambda *a, **k: [],
                 check_ledger_fresh=lambda *a, **k: [],
             ):
                 code, out = _run_capturing(R.run_check)
@@ -7827,6 +7996,1587 @@ class TestSkillDocumentsWhatTheSchemaAccepts(unittest.TestCase):
     def test_the_no_code_path_row_still_states_prose(self):
         """The type check added for it enforces exactly what this row promises."""
         self.assertIn("prose", self._row("no_code_path"))
+
+
+# --------------------------------------------------------------------------
+# The public ledger's edges (plan/spec-rfcgate-4-ledger.md)
+# --------------------------------------------------------------------------
+def _status_rows():
+    """The committed docs/features/rfc-status.md rows.
+
+    A helper rather than an inline `open(...).read()` so the file handle is closed: the
+    unittest runner turns an unclosed handle into a ResourceWarning on stderr, and a gate
+    that prints warnings on a clean run teaches a reader to skim its output.
+    """
+    with open(R.STATUS_FILE, encoding="utf-8") as fh:
+        return R.parse_status_ledger(fh.read())
+
+
+def _all_requirements():
+    """Every requirement in the REAL rfc/short/ tree, for the real-file assertions."""
+    out = []
+    for stem in sorted(R.summary_stems()):
+        out.extend(R.parse_summary_file(os.path.join(R.SUMMARY_DIR, stem + ".md")))
+    return out
+
+
+def _row(status="Supported", coverage="c", remaining=""):
+    return {"status": status, "coverage": coverage, "remaining": remaining}
+
+
+def _disp(kind="backlog", reason="the extraction is owed"):
+    return R.Disposition(kind=kind, reason=reason)
+
+
+def _gap(reason="not implemented"):
+    return R.Annotation(kind="gap", reason=reason, polarity="")
+
+
+def _extraction(stem="rfc1", register="prose", register_reason="because"):
+    """An Extraction value, for the two fields check_unproven_support reads.
+
+    The NamedTuple directly rather than `_artifact`'s dict: what this check consumes is a
+    member of run_check's SIGNED set, which is already the parsed and validated form. Going
+    through the JSON writer would test the parser a second time and say nothing more about
+    the escape.
+    """
+    return R.Extraction(
+        stem=stem,
+        register=register,
+        source_path=f"rfc/full/{stem}.txt",
+        source_sha="0" * 16,
+        signed_off="2026-07-30",
+        reviewer="tester",
+        resign_reason="",
+        register_reason=register_reason,
+        sections=[],
+        sites=[],
+        path=f"rfc/extraction/{stem}.json",
+    )
+
+
+def _manual_walk_extraction(stem="rfc8888", src=None):
+    """The reproduced OR-A evasion, as a member of run_check's SIGNED set.
+
+    A VALID sign-off over _SRC_TWO_SITES: both derived sites classified (excluded
+    `not-a-requirement`), the four sections dispositioned, and the register declared
+    `manual-walk` with a reason. _evaluate_extraction accepts every part of it -- `manual-walk`
+    is the WEAKEST grade and only a STRONGER claim than derived is refused -- so this is what a
+    stem that "simply captured nothing" can put on disk today.
+    """
+    return R.Extraction(
+        stem=stem,
+        register="manual-walk",
+        source_path=f"rfc/full/{stem}.txt",
+        source_sha=_sha(_SRC_TWO_SITES if src is None else src),
+        signed_off="2026-07-30",
+        reviewer="tester",
+        resign_reason="",
+        register_reason="walked by hand; no obligation falls on any speaker",
+        sections=[],
+        sites=[],
+        path=f"rfc/extraction/{stem}.json",
+    )
+
+
+class _LedgerEdgeDrive(unittest.TestCase):
+    """Shared run_check driver for the four ledger-edge checks.
+
+    Everything unrelated is patched out, so a failure here is one of the four checks and
+    nothing else -- the same contract the audit and extraction drivers above use. What is
+    NOT patched out is the check under test: a helper-only test would prove the helper and
+    say nothing about whether run_check calls it (ai/rules/fail-closed-guards.md, the test
+    corollary).
+    """
+
+    STEM = "rfc9999"
+
+    def _drive(
+        self,
+        reqs=None,
+        enrolled=("rfc9999",),
+        baseline_enrolled=None,
+        stems=None,
+        rows=None,
+        dispositions=None,
+        baseline_rows=None,
+        baseline_dispositions=(),
+        signed=None,
+        tags=None,
+        **kw,
+    ):
+        reqs = [_req("RFC9999-1-1", rfc=self.STEM)] if reqs is None else reqs
+        base = set(enrolled) if baseline_enrolled is None else set(baseline_enrolled)
+        stems = set(enrolled) if stems is None else set(stems)
+        rows = {} if rows is None else rows
+        dispositions = {} if dispositions is None else dispositions
+        signed = {} if signed is None else signed
+        if tags is None:
+            tags = [_tag(r.rid, p) for r in reqs for p in ("positive", "negative")]
+        overrides = dict(
+            load_enrolled=lambda: set(enrolled),
+            summary_stems=lambda: stems,
+            parse_summary_file=lambda path: reqs,
+            _git_baseline_enrolment=lambda: base,
+            _git_baseline_ids=lambda: {r.rid for r in reqs},
+            _git_baseline_tag_polarities=lambda: {},
+            _git_baseline_evidence=lambda: {},
+            _git_baseline_summary_stems=lambda: stems,
+            scan_tree=lambda *a, **k: tags,
+            parse_status_ledger=lambda text: rows,
+            load_dispositions=lambda: dispositions,
+            _git_baseline_status_rows=lambda: baseline_rows,
+            _git_baseline_dispositions=lambda: set(baseline_dispositions),
+            signed_extractions=lambda reqs_: signed,
+            # Neutralised because a synthetic stem has no rfc/full/<stem>.txt and no
+            # rfc/extraction/<stem>.json, so check_enrolment accuses it of both the moment a
+            # test sets baseline_enrolled=() to make it newly enrolled -- which is precisely
+            # what the status-completeness half needs. Its own drivers own that check.
+            check_enrolment=lambda *a, **k: [],
+            check_status_agreement=lambda *a, **k: [],
+            check_extraction_signoff=lambda *a, **k: [],
+            check_extraction_ratchet=lambda *a, **k: [],
+            check_drain_floor=lambda *a, **k: [],
+            check_audit_files=lambda *a, **k: [],
+            check_audit_schema=lambda *a, **k: [],
+            check_audit_freshness=lambda *a, **k: [],
+            check_audit_disclosure=lambda *a, **k: [],
+            check_audit_note=lambda *a, **k: [],
+            check_audit_findings=lambda *a, **k: [],
+            check_audit_verdict_ratchet=lambda *a, **k: [],
+            check_ledger_fresh=lambda *a, **k: [],
+        )
+        overrides.update(kw)
+        with _patched(**overrides):
+            return _run_capturing(R.run_check)
+
+
+class TestDispositionParsing(unittest.TestCase):
+    """A malformed rfc/not-enrolled.txt line must be REJECTED, never skipped: skipping it
+    silently un-declares a summary, which is the absence the file exists to abolish."""
+
+    def test_disposition_file_parses_like_enrolled(self):
+        """A-6: the same comment and blank-line tolerance, and the same first-token stem."""
+        text = "# a comment\n\n  rfc1234\tbacklog\tthe extraction is owed  \n"
+        out = R.parse_dispositions(text)
+        self.assertEqual(set(out), {"rfc1234"})
+        self.assertEqual(out["rfc1234"].kind, "backlog")
+        self.assertEqual(out["rfc1234"].reason, "the extraction is owed")
+
+    def test_all_three_kinds_parse(self):
+        text = "\n".join(
+            f"rfc{i}\t{kind}\tbecause"
+            for i, kind in enumerate(sorted(R.DISPOSITION_KINDS), start=1)
+        )
+        self.assertEqual(len(R.parse_dispositions(text)), len(R.DISPOSITION_KINDS))
+
+    def test_unknown_kind_is_rejected(self):
+        """AC-9: the accepted kinds are named, and a fourth is not tolerated."""
+        with self.assertRaises(R.ParseError) as ctx:
+            R.parse_dispositions("rfc1234\tsomeday\tbecause\n")
+        self.assertIn("someday", str(ctx.exception))
+        self.assertIn("non-normative", str(ctx.exception))
+
+    def test_missing_kind_is_rejected(self):
+        with self.assertRaises(R.ParseError) as ctx:
+            R.parse_dispositions("rfc1234\n")
+        self.assertIn("no kind", str(ctx.exception))
+
+    def test_missing_reason_is_rejected(self):
+        """AC-9: a bare kind is an absence with a label on it."""
+        with self.assertRaises(R.ParseError) as ctx:
+            R.parse_dispositions("rfc1234\tbacklog\n")
+        self.assertIn("no reason", str(ctx.exception))
+
+    def test_whitespace_only_reason_is_rejected(self):
+        """The present-but-empty case: `len(fields) > 2` is true, so an `ok`-style test
+        passes and the reason is still nothing (ai/rules/fail-closed-guards.md)."""
+        with self.assertRaises(R.ParseError) as ctx:
+            R.parse_dispositions("rfc1234\tbacklog\t   \n")
+        self.assertIn("no reason", str(ctx.exception))
+
+    def test_duplicate_stem_is_rejected(self):
+        with self.assertRaises(R.ParseError) as ctx:
+            R.parse_dispositions("rfc1\tbacklog\ta\nrfc1\tblocked\tb\n")
+        self.assertIn("duplicate", str(ctx.exception))
+
+    def test_the_line_number_is_reported(self):
+        """An error naming no line makes a 200-row file unsearchable."""
+        with self.assertRaises(R.ParseError) as ctx:
+            R.parse_dispositions("# c\n\nrfc1\tbacklog\ta\nrfc2\tnope\tb\n")
+        self.assertIn(":4", str(ctx.exception))
+
+
+class TestSummaryDisposition(unittest.TestCase):
+    """check_summary_disposition: every summary is enrolled or declared (AC-5..AC-9, AC-14)."""
+
+    def _errs(self, stems, enrolled, dispositions, baseline=()):
+        return R.check_summary_disposition(
+            set(stems), set(enrolled), dispositions, set(baseline)
+        )
+
+    def test_undeclared_summary_fails(self):
+        """AC-5: neither enrolled nor declared."""
+        errs = self._errs({"rfc1", "rfc2"}, {"rfc1"}, {})
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("rfc2", errs[0])
+        self.assertIn("rfc/not-enrolled.txt", errs[0])
+        self.assertIn("rfc/enrolled.txt", errs[0])
+
+    def test_declared_summary_passes(self):
+        """The discriminating twin of the row above."""
+        self.assertEqual(self._errs({"rfc1", "rfc2"}, {"rfc1"}, {"rfc2": _disp()}), [])
+
+    def test_stem_in_both_files_fails(self):
+        """AC-6: the contradiction is rejected, not resolved by precedence."""
+        errs = self._errs({"rfc1"}, {"rfc1"}, {"rfc1": _disp()})
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("BOTH", errs[0])
+
+    def test_disposition_naming_no_summary_fails(self):
+        """AC-7: a decision about a summary nobody wrote."""
+        errs = self._errs({"rfc1"}, {"rfc1"}, {"rfc404": _disp()})
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("rfc404", errs[0])
+        self.assertIn("does not exist", errs[0])
+
+    def test_leaving_disposition_without_enrolling_fails(self):
+        """AC-8: a disposition is discharged by enrolment and by nothing else."""
+        errs = self._errs({"rfc1"}, set(), {}, baseline={"rfc1"})
+        self.assertTrue(any("left rfc/not-enrolled.txt" in e for e in errs), errs)
+
+    def test_leaving_disposition_by_enrolling_passes(self):
+        """AC-8's happy path, and the transition phase 6 performs four times."""
+        self.assertEqual(self._errs({"rfc1"}, {"rfc1"}, {}, baseline={"rfc1"}), [])
+
+    def test_deleting_the_summary_and_its_row_together_is_legal(self):
+        """J5. A declared stem had NO legal way out of the tree. Keep the row and delete
+        rfc/short/<stem>.md and the stale-disposition branch fires (AC-7); delete both and the
+        left-without-enrolling branch fires (AC-8). Enrolling is the only other move, and it
+        needs a summary. So a summary could be added but never removed, which is a state no
+        rule asks for -- AC-8 exists to stop an EXISTING summary returning to the undeclared
+        state, and a summary that is gone cannot be in it."""
+        self.assertEqual(self._errs(set(), set(), {}, baseline={"rfc1"}), [])
+
+    def test_deleting_the_row_while_the_summary_remains_still_fails(self):
+        """The discriminating twin, and the case AC-8 was written for: the summary is still in
+        the tree, so deleting its row does return it to the undeclared state."""
+        errs = self._errs({"rfc1"}, set(), {}, baseline={"rfc1"})
+        self.assertTrue(any("left rfc/not-enrolled.txt" in e for e in errs), errs)
+
+    def test_deleting_only_the_summary_reports_the_stale_row_alone(self):
+        """The third state, unchanged: the row now names a summary nobody wrote, so AC-7 fires
+        and says so. One actionable error, and it names the fix (delete the row too)."""
+        errs = self._errs(set(), set(), {"rfc1": _disp()}, baseline={"rfc1"})
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("does not exist", errs[0])
+
+    def test_an_unreadable_baseline_accuses_nobody(self):
+        """`baseline - current` over an empty baseline: the safe polarity, and the reason
+        _git_baseline_dispositions returns a set rather than Optional."""
+        self.assertEqual(self._errs({"rfc1"}, {"rfc1"}, {}, baseline=set()), [])
+
+    def test_non_applicability_reason_is_rejected(self):
+        """AC-14: `non-normative` says what the DOCUMENT states. The moment it says Ze does
+        not need the obligation it has laundered an unextracted MUST into a decision."""
+        for reason in (
+            "not applicable to ze",
+            "does not apply to ze",
+            "ze does not implement inverse queries",
+            "ze has no resolver",
+            "we do not implement this",
+            "out of scope for ze",
+        ):
+            errs = self._errs({"rfc1"}, set(), {"rfc1": _disp("non-normative", reason)})
+            self.assertEqual(len(errs), 1, f"{reason!r} -> {errs}")
+            self.assertIn("judges what ZE owes", errs[0])
+
+    def test_a_document_property_reason_is_accepted(self):
+        """The discriminating twin: the same kind with a reason about the TEXT passes."""
+        reason = (
+            "Informational, no RFC 2119 key-words section, and zero occurrences of any "
+            "of the ten keywords anywhere in the source"
+        )
+        self.assertEqual(
+            self._errs({"rfc1"}, set(), {"rfc1": _disp("non-normative", reason)}), []
+        )
+
+    def test_a_reason_that_cites_no_document_property_is_rejected(self):
+        """J4. The phrase list is six spellings, so it was never the rule AC-14 states. Seven
+        rephrasings of the same laundering walked through it. The rule is now a POSITIVE
+        requirement that fails closed: a `non-normative` reason must cite something about the
+        DOCUMENT, and a reason that cites nothing is refused whatever its phrasing
+        (ai/rules/fail-closed-guards.md)."""
+        for reason in (
+            "Ze is not required to do any of this",
+            "Ze plays no role addressed by this document",
+            "No obligation falls on us here",
+            "This RFC is irrelevant for our implementation",
+            "Nothing here binds an implementation like ours",
+            "We are outside the scope this document addresses",
+            "Our daemon owes nothing under this specification",
+        ):
+            errs = self._errs({"rfc1"}, set(), {"rfc1": _disp("non-normative", reason)})
+            self.assertEqual(len(errs), 1, f"{reason!r} -> {errs}")
+            self.assertIn("cites nothing about the DOCUMENT", errs[0])
+
+    def test_each_accepted_form_of_document_evidence_passes(self):
+        """The whitelist the message names, one reason per arm. A guard whose accepted set the
+        message describes wrongly sends the author round in circles
+        (ai/rules/error-messages.md leg 3)."""
+        for reason in (
+            "Informational; it carries no RFC 2119 key-words section",
+            "the BCP 14 boilerplate is absent from this text",
+            "Experimental, and its obligations are all stated as MAY",
+            "Historic; superseded and stating no requirement",
+            "a Best Current Practice about process, not about a speaker",
+            "zero capitalised MUST, SHALL or REQUIRED anywhere in the source",
+            "the keyword scan over rfc/full/rfc1.txt returns nothing",
+        ):
+            self.assertEqual(
+                self._errs({"rfc1"}, set(), {"rfc1": _disp("non-normative", reason)}),
+                [],
+                reason,
+            )
+
+    def test_a_reason_that_does_both_reports_the_laundering_once(self):
+        """Both halves can fire on one row. The Ze-judgement message is the specific one and
+        wins, so the reader gets one actionable error rather than two."""
+        errs = self._errs(
+            {"rfc1"},
+            set(),
+            {"rfc1": _disp("non-normative", "Informational, and ze has no resolver")},
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("judges what ZE owes", errs[0])
+
+    def test_the_positive_requirement_only_reads_non_normative(self):
+        """`backlog` and `blocked` are DEBT and assert nothing about conformance, so neither owes
+        a document-property citation. Demanding one there would break every row in the file."""
+        for kind in ("backlog", "blocked"):
+            self.assertEqual(
+                self._errs(
+                    {"rfc1"},
+                    set(),
+                    {
+                        "rfc1": _disp(
+                            kind, "the extraction is owed and nobody has run it"
+                        )
+                    },
+                ),
+                [],
+                kind,
+            )
+
+    def test_the_keyword_arm_is_case_sensitive(self):
+        """What the arm MEANS is "the reason talks about CAPITALISED keywords", which is a claim
+        about the register the document is written in. A lowercase "must" in ordinary prose is
+        not that claim, and reading it as one would accept "this must be out of scope"."""
+        self.assertTrue(
+            R.non_normative_reason_cites_the_document("no MUST in the text")
+        )
+        self.assertFalse(
+            R.non_normative_reason_cites_the_document("this must be out of scope")
+        )
+
+    def test_the_non_applicability_check_only_reads_non_normative(self):
+        """A `backlog` reason legitimately says what Ze does not implement -- that is what
+        makes it debt. Rejecting it there would forbid the honest word."""
+        self.assertEqual(
+            self._errs(
+                {"rfc1"},
+                set(),
+                {"rfc1": _disp("backlog", "ze does not implement it yet")},
+            ),
+            [],
+        )
+
+    def test_the_real_tree_partitions(self):
+        """Over the REAL rfc/ tree, not a fixture: every summary in this repository is
+        enrolled or declared. A synthetic fixture would pass with the tree undeclared,
+        which is the state this check exists to end."""
+        self.assertEqual(
+            R.check_summary_disposition(
+                R.summary_stems(), R.load_enrolled(), R.load_dispositions(), set()
+            ),
+            [],
+        )
+
+
+class TestSummaryDispositionWiring(_LedgerEdgeDrive):
+    """check_summary_disposition is dead code unless run_check calls it."""
+
+    def test_run_check_fails_on_a_summary_that_is_neither_enrolled_nor_declared(self):
+        code, out = self._drive(stems={"rfc9999", "rfc7777"})
+        self.assertEqual(code, 2, out)
+        self.assertIn("rfc7777", out)
+        self.assertIn("rfc/not-enrolled.txt", out)
+
+    def test_run_check_clean_when_every_summary_is_declared(self):
+        code, out = self._drive(
+            stems={"rfc9999", "rfc7777"}, dispositions={"rfc7777": _disp()}
+        )
+        self.assertEqual(code, 0, out)
+
+    def test_a_malformed_disposition_file_exits_two_without_a_traceback(self):
+        """A ParseError from the loader must reach run_check's handler as a clean exit 2."""
+
+        def boom():
+            raise R.ParseError(
+                "rfc/not-enrolled.txt:4: kind 'nope' is not one of [...]"
+            )
+
+        code, out = self._drive(load_dispositions=boom)
+        self.assertEqual(code, 2, out)
+        self.assertIn("cannot run", out)
+        self.assertIn("rfc/not-enrolled.txt:4", out)
+
+
+# The page's own glossary sentence, quoted verbatim from docs/features/rfc-status.md so the
+# premise of TestDebtStatusHonesty is PINNED to the page rather than remembered from it. If
+# the vocabulary is ever rewritten, the assertion that reads this fails first and tells the
+# reader to re-derive the invariant instead of silently judging by a stale definition.
+_GLOSSARY_IMPLEMENTED = (
+    "`Supported` means the behavior is implemented and tied to current source anchors"
+)
+_GLOSSARY_EXPERIMENTAL = (
+    "`Experimental` means implemented but still needs deployment evidence or hardening"
+)
+_GLOSSARY_PARTIAL = (
+    "`Partial` means a named subset is missing, intentionally skipped, or not proven"
+)
+
+
+def _status_claims_implemented(status: str) -> bool:
+    """Does this Status cell assert the behavior IS implemented?
+
+    Two words do, by the glossary quoted above: anything beginning `Supported` (including the
+    platform-scoped forms, "Supported on Linux" and the rest -- they narrow WHERE it is
+    implemented, never WHETHER) and `Experimental`, which says implemented-but-unhardened.
+    `Partial`, `Unsupported`, `Not supported` and `Future` all assert the opposite.
+    """
+    status = status.strip()
+    return status.startswith("Supported") or status == "Experimental"
+
+
+class TestDebtStatusHonesty(unittest.TestCase):
+    """AC-24: a Status word may not contradict its own row.
+
+    A stem declared DEBT in rfc/not-enrolled.txt (`backlog` or `blocked`) has obligations that
+    are unfinished, unproven, or unruled -- that is what the kind MEANS, and
+    rfc/not-enrolled.txt says so outright: "Neither asserts anything about conformance". A
+    public row claiming the behavior is IMPLEMENTED therefore contradicts the declaration
+    beside it, and the page's own glossary already supplies the honest word: `Partial` is "a
+    named subset is missing, intentionally skipped, or not proven".
+
+    Two rows violated this on the committed page: RFC 1035 read `Supported` while its Remaining
+    cell named six obligations with no code path (the 512-octet bound, the TC bit, the
+    TTL/SOA-MINIMUM rule, the inverse-query NOTIMP reply, zone transfer), and RFC 5301 read
+    `Experimental` over three unmet MUSTs. Nothing in the gate could see it: every machine
+    check on that page reads presence, counts and disclosure, and Status is editorial.
+
+    A TEST rather than a check in run_check, deliberately. `Status` is a product judgement the
+    page states no gate reads, and promoting it to a gate would make the four documented
+    machine-checked properties five without the page saying so. This pins the two rows that
+    were wrong and the rule that makes them wrong, and it reds if either is reverted.
+    """
+
+    def setUp(self):
+        self.rows = _status_rows()
+        self.dispositions = R.load_dispositions()
+
+    def test_the_glossary_still_defines_the_words_this_invariant_reads(self):
+        """The premise. Without this the class could keep passing against a page that had
+        redefined `Partial`, judging by a definition no longer published."""
+        page = _read_repo("docs/features/rfc-status.md")
+        for quote in (
+            _GLOSSARY_IMPLEMENTED,
+            _GLOSSARY_EXPERIMENTAL,
+            _GLOSSARY_PARTIAL,
+        ):
+            self.assertIn(quote, page, quote)
+
+    def test_no_debt_declared_stem_claims_its_behavior_is_implemented(self):
+        """The invariant, over the REAL page and the REAL disposition file."""
+        offenders = sorted(
+            (stem, self.rows[stem]["status"])
+            for stem, disp in self.dispositions.items()
+            if disp.kind != R.DISPOSITION_NON_NORMATIVE
+            and stem in self.rows
+            and _status_claims_implemented(self.rows[stem]["status"])
+        )
+        self.assertEqual(offenders, [], offenders)
+
+    def test_the_two_rows_that_were_wrong_are_the_ones_this_governs(self):
+        """The discriminating half: the invariant above would also pass if NO declared stem had
+        a row at all, which is the state that made the two wrong rows survive. rfc1035 and
+        rfc5301 are the only DEBT stems the page rows, so they are the only two it can judge --
+        and both must now read the word the glossary supplies."""
+        rowed = sorted(
+            stem
+            for stem, disp in self.dispositions.items()
+            if disp.kind != R.DISPOSITION_NON_NORMATIVE and stem in self.rows
+        )
+        self.assertEqual(rowed, ["rfc1035", "rfc5301"], rowed)
+        for stem in rowed:
+            self.assertEqual(self.rows[stem]["status"].strip(), "Partial", stem)
+
+    def test_the_remaining_cells_still_name_the_unmet_obligations(self):
+        """What makes `Partial` the right word and not a downgrade for its own sake: the two
+        Remaining cells name the missing subset, so the row carries its own evidence. The task
+        was to correct the Status word and nothing else."""
+        self.assertIn("512-octet", self.rows["rfc1035"]["remaining"])
+        self.assertIn("TC bit", self.rows["rfc1035"]["remaining"])
+        self.assertIn("7-bit ASCII", self.rows["rfc5301"]["remaining"])
+
+    def test_a_status_that_narrows_the_platform_still_claims_implementation(self):
+        """The predicate's boundary, in both directions. "Supported on Linux" narrows WHERE,
+        not WHETHER, so it must read as a claim; `Partial` and `Future` must not."""
+        for status in (
+            "Supported",
+            "Supported on Linux",
+            "Supported within BFD",
+            "Experimental",
+        ):
+            self.assertTrue(_status_claims_implemented(status), status)
+        for status in ("Partial", "Unsupported", "Not supported", "Future", ""):
+            self.assertFalse(_status_claims_implemented(status), status)
+
+
+class TestStatusCompleteness(unittest.TestCase):
+    """check_status_completeness: a new enrolment brings a row, a row does not vanish
+    (AC-1..AC-4)."""
+
+    def _errs(self, enrolled, rows, baseline_rows, newly, baseline_enrolled=None):
+        base = set(enrolled) if baseline_enrolled is None else set(baseline_enrolled)
+        return R.check_status_completeness(
+            set(enrolled), rows, baseline_rows, newly, base
+        )
+
+    def test_new_enrolment_without_a_row_fails(self):
+        """AC-1."""
+        errs = self._errs({"rfc1"}, {}, {}, {"rfc1"}, baseline_enrolled=set())
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("newly enrolled", errs[0])
+        self.assertIn("docs/features/rfc-status.md", errs[0])
+
+    def test_new_enrolment_with_a_row_passes(self):
+        errs = self._errs(
+            {"rfc1"}, {"rfc1": _row()}, {}, {"rfc1"}, baseline_enrolled=set()
+        )
+        self.assertEqual(errs, [])
+
+    def test_deleted_row_under_enrolment_fails(self):
+        """AC-2: the row went away while the RFC stayed enrolled."""
+        errs = self._errs({"rfc1"}, {}, {"rfc1": _row()}, set())
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("at HEAD and does not now", errs[0])
+
+    def test_preexisting_rowless_enrolment_is_grandfathered(self):
+        """AC-3: the 32 that predate the ratchet are not accused."""
+        self.assertEqual(self._errs({"rfc1"}, {}, {}, set()), [])
+
+    def test_absent_baseline_judges_nothing(self):
+        """AC-4: `baseline_rows is None` means git could not answer, so the deletion half
+        reports nothing rather than reading 157 missing rows as 157 deletions."""
+        self.assertEqual(self._errs({"rfc1"}, {}, None, None), [])
+
+    def test_an_unreadable_enrolment_baseline_judges_nothing(self):
+        """`newly_enrolled is None` is the same statement about the other input. An empty
+        set here would accuse every enrolled RFC of being new."""
+        self.assertEqual(self._errs({"rfc1", "rfc2"}, {}, {}, None), [])
+
+    def test_a_row_deleted_for_a_newly_enrolled_stem_reports_once(self):
+        """Both halves could fire on one stem. The deletion half is scoped to
+        `enrolled & baseline_enrolled`, so a stem that was not enrolled at HEAD is judged by
+        the new-enrolment half alone and the reader gets one actionable message."""
+        errs = self._errs(
+            {"rfc1"}, {}, {"rfc1": _row()}, {"rfc1"}, baseline_enrolled=set()
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("newly enrolled", errs[0])
+
+    def test_the_real_tree_has_thirty_two_grandfathered(self):
+        """A-1 over the REAL tree: the grandfather set is the 32 the census measured. If it
+        grew, a rowless enrolment slipped in; if it shrank, someone wrote rows."""
+        missing = R.load_enrolled() - set(_status_rows())
+        self.assertEqual(len(missing), 32, sorted(missing))
+
+
+class TestStatusBaselineReader(unittest.TestCase):
+    """A-7, AC-4 at the reader: git failing must not read as "no rows at HEAD"."""
+
+    def test_status_baseline_survives_git_failure(self):
+        with _patched(subprocess=_FakeSubprocess(returncode=1)):
+            self.assertIsNone(R._git_baseline_status_rows())
+
+    def test_status_baseline_is_none_when_the_blob_is_absent(self):
+        with _patched(_git_cat_blobs=lambda paths: {}):
+            self.assertIsNone(R._git_baseline_status_rows())
+
+    def test_status_baseline_parses_the_blob(self):
+        blob = "| RFC 1234 | Area | Supported | cov | rem |\n"
+        with _patched(_git_cat_blobs=lambda paths: {R.STATUS_REL: blob}):
+            rows = R._git_baseline_status_rows()
+        self.assertEqual(set(rows), {"rfc1234"})
+
+    def test_disposition_baseline_survives_a_malformed_blob(self):
+        """A HEAD blob nobody can parse is history nobody can use. The empty set accuses
+        nobody, which is the safe polarity for `baseline - current`."""
+        with _patched(
+            _git_cat_blobs=lambda paths: {R.NOT_ENROLLED_REL: "rfc1\tnope\tx\n"}
+        ):
+            self.assertEqual(R._git_baseline_dispositions(), set())
+
+    def test_disposition_baseline_parses_the_blob(self):
+        blob = "rfc1\tbacklog\tthe extraction is owed\n"
+        with _patched(_git_cat_blobs=lambda paths: {R.NOT_ENROLLED_REL: blob}):
+            self.assertEqual(R._git_baseline_dispositions(), {"rfc1"})
+
+
+class TestStatusCompletenessWiring(_LedgerEdgeDrive):
+    def test_run_check_fails_when_a_new_enrolment_has_no_row(self):
+        code, out = self._drive(baseline_enrolled=(), rows={})
+        self.assertEqual(code, 2, out)
+        self.assertIn("newly enrolled but has no row", out)
+
+    def test_run_check_fails_when_a_row_is_deleted_under_enrolment(self):
+        code, out = self._drive(rows={}, baseline_rows={self.STEM: _row()})
+        self.assertEqual(code, 2, out)
+        self.assertIn("at HEAD and does not now", out)
+
+    def test_run_check_clean_when_the_row_is_there(self):
+        code, out = self._drive(
+            baseline_enrolled=(), rows={self.STEM: _row()}, baseline_rows={}
+        )
+        self.assertEqual(code, 0, out)
+
+
+class TestUnprovenSupport(unittest.TestCase):
+    """check_unproven_support: a public claim may not rest on an empty checklist
+    (AC-10, AC-11)."""
+
+    def _errs(
+        self, reqs, rows, stems=("rfc1",), dispositions=None, signed=None, derived=None
+    ):
+        return R.check_unproven_support(
+            reqs, rows, set(stems), dispositions or {}, signed or {}, derived or {}
+        )
+
+    def test_support_claim_over_zero_gated_fails(self):
+        """AC-10."""
+        errs = self._errs([], {"rfc1": _row("Supported")})
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("empty checklist", errs[0])
+
+    def test_experimental_is_a_support_claim(self):
+        """AC-10 boundary: `Experimental` says the code exists, which is exactly what an
+        empty checklist cannot support. It must not escape."""
+        errs = self._errs([], {"rfc1": _row("Experimental")})
+        self.assertEqual(len(errs), 1, errs)
+
+    def test_unsupported_and_future_rows_are_not_claims(self):
+        """AC-10 boundary, the other side: the two values that make no claim."""
+        for status in sorted(R.NON_CLAIM_STATUSES):
+            self.assertEqual(self._errs([], {"rfc1": _row(status)}), [], status)
+
+    def test_a_blank_status_is_treated_as_a_claim(self):
+        """The zero-value trap: `row["status"]` is PRESENT and empty, so an `ok`-style test
+        passes. A blank cell on a page of support claims must fail closed
+        (ai/rules/fail-closed-guards.md)."""
+        errs = self._errs([], {"rfc1": _row("   ")})
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("(blank)", errs[0])
+
+    def test_a_stem_with_gated_requirements_passes(self):
+        """AC-10 negative: the checklist is not empty, so there is something to contradict."""
+        self.assertEqual(
+            self._errs([_req("RFC1-1-1", rfc="rfc1")], {"rfc1": _row("Supported")}), []
+        )
+
+    def test_advisory_requirements_do_not_satisfy_the_claim(self):
+        """One SHOULD row is the immunity D5 exposed elsewhere. It must not buy a pass here:
+        an advisory row never gates, so nothing can contradict the claim."""
+        errs = self._errs(
+            [_req("RFC1-1-1", level="SHOULD", rfc="rfc1")], {"rfc1": _row("Supported")}
+        )
+        self.assertEqual(len(errs), 1, errs)
+
+    def test_non_normative_disposition_permits_the_claim(self):
+        """AC-11: the first evidenced escape."""
+        self.assertEqual(
+            self._errs(
+                [],
+                {"rfc1": _row("Supported")},
+                dispositions={
+                    "rfc1": _disp("non-normative", "the document imposes none")
+                },
+            ),
+            [],
+        )
+
+    def test_a_backlog_disposition_does_not_permit_the_claim(self):
+        """`backlog` is DEBT. It says the extraction is owed, which is not evidence that the
+        document imposes nothing."""
+        errs = self._errs(
+            [], {"rfc1": _row("Supported")}, dispositions={"rfc1": _disp("backlog")}
+        )
+        self.assertEqual(len(errs), 1, errs)
+
+    def test_an_evidenced_manual_walk_signoff_permits_the_claim(self):
+        """Owner Ruling OR-A: rfc3765 enrols on an evidenced zero. FOUR committed facts -- a
+        VALID sign-off (so every site and section was classified), register `manual-walk`, a
+        recorded register-reason, and a DERIVED register that is not `rfc2119` (the source
+        quotes no capitalised keyword, so the zero is a property of the document)."""
+        art = _extraction(
+            register="manual-walk", register_reason="Informational, no 2119"
+        )
+        self.assertEqual(
+            self._errs(
+                [],
+                {"rfc1": _row("Supported")},
+                signed={"rfc1": art},
+                derived={"rfc1": "prose"},
+            ),
+            [],
+        )
+
+    def test_a_manual_walk_signoff_without_a_reason_does_not_permit_it(self):
+        """The reason is the evidence. Without it the escape is an assertion."""
+        art = _extraction(register="manual-walk", register_reason="")
+        errs = self._errs(
+            [],
+            {"rfc1": _row("Supported")},
+            signed={"rfc1": art},
+            derived={"rfc1": "prose"},
+        )
+        self.assertEqual(len(errs), 1, errs)
+
+    def test_a_manual_walk_signoff_over_an_rfc2119_source_does_not_permit_it(self):
+        """J2. `manual-walk` is the WEAKEST grade and _evaluate_extraction refuses only a
+        STRONGER claim than derived, so ANY stem may declare it. The escape therefore has to
+        read the DERIVED register, not the declared one: a source whose own sentences quote
+        capitalised MUST/SHALL plainly imposes obligations, and no register-reason can make
+        zero a property of that document."""
+        art = _extraction(
+            register="manual-walk", register_reason="walked by hand, found nothing"
+        )
+        errs = self._errs(
+            [],
+            {"rfc1": _row("Supported")},
+            signed={"rfc1": art},
+            derived={"rfc1": "rfc2119"},
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("rfc2119", errs[0])
+        self.assertIn("capitalised", errs[0])
+
+    def test_the_refused_escape_gets_its_own_message(self):
+        """ai/rules/error-messages.md leg 3: a remediation must be TRUE. Telling an author who
+        already wrote a manual-walk sign-off to "record a manual-walk sign-off" is a dead end,
+        so the refused-escape state says what is wrong with the one on disk."""
+        art = _extraction(
+            register="manual-walk", register_reason="walked by hand, found nothing"
+        )
+        refused = self._errs(
+            [],
+            {"rfc1": _row("Supported")},
+            signed={"rfc1": art},
+            derived={"rfc1": "rfc2119"},
+        )[0]
+        general = self._errs([], {"rfc1": _row("Supported")})[0]
+        self.assertNotEqual(refused, general)
+        self.assertIn("rfc/extraction/rfc1.json", refused)
+        self.assertNotIn("or a manual-walk extraction sign-off", refused)
+
+    def test_a_manual_walk_signoff_with_no_derived_grade_does_not_permit_it(self):
+        """Fail closed on the unknown (ai/rules/fail-closed-guards.md). An absent grade means
+        the source could not be re-derived, so nothing established that zero is a property of
+        the text -- and a missing dict entry must not read as a passing one."""
+        art = _extraction(
+            register="manual-walk", register_reason="Informational, no 2119"
+        )
+        errs = self._errs([], {"rfc1": _row("Supported")}, signed={"rfc1": art})
+        self.assertEqual(len(errs), 1, errs)
+
+    def test_a_prose_signoff_does_not_permit_the_claim(self):
+        """A stem that simply captured nothing cannot reach the escape: the register has to
+        be the weakest grade, which is what says the mechanical inventory found nothing
+        normative."""
+        art = _extraction(register="prose", register_reason="pre-2119 prose")
+        errs = self._errs([], {"rfc1": _row("Supported")}, signed={"rfc1": art})
+        self.assertEqual(len(errs), 1, errs)
+
+    def test_a_row_with_no_summary_is_outside_the_check(self):
+        """19 rows on the real page name an RFC with no rfc/short/*.md. That is a different
+        defect, and firing here would bury this one under it."""
+        self.assertEqual(self._errs([], {"rfc404": _row("Supported")}, stems=()), [])
+
+    def test_the_real_tree_is_clean(self):
+        """The check ARMED, over the REAL tree (AC-10 on the committed page). Exactly one
+        stem reaches it -- rfc3765, whose zero is honest -- and OR-A's evidenced form is what
+        lets it through. A synthetic fixture would pass with the page still lying."""
+        reqs = _all_requirements()
+        rows = _status_rows()
+        signed = R.signed_extractions(reqs)
+        self.assertEqual(
+            R.check_unproven_support(
+                reqs,
+                rows,
+                R.summary_stems(),
+                R.load_dispositions(),
+                signed,
+                R.derived_registers(signed, reqs),
+            ),
+            [],
+        )
+
+    def test_rfc3765_is_the_stem_that_needs_the_evidenced_escape(self):
+        """The discriminating half of the test above: with the escape removed, rfc3765 is
+        named. Without this, a bug that made the check judge NOTHING would pass as clean."""
+        reqs = _all_requirements()
+        rows = _status_rows()
+        errs = R.check_unproven_support(
+            reqs, rows, R.summary_stems(), R.load_dispositions(), {}, {}
+        )
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("rfc3765", errs[0])
+
+    def test_rfc3765_derives_prose_so_the_tightened_escape_still_reaches_it(self):
+        """J2's calibration, over the REAL source. The tightening had to refuse a source that
+        quotes capitalised keywords WITHOUT refusing the one shipped case OR-A settled, so the
+        line is drawn at the derived register rather than at the site count: rfc3765 derives
+        `prose` from one lowercase modal, and rfc/full/rfc3765.txt contains no capitalised RFC
+         2119 keyword at all. Refusing `prose` too would have reddened honest work."""
+        inv = R.derive_inventory("rfc3765", 0)
+        self.assertIsNotNone(inv, "rfc3765 must have source text to derive from")
+        self.assertEqual(inv.register, "prose")
+        self.assertEqual(inv.keyword_sites, 0)
+        self.assertEqual(len(inv.sites), 1)
+        self.assertIsNone(R._SITE_KEYWORD_RE.search(_read_repo("rfc/full/rfc3765.txt")))
+
+
+class TestUnprovenSupportWiring(_LedgerEdgeDrive):
+    def test_run_check_fails_on_support_claim_over_zero_gated_requirements(self):
+        code, out = self._drive(
+            reqs=[_req("RFC9999-1-1", level="MAY", rfc=self.STEM)],
+            rows={self.STEM: _row("Supported")},
+            tags=[],
+        )
+        self.assertEqual(code, 2, out)
+        self.assertIn("empty checklist", out)
+
+    def test_run_check_clean_when_the_claim_has_a_gated_requirement(self):
+        code, out = self._drive(rows={self.STEM: _row("Supported")})
+        self.assertEqual(code, 0, out)
+
+    # A stem of this class's own, NOT _LedgerEdgeDrive.STEM. derive_inventory is memoised on
+    # (stem, gated, source sha, path) and the memo outlives every test in the process, so two
+    # classes deriving _SRC_TWO_SITES under one stem at gated=0 share an answer -- and
+    # TestSiteInventory patches _section_bodies to force a duplicate locator under exactly that
+    # key, which a pre-filled memo would serve around.
+    WALK_STEM = "rfc8888"
+
+    def _drive_walk(self, src, **kw):
+        with _extraction_tree(src={self.WALK_STEM: src}):
+            return self._drive(
+                reqs=[],
+                enrolled=(self.WALK_STEM,),
+                rows={self.WALK_STEM: _row("Supported")},
+                signed={self.WALK_STEM: _manual_walk_extraction(self.WALK_STEM, src)},
+                tags=[],
+                **kw,
+            )
+
+    def test_run_check_refuses_the_manual_walk_escape_over_an_rfc2119_source(self):
+        """J2 driven through run_check with the REAL derivation, not a passed-in grade: the
+        source is _SRC_TWO_SITES (two capitalised MUST sentences), the summary declares zero
+        gated requirements, the page claims Supported, and the sign-off is a VALID manual-walk
+        artifact that excludes both sites as not-a-requirement. That is the reproduced evasion,
+        end to end, and run_check must refuse it."""
+        code, out = self._drive_walk(_SRC_TWO_SITES)
+        self.assertEqual(code, 2, out)
+        self.assertIn("rfc2119", out)
+
+    def test_run_check_permits_the_escape_over_a_keyword_free_source(self):
+        """The discriminating twin: the same artifact over a source with no capitalised keyword
+        derives `prose`, so OR-A's escape still works through run_check. Without this pair, a
+        tightening that refused EVERY manual-walk escape would look correct."""
+        code, out = self._drive_walk(_SRC_PROSE_ONLY)
+        self.assertEqual(code, 0, out)
+
+
+class TestDerivedRegisters(unittest.TestCase):
+    """derived_registers: the fourth committed fact behind OR-A's escape.
+
+    The grade is DERIVED from the source at check time and keyed by stem, so the escape reads
+    what the document is written in rather than what the artifact declares about itself
+    (ai/rules/derive-not-hardcode.md).
+
+    STEM is this class's own, for the reason TestUnprovenSupportWiring.WALK_STEM records: the
+    derive_inventory memo is process-wide, so a class that derives a shared fixture under a
+    shared stem hands its answer to whoever asks next."""
+
+    STEM = "rfc8888"
+
+    def test_the_grade_comes_from_the_source_not_the_artifact(self):
+        """The whole point: the artifact says `manual-walk`, the source says `rfc2119`."""
+        signed = {self.STEM: _extraction(stem=self.STEM, register="manual-walk")}
+        with _extraction_tree(src={self.STEM: _SRC_TWO_SITES}):
+            got = R.derived_registers(signed, [])
+        self.assertEqual(got, {self.STEM: "rfc2119"})
+
+    def test_a_prose_source_grades_prose(self):
+        signed = {self.STEM: _extraction(stem=self.STEM, register="manual-walk")}
+        with _extraction_tree(src={self.STEM: _SRC_PROSE_ONLY}):
+            self.assertEqual(R.derived_registers(signed, []), {self.STEM: "prose"})
+
+    def test_a_source_neither_register_can_see_grades_manual_walk(self):
+        signed = {"rfc9999": _extraction(stem="rfc9999", register="manual-walk")}
+        with _extraction_tree(src={"rfc9999": _SRC_NO_INVENTORY}):
+            self.assertEqual(
+                R.derived_registers(signed, []), {"rfc9999": "manual-walk"}
+            )
+
+    def test_a_stem_with_no_source_text_is_ABSENT_rather_than_defaulted(self):
+        """None is not a register. A stem whose source cannot be read must leave no entry, so
+        the consumer sees "I could not look" instead of a grade nobody derived
+        (ai/rules/fail-closed-guards.md, the zero-value trap)."""
+        signed = {self.STEM: _extraction(stem=self.STEM, register="manual-walk")}
+        with _extraction_tree(src={}):
+            self.assertEqual(R.derived_registers(signed, []), {})
+
+    def test_the_gated_count_reaches_the_derivation(self):
+        """derive_register reads the declared gated count: two capitalised sites against 23
+        declared rows is an UNDERCOUNT, which grades `prose`, not `rfc2119`. Dropping the
+        requirements argument would silently grade every stem at gated=0."""
+        signed = {self.STEM: _extraction(stem=self.STEM, register="manual-walk")}
+        declared = [_req(f"RFC8888-2-{i}", rfc=self.STEM) for i in range(1, 24)]
+        with _extraction_tree(src={self.STEM: _SRC_TWO_SITES}):
+            self.assertEqual(
+                R.derived_registers(signed, declared), {self.STEM: "prose"}
+            )
+
+    def test_unsigned_stems_are_not_derived(self):
+        """Scoped to the signed set: deriving the whole corpus here would pay for 166 walks no
+        consumer reads."""
+        with _extraction_tree(src={self.STEM: _SRC_TWO_SITES}):
+            self.assertEqual(R.derived_registers({}, []), {})
+
+    def test_the_real_tree_grades_every_signed_stem(self):
+        """Over the REAL tree: every VALID sign-off has derivable source (evaluate_extractions
+        refuses one that does not), so no signed stem may be missing a grade."""
+        reqs = _all_requirements()
+        signed = R.signed_extractions(reqs)
+        self.assertTrue(signed)
+        self.assertEqual(set(R.derived_registers(signed, reqs)), set(signed))
+
+
+class TestGapCountAgreement(unittest.TestCase):
+    """check_gap_count_agreement: a spelled MUST-gap count must equal the real count
+    (AC-12)."""
+
+    def _errs(self, reqs, remaining):
+        return R.check_gap_count_agreement(reqs, {"rfc1": _row(remaining=remaining)})
+
+    def _one_gap(self, n):
+        return [
+            _req(f"RFC1-1-{i}", annotation=_gap(), rfc="rfc1") for i in range(1, n + 1)
+        ]
+
+    def test_matching_spelled_count_passes(self):
+        self.assertEqual(
+            self._errs(self._one_gap(3), "Three MUSTs remain unproven."), []
+        )
+
+    def test_mismatched_spelled_count_fails(self):
+        errs = self._errs(self._one_gap(2), "Three MUSTs remain unproven.")
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("3 MUST-level gap(s)", errs[0])
+        self.assertIn("2 {gap} annotation(s)", errs[0])
+
+    def test_compound_number_is_not_read_as_its_tail(self):
+        """`Twenty-five` is 25, never 5. A units-first alternation matches the tail of every
+        compound and would red four honest rows on the committed page."""
+        self.assertEqual(R.spelled_gap_count("Twenty-five MUSTs remain"), 25)
+        self.assertEqual(self._errs(self._one_gap(25), "Twenty-five MUSTs remain"), [])
+        errs = self._errs(self._one_gap(5), "Twenty-five MUSTs remain")
+        self.assertEqual(len(errs), 1, errs)
+
+    def test_row_without_a_spelled_count_is_not_judged(self):
+        """AC-12 boundary: no numeric claim is not a claim of zero."""
+        self.assertIsNone(
+            R.spelled_gap_count("No tracked gap in current source anchors.")
+        )
+        self.assertEqual(self._errs(self._one_gap(4), "Some gaps remain."), [])
+
+    def test_zero_is_not_a_gap_claim(self):
+        """`Zero` is absent from SPELLED_NUMBERS on purpose: it makes no claim about a gap,
+        and reading it as 0 would invent a disagreement with any real count."""
+        self.assertIsNone(R.spelled_gap_count("Zero MUSTs remain"))
+
+    def test_forty_is_not_read_as_four(self):
+        """Boundary: an unrecognised word must not silently match a shorter one."""
+        self.assertEqual(R.spelled_gap_count("Forty MUSTs remain"), 40)
+        self.assertIsNone(R.spelled_gap_count("Hundreds of MUSTs remain"))
+
+    def test_the_range_boundaries_parse(self):
+        for word, want in (
+            ("One", 1),
+            ("Nineteen", 19),
+            ("Twenty", 20),
+            ("Thirty-nine", 39),
+            ("Sixty-four", 64),
+        ):
+            self.assertEqual(R.spelled_gap_count(f"{word} MUSTs remain"), want, word)
+
+    def test_only_immediate_adjacency_counts(self):
+        """The load-bearing decision: the page uses a SECOND convention where a spelled
+        number NEAR the word MUST is the {not-applicable} count. A tolerance window would
+        read those as gap counts and red four honest rows."""
+        self.assertIsNone(
+            R.spelled_gap_count(
+                "Sixty-four further MUSTs bind PE roles ze does not fill"
+            )
+        )
+        self.assertIsNone(R.spelled_gap_count("Nine further MUSTs are not-applicable"))
+
+    def test_shall_is_read_like_must(self):
+        self.assertEqual(R.spelled_gap_count("Two SHALLs remain"), 2)
+
+    def test_a_stem_with_no_gaps_and_a_spelled_count_fails(self):
+        """The commonest real drift: the gaps were closed and the row was not updated."""
+        errs = self._errs([], "Two MUSTs remain unproven.")
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("0 {gap} annotation(s)", errs[0])
+
+
+class TestGapCountAgreementRealFile(unittest.TestCase):
+    """A-4 over the committed docs/features/rfc-status.md, not a fixture. What this proves
+    is a fact about THIS repository, which a synthetic row cannot."""
+
+    def test_committed_page_agrees(self):
+        reqs = []
+        for stem in sorted(R.summary_stems()):
+            reqs.extend(R.parse_summary_file(os.path.join(R.SUMMARY_DIR, stem + ".md")))
+        rows = _status_rows()
+        self.assertEqual(R.check_gap_count_agreement(reqs, rows), [])
+
+    def test_the_page_really_does_spell_sixty_counts(self):
+        """The discriminating half: a parser that matched NOTHING would also report zero
+        violations above, so the count of rows it judges is asserted too."""
+        rows = _status_rows()
+        judged = [
+            stem
+            for stem, row in rows.items()
+            if R.spelled_gap_count(row["remaining"]) is not None
+        ]
+        self.assertEqual(len(judged), 60, sorted(judged))
+
+    def test_the_unjudged_rows_are_the_seven_the_docstring_names(self):
+        """The coverage limit check_gap_count_agreement states, MEASURED rather than remembered.
+        Its note used to say "two rows spell their count in DIGITS and one spells `Sixty-four`,
+        and none of the three is judged" -- wrong on every clause. There are four digit rows and
+        three separated ones, `Sixty-four` parses to 64, and rfc7432 is judged on its first
+        match. A prose count nothing measures is the shape that went stale
+        (ai/rules/stale-comments.md), so this pins it."""
+        rows = _status_rows()
+        digit_re = re.compile(r"\b(\d+)\s+(?:MUST|SHALL)s?\b")
+        spelled_re = re.compile(r"\b(?:" + R._SPELLED_ALT + r")\b", re.IGNORECASE)
+        digit, separated = [], []
+        for stem, row in rows.items():
+            remaining = row["remaining"]
+            if R.spelled_gap_count(remaining) is not None:
+                continue
+            near = any(
+                re.search(r"\b(?:MUST|SHALL)s?\b", remaining[m.end() : m.end() + 50])
+                for m in spelled_re.finditer(remaining)
+            )
+            if digit_re.search(remaining):
+                digit.append(stem)
+            elif near:
+                separated.append(stem)
+        self.assertEqual(
+            sorted(digit), ["rfc7166", "rfc7311", "rfc9012", "rfc9830"], sorted(digit)
+        )
+        self.assertEqual(
+            sorted(separated), ["rfc5575", "rfc9085", "rfc9514"], sorted(separated)
+        )
+
+    def test_sixty_four_parses_and_its_row_is_judged_on_another_match(self):
+        """The clause the old note got exactly backwards. `Sixty-four` is a number this parser
+        reads; adjacency is what skips it, and rfc7432's count is checked all the same."""
+        self.assertEqual(R.SPELLED_NUMBERS["sixty-four"], 64)
+        self.assertEqual(R.spelled_gap_count("Sixty-four MUSTs"), 64)
+        self.assertIsNone(R.spelled_gap_count("Sixty-four further MUSTs"))
+        remaining = _status_rows()["rfc7432"]["remaining"]
+        self.assertIn("Sixty-four further MUSTs", remaining)
+        self.assertEqual(R.spelled_gap_count(remaining), 15)
+
+
+class TestGapCountWiring(_LedgerEdgeDrive):
+    def test_run_check_fails_when_a_spelled_count_disagrees(self):
+        code, out = self._drive(
+            reqs=[_req("RFC9999-1-1", annotation=_gap(), rfc=self.STEM)],
+            rows={self.STEM: _row(remaining="Three MUSTs remain unproven.")},
+            tags=[],
+        )
+        self.assertEqual(code, 2, out)
+        self.assertIn("3 MUST-level gap(s)", out)
+
+    def test_run_check_clean_when_the_count_agrees(self):
+        code, out = self._drive(
+            reqs=[_req("RFC9999-1-1", annotation=_gap(), rfc=self.STEM)],
+            rows={self.STEM: _row(remaining="One MUST remains unproven.")},
+            tags=[],
+        )
+        self.assertEqual(code, 0, out)
+
+
+class TestGapDisclosureScope(unittest.TestCase):
+    """check_status_agreement's exemption narrowed from "not enrolled" to "no row"
+    (AC-15, AC-16)."""
+
+    def _errs(self, enrolled, rows):
+        reqs = [_req("RFC1-1-1", annotation=_gap("unimplemented"), rfc="rfc1")]
+        return R.check_status_agreement(reqs, rows, set(enrolled))
+
+    def test_unenrolled_gap_with_a_row_must_disclose(self):
+        """AC-15: the hole. A private {gap} contradicting a public clean 'Supported' row was
+        exempt purely because the stem was not enrolled."""
+        errs = self._errs(set(), {"rfc1": _row("Supported", remaining="")})
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("cannot be advertised as clean support", errs[0])
+
+    def test_unenrolled_gap_with_a_disclosing_row_passes(self):
+        self.assertEqual(
+            self._errs(set(), {"rfc1": _row("Partial", remaining="One MUST unproven")}),
+            [],
+        )
+
+    def test_unenrolled_gap_without_a_row_is_clean(self):
+        """AC-16: an un-rowed, un-enrolled RFC makes no public claim to contradict, and
+        demanding a row would force rows for reference-only summaries."""
+        self.assertEqual(self._errs(set(), {}), [])
+
+    def test_enrolled_gap_without_a_row_still_fails(self):
+        """Regression: the missing-row branch is unchanged for an enrolled stem."""
+        errs = self._errs({"rfc1"}, {})
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("has no row", errs[0])
+
+    def test_enrolled_behaviour_unchanged(self):
+        """Regression on the disclosure branch itself."""
+        errs = self._errs({"rfc1"}, {"rfc1": _row("Supported", remaining="")})
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("cannot be advertised as clean support", errs[0])
+
+    def test_the_real_tree_is_clean_under_the_narrowed_scope(self):
+        """A-2 over the REAL tree: all 539 {gap} annotations belong to rowed, enrolled RFCs,
+        so narrowing the exemption is a no-op today. If it were not, this reds on landing."""
+        reqs = []
+        for stem in sorted(R.summary_stems()):
+            reqs.extend(R.parse_summary_file(os.path.join(R.SUMMARY_DIR, stem + ".md")))
+        rows = _status_rows()
+        self.assertEqual(R.check_status_agreement(reqs, rows, R.load_enrolled()), [])
+
+
+class TestGapDisclosureWiring(_LedgerEdgeDrive):
+    """The narrowed exemption, driven through run_check. This driver does NOT patch out
+    check_status_agreement -- it is the subject."""
+
+    def _drive_disclosure(self, enrolled, rows):
+        return self._drive(
+            reqs=[_req("RFC9999-1-1", annotation=_gap("unimplemented"), rfc=self.STEM)],
+            enrolled=enrolled,
+            stems={self.STEM},
+            rows=rows,
+            dispositions={} if enrolled else {self.STEM: _disp()},
+            tags=[],
+            check_status_agreement=R.check_status_agreement,
+            check_unproven_support=lambda *a, **k: [],
+            check_gap_count_agreement=lambda *a, **k: [],
+        )
+
+    def test_run_check_fails_on_unenrolled_gap_with_a_rowed_claim(self):
+        code, out = self._drive_disclosure((), {self.STEM: _row("Supported")})
+        self.assertEqual(code, 2, out)
+        self.assertIn("cannot be advertised as clean support", out)
+
+    def test_run_check_clean_on_unenrolled_gap_with_no_row(self):
+        code, out = self._drive_disclosure((), {})
+        self.assertEqual(code, 0, out)
+
+
+class TestParseErrorReporting(unittest.TestCase):
+    """AC-17: every parse error is reported, enrolled or not."""
+
+    def test_unenrolled_parse_error_is_reported(self):
+        stems = {"rfc1", "rfc2"}
+
+        def parse(path):
+            if path.endswith("rfc2.md"):
+                raise R.ParseError("rfc/short/rfc2.md:9: bad requirement id")
+            return [_req("RFC1-1-1", rfc="rfc1")]
+
+        with _patched(
+            load_enrolled=lambda: {"rfc1"},
+            summary_stems=lambda: stems,
+            parse_summary_file=parse,
+            scan_tree=lambda *a, **k: [],
+        ):
+            _, reqs, errs, _, by_stem = R._collect_for_check()
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("rfc/short/rfc2.md:9", errs[0])
+        self.assertEqual(set(by_stem), {"rfc2"})
+
+    def test_the_real_tree_parses(self):
+        """A-5: zero of the summaries fail to parse, which is what makes dropping the
+        enrolment filter a no-op today rather than a wall of new violations."""
+        for stem in sorted(R.summary_stems()):
+            R.parse_summary_file(os.path.join(R.SUMMARY_DIR, stem + ".md"))
+
+
+class TestParseErrorReportingWiring(_LedgerEdgeDrive):
+    def test_run_check_reports_an_unenrolled_parse_error(self):
+        def parse(path):
+            if path.endswith("rfc7777.md"):
+                raise R.ParseError("rfc/short/rfc7777.md:9: bad requirement id")
+            return [_req("RFC9999-1-1", rfc=self.STEM)]
+
+        code, out = self._drive(
+            stems={self.STEM, "rfc7777"},
+            dispositions={"rfc7777": _disp()},
+            parse_summary_file=parse,
+        )
+        self.assertEqual(code, 2, out)
+        self.assertIn("rfc/short/rfc7777.md:9", out)
+
+
+class TestLedgerBacklogTables(unittest.TestCase):
+    """AC-18: the two grandfathered backlogs are RENDERED, not listed."""
+
+    def _body(self, enrolled=("rfc7606",), rows=None, dispositions=None):
+        return R.render_ledger(
+            [_req("RFC7606-2-1")],
+            [_tag("RFC7606-2-1", "positive"), _tag("RFC7606-2-1", "negative")],
+            set(enrolled),
+            {} if rows is None else rows,
+            {} if dispositions is None else dispositions,
+        )
+
+    def test_enrolled_without_row_table_rendered(self):
+        body = self._body(enrolled=("rfc7606", "rfc1234"))
+        self.assertIn("## Enrolled without a public status row", body)
+        self.assertIn("`rfc1234`", body)
+        self.assertIn("2 enrolled RFC(s) have no row", body)
+
+    def test_the_table_is_empty_when_every_row_exists(self):
+        body = self._body(rows={"rfc7606": _row()})
+        self.assertIn("None: every enrolled RFC has a row.", body)
+
+    def test_disposition_table_rendered(self):
+        body = self._body(dispositions={"rfc1234": _disp("backlog", "extraction owed")})
+        self.assertIn("## Declared not enrolled", body)
+        self.assertIn("`rfc1234`", body)
+        self.assertIn("extraction owed", body)
+
+    def test_debt_kinds_are_marked_as_debt(self):
+        """R-4: `backlog` and `blocked` must never read as a settled decision."""
+        body = self._body(
+            dispositions={
+                "rfc1": _disp("backlog", "a"),
+                "rfc2": _disp("blocked", "b"),
+                "rfc3": _disp("non-normative", "c"),
+            }
+        )
+        section = body.split("## Declared not enrolled", 1)[1].split("\n## ", 1)[0]
+        rows = [ln for ln in section.split("\n") if ln.startswith("| `rfc")]
+        debt = {ln.split("|")[1].strip(): "**DEBT**" in ln for ln in rows}
+        self.assertEqual(debt, {"`rfc1`": True, "`rfc2`": True, "`rfc3`": False})
+
+    def test_render_is_deterministic(self):
+        """A-8: check_ledger_fresh compares bytes, so an unstable render turns the freshness
+        gate into noise."""
+        args = dict(
+            enrolled=("rfc7606", "rfc1234", "rfc5678"),
+            dispositions={"rfc9": _disp(), "rfc8": _disp("blocked", "no source")},
+        )
+        self.assertEqual(self._body(**args), self._body(**args))
+
+    def test_the_render_reads_the_real_files_when_not_given_them(self):
+        """run_write and run_check_fresh call render_ledger with three arguments. The bytes
+        must be the same as run_check's five-argument call, or the freshness gate compares a
+        ledger to a different render of the same tree."""
+        reqs = [_req("RFC7606-2-1")]
+        tags = [_tag("RFC7606-2-1", "positive")]
+        rows = _status_rows()
+        self.assertEqual(
+            R.render_ledger(reqs, tags, {"rfc7606"}),
+            R.render_ledger(reqs, tags, {"rfc7606"}, rows, R.load_dispositions()),
+        )
+
+
+class TestUnconvertedSummaries(unittest.TestCase):
+    """AC-13, D5: one advisory row used to buy immunity from the RE-AUTHOR table."""
+
+    def test_advisory_only_summary_is_listed(self):
+        """D5: `captured` meant "captured anything", the check meant "captured the
+        obligations", and seven advisory-only summaries hid in the gap."""
+        body = R.render_ledger(
+            [_req("RFC7606-2-1", level="SHOULD")],
+            [],
+            {"rfc7606"},
+            {},
+            {},
+        )
+        self.assertIn("## Summaries declaring no MUST-level requirement", body)
+        self.assertIn("`rfc7606`", body)
+
+    def test_a_gated_summary_is_not_listed(self):
+        body = R.render_ledger([_req("RFC7606-2-1")], [], {"rfc7606"}, {}, {})
+        rows = [ln for ln in body.split("\n") if ln.startswith("| `rfc7606` |")]
+        self.assertFalse(
+            any("RE-AUTHOR" in ln or "UNDECIDED" in ln for ln in rows), rows
+        )
+
+    def test_zero_source_count_verdict_names_pre_2119_doubt(self):
+        """AC-13, R-7: 0 uppercase with a non-zero lowercase count is the pre-RFC-2119
+        signature. "consistent: source declares none" read RFC 1035, a normative wire
+        specification, as non-normative."""
+        with _patched(
+            summary_stems=lambda: {"rfcX"},
+            source_keyword_count=lambda stem: 0,
+            source_prose_keyword_count=lambda stem: 23,
+        ):
+            rows = R.unconverted_summaries(set())
+            body = R.render_ledger([], [], set(), {}, {})
+        self.assertEqual(rows[0]["prose"], 23)
+        self.assertIn("UNDECIDED", body)
+        self.assertIn("pre-RFC-2119", body)
+        self.assertNotIn("consistent: source declares none", body)
+
+    def test_zero_in_both_registers_is_consistent(self):
+        """The discriminating twin: a genuinely non-normative source shows 0 and 0, and it
+        must still read as consistent rather than as undecided."""
+        with _patched(
+            summary_stems=lambda: {"rfcX"},
+            source_keyword_count=lambda stem: 0,
+            source_prose_keyword_count=lambda stem: 0,
+        ):
+            body = R.render_ledger([], [], set(), {}, {})
+        self.assertIn("consistent: source declares none", body)
+        self.assertNotIn("UNDECIDED", body)
+
+    def test_a_normative_source_still_says_re_author(self):
+        with _patched(
+            summary_stems=lambda: {"rfcX"},
+            source_keyword_count=lambda stem: 7,
+            source_prose_keyword_count=lambda stem: 9,
+        ):
+            body = R.render_ledger([], [], set(), {}, {})
+        self.assertIn("RE-AUTHOR", body)
+
+    def test_the_lowercase_counter_reads_rfc1035_as_normative(self):
+        """The worked example, over the REAL source text: 0 uppercase, many lowercase."""
+        self.assertEqual(R.source_keyword_count("rfc1035"), 0)
+        self.assertGreater(R.source_prose_keyword_count("rfc1035"), 20)
+
+    def test_the_real_table_lists_every_advisory_only_summary(self):
+        """Over the REAL tree: the table's row count is the number of summaries that gate
+        nothing. With `captured` still meaning "captured anything", the advisory-only stems
+        were absent from it."""
+        reqs = []
+        for stem in sorted(R.summary_stems()):
+            reqs.extend(R.parse_summary_file(os.path.join(R.SUMMARY_DIR, stem + ".md")))
+        listed = {
+            row["stem"]
+            for row in R.unconverted_summaries({r.rfc for r in reqs if r.gated})
+        }
+        gated_stems = {r.rfc for r in reqs if r.gated}
+        self.assertEqual(listed, R.summary_stems() - gated_stems)
+        self.assertIn("rfc3765", listed)
+
+
+class TestFourStemEnrolmentRealTree(unittest.TestCase):
+    """Owner Ruling OR-1 and OR-A, asserted over the REAL rfc/ tree.
+
+    Deliberately not patched. What these prove is a fact about THIS repository -- the D1
+    stems are extracted, sourced and signed off -- and a synthetic fixture would pass with
+    all four still broken, which is the whole failure OR-1 exists to end.
+    """
+
+    FOUR = ("rfc1035", "rfc3765", "rfc4486", "rfc5301")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.reqs = {}
+        for stem in cls.FOUR:
+            cls.reqs[stem] = R.parse_summary_file(
+                os.path.join(R.SUMMARY_DIR, stem + ".md")
+            )
+
+    def test_all_four_are_sourced(self):
+        """AC-20: check_enrolment refuses an enrolment with no source text, so the fetch is a
+        precondition of enrolling rfc3765 and rfc4486 at all."""
+        for stem in self.FOUR:
+            self.assertIsNotNone(R.source_path(stem), stem)
+
+    def test_all_four_carry_an_extraction_signoff(self):
+        """AC-27: four walks, four artifacts, each re-derived against the source text and
+        found to have zero violations."""
+        signed = R.signed_extractions([r for reqs in self.reqs.values() for r in reqs])
+        for stem in self.FOUR:
+            self.assertIn(stem, signed, f"{stem} has no VALID sign-off")
+
+    def test_no_x_anchor_and_no_bare_bracket_tag_remains(self):
+        """AC-21: the `-x-` anchor is the skill's deliberate defect marker, and a bare
+        category tag is an obligation the parser reads as prose."""
+        for stem in self.FOUR:
+            for req in self.reqs[stem]:
+                self.assertNotEqual(req.section, R.NO_SECTION, f"{stem} {req.rid}")
+
+    def test_no_checkbox_is_ticked(self):
+        """AC-21: the box is a template marker, never coverage state."""
+        for stem in self.FOUR:
+            for req in self.reqs[stem]:
+                self.assertFalse(req.ticked, f"{stem} {req.rid}")
+
+    def test_three_declare_a_gated_requirement_and_rfc3765_declares_none(self):
+        """AC-21 as corrected by OR-A. rfc1035, rfc5301 and rfc4486 carry real MUST-level
+        obligations; rfc3765 declares zero, and that zero is a property of an Informational
+        document with no RFC 2119 section and no keyword occurrence anywhere."""
+        gated = {stem: sum(1 for r in self.reqs[stem] if r.gated) for stem in self.FOUR}
+        self.assertEqual(gated["rfc3765"], 0, "OR-A: zero is the honest answer here")
+        for stem in ("rfc1035", "rfc4486", "rfc5301"):
+            self.assertGreater(gated[stem], 0, stem)
+
+    def test_rfc3765_signs_under_manual_walk_with_a_reason(self):
+        """OR-A's evidenced form, which check_unproven_support accepts and nothing else can
+        reach: register `manual-walk` (weaker than the derived `prose`, which child 1
+        permits) plus a recorded register-reason."""
+        art = R.parse_extraction_artifact(
+            os.path.join(R.EXTRACTION_DIR, "rfc3765.json")
+        )
+        self.assertEqual(art.register, "manual-walk")
+        self.assertTrue(art.register_reason)
+        self.assertIn("Informational", art.register_reason)
+
+    def test_rfc4486_is_enrolled_and_its_must_is_proven_both_ways(self):
+        """The one gated requirement of the four that is fully proven today."""
+        self.assertIn("rfc4486", R.load_enrolled())
+        tags = [t for t in R.scan_tree() if t.rid == "RFC4486-4-1"]
+        self.assertEqual(
+            {t.polarity for t in tags}, {"positive", "negative"}, [t.file for t in tags]
+        )
+
+    def test_the_prefix_maximum_ci_is_credited_as_functional_evidence(self):
+        """J3. docs/features/rfc-status.md cites test/plugin/prefix-maximum-enforce.ci as proof
+        that RFC4486-4-1 puts subcode 1 on the wire, and that .ci does pin the exact bytes --
+        but it carried no `RFC requirement:` tag, so ai/RFC-REQUIREMENTS.md credited the
+        requirement with unit evidence only and the run line reported functional/verify 6.
+
+        Child 2's whole thesis is that unit evidence proves the ALGORITHM while only a running
+        non-unit test proves the DAEMON, so a prose claim of functional proof the gate does not
+        credit is the claim and the evidence disagreeing (ai/rules/no-fabrication.md)."""
+        rel = "test/plugin/prefix-maximum-enforce.ci"
+        tags = [t for t in R.scan_tree() if t.rid == "RFC4486-4-1"]
+        found = [t for t in tags if t.file == rel]
+        self.assertEqual(len(found), 1, [t.file for t in tags])
+        self.assertEqual(found[0].polarity, "positive")
+        self.assertEqual(R.evidence_label(rel), "functional/verify")
+        self.assertFalse(R.is_nightly_only(tags))
+
+    def test_the_page_still_cites_that_ci_as_the_wire_level_proof(self):
+        """The other half of the pair: the tag exists to make a PROSE claim machine-checked, so
+        the prose it answers to is asserted here. If the citation is ever dropped, the tag is
+        answering nothing and this says so."""
+        row = _status_rows()["rfc4486"]
+        self.assertIn("test/plugin/prefix-maximum-enforce.ci", row["coverage"])
+        self.assertIn("asserts the bytes on the wire", row["coverage"])
+
+    def test_the_ci_still_pins_the_cease_subcode_bytes(self):
+        """What the tag now claims, read off the .ci itself: error code 06, subcode 01, and the
+        Figure 1 Data field (AFI 0001, SAFI 01, upper bound 00000003). A tag over a test that
+        stopped asserting the subcode would be evidence of nothing."""
+        body = _read_repo("test/plugin/prefix-maximum-enforce.ci")
+        self.assertIn(
+            "hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C03060100010100000003", body
+        )
+
+    def test_rfc3765_is_enrolled(self):
+        """OR-A: enrolled on the evidenced zero, not on a fabricated MUST."""
+        self.assertIn("rfc3765", R.load_enrolled())
+
+    def test_the_declared_remainder_is_debt_not_a_decision(self):
+        """OC-4: rfc1035 and rfc5301 are declared `backlog` while their obligations are
+        escalated, and `backlog` renders as DEBT and excuses nothing. The spec may not close
+        while either is still declared rather than enrolled."""
+        dispositions = R.load_dispositions()
+        for stem in ("rfc1035", "rfc5301"):
+            self.assertIn(stem, dispositions, stem)
+            self.assertEqual(dispositions[stem].kind, "backlog", stem)
+            self.assertNotIn(stem, R.load_enrolled(), stem)
+
+    def test_no_id_a_test_references_was_lost(self):
+        """A-11, R-9. Ids WERE replaced here, deliberately: all six `-x-` anchors in rfc3765
+        and rfc4486 are the skill's defect marker, and OR-1 re-anchored them to real
+        sections. That is legal only while no test tags them, so the invariant to assert is
+        not "no id changed" -- it is that no id a test REFERENCES went away, which is the
+        failure a re-anchor could actually cause (a tag silently re-pointed at a different
+        obligation).
+
+        After enrolment check_retired_requirements freezes rfc3765's and rfc4486's ids for
+        good, so this window is now shut for those two."""
+        current = {r.rid for reqs in self.reqs.values() for r in reqs}
+        tagged = {t.rid for t in R.scan_tree()}
+        for stem in self.FOUR:
+            prefix = stem.upper() + "-"
+            lost = {
+                rid
+                for rid in R._git_baseline_ids()
+                if rid.startswith(prefix) and rid not in current
+            }
+            self.assertEqual(
+                lost & tagged,
+                set(),
+                f"{stem}: a tagged id was dropped: {sorted(lost & tagged)}",
+            )
+
+    def test_the_x_anchored_ids_were_the_ones_replaced(self):
+        """The discriminating half: the test above would also pass if NOTHING had changed.
+        The four rfc3765 ids at HEAD carried the `-x-` no-section anchor, and none survives."""
+        gone = {
+            rid
+            for rid in R._git_baseline_ids()
+            if rid.startswith("RFC3765-") or rid.startswith("RFC4486-")
+        } - {r.rid for reqs in self.reqs.values() for r in reqs}
+        self.assertTrue(gone, "the -x- anchors should have been replaced")
+        for rid in gone:
+            self.assertIn("-x-", rid, f"{rid} was dropped but was not an -x- anchor")
+
+    def test_no_requirement_id_is_reused(self):
+        """A-12: check_id_allocation is what makes an id a permanent contract. Reuse -- drop
+        an id and add a different requirement under the same id -- is textually invisible and
+        is the one thing re-authoring must never do."""
+        reqs = []
+        for stem in sorted(R.summary_stems()):
+            reqs.extend(R.parse_summary_file(os.path.join(R.SUMMARY_DIR, stem + ".md")))
+        self.assertEqual(R.check_id_allocation(reqs, R._git_baseline_ids()), [])
+
+
+class TestRealTreeIsGreen(unittest.TestCase):
+    """AC-19, AC-26: the whole gate, over the committed tree.
+
+    The four new checks are ARMED here. Every other test in this section drives one check
+    over a fixture; this one is the only assertion that the REPOSITORY passes, which is what
+    AC-26 requires at every commit boundary.
+    """
+
+    def test_run_check_exits_zero_on_the_real_tree(self):
+        code, out = _run_capturing(R.run_check)
+        self.assertEqual(code, 0, out)
+        self.assertIn("rfc-requirements OK", out)
 
 
 if __name__ == "__main__":

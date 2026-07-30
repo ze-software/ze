@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | tooling |
-| Depends | spec-rfcgate-1-extraction (BLOCKING, see OC-6); the umbrella also orders 2 and 3 ahead of this spec |
+| Depends | spec-rfcgate-1-extraction (BLOCKING, see OC-6). The umbrella also orders 2 and 3 ahead of this spec |
 | Phase | - |
 | Deferral shard | `plan/deferrals/rfcgate-4-ledger.md` |
-| Updated | 2026-07-29 |
+| Updated | 2026-07-30 |
 
 Part of the `rfcgate` spec set; the umbrella is `plan/spec-rfcgate-0-umbrella.md`,
 which fixes the merge order 1, 2, 3, 4 and forbids two children in flight.
@@ -114,16 +114,34 @@ future un-enrolled summary from a parse error it should report
 immunity from the RE-AUTHOR verdict.** `unconverted_summaries` is called with
 `captured = {r.rfc for r in requirements}` (`render_ledger:1531`) -- ANY
 requirement at ANY level. A summary that captured four SHOULDs and zero MUSTs is
-therefore "captured" and never appears in the "Summaries declaring no MUST-level
-requirement" table, even when its source text is full of MUSTs. `rfc5301` is
-exactly that: `rfc/full/rfc5301.txt` carries 4 MUST-level keywords, its summary
-captured 4 advisory rows and 0 gated, and it is absent from the table whose own
-docstring (`:1340-1348`) says "an absent summary is indistinguishable from a
-compliant one, which is how a standards claim rots". The table has 2 rows today;
-7 summaries are advisory-only, and the count is confirmed at exactly 7: rfc3765,
-rfc4486, rfc5301, rfc7999, rfc8195, rfc8326, rfc9129. Separately, that table's verdict for a zero-source
-count reads "consistent: source declares none", which is asserted for `rfc1035`
--- a 1987 document that predates RFC 2119 and contains 0 uppercase `MUST` but 23
+therefore "captured". It never appears in the "Summaries declaring no MUST-level
+requirement" table, even when its source text is full of MUSTs.
+
+`rfc5301` is exactly that: ~~`rfc/full/rfc5301.txt` carries 4 MUST-level
+keywords~~ **MISLEADING, corrected 2026-07-29.** All 4 of those keyword hits are
+on ONE line. That line is `rfc/full/rfc5301.txt:94`, the key-words boilerplate
+paragraph of RFC 2119 ("MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT").
+`grep -n "MUST\|SHALL"` returns that single line and nothing else.
+
+Child 1's sharper measurement agrees.
+`derive_inventory("rfc5301", 0).keyword_sites == 0` because `_BOILERPLATE_RE`
+(`scripts/dev/rfc_requirements.py:2416`) excludes exactly that paragraph. RFC 5301
+has ZERO capitalised normative sentences, not four uncaptured ones. It derives
+register `prose` with 3 sites over 10 sections, so the extraction is still real
+and still owed. But the "four uncaptured uppercase MUSTs" premise behind Q-3
+and phase 6 is not a fact.
+
+**The D5 bug it illustrates is unaffected.** rfc5301 is still absent from the
+table because it captured 4 advisory rows. Its summary captured 4 advisory rows
+and 0 gated. It is absent from the table whose own docstring (`:1340-1348`) says
+"an absent summary is indistinguishable from a compliant one, which is how a
+standards claim rots".
+
+The table has 2 rows today. 7 summaries are advisory-only, and the count is
+confirmed at exactly 7: rfc3765, rfc4486, rfc5301, rfc7999, rfc8195, rfc8326,
+rfc9129. Separately, that table's verdict for a zero-source count reads
+"consistent: source declares none", which is asserted for `rfc1035`. RFC 1035 is
+a 1987 document that predates RFC 2119 and contains 0 uppercase `MUST` but 23
 lowercase `must`. The heuristic reads a pre-2119 normative RFC as non-normative.
 
 **Goal.** Close all five so the public ledger's edges are guarded by machinery
@@ -291,7 +309,7 @@ is why `ai/rules/rfc-compliance.md` is in the architecture list above.
   `:1754` `TestStatusDisclosureFailsClosed`: the existing status-ledger fixtures
   the new ones sit beside.
 - [ ] `internal/core/dnsserver/handler.go:48` - `Authoritative`, the producer
-  behind the RFC 1035 "Supported" row; its header cites `rfc/short/rfc1035.md`.
+  behind RFC 1035's "Supported" row. Its header cites `rfc/short/rfc1035.md`.
 - [ ] `rfc/short/rfc3765.md:70-73`, `rfc/short/rfc4486.md:55-56`,
   `rfc/short/rfc5301.md:124-129` - the existing checklist lines of three of the
   four stems. rfc3765 and rfc4486 carry SIX rows in total, every one with an
@@ -391,8 +409,19 @@ is why `ai/rules/rfc-compliance.md` is in the architecture list above.
   commit or `check_ledger_fresh` reds.
 - `rfc/enrolled.txt` header comments - already document the enrolment contract
   and must point at the new sibling file.
-- `ai/rules/rfc-compliance.md` "the four ratchets" table - becomes six.
-- `ai/INDEX.md:212` - already stale ("the three ratchets"); corrected here.
+- ~~`ai/rules/rfc-compliance.md` "the four ratchets" table - becomes six.~~
+  **FALSE as of 2026-07-29 (freshness re-verification).** The heading is already
+  `## What Keeps RFC Testing Valid (the six ratchets)`
+  (`ai/rules/rfc-compliance.md:115`): child 1 took it to five
+  (`check_extraction_ratchet`) and child 2 to six (`check_evidence_ratchet`).
+  This spec adds ONE HEAD-baseline ratchet (status-row completeness), so the
+  edit is six -> SEVEN. `check_summary_disposition`, `check_unproven_support`
+  and the gap-count cross-check are not HEAD ratchets and do not belong in that
+  table.
+- ~~`ai/INDEX.md:212` - already stale ("the three ratchets"). Corrected here.~~
+  **FALSE as of 2026-07-29.** `ai/INDEX.md:212` reads "the five ratchets" (child 1
+  corrected it, and `ai/INDEX.md` is unmodified vs HEAD). It is stale by ONE, not
+  by three, and the string "the three ratchets" does not exist in the file.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -510,9 +539,9 @@ Functional Tests).
 | AC-9 | A disposition line carries a kind outside `non-normative` / `backlog` / `blocked`, or carries no reason | The gate exits 2 naming the line and the accepted kinds |
 | AC-10 | A stem has a `docs/features/rfc-status.md` row whose Status is a support claim (anything other than `Unsupported` or `Future`), declares zero gated requirements, and has no `non-normative` disposition | The gate exits 2 saying the public claim rests on an empty checklist |
 | AC-11 | The same stem carries a `non-normative` disposition | The gate passes for that stem |
-| AC-12 | A Remaining cell spells a MUST-gap count (`One`..`Nineteen`, `Twenty`..`Twenty-nine`, `Thirty`..) followed by `MUST` or `SHALL` | The spelled number equals the count of `{gap}` annotations in that stem's summary, or the gate exits 2 naming both numbers; `Twenty-five` parses as 25, never as 5 |
-| AC-13 | A summary declares zero GATED requirements while declaring advisory ones | It appears in the ledger's "Summaries declaring no MUST-level requirement" table; when its source keyword count is zero the verdict names the pre-RFC-2119 uncertainty instead of asserting "consistent: source declares none", and reports the lowercase `must` count as evidence |
-| AC-14 | A `non-normative` disposition reason asserts non-applicability to Ze rather than a property of the RFC text | The gate exits 2; a disposition records why the DOCUMENT imposes nothing, never a judgement about what Ze owes |
+| AC-12 | ~~A Remaining cell spells a MUST-gap count (`One`..`Nineteen`, `Twenty`..`Twenty-nine`, `Thirty`..) followed by `MUST` or `SHALL`~~ **NARROWED 2026-07-29, see AC-12 correction below: a spelled number IMMEDIATELY followed by `MUST` or `SHALL`** | The spelled number equals the count of `{gap}` annotations in that stem's summary, or the gate exits 2 naming both numbers. `Twenty-five` parses as 25, never as 5 |
+| AC-13 | A summary declares zero GATED requirements and declares advisory ones | It appears in the ledger's "Summaries declaring no MUST-level requirement" table. When its source keyword count is zero, the verdict names the pre-RFC-2119 uncertainty rather than asserting "consistent: source declares none". It also reports the lowercase `must` count as evidence |
+| AC-14 | A `non-normative` disposition reason asserts non-applicability to Ze rather than a property of the RFC text | ~~A `non-normative` disposition reason asserts non-applicability to Ze rather than a property of the RFC text~~. **REFINED 2026-07-30 to the two-part rule actually implemented.** A `non-normative` reason must (a) avoid the Ze-owes-nothing phrasings AND (b) positively CITE a property of the document. The citation names an IETF category, the key-words machinery of RFC 2119 / RFC 8174 / BCP 14, or a capitalised-keyword scan result | The gate exits 2 on either half. The original wording described the rejection as flat, which an independent review showed was a SIX-PHRASE BLACKLIST: seven evasions were accepted, including "Ze is not required to do any of this" and "This RFC is irrelevant for our implementation". A blacklist accepts every wording nobody thought of, so the positive citation requirement (`non_normative_reason_cites_the_document`, `scripts/dev/rfc_requirements.py:2094`, wired at `:2189`) is the half that guarantees anything. **What the gate does NOT do, stated so the prose does not overclaim again:** it checks the CITATION, never its truth. Nothing opens `rfc/full/<stem>.txt` to confirm the category or re-run the scan. It converts an unfalsifiable assertion into a checkable one and names who checks it 
 | AC-15 | A requirement carries `{gap}`, its stem is NOT enrolled, and its stem HAS a status row | The row must disclose (non-`Supported` status, or a non-empty Remaining that is not a no-gap phrase) or the gate exits 2 |
 | AC-16 | A requirement carries `{gap}`, its stem is NOT enrolled, and its stem has NO status row | The gate does not fail: an un-rowed, un-enrolled RFC makes no public claim to contradict |
 | AC-17 | An UN-ENROLLED summary fails to parse | The parse error is reported and the gate exits 2; enrolment no longer filters parse-error reporting, and the comment claiming otherwise is gone |
@@ -648,15 +677,27 @@ obligation travels with it rather than being absorbed here.
   keywords in its source that nothing has captured.
 - `ai/RFC-REQUIREMENTS.md` - regenerated (`make ze-rfc-index`) with the two new
   backlog tables and the corrected RE-AUTHOR table.
-- `ai/rules/rfc-compliance.md` - "What Keeps RFC Testing Valid (the four
-  ratchets)" becomes six, and the section gains the disclosure guards.
-- `ai/INDEX.md` - `:212` corrects "the three ratchets" (already stale) and names
-  the disposition file; the keyword row at `:372` gains `rfc/not-enrolled.txt`.
+- `ai/rules/rfc-compliance.md` - ~~"What Keeps RFC Testing Valid (the four
+  ratchets)" becomes six~~ **corrected 2026-07-29: the heading is at `:115` and
+  already reads "the six ratchets". This spec takes it to SEVEN** -- and the
+  section gains the disclosure guards.
+- `ai/INDEX.md` - ~~`:212` corrects "the three ratchets" (already stale)~~
+  **corrected 2026-07-29: `:212` reads "the five ratchets" and is stale by one,
+  not three** -- and names the disposition file. The keyword row
+  ~~at `:372`~~ **at `:374`** gains `rfc/not-enrolled.txt`. Line `:372` is now
+  the "extended message" row, and a NEW extraction keyword row sits at `:375`.
 - `docs/features/rfc-status.md` - preamble states which properties of the page
   are machine-checked and which remain editorial (OR-4, AC-25), with a source
-  anchor to `scripts/dev/rfc_requirements.py`. The four D1 rows (`:28` rfc4486,
-  `:56` rfc3765, `:123` rfc5301, `:234` rfc1035) are corrected in phase 6 to
-  match what the re-authored summaries actually declare.
+  anchor to `scripts/dev/rfc_requirements.py`. **Corrected 2026-07-29: child 2
+  has ALREADY added a preamble paragraph here ("How strong the proof behind a row
+  is", `docs/features/rfc-status.md:7-8`, with its own `<!-- source: ... -->`
+  anchor) covering evidence KIND/TIER. AC-25's four properties are still absent,
+  so AC-25 is not satisfied. But this spec EXTENDS child 2's paragraph rather
+  than writing a fresh preamble, and must not duplicate or displace it.**
+  The four D1 rows (~~`:28` rfc4486, `:56` rfc3765, `:123` rfc5301,
+  `:234` rfc1035~~ **-> `:32` rfc4486, `:60` rfc3765, `:127` rfc5301, `:238`
+  rfc1035 -- every row shifted +4 by child 2's preamble**) are corrected in phase 6
+  to match what the re-authored summaries actually declare.
 - `docs/contributing/rfc-implementation-guide.md` - the enrol-or-declare step.
 - `ai/skills/ze-rfc.md` - the skill that writes summaries must record a
   disposition when it does not enrol (canonical source; `make ze-ai-sync`
@@ -866,7 +907,7 @@ obligation travels with it rather than being absorbed here.
 | The four D1 stems are enrolled, sourced, and re-authored | the non-comment non-blank line count of `rfc/enrolled.txt` reads 170 (it reads 166 today; count it the way `parse_enrolled` does, skipping `#` and blank lines, since a raw `wc -l` counts the header comments too); `ls rfc/full/rfc3765.txt rfc/full/rfc4486.txt`; `make ze-rfc-check` exit 0 |
 | Every gated requirement of the four is proven or individually authorised | `make ze-rfc-index` then read the four blocks of `ai/RFC-REQUIREMENTS.md`: each row shows a positive and a negative test, or an annotation whose authorisation is quoted in Owner Rulings |
 | The guard armed no earlier than the fix | `git log -p -- scripts/dev/rfc_requirements.py` across this spec's commits: the judging body of `check_unproven_support` appears in the phase-7 commit or the last phase-6 commit, never before |
-| The public page says what it guarantees | `sed -n '1,10p' docs/features/rfc-status.md` shows the machine-checked vs editorial paragraph (AC-25) |
+| The public page says what it guarantees | ~~`sed -n '1,10p' docs/features/rfc-status.md` shows the machine-checked vs editorial paragraph (AC-25)~~. **FALSE-PASS as of 2026-07-29.** That command ALREADY prints a preamble paragraph (child 2's "How strong the proof behind a row is", `:7-8`), so it passes before this spec writes anything. **Replace it with a check for AC-25's four named properties: `grep -n "row presence\|gap-count\|editorial" docs/features/rfc-status.md`, and confirm Status / Area / Implemented coverage are each named as editorial** |
 | Every summary is enrolled or declared | `make ze-rfc-check` (AC-5) |
 | Newly enrolled RFCs must disclose | `make ze-rfc-check` after a synthetic enrolment (AC-1) |
 | A support claim cannot rest on an empty checklist | `make ze-rfc-check` (AC-10) |
@@ -1037,8 +1078,10 @@ changed: this spec enforces no protocol obligation in code. It changes the
 machinery that decides whether the repository's CLAIMS about such obligations
 are allowed to stand, which is `ai/rules/rfc-compliance.md`'s "What Keeps RFC
 Testing Valid" section rather than its "RFC MUST Comments" section. The one
-documentation obligation that follows is the ratchet table in that rule (four
-ratchets becomes six), listed in Files to Modify.
+documentation obligation that follows is the ratchet table in that rule
+(~~four ratchets becomes six~~ **six becomes seven, corrected 2026-07-29:
+`ai/rules/rfc-compliance.md:115` already reads "the six ratchets"**), listed in
+Files to Modify.
 
 **Revised by OR-1.** That remains true of the MACHINERY, but phase 6 is protocol
 work and carries the full obligation. Every gated requirement extracted for
@@ -1054,6 +1097,178 @@ Scope note: `ai/rules/rfc-compliance.md` forbids Ze-specific content inside
 `rfc/short/` files. The four re-authored summaries stay pure protocol reference;
 everything about what Ze does with those obligations lives in the tests, the
 public row, and this spec.
+
+## Freshness Re-verification (appended 2026-07-29, after children 1 and 2)
+
+This spec was authored before its predecessors landed. Child 1 is committed
+(`2b1f84827`, `cb9f72609`). Child 2 is complete and STAGED in the working tree
+but not yet committed (`git diff --stat HEAD` shows
+`scripts/dev/rfc_requirements.py +858`, `rfc_requirements_test.py +1014`,
+`docs/features/rfc-status.md +4`, `rfc/enrolled.txt` 1 line, and
+`rfc/audit/rfc7606.json`). `scripts/dev/rfc_requirements.py` has grown from
+1,769 to **4,192** lines, so **every line number this spec cited into that module
+was wrong**. The symbol name is the durable anchor. The numbers below are correct
+as of this date and will move again.
+
+`make ze-rfc-check` exits **0** on this tree (166 enrolled, 2,720 gated
+requirements, 2,579 tags, **0** extraction sign-offs).
+
+### Citation corrections -- `scripts/dev/rfc_requirements.py`
+
+Every symbol still exists. Nothing this spec depends on was deleted or renamed.
+
+| Spec cite | Symbol | Now at |
+|-----------|--------|--------|
+| `:55` | `STATUS_FILE` | `:63` |
+| `:93-98` | `_FIRST_TAG_RE` + its ad-hoc-category-tag comment | comment `:99-106`, regex `:107` |
+| `:331-334` | `parse_checklist_line`, "not a requirement, not an error" | func `:316`, comment `:348` |
+| `:614-615` | `evaluate`'s non-gated skip (`if not req.gated`) | func `:960`, skip `:1002` |
+| `:655`, `:675-684` | `check_enrolment`, and its source-text requirement | func `:1043`, source-text `:1078-1087` |
+| `:688`, `:688-695` | `parse_enrolled` | `:1102-1109` |
+| `:698`, `:698-711` | `_git_baseline_enrolment` | `:1112-1136` |
+| `:1059`, `:1072-1080`, `:1083-1084`, `:1113-1121` | `check_new_summaries`, grandfather early return, source-has-MUSTs comparison | func `:1709`, early return `:1733`, comparison `:1763` |
+| `:1128` | `parse_status_ledger` | `:1778` |
+| `:1163-1208` | `check_status_agreement` | `:1813-1858` |
+| `:1174-1176` | its loop + the non-enrolled exemption | `:1824-1826` |
+| `:1176` | `req.rfc not in enrolled` exemption | `:1826` |
+| `:1178`, `:1178-1184` | the `row is None` branch | `:1829-1834` |
+| `:1188-1200` | the disclosure decision | `:1838-1850` |
+| `:1323` | `source_keyword_count` | `:1973` |
+| `:1340`, `:1340-1348` | `unconverted_summaries` + docstring | `:1990-2004` |
+| `:1465` | `render_ledger` | `:2251` |
+| `:1510-1515` | the byte-stability sorts | `:2291`, `:2298`, `:2303` (churn comment `:2301`) |
+| `:1531` | the `captured = {r.rfc for r in requirements}` call site | `:2328` |
+| `:1601`, `:1620-1625`, `:1624` | `_collect_for_check`, and the enrolment filter on parse errors | func `:3929`, filter `:3952`, amnesty docstring `:3937-3939` |
+| `:1629`, `:1637`, `:1670-1673`, `:1683-1685` | `run_check`, the `check_enrolment` call, the stale amnesty comment, and the `STATUS_FILE` read | func `:3957`, call `:3990`, comment `:4036-4038`, read `:4049-4050` |
+| `:1725-1741` | `run_check_fresh` | `:4127` |
+| (new, child 1) | `_NO_GAP_RE` | `:170` |
+
+### Citation corrections -- everything else
+
+| Spec cite | What | Verdict |
+|-----------|------|---------|
+| `docs/features/rfc-status.md:28 / :56 / :123 / :234` | the four D1 rows | **WRONG: `:32` rfc4486, `:60` rfc3765, `:127` rfc5301, `:238` rfc1035** (+4 from child 2's preamble) |
+| `rfc/short/rfc3765.md:70-73` | 4 `-x-`-anchored advisory rows | correct, unchanged |
+| `rfc/short/rfc4486.md:55-56` | 2 `-x-`-anchored `[MAY]` rows | correct, unchanged |
+| `rfc/short/rfc5301.md:124-129` | 4 section-anchored advisory + 2 `[FORMAT]` | correct, unchanged (`[FORMAT]` at `:124`, `:126`) |
+| `rfc/short/rfc1035.md` no checklist line | | correct |
+| `Makefile:437` / `:438` / `:442` | `ze-rfc-check` / `--selftest` / `ze-rfc-index` | all correct |
+| `mk/inventory.mk:106` | `--check-fresh` | correct |
+| `scripts/status/verify_run.go:237`, `:259` | `mk("ze-rfc-check")` in both modes | correct |
+| `scripts/dev/commit_helper.py:512-523` | `STRUCTURAL_GATES`, eight names, no `ze-rfc-check` | **`:514-525`**. Eight names and the absence both confirmed, so OC-2 stands |
+| `internal/core/dnsserver/handler.go:48` | `Authoritative`, and the header cites `rfc/short/rfc1035.md` at `:3` | correct |
+| `ai/rules/rfc-compliance.md:28` | "The RFC requirement is not in `rfc/short/<stem>.md`" | correct |
+| `ai/rules/rfc-compliance.md:38-51`, `:40` | the Ask-Thomas table, and "making Ze more conformant never needs permission" | heading `:36`, `:40` correct, table `:43-50` |
+| `ai/rules/rfc-compliance.md:53` | "Every earlier answer ... is VOID" | correct |
+| `ai/rules/rfc-compliance.md:56` | cited as VOIDing every annotation | **WRONG: `:56` is a `plan/learned` table row. Use `:53` for the VOID statement, `:57` for the `{gap}`/`{not-applicable}`/`partial` row** |
+| `ai/rules/rfc-compliance.md:83` | the `rfc-editor.org` URL form | **WRONG: `:78` and `:149`** |
+| `ai/INDEX.md:212` | ratchet count | reads "the five ratchets". See the struck claim above |
+| `ai/INDEX.md:372` | the RFC keyword row | **WRONG: `:374`. `:372` is "extended message". A NEW extraction keyword row exists at `:375`** |
+| `scripts/dev/rfc_requirements_test.py:33` `_patched`, `:51` `_run_capturing` | the wiring harness | **`:55` and `:77`** |
+| `..._test.py:750` `TestStatusLedgerCrossCheck`, `:1754` `TestStatusDisclosureFailsClosed` | | **`:1176` and `:2644`** |
+| `..._test.py:1337` `TestCoverageRatchetWiring`, `:1562` `TestRetiredRequirementsWiring` | | **`:1959` and `:2383`** (file is now 5,393 lines, 60 classes) |
+
+### Re-measured figures (driven through the module's own functions)
+
+Derivation: `load_enrolled`, `summary_stems`, `parse_status_ledger`,
+`parse_summary_file`, `source_keyword_count`, `source_path`,
+`unconverted_summaries`, `derive_inventory` over the working tree.
+
+| Claim | Re-measured | Verdict |
+|-------|-------------|---------|
+| 175 summaries / 166 enrolled / 157 rows / 23 rows keying a non-enrolled stem | identical | HOLDS |
+| **32 enrolled with no status row (AC-3's grandfather set)** | **32, and the same 32 stems** | **HOLDS.** Child 2 edited `rfc/enrolled.txt` (rfc7947's reason prose only, no stem added or removed) and `docs/features/rfc-status.md` (preamble only, no row added or removed), so neither ledger's membership moved |
+| 9 un-enrolled summaries, all zero-gated | 9, same stems, all gated=0 | HOLDS |
+| **4 stems with a public support claim over zero gated requirements (D8/A-3)** | **exactly 4: rfc1035 `Supported`, rfc3765 `Supported`, rfc4486 `Supported`, rfc5301 `Experimental`** | HOLDS |
+| `rfc/full/rfc3765.txt` and `rfc/full/rfc4486.txt` ABSENT | `source_path` returns `None` for both | HOLDS -- step 4a's fetch is still a precondition |
+| 539 `{gap}` across 84 RFCs, all rowed and enrolled (A-2) | 539 / 84 / 0 missing a row / 0 un-enrolled | HOLDS |
+| 0 of 175 summaries fail to parse (A-5) | 0 | HOLDS |
+| 7 advisory-only summaries, and the RE-AUTHOR table has 2 rows (D5) | 7 (`rfc3765 rfc4486 rfc5301 rfc7999 rfc8195 rfc8326 rfc9129`), and the table has 2 (`rfc1035`, `rfc6987`) | HOLDS -- D5 is still live at `:2328` |
+| **60 rows spell a MUST-gap count, all 60 agree (A-4)** | **60 rows, 60 matches, 0 mismatches -- but ONLY under IMMEDIATE adjacency** | HOLDS with a load-bearing qualifier. See AC-12 below |
+| `check_status_agreement` reaches for a row only when a `{gap}` exists | `:1826` `continue`s on no-annotation / non-gap / non-enrolled, `:1828` fetches the row after | HOLDS |
+| `rfc/not-enrolled.txt` exists | does NOT exist | HOLDS -- AC-5..AC-9 still introduce it |
+| `rfc/extraction/` holds artifacts | only `README.md`, and `extraction_stems()` is empty | 0 sign-offs, so AC-27's "grows by exactly four" is measured from 0 |
+
+### Collisions with what landed
+
+| # | Finding | Evidence | Effect on this spec |
+|---|---------|----------|---------------------|
+| C-1 | **AC-27 is achievable for rfc1035 and rfc5301, and correctly blocked for rfc3765/rfc4486.** `derive_register` (`:2606`) returns `prose` when there are zero capitalised keyword sites but non-zero lowercase ones, and `_SITE_PROSE_RE` (`:2408`) is case-insensitive. Measured: `derive_inventory("rfc1035", 0)` -> register `prose`, **31 sites over 73 sections**, and `("rfc5301", 0)` -> `prose`, 3 sites over 10 sections. For rfc3765/rfc4486 it returns `None` | `:2606-2617`, `:2651-2720`, probe | The pre-2119 worry in A-10 / R-7 does NOT block the sign-off. rfc1035 signs under `prose` (or weaker), and `:3268-3276` forbids claiming `rfc2119` over it. **31 sites is the first real size estimate for the rfc1035 walk** -- A-10 said the tail was unknowable, and it is now bounded from below |
+| C-2 | **Step 4a's ordering is CONFIRMED by child 1's shipped code, almost verbatim.** `run_extract_skeleton` (`:3138`) exits 2 with "has no source text ... Fetch it ... before extracting: with no source there is no inventory to derive and no register to sign under". `evaluate_extractions` (`:3410-3416`) additionally errors on any committed artifact whose stem has no source | `:3138-3149`, `:3410-3416` | **OC-6 and the 4a->4d order hold unchanged.** rfc3765/rfc4486 are doubly bound: no skeleton, and no valid artifact |
+| C-3 | **A-12 is materially incomplete: it enumerates 3 ratchets and there are now 6, plus a schedule.** Re-verified each against a new enrolment. `check_evidence_ratchet` (`:1599`) skips at `:1632` (`req.rfc not in baseline_enrolled`), and its docstring says "an RFC enrolled in this very commit is not accused". `check_extraction_ratchet` (`:3507`) folds only over `baseline - current` and `baseline & current`, so a NEW artifact cannot fire it. `check_drain_floor` (`:3844`) reads `rfc/drain-budget.txt` which ships `rate 0`, so `required_floor` (`:3803`) returns `min(170, ceil(0 * months)) == 0` | `:1632`, `:3507-3520`, `rfc/drain-budget.txt`, `:3803-3841` | **A-12's CONCLUSION survives: enrolling the four reds no ratchet.** Its basis must be widened from three ratchets to six plus the drain floor. And the drain floor's inertness must be noted as *depending on the owner not having armed a rate* |
+| C-4 | **`check_status_agreement` can be made unconditional with no change to child 2.** `check_evidence_ratchet` takes `(requirements, tags, enrolled, baseline_evidence, baseline_enrolled)` and never reads status rows. Child 2's `rfc-status.md` edit is prose plus an HTML comment before the first table, and `parse_status_ledger` still yields 157 rows | `:1599-1605`, probe | No collision. Phase 4 proceeds as written |
+| C-5 | **AC-12's spelled-number logic does NOT already exist** -- no spelled-number parsing anywhere in the module (`grep -i "nineteen\|twenty\|spelled"` finds only unrelated prose). It must be built | grep over `:1-4192` | AC-12 builds, does not reuse |
+| C-6 | **A newer batch baseline reader exists and is the one to use.** `_git_cat_blobs` (`:1491`) reads many HEAD blobs in ONE `git cat-file --batch`, and its docstring makes the batch interface "a condition of the check being kept rather than an optimization" (per-file `git show` measured at +1.7s vs +0.5s) | `:1491-1502` | A-7's single extra `git show` is still within the Security Review's "only one additional `git show` per run", so it is legal. But `_git_cat_blobs` is the current idiom, and A-7 MUST name it |
+| C-7 | Child 1's own in-file self-citations have already rotted the same way this spec's did. `check_enrolment`'s docstring cites `_git_baseline_enrolment:698` (now `:1112`) and `_git_baseline_summary_stems:763`. Meanwhile `_git_baseline_enrolment`'s docstring cites the same symbol as `:791` (now `:1188`), and `:2473` cites `source_keyword_count:1329` (now `:1973`) | `:1055`, `:1059`, `:1115`, `:2473` | Not this spec's to fix, but it confirms the class of rot is structural. Do not trust ANY intra-module line citation in this file |
+
+### Claims that are now FALSE (not merely stale)
+
+Each is struck in place above. They are collected here so an implementer cannot
+miss them.
+
+| Claim | Where | Reality |
+|-------|-------|---------|
+| "`ai/rules/rfc-compliance.md` 'the four ratchets' becomes six" | Integration Points, Files to Modify, RFC Documentation | Already **six** (`:115`). The edit is six -> **seven** |
+| "`ai/INDEX.md:212` already stale ('the three ratchets'). Corrected here" | Integration Points, Files to Modify | Reads "the five ratchets". The string "three ratchets" does not exist |
+| "the keyword row at `:372`" | Files to Modify | `:372` is the "extended message" row. The RFC row is `:374`, and a new extraction row is `:375` |
+| The four `docs/features/rfc-status.md` row numbers | Task/D1 table, Files to Modify, Documentation row 9 | All +4: `:32`, `:60`, `:127`, `:238` |
+| "`docs/features/rfc-status.md` gains a preamble paragraph" (OR-4/AC-25 as a NEW addition) | Behavior to change, Files to Modify, Deliverables | A preamble paragraph is **already there** (child 2). AC-25's properties are still missing, so AC-25 stands -- but the work is an EXTENSION, and the Deliverables' `sed -n '1,10p'` check is now a **false pass** |
+| "`rfc/full/rfc5301.txt` carries 4 MUST-level keywords ... nothing has captured" | D5, Q-3, Files to Modify, phase 6 | All 4 hits are boilerplate from RFC 2119 on `rfc/full/rfc5301.txt:94`. `derive_inventory` reports `keyword_sites == 0`. There are **zero** uncaptured capitalised MUSTs in RFC 5301 |
+| `ai/rules/rfc-compliance.md:56` VOIDs every annotation | Required Reading, R-2, Q-4, Key Design Decisions | `:56` is a table row about `plan/learned`. The VOID statement is `:53`, and the annotation row is `:57` |
+| Every `scripts/dev/rfc_requirements.py:NNNN` and `rfc_requirements_test.py:NNNN` in this spec | throughout | See the two correction tables above |
+
+### AC-12: a defect the re-measurement exposed (recorded, NOT changed)
+
+A-4's 60/60 is TRUE, but only under a parser that requires the spelled number to
+sit **immediately** before `MUST`/`SHALL` with nothing between. AC-12 as written
+says "spells a MUST-gap count ... followed by `MUST` or `SHALL`", which does not
+say that, and its Boundary Tests worry only about the compound tail
+(`Twenty-five` != 5). Measured with a 40-character tolerance window instead of
+strict adjacency, the committed page yields **four false mismatches**. The page
+uses a **second, unrelated convention**. A spelled number immediately
+before `MUST` is the **gap** count. A spelled number *near* `MUST` is often
+the **`{not-applicable}`** count.
+
+| Row | Text | Spelled | Real `{gap}` | Real `{not-applicable}` |
+|-----|------|---------|--------------|-------------------------|
+| rfc7432 | "Sixty-four further MUSTs bind PE roles ze does not..." | 64 | 15 | **64** |
+| rfc8484 | "Six client-role and media-type-definer MUSTs are not-applicable" | 6 | 1 | **6** |
+| rfc9012 | "Nine further MUSTs are annotated not-applicable" | 9 | 51 | **9** |
+| rfc9830 | "Twelve further MUSTs are annotated not-applicable" | 12 | 20 | **12** |
+
+Two further facts the boundary table does not cover. The primary gap count is
+written in **digits** in two rows ("51 MUST-level gaps", "20 MUST-level gaps",
+both agreeing with their real counts). And `Sixty-four` occurs on the page, which
+is outside AC-12's stated `One`..`Thirty` range.
+
+Consequence, stated rather than fixed: implemented as literally worded, AC-12
+makes `TestGapCountAgreementRealFile` (A-4) **RED on landing** on those four rows.
+The decision on how to word it is the owner's. There are two candidate readings.
+Reading (a) requires strict adjacency, which reproduces 60/60 exactly. Reading (b)
+parses both conventions and compares each against its own annotation kind.
+
+### Verdict on the 4a-4d ordering
+
+**It still holds, and child 1's shipped code strengthens it.** Fetch (4a) before
+extract/sign (4b-4c) before enrol (4d) is now enforced by two independent
+mechanisms rather than argued. `run_extract_skeleton:3138` refuses to emit a
+skeleton without source text, and `check_enrolment:1078-1087` refuses the
+enrolment itself. OC-1's arming-last constraint is unaffected -- nothing that
+landed changes `ze-rfc-check`'s position in either verify mode
+(`scripts/status/verify_run.go:237`, `:259`) or its absence from
+`STRUCTURAL_GATES` (`scripts/dev/commit_helper.py:514-525`). AC-19 and AC-26 are
+achievable. The tree is green today, and all six ratchets plus the drain floor were
+individually cleared against a four-stem enrolment (C-3). The only new
+per-commit obligation is the one AC-27 already names.
+
+**One risk this spec's Risks table does not carry.** Child 1's sign-off does not
+force a gated requirement. `_evaluate_extraction:3332` demands a gated target only
+when the DERIVED quote contains a **capitalised** keyword, and rfc1035 and rfc5301
+both have `keyword_sites == 0`. So an all-advisory re-authoring of either would
+produce a **valid** sign-off and a **passing** `check_enrolment`. It would then fail
+this spec's own AC-10 / AC-21, which require at least one gated row. The two gates
+can disagree, and the walk is what has to settle it. This is the concrete form of
+A-10 / OR-1b's stated unknown and belongs in the phase-6 scoping conversation.
 
 ## Checklist
 
@@ -1094,3 +1309,525 @@ public row, and this spec.
 - [ ] Learned summary written to `plan/learned/NNN-rfcgate-4-ledger.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-rfcgate-4-ledger.md` only (commit A preserves the spec in history)
+
+## AC-12 correction and one unrecorded risk (supervisor, 2026-07-29)
+
+Both come from the spec-freshness review appended above. The first is a decision I
+took. The second is a scoping question for the phase-6 conversation, recorded here
+rather than left in an agent's report.
+
+### AC-12 as written would red on landing. Narrowed, not dropped.
+
+The review reproduced A-4's `60/60` and it is TRUE -- but only under IMMEDIATE
+adjacency, which AC-12's wording never said. Given any tolerance window,
+`docs/features/rfc-status.md` yields four false mismatches. The page uses a
+SECOND convention: a spelled number NEAR the word MUST is often the
+`{not-applicable}` count rather than the `{gap}` count. Measured: rfc7432 (64 vs
+gap 15), rfc8484 (6 vs 1), rfc9012 (9 vs 51), rfc9830 (12 vs 20). Two further rows
+spell the count in DIGITS, and `Sixty-four` sits outside AC-12's stated
+`One..Thirty` range.
+
+| Reading | Verdict |
+|---------|---------|
+| Spelled number immediately followed by `MUST`/`SHALL` | **CHOSEN.** Matches the measured 60/60 exactly, so the check lands green and every row it judges it judges correctly |
+| Any spelled number within a tolerance window of `MUST`/`SHALL` | REJECTED. Four false mismatches on day one, each on a row that is honest. `ai/rules/rfc-compliance.md:114-116`: a check that reds on correct work gets deleted rather than obeyed |
+
+→ Constraint: the digit-spelled rows and anything above `Thirty` are OUT of AC-12's
+scope by this narrowing. That is a real coverage limit rather than a tidy-up.
+State it in the gate's own message so a reader is not misled into thinking every
+Remaining cell is checked. Widening it later means first normalising the page's two
+conventions, which is editorial work on `docs/features/rfc-status.md`, not gate work.
+
+→ This narrowing changes what AC-12 CHECKS, not what it MEANS: a spelled gap count
+that disagrees with the summary still fails. I took it because the AC as written was
+unachievable (`TestGapCountAgreementRealFile` red on landing) and its intent is
+unambiguous. Flagged to Thomas rather than filed silently.
+
+### Unrecorded risk: child 1's sign-off and child 4's AC-10 can disagree
+
+Child 1's extraction sign-off does NOT force a stem to declare a gated requirement.
+`_evaluate_extraction` (`scripts/dev/rfc_requirements.py:3332`) demands a gated
+target only for a site carrying a CAPITALISED keyword, and both `rfc1035` and
+`rfc5301` derive `keyword_sites == 0` (`_SITE_PROSE_RE` is case-insensitive, so
+`derive_register` grades them `prose`: rfc1035 at 31 sites / 73 sections, rfc5301 at
+3 / 10).
+
+So an all-advisory re-authoring of either stem yields a VALID sign-off and a PASSING
+`check_enrolment` (`:1043`). It then fails THIS spec's AC-10 and AC-21, which
+require at least one gated MUST-level row. Two gates that both look green can
+disagree about whether the same stem is adequately extracted. Only the actual
+section-by-section walk settles which is right.
+
+→ Constraint: this belongs in the phase-6 scoping conversation, before the walk, not
+after. If a stem genuinely has no MUST-level obligation in the part Ze implements,
+A-9 already provides the honest route (change the ledger claim, or record the walk as
+a `manual-walk` register row saying why zero is correct). And `check_unproven_support`
+must accept that evidenced form. What must NOT happen is a row invented to satisfy
+AC-10 (`ai/rules/rfc-compliance.md`: a fabricated requirement is worse than a
+declared absence).
+
+→ Also corrected by the review, and worth carrying: `rfc5301` does NOT have four
+uncaptured capitalised MUSTs. All four hits are boilerplate from RFC 2119 on a single
+line (`rfc/full/rfc5301.txt:94`), so the premise behind that open question was not a
+fact. D5 itself is unaffected.
+
+### Step 4a is DONE (supervisor, 2026-07-29), and it sharpens the AC-10 tension
+
+`rfc/full/rfc3765.txt` (395 lines) and `rfc/full/rfc4486.txt` (339 lines) are fetched
+and verified as real RFC text, not error pages. `rfc3765.txt:8-9` reads
+`Request for Comments: 3765 / Category: Informational`, and `rfc4486.txt:8`/`:14` read
+`Request for Comments: 4486` / `Subcodes for BGP Cease Notification Message`
+(Standards Track). Zero HTML markers in either. `make ze-rfc-check` stays exit 0
+after the fetch, as expected. Both stems are unenrolled, so `source_keyword_count`
+is not gated on them. Adding source text alone changes nothing the gate measures.
+
+Done ahead of the rest of phase 6. It is the one step that is inert with
+respect to the module and the index. It therefore proceeded while child 2's commit
+was blocked. It also removes a network dependency from the critical path.
+
+**What the fetch reveals, and phase 6 must not paper over:** `rfc3765` is
+**Category: Informational**. An Informational RFC can legitimately carry few or no
+MUST-level obligations, and `docs/features/rfc-status.md` publishes it as
+`Supported`. That is precisely the collision recorded above. Child 1's sign-off
+does not force a gated row, while this spec's AC-10 and AC-21 require one. And it
+is now concrete rather than hypothetical for at least one of the four stems.
+
+→ Constraint: if the walk finds `rfc3765` has no MUST-level obligation in the part Ze
+implements, the answer is A-9's evidenced form (change the ledger claim, or record a
+`manual-walk` register row stating why zero is correct, with `check_unproven_support`
+accepting it). It is NEVER a MUST row invented to satisfy AC-10. A fabricated
+requirement is worse than a declared absence: it puts a false claim inside the very
+ledger this spec set exists to make honest.
+
+→ `rfc4486` is Standards Track and titled for the `Cease` subcodes, so it is the
+counterpart case and WILL carry real obligations. Note the overlap with
+`plan/spec-fixit-bgp-shutdown-cease-notification.md`, which found that ze sends no
+`Cease` on shutdown at all. RFC 4486's subcodes are the vocabulary that spec needs,
+and its two currently-extracted requirements are both MAY (`rfc/short/rfc4486.md:55-56`).
+
+## Owner Ruling OR-A (Thomas, 2026-07-29): rfc3765 enrols on an evidenced zero
+
+**Decision: enrol `rfc3765` and record a `manual-walk` sign-off whose reason states
+why zero gated obligations is the honest answer. Do NOT fabricate a MUST, and do NOT
+soften the public claim.** Taken after the phase-6 extraction walk (step 4b) found
+zero MUST-level obligations in the document.
+
+**The evidence that makes zero honest** (from the walk, and re-verified here):
+
+| Fact | Source |
+|------|--------|
+| Category is Informational | `rfc/full/rfc3765.txt:9` |
+| No RFC 2119 boilerplate section exists at all | absent from `rfc/full/rfc3765.txt` |
+| Zero occurrences of any of the ten RFC 2119 keywords | keyword scan of the full text |
+| The RFC calls its own mechanism "an advisory qualification to readvertisement" | §2, repeated verbatim in §4 |
+| It defines no wire format | NOPEER rides RFC 1997's COMMUNITIES attribute |
+
+**Mechanically achievable, verified against child 1's SHIPPED derivation
+(2026-07-29):** `derive_inventory("rfc3765", 0)` returns `register=prose`, 1 site,
+11 sections. `manual-walk` is WEAKER than `prose`. Child 1 permits an artifact to
+declare the derived register or a weaker one, and refuses only a STRONGER claim (its
+AC-9, AC-31, AC-32). So the sign-off lands legally, and child 1 needs no change. For
+comparison, measured the same way: `rfc1035` prose 31/73 with 26 gated, `rfc5301`
+prose 3/10 with 7 gated, `rfc4486` **rfc2119** 1/11 with 1 gated.
+
+→ Constraint: AC-21 takes a dated correction. Its "each declares at least one GATED
+requirement" becomes "each declares at least one gated requirement, OR carries an
+evidenced `manual-walk` sign-off whose reason establishes that zero is a property of
+the document". `check_unproven_support` MUST accept that evidenced form, or it reds on
+an honest claim, which is the `ai/rules/rfc-compliance.md:114-116` failure mode.
+
+→ Constraint: this is NOT a general escape from AC-21. It is legal only with the
+register derived, the walk performed, and the reason recorded -- three committed facts.
+A stem that captured nothing does not qualify.
+
+→ Constraint: the same reasoning does NOT transfer to the other three. `rfc1035` (26
+gated), `rfc5301` (7) and `rfc4486` (1) all carry real MUST-level obligations. Each
+needs a positive AND negative tagged test per gated row, or an escalation. Zero is
+honest for exactly one of the four.
+
+→ Note for AC-24: `docs/features/rfc-status.md` currently publishes rfc4486, rfc3765
+and rfc1035 as `Supported` with "No tracked gap in current source anchors". That
+phrase matches the gate's `_NO_GAP_RE`, so it will contradict any future `{gap}` on
+these stems. RFC 5301's `Experimental` is not a defect: that column is a product
+support view, not the RFC's IETF category (5301 is Standards Track).
+
+## Owner Rulings OR-B and OR-C (Thomas, 2026-07-30): both stems get full compliance
+
+The phase-6 walk enrolled two of the four stems and was blocked on the other two.
+`rfc1035` and `rfc5301` carry real MUST-level obligations that the code does not
+meet, and the implementer had no authority to annotate them. Both went to Thomas
+with the requirement text, the producing `file:line`, and the cost. He ruled on each.
+
+### OR-B: rfc5301, all three unmet MUSTs are fixed, rejecting at config time
+
+| Element | Decision |
+|---------|----------|
+| Scope | All three. Not the wire defect alone |
+| Where | Reject non-conforming input at config time, never sanitise at emit (`ai/rules/exact-or-reject.md`) |
+| Cost he accepted | An operator with a non-ASCII hostname configured today gets a validation error on their next commit. That is the honest failure |
+| Home | `plan/spec-fixit-isis-hostname-ascii.md` |
+
+The live defect: `internal/plugins/isis/lsdb/encode.go:60` writes a bare
+`[]byte(name)`. The YANG leaf (`internal/plugins/isis/yang/ze-isis-conf.yang:69`)
+carries only `length "1..255"` with no pattern, so a UTF-8 hostname reaches a peer as
+8-bit octets. Display is sanitised at `internal/plugins/isis/show.go:125`. Emit is not,
+which is why this stayed invisible.
+
+→ Correction the fixit spec establishes, recorded here so it is not lost: RFC 2181
+Section 11 says implementations "must not place any restrictions on the labels that can
+be used". So `RFC5301-3-9` is a rule about label and name LENGTHS, not about the
+character set. An LDH pattern would reject strings RFC 5301 explicitly permits. The
+7-bit ASCII constraint comes from `RFC5301-3-7` alone.
+
+### OR-C: rfc1035, full compliance including zone transfer
+
+| Element | Decision |
+|---------|----------|
+| Scope | FULL. Every extracted MUST gets a real code path and both polarities |
+| Includes | AXFR and IXFR, which Ze does not have today. This ADDS a capability rather than only repairing one, and he chose it knowingly |
+| Rejected | The narrower option that would have scoped out the roles Ze does not play and recorded the positive-only rows under his authorisation |
+| Home | `plan/spec-fixit-dns-rfc1035-conformance.md` |
+
+Six obligations had no code path at all:
+
+- the 512-byte UDP limit and truncation with the TC bit (`internal/core/dnsserver/handler.go:62` does no size accounting, and no
+  production call to `Msg.Truncate` exists)
+- the TTL maximum rule (`internal/plugins/geodns/server.go:106` emits `rec.TTL` verbatim)
+- zone refresh over virtual circuits
+- the NOTIMP response to an inverse query
+
+### What these rulings do to AC-22 and AC-23
+
+~~AC-22 requires all four stems in `rfc/enrolled.txt` and a declared remainder of
+exactly five.~~ **Corrected 2026-07-30.** Two stems enrol now: `rfc4486` with its one
+MUST proven in both polarities, and `rfc3765` on the OR-A evidenced zero. Two stems
+stay in `rfc/not-enrolled.txt` declared `backlog`, and the declared remainder is
+therefore seven rather than five. Their enrolment is an acceptance criterion of the
+two fixit specs above, not of this one.
+
+~~AC-23 requires every newly extracted gated requirement to carry a tagged pair or an
+authorised annotation.~~ **Corrected 2026-07-30.** Of the 34 gated rows extracted, one
+is proven in both polarities and 33 are owed by the two fixit specs. **Zero are
+annotated**, which is the outcome the rule wants: `ai/rules/rfc-compliance.md:52` voids
+`{gap}` and `{not-applicable}` as authority, and no implementer wrote one.
+
+→ Constraint, and the honest cost of these corrections: `docs/features/rfc-status.md`
+still publishes `rfc1035` as `Supported` and `rfc5301` as `Experimental` while their
+MUSTs are unproven. `check_unproven_support` does NOT catch this, because it fires only
+on a summary declaring ZERO gated requirements, and both now declare real ones. This is
+blind spot 5 one level in: the claim is no longer backed by nothing, but it is not
+backed by proof either.
+
+→ Constraint: what changed is that the debt is now DECLARED, counted and visible.
+`rfc/not-enrolled.txt` renders it as DEBT, the deferral shard names the destination
+spec for each, and two owner rulings commit to fixing both fully. That is a weaker
+statement than "conformant" and a much stronger one than the silence this spec set
+started from. Do not let a green gate imply otherwise.
+
+→ Constraint: closing this spec does NOT discharge the debt. The umbrella is machinery
+only (D4). A future reader who finds `rfc1035` unenrolled MUST read the two fixit
+specs, not conclude the extraction was abandoned.
+
+→ Clarification (2026-07-30, correcting the supervising session): `{single-polarity}`
+is NOT void. `ai/rules/rfc-compliance.md` voids `{gap}`, `{not-applicable}` and
+`partial`. The string `single-polarity` does not appear in that rule at all. It is a
+first-class gate annotation, defined in `ANNOTATION_KINDS`
+(`scripts/dev/rfc_requirements.py:111`), validated at `:273-285`, documented at
+`rfc/enrolled.txt:8`, and already carried by about twenty enrolled RFCs. It still
+proves less than a tagged pair, so it needs Thomas's authorisation under AC-23 like any
+annotation.
+
+Recorded because the escalation above was framed as though no annotation
+route existed for the `rfc1035` rows. Their negative polarity is unreachable while
+`github.com/miekg/dns` owns the encoding. That route DOES exist, with his sign-off, and
+`plan/spec-fixit-dns-rfc1035-conformance.md` states it accurately.
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+Five guards on the public ledger's edges, all wired into `run_check`
+(`scripts/dev/rfc_requirements.py:6174`).
+
+- **Status-row completeness ratchet** (`check_status_completeness:2218`, wired
+  `:6291`). A newly enrolled stem must bring a row. An existing row must not
+  vanish while its RFC stays enrolled. Both halves judge nothing on a degraded
+  baseline (`:2254`).
+- **Summary disposition partition** (`check_summary_disposition:2118`, wired
+  `:6286`), backed by the new file `rfc/not-enrolled.txt`. Every summary is
+  enrolled or declared. Four branches: undeclared (`:2152`), in both files
+  (`:2160`), stale row (`:2167`), and discharge by anything but enrolment
+  (`:2207`).
+- **Unproven-support guard** (`check_unproven_support:2269`, wired `:6299`). A
+  public support claim cannot rest on a checklist with zero MUST-level rows.
+  `status_is_a_support_claim:2038` treats every Status except `Unsupported` and
+  `Future` as a claim, so an empty cell fails closed.
+- **Gap-count cross-check** (`check_gap_count_agreement:2441`, wired `:6308`).
+  A spelled number immediately before MUST or SHALL must equal the real `{gap}`
+  count.
+- **Narrowed `{gap}` disclosure exemption** (`check_status_agreement:1999`).
+  Enrolment now gates only the missing-row branch.
+
+Two derived tables were added to the ledger (`_render_status_backlog:4293`,
+called from `render_ledger` at `:4466`). Parse errors are no longer filtered by
+enrolment.
+
+Phase 6 executed Owner Ruling OR-1 over the four D1 stems. Two enrolled
+(`rfc/enrolled.txt:209-210`). Two are declared `backlog` in
+`rfc/not-enrolled.txt` and routed to fixit specs by OR-B and OR-C.
+
+### Bugs Found/Fixed
+
+Five defects surfaced during the independent review. All five are recorded in
+the Review Gate table below with the test that now covers each one.
+
+### Documentation Updates
+
+- `docs/features/rfc-status.md:9-19` gained the preamble Owner Ruling OR-4
+  requires (AC-25). It names the four machine-checked properties, names Status,
+  Area and Implemented coverage as editorial, and states two coverage limits.
+  Source anchor at `:20`.
+- The four D1 rows were corrected (AC-24). Measured on the committed page:
+  `rfc1035` Partial, `rfc3765` Supported, `rfc4486` Supported, `rfc5301`
+  Partial.
+- `rfc/not-enrolled.txt` carries its own format documentation, including the
+  closed kind set and why `non-normative` is judged twice.
+- `ai/rules/rfc-compliance.md:115` already read "the six ratchets", so no edit
+  was owed there. Recorded at `:1075` of this spec.
+
+### Deviations from Plan
+
+| # | Planned | Delivered | Why |
+|---|---------|-----------|-----|
+| D-a | AC-22: all four stems enrolled, declared remainder of five | Two enrolled, remainder of seven | Owner Rulings OR-B and OR-C. `rfc1035` and `rfc5301` carry MUSTs the code does not meet, and the implementer had no authority to annotate them |
+| D-b | AC-23: 34 gated rows, one proven, 33 owed | 35 gated rows, one proven, 34 owed | Arithmetic error in the correction text. Measured by driving `_collect_for_check`: rfc1035 27, rfc3765 0, rfc4486 1, rfc5301 7. The load-bearing half of the claim holds. Zero rows are annotated |
+| D-c | AC-12 over `One..Thirty` within a tolerance window | Spelled number immediately before MUST or SHALL, `One..Ninety-nine` | Recorded as the AC-12 correction at `:1305`. A window reds four honest rows on day one |
+| D-d | AC-14: a flat rejection of Ze-owes-nothing reasons | Two-part rule: the blacklist plus a positive citation requirement | The review proved the blacklist accepted seven evasions. Recorded in the refined AC-14 text at `:537` |
+| D-e | AC-21: each of the four declares at least one gated requirement | `rfc3765` declares zero, on an evidenced `manual-walk` sign-off | Owner Ruling OR-A at `:1397`. RFC 3765 is Informational and invokes RFC 2119 nowhere |
+| D-f | OC-4: the spec cannot close while any of the four is declared | Two close declared, routed to fixit specs | Superseded by OR-B and OR-C, which are the later rulings. `test_the_declared_remainder_is_debt_not_a_decision` still carries the old OC-4 sentence in its docstring. Not corrected here: the review-gate artifact pins that file's hash |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-9 assumed both missing sources were fetchable and authoritative | True for both. `rfc/full/rfc3765.txt` is Informational, `rfc/full/rfc4486.txt` is Standards Track | The fetch itself, step 4a, recorded at `:1364` | A-9 confirmed |
+| assumption | A-4 read the page as 60/60 agreement over any tolerance window | The 60/60 holds only under immediate adjacency. A window yields four false mismatches | The spec-freshness review, recorded at `:1311` | AC-12 narrowed. Deviation D-c |
+| approach | D5's premise said `rfc5301` had four uncaptured capitalised MUSTs | All four hits are RFC 2119 boilerplate on one line, `rfc/full/rfc5301.txt:94` | Child 1's own derivation returns `keyword_sites == 0` | Corrected in place at `:119`. D5 itself is unaffected |
+| approach | OR-A's escape was believed to establish that zero is a property of the document | Three of its four facts describe the artifact. `manual-walk` is the weakest grade, so any stem can assert it | Independent review | The derived grade is now the fourth fact. `check_unproven_support:2347` |
+| escalation | The correction text at `:1499` said the two unenrolled stems publish `Supported` and `Experimental` | Both publish `Partial`. The rows were corrected under AC-24 | This closure, driving `parse_status_ledger` over the committed page | Recorded here. The substance holds: `Partial` is still a support claim, so both still publish a claim whose MUSTs are unproven |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| D1: a public support claim cannot stand over an empty checklist | Done | `check_unproven_support:2269`, wired `:6299` | Two evidenced escapes, never an assertion |
+| D2: an enrolled RFC with no row is caught | Done | `check_status_completeness:2218`, wired `:6291` | Git-HEAD ratchet. The 32 stay grandfathered and rendered |
+| D3: the un-enrolled remainder is a decision | Done | `check_summary_disposition:2118`, wired `:6286`, plus `rfc/not-enrolled.txt` | Seven declared stems, three kinds |
+| D4: the stale comment guarding a dead branch is gone | Done | `run_check:6266` extends every parse error | Measured: 0 of 175 summaries fail to parse |
+| D5: one advisory row no longer buys immunity | Done | `render_ledger:4350` narrows the captured set to gated | The table now lists six stems, not two |
+| D6: the gap count is cross-checked | Done | `check_gap_count_agreement:2441`, wired `:6308` | Never generated. The count is a fact, the classification is not |
+| OR-1 second goal: the four claims become true | Changed | `rfc/enrolled.txt:209-210`, `rfc/not-enrolled.txt` | Two made true, two made declared debt. OR-B and OR-C |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `check_status_completeness:2244-2253`, and `TestStatusCompletenessWiring.test_run_check_fails_when_a_new_enrolment_has_no_row` (`rfc_requirements_test.py:8638`) | Drives `run_check`, not the helper |
+| AC-2 | Done | `:2256-2265`, and `..._wiring.test_run_check_fails_when_a_row_is_deleted_under_enrolment` (`:8643`) | |
+| AC-3 | Done | `:2244` folds over `newly_enrolled` only | Live tree exit 0 with 32 rowless enrolments present |
+| AC-4 | Done | `:2254-2255` early return, and `_git_baseline_status_rows:1235` | Reports nothing, and does not mark the run clean |
+| AC-5 | Done | `:2152-2159`, and `TestSummaryDispositionWiring.test_run_check_fails_on_a_summary_that_is_neither_enrolled_nor_declared` (`:8409`) | |
+| AC-6 | Done | `:2160-2166` | Rejected, never resolved by precedence |
+| AC-7 | Done | `:2167-2172` | |
+| AC-8 | Done | `:2207-2214` | Scoped to stems still in the tree, so a summary can be retired |
+| AC-9 | Done | `parse_dispositions:1153`, `DISPOSITION_KINDS` | Kind and reason both required |
+| AC-10 | Done | `check_unproven_support:2269`, `status_is_a_support_claim:2038`, and `TestUnprovenSupportWiring.test_run_check_fails_on_support_claim_over_zero_gated_requirements` (`:8860`) | An empty Status cell is a claim |
+| AC-11 | Done | `:2334-2335` | |
+| AC-12 | Changed | `_GAP_COUNT_RE:2422`, `spelled_gap_count:2427`, `check_gap_count_agreement:2441`, and `TestGapCountWiring...` (`:9118`) | Narrowed to immediate adjacency. Deviation D-c. `Twenty-five` parses as 25 |
+| AC-13 | Done | `ai/RFC-REQUIREMENTS.md:5761-5773` | Six stems listed. Lowercase column present. `rfc6987` and `rfc8195` read UNDECIDED, not "consistent" |
+| AC-14 | Changed | `_NON_APPLICABILITY_RE:2064`, `non_normative_reason_cites_the_document:2094`, wired `:2189` | Two-part rule. Deviation D-d |
+| AC-15 | Done | `check_status_agreement:1999-2004` | |
+| AC-16 | Done | `:1999-2000` continue | |
+| AC-17 | Done | `run_check:6266` | Measured 0 parse errors, so the change is a no-op today by design |
+| AC-18 | Done | `_render_status_backlog:4293`, called `:4466`. Tables at `ai/RFC-REQUIREMENTS.md:5708`, `:5747`, `:5761` | `TestLedgerBacklogTables` (`:9256`) asserts all three |
+| AC-19 | Done | `make ze-rfc-check` exit 0, and `--selftest` 665 tests OK | Selftest re-run in this closure |
+| AC-20 | Done | `rfc/full/rfc3765.txt` and `rfc/full/rfc4486.txt` present. Both in `rfc/enrolled.txt:209-210` | |
+| AC-21 | Changed | Measured gated rows: rfc1035 27, rfc3765 0, rfc4486 1, rfc5301 7. No `-x-` anchor remains | `rfc3765` carries the OR-A evidenced zero. Deviation D-e |
+| AC-22 | Changed | `rfc/enrolled.txt:209-210`. `rfc/not-enrolled.txt` holds seven stems | Two enrolled, not four. Deviation D-a, OR-B and OR-C |
+| AC-23 | Changed | 35 gated extracted, 1 proven both polarities (`RFC4486-4-1`), 34 owed, **0 annotated** | Deviation D-b corrects 34/33 to 35/34. Zero annotations is the criterion that held |
+| AC-24 | Done | `parse_status_ledger` over the committed page | rfc1035 Partial, rfc3765 Supported, rfc4486 Supported, rfc5301 Partial |
+| AC-25 | Done | `docs/features/rfc-status.md:9-19`, anchor at `:20` | Four checked properties named, three editorial columns named |
+| AC-26 | Pending | The arming body and the enrolments are in one uncommitted change set | OC-1 is satisfiable in commit A. Verifiable only once the commits exist |
+| AC-27 | Done | `rfc/extraction/` holds four artifacts. Registers: rfc4486 `rfc2119`, rfc3765 `manual-walk`, rfc1035 `prose`, rfc5301 `prose` | The two enrolled stems each carry one. Two more are pre-signed for the fixit specs |
+| AC-28 | Done | Child 1 is on HEAD (`2b1f84827`, `cb9f72609`, 2026-07-29). Phase 6 is uncommitted | Child 1 precedes every phase-6 enrolment by construction |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestStatusCompletenessWiring` | Done | `rfc_requirements_test.py:8637` | |
+| `TestSummaryDispositionWiring` | Done | `:8406` | |
+| `TestUnprovenSupportWiring` | Done | `:8859` | |
+| `TestGapCountWiring` | Done | `:9117` | |
+| `TestGapDisclosureWiring` | Done | `:9184` | |
+| `TestParseErrorReportingWiring` | Done | `:9240` | |
+| `TestLedgerBacklogTables` | Changed | `:9256` | Split into `test_enrolled_without_row_table_rendered` and `test_disposition_table_rendered`, plus two more |
+| `TestFourStemEnrolmentRealTree` | Changed | `:9401` | `test_all_four_are_enrolled_and_sourced` became `test_all_four_are_sourced` plus `test_rfc3765_is_enrolled`, because only two enrol |
+| `TestGapCountAgreementRealFile` | Done | `:9054` | Plus `test_the_unjudged_rows_are_the_seven_the_docstring_names` (`:9076`) |
+| `TestStatusCompleteness`, `TestUnprovenSupport` | Done | `:8546`, `:8655` | The unit-level twins the umbrella names |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| `scripts/dev/rfc_requirements.py` | Done | 6,488 lines. Modified |
+| `scripts/dev/rfc_requirements_test.py` | Done | 9,583 lines. Modified |
+| `rfc/not-enrolled.txt` | Done | New. Seven declared stems |
+| `rfc/full/rfc3765.txt`, `rfc/full/rfc4486.txt` | Done | New. Fetched in step 4a |
+| `rfc/short/rfc1035.md`, `rfc3765.md`, `rfc4486.md`, `rfc5301.md` | Done | Re-authored |
+| `rfc/extraction/rfc1035.json`, `rfc3765.json`, `rfc4486.json`, `rfc5301.json` | Done | New. Four sign-offs |
+| `rfc/enrolled.txt` | Done | Two stems added |
+| `docs/features/rfc-status.md` | Done | Preamble plus four corrected rows |
+| `ai/RFC-REQUIREMENTS.md` | Done | Regenerated. Three new tables |
+| `test/plugin/prefix-maximum-enforce.ci` | Done | Gained the `RFC4486-4-1 positive` tag at `:6` |
+
+### Audit Summary
+
+- **Total items:** 28 acceptance criteria
+- **Done:** 22
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 5 (AC-12, AC-14, AC-21, AC-22, AC-23), each with an owner ruling
+  or a recorded supervisor decision behind it
+- **Pending:** 1 (AC-26, verifiable only against commits that do not exist yet)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Every enrolled RFC discloses | functional (gate drive) | `TestStatusCompletenessWiring` both methods (`:8638`, `:8643`) drive `run_check` to exit 2. Live tree: 168 enrolled, gate exit 0 |
+| Every summary is a declared decision | functional (gate drive) | `TestSummaryDispositionWiring.test_run_check_fails_on_a_summary_that_is_neither_enrolled_nor_declared` (`:8409`). `rfc/not-enrolled.txt` declares seven, and 168 + 7 = 175 summaries |
+| A support claim cannot rest on an empty checklist | functional (gate drive) | `TestUnprovenSupportWiring` (`:8860`). Armed and green: measured zero stems with a support-claim row over zero gated rows |
+| The gap count stops being correct by luck | functional (real file) | `TestGapCountAgreementRealFile` (`:9054`) over the committed page. 60 rows judged, all agree. Seven unjudged rows named in `test_the_unjudged_rows_are_the_seven_the_docstring_names` (`:9076`) |
+| The four D1 claims become true, not merely consistent | mixed | Two enrolled with sign-offs. `RFC4486-4-1` proven in both polarities (`session_prefix_test.py` twins at `:89` and `:114`, plus `test/plugin/prefix-maximum-enforce.ci:6`). Two declared DEBT with 34 owed rows and zero annotations |
+| Discrimination: the guards are not vacuous | mutation | Review artifact records eight mutations with zero survivors, including both `RFC4486-4-1` polarities against the producer |
+
+Honest limit on the fifth row. `rfc1035` and `rfc5301` still publish `Partial`,
+which `status_is_a_support_claim:2038` counts as a claim. Their MUSTs are
+unproven. `check_unproven_support` cannot see this, because it fires only on a
+summary declaring zero gated rows, and both now declare real ones. The debt is
+declared, counted and owned. It is not discharged.
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| Write the 32 missing `docs/features/rfc-status.md` rows (2026-07-29, OR-3) | deferred | `plan/spec-followup-rfc-enrollment.md`, which exists. Unchanged: the row already names a spec that outlives this one |
+| Enrol `rfc1035` (2026-07-30, OR-1, OR-1a, OR-1b) | deferred | **Re-homed** to `plan/spec-fixit-dns-rfc1035-conformance.md`, the spec OR-C names. The old Destination was this spec's umbrella, which closes in the same change set |
+| Enrol `rfc5301` (2026-07-30, OR-1, OR-1a) | deferred | **Re-homed** to `plan/spec-fixit-isis-hostname-ascii.md`, the spec OR-B names. Same reason |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfcgate-4-ledger-6aa27893-1bd2-42e1-9e68-879943aa8740.md` |
+| `review_gate.py check` | clean (`review_gate: OK`, hashes match, re-run in this closure) |
+| Reviewer lenses used | One full adversarial pass plus supervisor verification of every fix. Lenses: sign-off artifact validity against child 1's own check, independent re-derivation of AC-12's 60/60, and mutation verification of both `RFC4486-4-1` polarities |
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The OR-A escape did not check that zero is a property of the document. `manual-walk` is universally assertable, so an `rfc2119`-graded source escaped through an artifact that excluded every site | `check_unproven_support` | The derived grade became the fourth fact (`:2347`). A refusal gets its own message, because telling an author to write the sign-off they already wrote is a dead end |
+| 2 | ISSUE | Two Status words contradicted their own Remaining cells by the page's own glossary | `docs/features/rfc-status.md` | Both rows corrected to `Partial` |
+| 3 | ISSUE | `test/plugin/prefix-maximum-enforce.ci` pins the exact NOTIFICATION wire bytes and was cited as proof, but carried no tag. The gate credited unit evidence only | `test/plugin/prefix-maximum-enforce.ci` | The `RFC requirement: RFC4486-4-1 positive` tag at `:6`. Measured effect: `functional/verify` moved 6 to 7 |
+| 4 | ISSUE | AC-14's stated rejection rule was a six-phrase blacklist. Seven rephrasings of the same laundering were accepted, including "Ze is not required to do any of this" | `_NON_APPLICABILITY_RE:2064` | `non_normative_reason_cites_the_document:2094`, a positive citation requirement that fails closed, wired at `:2189` |
+| 5 | ISSUE | A declared summary had no legal exit from the tree. Keeping the row fired the stale-disposition branch, deleting it fired the left-without-enrolling branch | `check_summary_disposition` | The AC-8 branch is scoped to stems still in the tree (`:2207`), so deleting the summary and the row together is the third discharge |
+
+## Pre-Commit Verification
+
+Independently re-verified in this closure session. Every command was run now,
+not copied from the audit.
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| `rfc/not-enrolled.txt` | yes | `git status --porcelain` reports `?? rfc/not-enrolled.txt`. Seven declared stems read back through `load_dispositions` |
+| `rfc/extraction/rfc1035.json`, `rfc3765.json`, `rfc4486.json`, `rfc5301.json` | yes | `ls rfc/extraction/` returns all four plus `README.md`. Registers read back as `prose`, `manual-walk`, `rfc2119`, `prose` |
+| `rfc/full/rfc3765.txt`, `rfc/full/rfc4486.txt` | yes | Both open through `check_enrolment`, which refuses an enrolment without source text. Both stems are enrolled |
+| `scripts/dev/rfc_requirements.py` | yes | `wc -l` reports 6,488 lines |
+| `scripts/dev/rfc_requirements_test.py` | yes | `wc -l` reports 9,583 lines |
+| `test/plugin/prefix-maximum-enforce.ci` | yes | `grep -n 'RFC requirement'` returns the tag at `:6` |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | Both ratchet halves drive `run_check` | `grep -n '^class TestStatusCompletenessWiring'` returns `:8637`, and the two methods at `:8638` and `:8643`. Both pass inside the 665-test selftest |
+| AC-3 | The 32 are grandfathered and the tree is green | `load_enrolled()` returns 168 stems. `parse_status_ledger` leaves enrolled stems without a row. Gate exit 0 |
+| AC-5..AC-9 | The four disposition branches and the kind check | `grep -n 'def check_summary_disposition'` returns `:2118`. Branches read at `:2152`, `:2160`, `:2167`, `:2207`. `TestSummaryDispositionWiring` at `:8406` |
+| AC-10, AC-11 | The guard is armed, and the non-normative escape works | `grep -n 'def check_unproven_support'` returns `:2269`, wired at `:6299`. Driving `check_unproven_support` over the live tree returns zero errors |
+| AC-12 | Immediate adjacency, and `Twenty-five` is 25 | `SPELLED_NUMBERS['twenty-five']` is 25. `_GAP_COUNT_RE` at `:2422` requires `\s+(?:MUST|SHALL)s?`. `TestGapCountAgreementRealFile` passes |
+| AC-13 | The pre-2119 caveat and the lowercase column | `ai/RFC-REQUIREMENTS.md:5761-5773`. `rfc6987` reads `0 | 2 | **UNDECIDED**`, never "consistent" |
+| AC-17 | Parse errors are unfiltered | `_collect_for_check()` returns 0 parse errors over 175 summaries. `TestParseErrorReportingWiring` at `:9240` |
+| AC-18 | The three tables render | `grep -n` on `ai/RFC-REQUIREMENTS.md` returns `:5708` "Enrolled without a public status row", `:5747` "Declared not enrolled", `:5761` "Summaries declaring no MUST-level requirement" |
+| AC-19 | The gate and the selftest are green | `python3 scripts/dev/rfc_requirements.py --selftest`: **Ran 665 tests, OK** |
+| AC-20, AC-27 | Sources present, four sign-offs | `rfc/enrolled.txt:209-210`. `ls rfc/extraction/*.json` returns four |
+| AC-21 | Gated counts and no stale anchors | Driving `parse_summary_file`: rfc1035 27 gated of 33, rfc3765 0 of 2, rfc4486 1 of 11, rfc5301 7 of 15. `TestFourStemEnrolmentRealTree` asserts no `-x-` anchor and no ticked checkbox |
+| AC-22 | Two enrolled, seven declared | `load_enrolled()` contains rfc3765 and rfc4486, and not rfc1035 or rfc5301. `load_dispositions()` returns seven stems |
+| AC-23 | 35 extracted, 1 proven, 34 owed, 0 annotated | Folding tag polarity per requirement: `RFC4486-4-1` holds positive and negative. All 27 rfc1035 rows and all 7 rfc5301 rows are untagged. Annotated count is 0 for all four stems |
+| AC-24 | The four rows match reality | `parse_status_ledger` returns Status `Partial`, `Supported`, `Supported`, `Partial` |
+| AC-25 | The preamble is on the page | `docs/features/rfc-status.md:9` opens "What on this page a machine checks, and what stays a human judgement", then four bullets and the editorial paragraph at `:17` |
+| AC-28 | Child 1 precedes phase 6 | `git log -1` confirms `2b1f84827` and `cb9f72609` dated 2026-07-29. `git status --porcelain` shows every phase-6 file still uncommitted |
+
+### Wiring Verified (end-to-end)
+
+No `.ci` test drives the machinery: it adds no daemon code, so its user entry
+point is `make ze-rfc-check`. The one `.ci` in this change proves a protocol
+obligation, not a gate.
+
+| Entry Point | Test file | Verified |
+|-------------|-----------|----------|
+| `make ze-rfc-check` to the completeness ratchet | `rfc_requirements_test.py:8637` | yes. `_LedgerEdgeDrive` patches inputs and calls `run_check`, so a helper-only pass is impossible |
+| `make ze-rfc-check` to disposition completeness | `:8406` | yes, same harness |
+| `make ze-rfc-check` to the unproven-support guard | `:8859` | yes, same harness |
+| `make ze-rfc-check` to the gap-count cross-check | `:9117` | yes, same harness |
+| `make ze-rfc-check` to the narrowed exemption | `:9184` | yes, same harness |
+| `make ze-rfc-check` to unfiltered parse errors | `:9240` | yes, same harness |
+| `make ze-rfc-index` to the derived tables | `:9256` | yes. Calls `render_ledger` and asserts all three headings |
+| Real `rfc/` tree, the two enrolments | `:9401` | yes. Deliberately unpatched, so a synthetic fixture cannot pass it |
+| `ze` prefix-limit teardown to a NOTIFICATION with error code 6 | `test/plugin/prefix-maximum-enforce.ci` | yes. Read the file: it pins error code 06, subcode 01, and the AFI/SAFI/count Data field, and now carries the `RFC4486-4-1 positive` tag |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | The rowless-enrolment set is derived, never listed. The rendered table reports the live count and the gate is green on it |
+| A-2 | confirmed | Narrowing the exemption is a no-op today. Gate exit 0 with the narrowed branch at `:1999` |
+| A-3 | confirmed | Exactly four stems carried a support claim over zero gated rows. No fifth stem entered scope |
+| A-4 | **broken, then narrowed** | 60/60 holds only under immediate adjacency. Mistake Log row 2, Deviation D-c, AC-12 correction at `:1311` |
+| A-5 | confirmed | `_collect_for_check()` returns 0 parse errors over 175 summaries |
+| A-6 | confirmed | `parse_dispositions:1153` reads the file. The kind column needed its own grammar, which is why `parse_enrolled` was not reused verbatim |
+| A-7 | confirmed | `_git_baseline_status_rows:1235` tolerates failure and returns None, and `:2254` returns early on it |
+| A-8 | confirmed | `TestLedgerBacklogTables` renders and compares. `check_ledger_fresh` is green on the committed ledger |
+| A-9 | confirmed | Both texts fetched and verified as real RFC text. Recorded at `:1364` |
+| A-10 | confirmed as unknowable, then measured | The walk found 27 gated rows across 73 sections, and one obligation outside the summary's declared scope. Reported to the owner, who ruled OR-C |
+| A-11 | confirmed | Zero test tags named an id of any of the four before the re-anchor. `test_no_id_a_test_references_was_lost` now guards the invariant that matters |
+| A-12 | confirmed | No ratchet fired on the two enrolments. Gate exit 0 |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| The preamble names four machine-checked properties | Compared each bullet against its function: `check_status_completeness:2218`, `check_gap_count_agreement:2441`, `check_status_agreement:1974`, `check_summary_disposition:2118` | yes. Four bullets, four functions |
+| The preamble names the coverage limits | The digit-count and separated-count limits match `check_gap_count_agreement`'s docstring at `:2455`, and the no-summary limit matches `check_unproven_support:2319` | yes |
+| `rfc3765` row: Informational, advisory, no wire format | `rfc/full/rfc3765.txt:9` reads `Category: Informational`. Both checklist rows are `[MAY]` | yes |
+| `rfc4486` row: one MUST, both polarities | `internal/component/bgp/reactor/session_prefix.go:399` decides, `:448` builds with `message.NotifyCease` and `message.NotifyCeaseMaxPrefixes` | yes |
+| `rfc1035` and `rfc5301` Remaining cells disclose the unmet obligations | Compared against `internal/core/dnsserver/handler.go:62`, `internal/plugins/geodns/server.go:106`, `internal/plugins/isis/lsdb/encode.go:60`, `internal/plugins/isis/yang/ze-isis-conf.yang:69` | yes |
+| `ai/rules/rfc-compliance.md` ratchet count | `:115` already reads "the six ratchets" | yes, no edit owed |
+| No `<!-- source: -->` anchor sits inside a fenced block | The preamble anchor is at `:20`, after the paragraph and outside every fence | yes |

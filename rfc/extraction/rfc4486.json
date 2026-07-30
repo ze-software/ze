@@ -1,0 +1,105 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4486",
+  "register": "rfc2119",
+  "register-reason": "Standards Track, with an RFC 2119 key-words section at section 2 and capitalised keywords throughout section 4. The derivation grades the source 'rfc2119' and the sign-off claims exactly that grade.",
+  "source-path": "rfc/full/rfc4486.txt",
+  "source-sha": "ee862bf55c82959b",
+  "signed-off": "2026-07-30",
+  "reviewer": "ze-implement agent, spec-rfcgate-4-ledger phase 6",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo, copyright notice and Abstract. The Abstract restates section 1 word for word and states no obligation."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Says what the document defines and that it 'also recommends' a backoff mechanism. The recommendation itself is stated normatively in section 4 and is captured there as RFC4486-4-9."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Specification of Requirements: the RFC 2119 key-words paragraph. It tells a reader how to read the other sections and binds no speaker, which is why the derivation excludes it from the site inventory."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Subcode Definition. The registry table assigning subcodes 1 to 8 to their symbolic names. A value assignment, not a directive: the obligation to USE each value is in section 4."
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Subcode Usage. The only normative section. Its one capitalised MUST is the site below; the remaining ten sentences are SHOULD, RECOMMENDED or MAY and are captured as RFC4486-4-2 through RFC4486-4-11.",
+      "unsourced-ids": [
+        "RFC4486-4-2",
+        "RFC4486-4-3",
+        "RFC4486-4-4",
+        "RFC4486-4-5",
+        "RFC4486-4-6",
+        "RFC4486-4-7",
+        "RFC4486-4-8",
+        "RFC4486-4-9",
+        "RFC4486-4-10",
+        "RFC4486-4-11"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Defines subcodes 1 to 8 in the registry and names the process for future assignments. Binds IANA, not a speaker."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. One sentence: the extension does not change BGP's underlying security issues. No countermeasure is directed at a speaker."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgements."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References heading."
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 2119, RFC 4271, RFC 4760."
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: RFC 2434, RFC 4020."
+    }
+  ],
+  "sites": [
+    {
+      "id": "4:1",
+      "quote": "If a BGP speaker decides to terminate its peering with a neighbor because the number of address prefixes received from the neighbor exceeds a locally configured upper bound (as described in [BGP-4]), then the speaker MUST send to the neighbor a NOTIFICATION message with the Error Code Cease and the Error Subcode \"Maximum Number of Prefixes Reached\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC4486-4-1",
+      "reason": "The document's single MUST. Captured verbatim as RFC4486-4-1 at [MUST]."
+    }
+  ]
+}

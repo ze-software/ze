@@ -2,6 +2,13 @@
 # AC-3: Peer sends prefixes exceeding family maximum (teardown=true) ->
 #        NOTIFICATION Cease/MaxPrefixes sent, session torn down.
 # AC-10: From spec-prefix-limit -- enforcement wiring test.
+#
+# RFC requirement: RFC4486-4-1 positive -- the daemon decides to terminate the peering because
+# the received prefix count exceeds the configured upper bound, and the bytes below are the
+# Cease NOTIFICATION section 4 requires: error code 06, subcode 01 ("Maximum Number of Prefixes
+# Reached"), plus the optional Figure 1 Data field. The unit tags in
+# internal/component/bgp/reactor/session_prefix_test.go prove the decision; this proves the
+# running daemon puts that subcode on the wire to a real peer.
 
 # ze-peer: sends 3 routes (exceeds maximum=2)
 # Ze sends NOTIFICATION Cease/MaxPrefixes before EOR because it tears down.

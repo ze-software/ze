@@ -1,0 +1,714 @@
+{
+  "schema-version": 1,
+  "stem": "rfc1035",
+  "register": "prose",
+  "register-reason": "RFC 1035 was published in November 1987, ten years before RFC 2119, and it contains zero capitalised keywords and no requirements-terminology section. Every obligation it states is indicative prose: 'the high order two bits of every length octet must be zero', 'Longer messages are truncated and the TC bit is set in the header'. The capitalised scan therefore derives nothing and the lowercase scan derives 31 sites over 73 sections, which is why the source grades 'prose'. Read under the capitalised register, this document would declare the DNS wire format free of obligations.",
+  "source-path": "rfc/full/rfc1035.txt",
+  "source-sha": "b8efa09ba52db966",
+  "signed-off": "2026-07-30",
+  "reviewer": "ze-implement agent, spec-rfcgate-4-ledger phase 6",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "reason": "Network Working Group header, obsoletes/updates block and the table of contents.",
+      "skip-kind": "front-matter"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "skipped",
+      "reason": "STATUS OF THIS MEMO. Distribution statement and the note that this RFC obsoletes RFC 882 and RFC 883.",
+      "skip-kind": "front-matter"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "INTRODUCTION heading, with no body of its own."
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Overview of the three-part domain system (name space, name servers, resolvers). Descriptive."
+    },
+    {
+      "id": "2.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Common configurations: the deployment shapes a resolver and a name server can take. Its one site is a characterisation, excluded below."
+    },
+    {
+      "id": "2.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Conventions. The section preamble is its one site, an applicability statement excluded below; the conventions themselves are in 2.3.1 to 2.3.4."
+    },
+    {
+      "id": "2.3.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Preferred name syntax. Two sites map to the single [SHOULD] row that carries both halves; the third restates section 3.1's 63-octet limit."
+    },
+    {
+      "id": "2.3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Data Transmission Order: the big-endian octet and bit order of every multi-octet field. Stated as a description of the diagrams, with no modal verb, so the prose scan finds no site. Ze inherits the encoding from miekg/dns and adds nothing."
+    },
+    {
+      "id": "2.3.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Character Case. Its one site is the case-preservation obligation; the case-insensitive comparison rule and the two 'should' clauses are read from the surrounding prose, which carries no scanned keyword.",
+      "unsourced-ids": [
+        "RFC1035-2.3.3-1",
+        "RFC1035-2.3.3-3",
+        "RFC1035-2.3.3-4"
+      ]
+    },
+    {
+      "id": "2.3.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Size limits. Stated as a bare list ('labels 63 octets or less', 'names 255 octets or less', 'TTL positive values of a signed 32 bit number', 'UDP messages 512 octets or less') with no modal verb, so the scan finds no site here even though two of the four are declared as requirements.",
+      "unsourced-ids": [
+        "RFC1035-2.3.4-1",
+        "RFC1035-2.3.4-2"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "DOMAIN NAME SPACE AND RR DEFINITIONS heading."
+    },
+    {
+      "id": "3.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Name space definitions: the wire form of a domain name. Three sites map to the length-octet, case-folding and exact-match rules; the label/terminator/total-length statements and the 'strongly recommended' clause are indicative prose.",
+      "unsourced-ids": [
+        "RFC1035-3.1-1",
+        "RFC1035-3.1-2",
+        "RFC1035-3.1-4",
+        "RFC1035-3.1-7"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "RR definitions heading."
+    },
+    {
+      "id": "3.2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Format: the NAME/TYPE/CLASS/TTL/RDLENGTH/RDATA layout, given as a diagram plus field descriptions with no modal verb."
+    },
+    {
+      "id": "3.2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "TYPE values: the registry table."
+    },
+    {
+      "id": "3.2.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "QTYPE values: the registry table."
+    },
+    {
+      "id": "3.2.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "CLASS values: the registry table."
+    },
+    {
+      "id": "3.2.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "QCLASS values: the registry table."
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Standard RRs preamble, defining the <domain-name> and <character-string> sub-formats."
+    },
+    {
+      "id": "3.3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "CNAME RDATA format. Ze emits no CNAME."
+    },
+    {
+      "id": "3.3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "HINFO RDATA format. Ze emits no HINFO."
+    },
+    {
+      "id": "3.3.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "MB RDATA format (EXPERIMENTAL). Ze emits no MB."
+    },
+    {
+      "id": "3.3.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "MD RDATA format (Obsolete). Ze emits no MD."
+    },
+    {
+      "id": "3.3.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "MF RDATA format (Obsolete). Ze emits no MF."
+    },
+    {
+      "id": "3.3.6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "MG RDATA format (EXPERIMENTAL). Ze emits no MG."
+    },
+    {
+      "id": "3.3.7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "MINFO RDATA format (EXPERIMENTAL). Ze emits no MINFO."
+    },
+    {
+      "id": "3.3.8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "MR RDATA format (EXPERIMENTAL). Ze emits no MR."
+    },
+    {
+      "id": "3.3.9",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "MX RDATA format. Ze emits no MX."
+    },
+    {
+      "id": "3.3.10",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "NULL RDATA format (EXPERIMENTAL). Ze emits no NULL."
+    },
+    {
+      "id": "3.3.11",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "NS RDATA format. Ze emits NS for the zone apex and for synthesised nameserver glue; the section states the RDATA layout with no modal verb."
+    },
+    {
+      "id": "3.3.12",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "PTR RDATA format. Ze's as112 zones answer PTR queries with NODATA and emit no PTR record."
+    },
+    {
+      "id": "3.3.13",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "SOA RDATA format, and the source of the MINIMUM-versus-TTL rule. Both its statements are indicative ('the TTL field is set to the maximum of', 'this use of MINIMUM should occur'), so the scan finds no site.",
+      "unsourced-ids": [
+        "RFC1035-3.3.13-1",
+        "RFC1035-3.3.13-2"
+      ]
+    },
+    {
+      "id": "3.3.14",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "TXT RDATA format. Ze's as112 hostname zone emits TXT."
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Internet specific RRs heading."
+    },
+    {
+      "id": "3.4.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "A RDATA format: a single 32-bit address. Ze emits A records."
+    },
+    {
+      "id": "3.4.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "WKS RDATA format. Its one site is the bit-map alignment rule, excluded below because Ze emits no WKS record."
+    },
+    {
+      "id": "25",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "NOT A SECTION. The derivation's heading pattern over-matches a column-0 line inside section 3.4.2's WKS bit-map explanation ('25 (SMTP). If this bit is set, a SMTP server should be listening on TCP port 25'), which _SECTION_HEADING_RE documents as unavoidable by shape alone. It carries no site and no obligation; it is classified so the artifact stays complete against the derivation."
+    },
+    {
+      "id": "3.5",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "IN-ADDR.ARPA domain. Its one site binds a host bootstrapping routing from DNS."
+    },
+    {
+      "id": "3.6",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Defining new types, classes, and special namespaces. Its one site binds whoever defines a new TYPE or CLASS."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "MESSAGES heading."
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Format: the five-section message layout."
+    },
+    {
+      "id": "4.1.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Header section format. Its one site is the Z field; AA and RCODE 3 are described field by field with no modal verb.",
+      "unsourced-ids": [
+        "RFC1035-4.1.1-2",
+        "RFC1035-4.1.1-3"
+      ]
+    },
+    {
+      "id": "4.1.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Question section format: QNAME, QTYPE, QCLASS."
+    },
+    {
+      "id": "4.1.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Resource record format. TTL and RDLENGTH are given as field descriptions, and the zero-TTL clause is a 'should not', so the scan finds no site.",
+      "unsourced-ids": [
+        "RFC1035-4.1.3-1",
+        "RFC1035-4.1.3-2",
+        "RFC1035-4.1.3-3"
+      ]
+    },
+    {
+      "id": "4.1.4",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Message compression. Three sites; the pointer form and the receive-side obligation map, the third is rationale. The OFFSET base, the class-specific restriction and the enclosing-length rule are indicative prose.",
+      "unsourced-ids": [
+        "RFC1035-4.1.4-2",
+        "RFC1035-4.1.4-3",
+        "RFC1035-4.1.4-4"
+      ]
+    },
+    {
+      "id": "4.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Transport preamble. Its one site is the zone-refresh rule."
+    },
+    {
+      "id": "4.2.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "UDP usage. Its one site is a querier obligation; the 512-octet limit, the truncation-plus-TC rule and the port are indicative prose.",
+      "unsourced-ids": [
+        "RFC1035-4.2.1-1",
+        "RFC1035-4.2.1-2",
+        "RFC1035-4.2.1-3"
+      ]
+    },
+    {
+      "id": "4.2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "TCP usage. The port and the two-octet length prefix are stated indicatively.",
+      "unsourced-ids": [
+        "RFC1035-4.2.2-1"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "MASTER FILES heading. Ze parses no master file: a repo-wide search for NewZoneParser, ZoneParser, ReadRR and dns.NewRR finds no production call site."
+    },
+    {
+      "id": "5.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Format. Its one site is master-file quoting syntax."
+    },
+    {
+      "id": "5.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Use of master files to define zones. Its one site concerns glue."
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Master file example. Illustrative."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "NAME SERVER IMPLEMENTATION heading. The sections under it describe one suggested internal architecture, and Ze implements none of the recursion, caching or zone refresh they assume."
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Architecture, whose preamble states that the optimal structure depends on the host operating system and that the section 'discusses implementation considerations'."
+    },
+    {
+      "id": "6.1.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Control. Its one site constrains internal task structure."
+    },
+    {
+      "id": "6.1.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Database. Its one site is conditioned on choosing the suggested hash structure."
+    },
+    {
+      "id": "6.1.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Time: the suggestion to keep absolute rather than relative times internally."
+    },
+    {
+      "id": "6.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Standard query processing. Its one site is the 'should' governing truncation order."
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Zone refresh and reload processing. Ze performs no zone transfer of any kind: a repo-wide search for AXFR, IXFR, TypeAXFR, TypeIXFR, dns.Transfer, SetAxfr, SetNotify and OpcodeNotify finds nothing."
+    },
+    {
+      "id": "6.4",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Inverse queries (Optional). Two sites: the permission not to implement them, and the obligation that survives declining -- the one obligation this walk added to the summary."
+    },
+    {
+      "id": "6.4.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "The contents of inverse queries and responses. Descriptive."
+    },
+    {
+      "id": "6.4.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Inverse query and response example. Illustrative."
+    },
+    {
+      "id": "6.4.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Inverse query processing. Describes the optional algorithm."
+    },
+    {
+      "id": "6.5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Completion queries and responses: obsoleted by this RFC and retained for historical reference only."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "RESOLVER IMPLEMENTATION heading. Every obligation under it binds a resolver, a role the authoritative-server surface this summary scopes does not play."
+    },
+    {
+      "id": "7.1",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Transforming a user request into a query. Four sites, all resolver obligations or descriptions of the suggested request structure."
+    },
+    {
+      "id": "7.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Sending the queries. Its one site is resolver round-trip-time estimation."
+    },
+    {
+      "id": "7.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Processing responses. Its one site is resolver request matching."
+    },
+    {
+      "id": "7.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Using the cache. Ze holds no resolver cache."
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "MAIL SUPPORT heading. Ze emits no MX, MB, MG, MR or MINFO record and implements no mail binding."
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Mail exchange binding. Describes the MX transition from MD/MF."
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Mailbox binding (Experimental). Experimental and unimplemented everywhere."
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "reason": "REFERENCES and BIBLIOGRAPHY, followed by the index and the author's address.",
+      "skip-kind": "references"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.2:1",
+      "quote": "This can be appropriate for PCs or hosts which want to minimize the amount of new network code which is required.",
+      "disposition": "excluded",
+      "reason": "Section 2.2 Common configurations, describing a stub-resolver host that forwards to a recursive server. 'the amount of new network code which is required' characterises one deployment choice; it directs nobody.",
+      "excluded-kind": "not-a-requirement"
+    },
+    {
+      "id": "2.3:1",
+      "quote": "While the implementor is free to violate these conventions WITHIN HIS OWN SYSTEM, he must observe these conventions in ALL behavior observed from other hosts.",
+      "disposition": "excluded",
+      "reason": "The applicability statement that opens section 2.3 Conventions: 'While the implementor is free to violate these conventions WITHIN HIS OWN SYSTEM, he must observe these conventions in ALL behavior observed from other hosts.' It scopes the subsections that follow rather than stating an obligation of its own, and each of those conventions is captured separately.",
+      "excluded-kind": "not-a-requirement"
+    },
+    {
+      "id": "2.3.1:1",
+      "quote": "The labels must follow the rules for ARPANET host names.",
+      "disposition": "mapped",
+      "reason": "The first half of the preferred-syntax rule, captured with its second half as one row at [SHOULD] -- section 2.3.1 calls the syntax 'preferred', and section 3.1 restates it as 'strongly recommended'.",
+      "mapped-to": "RFC1035-2.3.1-1"
+    },
+    {
+      "id": "2.3.1:2",
+      "quote": "They must start with a letter, end with a letter or digit, and have as interior characters only letters, digits, and hyphen.",
+      "disposition": "mapped",
+      "reason": "The second half of the same preferred-syntax rule: start with a letter, end with a letter or digit, interior letters, digits and hyphen only.",
+      "mapped-to": "RFC1035-2.3.1-1"
+    },
+    {
+      "id": "2.3.1:3",
+      "quote": "Labels must be 63 characters or less.",
+      "disposition": "excluded",
+      "reason": "'Labels must be 63 characters or less' restates in the preferred-syntax section the limit section 3.1 states normatively as the six-bit length field. Captured once, at the site that gives it its wire form.",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC1035-3.1-3"
+    },
+    {
+      "id": "2.3.3:1",
+      "quote": "Loss of case sensitive data must be minimized.",
+      "disposition": "mapped",
+      "reason": "Section 2.3.3 Character Case. Captured verbatim.",
+      "mapped-to": "RFC1035-2.3.3-2"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "The high order two bits of every length octet must be zero, and the remaining six bits of the length field limit the label to 63 octets or less.",
+      "disposition": "mapped",
+      "reason": "The length-octet rule and the 63-octet label limit in one sentence, which is how the RFC states it.",
+      "mapped-to": "RFC1035-3.1-3"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "Name servers and resolvers must compare labels in a case-insensitive manner (i.e., A=a), assuming ASCII with zero parity.",
+      "disposition": "mapped",
+      "reason": "Case-insensitive label comparison, stated for name servers and resolvers alike.",
+      "mapped-to": "RFC1035-3.1-5"
+    },
+    {
+      "id": "3.1:3",
+      "quote": "Non-alphabetic codes must match exactly.",
+      "disposition": "mapped",
+      "reason": "The complement of the case-folding rule: everything that is not alphabetic compares byte for byte.",
+      "mapped-to": "RFC1035-3.1-6"
+    },
+    {
+      "id": "3.4.2:1",
+      "quote": "The bit map must be a multiple of 8 bits long.",
+      "disposition": "excluded",
+      "reason": "The WKS RDATA bit-map alignment rule. It binds a server that serves WKS records; Ze emits A, AAAA, SRV, SOA and NS only (internal/plugins/geodns/server.go builds those five and no other type), so no Ze code path can produce a WKS bit map at all.",
+      "excluded-kind": "binds-another-role"
+    },
+    {
+      "id": "3.5:1",
+      "quote": "- Systems that use the domain database to initialize their routing tables must start with enough gateway information to guarantee that they can access the appropriate name server.",
+      "disposition": "excluded",
+      "reason": "Section 3.5 IN-ADDR.ARPA, on a host that bootstraps its ROUTING TABLE from the domain database and must therefore already know a gateway. Ze's routing tables come from BGP, IS-IS, OSPF and the kernel; nothing in Ze reads DNS to build one.",
+      "excluded-kind": "binds-another-role"
+    },
+    {
+      "id": "3.6:1",
+      "quote": "TYPE and CLASS values must be a proper subset of QTYPEs and QCLASSes respectively.",
+      "disposition": "excluded",
+      "reason": "Section 3.6 Defining new types, classes, and special namespaces. It binds whoever DEFINES a new TYPE or CLASS, constraining the registry relationship between TYPE and QTYPE. Ze defines none.",
+      "excluded-kind": "binds-another-role"
+    },
+    {
+      "id": "4.1.1:1",
+      "quote": "Must be zero in all queries and responses.",
+      "disposition": "mapped",
+      "reason": "The Z field of the header. Captured verbatim; the summary row names the field the sentence describes.",
+      "mapped-to": "RFC1035-4.1.1-1"
+    },
+    {
+      "id": "4.1.4:1",
+      "quote": "This allows a pointer to be distinguished from a label, since the label must begin with two zero bits because labels are restricted to 63 octets or less.",
+      "disposition": "mapped",
+      "reason": "The two-high-bits form of a compression pointer, stated as the reason a pointer is distinguishable from a label.",
+      "mapped-to": "RFC1035-4.1.4-1"
+    },
+    {
+      "id": "4.1.4:2",
+      "quote": "If this were not the case, a name server or resolver would be required to know the format of all RRs it handled.",
+      "disposition": "excluded",
+      "reason": "The rationale for the preceding restriction ('If this were not the case, a name server or resolver would be required to know the format of all RRs it handles'). The restriction itself is captured as RFC1035-4.1.4-3; this sentence explains why it exists.",
+      "excluded-kind": "not-a-requirement"
+    },
+    {
+      "id": "4.1.4:3",
+      "quote": "However all programs are required to understand arriving messages that contain pointers.",
+      "disposition": "mapped",
+      "reason": "The receive-side obligation, and the one compression requirement that binds every implementation whether or not it generates pointers.",
+      "mapped-to": "RFC1035-4.1.4-5"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "Zone refresh activities must use virtual circuits because of the need for reliable transfer.",
+      "disposition": "mapped",
+      "reason": "Zone refresh over virtual circuits. Captured verbatim, and the summary declares it even though Ze performs no zone refresh -- whether that makes the obligation inapplicable is a conformance judgement, not an extraction one.",
+      "mapped-to": "RFC1035-4.2-1"
+    },
+    {
+      "id": "4.2.1:1",
+      "quote": "Queries sent using UDP may be lost, and hence a retransmission strategy is required.",
+      "disposition": "excluded",
+      "reason": "The retransmission strategy for queries SENT over UDP. It binds the querier; this summary's declared scope is the authoritative-server surface (see 'Extraction scope' in rfc/short/rfc1035.md), which answers queries and originates none.",
+      "excluded-kind": "binds-another-role"
+    },
+    {
+      "id": "5.1:1",
+      "quote": "Inside a \" delimited string any character can occur, except for a \" itself, which must be quoted using \\ (back slash).",
+      "disposition": "excluded",
+      "reason": "Master-file quoting syntax. It binds a master-file PARSER. Ze parses none: geodns and as112 are configured from the YANG tree, and a repo-wide search for NewZoneParser, ZoneParser, ReadRR and dns.NewRR finds no production call site.",
+      "excluded-kind": "binds-another-role"
+    },
+    {
+      "id": "5.2:1",
+      "quote": "If delegations are present and glue information is required, it should be present. 4.",
+      "disposition": "excluded",
+      "reason": "Glue in a master file that defines a zone. Same role as the site above: Ze has no master-file path. Its own level is 'should' in any case.",
+      "excluded-kind": "binds-another-role"
+    },
+    {
+      "id": "6.1.1:1",
+      "quote": "A name server must employ multiple concurrent activities, whether they are implemented as separate tasks in the host's OS or multiplexing inside a single name server program.",
+      "disposition": "excluded",
+      "reason": "Section 6.1 Architecture opens 'The optimal structure for the name server will depend on the host operating system ... This section discusses implementation considerations'. The sentence constrains a server's internal task structure, has no wire-visible form, and nothing about it can be observed by a peer.",
+      "excluded-kind": "advisory-in-context"
+    },
+    {
+      "id": "6.1.2:1",
+      "quote": "In any case, hash structures used to store tree sections must insure that hash functions and procedures preserve the casing conventions of the DNS.",
+      "disposition": "excluded",
+      "reason": "Section 6.1.2 Database opens 'While name server implementations are free to use any internal data structures they choose, the suggested structure consists of'. The sentence is conditioned on having chosen the suggested hash structure, and it restates the case-preservation rule already captured as RFC1035-2.3.3-2.",
+      "excluded-kind": "advisory-in-context"
+    },
+    {
+      "id": "6.2:1",
+      "quote": "When a response is so long that truncation is required, the truncation should start at the end of the response and work forward in the datagram.",
+      "disposition": "excluded",
+      "reason": "The ORDER in which a response should be truncated, at level 'should'. It never gates. The obligation to truncate at all and to set TC is captured separately as RFC1035-4.2.1-2.",
+      "excluded-kind": "advisory-in-context"
+    },
+    {
+      "id": "6.4:1",
+      "quote": "Name servers are not required to support any form of inverse queries.",
+      "disposition": "excluded",
+      "reason": "'Name servers are not required to support any form of inverse queries' is a permission, and the sentence that qualifies it is the real obligation -- captured from the next site as RFC1035-6.4-1.",
+      "excluded-kind": "not-a-requirement"
+    },
+    {
+      "id": "6.4:2",
+      "quote": "While inverse query support is optional, all name servers must be at least able to return the error response.",
+      "disposition": "mapped",
+      "reason": "The obligation this walk found OUTSIDE the summary's declared scope and which binds Ze anyway: an unsupported inverse query must still draw the error response. It applies to 'all name servers', not only to ones implementing inverse queries, so declining to implement them does not discharge it. Added to the summary rather than excluded.",
+      "mapped-to": "RFC1035-6.4-1"
+    },
+    {
+      "id": "7.1:1",
+      "quote": "Since a resolver must be able to multiplex multiple requests if it is to perform its function efficiently, each pending request is usually represented in some block of state information.",
+      "disposition": "excluded",
+      "reason": "Section 7 RESOLVER IMPLEMENTATION: a resolver multiplexing concurrent client requests. The authoritative server this summary scopes serves one query per response and originates none.",
+      "excluded-kind": "binds-another-role"
+    },
+    {
+      "id": "7.1:2",
+      "quote": "Note that when an RRs TTL indicates a relative time, the RR must be timely, since it is part of a zone.",
+      "disposition": "excluded",
+      "reason": "Resolver cache timeliness for a relative-time TTL. Ze's authoritative server holds no resolver cache.",
+      "excluded-kind": "binds-another-role"
+    },
+    {
+      "id": "7.1:3",
+      "quote": "The amount of work which a resolver will do in response to a client request must be limited to guard against errors in the database, such as circular CNAME references, and operational problems, such as network partition which prevents the resolver from accessing the name servers it needs.",
+      "disposition": "excluded",
+      "reason": "A bound on the work a RESOLVER does per client request, to guard against errors in the database. Same role as above.",
+      "excluded-kind": "binds-another-role"
+    },
+    {
+      "id": "7.1:4",
+      "quote": "This structure keeps track of the state of a request if it must wait for answers from foreign name servers.",
+      "disposition": "excluded",
+      "reason": "A descriptive sentence about the resolver's per-request state structure ('This structure keeps track of the state of a request if it must wait for answers'). It describes the suggested structure rather than obliging anyone.",
+      "excluded-kind": "not-a-requirement"
+    },
+    {
+      "id": "7.2:1",
+      "quote": "Part of this step must deal with addresses which have no such history; in this case an expected round trip time of 5-10 seconds should be the worst case, with lower estimates for the same local network, etc.",
+      "disposition": "excluded",
+      "reason": "Round-trip-time estimation when a resolver has no history for an address. A resolver obligation with no authoritative-server counterpart.",
+      "excluded-kind": "binds-another-role"
+    },
+    {
+      "id": "7.3:1",
+      "quote": "However, if it is using the response to sample the round trip time to access the name server, it must be able to determine which transmission matches the response (and keep transmission times for each outgoing message), or only calculate round trip times based on initial transmissions.",
+      "disposition": "excluded",
+      "reason": "Matching a response to its outstanding request in order to sample round-trip time. Again a resolver obligation: the authoritative server sends responses, never receives them.",
+      "excluded-kind": "binds-another-role"
+    }
+  ]
+}

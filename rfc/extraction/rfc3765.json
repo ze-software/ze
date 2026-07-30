@@ -1,0 +1,94 @@
+{
+  "schema-version": 1,
+  "stem": "rfc3765",
+  "register": "manual-walk",
+  "register-reason": "Zero gated obligations is a property of this document, not a gap in the walk (Owner Ruling OR-A, plan/spec-rfcgate-4-ledger.md). RFC 3765 is Category: Informational (rfc/full/rfc3765.txt:9), carries no RFC 2119 key-words section, and contains zero occurrences of the ten RFC 2119 keywords in any case. It describes its own mechanism as 'an advisory qualification to readvertisement of a route prefix' (verbatim in section 2 and again in section 4) and states its behaviour permissively ('permitting an AS not to readvertise', 'an AS may filter'). It defines no wire format: NOPEER is a community value carried in RFC 1997's COMMUNITIES attribute. The mechanical prose scan derives register 'prose' on the strength of one 'required' in the boilerplate copyright statement of section 8, which binds no BGP speaker. Signing under 'manual-walk' therefore records a weaker claim than the derivation, which is the only direction this schema permits.",
+  "source-path": "rfc/full/rfc3765.txt",
+  "source-sha": "288010a8fa4f2407",
+  "signed-off": "2026-07-30",
+  "reviewer": "ze-implement agent, spec-rfcgate-4-ledger phase 6 (OR-A)",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Title block, Status of this Memo, copyright notice and Abstract. The Abstract restates section 1 and states no obligation."
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Introduction. Describes the problem (more-specific routes redistributed beyond their useful scope) and names the mechanism. No sentence directs a speaker."
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "NOPEER Attribute, the only definitional section. Two behavioural sentences, both permissive: an AS is 'permitted' not to readvertise, and 'may filter' received prefixes. Captured as RFC3765-2-1 and RFC3765-2-2 at [MAY].",
+      "unsourced-ids": ["RFC3765-2-1", "RFC3765-2-2"]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Motivation. Routing-table growth statistics and the reasoning that leads to a classification-based rather than enumeration-based redistribution qualifier. Rationale only."
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations. Registers NOPEER as 0xFFFFFF04 with global significance and repeats section 2's advisory sentence verbatim. The registration binds IANA, and the repeated sentence is already captured under section 2."
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Security Considerations. Analyses the attack surface an unauthorised NOPEER addition opens. States no countermeasure a speaker must apply."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References heading."
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References: RFC 1997 only."
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References: RFC 3221 only."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "Author's Address. Document furniture."
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Full Copyright Statement. Walked because the prose scan attributes its one site here; the site is boilerplate and is excluded below."
+    }
+  ],
+  "sites": [
+    {
+      "id": "8:1",
+      "quote": "The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The standard IETF copyright boilerplate. 'may be required to implement this standard' is the only lowercase 'required' in the document, and it addresses parties holding patents, not a BGP speaker."
+    }
+  ]
+}
