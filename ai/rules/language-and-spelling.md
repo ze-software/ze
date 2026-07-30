@@ -2,8 +2,12 @@
 
 **When:** writing any project text, or any prose in Thomas's voice
 **Severity:** blocking
+**Related:** simplified-technical-english
 
 ## Directives
+
+**This rule picks the English VARIANT. `ai/rules/simplified-technical-english.md` picks the STYLE, and it is rule one.** Project text is US English AND Simplified Technical English (ASD-STE100 Issue 9). STE Rule 1.14 also requires American English spelling, so the two rules agree. Thomas's authored prose is the exception to both: UK English, and no STE.
+
 
 The project language is **US English**. Every artifact that is part
 of Ze -- code, docs, and user-facing text -- uses US English spelling, wording,

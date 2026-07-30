@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import os
 import re
 import subprocess
@@ -1217,6 +1219,145 @@ class TestPreCommitVerificationFilled(unittest.TestCase):
             self.assertTrue(problems)
             self.assertIn("AC Verified", problems[0])
             self.assertIn("Wiring Verified", problems[0])
+
+
+class TestSTEGate(unittest.TestCase):
+    """The ASD-STE100 prose gate (ai/rules/simplified-technical-english.md).
+
+    It BLOCKS a commit whose own prose grew one of the six banned habits, and it
+    compares each file with its own HEAD version so legacy prose in a file you
+    touched costs nothing. Both halves are asserted here: a gate that only ever
+    passes, and a gate that fires on inherited text, are equally useless.
+    """
+
+    def _repo(self, tmp: str) -> Path:
+        """A throwaway git repo carrying a real copy of the checker."""
+        root = Path(tmp)
+        (root / "scripts" / "dev").mkdir(parents=True)
+        (root / "docs").mkdir()
+        checker = Path(__file__).with_name("ste_check.py")
+        (root / "scripts" / "dev" / "ste_check.py").write_text(
+            checker.read_text(encoding="utf-8"), encoding="utf-8"
+        )
+        _git(root, "init", "-q")
+        _git(root, "config", "user.email", "t@example.com")
+        _git(root, "config", "user.name", "T")
+        return root
+
+    def _commit_all(self, root: Path) -> None:
+        _git(root, "add", "-A")
+        _git(root, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "base")
+
+    def test_clean_prose_passes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "docs" / "x.md").write_text("# X\n\nZe starts the daemon.\n")
+            self._commit_all(root)
+            (root / "docs" / "x.md").write_text(
+                "# X\n\nZe starts the daemon.\n\nZe stops the daemon.\n"
+            )
+            self.assertEqual(ch.ste_problems(root, ("docs/x.md",)), [])
+
+    def test_new_habit_blocks_and_names_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "docs" / "x.md").write_text("# X\n\nZe starts the daemon.\n")
+            self._commit_all(root)
+            (root / "docs" / "x.md").write_text(
+                "# X\n\nZe starts the daemon.\n\nIt should spin up seamlessly.\n"
+            )
+            problems = ch.ste_problems(root, ("docs/x.md",))
+            self.assertTrue(problems)
+            self.assertIn("docs/x.md", problems[0])
+            self.assertIn("hedging", problems[0])
+            self.assertIn("phrasal-verbs", problems[0])
+            self.assertIn("marketing-adjectives", problems[0])
+
+    def test_inherited_prose_does_not_block(self):
+        # The whole point of comparing against HEAD: touching a file that already
+        # holds legacy habits must not fail. Only what you added counts.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            legacy = "# X\n\nIt should spin up seamlessly.\n"
+            (root / "docs" / "x.md").write_text(legacy)
+            self._commit_all(root)
+            (root / "docs" / "x.md").write_text(legacy + "\nZe stops the daemon.\n")
+            self.assertEqual(ch.ste_problems(root, ("docs/x.md",)), [])
+
+    def test_non_prose_paths_are_skipped(self):
+        # Non-vacuous: the offending prose is IN the non-prose file, so a gate
+        # that stopped filtering by suffix would report it.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "Makefile").write_text("# it should spin up seamlessly\n")
+            self._commit_all(root)
+            (root / "Makefile").write_text(
+                "# it should spin up seamlessly\n# and it should figure out why\n"
+            )
+            self.assertEqual(ch.ste_problems(root, ("Makefile",)), [])
+
+    def test_dot_directory_path_is_gated(self):
+        # `str.lstrip("./")` strips a character SET, so ".claude/rules/x.md"
+        # became "claude/rules/x.md" and 20 tracked files were silently ungated.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / ".claude" / "rules").mkdir(parents=True)
+            (root / ".claude" / "rules" / "x.md").write_text("# X\n\nZe starts.\n")
+            self._commit_all(root)
+            (root / ".claude" / "rules" / "x.md").write_text(
+                "# X\n\nZe starts.\n\nIt should spin up seamlessly.\n"
+            )
+            problems = ch.ste_problems(root, (".claude/rules/x.md",))
+            self.assertTrue(problems, "a dot-directory path must still be gated")
+            self.assertIn(".claude/rules/x.md", problems[0])
+
+    def test_dot_slash_prefix_is_gated(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "docs" / "x.md").write_text("# X\n\nZe starts.\n")
+            self._commit_all(root)
+            (root / "docs" / "x.md").write_text(
+                "# X\n\nIt should spin up seamlessly.\n"
+            )
+            self.assertTrue(ch.ste_problems(root, ("./docs/x.md",)))
+
+    def test_missing_checker_never_blocks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "docs").mkdir()
+            (root / "docs" / "x.md").write_text("It should spin up seamlessly.\n")
+            self.assertEqual(ch.ste_problems(root, ("docs/x.md",)), [])
+
+    def test_a_crashing_checker_fails_open_but_says_so(self):
+        # Fail-open is the right verdict, and silence is not. A checker
+        # regression must not remove the guard from every commit unannounced.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "docs" / "x.md").write_text("# X\n\nZe starts.\n")
+            self._commit_all(root)
+            (root / "scripts" / "dev" / "ste_check.py").write_text(
+                "import sys\nsys.exit(1)\n"
+            )
+            buf = io.StringIO()
+            with contextlib.redirect_stderr(buf):
+                problems = ch.ste_problems(root, ("docs/x.md",))
+            self.assertEqual(problems, [], "a broken checker must not wedge commits")
+            self.assertIn("UNCHECKED", buf.getvalue())
+
+    def test_usage_error_is_not_read_as_a_finding(self):
+        # argparse exits 2. The gate's own "habit grew" code is 3, so a
+        # malformed invocation cannot surface as prose findings.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "docs" / "x.md").write_text("# X\n\nZe starts.\n")
+            self._commit_all(root)
+            (root / "scripts" / "dev" / "ste_check.py").write_text(
+                "import sys\nprint('usage: ...', file=sys.stderr)\nsys.exit(2)\n"
+            )
+            buf = io.StringIO()
+            with contextlib.redirect_stderr(buf):
+                self.assertEqual(ch.ste_problems(root, ("docs/x.md",)), [])
+            self.assertIn("UNCHECKED", buf.getvalue())
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ Ze development is expected on macOS or Linux. Windows is not a supported develop
 
 | Document | Purpose |
 |----------|---------|
+| `writing-style.md` | Rule one: how every word in the repository is written. The six habits to avoid, the sentence limits, and how to check your own prose |
 | `testing.md` | How the test suites are organised and run (unit, functional, fuzz, race) |
 | `documentation-testing.md` | The `make ze-doc-test` drift and contract checks, and how to fix failures |
 | `ci-test-coverage.md` | Functional `.ci`/`.et` coverage map and known gaps |

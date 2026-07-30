@@ -1465,6 +1465,56 @@ def doc_drift_warnings(repo: Path) -> list[str]:
     return []
 
 
+# Kept in sync with EXIT_HABIT_GREW in scripts/dev/ste_check.py. Distinct from
+# argparse's usage exit (2), so a malformed invocation cannot read as a finding.
+STE_HABIT_GREW = 3
+
+
+def ste_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
+    """BLOCK a commit whose own prose grew an ASD-STE100 habit.
+
+    Rule one of the repository is Simplified Technical English
+    (ai/rules/simplified-technical-english.md). This is the only place where the
+    six banned habits can be attributed to ONE author: several sessions share
+    this checkout, so a tree-wide prose gate reports a colleague's in-flight
+    sentences, and a gate that reddens for someone else's typing gets switched
+    off. The files of one commit are the right unit.
+
+    Each file is compared against its own HEAD version, so legacy prose in a file
+    you touched costs nothing. Only the sentences you added count.
+    """
+    checker = repo / "scripts" / "dev" / "ste_check.py"
+    if not checker.exists():
+        return []
+    reviewable = [p for p in add_paths if p.endswith((".md", ".go", ".yang"))]
+    if not reviewable:
+        return []
+    try:
+        res = subprocess.run(
+            (sys.executable, "scripts/dev/ste_check.py", "--check", *reviewable),
+            cwd=str(repo),
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except Exception as exc:  # noqa: BLE001 - a broken checker must not wedge commits
+        # Fail OPEN, but never in silence. A crash, a timeout, or a missing
+        # interpreter removes this guard from every commit, and a gate that can
+        # evaporate without a word is worse than no gate. Same shape as
+        # discovery_index_verdicts.
+        print(f"warning: ste gate could not run ({exc}); prose is UNCHECKED", file=sys.stderr)
+        return []
+    if res.returncode == STE_HABIT_GREW:
+        return [(res.stdout + res.stderr).rstrip()]
+    if res.returncode != 0:
+        print(
+            f"warning: ste gate could not judge (exit {res.returncode}); "
+            f"prose is UNCHECKED: {(res.stdout + res.stderr).strip()[:400]}",
+            file=sys.stderr,
+        )
+    return []
+
+
 def claimed_spec(repo: Path) -> str:
     """This session's claimed spec basename via spec-session.sh, or '' if none."""
     script = repo / "scripts" / "dev" / "spec-session.sh"
@@ -1587,6 +1637,7 @@ def commit_gate_problems(
     problems: list[str] = []
     problems += deferral_in_diff_problems(repo, add_paths, remove_paths)
     problems += spec_audit_problems(repo, add_paths, claimed_spec(repo))
+    problems += ste_problems(repo, add_paths)
     return problems
 
 

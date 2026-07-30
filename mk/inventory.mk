@@ -3,6 +3,8 @@
 # Quick reference:
 #   make ze-verify-wiring-docs  Changed-file-aware wiring/doc/inventory gate
 #   make ze-doc-test             All doc checks (drift + anchors + YANG/handler)
+#   make ze-ste-review           ASD-STE100 findings, with file:line and the fix
+#   make ze-ste-check            ASD-STE100 gate: no habit grew vs HEAD
 #   make ze-inventory            Plugin/YANG/RPC/test inventory
 #   make ze-spec-status          Spec progress overview (+ closure advisory)
 #   make ze-spec-citation-check  Spec citation freshness (dangling plan/spec refs)
@@ -12,6 +14,7 @@
 .PHONY: ze-inventory ze-inventory-json ze-command-list ze-command-list-json
 .PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-rules-condensed ze-rules-condensed-check ze-rules-lint ze-discovery-index ze-discovery-index-check ze-learned-numbers-check ze-learned-numbers-fix ze-digest-check ze-consistency
 .PHONY: ze-verify-wiring-docs ze-wiki-update ze-wiki-commands
+.PHONY: ze-ste-check ze-ste-review ze-ste-review-changed ze-ste-review-json
 
 ze-spec-status:
 	@go run scripts/status/spec_status.go
@@ -117,6 +120,30 @@ ze-doc-test:
 		exit 1; \
 	fi; \
 	echo "Documentation tests PASSED"
+
+# Simplified Technical English (ASD-STE100 Issue 9) -- rule one of the repository
+# (ai/rules/simplified-technical-english.md). ze-ste-check counts the six banned
+# habits in each file the working tree changed, against that file's own HEAD
+# version, and fails when a habit grew. HEAD is the baseline, so legacy prose
+# stays until someone rewrites it, no baseline file exists to re-bless, and the
+# one way to green is to fix the prose. About 2 seconds.
+#
+# It is NOT wired into ze-doc-test. Several sessions share this checkout, so a
+# tree-wide run reports a sibling session's in-flight sentences and nobody can
+# tell whose they are. The BLOCKING gate lives in commit_helper.py
+# (ste_problems), scoped to the files of ONE commit, which is the only place
+# where prose has a single author.
+ze-ste-check:
+	@python3 scripts/dev/ste_check.py --check
+
+ze-ste-review:
+	@python3 scripts/dev/ste_check.py
+
+ze-ste-review-changed:
+	@python3 scripts/dev/ste_check.py --changed
+
+ze-ste-review-json:
+	@python3 scripts/dev/ste_check.py --json
 
 ze-doc-index:
 	@python3 scripts/dev/code_to_docs.py

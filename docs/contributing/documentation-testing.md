@@ -31,6 +31,7 @@ checks needed for the current diff and is included in `make ze-verify`.
 | `scripts/dev/learned_numbers.py --check` | `ze-learned-numbers-check`, `ze-doc-test` and `ze-regen-check-readonly` (via `ze-discovery-index-check`) | Every `plan/learned/NNN-*.md` number is claimed by exactly one summary, and each H1 number matches its filename. Duplicates are invisible to `commit_helper.py learned-next`, which allocates max(existing prefixes)+1 against the local tree only, so parallel branches collide and only a merge or rebase reveals it. Resolve with `make ze-learned-numbers-fix`, then `make ze-discovery-index`. |
 | `scripts/lint/consistency.go` | `ze-consistency` | Mixed code/doc consistency: `// Design:` references on `.go` files, cross-reference bidirectionality (`// Detail:` <-> `// Overview:`), stale package references in docs and scripts. |
 | `scripts/dev/verify_wiring_docs.py` | `ze-verify-wiring-docs` | Changed-file-aware router used by `make ze-verify`. It runs wiring checks for new exported Go symbols, `ze-validate-commands` for command sources, `ze-doc-test` and stale doc-index checks for source-anchored docs, plus inventory checks for plugin/YANG/registration sources. |
+| `scripts/dev/ste_check.py --check` | `ze-ste-check`, and `commit_helper.py create` | The six banned ASD-STE100 habits (synonym rotation, hedging, frozen verbs, marketing adjectives, run-ons, phrasal verbs) in every changed file. Each file is compared against its own HEAD version, and it fails when a habit grew, so a document nobody touched can never fail. The BLOCKING form runs at commit time over the commit's own files. Read the whole tree with `make ze-ste-review`. Rule: `ai/rules/simplified-technical-english.md`. |
 
 `ze-doc-test` runs doc drift, command validation, and stale source-anchor validation unconditionally and reports
 a combined verdict. `ze-verify-wiring-docs` is the changed-file-aware gate used
@@ -45,11 +46,13 @@ of code review, not doc review.
 <!-- source: scripts/dev/learned_numbers.py -- check, fix -->
 <!-- source: scripts/lint/consistency.go -- package doc -->
 <!-- source: scripts/dev/verify_wiring_docs.py -- selected_targets -->
+<!-- source: scripts/dev/ste_check.py -- review, read_baseline -->
 
 ## When to run
 
 | Situation | Recommended target |
 |-----------|--------------------|
+| After you write any prose, in any file | `make ze-ste-review-changed` |
 | After editing any file under `docs/` | `make ze-doc-test` |
 | After adding or removing a plugin | `make ze-doc-test` |
 | After adding or renaming a YANG `ze:command` | `make ze-validate-commands` |

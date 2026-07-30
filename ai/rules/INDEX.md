@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 95 rules
+Total: 96 rules
 
 | Rule | When to read | Severity | File |
 |------|--------------|----------|------|
@@ -95,6 +95,7 @@ Total: 95 rules
 | Rule File Format | authoring or editing any `ai/rules/*.md` rule file | blocking | `ai/rules/rule-format.md` |
 | Rule Precedence | when two rules point in different directions, or you are deciding whether to stop, ask, delegate, or continue | blocking | `ai/rules/rule-precedence.md` |
 | Self-Documenting Code | implementing an external API, an RFC, or another project's wire or file format | blocking | `ai/rules/self-documenting.md` |
+| Simplified Technical English (ASD-STE100 Issue 9) | writing or reviewing any prose in this repository: docs, comments, error messages, CLI output, YANG descriptions, specs, or commit messages | blocking | `ai/rules/simplified-technical-english.md` |
 | Spec Work Runs in Subagents; the Main Thread Supervises | starting, resuming, or continuing work on ANY spec -- research, design, implementation, review, audit, or closure -- in the main session thread | blocking | `ai/rules/spec-delegation.md` |
 | No Code in Specs | writing or editing a spec | blocking | `ai/rules/spec-no-code.md` |
 | Spec Preservation | closing a completed spec | blocking | `ai/rules/spec-preservation.md` |

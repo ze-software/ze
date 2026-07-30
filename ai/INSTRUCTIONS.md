@@ -75,6 +75,30 @@
 
 # Ze - {{TOOL}} Instructions
 
+## RULE ONE: every word Ze publishes is Simplified Technical English
+
+**Ze writes in ASD-STE100 Simplified Technical English, Issue 9 (2025-01-15).**
+This is the first rule of the repository. It covers `docs/`, code comments, error
+messages, CLI output, YANG descriptions, `ai/` rules, `plan/` specs, and commit
+messages. Full rule: `ai/rules/simplified-technical-english.md`. Working guide,
+committed and complete on its own: `docs/contributing/writing-style.md`.
+
+Six habits are banned. Each one has a numbered STE rule behind it:
+
+| # | Habit | Instead |
+|---|-------|---------|
+| 1 | **Synonym rotation** -- one concept with three names | Give each concept one name and repeat it (Rules 1.3, 1.11, 9.4) |
+| 2 | **Hedging** -- `may`, `should`, `typically`, `in most cases` | CAN for a possibility, MUST for an obligation, WILL for a future event (Rule 1.1) |
+| 3 | **Frozen verbs** -- `do the installation of` | Use the verb: `install` (Rule 3.7) |
+| 4 | **Marketing adjectives** -- `powerful`, `seamless`, `robust` | Give the number, the limit, or the mechanism (Rule 1.1) |
+| 5 | **Run-ons** -- three clauses, a semicolon splice, an eight-sentence paragraph | One topic per sentence. 20 words in a procedure, 25 in a description (Rules 4.1, 5.1, 6.3, 6.6, 8.1) |
+| 6 | **Phrasal verbs** -- `spin up`, `kick off`, `figure out` | Use one verb: `start`, `find` (Rule 9.3) |
+
+Two exceptions matter. RFC 2119 keywords keep their exact spelling when they name
+an RFC's obligation level, and quoted external text is never edited. Thomas's
+authored prose (`/write`, `/ze-weekly-update`) is his voice, stays UK English, and
+this rule does not govern it.
+
 ## STANDING REQUEST: delegate to subagents
 
 **Thomas requests subagent delegation as the default in this repository.** Treat
@@ -217,6 +241,7 @@ means "no rule applies".
 
 | Action | Read first |
 |--------|-----------|
+| Write ANY prose: docs, comments, error messages, CLI output, specs, commit messages | `ai/rules/simplified-technical-english.md` -- rule one. ASD-STE100 Issue 9. No synonym rotation, no hedging, no frozen verbs, no marketing adjectives, no run-ons, no phrasal verbs |
 | Start a session | `.claude/rules/session-start.md` |
 | Edit CLAUDE.md, AGENTS.md, any synced file, or add an agent behavior rule | `ai/rules/canonical-sources.md` -- never edit generated files; shared rules go in `ai/rules/` |
 | Design or implement anything | `ai/rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
