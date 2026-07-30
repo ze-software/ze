@@ -102,6 +102,30 @@ class TestFrozenVerbs(unittest.TestCase):
         ]
         self.assertIn("install", found[0].fix)
 
+    def test_gerund_clause_is_still_found(self):
+        # The detector must keep its catch. These are real gerund clauses.
+        self.assertIn("frozen-verbs", habits("Before installing the plugin, stop it."))
+        self.assertIn("frozen-verbs", habits("The server replies without checking it."))
+
+    def test_indefinite_pronoun_is_not_a_gerund(self):
+        # GERUND_CLAUSE matches any lowercase word that ends in `-ing`, so an
+        # indefinite pronoun after one of its five prepositions used to read as
+        # a banned gerund clause. Filed as F-ste-1 in plan/learned/HOOK-FRICTION.md.
+        for text in (
+            "The sweep runs when nothing is removed.",
+            "The handler returns without anything in the body.",
+            "The gate stays green while something is still queued.",
+            "The list is empty after everything is deleted.",
+        ):
+            self.assertNotIn("frozen-verbs", habits(text), text)
+
+    def test_string_is_not_a_gerund(self):
+        # This repository writes about strings. "when string parsing fails" is
+        # ordinary prose here, and it is the entry most likely to recur.
+        self.assertNotIn(
+            "frozen-verbs", habits("The parser reports when string parsing fails.")
+        )
+
 
 class TestMarketing(unittest.TestCase):
     def test_marketing_adjectives_are_found(self):

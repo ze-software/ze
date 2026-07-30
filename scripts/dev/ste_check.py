@@ -416,6 +416,20 @@ GERUND_CLAUSE = re.compile(
     r"\b(before|after|while|without|when)\s+([a-z]+ing)\b", re.IGNORECASE
 )
 
+# Words that end in `-ing` and are not gerunds. The second group of
+# GERUND_CLAUSE accepts any lowercase word with that ending, so an indefinite
+# pronoun after one of its five prepositions reads as a gerund clause and
+# "when nothing is removed" is reported as a frozen verb. `string` is the entry
+# that matters most here, because this repository writes about strings and
+# "when string parsing fails" is ordinary prose.
+NOT_GERUND = frozenset(
+    """
+    anything everything nothing something
+    bring during king ring spring sting string swing thing wing
+    ceiling evening morning
+    """.split()
+)
+
 # A definite article before a noun that carries an alphanumeric identifier. The
 # identifier makes the noun proper, so the article is incorrect. Kept to Ze's own
 # nouns, because a general `the \w+ \d` pattern would flag "the first 3 bytes".
@@ -924,6 +938,8 @@ def check_articles(unit, path, surface, found):
 def check_frozen_verbs(unit, path, surface, found):
     for match in GERUND_CLAUSE.finditer(unit.text):
         verb = match.group(2).lower()
+        if verb in NOT_GERUND:
+            continue
         add(
             found,
             unit,
