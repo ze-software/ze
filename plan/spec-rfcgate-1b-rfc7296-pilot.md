@@ -1096,8 +1096,8 @@ the Obligation text.
 | `RFC7296-2.16-3` | MUST | For EAP methods that create a shared key as a side effect of authentication, that shared key MUST be used by both the initiator and responder to generate AUTH payloads in messages 7 and 8 using the syntax for shared secrets specified in Section 2.15 (§2.16) | uncertain |
 | `RFC7296-2.16-7` | MUST NOT | This shared key generated during an IKE exchange MUST NOT be used for any other purpose (§2.16) | impl-untested |
 | `RFC7296-2.16-5` | MUST | If EAP methods that do not generate a shared key are used, the AUTH payloads in messages 7 and 8 MUST be generated using SK_pi and SK_pr, respectively (§2.16) | uncertain |
-| `RFC7296-2.16-6` | MUST | Once the protocol exchange defined by the chosen EAP authentication method has successfully terminated, the responder MUST send an EAP payload containing the Success message (§2.16) | uncertain |
-| `RFC7296-2.16-7` | MUST | Similarly, if the authentication method has failed, the responder MUST send an EAP payload containing the Failure message (§2.16) | uncertain |
+| `RFC7296-2.16-9` | MUST | Once the protocol exchange defined by the chosen EAP authentication method has successfully terminated, the responder MUST send an EAP payload containing the Success message (§2.16) | uncertain |
+| `RFC7296-2.16-10` | MUST | Similarly, if the authentication method has failed, the responder MUST send an EAP payload containing the Failure message (§2.16) | uncertain |
 | `RFC7296-2.16-8` | MUST | Following such an extended exchange, the EAP AUTH payloads MUST be included in the two messages following the one containing the EAP Success message (§2.16) | uncertain |
 | `RFC7296-2.17-1` | MUST | Keying material for each Child SA MUST be taken from the expanded KEYMAT using the following rules: all keys for SAs carrying data from the initiator to the responder are taken before SAs going from the responder to the initiator (§2.17) | impl-testable |
 | `RFC7296-2.17-2` | MUST | For ESP and AH, the encryption key (if any) MUST be taken from the first bits and the integrity key (if any) MUST be taken from the remaining bits (§2.17) | impl-testable |
@@ -1369,6 +1369,38 @@ They were renumbered above their marks, to `2.4-11`, `2.4-12`, `2.4-13`, `2.10-4
 and `2.16-7`. None had ever named another obligation, so the rename costs nothing and the
 invariant holds. Appendix A carries the new ids too, so the plan and the summary agree.
 
+**That renumbering collided, and the collision is corrected here.** `2.16-6` and `2.16-7`
+were already taken in Appendix A, by the two `uncertain` rows for the EAP Success and
+Failure messages. The rename gave those ids a second meaning, so one id named two
+obligations in the same table.
+
+The two `uncertain` rows are renumbered to `2.16-9` and `2.16-10`. They move rather than
+the tagged pair, because the tagged pair is the half that reached `rfc/short/rfc7296.md`
+and the tests. Nothing outside this spec named the moved rows.
+
+The retired `2.16-2` and `2.16-4` stay retired and are NOT reused. The paragraph above
+gives the reason. A deleted id that returns with different text reads as a text correction.
+That is the case the positional rule exists to refuse.
+
+**The lesson is wider than these two ids.** A renumbering must check the whole SECTION for
+a free ordinal, never only the high-water mark. The mark says where new ids start. It does
+not say which ids below it are already spent.
+
+**The whole table was then swept for the same defect, and it is the only one.** The sweep
+counted every id in this document and compared the count against the distinct set.
+`rfc/short/rfc7296.md` holds 115 ids and 115 distinct ids. The file the gate reads was
+never wrong.
+
+Appendix A produced 27 further repeated ids, and every one is a legitimate cross-reference.
+Each of those ids appears once in Appendix A and once in a narrative table that discusses
+it. The one apparent exception is `RFC7296-2.5-9`. The mutation table lists it twice on
+purpose, because that requirement has two producers, and each producer needs its own proof.
+
+**Nothing checks a plan table mechanically, and that is permitted.** `check_id_allocation`
+reads the summary, which is permanent and is the gate's evidence. A plan is deleted at
+closure. A collision here surfaces at the moment its rows reach the summary, which is where
+the mechanical check already stands.
+
 **For every remaining phase: land a section's rows together, or land them in ascending
 ordinal order.** A work-package grouping cuts across sections and will trip this again.
 The gate is right and the batching was wrong.
@@ -1585,9 +1617,31 @@ tunnel sub-struct that would hold `encap_decap_flags`.
 **A separate finding, not about ECN.** That struct is a hand-rolled approximation of a VPP
 API message. Its own comment says so: "When govpp/binapi/ipsec is vendored, replace these
 with the generated types." A hand-written struct that omits fields the real message carries
-is a wire-format divergence, not only a missing feature. Nobody established whether
-the VPP IPsec backend is reachable and tested. Settle that before anyone treats VPP IPsec
-as a shipping property.
+is a wire-format divergence, not only a missing feature.
+
+**Reachability and test state, settled 2026-07-30.** The earlier note left this open. It is
+now answered, and the answer narrows OR-F.
+
+| Question | Answer | Evidence |
+|----------|--------|----------|
+| Is the VPP IPsec backend reachable? | Yes, but only in a `ze_vpp` build | `vpp.go:4` carries `//go:build ze_vpp`. `feature-gates.txt:161` names it a source-tagged file rather than a gated directory |
+| Is it registered? | Yes, under the name `vpp` | `dataplane/register_vpp.go`, loaded by `dataplane.Load(ikeDataplaneName())` at `engine/register.go:196` |
+| Is it the default? | **No. The default is `xfrm`** | `ikeDataplaneName` returns `"xfrm"` unless an override is set (`engine/testport.go:45-50`) |
+| Does it have tests? | Unit tests only | `vpp_test.go`, `vpp_extra_test.go`, `register_vpp_test.go` |
+
+**Unit tests cannot see this defect.** They assert what the hand-rolled struct encodes. The
+divergence is between that struct and the message a real VPP expects, so a test written
+against the struct agrees with it by construction.
+
+**What this means for OR-F.** The conformant path is the default path. XFRM ships, and the
+XFRM reading HOLDS. VPP IPsec is opt-in, tagged out of a default build, and fails the
+reading. So the two rows are met on the path an operator gets, and unmet on a path an
+operator must select deliberately.
+
+That is not a reason to classify the rows as met. It is a reason the fix is bounded. The
+work is to make the VPP backend copy ECN. `ai/rules/rfc-compliance.md` needs no ruling for
+that, because raising conformance never needs permission. A ruling would only be needed to
+accept LESS, and nobody is proposing that.
 
 **One nuance no implementation escapes.** At encapsulation the two documents section 2.24
 cites disagree. RFC 3168 section 9.1.1 maps an inner CE to an outer ECT(0). RFC 4301's
