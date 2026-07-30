@@ -186,6 +186,8 @@ func (ps *PeerSession) maintainSA(
 				return errTimeout
 			}
 
+			ps.serviceRequestWindow(sa, dpd, now, log)
+
 			if dpd != nil && dpd.shouldSend(now) {
 				sendDPD(sa, tr, dpd, log)
 			}
@@ -195,16 +197,7 @@ func (ps *PeerSession) maintainSA(
 			// old-SA delete, childLT reset) happens in handleOwnedInbound when the
 			// response arrives; here we only start it and manage retransmission.
 			if childLT != nil && childLT.softExpired(now) && ps.pendingRekey == nil {
-				if old := ps.getChildSA(); old != nil {
-					msg, pending, err := initiateChildRekey(sa, old)
-					if err != nil {
-						log.Warn("child-sa: rekey init failed", "peer", ps.peerName, "error", err)
-					} else {
-						sendRaw(sa, tr, msg, log)
-						ps.pendingRekey = pending
-						log.Info("child-sa: rekey initiated", "peer", ps.peerName, "msgid", pending.messageID)
-					}
-				}
+				ps.startChildRekey(sa, tr, log)
 			}
 
 			if ps.pendingRekey != nil {
@@ -227,14 +220,7 @@ func (ps *PeerSession) maintainSA(
 			// a CREATE_CHILD_SA wire exchange. Completion (new SA, table re-key, SA
 			// swap) happens in the inbound case when the response arrives.
 			if ikeLT != nil && ikeLT.softExpired(now) && ps.pendingRekey == nil {
-				msg, pending, err := initiateIKERekey(sa, ikeGroup)
-				if err != nil {
-					log.Warn("ike-sa: rekey init failed", "peer", ps.peerName, "error", err)
-				} else {
-					sendRaw(sa, tr, msg, log)
-					ps.pendingRekey = pending
-					log.Info("ike-sa: rekey initiated", "peer", ps.peerName, "msgid", pending.messageID)
-				}
+				ps.startIKERekey(sa, ikeGroup, tr, log)
 			}
 
 			if ikeLT != nil && ikeLT.hardExpired(now) && ps.pendingRekey == nil {
@@ -249,6 +235,64 @@ func (ps *PeerSession) maintainSA(
 // rekeyRetransmitTimeout is how long the owner loop waits for a rekey response
 // before retransmitting the request. RFC 7296 §2.1 (retransmission).
 const rekeyRetransmitTimeout = 3 * time.Second
+
+// startChildRekey begins a Child SA rekey. RFC 7296 §2.3 allows one self-initiated
+// request per SA, so the window is reserved before initiateChildRekey reads
+// NextMsgID. A held window defers the rekey: pendingRekey stays nil and the soft
+// lifetime still stands, so the next tick raises the rekey again. RFC 7296 §1.3.2.
+func (ps *PeerSession) startChildRekey(sa *SA, tr *transport.UDPTransport, log *slog.Logger) {
+	old := ps.getChildSA()
+	if old == nil {
+		return
+	}
+	if !sa.reserveRequestWindow() {
+		log.Debug("child-sa: rekey deferred, a request is outstanding", "peer", ps.peerName)
+		return
+	}
+	msg, pending, err := initiateChildRekey(sa, old)
+	if err != nil {
+		sa.releaseRequestWindow()
+		log.Warn("child-sa: rekey init failed", "peer", ps.peerName, "error", err)
+		return
+	}
+	sendRaw(sa, tr, msg, log)
+	ps.pendingRekey = pending
+	log.Info("child-sa: rekey initiated", "peer", ps.peerName, "msgid", pending.messageID)
+}
+
+// startIKERekey begins an IKE SA rekey under the same RFC 7296 §2.3 window as
+// startChildRekey. A held window defers it to a later tick. RFC 7296 §1.3.3.
+func (ps *PeerSession) startIKERekey(sa *SA, ikeGroup ipsec.IKEGroup, tr *transport.UDPTransport, log *slog.Logger) {
+	if !sa.reserveRequestWindow() {
+		log.Debug("ike-sa: rekey deferred, a request is outstanding", "peer", ps.peerName)
+		return
+	}
+	msg, pending, err := initiateIKERekey(sa, ikeGroup)
+	if err != nil {
+		sa.releaseRequestWindow()
+		log.Warn("ike-sa: rekey init failed", "peer", ps.peerName, "error", err)
+		return
+	}
+	sendRaw(sa, tr, msg, log)
+	ps.pendingRekey = pending
+	log.Info("ike-sa: rekey initiated", "peer", ps.peerName, "msgid", pending.messageID)
+}
+
+// serviceRequestWindow frees a request window that no other timer can free. A rekey
+// ends the session once its retransmissions run out, and a DPD probe ends it once
+// the peer stays silent past the DPD timeout. Both therefore bound their own hold.
+// A Delete has neither a retransmission nor a deadline, so only a Delete reaches
+// requestWindowTimeout. RFC 7296 §1.4, §2.3.
+func (ps *PeerSession) serviceRequestWindow(sa *SA, dpd *dpdState, now time.Time, log *slog.Logger) {
+	if ps.pendingRekey != nil || dpd.awaitingReply() {
+		return
+	}
+	if !sa.requestWindowStale(now) {
+		return
+	}
+	sa.releaseRequestWindow()
+	log.Debug("ike: freed the request window, the answer never arrived", "peer", ps.peerName)
+}
 
 // sendRaw sends already-built wire bytes to the peer's IKE address.
 func sendRaw(sa *SA, tr *transport.UDPTransport, msg []byte, log *slog.Logger) {
@@ -274,6 +318,8 @@ func (ps *PeerSession) serviceRekeyRetransmit(sa *SA, tr *transport.UDPTransport
 	}
 	if p.retransmits >= maxRetransmissions {
 		log.Warn("ike: rekey unanswered, tearing down", "peer", ps.peerName)
+		// The exchange is over, so free the request window it held (RFC 7296 §2.3).
+		sa.releaseRequestWindow()
 		ps.pendingRekey = nil
 		ps.cleanupChild(dp, bus, log)
 		return errTimeout

@@ -56,6 +56,10 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 		// cannot mask a dead peer.
 		if isResponse && msg.Header.ExchangeType == wire.ExchangeInformational {
 			if _, err := decryptAndParse(sa, &msg, pkt.Data); err == nil {
+				// Release site one of two, after authentication. RFC 7296 §2.3: this
+				// answer completes a request that left no pendingRekey, so the window
+				// it holds frees here and nowhere else.
+				sa.answerAuthenticatedResponse(msg.Header.MessageID)
 				return ownedOutcome{dpdResp: true, dpdRespMsgID: msg.Header.MessageID}
 			}
 		}
@@ -70,6 +74,13 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 	if err != nil {
 		log.Debug("ike: owned inbound decrypt failed", "peer", ps.peerName, "error", err)
 		return ownedOutcome{}
+	}
+
+	// Release site two of two, after authentication. This one carries the rekey
+	// response. A peer REQUEST also reaches here, and it must never free the window
+	// our own outstanding request holds (RFC 7296 §2.3).
+	if isResponse {
+		sa.answerAuthenticatedResponse(msg.Header.MessageID)
 	}
 
 	// An authenticated inbound message from the peer proves it is alive (RFC 7296
@@ -165,6 +176,10 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 					return ownedOutcome{}
 				}
 				log.Info("ike: simultaneous child rekey, peer wins, abandoning our exchange", "peer", ps.peerName)
+				// Our own request will never be answered now, so free the request
+				// window it holds (RFC 7296 §2.3). Without this the SA sends nothing
+				// more.
+				sa.releaseRequestWindow()
 				ps.pendingRekey = nil
 			}
 		}
@@ -233,10 +248,18 @@ func (ps *PeerSession) sendDeleteIKE(sa *SA, tr *transport.UDPTransport, log *sl
 	if tr == nil {
 		return
 	}
+	// RFC 7296 §2.3: one self-initiated request at a time. A Delete is best-effort
+	// and a teardown must never wait for a window, so a held window drops it. The
+	// peer then learns of the loss through its own dead-peer detection.
+	if !sa.reserveRequestWindow() {
+		log.Debug("ike: IKE delete dropped, a request is outstanding", "peer", ps.peerName)
+		return
+	}
 	del := &wire.PayloadDelete{ProtocolID: wire.ProtocolIKE}
 	msg, err := buildEncryptedMessageEx(sa, []wire.PayloadEntry{{Payload: del}}, sa.NextMsgID, wire.ExchangeInformational, initiatorFlag(sa))
 	if err != nil {
 		log.Debug("ike: IKE delete build failed", "peer", ps.peerName, "error", err)
+		sa.releaseRequestWindow()
 		return
 	}
 	sa.NextMsgID++
@@ -298,12 +321,21 @@ func (ps *PeerSession) sendDeleteESP(sa *SA, tr *transport.UDPTransport, spi uin
 	if tr == nil {
 		return
 	}
+	// RFC 7296 §2.3: one self-initiated request at a time. The make-before-break
+	// Delete runs right after the rekey response freed the window, so it usually
+	// takes it at once. A held window drops the Delete, because it is best-effort
+	// and the peer removes the old Child SA on its own lifetime.
+	if !sa.reserveRequestWindow() {
+		log.Debug("ike: ESP delete dropped, a request is outstanding", "peer", ps.peerName)
+		return
+	}
 	spiBytes := make([]byte, 4)
 	binary.BigEndian.PutUint32(spiBytes, spi)
 	del := &wire.PayloadDelete{ProtocolID: wire.ProtocolESP, SPISize: 4, NumSPIs: 1, SPIs: spiBytes}
 	msg, err := buildEncryptedMessageEx(sa, []wire.PayloadEntry{{Payload: del}}, sa.NextMsgID, wire.ExchangeInformational, initiatorFlag(sa))
 	if err != nil {
 		log.Debug("ike: delete build failed", "peer", ps.peerName, "error", err)
+		sa.releaseRequestWindow()
 		return
 	}
 	sa.NextMsgID++

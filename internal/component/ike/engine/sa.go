@@ -90,6 +90,16 @@ type SA struct {
 	lastResponseID  uint32
 	lastResponseSet bool
 
+	// The one self-initiated request this SA awaits an answer for. RFC 7296
+	// Section 2.3 calls it the window for requests we send. Its size is one,
+	// because Ze never sends a SET_WINDOW_SIZE notify and never reads one. Every
+	// path that raises a request reserves this window before it reads NextMsgID,
+	// and classifyInbound frees it when the answer arrives. The window methods
+	// live in msgid.go, and only the maintainSA owner loop touches them.
+	requestOutstanding bool
+	requestMsgID       uint32
+	requestSentAt      time.Time
+
 	// Retransmission
 	LastSentMsg     []byte
 	RetransmitTime  time.Time

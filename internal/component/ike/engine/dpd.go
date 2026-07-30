@@ -65,6 +65,12 @@ func (d *dpdState) shouldSend(now time.Time) bool {
 	return !now.Before(d.lastSent.Add(d.interval))
 }
 
+// awaitingReply reports whether a DPD probe is outstanding. The owner loop reads it
+// to tell an unanswered probe from an unanswered Delete.
+func (d *dpdState) awaitingReply() bool {
+	return d != nil && d.awaitReply
+}
+
 // timedOut reports whether the peer failed to respond within timeout.
 func (d *dpdState) timedOut(now time.Time) bool {
 	if d == nil || !d.awaitReply {
@@ -78,6 +84,13 @@ func (d *dpdState) timedOut(now time.Time) bool {
 // encrypted under SK. Encryption integration requires ipsec-9 (SK wrapping).
 func sendDPD(sa *SA, tr *transport.UDPTransport, dpd *dpdState, log *slog.Logger) {
 	if sa == nil {
+		return
+	}
+	// RFC 7296 Section 2.3: one self-initiated request at a time. A probe that finds
+	// the window held is deferred and not dropped. dpd.lastSent keeps its value, so
+	// the next tick raises the probe again once the window frees.
+	if !sa.reserveRequestWindow() {
+		log.Debug("dpd: probe deferred, a request is outstanding", "peer", sa.PeerName)
 		return
 	}
 
@@ -98,6 +111,7 @@ func sendDPD(sa *SA, tr *transport.UDPTransport, dpd *dpdState, log *slog.Logger
 		n, err := msg.CheckedWriteTo(buf, 0)
 		if err != nil {
 			log.Warn("dpd: probe too large, dropping", "peer", sa.PeerName, "error", err)
+			sa.releaseRequestWindow()
 			return
 		}
 		remote := sa.remoteUDPAddr()
