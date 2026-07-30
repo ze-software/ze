@@ -669,6 +669,72 @@ shard with a named destination spec.
 
 ## Workflow traps
 
+### A full disk reads as a code breakage
+
+**Symptom.** `make ze-verify` reports `[build failed]` against dozens of
+packages you never touched, and the functional suite fails a few unrelated
+tests. It looks like a concurrent session broke the tree.
+
+**Cause.** The host disk is full, and the real message sits above the FAIL
+lines. It reads `no space left on device`, from `mkdir /tmp/go-build.../`
+or from `link: mapping output file failed`. Two caches grow without bound
+and nothing prunes them. They are the Go build cache (`go env GOCACHE`)
+and the Docker build cache that the interop, perf, and appliance targets
+fill. Measured 2026-07-30 on a 98G volume: 30G of Go cache and 15G of
+Docker build cache, 99% full, 1.8G free.
+
+**Evidence.** Observed 2026-07-30 during `spec-rfcgate-1b-rfc7296-pilot`.
+Three functional tests failed with it, and each one passes with headroom.
+`bfd-auth-meticulous-persist` reported "the sequence was never flushed",
+which is a zefs write that had no room. The other two were
+`test/web/interface-mac-override.wb` and `vpp-hugepages-qemu`. An
+unprivileged `du` will NOT find the Docker half, because `/var/lib/docker`
+is root-owned and is silently counted as zero.
+
+**Avoid it by.** Reading the FIRST error in the stage log, not the FAIL
+summary. When a build fails in packages your diff never reaches, run
+`df -h /` first.
+
+**Recover if you hit it.** `go clean -cache` and `docker builder prune -f`
+reclaim the two caches with no loss, because both are caches. Check
+`docker system df` first. Leave Docker IMAGES and VOLUMES alone. The
+interop peer images are expensive to rebuild, and another session CAN be
+mid-run.
+
+---
+
+### Another session's test edit reddens your RFC gate
+
+**Symptom.** `make ze-rfc-check` fails with the single violation
+`ai/RFC-REQUIREMENTS.md is stale vs its sources`. You changed no tagged
+test. `ze-doc-test`, `ze-verify-wiring-docs`, `ze-regen-check-readonly`
+and `TestRFCLedgerFresh` all go red at the same time, because each one
+reads the same freshness fact.
+
+**Cause.** `ai/RFC-REQUIREMENTS.md` is ONE global generated file, and it
+records every tagged test as `file:line`. One session adds or removes a
+single line above a tagged test. That shifts the line numbers and stales
+the ledger for every other session. This repository runs concurrent
+sessions by design, so the window is not rare.
+
+**Evidence.** Twice on 2026-07-30 during `spec-rfcgate-1b-rfc7296-pilot`.
+Both times the whole diff was line numbers in `internal/component/mcp/`,
+which a different session was editing. `diff` of the regenerated ledger
+named the owning package in one line each time.
+
+**Avoid it by.** Running `make ze-rfc-index` immediately before you start
+a verify, not earlier in the session. Diff the regenerated ledger to see
+WHOSE files moved: if every changed row names a package you never touched,
+the staleness is not yours.
+
+**Recover if you hit it.** Regenerate, then verify. Do not hand-edit the
+ledger, and do not reach for an override first: the gate is correct and
+the file really is stale. If a concurrent session is actively editing
+tagged tests, check the modification times of its files and start your
+verify while it is quiet.
+
+---
+
 ### Claiming completion while stale specs persist
 
 **Symptom.** A spec says "What Remains: Phase N (YANG only)". Grep
