@@ -19,6 +19,18 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/transport"
 )
 
+// isXFRMUnsupported reports whether an install failure names a platform that offers
+// no XFRM at all.
+//
+// The errno is ambiguous and stays ambiguous. A kernel without the esp4 module
+// answers EPROTONOSUPPORT, and so does a kernel that refuses the key the state
+// carries. Nothing in the errno separates the two, so this predicate does not try.
+//
+// The ambiguity is a reason to report the outcome honestly, not a reason to stay
+// silent. Either way the Child SA carries no ESP. createFirstChildSA therefore
+// records ESPInstalled false and the peer reports degraded rather than up
+// (ai/rules/fail-closed-guards.md). The tolerance survives, because a platform with
+// no XFRM must still run the control plane. The false "everything is fine" does not.
 func isXFRMUnsupported(err error) bool {
 	if errors.Is(err, dataplane.ErrNotSupported) {
 		return true
@@ -63,6 +75,14 @@ type ChildSA struct {
 	// send (outbound) SA uses the I half when true and the R half when false. For
 	// the first Child SA this equals the IKE SA role (sa.IsInitiator).
 	LocalIsInitiator bool
+
+	// ESPInstalled is true when the dataplane holds both states and both policies
+	// for this Child SA. It is false when no dataplane is configured, and false when
+	// the install failed on a platform that reports XFRM as unsupported.
+	//
+	// A false value means the tunnel forwards no encrypted traffic. The peer metric
+	// reads it, so an operator sees degraded rather than up (metrics.go).
+	ESPInstalled bool
 }
 
 // Clear zeroes key material.
@@ -105,8 +125,7 @@ func createFirstChildSA(
 	}
 
 	prop := espGroup.Proposals[0]
-	enc := lookupEncryption(prop.Encryption)
-	integ := lookupIntegrity(prop.Hash)
+	enc, integ := espTransforms(prop)
 
 	// RFC 7296 Section 2.17: KEYMAT = prf+(SK_d, Ni | Nr) in absolute initiator/
 	// responder order, not this side's Local/Remote order (identical for an
@@ -186,14 +205,28 @@ func createFirstChildSA(
 	if err := installChildSA(child, prop, dp, log); err != nil {
 		log.Debug("child-sa: install error", "error", err, "xfrm_unsupported", isXFRMUnsupported(err))
 		if isXFRMUnsupported(err) {
-			log.Warn("child-sa: XFRM not available on this platform, continuing without ESP", "error", err)
+			warnDegraded(child, log, err)
 		} else {
 			keys.Clear()
 			return nil, err
 		}
+	} else {
+		child.ESPInstalled = true
 	}
 
 	return child, nil
+}
+
+// warnDegraded reports a Child SA whose dataplane install was refused as unsupported.
+// The control plane continues, and the tunnel forwards no encrypted traffic.
+//
+// The message names the consequence rather than the platform. The errno cannot tell
+// a kernel with no XFRM from a kernel that refused this state. An operator acts on
+// the same fact in both cases (ai/rules/error-messages.md).
+func warnDegraded(child *ChildSA, log *slog.Logger, err error) {
+	child.ESPInstalled = false
+	log.Warn("child-sa: dataplane refused the ESP state, tunnel is degraded and carries no encrypted traffic",
+		"in-spi", child.InboundSPI, "out-spi", child.OutboundSPI, "ifid", child.IfID, "error", err)
 }
 
 func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Dataplane, log *slog.Logger) error {
@@ -272,15 +305,20 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	}
 	log.Debug("child-sa: installed outbound SA", "spi", child.OutboundSPI, "ifid", child.IfID)
 
-	// Install policies.
+	// Install policies. Src/Dst are the traffic selectors, the inner traffic each
+	// policy matches. TunnelSrc/TunnelDst are the tunnel endpoints, the outer IP
+	// header addresses. The kernel resolves a policy to a state through the
+	// endpoints, so each policy names the same pair as the SA it must resolve to.
 	if err := dp.InstallPolicy(dataplane.SPParams{
-		Src:   child.TSRemote,
-		Dst:   child.TSLocal,
-		Dir:   dataplane.SADirIn,
-		Proto: protoESP,
-		Mode:  modeTunnel,
-		IfID:  child.IfID,
-		ReqID: child.ReqID,
+		Src:       child.TSRemote,
+		Dst:       child.TSLocal,
+		Dir:       dataplane.SADirIn,
+		Proto:     protoESP,
+		Mode:      modeTunnel,
+		IfID:      child.IfID,
+		ReqID:     child.ReqID,
+		TunnelSrc: child.RemoteAddr,
+		TunnelDst: child.LocalAddr,
 	}); err != nil {
 		_ = dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP)
 		_ = dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP)
@@ -288,13 +326,15 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	}
 
 	if err := dp.InstallPolicy(dataplane.SPParams{
-		Src:   child.TSLocal,
-		Dst:   child.TSRemote,
-		Dir:   dataplane.SADirOut,
-		Proto: protoESP,
-		Mode:  modeTunnel,
-		IfID:  child.IfID,
-		ReqID: child.ReqID,
+		Src:       child.TSLocal,
+		Dst:       child.TSRemote,
+		Dir:       dataplane.SADirOut,
+		Proto:     protoESP,
+		Mode:      modeTunnel,
+		IfID:      child.IfID,
+		ReqID:     child.ReqID,
+		TunnelSrc: child.LocalAddr,
+		TunnelDst: child.RemoteAddr,
 	}); err != nil {
 		_ = dp.RemovePolicy(child.TSRemote, child.TSLocal, dataplane.SADirIn)
 		_ = dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP)
@@ -317,11 +357,12 @@ func installChildTolerant(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.D
 	}
 	if err := installChildSA(child, prop, dp, log); err != nil {
 		if isXFRMUnsupported(err) {
-			log.Warn("child-sa: XFRM not available on this platform, continuing without ESP", "error", err)
+			warnDegraded(child, log, err)
 			return nil
 		}
 		return err
 	}
+	child.ESPInstalled = true
 	return nil
 }
 

@@ -146,6 +146,9 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	if err := cfg.ValidatePKIRefs(hasCA, hasCert, certCN); err != nil {
 		return err
 	}
+	if err := cfg.ValidateIdentities(); err != nil {
+		return err
+	}
 	return cfg.ValidateRemoteAccess()
 }
 

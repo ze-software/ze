@@ -15,6 +15,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -5436,7 +5437,12 @@ class TestCITierIsEarnedNotAssumed(unittest.TestCase):
         # test/ipsec/ joined all_suites (mk/test-functional.mk) on 2026-07-30. Its 8 .ci
         # files had a registered runner root and needed no privilege, and nothing ran them.
         # It is asserted here so the tier it now earns cannot be lost silently.
-        for rel in ("test/plugin/x.ci", "test/parse/x.ci", "test/ospf/x.ci", "test/ipsec/x.ci"):
+        for rel in (
+            "test/plugin/x.ci",
+            "test/parse/x.ci",
+            "test/ospf/x.ci",
+            "test/ipsec/x.ci",
+        ):
             c = R.carrier_for(rel)
             self.assertIsNotNone(c, rel)
             self.assertEqual(c.tier, R.TIER_VERIFY, rel)
@@ -5578,6 +5584,60 @@ class TestCITierIsEarnedNotAssumed(unittest.TestCase):
         recipe is unambiguous today, so the count is asserted against the real file."""
         raw = _read_repo("mk/test-functional.mk")
         self.assertEqual(len(R._ALL_SUITES_RE.findall(raw)), 1)
+
+    def test_a_declared_suite_that_is_never_dispatched_fails_closed(self):
+        """The .ci half of the same defect the Go compile check closes.
+
+        `ipsec` sat in all_suites with no `run_suite` line: the recipe counted it toward
+        the progress denominator, ran nothing, and every test/ipsec/*.ci still earned a
+        verify tier here. Only a comment tied the declaration to the dispatch, so the
+        tier came from a claim nobody measured.
+        """
+        with _scratch() as root:
+            os.makedirs(os.path.join(root, "mk"))
+            path = os.path.join(root, "mk", "test-functional.mk")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(
+                    "ze-functional-test:\n"
+                    '\tall_suites="qqalpha qqbeta"; \\\n'
+                    "\trun_suite() { \\\n"
+                    '\t\t"$$@"; \\\n'
+                    "\t}; \\\n"
+                    "\trun_suite qqalpha ze-test qqalpha --all; \\\n"
+                    "\techo done\n"
+                )
+            with self.assertRaises(R.ParseError) as cm:
+                R.functional_suites(path)
+        msg = str(cm.exception)
+        self.assertIn("qqbeta", msg)
+        self.assertNotIn("qqalpha", msg)
+        self.assertIn("run_suite", msg)
+
+    def test_a_fully_dispatched_suite_list_is_accepted(self):
+        """Discriminates from 'always raises', and pins that the shell function definition
+        `run_suite() {` is not read as a dispatch of a suite called `()`."""
+        with _scratch() as root:
+            os.makedirs(os.path.join(root, "mk"))
+            path = os.path.join(root, "mk", "test-functional.mk")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(
+                    "ze-functional-test:\n"
+                    '\tall_suites="qqalpha qqbeta"; \\\n'
+                    "\trun_suite() { \\\n"
+                    '\t\t"$$@"; \\\n'
+                    "\t}; \\\n"
+                    "\trun_suite qqalpha ze-test qqalpha --all; \\\n"
+                    "\trun_suite qqbeta ze-test qqbeta --all\n"
+                )
+            self.assertEqual(R.functional_suites(path), ("qqalpha", "qqbeta"))
+
+    def test_the_repo_dispatches_every_suite_it_declares(self):
+        """The other half of the pin: the refusal above is only reachable if the real
+        recipe dispatches everything today, so that is asserted against the real file."""
+        raw = _read_repo("mk/test-functional.mk")
+        declared = R._ALL_SUITES_RE.findall(raw)[0].split()
+        dispatched = set(R._RUN_SUITE_RE.findall(raw))
+        self.assertEqual([s for s in declared if s not in dispatched], [])
 
     def test_refusal_message_is_grammatical(self):
         """The catch-all's message used to read '... -- no declared runner has no
@@ -9673,6 +9733,383 @@ class TestFourStemEnrolmentRealTree(unittest.TestCase):
         for stem in sorted(R.summary_stems()):
             reqs.extend(R.parse_summary_file(os.path.join(R.SUMMARY_DIR, stem + ".md")))
         self.assertEqual(R.check_id_allocation(reqs, R._git_baseline_ids()), [])
+
+
+# --------------------------------------------------------------------------
+# Evidence admissibility: the package a tag lives in has to compile
+# --------------------------------------------------------------------------
+class _FakeVet:
+    """Stands in for `subprocess` inside rfc_requirements, answering the vet call only.
+
+    A failing run returns the REAL text `go vet` produced for the defect that prompted this
+    check, never empty output. An empty-stderr fake cannot tell a reader that parses the
+    output from one that only reads `returncode`: both report something, and the test then
+    passes on an implementation that names no package and quotes no compiler message.
+
+    Every other call is a git baseline reader. Those get a clean empty result, which is
+    exactly what an unavailable baseline looks like and is already handled everywhere.
+    """
+
+    TimeoutExpired = subprocess.TimeoutExpired
+
+    REAL_FAILURE = (
+        "# github.com/ze-software/ze/internal/component/ike/engine\n"
+        "# [github.com/ze-software/ze/internal/component/ike/engine]\n"
+        "vet: internal/component/ike/engine/rfc7296_msgid_test.go:420:39: "
+        "undefined: log2tr\n"
+    )
+
+    def __init__(self, returncode=0, stderr="", raises=None):
+        self._rc = returncode
+        self._err = stderr
+        self._raises = raises
+        self.argv = None
+
+    def run(self, argv, **kwargs):
+        outer = self
+        if "vet" not in argv:
+
+            class _Git:
+                returncode = 0
+                stdout = b"" if kwargs.get("input") is not None else ""
+                stderr = ""
+
+            return _Git()
+        self.argv = list(argv)
+        if self._raises is not None:
+            raise self._raises
+
+        class _Vet:
+            returncode = outer._rc
+            stdout = ""
+            stderr = outer._err
+
+        return _Vet()
+
+
+# A real tagged-carrier path under TEST_ROOTS, used where the subject is the CHECK and not
+# the tree walk. It has to exist and it has to sit under a walked root, because both are
+# what go_tag_packages filters on. Its package is never really vetted: the fake intercepts.
+_REAL_GO_TEST = "internal/component/bgp/message/header_test.go"
+_REAL_GO_PKG = "./internal/component/bgp/message"
+_REAL_GO_IMPORT = "github.com/ze-software/ze/internal/component/bgp/message"
+
+
+class TestBuildTagsDerivation(unittest.TestCase):
+    """The compile check has to use the tag set `make ze-unit-test` compiles with.
+
+    Dropping the feature tags is the failure ai/rules/bash-output.md names: a bare `go`
+    invocation excludes every gated file, so a tagged test behind `ze_ospf` is never
+    type-checked and the check reports clean over code it did not read.
+    """
+
+    def test_tags_carry_ze_core_and_every_declared_feature_gate(self):
+        tags = R.build_tags().split()
+        self.assertIn("ze_core", tags)
+        for gate in R.feature_tags():
+            self.assertIn(gate, tags)
+        self.assertTrue(R.feature_tags(), "feature-gates.txt declared no gate")
+
+    def test_no_unexpanded_make_variable_survives(self):
+        """A literal `$(ZE_FEATURES)` handed to `go vet` is a silent tag set of one."""
+        self.assertNotIn("$", R.build_tags())
+
+    def test_feature_tags_match_the_makefile_awk(self):
+        """Derived from feature-gates.txt exactly as Makefile ZE_FEATURES derives them."""
+        with open(R.FEATURE_GATES, encoding="utf-8") as fh:
+            want = sorted(
+                {
+                    line.split()[0]
+                    for line in fh
+                    if line.split() and line.split()[0].startswith("ze_")
+                }
+            )
+        self.assertEqual(list(R.feature_tags()), want)
+
+    def test_missing_assignment_fails_closed(self):
+        root = _mkdtemp("rfcgate-tags-")
+        self.addCleanup(shutil.rmtree, root, True)
+        mk = _write(root, "Makefile", "ZE_VERSION := 1\n")
+        with self.assertRaises(R.ParseError) as cm:
+            R.build_tags(makefile=mk)
+        self.assertIn("GO_TEST_TAGS", str(cm.exception))
+
+    def test_two_assignments_fail_closed(self):
+        """Two answers is not an answer, the reading functional_suites already takes."""
+        root = _mkdtemp("rfcgate-tags2-")
+        self.addCleanup(shutil.rmtree, root, True)
+        mk = _write(root, "Makefile", "GO_TEST_TAGS = ze_core\nGO_TEST_TAGS = ze_bgp\n")
+        with self.assertRaises(R.ParseError) as cm:
+            R.build_tags(makefile=mk)
+        self.assertIn("GO_TEST_TAGS", str(cm.exception))
+
+    def test_unknown_make_variable_fails_closed(self):
+        root = _mkdtemp("rfcgate-tags3-")
+        self.addCleanup(shutil.rmtree, root, True)
+        mk = _write(root, "Makefile", "GO_TEST_TAGS = ze_core $(ZE_MYSTERY)\n")
+        with self.assertRaises(R.ParseError) as cm:
+            R.build_tags(makefile=mk)
+        self.assertIn("ZE_MYSTERY", str(cm.exception))
+
+
+class TestGoTagPackages(unittest.TestCase):
+    """Which packages the check vets, derived from CARRIERS rather than an extension."""
+
+    def test_the_fixture_path_is_real(self):
+        """Guards every assertion below. A rename would otherwise turn each of them into a
+        silent pass over an empty package list."""
+        self.assertTrue(
+            os.path.isfile(os.path.join(R.PROJECT_DIR, _REAL_GO_TEST)),
+            f"{_REAL_GO_TEST} is gone; point _REAL_GO_TEST at another real _test.go "
+            f"under one of {R.TEST_ROOTS}",
+        )
+
+    def test_go_carrier_tags_become_their_directory(self):
+        pkgs = R.go_tag_packages([_tag("RFC7606-2-1", "positive", file=_REAL_GO_TEST)])
+        self.assertEqual(pkgs, [_REAL_GO_PKG])
+
+    def test_a_tag_outside_the_walked_roots_yields_no_package(self):
+        """The `unit` carrier matches `_test.go` at ANY prefix, which is right for reading
+        a tag and too wide for naming a package. scan_tree walks TEST_ROOTS only, so a
+        scratch fixture under tmp/ is not a package to vet."""
+        scratch = _mkdtemp("rfcgate-outside-")
+        self.addCleanup(shutil.rmtree, scratch, True)
+        rel = os.path.relpath(
+            _write(scratch, "x_test.go", "package x\n"), R.PROJECT_DIR
+        ).replace(os.sep, "/")
+        self.assertTrue(rel.startswith("tmp/"), rel)
+        self.assertEqual(
+            R.go_tag_packages([_tag("RFC7606-2-1", "positive", file=rel)]), []
+        )
+
+    def test_non_go_carriers_are_not_vetted(self):
+        """A .ci is data the runner interprets. There is no compile step to check."""
+        pkgs = R.go_tag_packages(
+            [_tag("RFC7606-2-1", "positive", file="test/plugin/rfc7606.ci")]
+        )
+        self.assertEqual(pkgs, [])
+
+    def test_a_tag_whose_file_is_absent_yields_no_package(self):
+        """scan_tree only reports files it READ, so an absent path is a synthetic tag and
+        not a missing package. Inventing `./nonexistent` for one would fail `go vet` with
+        an error that has nothing to do with RFC coverage."""
+        self.assertEqual(R.go_tag_packages([_tag("RFC7606-2-1", "positive")]), [])
+
+    def test_each_package_is_vetted_once(self):
+        pkgs = R.go_tag_packages(
+            [
+                _tag("RFC7606-2-1", "positive", file=_REAL_GO_TEST),
+                _tag("RFC7606-2-2", "negative", file=_REAL_GO_TEST, line=9),
+            ]
+        )
+        self.assertEqual(pkgs, [_REAL_GO_PKG])
+
+
+class TestTagPackagesCompile(unittest.TestCase):
+    """A tag in a package the compiler rejects is not evidence.
+
+    The sibling of _refuse_unrun: that one refuses a tag nothing RUNS, this one refuses a
+    tag nothing can COMPILE. Both are admissibility, not coverage
+    (ai/rules/fail-closed-guards.md).
+    """
+
+    def _tags(self):
+        return [_tag("RFC7606-2-1", "positive", file=_REAL_GO_TEST)]
+
+    def test_a_broken_package_is_reported_with_its_tags_and_the_compiler_message(self):
+        fake = _FakeVet(returncode=1, stderr=_FakeVet.REAL_FAILURE)
+        with _patched(subprocess=fake):
+            errs = R.check_tag_packages_compile(self._tags())
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("internal/component/ike/engine", errs[0])
+        self.assertIn("undefined: log2tr", errs[0])
+        self.assertIn("rfc7296_msgid_test.go:420", errs[0])
+
+    def test_the_violation_names_the_requirement_at_stake(self):
+        """A package path alone does not tell a reader which claim just lost its proof."""
+        fake = _FakeVet(
+            returncode=1,
+            stderr=f"# {_REAL_GO_IMPORT}\nvet: {_REAL_GO_TEST}:3:1: undefined: nope\n",
+        )
+        with _patched(subprocess=fake):
+            errs = R.check_tag_packages_compile(self._tags())
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("RFC7606-2-1", errs[0])
+
+    def test_a_clean_vet_reports_nothing(self):
+        """Discriminates from 'always fails'."""
+        fake = _FakeVet(returncode=0)
+        with _patched(subprocess=fake):
+            self.assertEqual(R.check_tag_packages_compile(self._tags()), [])
+
+    def test_no_go_tags_runs_no_toolchain(self):
+        fake = _FakeVet(returncode=1, stderr=_FakeVet.REAL_FAILURE)
+        with _patched(subprocess=fake):
+            self.assertEqual(R.check_tag_packages_compile([]), [])
+        self.assertIsNone(fake.argv)
+
+    def test_the_command_selects_one_analyzer_and_the_unit_tags(self):
+        fake = _FakeVet(returncode=0)
+        with _patched(subprocess=fake):
+            R.check_tag_packages_compile(self._tags())
+        argv = fake.argv
+        self.assertIsNotNone(argv)
+        self.assertEqual(argv[:3], ["go", "vet", "-" + R.TYPECHECK_ANALYZER])
+        self.assertIn("-tags", argv)
+        self.assertIn("ze_core", argv[argv.index("-tags") + 1])
+        self.assertIn(_REAL_GO_PKG, argv)
+
+    def test_a_toolchain_that_fails_as_a_whole_fails_closed(self):
+        """No `# package` header means the toolchain never got as far as a package. Naming
+        one would be an accusation, and staying silent would credit every tag in the tree."""
+        fake = _FakeVet(
+            returncode=1, stderr="go: module lookup disabled by GOFLAGS=-mod=vendor\n"
+        )
+        with _patched(subprocess=fake):
+            with self.assertRaises(R.ParseError) as cm:
+                R.check_tag_packages_compile(self._tags())
+        self.assertIn("module lookup disabled", str(cm.exception))
+
+    def test_a_missing_toolchain_fails_closed(self):
+        fake = _FakeVet(raises=FileNotFoundError("go"))
+        with _patched(subprocess=fake):
+            with self.assertRaises(R.ParseError) as cm:
+                R.check_tag_packages_compile(self._tags())
+        self.assertIn("go vet", str(cm.exception))
+
+    def test_a_hung_toolchain_fails_closed(self):
+        fake = _FakeVet(raises=subprocess.TimeoutExpired(cmd="go vet", timeout=1))
+        with _patched(subprocess=fake):
+            with self.assertRaises(R.ParseError) as cm:
+                R.check_tag_packages_compile(self._tags())
+        self.assertIn("go vet", str(cm.exception))
+
+    def test_a_test_build_header_folds_onto_the_same_package(self):
+        """`go vet` prints the header twice for a test build, once bare and once as
+        `# [pkg]`, and a test package can arrive as `# pkg [pkg.test]`. All three name ONE
+        package, so all three have to fold onto one violation rather than three."""
+        fake = _FakeVet(
+            returncode=1,
+            stderr=(
+                f"# {_REAL_GO_IMPORT} [{_REAL_GO_IMPORT}.test]\n"
+                f"# [{_REAL_GO_IMPORT}]\n"
+                f"vet: {_REAL_GO_TEST}:3:1: undefined: nope\n"
+            ),
+        )
+        with _patched(subprocess=fake):
+            errs = R.check_tag_packages_compile(self._tags())
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("RFC7606-2-1", errs[0])
+
+    def test_a_broken_dependency_is_named_without_inventing_a_requirement(self):
+        """go vet reports the DEPENDENCY under its own header when a tagged package fails
+        to build because of it. That package holds no tag, so the violation must say what
+        it blocks instead of attributing a requirement that does not live there."""
+        fake = _FakeVet(
+            returncode=1,
+            stderr=(
+                "# github.com/ze-software/ze/internal/core/thing\n"
+                "vet: internal/core/thing/thing.go:9:2: undefined: helper\n"
+            ),
+        )
+        with _patched(subprocess=fake):
+            errs = R.check_tag_packages_compile(self._tags())
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn("internal/core/thing", errs[0])
+        self.assertIn("depends on it", errs[0])
+        self.assertNotIn("RFC7606-2-1", errs[0])
+
+    def test_a_wall_of_compiler_errors_is_truncated(self):
+        """One broken import produces a type error per use site. The whole list in one
+        message helps nobody (ai/rules/error-messages.md, "Truncate large blobs")."""
+        lines = "".join(
+            f"vet: {_REAL_GO_TEST}:{n}:1: undefined: nope\n" for n in range(1, 41)
+        )
+        fake = _FakeVet(returncode=1, stderr=f"# {_REAL_GO_IMPORT}\n{lines}")
+        with _patched(subprocess=fake):
+            errs = R.check_tag_packages_compile(self._tags())
+        self.assertEqual(len(errs), 1, errs)
+        self.assertIn(f"and {40 - R._QUOTED_MESSAGES} more", errs[0])
+        self.assertLess(len(errs[0]), 900, errs[0])
+        # Still says what and where: a truncated message that names nothing is no message.
+        self.assertIn("undefined: nope", errs[0])
+
+    def test_every_broken_package_is_reported_not_just_the_first(self):
+        """`go vet` reports each failing package, and so does this check (measured)."""
+        fake = _FakeVet(
+            returncode=1,
+            stderr=(
+                "# github.com/ze-software/ze/internal/core/probe\n"
+                "vet: internal/core/probe/a_test.go:5:39: undefined: alpha\n"
+                "# github.com/ze-software/ze/internal/plugins/tftpserver\n"
+                "vet: internal/plugins/tftpserver/b_test.go:5:39: undefined: beta\n"
+            ),
+        )
+        with _patched(subprocess=fake):
+            errs = R.check_tag_packages_compile(self._tags())
+        self.assertEqual(len(errs), 2, errs)
+        self.assertTrue(any("internal/core/probe" in e for e in errs), errs)
+        self.assertTrue(any("tftpserver" in e for e in errs), errs)
+
+
+class TestTagPackagesCompileWiring(unittest.TestCase):
+    """check_tag_packages_compile is dead code unless run_check calls it."""
+
+    def _drive(self, fake):
+        with _patched(
+            subprocess=fake,
+            load_enrolled=lambda: {"rfc7606"},
+            summary_stems=lambda: {"rfc7606"},
+            parse_summary_file=lambda path: [_req("RFC7606-2-1")],
+            _git_baseline_enrolment=lambda: {"rfc7606"},
+            _git_baseline_ids=lambda: {"RFC7606-2-1"},
+            _git_baseline_tag_polarities=lambda: {},
+            _git_baseline_evidence=lambda: {},
+            _git_baseline_summary_stems=lambda: {"rfc7606"},
+            scan_tree=lambda *a, **k: [
+                _tag("RFC7606-2-1", "positive", file=_REAL_GO_TEST),
+                _tag("RFC7606-2-1", "negative", file=_REAL_GO_TEST, line=9),
+            ],
+            check_status_agreement=lambda *a, **k: [],
+            check_audit_files=lambda *a, **k: [],
+            check_audit_schema=lambda *a, **k: [],
+            check_audit_freshness=lambda *a, **k: [],
+            check_audit_disclosure=lambda *a, **k: [],
+            check_audit_note=lambda *a, **k: [],
+            check_audit_findings=lambda *a, **k: [],
+            check_audit_verdict_ratchet=lambda *a, **k: [],
+            signed_extractions=lambda reqs_: {},
+            check_extraction_signoff=lambda *a, **k: [],
+            check_extraction_ratchet=lambda *a, **k: [],
+            check_drain_floor=lambda *a, **k: [],
+            check_summary_disposition=lambda *a, **k: [],
+            check_status_completeness=lambda *a, **k: [],
+            check_unproven_support=lambda *a, **k: [],
+            check_gap_count_agreement=lambda *a, **k: [],
+            check_ledger_fresh=lambda *a, **k: [],
+        ):
+            return _run_capturing(R.run_check)
+
+    def test_run_check_fails_when_a_tagged_package_does_not_compile(self):
+        code, out = self._drive(
+            _FakeVet(
+                returncode=1,
+                stderr=f"# {_REAL_GO_IMPORT}\nvet: {_REAL_GO_TEST}:3:1: undefined: nope\n",
+            )
+        )
+        self.assertEqual(code, 2, out)
+        self.assertIn("undefined: nope", out)
+        self.assertIn("RFC7606-2-1", out)
+
+    def test_run_check_is_clean_when_the_package_compiles(self):
+        """Discriminates from 'always fails'."""
+        code, out = self._drive(_FakeVet(returncode=0))
+        self.assertEqual(code, 0, out)
+
+    def test_run_check_fails_closed_when_the_toolchain_cannot_run(self):
+        code, out = self._drive(_FakeVet(raises=FileNotFoundError("go")))
+        self.assertEqual(code, 2, out)
+        self.assertIn("cannot run", out)
 
 
 class TestRealTreeIsGreen(unittest.TestCase):

@@ -2,7 +2,10 @@
 
 package crypto
 
-import "errors"
+import (
+	"errors"
+	"sort"
+)
 
 // RFC 7296 Section 3.3.2: Transform Type Values.
 type TransformType uint8
@@ -94,10 +97,72 @@ func (id DHGroupID) String() string {
 	}
 }
 
+// aeadEncryption names every encryption transform that combines integrity with
+// encryption. It is the one place this property is written down for a wire Transform
+// ID. Every site that decides the property asks EncryptionID.IsAEAD, and the tests in
+// aead_predicate_test.go enumerate this map to prove it.
+//
+// The comment above once said the same thing. ikeProposalComplete kept a private copy
+// that compared against ENCR_AES_GCM_16 alone. An entry added here therefore produced a
+// cipher that keyed correctly, and negotiation then refused it with
+// ErrProposalIncomplete.
+//
+// Two neighboring maps are NOT this property, and neither is derived from it. A new
+// AEAD cipher needs an entry in each. specifiedEncryption (proposal.go) lists the IDs
+// this build accepts off the wire. encryptionRegistry (below) maps a config name to a
+// transform. ipsec.EncryptionAlgo.IsAEAD answers the same question over the config
+// enum rather than the wire ID. A test in that package binds the two.
+//
+// The value is the salt the cipher takes beyond its key, in octets. A future AEAD
+// whose salt is not four octets records it here. The salt was once a package constant
+// applied to every AEAD. That is correct while AES-GCM is the only entry, and it gives
+// a wrong key length silently for the first cipher that differs. Ze holds no RFC text
+// for the AES-CCM or the ChaCha20-Poly1305 salt, so neither is asserted here. Read RFC
+// 4309 or RFC 7634 first.
+var aeadSaltBytes = map[EncryptionID]int{
+	ENCR_AES_GCM_16: 4, // RFC 4106 Section 8.1
+}
+
+// IsAEAD reports whether this encryption transform combines integrity with
+// encryption. RFC 7296 Section 3.3 makes an integrity transform of NONE the correct
+// value for such a cipher.
+//
+// The verdict comes from the Transform ID, which is the identity the peer put on the
+// wire. A caller that holds an EncryptionTransform asks this method on the ID rather
+// than read the IsAEAD field. The field is a cached view. A construction site can
+// leave it at its zero value, and that false value reads as a valid "not AEAD"
+// answer (ai/rules/fail-closed-guards.md). The ID cannot lie in that way.
+//
+// Membership in aeadSaltBytes IS the AEAD property. A miss means the cipher is not
+// AEAD. A hit gives that cipher's own salt. Neither answer can be a zero value that
+// reads as valid.
+func (id EncryptionID) IsAEAD() bool {
+	_, ok := aeadSaltBytes[id]
+	return ok
+}
+
+// aeadSalt returns the salt this cipher takes beyond its key, in octets, and zero for
+// a cipher that is not AEAD.
+func (id EncryptionID) aeadSalt() int {
+	return aeadSaltBytes[id]
+}
+
+// EncryptionTransform names one encryption algorithm and the key it takes.
+//
+// IsAEAD caches the verdict of EncryptionID.IsAEAD for the ID this transform holds.
+// Build a transform with NewEncryptionTransform to keep the two in agreement. Any
+// decision that must be correct reads ID.IsAEAD, never the field.
 type EncryptionTransform struct {
 	ID        EncryptionID
 	KeyLength uint16 // in bits
 	IsAEAD    bool
+}
+
+// NewEncryptionTransform builds a transform whose IsAEAD field agrees with its ID.
+// Every site that learns an encryption ID at run time uses it, so no site has to
+// remember the AEAD property on its own.
+func NewEncryptionTransform(id EncryptionID, keyLengthBits uint16) EncryptionTransform {
+	return EncryptionTransform{ID: id, KeyLength: keyLengthBits, IsAEAD: id.IsAEAD()}
 }
 
 type PRFTransform struct {
@@ -116,11 +181,18 @@ type DHGroupTransform struct {
 	ID DHGroupID
 }
 
-var encryptionRegistry = map[string]EncryptionTransform{
-	"aes128":    {ID: ENCR_AES_CBC, KeyLength: 128, IsAEAD: false},
-	"aes256":    {ID: ENCR_AES_CBC, KeyLength: 256, IsAEAD: false},
-	"aes128gcm": {ID: ENCR_AES_GCM_16, KeyLength: 128, IsAEAD: true},
-	"aes256gcm": {ID: ENCR_AES_GCM_16, KeyLength: 256, IsAEAD: true},
+// encryptionRegistry maps each configured algorithm name to its transform. The
+// entries name an ID and a key length only. NewEncryptionTransform fills IsAEAD from
+// the ID, so an entry added later cannot disagree with the AEAD predicate.
+var encryptionRegistry = buildEncryptionRegistry()
+
+func buildEncryptionRegistry() map[string]EncryptionTransform {
+	return map[string]EncryptionTransform{
+		"aes128":    NewEncryptionTransform(ENCR_AES_CBC, 128),
+		"aes256":    NewEncryptionTransform(ENCR_AES_CBC, 256),
+		"aes128gcm": NewEncryptionTransform(ENCR_AES_GCM_16, 128),
+		"aes256gcm": NewEncryptionTransform(ENCR_AES_GCM_16, 256),
+	}
 }
 
 var prfRegistry = map[string]PRFTransform{
@@ -147,6 +219,33 @@ func LookupEncryption(name string) (EncryptionTransform, error) {
 		return EncryptionTransform{}, ErrUnsupportedAlgorithm
 	}
 	return t, nil
+}
+
+// SupportedEncryptionNames lists every encryption algorithm this build implements, in
+// sorted order. The config parser names the list in the error it returns for an
+// algorithm it refuses, so the two can never disagree (ai/rules/derive-not-hardcode.md).
+func SupportedEncryptionNames() []string {
+	return sortedKeys(encryptionRegistry)
+}
+
+// SupportedIntegrityNames lists every integrity algorithm this build implements, in
+// sorted order. SupportedEncryptionNames gives the reason it is derived.
+func SupportedIntegrityNames() []string {
+	return sortedKeys(integrityRegistry)
+}
+
+// SupportedPRFNames lists every PRF this build implements, in sorted order.
+func SupportedPRFNames() []string {
+	return sortedKeys(prfRegistry)
+}
+
+func sortedKeys[V any](m map[string]V) []string {
+	names := make([]string, 0, len(m))
+	for name := range m {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func LookupPRF(name string) (PRFTransform, error) {

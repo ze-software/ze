@@ -10,11 +10,22 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # Python test plugin: exercises both canonical and deprecated commit grammar
+#
+# The commit commands and the BGP session are independent. The commands are
+# local config operations that finish in milliseconds, while the session needs
+# an OPEN exchange with the peer before ze sends its End-of-RIB. The observer
+# used to request shutdown as soon as the commands passed, so on a loaded host
+# ze exited inside the establishment window and the peer reported
+# "connection closed before completion" with the asserted End-of-RIB missing.
+# The observer now holds the wait_peer_eor_sent barrier, which ze_api documents
+# as the barrier an observer MUST hold before shutdown whenever its ze-peer
+# asserts the End-of-RIB frame (ai/rules/fix-dont-record.md -- wait on the
+# condition, never on a duration).
 tmpfs=cli-grammar-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
 import sys
-from ze_api import API
+from ze_api import API, runtime_fail
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -30,7 +41,13 @@ def main():
     api.capability_done()
     api.wait_for_registry()
     api.ready()
-    api.wait_for_post_startup(timeout=5.0)
+    # Check the result rather than discard it. wait_for_post_startup floors its
+    # wait at 30s, but a caller that ignores False dispatches before the command
+    # registry is frozen and reports the damage somewhere else entirely.
+    # Post-startup is NOT the End-of-RIB barrier: the fan-out runs before
+    # StartPeers, so it returns while the session is still being opened.
+    if not api.wait_for_post_startup(timeout=5.0):
+        runtime_fail('post-startup callback never arrived; command registry not frozen')
 
     try:
         # Canonical grammar: commit start <name>
@@ -91,6 +108,14 @@ def main():
             print(f'FAIL: expected 0 commits, got {data.get("count")}', file=sys.stderr)
             sys.exit(1)
         print('OK: commit list empty after cleanup', file=sys.stderr)
+
+        # Hold ze open until the End-of-RIB the peer asserts on is on the wire.
+        # The signal is the product's own per-peer eor-sent counter, incremented
+        # by IncrEORSent only after the write reached the peer's socket, so a
+        # non-zero count means the frame is already sent, not merely attempted.
+        if not api.wait_peer_eor_sent():
+            runtime_fail('ze did not send the End-of-RIB to peer1 before shutdown')
+        print('OK: end-of-rib sent to peer1', file=sys.stderr)
 
     finally:
         dispatch(api, 'request shutdown')

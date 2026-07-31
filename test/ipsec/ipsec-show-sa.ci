@@ -171,6 +171,11 @@ expect=output:contains=integrity:timeout=3
 expect=output:contains=peer-name:timeout=3
 expect=output:contains=uptime-seconds:timeout=3
 expect=output:contains=is-initiator:timeout=3
+# RFC 7296 Section 2.3: the window the peer promised in its SET_WINDOW_SIZE notify is
+# operator-visible. Neither instance sends the notify, so the value is 0, which the same
+# section reads as a window of one. The key and its value together prove the field
+# reaches the CLI surface; the bare key alone would also match a renamed one.
+expect=output:contains="peer-window-size":0:timeout=3
 expect=exit:code=0
 expect=stderr:contains=engine-steps: all steps passed
 reject=stderr:pattern=panic recovered

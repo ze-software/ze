@@ -115,15 +115,21 @@ func (m *Message) ReadFrom(data []byte) error {
 		}
 		bodyData := data[off+GenericHeaderLen : payloadEnd]
 		payload, err := decodePayload(nextType, bodyData)
-		if err != nil {
-			if !errors.Is(err, ErrUnknownPayload) {
-				return err
-			}
+		switch {
+		case err == nil:
+			// The payload parsed whole.
+		case isItemRejected(err):
+			// RFC 7296 Section 3.3.6: one refused proposal or transform is dropped, and
+			// the other proposals and transforms are processed as usual. The payload
+			// carries what survived, so the message stands.
+		case errors.Is(err, ErrUnknownPayload):
 			// RFC 7296 Section 3.2: unknown type with critical bit set must reject
 			if gh.Critical {
 				return ErrUnsupportedCrit
 			}
 			payload = &PayloadRaw{PayloadType: nextType, Data: bodyData}
+		default:
+			return err
 		}
 		if sk, ok := payload.(*PayloadSK); ok {
 			sk.InnerNextPayload = gh.NextPayload

@@ -7,8 +7,10 @@ and FRR (BGP peer for redistribute scenarios).
 """
 
 import atexit
+import base64
 import json
 import os
+import re
 import subprocess
 import time
 
@@ -383,6 +385,83 @@ def wait_xfrm_sa(container, proto="esp", timeout=30):
     raise AssertionError("no XFRM SA in %s" % container)
 
 
+_XFRM_BYTES = re.compile(r"(\d+)\(bytes\)")
+_XFRM_SPI = re.compile(r"proto \w+ spi (0x[0-9a-fA-F]+)")
+
+
+def parse_xfrm_sa_bytes_by_spi(output):
+    """Map each SA's SPI to its own `lifetime current` byte counter.
+
+    iproute2 prints the counter as `846(bytes), 10(packets)`, with the number
+    BEFORE the parenthesised unit. Four scenarios each carried their own copy of
+    a `bytes\\s+(\\d+)` pattern, which needs the number AFTER the word. That
+    pattern matched nothing in any release, so every copy returned 0 and every
+    `after > before` assertion built on it was unfalsifiable.
+
+    Counting is anchored on the `lifetime current` section of each SA block. An
+    earlier reading summed every `N(bytes)` in the output and relied on the limits
+    printing as `(INF)(bytes)`, which holds no digits. That is true only while no
+    peer configures a byte lifetime. A peer that configures one prints a real
+    number there, and the limit would then be added to the traffic counter.
+
+    lab_test.py pins both properties against captured `ip -s xfrm state` output.
+    """
+    counters = {}
+    spi = None
+    in_current = False
+    for line in output.splitlines():
+        if line[:1] not in (" ", "\t"):
+            # A new `src ... dst ...` block begins at column zero.
+            spi, in_current = None, False
+        found = _XFRM_SPI.search(line)
+        if found:
+            spi, in_current = found.group(1), False
+            continue
+        stripped = line.strip()
+        if stripped.startswith("lifetime current"):
+            in_current = True
+            continue
+        if stripped.startswith("lifetime config") or stripped.startswith("stats"):
+            in_current = False
+            continue
+        if in_current and spi is not None:
+            for value in _XFRM_BYTES.findall(line):
+                counters[spi] = counters.get(spi, 0) + int(value)
+    return counters
+
+
+def xfrm_sa_bytes_by_spi(container):
+    """Return {spi: bytes} for every SA in the container, keyed by SPI.
+
+    Comparing two readings per SPI survives a rekey. An SPI that disappears
+    between the two readings is simply absent from the intersection, where the
+    summed reading would record its counter as a loss.
+    """
+    output = docker_exec_quiet(container, ["ip", "-s", "xfrm", "state"])
+    return parse_xfrm_sa_bytes_by_spi(output)
+
+
+def assert_esp_accepted(container, before, after, who):
+    """Assert at least one SA that exists in both readings carried more bytes.
+
+    `before` and `after` come from xfrm_sa_bytes_by_spi. Only the SPIs common to
+    both are compared, so a rekey between the readings cannot fail this check.
+    """
+    common = set(before) & set(after)
+    grown = sorted(spi for spi in common if after[spi] > before[spi])
+    if grown:
+        log_pass(
+            "%s: ESP counters advanced on %s (SPIs %s)"
+            % (container, ", ".join(grown), sorted(common))
+        )
+        return
+    log_fail(
+        "%s: %s (before=%s after=%s, common SPIs %s)"
+        % (container, who, before, after, sorted(common))
+    )
+    raise AssertionError("%s: %s" % (container, who))
+
+
 def check_xfrm_sa_count(container, expected, proto="esp"):
     """Assert the number of XFRM SAs matches expected (each direction = 1 SA)."""
     output = docker_exec_quiet(container, ["ip", "xfrm", "state"])
@@ -392,6 +471,145 @@ def check_xfrm_sa_count(container, expected, proto="esp"):
         return
     log_fail("%s has %d XFRM SA(s) (expected %d)" % (container, count, expected))
     raise AssertionError("%s XFRM SA count %d != %d" % (container, count, expected))
+
+
+# --- PKI material ------------------------------------------------------------
+
+
+# A fixture writes %%PKI_B64:<file>%% where a pki leaf must hold key material.
+# The file name is restricted to one path segment, so a fixture cannot read
+# outside the scenario's PKI directory.
+_PKI_PLACEHOLDER = re.compile(r"%%PKI_B64:([A-Za-z0-9._-]+)%%")
+
+# openssl writes this label in a block that precedes an EC private key. The
+# block holds curve parameters, not the key, so a reader must step over it.
+_PEM_SKIP_LABELS = frozenset(["EC PARAMETERS"])
+
+# A label that names encrypted key material. The body is the base64 of encrypted
+# DER, so a pki leaf that holds it cannot parse it.
+_PEM_REFUSE_LABELS = frozenset(["ENCRYPTED PRIVATE KEY"])
+
+# RFC 1421 puts header fields between the BEGIN line and the body. openssl writes
+# Proc-Type and DEK-Info there when a passphrase encrypts a classic PEM key, and
+# base64 holds no colon, so any such line inside a block is not key material.
+_PEM_HEADER = re.compile(r"^[A-Za-z][A-Za-z0-9-]*:")
+
+
+def pem_to_base64_der(text, source="<pem>"):
+    """Return the base64 DER body of the one key or certificate block in text.
+
+    A PEM block is the base64 of the DER bytes between a BEGIN line and an END
+    line. The body is therefore already the exact value that a `ze-pki-conf`
+    leaf holds. This function removes the wrapper and the line breaks. It never
+    decodes and re-encodes, so it cannot alter one byte of the material.
+
+    The function fails closed. It refuses encrypted material, a body that is not
+    valid base64, and a file that holds more than one block. A leaf holds one
+    value, so a bundle has no correct answer, and the first block is the wrong
+    one: a root-plus-intermediate `ca.pem` would inline the root alone and cut
+    the chain, and a file holding a certificate and a key would inline whichever
+    came first.
+    """
+    label = None
+    body = []
+    blocks = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if line.startswith("-----BEGIN ") and line.endswith("-----"):
+            label = line[len("-----BEGIN ") :].rstrip("-").strip()
+            if label in _PEM_REFUSE_LABELS:
+                raise RuntimeError(
+                    "%s: PEM block %r holds encrypted key material, and a pki "
+                    "leaf holds plain DER. Decrypt the key, then write the "
+                    "result to the file" % (source, label)
+                )
+            body = []
+            continue
+        if line.startswith("-----END ") and line.endswith("-----"):
+            if label is None:
+                continue
+            if label in _PEM_SKIP_LABELS:
+                label = None
+                continue
+            joined = "".join(body)
+            if not joined:
+                raise RuntimeError("%s: PEM block %r holds no data" % (source, label))
+            blocks.append((label, joined))
+            label = None
+            continue
+        if label is None or not line:
+            continue
+        if _PEM_HEADER.match(line):
+            raise RuntimeError(
+                "%s: PEM block %r carries the RFC 1421 header %r. openssl writes "
+                "that header when a passphrase encrypts the key, and the body is "
+                "then the base64 of encrypted DER. Decrypt the key, then write "
+                "the result to the file" % (source, label, line)
+            )
+        body.append(line)
+    if not blocks:
+        raise RuntimeError(
+            "%s: no complete PEM block found. The file must hold a BEGIN line, a "
+            "base64 body, and an END line" % source
+        )
+    if len(blocks) > 1:
+        raise RuntimeError(
+            "%s: the file holds %d PEM blocks (%s), and a pki leaf holds one "
+            "value. Split the file, then point the placeholder at the one block "
+            "the leaf needs"
+            % (source, len(blocks), ", ".join(name for name, _ in blocks))
+        )
+    label, joined = blocks[0]
+    try:
+        # The result is discarded. This call is the guard that a body which is
+        # not base64 never reaches a config, and the return value below stays
+        # the original text, so nothing is decoded and re-encoded.
+        base64.b64decode(joined, validate=True)
+    except ValueError as err:
+        raise RuntimeError(
+            "%s: PEM block %r does not hold valid base64: %s" % (source, label, err)
+        ) from err
+    return joined
+
+
+def resolve_pki_placeholders(content, pki_dir, read=None):
+    """Replace every %%PKI_B64:<file>%% token with that file's base64 DER body.
+
+    The pki leaves hold base64-encoded DER, and the parser holds no code that
+    opens a file (internal/component/pki/config.go, parseCACert and
+    parseDeviceCert). A fixture that writes a path makes ze refuse the whole
+    config, so the harness puts the material in the config text here.
+
+    `read` is the file reader, and it exists for the unit tests.
+    """
+    names = _PKI_PLACEHOLDER.findall(content)
+    if not names:
+        return content
+    if not pki_dir:
+        raise RuntimeError(
+            "config needs PKI material for %s, and the scenario has no pki "
+            "directory. Add scenarios/<name>/pki/ or use the shared "
+            "test/ipsec-interop/pki/" % ", ".join(sorted(set(names)))
+        )
+
+    if read is None:
+
+        def read(path):
+            with open(path, encoding="utf-8") as fh:
+                return fh.read()
+
+    cache = {}
+    for name in names:
+        if name in cache:
+            continue
+        path = os.path.join(pki_dir, name)
+        try:
+            text = read(path)
+        except OSError as e:
+            raise RuntimeError("cannot read PKI file %s: %s" % (path, e)) from e
+        cache[name] = pem_to_base64_der(text, source=path)
+
+    return _PKI_PLACEHOLDER.sub(lambda m: cache[m.group(1)], content)
 
 
 # --- Scenario lifecycle ------------------------------------------------------
@@ -412,14 +630,14 @@ class Scenario:
             return os.path.abspath(shared)
         return None
 
-    def _prepare_ze_conf(self, ze_conf):
-        with open(ze_conf) as f:
+    def _prepare_ze_conf(self, ze_conf, pki_dir):
+        with open(ze_conf, encoding="utf-8") as f:
             content = f.read()
-        if "%%PKI_DIR%%" not in content:
+        resolved = resolve_pki_placeholders(content, pki_dir)
+        if resolved == content:
             return ze_conf
-        resolved = content.replace("%%PKI_DIR%%", "/etc/ze/pki")
         tmp_conf = ze_conf + ".resolved"
-        with open(tmp_conf, "w") as f:
+        with open(tmp_conf, "w", encoding="utf-8") as f:
             f.write(resolved)
         return tmp_conf
 
@@ -489,13 +707,14 @@ class Scenario:
                 caps=["NET_ADMIN", "SYS_ADMIN"],
             )
 
-        ze_conf = self._prepare_ze_conf(ze_conf)
+        ze_conf = self._prepare_ze_conf(ze_conf, pki_dir)
 
+        # Ze receives its key material in the config text, so the container gets
+        # no PKI mount. strongSwan keeps its own mounts above, because swanctl
+        # does read certificates from files.
         ze_volumes = [
             "%s:/etc/ze/ze.conf:ro" % os.path.abspath(ze_conf),
         ]
-        if pki_dir:
-            ze_volumes.append("%s:/etc/ze/pki:ro" % pki_dir)
 
         docker_run(
             ZE_CONTAINER,

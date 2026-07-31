@@ -109,10 +109,25 @@ func buildNATDetectionPayloads(spiI, spiR [8]byte, localIP, remoteIP net.IP, por
 	}
 }
 
-// buildWireIKEProposals converts config IKE proposals to wire format.
+// offerProposalNum returns the Proposal Num an offer puts on the proposal at index
+// i. RFC 7296 Section 3.3 numbers the first Proposal of an offer one. Each later one
+// is exactly one greater.
+//
+// The config key is a PRIORITY, not an index. The operator writes `proposal 10`. The
+// parser sorts the group ascending by that key, so the slice order is the priority
+// order. The wire number comes from the position. The key keeps its meaning, and the
+// wire keeps the meaning the RFC gives it.
+//
+// The config parser bounds a group at ipsec.MaxProposalsPerGroup. The value i+1
+// therefore always fits the one-octet field (ai/rules/exact-or-reject.md).
+func offerProposalNum(i int) uint8 {
+	return uint8(i + 1)
+}
+
+// buildWireIKEProposals converts config IKE proposals to a wire OFFER.
 func buildWireIKEProposals(ikeGroup ipsec.IKEGroup) []wire.Proposal {
 	proposals := make([]wire.Proposal, 0, len(ikeGroup.Proposals))
-	for _, p := range ikeGroup.Proposals {
+	for i, p := range ikeGroup.Proposals {
 		enc := lookupEncryption(p.Encryption)
 		prf := lookupPRF(p.Hash)
 		integ := lookupIntegrity(p.Hash)
@@ -131,7 +146,7 @@ func buildWireIKEProposals(ikeGroup ipsec.IKEGroup) []wire.Proposal {
 		}
 
 		proposals = append(proposals, wire.Proposal{
-			Number:     uint8(p.Number),
+			Number:     offerProposalNum(i),
 			ProtocolID: wire.ProtocolIKE,
 			SPISize:    0,
 			Transforms: transforms,
@@ -161,27 +176,34 @@ func buildIKEProposals(ikeGroup ipsec.IKEGroup) []crypto.IKEProposal {
 }
 
 // wireProposalsToIKE converts wire SA proposals to crypto proposals for negotiation.
+//
+// RFC 7296 Section 3.3.6: a proposal that contains a Transform Type the responder does not
+// understand MUST be considered unacceptable. This reader is the only place that sees the
+// Transform Type of an offer, so it is the place that decides. RFC 7296 Section 3.3.3
+// gives IKE the types ENCR, PRF, INTEG and D-H. Every other type, Extended Sequence
+// Numbers included, is recorded in UnknownTransformType, and negotiation refuses that
+// proposal. The proposals beside it are still processed.
 func wireProposalsToIKE(wireProps []wire.Proposal) []crypto.IKEProposal {
 	out := make([]crypto.IKEProposal, 0, len(wireProps))
 	for _, wp := range wireProps {
 		p := crypto.IKEProposal{Number: uint16(wp.Number)}
 		for _, t := range wp.Transforms {
+			transformType := crypto.TransformType(t.Type)
+			if !crypto.TransformTypeUnderstoodIKE(transformType) {
+				if p.UnknownTransformType == 0 {
+					p.UnknownTransformType = transformType
+				}
+				continue
+			}
 			switch t.Type {
 			case wire.TransformTypeENCR:
-				p.Encryption.ID = crypto.EncryptionID(t.ID)
-				for _, a := range t.Attrs {
-					if a.Type == wire.AttrTypeKeyLength {
-						p.Encryption.KeyLength = a.Value
-					}
-				}
+				p.Encryption = wireEncryptionTransform(t)
 			case wire.TransformTypePRF:
 				p.PRF.ID = crypto.PRFID(t.ID)
 			case wire.TransformTypeINTG:
 				p.Integrity.ID = crypto.IntegrityID(t.ID)
 			case wire.TransformTypeDH:
 				p.DHGroup.ID = crypto.DHGroupID(t.ID)
-			case wire.TransformTypeESN:
-				// ESN not used for IKE proposals
 			}
 		}
 		out = append(out, p)
@@ -192,24 +214,31 @@ func wireProposalsToIKE(wireProps []wire.Proposal) []crypto.IKEProposal {
 // wireProposalsToESP converts wire SA proposals to crypto ESP proposals, so the
 // initiator can check an accepted ESP offer against the proposals it sent. An AEAD
 // proposal carries no integrity transform, and that absence reads as AUTH_NONE.
+//
+// A Transform Type ESP does not use is recorded in UnknownTransformType, exactly as
+// wireProposalsToIKE records one. RFC 7296 Section 3.3.3 gives ESP the types ENCR and ESN,
+// with INTEG and D-H optional.
 func wireProposalsToESP(wireProps []wire.Proposal) []crypto.ESPProposal {
 	out := make([]crypto.ESPProposal, 0, len(wireProps))
 	for _, wp := range wireProps {
 		p := crypto.ESPProposal{Number: uint16(wp.Number)}
 		for _, t := range wp.Transforms {
+			transformType := crypto.TransformType(t.Type)
+			if !crypto.TransformTypeUnderstoodESP(transformType) {
+				if p.UnknownTransformType == 0 {
+					p.UnknownTransformType = transformType
+				}
+				continue
+			}
 			switch t.Type {
 			case wire.TransformTypeENCR:
-				p.Encryption.ID = crypto.EncryptionID(t.ID)
-				for _, a := range t.Attrs {
-					if a.Type == wire.AttrTypeKeyLength {
-						p.Encryption.KeyLength = a.Value
-					}
-				}
+				p.Encryption = wireEncryptionTransform(t)
 			case wire.TransformTypeINTG:
 				p.Integrity.ID = crypto.IntegrityID(t.ID)
-			case wire.TransformTypeESN:
-				// RFC 7296 Section 3.3.2: ESN is not part of the suite this check
-				// compares, and ze offers one value for it.
+			case wire.TransformTypeESN, wire.TransformTypeDH:
+				// RFC 7296 Section 3.3.2: neither is part of the suite this check
+				// compares. Ze offers one value for the Extended Sequence Numbers
+				// transform, and it offers no Diffie-Hellman group for a Child SA.
 			}
 		}
 		out = append(out, p)
@@ -222,11 +251,7 @@ func wireProposalsToESP(wireProps []wire.Proposal) []crypto.ESPProposal {
 func buildESPProposals(espGroup ipsec.ESPGroup) []crypto.ESPProposal {
 	out := make([]crypto.ESPProposal, 0, len(espGroup.Proposals))
 	for _, p := range espGroup.Proposals {
-		enc := lookupEncryption(p.Encryption)
-		integ := lookupIntegrity(p.Hash)
-		if enc.IsAEAD {
-			integ = crypto.IntegrityTransform{ID: crypto.AUTH_NONE}
-		}
+		enc, integ := espTransforms(p)
 		out = append(out, crypto.ESPProposal{Number: p.Number, Encryption: enc, Integrity: integ})
 	}
 	return out
@@ -267,7 +292,7 @@ func verifyAcceptedOffer(accepted *wire.PayloadSA, ikeGroup ipsec.IKEGroup, espG
 	}
 	switch accepted.Proposals[0].ProtocolID {
 	case wire.ProtocolIKE:
-		chosen, err := crypto.NegotiateIKE(wireProposalsToIKE(accepted.Proposals), buildIKEProposals(ikeGroup))
+		chosen, err := crypto.VerifyAcceptedIKE(wireProposalsToIKE(accepted.Proposals), buildIKEProposals(ikeGroup))
 		if err != nil {
 			return acceptedOffer{}, fmt.Errorf("%w: %w", errAcceptedOfferMismatch, err)
 		}
@@ -334,6 +359,44 @@ func lookupIntegrity(hash ipsec.HashAlgo) crypto.IntegrityTransform {
 	return t
 }
 
+// espTransforms resolves the encryption and integrity transforms of one configured ESP
+// proposal. RFC 7296 Section 3.3 makes the integrity transform NONE for an AEAD
+// cipher, so a hash named beside such a cipher never becomes an integrity key.
+//
+// Every ESP key-derivation site calls this rather than pair lookupEncryption with
+// lookupIntegrity. The sites that paired them put two integrity keys into an AEAD
+// KEYMAT. That moved the responder encryption key 32 octets past the offset the peer
+// reads it at. The wire offer stayed correct, because espProposalToWire omits the
+// integrity transform for an AEAD cipher. Both kernels accepted their keys, and one
+// direction of the tunnel decrypted nothing (ai/rules/fail-closed-guards.md).
+//
+// The verdict comes from the Transform ID, never from the IsAEAD field, for the reason
+// crypto.EncryptionID.IsAEAD gives.
+func espTransforms(p ipsec.ESPProposal) (crypto.EncryptionTransform, crypto.IntegrityTransform) {
+	enc := lookupEncryption(p.Encryption)
+	if enc.ID.IsAEAD() {
+		return enc, crypto.IntegrityTransform{ID: crypto.AUTH_NONE}
+	}
+	return enc, lookupIntegrity(p.Hash)
+}
+
+// wireEncryptionTransform reads one ENCR transform off the wire.
+//
+// It goes through crypto.NewEncryptionTransform, which fills the AEAD property from
+// the Transform ID. Both readers of a peer's SA payload call it, so neither one has
+// to remember that property on its own. A reader that filled the ID and the key
+// length alone left IsAEAD at false for every cipher. That false value reads as a
+// valid "not AEAD" answer (ai/rules/fail-closed-guards.md).
+func wireEncryptionTransform(t wire.Transform) crypto.EncryptionTransform {
+	var keyLength uint16
+	for _, a := range t.Attrs {
+		if a.Type == wire.AttrTypeKeyLength {
+			keyLength = a.Value
+		}
+	}
+	return crypto.NewEncryptionTransform(crypto.EncryptionID(t.ID), keyLength)
+}
+
 func encAttrs(enc crypto.EncryptionTransform) []wire.TransformAttr {
 	if enc.KeyLength != 0 {
 		return []wire.TransformAttr{{Type: wire.AttrTypeKeyLength, Value: enc.KeyLength}}
@@ -341,8 +404,10 @@ func encAttrs(enc crypto.EncryptionTransform) []wire.TransformAttr {
 	return nil
 }
 
-// buildChildSAPayloads builds the SAi2, TSi, TSr payloads for IKE_AUTH.
-// Returns the generated inbound ESP SPI and the three payloads.
+// buildChildSAPayloads builds the SAi2, TSi, TSr payloads of an IKE_AUTH or
+// CREATE_CHILD_SA request. The SA payload is an OFFER, so it carries every
+// configured proposal numbered one upward (RFC 7296 Section 3.3). Returns the
+// generated inbound ESP SPI and the three payloads.
 func buildChildSAPayloads(sa *SA) (uint32, *wire.PayloadSA, *wire.PayloadTS, *wire.PayloadTS, error) {
 	if len(sa.ESPGroup.Proposals) == 0 {
 		return 0, nil, nil, nil, errors.New("no ESP proposals configured")
@@ -351,21 +416,35 @@ func buildChildSAPayloads(sa *SA) (uint32, *wire.PayloadSA, *wire.PayloadTS, *wi
 	if err != nil {
 		return 0, nil, nil, nil, err
 	}
-	proposals := buildWireESPProposals(sa.ESPGroup, espSPI)
-	saPayload := &wire.PayloadSA{Proposals: proposals}
+	saPayload := &wire.PayloadSA{Proposals: buildWireESPProposals(sa.ESPGroup, espSPI)}
+	tsi, tsr := anyChildTSPayloads(sa)
+	return espSPI, saPayload, tsi, tsr, nil
+}
 
-	remoteIP := net.ParseIP(sa.PeerCfg.RemoteAddress)
-	isV6 := remoteIP != nil && remoteIP.To4() == nil
-	tsAny := anyTrafficSelector(isV6)
+// errNoAcceptedESPProposal reports a response built before any ESP proposal was
+// selected. RFC 7296 Section 3.3.1 needs the accepted number, and a response that
+// invented one would name a proposal the peer never sent.
+var errNoAcceptedESPProposal = errors.New("ike auth: no accepted ESP proposal to answer with")
 
-	tsi := &wire.PayloadTS{
-		TSPayloadType:    wire.PayloadTypeTSi,
-		TrafficSelectors: []wire.TrafficSelector{tsAny},
+// buildChildSAResponsePayloads builds the SAr2, TSi, TSr payloads of an IKE_AUTH
+// response. The SA payload is a RESPONSE, so it names exactly one proposal (RFC 7296
+// Section 3.3). It carries the number the peer put on the proposal that was accepted
+// (Section 3.3.1). selectResponderESP narrowed sa.ESPGroup to that proposal, and
+// recorded its number.
+func buildChildSAResponsePayloads(sa *SA) (uint32, *wire.PayloadSA, *wire.PayloadTS, *wire.PayloadTS, error) {
+	if len(sa.ESPGroup.Proposals) == 0 {
+		return 0, nil, nil, nil, errors.New("no ESP proposals configured")
 	}
-	tsr := &wire.PayloadTS{
-		TSPayloadType:    wire.PayloadTypeTSr,
-		TrafficSelectors: []wire.TrafficSelector{tsAny},
+	if sa.ChildProposalNum == 0 {
+		return 0, nil, nil, nil, errNoAcceptedESPProposal
 	}
+	espSPI, err := GenerateESPSPI()
+	if err != nil {
+		return 0, nil, nil, nil, err
+	}
+	accepted := espProposalToWire(sa.ESPGroup.Proposals[0], espSPI, sa.ChildProposalNum)
+	saPayload := &wire.PayloadSA{Proposals: []wire.Proposal{accepted}}
+	tsi, tsr := anyChildTSPayloads(sa)
 	return espSPI, saPayload, tsi, tsr, nil
 }
 
@@ -390,34 +469,42 @@ func anyTrafficSelector(ipv6 bool) wire.TrafficSelector {
 	}
 }
 
-// buildWireESPProposals converts an ESP group to wire SA proposals.
+// buildWireESPProposals converts an ESP group to a wire OFFER.
 func buildWireESPProposals(espGroup ipsec.ESPGroup, spi uint32) []wire.Proposal {
 	proposals := make([]wire.Proposal, 0, len(espGroup.Proposals))
-	for _, p := range espGroup.Proposals {
-		spiBytes := make([]byte, 4)
-		binary.BigEndian.PutUint32(spiBytes, spi)
-		enc := lookupEncryption(p.Encryption)
-		transforms := []wire.Transform{
-			{Type: wire.TransformTypeENCR, ID: uint16(enc.ID), Attrs: encAttrs(enc)},
-		}
-		if !p.Encryption.IsAEAD() {
-			integ := lookupIntegrity(p.Hash)
-			transforms = append(transforms, wire.Transform{
-				Type: wire.TransformTypeINTG, ID: uint16(integ.ID),
-			})
-		}
-		transforms = append(transforms, wire.Transform{
-			Type: wire.TransformTypeESN, ID: 0,
-		})
-		proposals = append(proposals, wire.Proposal{
-			Number:     uint8(p.Number),
-			ProtocolID: wire.ProtocolESP,
-			SPISize:    4,
-			SPI:        spiBytes,
-			Transforms: transforms,
-		})
+	for i := range espGroup.Proposals {
+		proposals = append(proposals, espProposalToWire(espGroup.Proposals[i], spi, offerProposalNum(i)))
 	}
 	return proposals
+}
+
+// espProposalToWire encodes one configured ESP proposal under the given Proposal
+// Num. An offer derives that number from the position (offerProposalNum). A response
+// carries the number the peer put on the proposal that was accepted, which RFC 7296
+// Section 3.3.1 requires the response to match.
+func espProposalToWire(p ipsec.ESPProposal, spi uint32, number uint8) wire.Proposal {
+	spiBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(spiBytes, spi)
+	enc := lookupEncryption(p.Encryption)
+	transforms := []wire.Transform{
+		{Type: wire.TransformTypeENCR, ID: uint16(enc.ID), Attrs: encAttrs(enc)},
+	}
+	if !p.Encryption.IsAEAD() {
+		integ := lookupIntegrity(p.Hash)
+		transforms = append(transforms, wire.Transform{
+			Type: wire.TransformTypeINTG, ID: uint16(integ.ID),
+		})
+	}
+	transforms = append(transforms, wire.Transform{
+		Type: wire.TransformTypeESN, ID: 0,
+	})
+	return wire.Proposal{
+		Number:     number,
+		ProtocolID: wire.ProtocolESP,
+		SPISize:    4,
+		SPI:        spiBytes,
+		Transforms: transforms,
+	}
 }
 
 // tsToIPNet converts the first traffic selector from a wire TS payload to *net.IPNet.

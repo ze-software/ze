@@ -31,21 +31,18 @@ from lab import (
     SWAN_CONTAINER,
     SWAN_IP,
     ZE_CONTAINER,
+    assert_esp_accepted,
     docker_exec_quiet,
     docker_logs_all,
     log_pass,
     ze_xfrm_state,
+    xfrm_sa_bytes_by_spi,
 )
 
 
 def esp_spis():
     """Set of ESP SPIs currently installed in Ze's XFRM state (empty if no XFRM)."""
     return set(re.findall(r"proto esp spi (0x[0-9a-fA-F]+)", ze_xfrm_state()))
-
-
-def xfrm_bytes(container):
-    output = docker_exec_quiet(container, ["ip", "-s", "xfrm", "state"])
-    return sum(int(m) for m in re.findall(r"bytes\s+(\d+)", output))
 
 
 def check():
@@ -99,13 +96,31 @@ def check():
             "ESP SPIs did not change after rekey (%s -> %s)" % (initial, new)
         )
 
-    before = xfrm_bytes(ZE_CONTAINER)
+    # Counters are compared per SPI, never as a total. ESP lifetime here is 30s, so
+    # a second rekey can delete an SA between the two readings. A summed reading
+    # loses that SA's bytes and can FALL while traffic is flowing, which failed this
+    # scenario for a tunnel that was working. Per SPI, a deleted SA simply leaves the
+    # intersection.
+    before = xfrm_sa_bytes_by_spi(ZE_CONTAINER)
+    peer_before = xfrm_sa_bytes_by_spi(SWAN_CONTAINER)
     docker_exec_quiet(ZE_CONTAINER, ["ping", "-c", "4", "-W", "2", SWAN_IP])
-    after = xfrm_bytes(ZE_CONTAINER)
-    if after <= before:
-        raise AssertionError(
-            "no ESP traffic after rekey (bytes before=%d after=%d)" % (before, after)
-        )
+
+    assert_esp_accepted(
+        ZE_CONTAINER,
+        before,
+        xfrm_sa_bytes_by_spi(ZE_CONTAINER),
+        "no ESP traffic after the rekey",
+    )
+
+    # The peer must accept what the REKEYED SA encrypted. This is the assertion that
+    # proves the new keys agree: a rekey that derived the wrong KEYMAT still advances
+    # Ze's own outbound counter, and strongSwan's inbound counter stays still.
+    assert_esp_accepted(
+        SWAN_CONTAINER,
+        peer_before,
+        xfrm_sa_bytes_by_spi(SWAN_CONTAINER),
+        "strongSwan accepted no ESP from Ze after the rekey",
+    )
     log_pass(
         "child SA rekeyed over the wire; SPIs %s -> %s; tunnel forwarding"
         % (sorted(initial), sorted(new))

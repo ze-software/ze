@@ -666,6 +666,9 @@ DRAFT_PREFIX = "test/draft/"
 # to its extension (ai/rules/derive-not-hardcode.md).
 FUNCTIONAL_MK = os.path.join(PROJECT_DIR, "mk", "test-functional.mk")
 _ALL_SUITES_RE = re.compile(r'all_suites="(?P<names>[^"]*)"')
+# The dispatch half of the same recipe. `run_suite() {` (the shell function definition) has
+# no whitespace before its parenthesis and therefore never matches.
+_RUN_SUITE_RE = re.compile(r"^\s*run_suite\s+(?P<name>\S+)", re.M)
 EDITOR_SUITE = "editor"
 
 
@@ -707,6 +710,21 @@ def functional_suites(path: str = FUNCTIONAL_MK) -> Tuple[str, ...]:
     if not names:
         raise ParseError(
             f'{path}: `all_suites=""` is empty; no suite runs in ze-verify'
+        )
+    # A name on that line is a DECLARATION, and the `run_suite` call is the execution. The
+    # two drifted apart once already: `ipsec` sat in all_suites with no run_suite line, so
+    # it counted toward the progress denominator, ran nothing, and still earned every
+    # test/ipsec/*.ci a verify tier here. Only a comment tied the two lists together, which
+    # is the same failure this module's compile check exists to close on the Go side: a
+    # tier credited from a claim nobody measured (ai/rules/fail-closed-guards.md).
+    dispatched = set(_RUN_SUITE_RE.findall(src))
+    undispatched = [n for n in names if n not in dispatched]
+    if undispatched:
+        raise ParseError(
+            f"{path}: {', '.join(undispatched)} appear(s) in `all_suites` with no matching "
+            f"`run_suite <name>` line, so ze-functional-test counts the suite and never "
+            f"runs it. A .ci there would earn a verify tier from evidence nothing executes. "
+            f"Add the run_suite line, or drop the name from all_suites"
         )
     return names
 
@@ -986,6 +1004,303 @@ def scan_tree(root: str = PROJECT_DIR) -> List[Tag]:
                     raise _refuse_unrun(carrier, found[0])
                 tags.extend(found)
     return tags
+
+
+# --------------------------------------------------------------------------
+# Evidence admissibility: the package a tag lives in has to compile
+# --------------------------------------------------------------------------
+# scan_tree reads TEXT. It credits a tag in a package the compiler rejects exactly as it
+# credits one in a package that builds. On 2026-07-31 internal/component/ike/engine held an
+# undefined symbol in a tagged _test.go. `go vet` could not type-check that package, `go
+# test` could not run one single test in it, and this gate still reported all six of its
+# requirements proven. A guard that answers a question it never measured is the shape
+# ai/rules/fail-closed-guards.md refuses.
+#
+# _refuse_unrun covers the sibling case, a tag nothing EXECUTES. This covers the other half,
+# a tag nothing can COMPILE. Both are ADMISSIBILITY rather than coverage, and neither is a
+# ratchet: a ratchet compares the tree against HEAD, and this reads one fact about the tree
+# as it stands. The tag therefore stays in `tags` and the ledger still renders it. Removing
+# it instead would report the requirement as uncovered AND lose a polarity against HEAD,
+# so one broken symbol would arrive as a wall of messages that each name the wrong defect.
+#
+# Reachable inside the merge gate, not only in a standalone run. `ze-verify-changed` runs
+# ze-rfc-check in full and then ze-unit-test-CHANGED (scripts/status/verify_run.go:237,251),
+# so a broken tagged package outside the change set is credited while nothing compiles it.
+#
+# THE INSTRUMENT, measured rather than assumed:
+#   go build     never compiles _test.go at all, so it cannot see the case that occurred.
+#   go list -e   resolves imports with no type-check, and reported the broken package clean.
+#   a Go parse   finds a syntax error and never an undefined symbol.
+#   go/packages  would work, and costs a new Go program plus a loader dependency to obtain
+#                the answer the toolchain already gives.
+#   go vet       type-checks the package WITH its test files, which is the case that occurred.
+#
+# `go vet -NAME` runs only NAME (`go tool vet help`), and the type-check runs first whichever
+# analyzer is selected. One assembly-only analyzer therefore leaves the type-check intact and
+# drops the analyzer diagnostics that ze-lint's govet already owns, so a red here always
+# means "this does not compile" and never "this has a printf bug". Cost is the same either
+# way: 1.71s for all 35 analyzers against 1.77s for one, over 89 packages, warm build cache.
+TYPECHECK_ANALYZER = "framepointer"
+
+GO_MOD = os.path.join(PROJECT_DIR, "go.mod")
+MAKEFILE = os.path.join(PROJECT_DIR, "Makefile")
+FEATURE_GATES = os.path.join(PROJECT_DIR, "feature-gates.txt")
+
+# Generous, because a cold module cache pays a download. Present so a wedged toolchain
+# fails this gate instead of a whole verify run.
+VET_TIMEOUT = 900
+
+_GO_TEST_TAGS_RE = re.compile(r"^GO_TEST_TAGS\s*[:?]?=\s*(?P<body>.*)$", re.M)
+_MAKE_VAR_RE = re.compile(r"\$\((?P<name>[A-Za-z_][A-Za-z0-9_]*)\)")
+_MODULE_RE = re.compile(r"^module\s+(?P<path>\S+)", re.M)
+
+
+def feature_tags(path: str = FEATURE_GATES) -> Tuple[str, ...]:
+    """The default-on feature gates, read the way Makefile ZE_FEATURES reads them.
+
+    Makefile:56 is `awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u`, and the same
+    predicate is applied here. A gate added to the manifest therefore reaches this check
+    with no second edit (ai/rules/feature-gate-registration.md, derive-not-hardcode.md).
+
+    Fails closed. Without these tags every gated file is excluded from the build, so the
+    type-check would report clean over code it never read -- the bare-`go test` failure
+    ai/rules/bash-output.md names, in the green direction.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+    except OSError as exc:
+        raise ParseError(
+            f"{path}: cannot read the feature-gate manifest, so the tag set the unit stage "
+            f"compiles with is unknown: {exc}"
+        ) from exc
+    found = {
+        line.split()[0]
+        for line in src.splitlines()
+        if line.split() and line.split()[0].startswith("ze_")
+    }
+    if not found:
+        raise ParseError(
+            f"{path}: no `ze_*` gate is declared. Every gated file would drop out of the "
+            f"type-check, which then reports clean over code it never read"
+        )
+    return tuple(sorted(found))
+
+
+def build_tags(makefile: str = MAKEFILE, gates: str = FEATURE_GATES) -> str:
+    """The `-tags` string `make ze-unit-test` compiles with, read from its own recipe.
+
+    Derived, never re-spelled. The recipe is `GO_TEST_TAGS = ze_core $(ZE_FEATURES)
+    $(ZE_TAGS)` (Makefile:94). A hand-copied list here would drift the moment that line
+    changed, and the drift is invisible: a dropped tag removes files from the check and
+    the check still says OK.
+    """
+    try:
+        with open(makefile, encoding="utf-8") as fh:
+            src = fh.read()
+    except OSError as exc:
+        raise ParseError(
+            f"{makefile}: cannot read the recipe that declares GO_TEST_TAGS, so the tag "
+            f"set the unit stage compiles with is unknown: {exc}"
+        ) from exc
+    found = _GO_TEST_TAGS_RE.findall(src)
+    if not found:
+        raise ParseError(
+            f"{makefile}: no `GO_TEST_TAGS = ...` assignment found. That line is where the "
+            f"unit stage declares the tags it compiles with, and this type-check has to "
+            f"use the same set or it reads a different set of files"
+        )
+    if len(found) > 1:
+        # Same reading functional_suites takes: two answers is not an answer, and picking
+        # one would silently decide which files get type-checked at all.
+        raise ParseError(
+            f"{makefile}: {len(found)} `GO_TEST_TAGS = ...` assignments found, so the tag "
+            f"set the unit stage compiles with is ambiguous. Declare it exactly once"
+        )
+    expansions = {
+        "ZE_FEATURES": " ".join(feature_tags(gates)),
+        # The caller's extra tags. Empty in every automated run, and honoured here so a run
+        # that sets it type-checks the same files that `make ze-unit-test` compiles.
+        "ZE_TAGS": os.environ.get("ZE_TAGS", ""),
+    }
+
+    def _expand(match: "re.Match[str]") -> str:
+        name = match.group("name")
+        if name not in expansions:
+            raise ParseError(
+                f"{makefile}: GO_TEST_TAGS references $({name}), which this check cannot "
+                f"expand. Handing that literal text to `go vet` would type-check a "
+                f"different set of files from the one the unit stage compiles, so it is "
+                f"refused. Teach build_tags about the variable, or keep the recipe to "
+                f"ZE_FEATURES and ZE_TAGS"
+            )
+        return expansions[name]
+
+    return " ".join(_MAKE_VAR_RE.sub(_expand, found[0]).split())
+
+
+def module_path(path: str = GO_MOD) -> str:
+    """The module path, which turns a `go vet` package header back into a directory."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+    except OSError as exc:
+        raise ParseError(f"{path}: cannot read the module declaration: {exc}") from exc
+    match = _MODULE_RE.search(src)
+    if not match:
+        raise ParseError(
+            f"{path}: no `module <path>` line found, so a `go vet` package header cannot "
+            f"be resolved to a directory"
+        )
+    return match.group("path")
+
+
+def go_tag_packages(tags: Sequence[Tag], root: str = PROJECT_DIR) -> List[str]:
+    """`./dir` for every Go-carrier tag whose file is on disk, deduplicated and sorted.
+
+    The CARRIER decides, never the extension. CARRIERS is the one place a reader is named,
+    and only the "go" reader has a compile step (ai/rules/derive-not-hardcode.md). A `.ci`
+    and a `.et` are data the functional runner interprets. A `check.py` is tokenized by
+    scan_python_tags, which already fails closed on a file Python cannot parse.
+
+    Two filters keep a path that scan_tree cannot produce out of the `go vet` argument
+    list, because such a path fails the toolchain with an error about the tree rather than
+    about coverage, and that reads as a coverage verdict.
+
+      * Under TEST_ROOTS. Those are the only directories scan_tree walks, so a tag anywhere
+        else came from a fixture. The `unit` carrier matches `_test.go` at any prefix, which
+        is correct for reading a tag and too wide for naming a Go package.
+      * On disk. scan_tree only ever reports a file it READ, so an absent path is a
+        synthetic tag and not a missing package.
+    """
+    dirs = set()
+    for tag in tags:
+        carrier = carrier_for(tag.file)
+        if carrier is None or carrier.reader != "go":
+            continue
+        if not any(tag.file.startswith(r + "/") for r in TEST_ROOTS):
+            continue
+        if not os.path.isfile(os.path.join(root, tag.file)):
+            continue
+        dirs.add(os.path.dirname(tag.file))
+    return ["./" + d if d else "." for d in sorted(dirs)]
+
+
+def _vet_failures(text: str, module: str) -> Dict[str, List[str]]:
+    """`go vet` output split per package, keyed by repo-relative directory.
+
+    A failing package prints a `# <import-path>` header and then its messages. The header
+    repeats as `# [<import-path>]`, and a test build adds a `[pkg.test]` suffix, so the
+    first token is taken and its brackets stripped. Both spellings fold onto one key.
+    """
+    out: Dict[str, List[str]] = {}
+    current: Optional[str] = None
+    for line in text.splitlines():
+        if line.startswith("#"):
+            parts = line[1:].split()
+            if not parts:
+                continue
+            pkg = parts[0].strip("[]")
+            if pkg == module:
+                pkg = "."
+            elif pkg.startswith(module + "/"):
+                pkg = pkg[len(module) + 1 :]
+            current = pkg
+            out.setdefault(current, [])
+            continue
+        msg = line.strip()
+        if not msg or current is None:
+            continue
+        # The prefix cmd/go puts on a load or type-check failure. Dropped so the message
+        # reads as the compiler's, which is what a reader has to act on.
+        if msg.startswith("vet: "):
+            msg = msg[len("vet: ") :]
+        out[current].append(msg)
+    return out
+
+
+# A package with a broken import produces one type error per use site, and the whole list
+# in one message helps nobody. The first few name the file and the symbol, which is what a
+# reader acts on (ai/rules/error-messages.md, "Truncate large blobs").
+_QUOTED_MESSAGES = 5
+
+
+def _quote_compiler(messages: Sequence[str]) -> str:
+    """The compiler's own words, bounded."""
+    if not messages:
+        return "nothing"
+    shown = " / ".join(messages[:_QUOTED_MESSAGES])
+    extra = len(messages) - _QUOTED_MESSAGES
+    return f"{shown} (and {extra} more)" if extra > 0 else shown
+
+
+def check_tag_packages_compile(
+    tags: Sequence[Tag], root: str = PROJECT_DIR
+) -> List[str]:
+    """Every Go package holding a tag has to type-check, tests included.
+
+    One `go vet` invocation over the whole set. It reports EVERY failing package rather
+    than the first (measured), so one run names the full list.
+    """
+    pkgs = go_tag_packages(tags, root)
+    if not pkgs:
+        return []
+    argv = ["go", "vet", "-" + TYPECHECK_ANALYZER, "-tags", build_tags()] + pkgs
+    try:
+        res = subprocess.run(
+            argv, cwd=root, capture_output=True, text=True, timeout=VET_TIMEOUT
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ParseError(
+            f"cannot run `go vet` over the {len(pkgs)} package(s) that hold RFC "
+            f"requirement tags, so whether those tests compile is unknown: {exc}. A tag is "
+            f"evidence only when the test can run, and an unmeasured answer is the one "
+            f"thing this gate must never report as clean. Install a Go toolchain, or run "
+            f"this from the repository root"
+        ) from exc
+    if res.returncode == 0:
+        return []
+    text = (res.stdout or "") + (res.stderr or "")
+    failures = _vet_failures(text, module_path())
+    if not failures:
+        # Non-zero and yet no package named. The toolchain never reached a package, so a
+        # module fetch or a flag was the failure. Naming a package here would be an
+        # accusation, and silence would credit every tag in the tree.
+        raw = [line.strip() for line in text.splitlines() if line.strip()]
+        raise ParseError(
+            f"`go vet` failed over the {len(pkgs)} package(s) that hold RFC requirement "
+            f"tags without naming a package, so whether those tests compile is unknown. "
+            f"go vet said: {_quote_compiler(raw)}"
+        )
+    held: Dict[str, List[Tag]] = {}
+    for tag in tags:
+        carrier = carrier_for(tag.file)
+        if carrier is None or carrier.reader != "go":
+            continue
+        held.setdefault(os.path.dirname(tag.file) or ".", []).append(tag)
+
+    errs: List[str] = []
+    for pkg in sorted(failures):
+        said = _quote_compiler(failures[pkg])
+        rids = sorted({t.rid for t in held.get(pkg, [])})
+        if rids:
+            shown = ", ".join(rids[:4]) + (", ..." if len(rids) > 4 else "")
+            stake = (
+                f"so the {len(rids)} RFC requirement(s) tagged in it are not evidence: "
+                f"no test here can run. Tagged here: {shown}"
+            )
+        else:
+            # A dependency of a tagged package, reported by go vet under its own header.
+            stake = (
+                "and a package holding RFC requirement tags depends on it, so those tests "
+                "cannot run either"
+            )
+        errs.append(
+            f"{pkg}: `go vet` cannot type-check this package, {stake}. go vet said: "
+            f"{said}. Fix the package so `make ze-unit-test` compiles it, then re-run "
+            f"`make ze-rfc-check`"
+        )
+    return errs
 
 
 # --------------------------------------------------------------------------
@@ -6274,6 +6589,16 @@ def run_check() -> int:
         errs.extend(check_id_allocation(reqs, baseline_ids))
 
         errs.extend(evaluate(reqs, tags, enrolled))
+
+        # Admissibility, run after coverage and before every claim built on it: a tag in a
+        # package the compiler rejects is not evidence, because no test in it can run.
+        # `--check` only. `--write` renders and `--check-fresh` compares a rendering, and
+        # neither publishes the verdict this gate exists to give, so neither should need a
+        # Go toolchain to answer. That asymmetry with _refuse_unrun (which fires inside
+        # scan_tree, so every driver refuses) is deliberate: an unrun carrier is a static
+        # property of the tree layout, while a compile failure is transient and costs a
+        # toolchain to see.
+        errs.extend(check_tag_packages_compile(tags))
 
         errs.extend(check_status_agreement(reqs, rows, enrolled))
 

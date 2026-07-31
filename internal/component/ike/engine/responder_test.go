@@ -492,7 +492,17 @@ func TestResponderEAPSessionWired(t *testing.T) {
 	espGroup := testESPGroup()
 	// Auth.PSK doubles as the EAP-MSCHAPv2 password (client + server) and the
 	// server's long-term IKE credential for its first-message AUTH.
+	// RFC 7296 Section 2.16: an EAP exchange authenticates the initiator, and the
+	// responder authenticates back with a public-key signature. The responder
+	// therefore needs a certificate, and the initiator needs the CA that signed
+	// it. Before this fixture carried them, the responder answered with a
+	// pre-shared-key AUTH, which is the violation computeServerAuth now refuses.
+	eapTLSResponderPKI(t, "eap-wired-ca", "eap-wired-cert")
 	iniPeer, respPeer := responderTestPeers(ipsec.AuthEAPMSCHAPv2, "s3cr3t-pass")
+	iniPeer.Auth.Certificate = "eap-wired-cert"
+	iniPeer.Auth.CACertificate = "eap-wired-ca"
+	respPeer.Auth.Certificate = "eap-wired-cert"
+	respPeer.Auth.CACertificate = "eap-wired-ca"
 
 	table := NewSATable()
 	iniSA, err := newInitiatorSA("ze", iniPeer, ikeGroup, espGroup)

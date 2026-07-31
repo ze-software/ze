@@ -45,11 +45,6 @@ func newResponderSA(peerName string, peer ipsec.SiteToSitePeer, ikeGroup ipsec.I
 	}, nil
 }
 
-// isEAPMode reports whether an auth mode requires the EAP exchange.
-func isEAPMode(mode ipsec.AuthMode) bool {
-	return mode == ipsec.AuthEAPMSCHAPv2 || mode == ipsec.AuthEAPTLS
-}
-
 // handleResponderInbound processes inbound handshake requests for a responder SA.
 // It runs on the shared dispatch goroutine (established=false); post-establishment
 // traffic is routed to the owner loop instead. Every message here is a request from
@@ -117,6 +112,27 @@ func handleSAInitRequest(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport
 		sa.State = StateDead
 		return
 	}
+	// RFC 7296 Section 3.3: the first Proposal MUST have a Proposal Num of one.
+	// Each later structure MUST be one greater than the previous one.
+	// This message is a request, so its SA payload is always an offer.
+	// A response carries the accepted number instead (Section 3.3.1).
+	// That number is not checked here.
+	if err := remoteSA.ValidateOfferNumbering(); err != nil {
+		log.Warn("ike: IKE_SA_INIT request has misnumbered proposals",
+			"peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+	// RFC 7296 Section 3.3.1: for an initial IKE SA negotiation the SPI Size field MUST be
+	// zero, because the SPI comes from the outer header. An IKE_SA_INIT IS that initial
+	// negotiation, so the rule applies here and nowhere the exchange is unknown. A later
+	// negotiation runs as a CREATE_CHILD_SA, and it carries an 8-octet SPI.
+	if err := remoteSA.ValidateInitialSPISize(); err != nil {
+		log.Warn("ike: IKE_SA_INIT request carries an SPI in its proposals",
+			"peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
 
 	// RFC 7296 Section 2.7: responder selects exactly one proposal.
 	localProposals := buildIKEProposals(sa.IKEGroup)
@@ -129,6 +145,7 @@ func handleSAInitRequest(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport
 		return
 	}
 	sa.Proposal = chosen
+	logKeyLengthUpgrade(log, sa.PeerName, chosen)
 
 	// RFC 7296 Section 1.2: the KEi group must equal the selected DH group, else
 	// respond with INVALID_KE_PAYLOAD carrying the group we accept.
@@ -351,6 +368,10 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 	var authPayload *wire.PayloadAUTH
 	var remoteSAi2 *wire.PayloadSA
 	var tsi, tsr *wire.PayloadTS
+	var certPayloads []*wire.PayloadCERT
+	var setWindowSize *wire.PayloadNotify
+	// RFC 7296 Section 2.5 forbids rejecting a message over payload order, so this walk
+	// only collects and every check runs after it.
 	for _, pe := range inner {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadID:
@@ -361,7 +382,7 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 			authPayload = p
 		case *wire.PayloadCERT:
 			if p.CertEncoding == wire.CertEncodingX509Sig && len(p.CertData) > 0 {
-				sa.RemoteCertRaw = p.CertData
+				certPayloads = append(certPayloads, p)
 			}
 		case *wire.PayloadNotify:
 			// RFC 7296 Section 2.4: honor INITIAL_CONTACT -- the peer asserts this is the
@@ -369,6 +390,12 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 			// IKE_AUTH authenticates (finishResponderEstablish supersede).
 			if p.NotifyMsgType == wire.NotifyInitialContact {
 				sa.InitialContact = true
+			}
+			// RFC 7296 Section 2.3: the peer states how many outstanding requests it
+			// keeps. IKE_AUTH is the read point, because "The window size is always one
+			// until the initial exchanges complete".
+			if p.NotifyMsgType == wire.NotifySetWindowSize {
+				setWindowSize = p
 			}
 		case *wire.PayloadSA:
 			remoteSAi2 = p
@@ -382,9 +409,17 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 		}
 	}
 
+	storeRemoteCerts(sa, certPayloads)
+
+	if err := recordPeerWindowSize(sa, setWindowSize); err != nil {
+		log.Warn("ike: peer SET_WINDOW_SIZE refused", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+
 	// RFC 7296 Section 2.16: no AUTH payload signals the initiator wants EAP.
 	if authPayload == nil {
-		if isEAPMode(sa.PeerCfg.Auth.Mode) {
+		if ipsec.IsEAPMode(sa.PeerCfg.Auth.Mode) {
 			ps.startResponderEAP(sa, msg.Header.MessageID, remoteSAi2, tsi, tsr, tr, remote, log)
 			return
 		}
@@ -412,38 +447,106 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 // selectResponderESP picks one ESP proposal from the initiator's SAi2 that our
 // esp-group accepts and narrows sa.ESPGroup to it, so the IKE_AUTH response carries
 // exactly one proposal (RFC 7296 Section 2.7, Section 3.3) and the installed Child SA
-// uses the negotiated algorithm (createFirstChildSA keys from Proposals[0]). A nil
-// remoteSAi2 (the EAP final IKE_AUTH) is a no-op: selection already ran on the first
-// IKE_AUTH (startResponderEAP).
+// uses the negotiated algorithm (createFirstChildSA keys from Proposals[0]).
+//
+// It also records the Proposal Num the peer put on that proposal. RFC 7296
+// Section 3.3.1 makes the response carry the peer's number, not our config key.
+//
+// A nil remoteSAi2 (the EAP final IKE_AUTH) is a no-op. Selection already ran on the
+// first IKE_AUTH (startResponderEAP).
 func selectResponderESP(sa *SA, remoteSAi2 *wire.PayloadSA) error {
 	if remoteSAi2 == nil {
 		return nil
 	}
 	for i := range sa.ESPGroup.Proposals {
 		our := sa.ESPGroup.Proposals[i]
-		enc := lookupEncryption(our.Encryption)
-		aead := our.Encryption.IsAEAD()
-		var integID uint16
-		if !aead {
-			integID = uint16(lookupIntegrity(our.Hash).ID)
+		rp, ok := matchOfferedESPProposal(remoteSAi2, our)
+		if !ok {
+			continue
 		}
-		for _, rp := range remoteSAi2.Proposals {
-			if rp.ProtocolID == wire.ProtocolESP &&
-				espProposalMatches(rp, uint16(enc.ID), enc.KeyLength, integID, aead) {
-				sa.ESPGroup.Proposals = []ipsec.ESPProposal{our}
-				return nil
-			}
+		// RFC 7296 Section 3.3 numbers the first proposal of an offer one, so a
+		// proposal numbered zero is malformed. Refuse it rather than answer with a
+		// number the peer cannot match (ai/rules/fail-closed-guards.md).
+		if rp.Number == 0 {
+			return crypto.ErrNoProposalChosen
 		}
+		sa.ESPGroup.Proposals = []ipsec.ESPProposal{our}
+		sa.ChildProposalNum = rp.Number
+		return nil
 	}
 	return crypto.ErrNoProposalChosen
 }
 
+// matchOfferedESPProposal returns the ESP proposal in the peer's offer that agrees
+// with one configured proposal, and reports whether the offer holds one. The caller
+// reads its Proposal Num, which RFC 7296 Section 3.3.1 makes the response echo.
+func matchOfferedESPProposal(offer *wire.PayloadSA, our ipsec.ESPProposal) (wire.Proposal, bool) {
+	if offer == nil {
+		return wire.Proposal{}, false
+	}
+	enc := lookupEncryption(our.Encryption)
+	aead := our.Encryption.IsAEAD()
+	var integID uint16
+	if !aead {
+		integID = uint16(lookupIntegrity(our.Hash).ID)
+	}
+	for _, rp := range offer.Proposals {
+		if rp.ProtocolID == wire.ProtocolESP &&
+			espProposalMatches(rp, uint16(enc.ID), enc.KeyLength, integID, aead) {
+			return rp, true
+		}
+	}
+	return wire.Proposal{}, false
+}
+
+// logKeyLengthUpgrade reports an encryption key that the responder accepted above its own
+// policy. RFC 7296 Section 3.3.5 lets a responder accept a key that supplies greater
+// security, and crypto.NegotiateIKE records the configured length when it does. The
+// operator asked for the shorter key, so the running key is stated rather than silent
+// (ai/rules/exact-or-reject.md). A responder that accepts the configured length logs
+// nothing.
+func logKeyLengthUpgrade(log *slog.Logger, peer string, chosen crypto.IKEProposal) {
+	if chosen.PolicyKeyLength == 0 {
+		return
+	}
+	log.Warn("ike: accepted an encryption key longer than the configured one",
+		"peer", peer,
+		"configured-bits", chosen.PolicyKeyLength,
+		"accepted-bits", chosen.Encryption.KeyLength)
+}
+
 // espProposalMatches reports whether a wire ESP proposal offers exactly the given
 // ENCR id + key length and integrity (integrity NONE for AEAD).
+//
+// RFC 7296 Section 3.3.6 makes a proposal that carries a Transform Type the responder does
+// not understand unacceptable. RFC 7296 Section 3.3.3 gives ESP the types ENCR and ESN,
+// with INTEG and D-H optional. A proposal that carries any other type does not match.
+//
+// DELIBERATE DEVIATION, Section 3.3.5. The implementation note there says an implementer
+// "SHOULD accept values that they deem to supply greater security", which covers ESP as
+// much as IKE. The IKE responder does accept a longer key (crypto.NegotiateIKE under
+// keyLengthAtLeast, reported by logKeyLengthUpgrade). This ESP comparison does not: it
+// requires gotKeyLen to equal the configured length exactly.
+//
+// The reason is that accepting one here would key the two ends differently. Section 3.3.5
+// also states that the Key Length attribute "is always returned unchanged". A responder
+// that accepts a longer key MUST therefore echo it, and MUST derive at it. Ze does
+// neither. selectResponderESP narrows sa.ESPGroup to the CONFIGURED proposal, and
+// createFirstChildSA reads its encryption from espGroup.Proposals[0] (child.go:127). A
+// peer that offered 256 would therefore derive at 256 while ze derived at 128, and the
+// Child SA would carry no traffic.
+//
+// The deviation is in the safe direction: ze refuses rather than mis-keys, and the
+// operator gets exactly the cipher configured. Closing it means plumbing the accepted key
+// length through ESP proposal selection and Child SA key derivation, which is the
+// dataplane keying path. It is not a comparison change.
 func espProposalMatches(p wire.Proposal, encID, keyLen, integID uint16, aead bool) bool {
 	var gotEnc, gotKeyLen, gotInteg uint16
 	hasEnc, hasInteg := false, false
 	for _, t := range p.Transforms {
+		if !crypto.TransformTypeUnderstoodESP(crypto.TransformType(t.Type)) {
+			return false
+		}
 		switch t.Type {
 		case wire.TransformTypeENCR:
 			hasEnc = true
@@ -456,8 +559,10 @@ func espProposalMatches(p wire.Proposal, encID, keyLen, integID uint16, aead boo
 		case wire.TransformTypeINTG:
 			hasInteg = true
 			gotInteg = t.ID
-		case wire.TransformTypePRF, wire.TransformTypeDH, wire.TransformTypeESN:
-			// not part of ESP ENCR/INTG matching
+		case wire.TransformTypeDH, wire.TransformTypeESN:
+			// Both are types ESP uses, and neither takes part in the ENCR and INTG
+			// comparison. A pseudorandom function transform never reaches here, because
+			// ESP does not use that type.
 		}
 	}
 	if !hasEnc || gotEnc != encID || gotKeyLen != keyLen {
@@ -503,7 +608,9 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 		return nil, nil, err
 	}
 
-	espSPI, saPayload, respTSi, respTSr, err := buildChildSAPayloads(sa)
+	// The IKE_AUTH response is a RESPONSE, so SAr2 names one proposal and carries
+	// the number the initiator put on it (RFC 7296 Sections 3.3, 3.3.1).
+	espSPI, saPayload, respTSi, respTSr, err := buildChildSAResponsePayloads(sa)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -49,6 +49,13 @@ var pythonTestRoots = []string{
 	// emptied it to zero bytes during an ordinary benchmark run without failing
 	// anything. Its guards are only guards if something runs their tests.
 	"test/perf",
+	// The IPsec interop lab parses the output of external commands, and nothing
+	// ran its tests before 2026-07-31. A `bytes\s+(\d+)` pattern that matches no
+	// iproute2 release lived in four copies of the scenarios for that reason.
+	// Every copy read zero, so every "traffic flowed" assertion built on it
+	// passed whatever the tunnel did. test/ipsec-interop/lab_test.py pins the
+	// parser against captured `ip -s xfrm state` output.
+	"test/ipsec-interop",
 }
 
 // test-relax: removes a DUPLICATE repoRoot helper I had added here, which did not

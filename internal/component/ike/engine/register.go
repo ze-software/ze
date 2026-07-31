@@ -19,6 +19,7 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 	"github.com/ze-software/ze/pkg/ze"
@@ -264,7 +265,17 @@ func runEngine(conn net.Conn) int {
 		}
 
 		if cfg.Interface != "" {
-			if ifIP := resolveInterfaceAddr(cfg.Interface); ifIP != "" {
+			ifIP, ifErr := resolveInterfaceAddr(cfg.Interface)
+			switch {
+			case ifErr != nil:
+				// Report the lookup failure itself. Reporting "no IPv4 address"
+				// here names the wrong cause, and it sends the operator to the
+				// interface configuration when the lookup never ran.
+				log.Warn("ike: cannot read interface addresses, peers without local-address will fail",
+					"interface", cfg.Interface, "error", ifErr)
+			case ifIP == "":
+				log.Warn("ike: no IPv4 address on interface, peers without local-address will fail", "interface", cfg.Interface)
+			default:
 				for name := range cfg.Peers {
 					peer := cfg.Peers[name]
 					if peer.LocalAddress == "" {
@@ -273,15 +284,13 @@ func runEngine(conn net.Conn) int {
 						log.Debug("ike: resolved local-address from interface", "peer", name, "interface", cfg.Interface, "address", ifIP)
 					}
 				}
-			} else {
-				log.Warn("ike: no IPv4 address on interface, peers without local-address will fail", "interface", cfg.Interface)
 			}
 		}
 
 		if tr == nil && len(cfg.Peers) > 0 {
 			ifaceHost := ""
 			if cfg.Interface != "" {
-				ifaceHost = resolveInterfaceAddr(cfg.Interface)
+				ifaceHost, _ = resolveInterfaceAddr(cfg.Interface) //nolint:errcheck // the OnConfigure branch above already reported this failure
 			}
 			peerLocal := ""
 			for name := range cfg.Peers {
@@ -305,8 +314,10 @@ func runEngine(conn net.Conn) int {
 		if trNATT == nil && len(cfg.Peers) > 0 {
 			nattAddr := "0.0.0.0:4500"
 			if cfg.Interface != "" {
-				if ip := resolveInterfaceAddr(cfg.Interface); ip != "" {
-					nattAddr = ip + ":4500"
+				// The OnConfigure branch above already reported a lookup failure.
+				ip, _ := resolveInterfaceAddr(cfg.Interface) //nolint:errcheck // reported above
+				if ip != "" {
+					nattAddr = textbuf.HostPort(ip, 4500)
 				}
 			}
 			var nErr error
@@ -522,6 +533,15 @@ func routeInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.UD
 		select {
 		case ps.inbound <- pkt:
 		default:
+			// A blocking send would stall every peer on this goroutine, so a full
+			// queue drops the packet. RFC 7296 Section 2.1 makes that survivable in
+			// both directions, but only because both are retransmitted.
+			//
+			// A dropped REQUEST costs latency, because the peer repeats it. A
+			// dropped RESPONSE costs latency only where this side repeats its own
+			// request. serviceRekeyRetransmit does that for a rekey, and
+			// retransmitDPD does it for a liveness probe. A self-initiated request
+			// that nothing repeats puts its answer at risk here.
 			log.Warn("ike: owner inbound queue full, dropping packet", "peer", sa.PeerName)
 		}
 		return
@@ -658,15 +678,22 @@ func dispatchInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logge
 // resolved through the shared iface resolver so the IKE bind/listen address
 // honors the os-name / mac-match selectors instead of assuming name == kernel
 // device.
-func resolveInterfaceAddr(name string) string {
+// resolveInterfaceAddr returns the first IPv4 address of an interface.
+//
+// The error distinguishes two failures that both yield an empty address. The
+// interface lookup itself can fail, and the interface can carry no IPv4 address.
+// They need different operator action, so the caller MUST report the error and
+// never assume the second cause. An empty address with a nil error means the
+// interface is present and has no IPv4 address.
+func resolveInterfaceAddr(name string) (string, error) {
 	addrs, err := iface.Addresses(name)
 	if err != nil {
-		return ""
+		return "", err
 	}
 	for _, a := range addrs {
 		if a.Family == "ipv4" {
-			return a.Address
+			return a.Address, nil
 		}
 	}
-	return ""
+	return "", nil
 }

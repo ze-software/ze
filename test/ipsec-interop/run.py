@@ -37,15 +37,35 @@ def _any_scenario_needs_frr(scenarios_dir, scenario_filter):
     return False
 
 
+def _feature_gate_tags():
+    """Sorted ze_<feature> build tags from feature-gates.txt, the single source of
+    truth. Derived, not hardcoded, so the lab tracks ZE_FEATURES when a gate is added
+    -- see ai/rules/feature-gate-registration.md.
+
+    The IKE subsystem is one of those gates (ze_ike). A lab binary built without it
+    holds no ipsec schema, so ze refuses its own scenario config with "unknown
+    top-level keyword: vpn" and no IKE packet is ever sent.
+    """
+    tags = set()
+    with open(os.path.join(PROJECT_ROOT, "feature-gates.txt"), encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            tags.add(line.split()[0])
+    return sorted(tags)
+
+
 def build_images(frr_image, no_build=False, need_frr=True):
     if no_build:
         print("  skipping image builds (NO_BUILD=1)")
         return
 
     ze_bin = os.path.join(PROJECT_ROOT, "bin", "ze-linux")
+    build_tags = ",".join(["ze_core", "ze_distro"] + _feature_gate_tags())
     print("Cross-compiling ze for linux...")
     subprocess.run(
-        ["go", "build", "-tags", "ze_core,ze_distro", "-o", ze_bin, "./cmd/ze"],
+        ["go", "build", "-tags", build_tags, "-o", ze_bin, "./cmd/ze"],
         check=True,
         timeout=300,
         cwd=PROJECT_ROOT,

@@ -137,12 +137,85 @@ vpn {
 }
 ```
 
-For a road-warrior EAP server, set `authentication { mode eap-mschapv2 }` or `eap-tls`, then reference a device `certificate` and `ca-certificate` from the PKI store. The `remote-access` container assigns client addresses from a `pool` and holds per-user EAP credentials in an `eap-user` list.
+For a road-warrior EAP server, set `authentication { mode eap-mschapv2 }` or `eap-tls`, then reference a device `certificate` and `ca-certificate` from the PKI store. Configure the client as a `site-to-site` peer.
 
-When a CA certificate is configured, the EAP peer validates the authenticator's
-certificate chain against that trust anchor. EAP-TLS has no server hostname, so
-the check validates the chain without DNS-name matching. With no CA configured,
-server-certificate validation is disabled explicitly.
+The `remote-access` container is not wired yet. It parses, and no session reads
+it, so a `pool` assigns no address and an `eap-user` list authenticates nobody.
+`plan/spec-ipsec-remote-access.md` owns the work.
+
+<!-- source: internal/component/ike/engine/register.go -- runEngine discards the pool it builds from RemoteAccess -->
+
+Every EAP mode and X.509 needs a `ca-certificate`. The daemon refuses a remote
+certificate it cannot chain to that anchor. A certificate with no trust anchor
+authenticates nobody: any self-signed certificate that carries a valid signature
+would pass. RFC 7296 Section 2.16 requires EAP to run with a public-key
+authentication of the responder, and the anchor is what makes that signature
+attributable.
+
+`ca-certificate` holds one anchor, not a path. A two-level authority therefore
+needs the peer to send its intermediate certificates. RFC 7296 Section 3.6 puts
+the peer certificate first, and Ze reads every later CERT payload as a link
+toward the anchor. Ze sends its own chain the same way: the `certificate` entry
+first, then the intermediate that PKI entry carries. A refusal names the anchor
+and the number of intermediate certificates the peer supplied.
+
+Ze refuses a config that names no `ca-certificate` at commit and at reload. It
+does NOT refuse it under `ze config validate`, which reads the schema and does
+not run a plugin's config verifier.
+
+<!-- source: internal/component/ike/ipsec/validate.go -- ValidatePKIRefs -->
+<!-- source: internal/component/ike/engine/config.go -- validateIPsecSections is the ike plugin's OnConfigVerify body -->
+<!-- source: internal/component/ike/engine/auth.go -- getRemoteCert -->
+
+## Remote identity
+
+`remote-id` is the identity Ze expects the remote endpoint to assert. When it is
+set, Ze enforces it twice on every authentication.
+
+| Check | What it compares | Refusal |
+|-------|------------------|---------|
+| Policy | The IDi or IDr payload the peer sent against `remote-id` | Every authentication mode |
+| Certificate | The same asserted identity against the remote certificate | Certificate modes only |
+
+The certificate check is the half that matters when one authority issues to
+several clients. The chain proves the authority issued the certificate. It does
+not prove the certificate speaks for this peer, because the peer chooses the
+identity its signature covers. Without the second check any client of that
+authority authenticates as any peer.
+
+A subject alternative name binds. The subject common name binds only when the
+certificate carries no alternative name extension at all. The two fields do not
+carry the same attestation: X.509 name constraints reach the alternative names
+and never the subject distinguished name. An authority that permits only
+`dNSName .branch.example.com` leaves the common name free, so a common name read
+after a present alternative name would defeat that constraint.
+
+The value you configure picks the field. An address `remote-id` binds against
+the address alternative names alone, never against a domain name that spells the
+same address. Certificate authorities issue an address alternative name under a
+tighter policy than a name, and this stops the peer from choosing the weaker
+field.
+
+Ze compares five identity types: `ID_IPV4_ADDR`, `ID_IPV6_ADDR`, `ID_FQDN`,
+`ID_RFC822_ADDR`, and `ID_KEY_ID`. A domain name and a mail address compare with
+the ASCII letters folded. An address compares as an address, so the encoding does
+not matter. A peer that asserts `ID_DER_ASN1_DN` or `ID_DER_ASN1_GN` is refused,
+because RFC 7296 states no canonical form to compare one against configured text.
+A `remote-id` or `local-id` written as a distinguished name is refused at commit
+for the same reason.
+
+**An unset `remote-id` runs neither check.** Every certificate the configured
+authority issued then authenticates as this peer. Ze logs a warning that names
+the peer and the identity it accepted. Set `remote-id` whenever the authority
+issues to more than one client.
+
+<!-- source: internal/component/ike/engine/remote_id.go -- checkRemoteIdentity, certificateCarriesIdentity, hasSubjectAltName, configuredClass -->
+<!-- source: internal/component/ike/engine/auth.go -- verifyRemoteAuth, getRemoteCert, storeRemoteCerts, buildCertPayloads -->
+<!-- source: internal/component/ike/ipsec/validate.go -- ValidateIdentities -->
+
+The EAP peer validates the authenticator's certificate chain against that trust
+anchor. EAP-TLS has no server hostname, so the check validates the chain without
+DNS-name matching.
 
 <!-- source: internal/component/ike/eap/peer.go -- verifyServerChain, startTLSClient -->
 
@@ -197,7 +270,19 @@ lost, the normal DPD path still removes the stale remote SA.
 
 The IPsec component registers with the health registry. It reports `healthy` when all configured tunnels are established, `degraded` when some are down, and `down` when critical tunnels fail.
 
-Prometheus exposes `ze_ipsec_sa_count`, `ze_ipsec_tunnel_up{peer}`, and `ze_ipsec_rekey_total{peer}`.
+Prometheus exposes `ze_ipsec_sa_count`, `ze_ipsec_tunnel_up{peer}`, `ze_ipsec_tunnel_degraded{peer}`, and `ze_ipsec_rekey_total{peer}`.
+
+`ze_ipsec_tunnel_up` reads 1 only when the IKE SA is established and the Child SA is
+installed in the dataplane. A tunnel whose ESP install the kernel refused reads
+`ze_ipsec_tunnel_up` 0 and `ze_ipsec_tunnel_degraded` 1. Such a tunnel has a live
+control plane and carries no encrypted traffic. Alert on the degraded gauge, because
+the two gauges together separate a lost session from a session with no ESP.
+
+<!-- source: internal/component/ike/engine/metrics.go -- tunnelUp and tunnelDegraded -->
+<!-- source: internal/component/ike/engine/child.go -- ChildSA.ESPInstalled -->
+
+The daemon logs `child-sa: dataplane refused the ESP state, tunnel is degraded and
+carries no encrypted traffic` when this happens.
 
 ## Interop testing
 

@@ -4,7 +4,7 @@
 // Section 2.8 governs the close of a failed rekey, and the Delete that ends the old
 // IKE SA. Section 2.8.1 governs the two Child SAs that receive during a rekey.
 //
-// Each test carries an `RFC-req:` tag for the row it proves. Helpers here start with
+// Each test carries an `RFC requirement:` tag for the row it proves. Helpers here start with
 // `rky`, so they cannot collide with the sibling `rfc7296_retransmit_test.go`. This
 // file reuses that sibling's `rtx` loopback helpers.
 

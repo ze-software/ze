@@ -1,0 +1,173 @@
+# Test: reload rejects a site-to-site eap-mschapv2 peer with no ca-certificate
+# The responder certificate is only half of the RFC 7296 Section 2.16
+# obligation. A signature the initiator cannot chain to a trust anchor attributes
+# nothing, and ca-certificate is the only anchor Ze holds. ValidatePKIRefs
+# refuses the config, the reload must fail OnConfigVerify, log the failure to
+# stderr, and leave the old config running.
+#
+# Wiring test for the EAP arm of the ca-certificate rule. The sibling eap-tls
+# test covers a different check (RFC 5216 Section 5.3), which fires earlier and
+# would mask this one. ze config validate does NOT invoke plugin OnConfigVerify,
+# so the check fires only at daemon reload time.
+
+option=skip-os:value=darwin
+stdin=peer:terminator=EOF_PEER
+
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+EOF_PEER
+
+# Initial config: the peer authenticates with a pre-shared secret, which needs
+# no certificate material at all, so the daemon starts clean.
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		ike-group IKE-1 {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-1 {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch {
+				ike-group IKE-1
+				esp-group ESP-1
+				remote-address 198.51.100.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret "s3cret"
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Updated config: the peer switches to a mode whose PKI reference is missing.
+# Reload must reject it and keep the running config.
+tmpfs=config2.conf:terminator=EOF_CONF2
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		ike-group IKE-1 {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-1 {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch {
+				ike-group IKE-1
+				esp-group ESP-1
+				remote-address 198.51.100.2
+				authentication {
+					mode eap-mschapv2
+					certificate client1
+					pre-shared-secret "testpassword"
+				}
+			}
+		}
+	}
+}
+EOF_CONF2
+
+await=stderr:contains=eap-mschapv2 requires a ca-certificate to validate the remote certificate
+expect=stderr:contains=eap-mschapv2 requires a ca-certificate to validate the remote certificate
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s

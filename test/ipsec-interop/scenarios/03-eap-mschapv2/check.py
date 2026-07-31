@@ -20,21 +20,18 @@ from lab import (
     ZE_CONTAINER,
     SWAN_CONTAINER,
     SWAN_IP,
+    assert_esp_accepted,
     check_xfrm_sa_count,
     docker_exec_quiet,
-    log_fail,
     log_pass,
     wait_xfrm_sa,
+    ze_xfrm_state,
+    xfrm_sa_bytes_by_spi,
 )
 
 
-def xfrm_bytes(container):
-    """Sum ESP SA byte counters from ip -s xfrm state output."""
-    output = docker_exec_quiet(container, ["ip", "-s", "xfrm", "state"])
-    total = 0
-    for m in re.finditer(r"bytes\s+(\d+)", output):
-        total += int(m.group(1))
-    return total
+def esp_spis():
+    return set(re.findall(r"proto esp spi (0x[0-9a-fA-F]+)", ze_xfrm_state()))
 
 
 def check():
@@ -45,30 +42,41 @@ def check():
     swan.wait_child_sa()
 
     # 2. Kernel state: ESP SAs installed on both sides.
+    #
+    #    The Ze-side dataplane assertions run only where the kernel supports
+    #    XFRM/ESP, which Docker Desktop's Linux VM on macOS does not. The probe is
+    #    the same one scenario 07 uses. It replaces a `except (AssertionError,
+    #    Exception)` that caught every failure of wait_xfrm_sa and
+    #    check_xfrm_sa_count and reported it as a pass.
     wait_xfrm_sa(SWAN_CONTAINER)
-    try:
-        wait_xfrm_sa(ZE_CONTAINER)
-        check_xfrm_sa_count(SWAN_CONTAINER, 2)
-    except (AssertionError, Exception):
+    if not esp_spis():
         log_pass(
-            "XFRM not available on Ze (expected on Docker for Mac), skipping ESP checks"
+            "XFRM/ESP unsupported on this host; verified EAP-MSCHAPv2 at control plane"
         )
         return
 
-    # 3. Data plane: traffic flows through ESP tunnel.
-    bytes_before = xfrm_bytes(ZE_CONTAINER)
+    wait_xfrm_sa(ZE_CONTAINER)
+    check_xfrm_sa_count(SWAN_CONTAINER, 2)
+
+    # 3. Data plane: traffic flows through the ESP tunnel.
+    bytes_before = xfrm_sa_bytes_by_spi(ZE_CONTAINER)
+    peer_before = xfrm_sa_bytes_by_spi(SWAN_CONTAINER)
     docker_exec_quiet(ZE_CONTAINER, ["ping", "-c", "4", "-W", "2", SWAN_IP])
-    bytes_after = xfrm_bytes(ZE_CONTAINER)
 
-    if bytes_after <= bytes_before:
-        log_fail(
-            "XFRM SA byte counters did not increase (before=%d after=%d)"
-            % (bytes_before, bytes_after)
-        )
-        raise AssertionError("traffic did not flow through XFRM tunnel")
+    assert_esp_accepted(
+        ZE_CONTAINER,
+        bytes_before,
+        xfrm_sa_bytes_by_spi(ZE_CONTAINER),
+        "traffic did not flow through the XFRM tunnel",
+    )
 
-    log_pass(
-        "traffic verified through ESP tunnel (XFRM bytes: %d -> %d)"
-        % (bytes_before, bytes_after)
+    # 4. Interop: strongSwan's inbound counter advances only after it looks the SPI
+    #    up, decrypts, and verifies the ICV. Ze's own counter proves it encrypted
+    #    and sent, and nothing about whether the peer could read the result.
+    assert_esp_accepted(
+        SWAN_CONTAINER,
+        peer_before,
+        xfrm_sa_bytes_by_spi(SWAN_CONTAINER),
+        "strongSwan accepted no ESP from Ze",
     )
     log_pass("EAP-MSCHAPv2 tunnel established and forwarding traffic")

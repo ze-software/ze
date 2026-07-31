@@ -83,6 +83,24 @@ type SA struct {
 	NextMsgID     uint32
 	ExpectedMsgID uint32
 
+	// msgIDExhausted records that one of the two counters reached the 32-bit ceiling.
+	// RFC 7296 Section 2.2 calls the Message ID replay protection. It requires the SA
+	// to be closed or rekeyed rather than wrapped. The counter therefore freezes and
+	// this flag is raised instead. reserveRequestWindow then refuses every later
+	// request, and the maintainSA ticker closes the SA. The methods live in msgid.go,
+	// and only the maintainSA owner loop touches the flag.
+	msgIDExhausted bool
+
+	// PeerWindowSize is the number of outstanding requests the peer promised to keep,
+	// read from its SET_WINDOW_SIZE notify during IKE_AUTH (RFC 7296 Section 2.3).
+	// Zero means the peer sent none, which the same section reads as a window of one.
+	//
+	// It bounds what Ze MAY SEND. It never widens what Ze ACCEPTS: the accept width is
+	// set by the SET_WINDOW_SIZE that Ze itself sends, and Ze sends none. Wiring this
+	// field into classifyInbound would make every id in the range a replay candidate
+	// against the counter Section 2.2 calls replay protection.
+	PeerWindowSize uint32
+
 	// Established-SA request/response window (RFC 7296 Section 2.3, size 1).
 	// Cached so a retransmitted peer request is answered without reprocessing.
 	// Accessed only by the maintainSA owner loop after establishment.
@@ -129,8 +147,25 @@ type SA struct {
 	// Remote peer identity from IKE_AUTH response IDr payload.
 	RemoteIDPayload *wire.PayloadID
 
-	// Remote peer certificate from IKE_AUTH CERT payload (DER-encoded X.509).
+	// Remote peer certificate from the FIRST IKE_AUTH CERT payload (DER-encoded X.509).
+	// RFC 7296 Section 3.6 states the rule.
+	// "If multiple certificates are sent, the first certificate MUST contain the public
+	// key associated with the private key used to sign the AUTH payload."
+	// The first payload is the peer certificate, and no later one is.
 	RemoteCertRaw []byte
+
+	// Every CERT payload after the first, in wire order (DER-encoded X.509). RFC 7296
+	// Section 3.6 makes them the path from the peer certificate toward a trust anchor, so
+	// getRemoteCert offers them to x509 as intermediates. A two-level authority cannot
+	// chain without them: ca-certificate holds one anchor, not a path.
+	RemoteCertChainRaw [][]byte
+
+	// ChildProposalNum is the Proposal Num the peer put on the ESP proposal we
+	// accepted from its SAi2. RFC 7296 Section 3.3.1 makes the response carry that
+	// number, so the peer can tell which of its own proposals we took. Set by
+	// selectResponderESP on the first IKE_AUTH, and read again on the final EAP
+	// IKE_AUTH, which carries no SAi2 of its own. Zero means no selection ran.
+	ChildProposalNum uint8
 
 	// Negotiated Child SA parameters from IKE_AUTH piggybacked exchange.
 	ChildInboundSPI  uint32     // our ESP SPI included in SAi2

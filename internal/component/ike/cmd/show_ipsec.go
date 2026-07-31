@@ -152,6 +152,10 @@ func saToMap(sa *engine.SA, now time.Time, peerInfos map[string]engine.PeerInfo)
 		"uptime-seconds": uptimeSeconds,
 		"nat-detected":   sa.NATDetected,
 		"rekey-count":    uint64(0),
+		// RFC 7296 Section 2.3: the number of outstanding requests the peer promised to
+		// keep in its SET_WINDOW_SIZE notify. Zero means the peer sent none, which the
+		// same section reads as a window of one.
+		"peer-window-size": sa.PeerWindowSize,
 	}
 
 	if info, ok := peerInfos[sa.PeerName]; ok {

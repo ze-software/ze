@@ -75,6 +75,8 @@ type DirectBridge struct {
 	hasBatchValidate    atomic.Bool                // set atomically when batchValidate is written
 	callbackCh          chan BridgeCallback        // Engine->plugin callbacks (replaces pipe after startup)
 	closeOnce           sync.Once                  // Guards callbackCh close (Stop may be called multiple times)
+	sendMu              sync.RWMutex               // Held for reading by senders, for writing by CloseCallbacks
+	sendClosed          bool                       // Guarded by sendMu: the callback channels are closed
 	failed              atomic.Bool                // Set after callback loop failure; callers fail fast.
 	failureMu           sync.RWMutex               // Guards failureErr, read only after failed is set.
 	failureErr          error                      // First callback loop failure reported to later callers.
@@ -116,13 +118,18 @@ func (b *DirectBridge) SendCallback(ctx context.Context, method string, params j
 		}
 	}()
 	resultCh := make(chan BridgeCallbackResult, 1)
+	if !b.beginSend() {
+		return nil, ErrBridgeClosed
+	}
 	select {
 	case b.callbackCh <- BridgeCallback{
 		Method: method,
 		Params: params,
 		Result: resultCh,
 	}:
+		b.endSend()
 	case <-ctx.Done():
+		b.endSend()
 		return nil, ctx.Err()
 	}
 	select {
@@ -165,12 +172,39 @@ func (b *DirectBridge) callbackFailure() error {
 
 // CloseCallbacks closes the callback channels, signaling the plugin's bridge
 // event loop to exit. Called during shutdown. Safe to call multiple times.
+//
+// It takes sendMu for writing, so it cannot overlap a send. The recover in the
+// senders catches the panic from a send on a closed channel. A panic is not the
+// only cost. A send concurrent with a close is a data race whatever the outcome,
+// and -race fails the test that provoked it.
 func (b *DirectBridge) CloseCallbacks() {
 	b.closeOnce.Do(func() {
+		b.sendMu.Lock()
+		b.sendClosed = true
 		close(b.callbackCh)
 		close(b.executeCommandCh)
+		b.sendMu.Unlock()
 	})
 }
+
+// beginSend takes the send side of sendMu and reports whether the caller CAN
+// send. It returns false when the channels are already closed, and the caller
+// must not call endSend in that case.
+//
+// A sender that blocks on a full channel holds the lock and delays a concurrent
+// close. The reader is still draining at that point, because the close it is
+// waiting for has not happened, so the send completes. A caller whose ctx ends
+// first releases the lock and gives up.
+func (b *DirectBridge) beginSend() bool {
+	b.sendMu.RLock()
+	if b.sendClosed {
+		b.sendMu.RUnlock()
+		return false
+	}
+	return true
+}
+
+func (b *DirectBridge) endSend() { b.sendMu.RUnlock() }
 
 // SetDeliverEvents registers the plugin-side event handler (engine→plugin direction).
 // Called by the SDK after startup to register the onEvent dispatcher.
@@ -367,6 +401,9 @@ func (b *DirectBridge) ExecuteCommand(ctx context.Context, serial, command strin
 		return nil, errors.New("execute-command handler not set")
 	}
 	resultCh := make(chan ExecuteCommandResult, 1)
+	if !b.beginSend() {
+		return nil, ErrBridgeClosed
+	}
 	select {
 	case b.executeCommandCh <- ExecuteCommandRequest{
 		Serial:  serial,
@@ -375,7 +412,9 @@ func (b *DirectBridge) ExecuteCommand(ctx context.Context, serial, command strin
 		Peer:    peer,
 		Result:  resultCh,
 	}:
+		b.endSend()
 	case <-ctx.Done():
+		b.endSend()
 		return nil, ctx.Err()
 	}
 	select {

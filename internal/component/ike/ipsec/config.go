@@ -1,4 +1,5 @@
 // Design: plan/learned/734-ipsec-3-data-model.md -- IPsec config parser
+// Related: algorithm_support.go -- which algorithms this build implements
 
 package ipsec
 
@@ -7,6 +8,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/secret"
@@ -30,6 +32,13 @@ const (
 	maxDPDValue    uint16 = 3600
 	maxProposalNum uint16 = 65535
 	maxNameLen            = 255
+
+	// MaxProposalsPerGroup bounds how many proposals one group can offer. The
+	// Proposal Num field of RFC 7296 Section 3.3.1 is one octet. An offer numbers
+	// its proposals one upward, so 255 is the last number a conforming offer can
+	// carry. A larger group has no exact encoding. Ze refuses it here, rather than
+	// wrap the number on the wire (ai/rules/exact-or-reject.md).
+	MaxProposalsPerGroup = 255
 )
 
 func validateName(name string) error {
@@ -160,6 +169,10 @@ func parseESPGroup(name string, t *config.Tree) (ESPGroup, error) {
 	if len(proposals) == 0 {
 		return g, fmt.Errorf("ipsec esp-group %q: %w", name, errIPsecESPNoProposals)
 	}
+	if len(proposals) > MaxProposalsPerGroup {
+		return g, fmt.Errorf("ipsec esp-group %q: %d proposals exceeds the limit of %d (RFC 7296 Section 3.3.1 gives Proposal Num one octet)",
+			name, len(proposals), MaxProposalsPerGroup)
+	}
 
 	for _, entry := range proposals {
 		p, err := parseESPProposal(name, entry.Key, entry.Value)
@@ -194,16 +207,34 @@ func parseESPProposal(groupName, numStr string, t *config.Tree) (ESPProposal, er
 		return p, fmt.Errorf("ipsec esp-group %q proposal %d: unsupported encryption algorithm %q",
 			groupName, num, encStr)
 	}
+	if !EncryptionImplemented(enc) {
+		return p, fmt.Errorf("ipsec esp-group %q proposal %d: encryption algorithm %q is not implemented by this build (implemented: %s)",
+			groupName, num, encStr, strings.Join(SupportedEncryptionNames(), ", "))
+	}
 	p.Encryption = enc
 
-	if hashStr, ok := t.Get("hash"); ok {
+	hashStr, hasHash := t.Get("hash")
+	switch {
+	case hasHash && enc.IsAEAD():
+		// RFC 7296 Section 3.3: an AEAD cipher carries its own integrity, so the ESP
+		// proposal offers the integrity transform NONE and a hash names nothing. ESP has
+		// no PRF transform either, so the hash is not read as one. Ze once accepted the
+		// spelling and derived integrity keys from it. That moved the responder
+		// encryption key past the offset the peer reads (ai/rules/exact-or-reject.md).
+		return p, fmt.Errorf("ipsec esp-group %q proposal %d: hash %q is not allowed beside the AEAD encryption algorithm %q; remove the hash",
+			groupName, num, hashStr, encStr)
+	case hasHash:
 		h, valid := ParseHashAlgo(hashStr)
 		if !valid {
 			return p, fmt.Errorf("ipsec esp-group %q proposal %d: unsupported hash algorithm %q",
 				groupName, num, hashStr)
 		}
+		if !HashImplemented(h) {
+			return p, fmt.Errorf("ipsec esp-group %q proposal %d: hash algorithm %q is not implemented by this build (implemented: %s)",
+				groupName, num, hashStr, strings.Join(SupportedHashNames(), ", "))
+		}
 		p.Hash = h
-	} else if !enc.IsAEAD() {
+	case !enc.IsAEAD():
 		// RFC 7296 Section 3.3: non-AEAD ciphers require a separate integrity algorithm.
 		return p, fmt.Errorf("ipsec esp-group %q proposal %d: hash is required for non-AEAD encryption %q",
 			groupName, num, encStr)
@@ -267,6 +298,10 @@ func parseIKEGroup(name string, t *config.Tree) (IKEGroup, error) {
 	proposals := t.GetListOrdered("proposal")
 	if len(proposals) == 0 {
 		return g, fmt.Errorf("ipsec ike-group %q: %w", name, errIPsecIKENoProposals)
+	}
+	if len(proposals) > MaxProposalsPerGroup {
+		return g, fmt.Errorf("ipsec ike-group %q: %d proposals exceeds the limit of %d (RFC 7296 Section 3.3.1 gives Proposal Num one octet)",
+			name, len(proposals), MaxProposalsPerGroup)
 	}
 
 	for _, entry := range proposals {
@@ -345,8 +380,15 @@ func parseIKEProposal(groupName, numStr string, t *config.Tree) (IKEProposal, er
 		return p, fmt.Errorf("ipsec ike-group %q proposal %d: unsupported encryption algorithm %q",
 			groupName, num, encStr)
 	}
+	if !EncryptionImplemented(enc) {
+		return p, fmt.Errorf("ipsec ike-group %q proposal %d: encryption algorithm %q is not implemented by this build (implemented: %s)",
+			groupName, num, encStr, strings.Join(SupportedEncryptionNames(), ", "))
+	}
 	p.Encryption = enc
 
+	// An IKE proposal reads its hash as the PRF, which RFC 7296 Section 3.3.3 makes a
+	// mandatory transform for every cipher. The hash is therefore required beside an
+	// AEAD cipher here, where an ESP proposal refuses it.
 	hashStr, ok := t.Get("hash")
 	if !ok {
 		return p, fmt.Errorf("ipsec ike-group %q proposal %d: hash is required", groupName, num)
@@ -355,6 +397,10 @@ func parseIKEProposal(groupName, numStr string, t *config.Tree) (IKEProposal, er
 	if !valid {
 		return p, fmt.Errorf("ipsec ike-group %q proposal %d: unsupported hash algorithm %q",
 			groupName, num, hashStr)
+	}
+	if !HashImplemented(h) {
+		return p, fmt.Errorf("ipsec ike-group %q proposal %d: hash algorithm %q is not implemented by this build (implemented: %s)",
+			groupName, num, hashStr, strings.Join(SupportedHashNames(), ", "))
 	}
 	p.Hash = h
 

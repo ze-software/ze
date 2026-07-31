@@ -181,8 +181,13 @@ type peerOpts struct {
 }
 
 func TestParseESPGroup(t *testing.T) {
+	// test-relax: proposal 10 dropped its hash. parseESPProposal now refuses a hash
+	// beside an AEAD cipher, so the old fixture asserted a config shape that is no
+	// longer valid (TestParseESPProposalRejectsHashBesideAEAD proves the refusal). No
+	// assertion is removed or weakened: the two proposals, their numbers and the
+	// aes128gcm reading are all still checked below.
 	tree := makeESPTree("ESP-RW", "86400", "disable", map[string][2]string{
-		"10": {"aes128gcm", "sha256"},
+		"10": {"aes128gcm", ""},
 		"20": {"aes256", "sha512"},
 	})
 

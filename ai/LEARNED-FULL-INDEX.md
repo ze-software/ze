@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1278 summaries
+Total: 1279 summaries
 
 ## 000-099
 
@@ -1357,3 +1357,4 @@ Total: 1278 summaries
 | 1304 | rfcgate-0-umbrella | `plan/learned/1304-rfcgate-0-umbrella.md` |
 | 1305 | Simplified Technical English as rule one | `plan/learned/1305-simplified-technical-english.md` |
 | 1306 | The Delegation Rule Lost on Position, Not on Argument | `plan/learned/1306-delegation-reminder-position.md` |
+| 1307 | A suite can be counted, tiered, and never run | `plan/learned/1307-rfc-evidence-tier-vacuity.md` |

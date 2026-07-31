@@ -5,7 +5,7 @@
 // request on an established SA. They are the DPD probe, the Child SA rekey, the IKE
 // SA rekey, and the two Delete senders. One shared window couples them.
 //
-// Each test carries an `RFC-req:` tag for the row it proves. Helpers here start with
+// Each test carries an `RFC requirement:` tag for the row it proves. Helpers here start with
 // `win`, so they cannot collide with the sibling RFC files in this package. This file
 // reuses the `rtx` loopback helpers and the `rky` dataplane recorder.
 

@@ -5,8 +5,10 @@ package engine
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/transport"
@@ -132,7 +134,16 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 		case rekeyChild:
 			newChild, err := applyChildRekeyResponse(sa, p, inner, dp, log)
 			if err != nil {
-				log.Warn("ike: child rekey response failed", "peer", ps.peerName, "error", err)
+				// RFC 7296 §2.25: a TEMPORARY_FAILURE answer means wait. The soft
+				// lifetime is a level trigger. Without this hold the next one-second
+				// tick retries against a peer that just asked for a delay.
+				if errors.Is(err, errTemporaryFailure) {
+					ps.childRekeyHoldUntil = time.Now().Add(temporaryFailureBackoff)
+					log.Info("child-sa: rekey refused with TEMPORARY_FAILURE, waiting",
+						"peer", ps.peerName, "backoff", temporaryFailureBackoff)
+				} else {
+					log.Warn("ike: child rekey response failed", "peer", ps.peerName, "error", err)
+				}
 				ps.pendingRekey = nil
 				return ownedOutcome{}
 			}
@@ -148,7 +159,14 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 		case rekeyIKE:
 			newSA, err := applyIKERekeyResponse(sa, p, inner, log)
 			if err != nil {
-				log.Warn("ike: IKE rekey response failed", "peer", ps.peerName, "error", err)
+				// RFC 7296 §2.25, as on the Child SA path above.
+				if errors.Is(err, errTemporaryFailure) {
+					ps.ikeRekeyHoldUntil = time.Now().Add(temporaryFailureBackoff)
+					log.Info("ike-sa: rekey refused with TEMPORARY_FAILURE, waiting",
+						"peer", ps.peerName, "backoff", temporaryFailureBackoff)
+				} else {
+					log.Warn("ike: IKE rekey response failed", "peer", ps.peerName, "error", err)
+				}
 				p.clear()
 				ps.pendingRekey = nil
 				return ownedOutcome{}
@@ -290,7 +308,7 @@ func (ps *PeerSession) sendDeleteIKE(sa *SA, tr *transport.UDPTransport, log *sl
 		sa.releaseRequestWindow()
 		return
 	}
-	sa.NextMsgID++
+	sa.advanceMsgID()
 	sendRaw(sa, tr, msg, log)
 }
 
@@ -366,7 +384,7 @@ func (ps *PeerSession) sendDeleteESP(sa *SA, tr *transport.UDPTransport, spi uin
 		sa.releaseRequestWindow()
 		return
 	}
-	sa.NextMsgID++
+	sa.advanceMsgID()
 	sendRaw(sa, tr, msg, log)
 }
 
@@ -378,95 +396,4 @@ func hasRekeySANotify(inner []wire.PayloadEntry) bool {
 		}
 	}
 	return false
-}
-
-// handleEstablishedInbound processes inbound messages on an established IKE SA.
-func handleEstablishedInbound(sa *SA, msg *wire.Message, log *slog.Logger) {
-	switch msg.Header.ExchangeType {
-	case wire.ExchangeInformational:
-		handleInformational(sa, msg, log)
-	case wire.ExchangeCreateChildSA:
-		handleCreateChildSA(sa, msg, log)
-	default:
-		log.Debug("ike: unexpected exchange on established SA",
-			"peer", sa.PeerName, "exchange", msg.Header.ExchangeType)
-	}
-}
-
-// handleInformational processes INFORMATIONAL exchanges (DPD, DELETE).
-// RFC 7296 Section 1.4: empty INFORMATIONAL is a DPD probe/response.
-func handleInformational(sa *SA, msg *wire.Message, log *slog.Logger) {
-	isResponse := msg.Header.Flags&wire.FlagResponse != 0
-
-	var hasDelete bool
-	for _, pe := range msg.Payloads {
-		switch p := pe.Payload.(type) {
-		case *wire.PayloadDelete:
-			hasDelete = true
-			if p.ProtocolID == wire.ProtocolIKE {
-				log.Info("ike: peer requested IKE SA delete", "peer", sa.PeerName)
-				sa.State = StateDead
-				return
-			}
-			log.Info("ike: peer deleted child SA",
-				"peer", sa.PeerName, "proto", p.ProtocolID, "spis", len(p.SPIs))
-		case *wire.PayloadNotify:
-			log.Debug("ike: informational notify",
-				"peer", sa.PeerName, "type", p.NotifyMsgType)
-		}
-	}
-
-	if !hasDelete && isResponse {
-		log.Debug("ike: DPD response received", "peer", sa.PeerName)
-	}
-	if !hasDelete && !isResponse {
-		log.Debug("ike: DPD probe received", "peer", sa.PeerName)
-	}
-}
-
-// handleCreateChildSA processes CREATE_CHILD_SA exchanges.
-// RFC 7296 Section 1.3: new child SA, child rekey, or IKE rekey.
-func handleCreateChildSA(sa *SA, msg *wire.Message, log *slog.Logger) {
-	isResponse := msg.Header.Flags&wire.FlagResponse != 0
-
-	var hasRekeySA bool
-	for _, pe := range msg.Payloads {
-		if n, ok := pe.Payload.(*wire.PayloadNotify); ok {
-			if n.NotifyMsgType == wire.NotifyRekeySA {
-				hasRekeySA = true
-			}
-		}
-	}
-
-	if isResponse {
-		if hasRekeySA {
-			log.Debug("ike: child SA rekey response", "peer", sa.PeerName)
-		} else {
-			log.Debug("ike: CREATE_CHILD_SA response", "peer", sa.PeerName)
-		}
-		return
-	}
-
-	if hasRekeySA {
-		log.Info("ike: peer initiated child SA rekey", "peer", sa.PeerName)
-	} else {
-		hasSAPayload := false
-		hasKE := false
-		hasTS := false
-		for _, pe := range msg.Payloads {
-			switch pe.Payload.(type) {
-			case *wire.PayloadSA:
-				hasSAPayload = true
-			case *wire.PayloadKE:
-				hasKE = true
-			case *wire.PayloadTS:
-				hasTS = true
-			}
-		}
-		if hasSAPayload && hasKE && !hasTS {
-			log.Info("ike: peer initiated IKE SA rekey", "peer", sa.PeerName)
-		} else {
-			log.Info("ike: peer initiated new child SA", "peer", sa.PeerName)
-		}
-	}
 }

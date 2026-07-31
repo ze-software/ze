@@ -146,6 +146,15 @@ func (ps *PeerSession) maintainSA(
 			// on an authenticated INFORMATIONAL response whose message ID matches the
 			// outstanding probe (matchesProbe rejects replays / out-of-window acks).
 			if out.peerAlive || (out.dpdResp && dpd.matchesProbe(out.dpdRespMsgID)) {
+				// The probe is abandoned here, so the request window it holds is
+				// retired with it. A peer REQUEST sets peerAlive too, and that path
+				// frees no window of its own. RFC 7296 Section 2.3 forbids one request
+				// answering another. Without this step the window stays held for the
+				// whole requestWindowTimeout, while timedOut and shouldRetransmit are
+				// both off. Read awaitingReply BEFORE handleDPDResponse clears it.
+				if dpd.awaitingReply() {
+					sa.retireRequest(dpd.probeMsgID)
+				}
 				handleDPDResponse(dpd, log, ps.peerName)
 			}
 			if out.newSA != nil {
@@ -156,6 +165,11 @@ func (ps *PeerSession) maintainSA(
 				oldSA := sa
 				sa = out.newSA
 				ps.ownedSA.Store(sa)
+				// The session pointer follows the swap too. TerminatePeerSA and
+				// TerminateAllSAs remove the SA that ps.getSA returns. A pointer
+				// left on the retired SA deletes a key that is already gone, and
+				// leaves the live tunnel in the table.
+				ps.setSA(sa)
 				table.Insert(sa)
 				table.Remove(oldSA.InitiatorSPI, oldSA.ResponderSPI)
 				oldSA.SKKeys.Clear()
@@ -174,6 +188,20 @@ func (ps *PeerSession) maintainSA(
 			// parallel path). A pending SA that DID authenticate returns us via the
 			// supersede case above, so anything still pending past the timeout is dead.
 			ps.reapStalePending(now, table, dp, log)
+
+			// RFC 7296 Section 2.2 MUST: "In the unlikely event that Message IDs grow
+			// too large to fit in 32 bits, the IKE SA MUST be closed or rekeyed." The
+			// rekey branch further down answers the threshold. This one answers the
+			// ceiling, where no id is left to carry a rekey request, so the SA closes.
+			// Without it an exhausted SA would go quiet instead: reserveRequestWindow
+			// refuses every request, including the DPD probe that detects a dead peer.
+			if sa.msgIDExhausted && sa.State != StateDead {
+				log.Warn("ike: message id space exhausted, closing the SA",
+					"peer", ps.peerName, "next-msgid", sa.NextMsgID,
+					"expected-msgid", sa.ExpectedMsgID)
+				sa.State = StateDead
+			}
+
 			if sa.State == StateDead {
 				log.Info("ike: SA marked dead by peer", "peer", ps.peerName)
 				ps.cleanupChild(dp, bus, log)
@@ -181,12 +209,21 @@ func (ps *PeerSession) maintainSA(
 			}
 
 			if dpd != nil && dpd.timedOut(now) {
-				log.Warn("dpd: peer dead", "peer", ps.peerName, "action", dpd.action)
+				log.Warn("dpd: peer dead", "peer", ps.peerName,
+					"action", dpd.action, "attempts", dpd.retries+1)
 				ps.cleanupChild(dp, bus, log)
 				return errTimeout
 			}
 
 			ps.serviceRequestWindow(sa, dpd, now, log)
+
+			// RFC 7296 Section 2.4: the peer has failed only once REPEATED attempts
+			// have gone unanswered for a timeout period. One lost datagram is not
+			// that, so an unanswered probe is repeated inside the liveness budget
+			// before the branch above ends the SA.
+			if dpd != nil && dpd.shouldRetransmit(now) {
+				retransmitDPD(sa, tr, dpd, now, log)
+			}
 
 			if dpd != nil && dpd.shouldSend(now) {
 				sendDPD(sa, tr, dpd, log)
@@ -223,6 +260,15 @@ func (ps *PeerSession) maintainSA(
 				ps.startIKERekey(sa, ikeGroup, tr, log)
 			}
 
+			// RFC 7296 Section 2.2 offers two remedies for a counter that runs out.
+			// The SA is "closed or rekeyed". This branch takes the second one first.
+			// The counter is inside the headroom below the ceiling, so the SA is
+			// rekeyed while ids remain to carry the exchange. Section 2.18 starts the
+			// replacement SA at 0.
+			if sa.msgIDNearExhaustion() && ps.pendingRekey == nil {
+				ps.startIKERekey(sa, ikeGroup, tr, log)
+			}
+
 			if ikeLT != nil && ikeLT.hardExpired(now) && ps.pendingRekey == nil {
 				log.Warn("ike-sa: hard lifetime expired", "peer", ps.peerName)
 				ps.cleanupChild(dp, bus, log)
@@ -236,6 +282,30 @@ func (ps *PeerSession) maintainSA(
 // before retransmitting the request. RFC 7296 §2.1 (retransmission).
 const rekeyRetransmitTimeout = 3 * time.Second
 
+// temporaryFailureBackoff is how long a rekey waits after the peer answered it with a
+// TEMPORARY_FAILURE notify.
+//
+// RFC 7296 §2.25 states two things about that answer. The recipient MUST NOT retry
+// the operation at once, and it MUST wait for the peer to finish the operation that
+// caused the condition. The recipient is then free to retry over a period of several
+// minutes. The checklist row RFC7296-2.25-1 carries the sentence verbatim.
+//
+// The RFC names no number, so this one is chosen. 60 seconds is 60 ticks of the owner
+// loop rather than one tick. It also puts about five attempts inside the
+// several-minute period the RFC describes.
+//
+// A default lifetime leaves room for it. ze-ipsec-conf.yang gives an ESP group 3600
+// seconds, and lifetimeJitter takes up to 10% off the soft time. A shorter configured
+// lifetime can close that gap. There hardExpired stays the backstop RFC 7296 §2.8
+// already requires.
+const temporaryFailureBackoff = 60 * time.Second
+
+// rekeyHeld reports whether a TEMPORARY_FAILURE answer is still holding a rekey back.
+// A zero instant means no answer has ever held it. RFC 7296 §2.25.
+func rekeyHeld(until, now time.Time) bool {
+	return !until.IsZero() && now.Before(until)
+}
+
 // startChildRekey begins a Child SA rekey. RFC 7296 §2.3 allows one self-initiated
 // request per SA, so the window is reserved before initiateChildRekey reads
 // NextMsgID. A held window defers the rekey: pendingRekey stays nil and the soft
@@ -243,6 +313,15 @@ const rekeyRetransmitTimeout = 3 * time.Second
 func (ps *PeerSession) startChildRekey(sa *SA, tr *transport.UDPTransport, log *slog.Logger) {
 	old := ps.getChildSA()
 	if old == nil {
+		return
+	}
+	// RFC 7296 §2.25: the peer answered an earlier attempt with TEMPORARY_FAILURE.
+	// This one waits out the hold. The soft lifetime is a level trigger and still
+	// stands, so a tick after the hold raises the rekey again. That repeat is the
+	// retry over several minutes the same section permits.
+	if rekeyHeld(ps.childRekeyHoldUntil, time.Now()) {
+		log.Debug("child-sa: rekey held, the peer answered with TEMPORARY_FAILURE",
+			"peer", ps.peerName, "until", ps.childRekeyHoldUntil)
 		return
 	}
 	if !sa.reserveRequestWindow() {
@@ -263,6 +342,13 @@ func (ps *PeerSession) startChildRekey(sa *SA, tr *transport.UDPTransport, log *
 // startIKERekey begins an IKE SA rekey under the same RFC 7296 §2.3 window as
 // startChildRekey. A held window defers it to a later tick. RFC 7296 §1.3.3.
 func (ps *PeerSession) startIKERekey(sa *SA, ikeGroup ipsec.IKEGroup, tr *transport.UDPTransport, log *slog.Logger) {
+	// RFC 7296 §2.25, as in startChildRekey. The two holds are separate, so a peer busy
+	// with a Child SA rekey does not stop an IKE SA rekey and the reverse.
+	if rekeyHeld(ps.ikeRekeyHoldUntil, time.Now()) {
+		log.Debug("ike-sa: rekey held, the peer answered with TEMPORARY_FAILURE",
+			"peer", ps.peerName, "until", ps.ikeRekeyHoldUntil)
+		return
+	}
 	if !sa.reserveRequestWindow() {
 		log.Debug("ike-sa: rekey deferred, a request is outstanding", "peer", ps.peerName)
 		return
@@ -279,10 +365,13 @@ func (ps *PeerSession) startIKERekey(sa *SA, ikeGroup ipsec.IKEGroup, tr *transp
 }
 
 // serviceRequestWindow frees a request window that no other timer can free. A rekey
-// ends the session once its retransmissions run out, and a DPD probe ends it once
-// the peer stays silent past the DPD timeout. Both therefore bound their own hold.
-// A Delete has neither a retransmission nor a deadline, so only a Delete reaches
-// requestWindowTimeout. RFC 7296 §1.4, §2.3.
+// ends the session once its retransmissions run out. A DPD probe ends its hold two
+// ways. The peer stays silent past the whole liveness budget. Or an authenticated
+// inbound proves the peer alive, and the inbound case retires probe and window
+// together (retireRequest, msgid.go).
+//
+// Both therefore bound their own hold. A Delete has neither a retransmission nor a
+// deadline, so only a Delete reaches requestWindowTimeout. RFC 7296 §1.4, §2.3.
 func (ps *PeerSession) serviceRequestWindow(sa *SA, dpd *dpdState, now time.Time, log *slog.Logger) {
 	if ps.pendingRekey != nil || dpd.awaitingReply() {
 		return

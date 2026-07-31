@@ -70,16 +70,40 @@ func TestValidatePKIRefsRejectsUnknownCAForEAPTLS(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-8 -- auth modes that carry no certificate material are untouched.
-// PREVENTS: The widened mode check accidentally demanding a CA from PSK or
-// EAP-MSCHAPv2 peers, which have no certificates at all.
+// VALIDATES: AC-8 -- a pre-shared-secret peer carries no certificate material and
+// is untouched. An eap-mschapv2 peer is not in that class, because RFC 7296
+// Section 2.16 makes the responder sign its AUTH with a public key.
+// PREVENTS: The widened mode check demanding a CA from a PSK peer, and the older
+// belief that eap-mschapv2 needs no certificate at all. That belief was the
+// violation: the responder fell back to a pre-shared-key AUTH, which is not a
+// public-key signature. See engine.TestEapAuthResponderRefusesWithoutCertificate.
 func TestValidatePKIRefsIgnoresNonCertificateModes(t *testing.T) {
-	for _, mode := range []AuthMode{AuthPreSharedSecret, AuthEAPMSCHAPv2} {
+	cases := []struct {
+		mode      AuthMode
+		wantError bool
+	}{
+		// No EAP exchange, so RFC 7296 Section 2.16 does not apply.
+		{AuthPreSharedSecret, false},
+		// An EAP exchange, so the responder needs a public-key credential.
+		{AuthEAPMSCHAPv2, true},
+	}
+	for _, c := range cases {
 		cfg := &IPsecConfig{
-			Peers: map[string]SiteToSitePeer{"branch": {Auth: AuthConfig{Mode: mode}}},
+			Peers: map[string]SiteToSitePeer{"branch": {Auth: AuthConfig{Mode: c.mode}}},
 		}
-		if err := cfg.ValidatePKIRefs(alwaysPresent, alwaysPresent, noCN); err != nil {
-			t.Errorf("auth mode %v was rejected: %v", mode, err)
+		err := cfg.ValidatePKIRefs(alwaysPresent, alwaysPresent, noCN)
+		if c.wantError {
+			if err == nil {
+				t.Errorf("auth mode %v with no certificate was accepted", c.mode)
+				continue
+			}
+			if !strings.Contains(err.Error(), "RFC 7296 Section 2.16") {
+				t.Errorf("auth mode %v error %q does not cite the requirement", c.mode, err)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("auth mode %v was rejected: %v", c.mode, err)
 		}
 	}
 }
@@ -113,10 +137,13 @@ func TestValidatePKIRefsAllowsEAPTLSIdentityUnlikeCertCN(t *testing.T) {
 func TestValidatePKIRefsStillChecksCNForX509(t *testing.T) {
 	cfg := &IPsecConfig{
 		Peers: map[string]SiteToSitePeer{
+			// The trust anchor is present, so the peer reaches the CN rule this
+			// test is about rather than stopping at the anchor requirement.
 			"branch": {Auth: AuthConfig{
-				Mode:        AuthX509,
-				Certificate: "alice-cert",
-				LocalID:     "alice@example.com",
+				Mode:          AuthX509,
+				Certificate:   "alice-cert",
+				CACertificate: "corp-ca",
+				LocalID:       "alice@example.com",
 			}},
 		},
 	}

@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | testing |
 | Depends | - |
-| Phase | - |
+| Phase | 1/1 |
 | Deferral shard | `plan/deferrals/fixit-chaos-reconnect-load-sensitive.md` |
-| Updated | 2026-07-30 |
+| Updated | 2026-07-31 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -61,26 +61,53 @@ The first isolated attempt failed for an unrelated reason and is recorded so nob
 it: a bare `go test` without the feature tags reports `no such module: ze-bgp-conf`.
 `ai/rules/bash-output.md` names that trap.
 
-## What is still open
+## The mechanism (resolved 2026-07-31)
 
-**The scheduler already sees session state, so the obvious fix is already in place.**
-`chaosSchedulerLoop` calls `sched.Tick(now, es.Snapshot())`
-(`internal/chaos/inprocess/chaos.go:98`), and `establishedState` is built whenever chaos is
-enabled (`internal/chaos/inprocess/runner.go:260`). A first guess that chaos fires blindly
-at a not-yet-established session is therefore WRONG, and it was discarded before this spec
-was written.
+**The run ends on VIRTUAL time, and the reconnect it provoked needs REAL time.**
 
-Two candidate mechanisms remain, and the next session must decide between them by reading
-rather than by guessing:
+The advance loop exits at `for simulated < cfg.Duration`
+(`internal/chaos/inprocess/runner.go:473`). It spends the 60 second window in about 0.6
+seconds of real time, which the file already states at `runner.go:685`. `simCancel()` then
+runs (`runner.go:749` before this work). The reconnect loop reads that cancel at
+`runner.go:334` and returns instead of restarting the simulator.
 
-| Candidate | What to read |
-|-----------|--------------|
-| `guard.AllowChaos` permits a new disconnect before the previous re-establishment finished | `internal/chaos/inprocess/chaos.go:100` and the `guard` package |
-| The scheduler's established snapshot is stale by a tick, so it targets a peer that has just gone down | `engine.Scheduler.Tick`, and how `establishedState` is updated |
+An instrumented run under load captured the whole failure in two milliseconds:
 
-The non-blocking send at `internal/chaos/inprocess/chaos.go:103-109` drops an action when a
-peer is busy. Understand that before any change. It already sheds load, and it CAN be the
-reason the test usually passes.
+```
+23:14:44.414  disconnected + reconnecting    (simulator returned, reconnect loop restarted)
+23:14:44.415  advance loop exit, simulated=1m0s -> simCancel()
+23:14:44.415  error: reading OPEN: use of closed network connection
+23:14:44.415  simulator returned, simCtxErr=context canceled
+```
+
+The context watcher (`internal/chaos/peer/simulator.go:168-174`) closed the connection in
+the middle of the OPEN exchange. On a quiet host the same reconnect completes in 10
+milliseconds. Nothing in the test waits for it, because the count is read after `Run`
+returns (`runner_test.go:683-696`).
+
+### Both earlier candidates are refuted
+
+| Candidate | Refutation |
+|-----------|------------|
+| `guard.AllowChaos` permits a new disconnect before the re-establishment finished | `AllowChaos` (`internal/chaos/guard/guard.go:89-119`) holds no establishment gate. Every action except `ActionHoldTimerExpiry` falls into the case at `guard.go:99-115`, whose body is a comment and nothing else. It also cannot fire at a peer that is down. `Scheduler.Tick` builds its candidates from established peers alone, and returns early when there are none (`internal/chaos/engine/scheduler.go:140-143`) |
+| The established snapshot is stale by a tick, so chaos targets a peer that just went down | The staleness is real. It cannot suppress the count. A stale action lands on a channel of capacity 1 (`runner.go:266`) and is read at `simulator.go:500`, which the session loop reaches only after `emit(Event{Type: EventEstablished})` at `simulator.go:250`. The recovery is therefore already counted before any chaos action can end the session |
+
+Both fall to one line. **`internal/chaos/peer/simulator.go:250` emits `EventEstablished`
+before the simulator can read a chaos action, so no chaos-side decision can prevent the
+second establishment.** Only a teardown that stops the handshake can, and that is
+`simCancel()`. In the captured failure the peer never reached `simulator.go:250` at all. It
+died in `readMsg` during the OPEN exchange (`simulator.go:202`), which no guard reaches.
+
+## What the diagnosis cost, and what it found
+
+Three further states hide a perturbation that no peer state shows. Each one was found by
+measurement after a narrower gate still failed under load.
+
+| Hidden state | Why peer state cannot show it |
+|--------------|-------------------------------|
+| The disconnect event trails the decision | `EventDisconnected` is emitted only after `<-readerDone`, and `readLoop` waits for its own drain goroutine first (`internal/chaos/peer/simulator_reader.go:38-41`). The drain goroutine that writes `establishedState` adds another wakeup |
+| An action is queued or running | `ActionConnectionCollision` holds the simulator for 500 milliseconds of real time (`internal/chaos/peer/simulator_actions.go:273`) and reports `Disconnected: false`. The peer reads as healthy throughout |
+| An action's consequence is deferred | `ActionHoldTimerExpiry` only stops the keepalives (`simulator_actions.go:44-47`). The session survives until the reactor's hold timer expires 20 seconds of virtual time later |
 
 ## A sibling instance, same class, different suite
 
@@ -204,18 +231,69 @@ The chaos suite is its own regression net.
 
 None. No RFC obligation is involved.
 
+## The fix
+
+`cfg.Duration` becomes an earliest bound for teardown, in the same sense as
+`RunConfig.DisconnectAt`. The advance loop is unchanged. After it, the background clock
+advancer starts FIRST, because a handshake cannot finish while virtual time stands still.
+`waitSettled` (`internal/chaos/inprocess/chaos.go`) then holds the teardown on observed
+state, and ctx bounds a peer that never returns.
+
+The run owes ONE observable recovery to each peer chaos knocked down. It does not owe a
+healthy peer at the final instant. At chaos rate 1.0 the peer is usually down when the
+window closes. An earlier gate demanded a healthy peer, and it held for the full 90 second
+ctx in 4 of 80 runs.
+
+| Change | File |
+|--------|------|
+| `waitSettled` plus `chaosProgress`, which counts dispatched actions against applied ones and latches the fall and the recovery | `internal/chaos/inprocess/chaos.go` |
+| Advancer hoisted above the settle wait, gate composed at the call site, `WentDown` and `Recovered` latched from the drain | `internal/chaos/inprocess/runner.go` |
+| `SimulatorConfig.OnSessionEnd`, called at the decision and before the reader drain | `internal/chaos/peer/simulator.go` |
+| Send and close of the callback channels serialized under `sendMu` | `pkg/plugin/rpc/bridge.go` |
+
+## A product data race, found by the fix
+
+`ai/rules/fix-dont-record.md` predicts that a real wait exposes a genuine race. It did.
+
+`DirectBridge.SendCallback` sends on `callbackCh` while `CloseCallbacks` closes it
+(`pkg/plugin/rpc/bridge.go`). The author knew the send CAN panic and added a `recover`, but
+`recover` does not make the pair safe. A send concurrent with a close is a data race, and
+`-race` failed the test that reached it. Reactor shutdown reached it through
+`Process.Stop` while a peer was in `broadcastValidateOpen`.
+
+`CloseCallbacks` now takes `sendMu` for writing and both senders take it for reading, so a
+send can never overlap the close. The close still signals the SDK event loop to exit, so
+the contract at `pkg/plugin/sdk/sdk_dispatch.go:128-138` is unchanged.
+
+## Evidence
+
+Go unit tests are outside `ze-test`, so `scripts/dev/stress-repro.py` cannot drive this one.
+The same technique drove it: 64 CPU and GC burners oversubscribing 32 cores, with 10
+concurrent copies of the race-instrumented test binary.
+
+The `-race` binary matters. Its isolated time is 6.46 seconds, which is the 6.30 seconds
+the original report recorded, so the failing run was the race pass.
+
+| Run | Result |
+|-----|--------|
+| Isolated, before | PASS, 4.13s plain and 6.46s under `-race` |
+| Under load, before | **6 of 30 FAILED**, verbatim `"1" is not greater than "1"` |
+| Under load, after | **0 of 100 failed**, then **0 of 60 failed** on the final binary |
+| Package, after | `internal/chaos/...` and `pkg/plugin/...` green under `-race` |
+| Isolated, after | All 13 `TestInProcess*` pass, target at 6.38s against the 6.46s baseline |
+
 ## Acceptance Criteria
 
-| Id | Criterion |
-|----|-----------|
-| AC-1 | The mechanism is named with a `file:line`, and the losing candidate above is refuted in writing |
-| AC-2 | `TestInProcessChaosReconnect` passes under `scripts/dev/stress-repro.py` pressure |
-| AC-3 | `Duration` is unchanged and no sleep is lengthened |
-| AC-4 | Chaos stays adversarial mid-run, so a half-open session is still reachable |
+| Id | Criterion | Evidence |
+|----|-----------|----------|
+| AC-1 | The mechanism is named with a `file:line`, and the losing candidate above is refuted in writing | "The mechanism" above names `runner.go:473` and `runner.go:334`. Both candidates are refuted against `guard.go:99-115`, `scheduler.go:140-143` and `simulator.go:250` |
+| AC-2 | `TestInProcessChaosReconnect` passes under stress pressure | 0 of 100, then 0 of 60, against 6 of 30 before |
+| AC-3 | `Duration` is unchanged and no sleep is lengthened | `git diff internal/chaos/inprocess/runner_test.go` is empty. No `time.Sleep` value changed |
+| AC-4 | Chaos stays adversarial mid-run, so a half-open session is still reachable | The scheduler, the guard, the stale snapshot and the drop path are untouched. The gate runs after the advance loop, which is the only feeder of `chaosTick`, so no chaos is scheduled during it |
 
 ## Checklist
 
 - [ ] Tests written first, reproduced under load, and the Tests FAIL output recorded
-- [ ] Mechanism named, and the other candidate refuted
+- [ ] Mechanism named, and both other candidates refuted
 - [ ] Tests PASS recorded under the same pressure
 - [ ] `make ze-verify` green

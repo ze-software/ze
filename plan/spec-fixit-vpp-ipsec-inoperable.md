@@ -75,6 +75,56 @@ Each is wrong on its own terms, and each would survive a layout repair.
 | `vpp.go:292` | `"3des"` maps to 4 | 11 | 4 is `AES_CTR_128`. This programs a different cipher than the operator configured, which `ai/rules/exact-or-reject.md` forbids outright |
 | `vpp.go:199-208` | `ipsecSPDEntry` models two prefixes | four address range endpoints | The real `IpsecSpdEntryV2` has no prefix field at all. This is a semantic mismatch, not a misordering |
 
+## The same policy-to-SA gap the XFRM backend carried
+
+Found on 2026-07-31, while the XFRM backend gained the tunnel endpoints its policy template
+was missing. That defect left `tmpl src 0.0.0.0 dst 0.0.0.0`, so no state matched the policy
+and the tunnel forwarded nothing. The VPP backend has the same class of gap in its own form.
+
+A PROTECT policy must name the SA that protects the traffic. The XFRM backend names it
+through the template tunnel endpoints. VPP names it through an SA id, because
+`IpsecSpdEntry` and `IpsecSpdEntryV2` carry `SaID` and hold no template addresses at all
+(`gokrazy/modcache/go.fd.io/govpp@v0.13.0/binapi/ipsec_types/ipsec_types.ba.go:346`
+and `:364`). In the VPP model the tunnel endpoints live on the SAD entry instead.
+
+`InstallPolicy` sends `Policy: 3`, which is `IPSEC_API_SPD_ACTION_PROTECT`
+(`ipsec_types.ba.go:244`), together with a hardcoded `SAID: 0` (`vpp.go:104`). `SPParams`
+holds no field able to carry an SA id, so no caller can supply one. The policy protects with
+SA 0 and resolves to nothing. Zero is again the value that looks like a valid answer.
+
+`InstallPolicy` also drops `p.Mode`. A transport-mode policy and a tunnel-mode policy reach
+VPP as the same request.
+
+**Not repaired here, by owner instruction.** The backend programs no SA at all while the
+CRCs stay `"00000000"`, so a policy binding would have nothing to bind to. Repair this with
+the rest of the message rewrite, and add the new criterion AC-8 below.
+
+## The AEAD key and salt reach VPP as one field
+
+Found on 2026-07-31, while `SAParams.EncKey` gained a documented contract.
+
+`EncKey` carries the cipher key followed by that cipher's salt when `IsAEAD` is true. RFC
+4106 Section 8.1 makes AES-GCM KEYMAT four octets longer than the AES key, so AES-GCM-256
+gives 36 octets. The Linux XFRM backend is correct: it hands the whole slice to
+`rfc4106(gcm(aes))`, which expects exactly that layout
+(`internal/component/ike/dataplane/xfrm_linux.go:58-62`).
+
+VPP does not take the two together. `ipsec_sad_entry` carries the GCM salt in its own
+field, so the key field must hold the cipher key alone. The backend sends
+`CryptoKey: vppKey(p.EncKey)` with all 36 octets and a hardcoded `Salt: 0`
+(`internal/component/ike/dataplane/vpp.go:50` and `:56`). VPP would read a 36 octet key
+into a field it keys at 32. It would also encrypt with a zero salt while the peer uses
+the real one.
+
+**Not repaired here.** The contract is now documented on the field. The split belongs
+with the message rewrite rather than in a backend that cannot program an SA at all. The
+repair is: take the salt from the last `len(EncKey) - keyBytes` octets, put it in `Salt`,
+and pass the remainder as `CryptoKey`. Add the new criterion AC-9 below.
+
+| New criterion | Assertion |
+|---------------|-----------|
+| AC-9 | An AEAD `InstallSA` sends the cipher key alone in `CryptoKey` and that cipher's salt in `Salt`, both read from `SAParams.EncKey` rather than assumed |
+
 ## Required Reading
 
 | Document | Why |
@@ -169,6 +219,8 @@ look like their own defects.
 | AC-5 | The SPD call is built from address ranges |
 | AC-6 | A `vpp` dataplane selection is rejected at config verify while AC-7 is unmet |
 | AC-7 | Something executes this backend against a real VPP and an SA is installed |
+| AC-8 | A PROTECT policy names the SA it protects with. `SPParams` carries that identity, and a request that reaches VPP with SA id 0 is rejected rather than sent |
+| AC-9 | `InstallPolicy` honors `p.Mode`, so a transport-mode policy and a tunnel-mode policy differ |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

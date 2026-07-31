@@ -492,8 +492,18 @@ func autEAPHandshake(t *testing.T) (ini, resp *SA, rounds []autRound) {
 	log := slogutil.DiscardLogger()
 	ikeGroup := testIKEGroup()
 	espGroup := testESPGroup()
-	// Auth.PSK is the EAP-MSCHAPv2 password on both sides.
-	iniPeer, respPeer := autPeers(ipsec.AuthConfig{Mode: ipsec.AuthEAPMSCHAPv2, PSK: "eap-pass"})
+	// Auth.PSK is the EAP-MSCHAPv2 password on both sides. The certificate and the
+	// CA are separate from it. RFC 7296 Section 2.16 has the responder
+	// authenticate back with a public-key signature. computeServerAuth signs with
+	// the certificate, and the initiator checks it against the CA. Without them
+	// the responder refuses the exchange, which is the conformant outcome.
+	autLoadPKI(t)
+	iniPeer, respPeer := autPeers(ipsec.AuthConfig{
+		Mode:          ipsec.AuthEAPMSCHAPv2,
+		PSK:           "eap-pass",
+		Certificate:   autCertName,
+		CACertificate: autCAName,
+	})
 
 	table := NewSATable()
 	ini, err := newInitiatorSA("ze", iniPeer, ikeGroup, espGroup)

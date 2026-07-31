@@ -24,6 +24,7 @@ var (
 	ErrNonceTooShort     = errors.New("ike: nonce shorter than 16 bytes")
 	ErrNonceTooLong      = errors.New("ike: nonce longer than 256 bytes")
 	ErrInvalidSPISize    = errors.New("ike: invalid SPI size")
+	ErrNotifyProtocolID  = errors.New("ike: notify carrying an SPI must name AH or ESP")
 	ErrNoProposals       = errors.New("ike: SA contains no proposals")
 	ErrNoTrafficSelector = errors.New("ike: TS payload contains no selectors")
 	ErrHeaderTooShort    = errors.New("ike: message shorter than header")
@@ -151,6 +152,12 @@ func decodePayload(ptype uint8, data []byte) (Payload, error) {
 		return nil, fmt.Errorf("%w: %d", ErrUnknownPayload, ptype)
 	}
 	if err := p.ReadFrom(data); err != nil {
+		if isItemRejected(err) {
+			// One proposal or transform was dropped and the payload holds the rest
+			// (RFC 7296 Section 3.3.6). The caller receives what survived beside the
+			// reason, so it can keep the payload.
+			return p, err
+		}
 		return nil, err
 	}
 	return p, nil

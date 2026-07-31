@@ -255,10 +255,12 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	var routeChannels []chan route.Action
 	var peerGuard *guard.Guard
 	var es *establishedState
+	var chaosProg *chaosProgress
 
 	if chaosEnabled || routeEnabled {
 		es = newEstablishedState(peerCount)
 		peerGuard = guard.New(peerCount)
+		chaosProg = newChaosProgress(peerCount)
 
 		if chaosEnabled {
 			chaosChannels = make([]chan engine.ChaosAction, peerCount)
@@ -317,6 +319,15 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 				ml:        ml,
 				localAddr: localTCPAddr,
 				peerIP:    peerIP,
+			}
+			// Mark the peer down the moment the simulator decides its session is
+			// over, rather than when EventDisconnected reaches the drain
+			// goroutine. The settle gate reads this state, and the event trails
+			// the decision by several goroutine wakeups.
+			idx := i
+			simCfg.OnSessionEnd = func() {
+				es.Set(idx, false)
+				chaosProg.WentDown(idx)
 			}
 		}
 		if routeEnabled {
@@ -378,9 +389,13 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 				case peer.EventEstablished:
 					es.Set(ev.PeerIndex, true)
 					peerGuard.OnEstablished(ev.PeerIndex)
+					chaosProg.Recovered(ev.PeerIndex)
 				case peer.EventDisconnected:
 					es.Set(ev.PeerIndex, false)
 					peerGuard.OnDisconnected(ev.PeerIndex)
+					chaosProg.WentDown(ev.PeerIndex)
+				case peer.EventChaosExecuted:
+					chaosProg.Executed(ev.PeerIndex)
 				}
 			}
 			eventsMu.Lock()
@@ -423,7 +438,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 			Interval:  chaosInterval,
 			Warmup:    warmup,
 		})
-		go chaosSchedulerLoop(simCtx, chaosSched, peerGuard, es, chaosChannels, chaosTick)
+		go chaosSchedulerLoop(simCtx, chaosSched, peerGuard, es, chaosChannels, chaosTick, chaosProg)
 	}
 	if routeEnabled {
 		routeInterval := cfg.RouteInterval
@@ -672,10 +687,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		time.Sleep(delay)
 	}
 
-	// Stop simulators and reactor.
-	simCancel()
-
-	// Virtual time MUST keep moving while everything shuts down.
+	// Virtual time MUST keep moving from here until everything is down.
 	//
 	// session.Run() polls for its connection with s.clock.Sleep(10ms)
 	// (session.go:767), and VirtualClock.Sleep is a bare channel receive
@@ -689,6 +701,9 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	// that therefore never came, and simWg.Wait() hung until the caller's context
 	// tore the sockets down. Real time does not stop while a system shuts down,
 	// and neither may virtual time.
+	//
+	// It starts BEFORE the settle wait below, which needs the same clock: a
+	// reconnect handshake cannot finish while virtual time stands still.
 	stopAdvance := make(chan struct{})
 	advanceDone := make(chan struct{})
 	go func() {
@@ -704,6 +719,46 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 			}
 		}
 	}()
+
+	// Let a reconnect that chaos provoked finish before the teardown cuts it.
+	// Only chaos runs restart their simulators, so only they can settle.
+	// StopKeepalivesAt cancels the simulators on purpose, and those peers are
+	// meant to stay down.
+	//
+	// The run owes ONE observable recovery to each peer chaos knocked down. It
+	// does not owe a healthy peer at the final instant. At chaos rate 1.0 the peer
+	// is usually down when the window closes. A wait for that last flap waits for
+	// something the run never promised.
+	settled := func() bool {
+		// An action still queued, or still running inside the simulator, moves no
+		// state at all. ActionConnectionCollision holds the simulator for 500ms of
+		// real time and reports Disconnected false, so the peer reads as healthy
+		// for all of it and the session dies afterwards.
+		if !chaosProg.Quiet() {
+			return false
+		}
+		for i := range cfg.Profiles {
+			// A peer that owes a recovery is waited for, whatever it looks like now.
+			if chaosProg.Owed(i) {
+				return false
+			}
+			// A peer chaos has touched, and has not yet knocked down, is read from
+			// BOTH sides. Each side sees a session end that the other misses. es
+			// carries the simulator's view. Its down edge comes from OnSessionEnd at
+			// the moment of the decision, and it does not trail the reader drain the
+			// way EventDisconnected does. peerEstablished reads the reactor's own peer
+			// state machine, which is the side that decides a connection collision.
+			if chaosProg.AwaitingFirstFall(i) &&
+				(!es.Up(i) || !peerEstablished(reactor, cfg.Profiles[i].Address)) {
+				return false
+			}
+		}
+		return true
+	}
+	waitSettled(ctx, chaosEnabled && cfg.StopKeepalivesAt == 0, settled, stepDelay)
+
+	// Stop simulators and reactor.
+	simCancel()
 
 	simWg.Wait()
 

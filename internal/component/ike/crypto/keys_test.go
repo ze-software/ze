@@ -215,6 +215,126 @@ func TestChildSAKeymatPFS(t *testing.T) {
 	}
 }
 
+// VALIDATES: DeriveChildSAKeys and DeriveChildSAKeysPFS request four octets more
+// KEYMAT for each AES-GCM key than the AES key alone needs. RFC 4106 Section 8.1:
+// "The size of the KEYMAT for the AES-GCM-ESP MUST be four octets longer than is
+// needed for the associated AES key." A 128 bit key takes 20 octets. A 256 bit key
+// takes 36 octets. The last four octets are the salt value in the nonce.
+// PREVENTS: an ESP Child SA keyed with 32 octets for AES-GCM-256. The Linux kernel
+// refuses that key with EPROTONOSUPPORT. A peer such as strongSwan reads the
+// responder key at offset 36, so both ends key differently even where a kernel
+// accepts the short key.
+func TestChildSAKeymatAEADCarriesSalt(t *testing.T) {
+	skD := make([]byte, 32)
+	for i := range skD {
+		skD[i] = byte(i + 10)
+	}
+	dhSecret := make([]byte, 32)
+	ni := []byte("child-nonce-init")
+	nr := []byte("child-nonce-resp")
+	integ := IntegrityTransform{ID: AUTH_NONE}
+
+	tests := []struct {
+		name    string
+		keyBits uint16
+		wantLen int
+	}{
+		{"aes-gcm-128", 128, 20},
+		{"aes-gcm-256", 256, 36},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			enc := EncryptionTransform{ID: ENCR_AES_GCM_16, KeyLength: tt.keyBits, IsAEAD: true}
+
+			keys, err := DeriveChildSAKeys(PRF_HMAC_SHA2_256, skD, ni, nr, enc, integ)
+			if err != nil {
+				t.Fatalf("DeriveChildSAKeys: %v", err)
+			}
+			defer keys.Clear()
+
+			if len(keys.EncryptKeyI) != tt.wantLen {
+				t.Errorf("EncryptKeyI length = %d, want %d (AES key plus 4-byte salt)",
+					len(keys.EncryptKeyI), tt.wantLen)
+			}
+			if len(keys.EncryptKeyR) != tt.wantLen {
+				t.Errorf("EncryptKeyR length = %d, want %d (AES key plus 4-byte salt)",
+					len(keys.EncryptKeyR), tt.wantLen)
+			}
+
+			pfs, err := DeriveChildSAKeysPFS(PRF_HMAC_SHA2_256, skD, dhSecret, ni, nr, enc, integ)
+			if err != nil {
+				t.Fatalf("DeriveChildSAKeysPFS: %v", err)
+			}
+			defer pfs.Clear()
+
+			if len(pfs.EncryptKeyI) != tt.wantLen {
+				t.Errorf("PFS EncryptKeyI length = %d, want %d", len(pfs.EncryptKeyI), tt.wantLen)
+			}
+			if len(pfs.EncryptKeyR) != tt.wantLen {
+				t.Errorf("PFS EncryptKeyR length = %d, want %d", len(pfs.EncryptKeyR), tt.wantLen)
+			}
+		})
+	}
+}
+
+// VALIDATES: the KEYMAT length of an AEAD Child SA follows the transform ID, not the
+// IsAEAD field. A construction site that fills the ID and leaves the field at its zero
+// value still gets the salt.
+// PREVENTS: the zero-value trap of ai/rules/fail-closed-guards.md. wireProposalsToESP
+// filled the ID alone, and a false IsAEAD reads as a valid answer that shortens every
+// AES-GCM key by four octets.
+func TestChildSAKeymatAEADIgnoresUnsetFlag(t *testing.T) {
+	skD := make([]byte, 32)
+	ni := []byte("child-nonce-init")
+	nr := []byte("child-nonce-resp")
+
+	// IsAEAD is deliberately absent. The ID alone names an AEAD cipher.
+	enc := EncryptionTransform{ID: ENCR_AES_GCM_16, KeyLength: 256}
+	integ := IntegrityTransform{ID: AUTH_NONE}
+
+	keys, err := DeriveChildSAKeys(PRF_HMAC_SHA2_256, skD, ni, nr, enc, integ)
+	if err != nil {
+		t.Fatalf("DeriveChildSAKeys: %v", err)
+	}
+	defer keys.Clear()
+
+	if len(keys.EncryptKeyI) != 36 {
+		t.Errorf("EncryptKeyI length = %d, want 36 even with IsAEAD unset", len(keys.EncryptKeyI))
+	}
+}
+
+// VALIDATES: a non-AEAD cipher takes no salt, so the ESP key is the AES key alone.
+// PREVENTS: a blanket four-octet increase that would over-key AES-CBC and break every
+// CBC Child SA.
+func TestChildSAKeymatCBCTakesNoSalt(t *testing.T) {
+	skD := make([]byte, 32)
+	enc := EncryptionTransform{ID: ENCR_AES_CBC, KeyLength: 128}
+	integ := IntegrityTransform{ID: AUTH_HMAC_SHA2_256_128, KeyLength: 32, TruncatedLength: 16}
+
+	keys, err := DeriveChildSAKeys(PRF_HMAC_SHA2_256, skD, []byte("ni"), []byte("nr"), enc, integ)
+	if err != nil {
+		t.Fatalf("DeriveChildSAKeys: %v", err)
+	}
+	defer keys.Clear()
+
+	if len(keys.EncryptKeyI) != 16 {
+		t.Errorf("EncryptKeyI length = %d, want 16 (128-bit AES key, no salt)", len(keys.EncryptKeyI))
+	}
+}
+
+// VALIDATES: every encryption transform in the registry carries an IsAEAD field that
+// agrees with the verdict its ID gives.
+// PREVENTS: a registry entry whose cached flag drifts from the single AEAD predicate.
+func TestEncryptionRegistryAEADAgreesWithID(t *testing.T) {
+	for name, transform := range encryptionRegistry {
+		if transform.IsAEAD != transform.ID.IsAEAD() {
+			t.Errorf("%s: IsAEAD field = %v, ID verdict = %v",
+				name, transform.IsAEAD, transform.ID.IsAEAD())
+		}
+	}
+}
+
 func TestRekeyedSKEYSEED(t *testing.T) {
 	skDOld := make([]byte, 32)
 	for i := range skDOld {

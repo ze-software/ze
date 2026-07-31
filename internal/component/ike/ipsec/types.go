@@ -378,8 +378,11 @@ type AuthConfig struct {
 	PSK           string // decoded plaintext (only for pre-shared-secret mode)
 	LocalID       string
 	RemoteID      string
-	CACertificate string // PKI store name (only for x509 mode)
-	Certificate   string // PKI store name (only for x509 mode)
+	CACertificate string // PKI store name (x509 and EAP modes)
+	// Certificate is a PKI store name. X.509 mode uses it, and every EAP mode
+	// requires it, because RFC 7296 Section 2.16 makes the responder sign its
+	// AUTH with a public key. ValidatePKIRefs enforces that.
+	Certificate string
 }
 
 // SiteToSitePeer is a remote IPsec VPN peer.

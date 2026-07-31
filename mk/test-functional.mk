@@ -1,7 +1,7 @@
 # Functional tests: .ci-based suites run via $(ZEBIN_TEST)
 #
 # Quick reference:
-#   make ze-functional-test    All 22 gating suites
+#   make ze-functional-test    All 24 gating suites (the all_suites list below)
 #   make ze-encode-test        Encoding only
 #   make ze-plugin-test        Plugin behavior only
 #   make ze-decode-test        Wire decoding only
@@ -177,10 +177,12 @@ ze-functional-warm:
 	@$(GO) test -run '^$$' -count=1 $(ZE_CI_GO_TEST_PKGS) >/dev/null
 
 # Run ze functional tests (all types, continue on failure to show all results)
-# Release evidence matrix: encode, plugin, parse, decode, reload, ui, editor,
-# managed, l2tp, firewall, policy, ldp, rsvpte, isis, ospf, web, install. Suites
-# not in this list (static, traffic, flow-export, vpp, l2tp-wire, isis-wire,
-# ospf-wire, chaos-web) have runners but platform deps or infra.
+# Release evidence matrix: every suite in the all_suites line below. That line is the
+# single source of truth, so this comment names none of them and cannot drift from it.
+# A suite that has a runner and no all_suites entry (static, traffic, flow-export, vpp,
+# vrrp, chaos-web) carries a platform dependency or infrastructure this target does not
+# set up. Add a suite to all_suites and to a run_suite line together, because the first
+# sets the progress denominator and the second runs it.
 # ZE_SKIP_SUITES: comma-separated list of suites to skip (e.g. firewall,web
 # for Docker environments without agent-browser or native process control).
 ZE_SKIP_SUITES ?=
@@ -212,6 +214,7 @@ ze-functional-test: ze-functional-warm $(ZE_TEST_DEPS_ALL)
 	run_suite l2tp $(SUITE_RUN) $(ZE_TEST_RUN) l2tp --all; \
 	run_suite firewall $(SUITE_RUN) $(ZE_TEST_RUN) firewall --all; \
 	run_suite policy $(SUITE_RUN) $(ZE_TEST_RUN) policy --all; \
+	run_suite ipsec $(SUITE_RUN) $(ZE_TEST_RUN) ipsec --all; \
 	run_suite ldp $(SUITE_RUN) $(ZE_TEST_RUN) ldp --all; \
 	run_suite rsvpte $(SUITE_RUN) $(ZE_TEST_RUN) rsvpte --all; \
 	run_suite isis $(SUITE_RUN) $(ZE_TEST_RUN) isis --all; \
@@ -281,6 +284,13 @@ ze-firewall-test: $(ZE_TEST_DEPS)
 
 ze-policy-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) policy --all
+
+# IPsec/IKEv2 suite (test/ipsec/*.ci). It was listed in all_suites above but had
+# no run_suite line, so it counted toward the progress denominator and never ran.
+# ai/rules/testing.md derives a .ci tag's verify tier from all_suites, so every
+# tag in test/ipsec/ was credited a merge-gate tier it did not earn.
+ze-ipsec-test: $(ZE_TEST_DEPS)
+	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) ipsec --all
 
 ze-appliance-test: $(ZE_TEST_DEPS)
 	@trap '$(ZE_ALT_TRAP)' EXIT; $(ZE_ALT_BUILD) $(SUITE_RUN) $(ZE_TEST_RUN) appliance --all

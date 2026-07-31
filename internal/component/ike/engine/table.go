@@ -58,6 +58,29 @@ func (t *SATable) Remove(initiator, responder [8]byte) *SA {
 	return sa
 }
 
+// RemoveByPeer deletes every SA of one peer session, and returns how many it
+// removed. A session that ends removes what it owns, whatever SPI pair its SA
+// carries by then. The responder SPI arrives after the handshake starts, and an IKE
+// rekey replaces the SA with a different one under a new pair.
+//
+// One session runs per peer name, because the engine keys its session map by that
+// name. The entries of one name are the entries of one session.
+//
+// A responder session can hold a second, parallel SA of the same name while it
+// supersedes the first. A responder removes by SPI pair, and never calls this.
+func (t *SATable) RemoveByPeer(peerName string) int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	removed := 0
+	for key, sa := range t.bySPI {
+		if sa.PeerName == peerName {
+			delete(t.bySPI, key)
+			removed++
+		}
+	}
+	return removed
+}
+
 // UpdateKey re-indexes an SA after the responder SPI becomes known.
 // Removes the old key (with zero responder SPI) and inserts with the full pair.
 func (t *SATable) UpdateKey(oldResponder, newResponder [8]byte, sa *SA) {

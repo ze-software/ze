@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 301 design docs, 3138 files
+Total: 302 design docs, 3141 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3177,9 +3177,12 @@ Total: 301 design docs, 3138 files
 
 ## `plan/learned/734-ipsec-3-data-model.md`
 
-- `internal/component/ike/ipsec/config.go` -- IPsec config parser
-- `internal/component/ike/ipsec/types.go` -- IPsec data model types
-- `internal/component/ike/ipsec/validate.go` -- IPsec cross-reference validation
+| File | Topic |
+|------|-------|
+| `internal/component/ike/ipsec/algorithm_support.go` | IPsec data model types |
+| `internal/component/ike/ipsec/config.go` | IPsec config parser |
+| `internal/component/ike/ipsec/types.go` | IPsec data model types |
+| `internal/component/ike/ipsec/validate.go` | IPsec cross-reference validation |
 
 ## `plan/learned/739-ipsec-6-ikev2-crypto.md`
 
@@ -3204,6 +3207,7 @@ Total: 301 design docs, 3138 files
 | `internal/component/ike/engine/initiator.go` | IKE_SA_INIT initiator logic |
 | `internal/component/ike/engine/reconcile.go` | config reconciliation |
 | `internal/component/ike/engine/register.go` | IKE engine component registration |
+| `internal/component/ike/engine/remote_id.go` | remote identity policy |
 | `internal/component/ike/engine/sa.go` | IKE SA state |
 | `internal/component/ike/engine/table.go` | IKE SA table |
 | `internal/component/ike/transport/udp.go` | IKE UDP transport |
@@ -4419,6 +4423,10 @@ Total: 301 design docs, 3138 files
 ## `rfc/short/rfc7012.md`
 
 - `internal/plugins/flowexport/ipfix/ie.go` -- IPFIX Information Element definitions
+
+## `rfc/short/rfc7296.md`
+
+- `internal/component/ike/engine/rfc7296_eapauth_test.go` -- Section 2.16, EAP responder authentication
 
 ## `rfc/short/rfc9069.md`
 

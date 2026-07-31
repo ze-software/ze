@@ -19,11 +19,16 @@ func newXFRMBackend() (Dataplane, error) {
 }
 
 func (b *xfrmBackend) InstallSA(p SAParams) error {
+	mode, ok := kernelXFRMMode(p.Mode)
+	if !ok {
+		return fmt.Errorf("xfrm: state add spi=%d: unknown mode %d, want ModeTransport (%d) or ModeTunnel (%d)",
+			p.SPI, p.Mode, ModeTransport, ModeTunnel)
+	}
 	state := &netlink.XfrmState{
 		Src:   p.Src,
 		Dst:   p.Dst,
 		Proto: netlink.Proto(p.Proto),
-		Mode:  netlink.Mode(p.Mode),
+		Mode:  netlink.Mode(mode),
 		Spi:   int(p.SPI),
 		Reqid: int(p.ReqID),
 		Ifid:  int(p.IfID),
@@ -98,7 +103,11 @@ func (b *xfrmBackend) RemoveSA(spi uint32, dst net.IP, proto uint8) error {
 }
 
 func (b *xfrmBackend) InstallPolicy(p SPParams) error {
-	if err := netlink.XfrmPolicyAdd(xfrmPolicyFromParams(p)); err != nil {
+	pol, err := xfrmPolicyFromParams(p)
+	if err != nil {
+		return fmt.Errorf("xfrm: policy add: %w", err)
+	}
+	if err := netlink.XfrmPolicyAdd(pol); err != nil {
 		return fmt.Errorf("xfrm: policy add: %w", err)
 	}
 	return nil
@@ -117,7 +126,11 @@ func (b *xfrmBackend) RemovePolicy(src, dst *net.IPNet, dir SADir) error {
 }
 
 func (b *xfrmBackend) RemovePolicyParams(p SPParams) error {
-	if err := netlink.XfrmPolicyDel(xfrmPolicyFromParams(p)); err != nil {
+	pol, err := xfrmPolicyFromParams(p)
+	if err != nil {
+		return fmt.Errorf("xfrm: policy del: %w", err)
+	}
+	if err := netlink.XfrmPolicyDel(pol); err != nil {
 		return fmt.Errorf("xfrm: policy del: %w", err)
 	}
 	return nil
@@ -126,7 +139,23 @@ func (b *xfrmBackend) RemovePolicyParams(p SPParams) error {
 // xfrmPolicyFromParams builds the netlink policy shared by install and delete so
 // the delete selector (Src, Dst, Dir, upper-layer Proto, Ifid) matches the
 // installed policy exactly; the kernel identifies a policy by its whole selector.
-func xfrmPolicyFromParams(p SPParams) *netlink.XfrmPolicy {
+// It rejects an unknown mode, because the template mode must agree with the mode
+// of the state it resolves to.
+//
+// The template also carries the tunnel endpoints in tunnel mode. Those addresses
+// are how the kernel resolves the policy to a state (RFC 4301 Section 4.4.1.2).
+// tunnelEndpoints rejects an absent pair, so a 0.0.0.0 template never reaches the
+// kernel. Such a template matched no state and the tunnel forwarded nothing.
+func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
+	mode, ok := kernelXFRMMode(p.Mode)
+	if !ok {
+		return nil, fmt.Errorf("unknown mode %d, want ModeTransport (%d) or ModeTunnel (%d)",
+			p.Mode, ModeTransport, ModeTunnel)
+	}
+	tmplSrc, tmplDst, err := tunnelEndpoints(p)
+	if err != nil {
+		return nil, err
+	}
 	return &netlink.XfrmPolicy{
 		Src:     p.Src,
 		Dst:     p.Dst,
@@ -134,12 +163,16 @@ func xfrmPolicyFromParams(p SPParams) *netlink.XfrmPolicy {
 		Proto:   netlink.Proto(p.UpperProto), // upper-layer selector (0 = any, 89 = OSPF)
 		Ifindex: p.IfIndex,                   // RFC 4552 §6 interface-based selector (0 = node-wide)
 		Tmpls: []netlink.XfrmPolicyTmpl{{
+			// Src/Dst are the outer tunnel-header addresses, not the selector above.
+			// They stay nil in transport mode, where the kernel leaves them unused.
+			Src:   tmplSrc,
+			Dst:   tmplDst,
 			Proto: netlink.Proto(p.Proto),
-			Mode:  netlink.Mode(p.Mode),
+			Mode:  netlink.Mode(mode),
 			Reqid: int(p.ReqID),
 		}},
 		Ifid: int(p.IfID),
-	}
+	}, nil
 }
 
 func (b *xfrmBackend) ListSAs(ifID uint32) ([]SAInfo, error) {

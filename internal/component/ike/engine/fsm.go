@@ -95,10 +95,25 @@ func (ps *PeerSession) runInitiator(
 	if err != nil {
 		return fmt.Errorf("ike: create SA: %w", err)
 	}
-	ps.sa = sa
+	ps.setSA(sa)
 
 	// RFC 7296 Section 2.6: initiator inserts SA with zero responder SPI initially.
 	table.Insert(sa)
+	// The entry lives exactly as long as this cycle. Without the removal a failed
+	// cycle leaves an established-looking SA behind. Every later packet still reaches
+	// it, and the IPsec metrics still count it as a live tunnel.
+	//
+	// The removal names the PEER, not an SPI pair. Go evaluates the arguments of a
+	// deferred CALL where the defer is written. A deferred removal by SPI pair
+	// therefore captures the responder SPI as the zero newInitiatorSA left. It then
+	// deletes a key that handleSAInitResponse already replaced. An IKE rekey swaps
+	// in a different SA under a new pair, so even a pair read at return time names
+	// the wrong entry.
+	//
+	// This session owns every entry of its peer name. A removal by name ends the
+	// cycle with nothing of its own left behind. ps.sa stays, because reconnectDelay
+	// reads its retransmit count.
+	defer table.RemoveByPeer(sa.PeerName)
 
 	remote, err := net.ResolveUDPAddr("udp4", ikeAddr(peer.RemoteAddress))
 	if err != nil {
@@ -354,7 +369,14 @@ func handleInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.U
 			handleEAPResponse(sa, &msg, pkt.Data, tr, log)
 		}
 	case StateEstablished:
-		handleEstablishedInbound(sa, &msg, log)
+		// handleOwnedInbound processes every post-establishment message on the owner
+		// loop, and nothing else does. That loop owns sa.SKKeys and the cached
+		// response, so a handler here would write owner state from the shared
+		// dispatch goroutine. This arm is reached only before maintainSA adopts the
+		// SA. RFC 7296 Section 2.1 makes the peer retransmit, and the retransmission
+		// reaches the owner loop.
+		log.Debug("ike: established-SA packet arrived before the owner loop adopted it, dropping",
+			"peer", sa.PeerName, "exchange", msg.Header.ExchangeType)
 	case StateIdle, StateSAInitReceived, StateAuthReceived, StateDead:
 		log.Debug("ike: message in unexpected state", "state", sa.State)
 	}
@@ -427,6 +449,16 @@ func handleSAInitResponse(
 
 	if remoteSA == nil || remoteKE == nil || remoteNonce == nil {
 		log.Warn("ike: incomplete IKE_SA_INIT response", "peer", sa.PeerName)
+		sa.State = StateDead
+		return
+	}
+
+	// RFC 7296 Section 3.3.1: an IKE_SA_INIT response belongs to the initial IKE SA
+	// negotiation, so its proposals MUST carry an SPI Size of zero. The exchange is what
+	// makes the rule apply, and the parse layer never sees the exchange.
+	if err := remoteSA.ValidateInitialSPISize(); err != nil {
+		log.Warn("ike: IKE_SA_INIT response carries an SPI in its proposals",
+			"peer", sa.PeerName, "error", err)
 		sa.State = StateDead
 		return
 	}
@@ -531,9 +563,18 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 		return
 	}
 
-	authVerified := false
+	// RFC 7296 Section 2.5 says: implementations MUST NOT reject as invalid a message
+	// with those payloads in any other order.
+	// Section 1.7 removed the earlier allowance to do so.
+	// The walk below therefore only COLLECTS.
+	// AUTH verification reads the identification and certificate payloads.
+	// A verification call inside the walk refuses a peer that sent AUTH before IDr.
+	// handleAuthRequest (responder.go) has the same shape for the same reason.
+	var authPayload *wire.PayloadAUTH
 	var eapPayload *wire.PayloadEAP
 	var childOffer *wire.PayloadSA
+	var certPayloads []*wire.PayloadCERT
+	var setWindowSize *wire.PayloadNotify
 	for _, pe := range innerPayloads {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadNotify:
@@ -542,20 +583,21 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 				sa.State = StateDead
 				return
 			}
+			// RFC 7296 Section 2.3: the peer states how many outstanding requests it
+			// keeps. IKE_AUTH is the read point, because "The window size is always one
+			// until the initial exchanges complete".
+			if p.NotifyMsgType == wire.NotifySetWindowSize {
+				setWindowSize = p
+			}
 		case *wire.PayloadID:
 			if p.IDPayloadType == wire.PayloadTypeIDr {
 				sa.RemoteIDPayload = p
 			}
 		case *wire.PayloadAUTH:
-			if err := verifyRemoteAuth(sa, p); err != nil {
-				log.Warn("ike: remote AUTH verification failed", "peer", sa.PeerName, "error", err)
-				sa.State = StateDead
-				return
-			}
-			authVerified = true
+			authPayload = p
 		case *wire.PayloadCERT:
 			if p.CertEncoding == wire.CertEncodingX509Sig && len(p.CertData) > 0 {
-				sa.RemoteCertRaw = p.CertData
+				certPayloads = append(certPayloads, p)
 			}
 		case *wire.PayloadEAP:
 			eapPayload = p
@@ -575,9 +617,21 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 			}
 		}
 	}
+	storeRemoteCerts(sa, certPayloads)
 
-	if !authVerified {
+	if err := recordPeerWindowSize(sa, setWindowSize); err != nil {
+		log.Warn("ike: peer SET_WINDOW_SIZE refused", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+
+	if authPayload == nil {
 		log.Warn("ike: AUTH response missing AUTH payload", "peer", sa.PeerName)
+		sa.State = StateDead
+		return
+	}
+	if err := verifyRemoteAuth(sa, authPayload); err != nil {
+		log.Warn("ike: remote AUTH verification failed", "peer", sa.PeerName, "error", err)
 		sa.State = StateDead
 		return
 	}
@@ -606,7 +660,7 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 	// ID. Until now NextMsgID held the last-used value; without this the first
 	// CREATE_CHILD_SA reused the IKE_AUTH ID and the peer rejected it
 	// (INVALID_MESSAGE_ID / "expected N, ignored").
-	sa.NextMsgID++
+	sa.advanceMsgID()
 }
 
 // startEAPExchange initializes the EAP peer session and processes the first EAP request.
@@ -644,7 +698,7 @@ func startEAPExchange(sa *SA, eapPayload *wire.PayloadEAP, tr *transport.UDPTran
 	}
 
 	if result.Response != nil {
-		sa.NextMsgID++
+		sa.advanceMsgID()
 		sendEAPResponsePacket(sa, result.Response, tr, log)
 	}
 
@@ -713,7 +767,7 @@ func handleEAPResponse(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.U
 	if result.Done {
 		// RFC 7296 Section 2.16: EAP succeeded, send AUTH derived from MSK.
 		sa.EAPMSK = result.MSK
-		sa.NextMsgID++
+		sa.advanceMsgID()
 		authMsg, err := buildEAPAuthMessage(sa)
 		if err != nil {
 			log.Warn("ike: build EAP AUTH failed", "peer", sa.PeerName, "error", err)
@@ -736,7 +790,7 @@ func handleEAPResponse(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.U
 	}
 
 	if result.Response != nil {
-		sa.NextMsgID++
+		sa.advanceMsgID()
 		sendEAPResponsePacket(sa, result.Response, tr, log)
 	}
 

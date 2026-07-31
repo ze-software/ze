@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
@@ -193,6 +193,48 @@ than one DPD interval.
 4. Confirm green, then mutation-verify the tagged pair.
 5. Run the ipsec `.ci` suite.
 
+## Test Evidence
+
+Tests FAIL, before the fix (`go test -run TestDpd ./internal/component/ike/engine/ -v`):
+
+```
+=== RUN   TestDpdProbeIsEncrypted
+    rfc7296_dpd_test.go:97: the probe carries no Encrypted payload, so it is not protected
+--- FAIL: TestDpdProbeIsEncrypted (0.05s)
+=== RUN   TestDpdProbeDecryptsToEmptyChain
+    rfc7296_dpd_test.go:124: the message did not authenticate under the expected IKE SA: no SK payload
+--- FAIL: TestDpdProbeDecryptsToEmptyChain (0.05s)
+=== RUN   TestDpdRoundTripCreditsLiveness
+    rfc7296_dpd_test.go:143: the message did not authenticate under the expected IKE SA: no SK payload
+--- FAIL: TestDpdRoundTripCreditsLiveness (0.06s)
+=== RUN   TestDpdBuildFailureReleasesWindow
+    rfc7296_dpd_test.go:184: a probe whose build failed: ze wrote 28 unexpected bytes before the sentinel
+--- FAIL: TestDpdBuildFailureReleasesWindow (0.12s)
+FAIL
+```
+
+The last line names the defect exactly: 28 bytes is the bare IKE header.
+
+Tests PASS, after the fix:
+
+```
+=== RUN   TestDpdProbeIsEncrypted
+--- PASS: TestDpdProbeIsEncrypted (0.06s)
+=== RUN   TestDpdProbeDecryptsToEmptyChain
+--- PASS: TestDpdProbeDecryptsToEmptyChain (0.03s)
+=== RUN   TestDpdRoundTripCreditsLiveness
+--- PASS: TestDpdRoundTripCreditsLiveness (0.03s)
+=== RUN   TestDpdBuildFailureReleasesWindow
+--- PASS: TestDpdBuildFailureReleasesWindow (0.03s)
+PASS
+ok  	github.com/ze-software/ze/internal/component/ike/engine	0.279s
+```
+
+Mutation. `sendDPD` was reverted to the bare-header build. `TestDpdProbeIsEncrypted`, which
+carries both polarities of `RFC7296-1.4-5`, went red at the same assertion as the first red
+run. The three sibling tests went red with it. The mutation was reverted and all four are
+green again.
+
 ## Goal Gates
 
 `make ze-verify`.
@@ -205,6 +247,19 @@ than one DPD interval.
 
 `rfc/short/rfc7296.md` gains one row. It states that an INFORMATIONAL request carries the
 Encrypted payload that section 1.4 requires.
+
+**The id is `RFC7296-1.4-5`.** Section 1.4 holds `1.4-1`, `1.4-3` and `1.4-4` in the
+summary, so its high-water mark at HEAD is 4. `check_id_allocation`
+(`scripts/dev/rfc_requirements.py`) refuses a new row at or below the mark, because a
+returning id is indistinguishable from a text correction. The next free ordinal above the
+mark is 5.
+
+`plan/spec-rfcgate-1b-rfc7296-pilot.md` planned this obligation as `RFC7296-1.4-2`, classed
+**NOT IMPL**. That id sits below the mark, so the gate refuses it. Appendix A now carries
+`RFC7296-1.4-5` and the class `impl-testable`, so the plan and the summary agree.
+
+The row text is section 1.4's sentence verbatim: "INFORMATIONAL exchanges MUST ONLY occur
+after the initial exchanges and are cryptographically protected with the negotiated keys."
 
 ## Checklist
 

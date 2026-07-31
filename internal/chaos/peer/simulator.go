@@ -93,6 +93,20 @@ type SimulatorConfig struct {
 	Dialer interface {
 		DialContext(ctx context.Context, network, address string) (net.Conn, error)
 	}
+
+	// OnSessionEnd, when non-nil, is called the moment the simulator decides the
+	// current session is over. It runs before the reader drain and before
+	// EventDisconnected. A watcher therefore learns that the session is dying
+	// from this call, and not from that event.
+	//
+	// EventDisconnected cannot carry this. It is emitted only after
+	// <-readerDone, and readLoop itself waits for its own drain goroutine
+	// (simulator_reader.go). The event therefore trails the decision by several
+	// goroutine wakeups. A caller that stops the run on peer state reads the peer
+	// as healthy for that whole window, and it cuts the reconnect that follows.
+	//
+	// It must not block. It runs on the simulator goroutine.
+	OnSessionEnd func()
 }
 
 // ChaosResult describes the outcome of a chaos action on this simulator.
@@ -117,6 +131,17 @@ const stormDelay = 200 * time.Millisecond
 // RunSimulator blocks until ctx is canceled or a fatal error occurs.
 func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	p := cfg.Profile
+
+	// endSession publishes the decision that this session is over, before the
+	// reader drain that delays EventDisconnected. Safe to call more than once.
+	var sessionEnded bool
+	endSession := func() {
+		if cfg.OnSessionEnd == nil || sessionEnded {
+			return
+		}
+		sessionEnded = true
+		cfg.OnSessionEnd()
+	}
 
 	emit := func(ev Event) {
 		ev.PeerIndex = p.Index
@@ -262,6 +287,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	// total route volume manageable while still exercising all code paths.
 	for _, fam := range families {
 		if ctx.Err() != nil {
+			endSession()
 			sendCease(ctx, conn, p.Index, cfg.Quiet)
 			emit(Event{Type: EventDisconnected})
 			return
@@ -476,6 +502,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	for {
 		select {
 		case <-ctx.Done():
+			endSession()
 			sendCease(ctx, conn, p.Index, cfg.Quiet)
 			conn.Close() //nolint:errcheck,gosec // best-effort close to unblock readLoop
 			<-readerDone
@@ -483,11 +510,13 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 			return
 		case <-readerDone:
 			// Reader closed — connection lost.
+			endSession()
 			emit(Event{Type: EventDisconnected})
 			return
 		case <-keepaliveCh:
 			keepaliveReset()
 			if writeErr := writeMsg(conn, message.NewKeepalive()); writeErr != nil {
+				endSession()
 				conn.Close() //nolint:errcheck,gosec // best-effort close to unblock readLoop
 				<-readerDone
 				if ctx.Err() != nil {
@@ -499,6 +528,12 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 			}
 		case action := <-chaosCh:
 			result := executeChaos(ctx, action, conn, keepaliveStop, p, cfg, emit, &readDelayNs)
+			if result.Disconnected {
+				// Before the event, not after. A watcher that counts executed
+				// actions must never see this action complete while the peer
+				// still reads as up.
+				endSession()
+			}
 			emit(Event{Type: EventChaosExecuted, ChaosAction: action.Type.String(), ChaosParams: action.Params})
 			if result.Disconnected {
 				conn.Close() //nolint:errcheck,gosec // best-effort close to unblock readLoop

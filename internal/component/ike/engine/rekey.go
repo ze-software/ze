@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math/big"
@@ -18,6 +19,25 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/wire"
 )
+
+// errTemporaryFailure reports a CREATE_CHILD_SA response whose only content is a
+// TEMPORARY_FAILURE notify. RFC 7296 Section 2.25 gives its meaning. A temporary
+// condition such as a rekey of the peer's own stopped the exchange. The recipient
+// MUST wait before it retries. The caller arms the matching rekey hold.
+var errTemporaryFailure = errors.New("ike: peer answered with TEMPORARY_FAILURE")
+
+// hasTemporaryFailure reports whether a payload chain carries a TEMPORARY_FAILURE
+// notify. RFC 7296 Section 2.25 keys the wait on this notification alone, so an
+// exchange that fails any other way is retried on the next tick as before.
+func hasTemporaryFailure(inner []wire.PayloadEntry) bool {
+	for i := range inner {
+		if n, ok := inner[i].Payload.(*wire.PayloadNotify); ok &&
+			n.NotifyMsgType == wire.NotifyTemporaryFailure {
+			return true
+		}
+	}
+	return false
+}
 
 // initiatorFlag returns the header Initiator flag for messages this side sends.
 // RFC 7296 §3.1: the flag marks the original initiator of the IKE SA, regardless
@@ -83,7 +103,7 @@ func initiateChildRekey(sa *SA, oldChild *ChildSA) ([]byte, *pendingRekey, error
 	if err != nil {
 		return nil, nil, err
 	}
-	sa.NextMsgID++
+	sa.advanceMsgID()
 	return msg, &pendingRekey{
 		kind:          rekeyChild,
 		messageID:     msgID,
@@ -100,6 +120,12 @@ func initiateChildRekey(sa *SA, oldChild *ChildSA) ([]byte, *pendingRekey, error
 // the new Child SA BEFORE the caller removes the old one (make-before-break).
 // RFC 7296 §1.3.2, §2.17: KEYMAT = prf+(SK_d, Ni | Nr).
 func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.PayloadEntry, dp dataplane.Dataplane, log *slog.Logger) (*ChildSA, error) {
+	// RFC 7296 Section 2.25: a TEMPORARY_FAILURE answer means the peer is busy, not that
+	// the response is malformed. It is read before the payload walk, because such a
+	// response carries the notify alone and the walk below would report a missing Nr.
+	if hasTemporaryFailure(inner) {
+		return nil, errTemporaryFailure
+	}
 	var nr []byte
 	var outSPI uint32
 	var accepted *wire.PayloadSA
@@ -127,8 +153,9 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 		return nil, fmt.Errorf("child rekey response: %w", err)
 	}
 	prop := old.ESPGroup.Proposals[0]
+	rekeyEnc, rekeyInteg := espTransforms(prop)
 	keys, err := crypto.DeriveChildSAKeys(sa.Proposal.PRF.ID, sa.SKKeys.SK_d,
-		pending.localNonce, nr, lookupEncryption(prop.Encryption), lookupIntegrity(prop.Hash))
+		pending.localNonce, nr, rekeyEnc, rekeyInteg)
 	if err != nil {
 		return nil, err
 	}
@@ -148,11 +175,13 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID uint32, dp dataplane.Dataplane, log *slog.Logger) ([]byte, *ChildSA, error) {
 	var ni []byte
 	var peerSPI uint32
+	var offer *wire.PayloadSA
 	for _, pe := range inner {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadNonce:
 			ni = p.NonceData
 		case *wire.PayloadSA:
+			offer = p
 			if s, err := espSPIFromSA(p); err == nil {
 				peerSPI = s
 			}
@@ -160,6 +189,15 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	}
 	if len(ni) == 0 || peerSPI == 0 {
 		return nil, nil, fmt.Errorf("child rekey request: missing Ni(%d) or ESP SPI(%d)", len(ni), peerSPI)
+	}
+
+	// The suite that keys this replacement must be one the peer offered. The response
+	// must name it by the peer's own Proposal Num (RFC 7296 Sections 3.3, 3.3.6). A
+	// request that offers no such proposal is refused. Ze does not answer it with
+	// keys for an algorithm the peer never asked for.
+	accepted, ok := matchOfferedESPProposal(offer, old.ESPGroup.Proposals[0])
+	if !ok || accepted.Number == 0 {
+		return nil, nil, fmt.Errorf("child rekey request: %w", crypto.ErrNoProposalChosen)
 	}
 
 	nr, err := GenerateNonce(nonceLen)
@@ -171,9 +209,10 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 		return nil, nil, err
 	}
 	prop := old.ESPGroup.Proposals[0]
+	respEnc, respInteg := espTransforms(prop)
 	// Peer is the initiator here: KEYMAT = prf+(SK_d, Ni | Nr).
 	keys, err := crypto.DeriveChildSAKeys(sa.Proposal.PRF.ID, sa.SKKeys.SK_d,
-		ni, nr, lookupEncryption(prop.Encryption), lookupIntegrity(prop.Hash))
+		ni, nr, respEnc, respInteg)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -186,7 +225,7 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 
 	tsi, tsr := anyChildTSPayloads(sa)
 	inner2 := []wire.PayloadEntry{
-		{Payload: &wire.PayloadSA{Proposals: buildWireESPProposals(old.ESPGroup, inSPI)}},
+		{Payload: &wire.PayloadSA{Proposals: []wire.Proposal{espProposalToWire(prop, inSPI, accepted.Number)}}},
 		{Payload: &wire.PayloadNonce{NonceData: nr}},
 		{Payload: tsi},
 		{Payload: tsr},
@@ -333,7 +372,7 @@ func initiateIKERekey(oldSA *SA, ikeGroup ipsec.IKEGroup) ([]byte, *pendingRekey
 		dh.Clear()
 		return nil, nil, err
 	}
-	oldSA.NextMsgID++
+	oldSA.advanceMsgID()
 	return msg, &pendingRekey{
 		kind:            rekeyIKE,
 		messageID:       msgID,
@@ -350,6 +389,11 @@ func initiateIKERekey(oldSA *SA, ikeGroup ipsec.IKEGroup) ([]byte, *pendingRekey
 // returns the replacement IKE SA (message-ID counters reset to 0, §2.8). The old
 // SA's Child SAs continue to apply to the new IKE SA unchanged.
 func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.PayloadEntry, log *slog.Logger) (*SA, error) {
+	// RFC 7296 Section 2.25, as in applyChildRekeyResponse: the peer is busy, so the
+	// caller waits rather than retrying at once.
+	if hasTemporaryFailure(inner) {
+		return nil, errTemporaryFailure
+	}
 	var nr, ker []byte
 	var newResponderSPI [8]byte
 	haveSPI := false
@@ -489,6 +533,7 @@ func respondIKERekey(oldSA *SA, inner []wire.PayloadEntry, msgID uint32, log *sl
 	if err != nil {
 		return nil, nil, fmt.Errorf("ike rekey: %w", err)
 	}
+	logKeyLengthUpgrade(log, oldSA.PeerName, chosen)
 
 	// RFC 7296 Section 1.3: the initiator guesses the group before it knows our choice.
 	// When the KEi group differs from the group of the proposal we selected, we reject

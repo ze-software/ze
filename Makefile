@@ -801,7 +801,7 @@ help-test:
 	@echo "    ze-race-reactor           Stress race-test reactor (-race -count=20)"
 	@echo ""
 	@echo "  Functional tests (.ci suites via $(ZEBIN_TEST)):"
-	@echo "    ze-functional-test        All 23 gating suites"
+	@echo "    ze-functional-test        All 24 gating suites"
 	@echo "    ze-encode-test            BGP wire encoding"
 	@echo "    ze-plugin-test            Plugin behavior"
 	@echo "    ze-decode-test            Wire decoding"

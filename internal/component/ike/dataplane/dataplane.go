@@ -32,10 +32,90 @@ const (
 )
 
 // SA / policy modes used in SAParams.Mode and SPParams.Mode.
+//
+// These values are Ze's own vocabulary. They are 1-based on purpose, so the zero
+// value of an unset Mode field is never a valid mode. They are NOT the kernel XFRM
+// mode numbers. Use kernelXFRMMode to convert.
 const (
 	ModeTransport uint8 = 1 // RFC 4301 transport mode (protects the payload, keeps the outer IP header)
 	ModeTunnel    uint8 = 2 // RFC 4301 tunnel mode (encapsulates the whole packet)
 )
+
+// Kernel XFRM mode numbers from uapi/linux/xfrm.h. They start at 0, so they are
+// offset by one from the ModeTransport / ModeTunnel constants above.
+const (
+	kernelModeTransport uint8 = 0 // XFRM_MODE_TRANSPORT
+	kernelModeTunnel    uint8 = 1 // XFRM_MODE_TUNNEL
+)
+
+// kernelXFRMMode converts a Ze dataplane mode to the kernel XFRM mode number.
+// The second result is false for an unknown mode. The caller MUST then reject
+// the install. The function never defaults. A wrong mode number is silent. The
+// kernel accepts it and protects the traffic in the wrong mode.
+//
+// The two enumerations do not share a numbering. Ze counts from 1, so an unset
+// field is invalid. The kernel counts from 0. A direct numeric pass-through
+// shifted every mode by one.
+//
+// ModeTunnel (2) reached the kernel as XFRM_MODE_ROUTEOPTIMIZATION. The array
+// xfrm4_mode_map in net/xfrm/xfrm_state.c does not define that index.
+// __xfrm_init_state failed the outer-mode lookup and returned EPROTONOSUPPORT.
+//
+// ModeTransport (1) was worse. It reached the kernel as XFRM_MODE_TUNNEL, which
+// is valid. The kernel installed an SA in the wrong mode and reported no error.
+//
+// This mirrors the direction conversion the same backend already does for SADir.
+func kernelXFRMMode(mode uint8) (uint8, bool) {
+	switch mode {
+	case ModeTransport:
+		return kernelModeTransport, true
+	case ModeTunnel:
+		return kernelModeTunnel, true
+	default:
+		return 0, false
+	}
+}
+
+// validTunnelEndpoint reports whether an address can serve as a tunnel endpoint.
+// A nil, a malformed, and an unspecified address cannot. The unspecified test is
+// the load-bearing one. 0.0.0.0 is the exact value an absent endpoint produced.
+func validTunnelEndpoint(ip net.IP) bool {
+	return len(ip) > 0 && ip.To16() != nil && !ip.IsUnspecified()
+}
+
+// tunnelEndpoints checks the tunnel endpoints of a policy template against the mode
+// and returns the pair to write into the template. Transport mode returns no pair.
+//
+// The guard fails closed. A tunnel-mode policy with no endpoints reaches the kernel
+// as tmpl src 0.0.0.0 dst 0.0.0.0. Netlink derives the template family from a nil
+// address and writes zeros. The kernel then resolves the policy to no state, and
+// the tunnel forwards nothing. No error reports the fault, so a zero address must
+// never be a valid answer here.
+//
+// RFC 4301 Section 4.4.1.2 leaves a transport-mode template's addresses unused.
+// Endpoints in a transport-mode request are a caller mistake. This rejects them
+// rather than discards them, because a silent discard hides the same confusion.
+func tunnelEndpoints(p SPParams) (net.IP, net.IP, error) {
+	if p.Mode != ModeTunnel {
+		if len(p.TunnelSrc) > 0 || len(p.TunnelDst) > 0 {
+			return nil, nil, fmt.Errorf(
+				"transport mode must carry no tunnel endpoints, got src=%v dst=%v: RFC 4301 Section 4.4.1.2 leaves them unused",
+				p.TunnelSrc, p.TunnelDst)
+		}
+		return nil, nil, nil
+	}
+	if !validTunnelEndpoint(p.TunnelSrc) || !validTunnelEndpoint(p.TunnelDst) {
+		return nil, nil, fmt.Errorf(
+			"tunnel mode needs both tunnel endpoints, got src=%v dst=%v: an absent endpoint reaches the kernel as 0.0.0.0 and matches no state",
+			p.TunnelSrc, p.TunnelDst)
+	}
+	if (p.TunnelSrc.To4() != nil) != (p.TunnelDst.To4() != nil) {
+		return nil, nil, fmt.Errorf(
+			"tunnel endpoints must share an address family, got src=%v dst=%v",
+			p.TunnelSrc, p.TunnelDst)
+	}
+	return p.TunnelSrc, p.TunnelDst, nil
+}
 
 // xfrmAlgoPlan describes which XfrmState algorithm slots an SA install must set.
 // It isolates the AEAD-vs-crypt+auth-vs-auth-only decision from the netlink-only
@@ -88,11 +168,29 @@ type SAParams struct {
 	ReqID     uint32
 	ReplayWin uint8
 
-	EncAlgo  string
-	EncKey   []byte
+	EncAlgo string
+
+	// EncKey is the encryption key material for one direction. Its layout depends on
+	// IsAEAD, and a backend that ignores that distinction keys the SA wrongly.
+	//
+	// IsAEAD false: the cipher key alone.
+	//
+	// IsAEAD true: the cipher key followed by that cipher's salt, in one slice. RFC 4106
+	// Section 8.1 makes AES-GCM KEYMAT four octets longer than the AES key, so AES-GCM-256
+	// gives 36 octets: 32 of key then 4 of salt. crypto.encKeyMaterialLen derives the
+	// length per algorithm, so a future AEAD whose salt is not four octets changes it.
+	//
+	// A backend whose API takes the key and the salt in separate fields MUST split the
+	// slice. The salt is the last len(EncKey)-keyBytes octets. The Linux XFRM backend
+	// takes the whole slice unsplit, because rfc4106(gcm(aes)) expects this layout. The
+	// VPP backend does not split it (plan/spec-fixit-vpp-ipsec-inoperable.md).
+	EncKey []byte
+
 	AuthAlgo string
 	AuthKey  []byte //nolint:gosec // ESP integrity key material, not a credential
 
+	// IsAEAD selects the EncKey layout above, and it selects a single combined-mode
+	// transform over the separate encryption and integrity pair.
 	IsAEAD bool
 
 	// Sel, when non-nil, installs an explicit XFRM state selector (x->sel) so the
@@ -127,6 +225,23 @@ type SPParams struct {
 	// distinct from IfID (the XFRM if_id / XFRMA_IF_ID used by IKE to bind an SA to
 	// an xfrm interface device). IKE leaves IfIndex 0 (node-wide), byte-identical.
 	IfIndex int
+
+	// TunnelSrc and TunnelDst are the tunnel endpoints of the policy template. They
+	// are the outer IP header addresses of the encapsulated packet (RFC 4301 Section
+	// 4.4.1.2, "the tunnel header IP source and destination addresses").
+	//
+	// They are NOT the selector. Src and Dst above are the selector, the inner
+	// traffic the policy matches, and they are prefixes. The tunnel endpoints are
+	// single addresses, so a mix-up of the two pairs is a compile error.
+	//
+	// Tunnel mode needs both. The kernel resolves a policy to a state through the
+	// template addresses. An absent pair leaves the template at 0.0.0.0, no state
+	// matches it, and the tunnel forwards nothing.
+	//
+	// Transport mode needs neither. RFC 4301 Section 4.4.1.2 leaves a transport-mode
+	// template's addresses unused. tunnelEndpoints rejects both mistakes.
+	TunnelSrc net.IP
+	TunnelDst net.IP
 }
 
 // SAInfo is a summary of an installed SA returned by ListSAs.

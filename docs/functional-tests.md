@@ -52,9 +52,9 @@ top-level stage failures, and write:
 | `tmp/ze-verify-failures.json` | Machine-readable failure routing index |
 | `tmp/ze-verify.status` | Freshness fingerprint for the last run |
 
-The functional test target runs 23 suites: encode, plugin, parse, decode, reload,
-ui, editor, managed, l2tp, firewall, policy, ldp, rsvpte, isis, ospf, ospfv3, web,
-install, appliance, l2tp-wire, isis-wire, ospf-wire, runner.
+The functional test target runs 24 suites: encode, plugin, parse, decode, reload,
+ui, editor, managed, l2tp, firewall, policy, ipsec, ldp, rsvpte, isis, ospf, ospfv3,
+web, install, appliance, l2tp-wire, isis-wire, ospf-wire, runner.
 
 `make ze-validate` is a fast (~0.2s) post-verify check that catches recurring
 implementation mistakes: stale source anchors, line-number anchors, unwired

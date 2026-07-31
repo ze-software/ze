@@ -74,13 +74,27 @@ func eapTLSServerConfig(sa *SA) (eap.MethodConfig, error) {
 }
 
 // computeServerAuth computes the responder's own AUTH for the EAP first message
-// using its long-term credential (certificate preferred, else PSK), independent of
-// the not-yet-derived EAP MSK. RFC 7296 Section 2.16.
+// from a long-term public-key credential. It does not use the EAP MSK, which is
+// not yet derived. The sole caller is startResponderEAP, so every call here is
+// part of an EAP exchange.
+//
+// RFC 7296 Section 2.16 says EAP methods "MUST be used in conjunction with a
+// public-key-signature-based authentication of the responder to the initiator".
+// A pre-shared key is not a public-key signature. There is therefore no PSK
+// fallback here, and the guard denies instead (ai/rules/fail-closed-guards.md).
+//
+// The removed fall-through to computePSKAuth signed the responder AUTH with the
+// same secret that eap-mschapv2 hands the user as a password. It also left the
+// initiator no signature to verify. ValidatePKIRefs (ipsec/validate.go) rejects
+// such a peer at config time, and this check is the runtime backstop.
 func computeServerAuth(sa *SA) (*wire.PayloadAUTH, error) {
-	if sa.PeerCfg.Auth.Certificate != "" {
-		return computeX509Auth(sa)
+	if sa.PeerCfg.Auth.Certificate == "" {
+		return nil, fmt.Errorf(
+			"ike: EAP peer %q (auth mode %s) has no certificate, so the responder cannot sign its AUTH. "+
+				"Set authentication certificate to a PKI store name (RFC 7296 Section 2.16)",
+			sa.PeerName, sa.PeerCfg.Auth.Mode)
 	}
-	return computePSKAuth(sa)
+	return computeX509Auth(sa)
 }
 
 // eapToWire converts an eap.Packet to a wire EAP payload. eap.Packet.Encode()

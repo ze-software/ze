@@ -1,5 +1,5 @@
 // Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- Dead Peer Detection
-// RFC: rfc/short/rfc7296.md -- Liveness check via empty INFORMATIONAL (Section 2.4)
+// RFC: rfc/short/rfc7296.md -- Liveness check via empty INFORMATIONAL (Sections 1.4, 2.4)
 
 package engine
 
@@ -21,6 +21,18 @@ type dpdState struct {
 	awaitReply bool
 	sentAt     time.Time
 	probeMsgID uint32 // message ID of the outstanding DPD probe (RFC 7296 §2.3 correlation)
+
+	// probeMsg is the datagram of the outstanding probe. The owner loop repeats it.
+	// RFC 7296 Section 2.4 lets an endpoint call the other one failed only after
+	// REPEATED attempts go unanswered for a timeout period. Section 2.1 makes a
+	// retransmission carry the Message ID of the request it repeats. The stored
+	// bytes satisfy both rules.
+	//
+	// lastAttempt is when the probe last went out, and retries counts how often it
+	// was repeated. Together they drive the exponential backoff of Section 2.4.
+	probeMsg    []byte
+	lastAttempt time.Time
+	retries     int
 }
 
 // matchesProbe reports whether an inbound INFORMATIONAL response with the given
@@ -71,7 +83,10 @@ func (d *dpdState) awaitingReply() bool {
 	return d != nil && d.awaitReply
 }
 
-// timedOut reports whether the peer failed to respond within timeout.
+// timedOut reports whether the peer failed to respond within timeout. The timeout
+// bounds the whole liveness budget, so it spans the probe and every retransmission
+// of it. RFC 7296 Section 2.4: the peer has failed once repeated attempts have gone
+// unanswered for a timeout period.
 func (d *dpdState) timedOut(now time.Time) bool {
 	if d == nil || !d.awaitReply {
 		return false
@@ -79,9 +94,34 @@ func (d *dpdState) timedOut(now time.Time) bool {
 	return !now.Before(d.sentAt.Add(d.timeout))
 }
 
-// sendDPD sends an empty INFORMATIONAL request as a liveness check.
-// RFC 7296 Section 1.4: INFORMATIONAL exchanges after IKE_SA_INIT must be
-// encrypted under SK. Encryption integration requires ipsec-9 (SK wrapping).
+// shouldRetransmit reports whether the outstanding probe waited past its current
+// backoff while the liveness budget still has room. RFC 7296 Section 2.1 repeats a
+// request until it draws a reply, or until the SA is deemed failed. Section 2.4
+// makes the wait between attempts grow.
+//
+// A probe with no stored datagram is one no transport ever wrote. There is nothing
+// to repeat.
+func (d *dpdState) shouldRetransmit(now time.Time) bool {
+	if d == nil || !d.awaitReply || len(d.probeMsg) == 0 {
+		return false
+	}
+	if d.timedOut(now) {
+		return false
+	}
+	return !now.Before(d.lastAttempt.Add(retransmitBackoff(d.retries + 1)))
+}
+
+// noteRetransmit records that the outstanding probe went out again, which lengthens
+// the wait before the next attempt.
+func (d *dpdState) noteRetransmit(now time.Time) {
+	d.retries++
+	d.lastAttempt = now
+}
+
+// sendDPD sends an empty INFORMATIONAL request as a liveness check. RFC 7296
+// Section 1.4: an INFORMATIONAL exchange is cryptographically protected with the
+// negotiated keys. The liveness check carries no payload other than the empty
+// Encrypted payload the syntax requires, so the inner chain of the probe is nil.
 func sendDPD(sa *SA, tr *transport.UDPTransport, dpd *dpdState, log *slog.Logger) {
 	if sa == nil {
 		return
@@ -94,47 +134,55 @@ func sendDPD(sa *SA, tr *transport.UDPTransport, dpd *dpdState, log *slog.Logger
 		return
 	}
 
-	msg := wire.Message{
-		Header: wire.Header{
-			InitiatorSPI: sa.InitiatorSPI,
-			ResponderSPI: sa.ResponderSPI,
-			MajorVersion: 2,
-			ExchangeType: wire.ExchangeInformational,
-			Flags:        wire.FlagInitiator,
-			MessageID:    sa.NextMsgID,
-		},
-	}
-	sa.NextMsgID++
-
+	msgID := sa.NextMsgID
+	// A session with no transport has no datagram to protect. The probe state below
+	// still advances, so the liveness timeout runs on its own clock either way.
+	var probe []byte
 	if tr != nil {
-		buf := make([]byte, 512)
-		n, err := msg.CheckedWriteTo(buf, 0)
+		built, err := buildEncryptedMessageEx(sa, nil, msgID,
+			wire.ExchangeInformational, initiatorFlag(sa))
 		if err != nil {
-			log.Warn("dpd: probe too large, dropping", "peer", sa.PeerName, "error", err)
+			log.Warn("dpd: probe build failed, dropping", "peer", sa.PeerName, "error", err)
 			sa.releaseRequestWindow()
 			return
 		}
-		remote := sa.remoteUDPAddr()
-		if remote != nil {
-			if err := tr.Send(buf[:n], remote); err != nil {
-				log.Debug("dpd: send failed", "peer", sa.PeerName, "error", err)
-			}
-		}
+		probe = built
+		sendRaw(sa, tr, probe, log)
 	}
+	sa.advanceMsgID()
 
 	now := time.Now()
 	dpd.lastSent = now
 	dpd.sentAt = now
 	dpd.awaitReply = true
-	dpd.probeMsgID = msg.Header.MessageID
-	log.Debug("dpd: sent probe", "peer", sa.PeerName, "msgid", msg.Header.MessageID)
+	dpd.probeMsgID = msgID
+	// Keep the exact datagram. A retransmission repeats this request. It does not
+	// raise a new one, so it carries the same Message ID (RFC 7296 Section 2.1).
+	// The one request window of Section 2.3 stays where it is.
+	dpd.probeMsg = probe
+	dpd.lastAttempt = now
+	dpd.retries = 0
+	log.Debug("dpd: sent probe", "peer", sa.PeerName, "msgid", msgID)
 }
 
-// handleDPDResponse marks the DPD probe as answered.
+// retransmitDPD repeats the outstanding probe. RFC 7296 Section 2.1 repeats a
+// request under its own Message ID. It stops when the request draws a reply, or
+// when the SA is deemed failed.
+func retransmitDPD(sa *SA, tr *transport.UDPTransport, dpd *dpdState, now time.Time, log *slog.Logger) {
+	sendRaw(sa, tr, dpd.probeMsg, log)
+	dpd.noteRetransmit(now)
+	log.Debug("dpd: retransmitted probe", "peer", sa.PeerName,
+		"msgid", dpd.probeMsgID, "attempt", dpd.retries)
+}
+
+// handleDPDResponse marks the DPD probe as answered and drops the datagram kept for
+// its retransmission.
 func handleDPDResponse(dpd *dpdState, log *slog.Logger, peerName string) {
 	if dpd == nil {
 		return
 	}
 	dpd.awaitReply = false
+	dpd.probeMsg = nil
+	dpd.retries = 0
 	log.Debug("dpd: peer alive", "peer", peerName)
 }

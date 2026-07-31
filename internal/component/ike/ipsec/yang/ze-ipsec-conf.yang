@@ -16,14 +16,26 @@ module ze-ipsec-conf {
             enum aes256 { description "AES-CBC-256 (RFC 3602)"; }
             enum aes128gcm { description "AES-GCM-128, 16-byte ICV (RFC 4106)"; }
             enum aes256gcm { description "AES-GCM-256, 16-byte ICV (RFC 4106)"; }
-            enum chacha20poly1305 { description "ChaCha20-Poly1305 AEAD (RFC 7634)"; }
-            enum 3des { description "Triple-DES-CBC (RFC 2451), deprecated"; }
+            enum chacha20poly1305 {
+                description "ChaCha20-Poly1305 AEAD (RFC 7634). No build carries a
+                    transform for it, so a proposal that names it is refused at commit.
+                    The refusal lists the algorithms the build does implement.";
+            }
+            enum 3des {
+                description "Triple-DES-CBC (RFC 2451), deprecated. No build carries a
+                    transform for it, so a proposal that names it is refused at commit.
+                    The refusal lists the algorithms the build does implement.";
+            }
         }
     }
 
     typedef hash-algo {
         type enumeration {
-            enum sha1 { description "HMAC-SHA-1-96 (RFC 2404)"; }
+            enum sha1 {
+                description "HMAC-SHA-1-96 (RFC 2404). No build carries a transform for
+                    it, so a proposal that names it is refused at commit. The refusal
+                    lists the algorithms the build does implement.";
+            }
             enum sha256 { description "HMAC-SHA-256-128 (RFC 4868)"; }
             enum sha384 { description "HMAC-SHA-384-192 (RFC 4868)"; }
             enum sha512 { description "HMAC-SHA-512-256 (RFC 4868)"; }
@@ -69,7 +81,10 @@ module ze-ipsec-conf {
 
                 list proposal {
                     key "number";
-                    description "ESP proposal. Lower number = higher priority.";
+                    max-elements 255;
+                    description "ESP proposal. Lower number = higher priority. One group
+                        offers at most 255 proposals, because RFC 7296 Section 3.3.1
+                        numbers them in one octet.";
 
                     leaf number {
                         type uint16 {
@@ -86,7 +101,11 @@ module ze-ipsec-conf {
 
                     leaf hash {
                         type hash-algo;
-                        description "Integrity algorithm. Optional for AEAD ciphers.";
+                        description "Integrity algorithm. It is required beside a
+                            non-AEAD cipher, and refused beside an AEAD cipher. RFC 7296
+                            Section 3.3 gives an AEAD cipher its own integrity, so an ESP
+                            proposal offers the integrity transform NONE. An ESP proposal
+                            carries no PRF transform, so this leaf never names one.";
                     }
                 }
             }
@@ -159,7 +178,10 @@ module ze-ipsec-conf {
 
                 list proposal {
                     key "number";
-                    description "IKE proposal. Lower number = higher priority.";
+                    max-elements 255;
+                    description "IKE proposal. Lower number = higher priority. One group
+                        offers at most 255 proposals, because RFC 7296 Section 3.3.1
+                        numbers them in one octet.";
 
                     leaf number {
                         type uint16 {
@@ -177,7 +199,12 @@ module ze-ipsec-conf {
                     leaf hash {
                         type hash-algo;
                         mandatory true;
-                        description "PRF/integrity algorithm.";
+                        description "PRF and integrity algorithm. It is required beside
+                            every cipher, and an AEAD cipher is no exception. RFC 7296
+                            Section 3.3.3 makes the PRF a mandatory transform for an IKE
+                            proposal, and this leaf names it. An ESP proposal reads the
+                            same leaf as integrity alone, and refuses it beside an AEAD
+                            cipher.";
                     }
 
                     leaf dh-group {
@@ -218,16 +245,22 @@ module ze-ipsec-conf {
                     }
 
                     container x509 {
-                        description "Server certificate references for EAP.";
+                        description "Server certificate references for EAP. Ze parses
+                            both leaves and no component reads them today, so neither
+                            takes effect. Ze also leaves both unchecked, so a name that
+                            no PKI store entry carries still commits here. The enforced
+                            leaves of these names are the site-to-site peer ones.";
 
                         leaf ca-certificate {
                             type string;
-                            description "Name of the CA certificate in the PKI store.";
+                            description "Name of the CA certificate in the PKI store.
+                                It has no effect today.";
                         }
 
                         leaf certificate {
                             type string;
-                            description "Name of the server certificate in the PKI store.";
+                            description "Name of the server certificate in the PKI store.
+                                It has no effect today.";
                         }
                     }
                 }
@@ -354,30 +387,58 @@ module ze-ipsec-conf {
 
                         leaf remote-id {
                             type string;
-                            description "Remote identity for IKE negotiation.";
+                            description "Identity the remote endpoint must assert. When it is set,
+                                Ze refuses an IKE_AUTH whose ID payload names another identity.
+                                Comparable types are ID_IPV4_ADDR, ID_IPV6_ADDR, ID_FQDN,
+                                ID_RFC822_ADDR, and ID_KEY_ID. An address value accepts the two
+                                address types alone, and a distinguished name is refused at commit.
+                                When it is empty Ze checks no identity, so every certificate the
+                                ca-certificate issued authenticates as this peer. Set it whenever
+                                that authority issues to more than one client.";
                         }
 
                         leaf ca-certificate {
                             type string;
-                            description "Name of the CA certificate in the PKI store (EAP and X.509 modes).";
+                            description "Name of the CA certificate in the PKI store. Required for
+                                every EAP mode and for X.509. It is the trust anchor the remote
+                                certificate must chain to, through any intermediate certificates the
+                                peer sends. Without it any self-signed certificate would
+                                authenticate. The remote certificate must also carry the remote-id
+                                identity in a subject alternative name. Ze reads the subject common
+                                name only when the certificate has no such extension.";
                         }
 
                         leaf certificate {
                             type string;
-                            description "Name of the device certificate in the PKI store (EAP-TLS and X.509 modes).";
+                            description "Name of the device certificate in the PKI store. Required for
+                                every EAP mode, because RFC 7296 Section 2.16 makes the responder sign
+                                its AUTH with a public key. Also used by X.509 mode. Ze sends this
+                                certificate first, then the intermediate certificate the PKI entry
+                                carries.";
                         }
 
                         container x509 {
-                            description "X.509 certificate references (deprecated, use direct leaves).";
+                            description "X.509 certificate references (deprecated, use
+                                the direct leaves). Ze reads a leaf here only when the
+                                direct leaf of the same name is empty. A name set here
+                                therefore meets the same requirement the direct leaf
+                                meets, and it is checked against the PKI store the same
+                                way.";
 
                             leaf ca-certificate {
                                 type string;
-                                description "Name of the CA certificate in the PKI store.";
+                                description "Name of the CA certificate in the PKI store.
+                                    Ze reads it only when the direct ca-certificate leaf
+                                    is empty. It then satisfies the trust anchor that
+                                    every EAP mode and X.509 require.";
                             }
 
                             leaf certificate {
                                 type string;
-                                description "Name of the device certificate in the PKI store.";
+                                description "Name of the device certificate in the PKI
+                                    store. Ze reads it only when the direct certificate
+                                    leaf is empty. It then satisfies the certificate that
+                                    every EAP mode and X.509 require.";
                             }
                         }
                     }

@@ -29,21 +29,18 @@ from lab import (
     SWAN_CONTAINER,
     SWAN_IP,
     ZE_CONTAINER,
+    assert_esp_accepted,
     check_xfrm_sa_count,
     docker_exec_quiet,
     log_pass,
     wait_xfrm_sa,
     ze_xfrm_state,
+    xfrm_sa_bytes_by_spi,
 )
 
 
 def esp_spis():
     return set(re.findall(r"proto esp spi (0x[0-9a-fA-F]+)", ze_xfrm_state()))
-
-
-def xfrm_bytes(container):
-    output = docker_exec_quiet(container, ["ip", "-s", "xfrm", "state"])
-    return sum(int(m) for m in re.findall(r"bytes\s+(\d+)", output))
 
 
 def check():
@@ -70,12 +67,25 @@ def check():
     wait_xfrm_sa(SWAN_CONTAINER)
     check_xfrm_sa_count(SWAN_CONTAINER, 2)
 
-    before = xfrm_bytes(ZE_CONTAINER)
+    before = xfrm_sa_bytes_by_spi(ZE_CONTAINER)
+    peer_before = xfrm_sa_bytes_by_spi(SWAN_CONTAINER)
     docker_exec_quiet(ZE_CONTAINER, ["ping", "-c", "4", "-W", "2", SWAN_IP])
-    after = xfrm_bytes(ZE_CONTAINER)
-    if after <= before:
-        raise AssertionError(
-            "no ESP traffic through the responder tunnel (bytes before=%d after=%d)"
-            % (before, after)
-        )
+
+    assert_esp_accepted(
+        ZE_CONTAINER,
+        before,
+        xfrm_sa_bytes_by_spi(ZE_CONTAINER),
+        "no ESP traffic through the responder tunnel",
+    )
+
+    # The peer must accept what Ze encrypted as RESPONDER. The responder derives its
+    # KEYMAT in the absolute Ni|Nr order rather than its own Local/Remote order, so a
+    # role mix-up gives keys that are the right length and the wrong bytes. Ze's own
+    # outbound counter advances either way. strongSwan's inbound counter does not.
+    assert_esp_accepted(
+        SWAN_CONTAINER,
+        peer_before,
+        xfrm_sa_bytes_by_spi(SWAN_CONTAINER),
+        "strongSwan accepted no ESP from Ze the responder",
+    )
     log_pass("PSK responder tunnel established and forwarding traffic through ESP")

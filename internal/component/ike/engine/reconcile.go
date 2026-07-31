@@ -7,6 +7,7 @@ import (
 	"maps"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/dataplane"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
@@ -76,6 +77,19 @@ type PeerSession struct {
 	// until the peer's INFORMATIONAL Delete arrives (make-before-break).
 	pendingRekey    *pendingRekey
 	supersededChild *ChildSA
+
+	// childRekeyHoldUntil and ikeRekeyHoldUntil are the instants before which the
+	// matching rekey is not retried. RFC 7296 Section 2.25 forbids an immediate retry
+	// after a TEMPORARY_FAILURE notify. It requires the recipient to wait for the peer
+	// to finish the operation that caused the condition. The checklist row
+	// RFC7296-2.25-1 carries the sentence verbatim.
+	//
+	// A soft lifetime is a level trigger. Without a hold the one-second ticker raises
+	// the same rekey again on the very next tick. The two holds are separate, so a
+	// busy Child SA rekey does not stop an IKE SA rekey. Owned by the maintainSA
+	// loop, like pendingRekey above.
+	childRekeyHoldUntil time.Time
+	ikeRekeyHoldUntil   time.Time
 
 	// pendingIKESwap holds the new IKE SA we built while responding to a peer's
 	// IKE-SA rekey; the owner loop swaps to it when the peer's INFORMATIONAL Delete

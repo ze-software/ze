@@ -43,6 +43,7 @@ they account for over 50 appearances in the corpus.
 | `validate-spec.sh` Current Behavior citation regex | 1 (2026-07-16) | Active | [F2](#f2-validate-specsh-rejects-the-citation-form-the-rules-mandate) |
 | `validate-spec.sh` RFC-existence check dead (regex typo) | 1 (2026-07-22) | Active | [F11](#f11-validate-specsh-rfc-existence-check-is-dead-code-regex-typo) |
 | `spec-closure-check.py` slice-scoped learned false-positive | 1 (2026-07-22) | Active | [F12](#f12-spec-closure-checkpy-high-confidence-signal-misfires-on-slice-scoped-learned-summaries) |
+| `pretool-writeedit.py` `c_rfc_tagged_test` traps its own author | 1 (2026-07-31) | Active | [F20](#f20-c_rfc_tagged_test-traps-its-own-author-on-a-draft-that-has-never-compiled) |
 | `commit_helper.py create` leaks a `ze` daemon and stalls | 6+ (2026-07-26) | Active | [F15](#f15-commit_helperpy-create-leaks-a-ze-daemon-and-stalls-forever) |
 | `GOCACHE` relocation is make-scoped (disk exhaustion) | 1 (2026-07-26) | Active | [F16](#f16-gocache-relocation-is-make-scoped-so-the-recommended-workflow-bypasses-it) |
 | `pretool-writeedit.py` `c_throwaway_tests` | 1 (2026-07-16) | Active | [F5](#f5-c_throwaway_tests-blocks-legitimate-scriptsdev-test-filenames) |
@@ -1374,3 +1375,46 @@ A habit that grows on a line you did not touch then belongs to whoever touched
 it. This keeps the per-author attribution the docstring asks for, and it removes
 the shared-file deadlock. `ai/rules/simplified-technical-english.md` asks for the
 case to land in `scripts/dev/ste_check_test.py` in the same change.
+
+---
+
+### F20: `c_rfc_tagged_test` traps its own author on a draft that has never compiled
+
+**Hook.** `c_rfc_tagged_test` in `.claude/hooks/pretool-writeedit.py`, through
+`_rfc_tagged_change_err` and `_enclosing_tagged_scope`.
+
+**Seen.** 2026-07-31, WP-1 of `plan/spec-rfcgate-1b-rfc7296-pilot.md`.
+
+**What happened.** A session wrote a new `_test.go` file carrying
+`RFC requirement:` tags. The file held one typo, an undefined identifier, so the
+whole package stopped compiling. Every route to fix it was closed.
+
+| Route | Result |
+|-------|--------|
+| `Edit` the one line | BLOCKED. The hunk lands inside the tagged function's span |
+| `Write` the corrected whole file | BLOCKED. `isfile` is true, so the file is compared |
+| `Edit` the import block | BLOCKED. That block sits outside every `func` span, so `tag_scope` widens to the whole file |
+| `rm` and rewrite | Needs interactive approval, which a subagent cannot reach |
+| `// rfc-test-change-approved:` | Reserved to the user. An agent writing it would be recording an approval that never happened |
+
+**Why the guard is right and still wrong here.** It protects the proof behind a
+public compliance claim. A file that has never compiled carries no such claim. The
+guard cannot tell authoring from weakening, and it deliberately falls on the
+blocking side.
+
+**Workaround that works.** Write a new tagged test file WITHOUT its
+`RFC requirement:` tags. Run it. Add the tags last, as a comment-only edit, which
+the guard permits by design. The end state is identical, and a typo stays fixable
+for as long as the file is untagged.
+
+**A second, quieter finding.** `make ze-rfc-check` read the tags in that file and
+reported the rows as proven while the package did not build. The gate scans text
+and never compiles. A tag in a file that fails `go vet` is not evidence.
+
+**Suggested fixes.** Two, independent of each other.
+
+1. Let the guard pass when the file does not currently build. `go vet` on the
+   package before the comparison answers "is this proof today". A file that fails
+   to compile proves nothing, so nothing can be weakened by editing it.
+2. Make `check_coverage_ratchet` refuse a tag whose file does not compile. It is
+   the difference between a green gate and a green gate that means something.

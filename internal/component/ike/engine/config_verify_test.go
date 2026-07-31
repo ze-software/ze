@@ -80,6 +80,39 @@ func TestValidateIPsecSectionsRejectsUnknownGroupRef(t *testing.T) {
 	}
 }
 
+// VALIDATES: the identity validator runs inside the plugin's OnConfigVerify body, so a
+// distinguished-name remote-id is refused at commit.
+// PREVENTS: ValidateIdentities existing and never running. remote-id "CN=hq,O=Example"
+// committed clean and then denied every peer at IKE_AUTH, where only the log saw it
+// (ai/rules/wiring-completeness.md, ai/rules/exact-or-reject.md).
+func TestValidateIPsecSectionsRejectsADistinguishedNameRemoteID(t *testing.T) {
+	sections := vpnSection(`{
+	  "vpn": {
+	  "ipsec": {
+	    "site-to-site": {
+	      "peer": {
+	        "branch": {
+	          "authentication": {
+	            "mode": "pre-shared-secret", "pre-shared-secret": "s3cret",
+	            "remote-id": "CN=hq,O=Example"
+	          }
+	        }
+	      }
+	    }
+	  }
+	  }
+	}`)
+
+	err := validateIPsecSections(sections)
+
+	if err == nil {
+		t.Fatal("a distinguished-name remote-id passed config verification")
+	}
+	if !strings.Contains(err.Error(), "ID_DER_ASN1_DN") {
+		t.Errorf("error %q does not explain why the identity can never match", err)
+	}
+}
+
 // VALIDATES: AC-8 -- a config with no cross-reference problems verifies clean.
 // PREVENTS: The new gate rejecting valid configs, which would be worse than the
 // gap it closes.
@@ -190,15 +223,20 @@ func TestValidateIPsecSectionsDoesNotMutatePKIStore(t *testing.T) {
 func TestValidateIPsecSectionsResolvesAgainstCandidatePKI(t *testing.T) {
 	ca := testCADER(t)
 
+	// The peer names a certificate as well as a CA. RFC 7296 Section 2.16 has the
+	// responder authenticate to the initiator with a public-key signature, so
+	// ValidatePKIRefs requires a certificate on every EAP peer. Both names must
+	// resolve against this same delivery, which is what the test is about.
 	good := []sdk.ConfigSection{
-		{Root: "pki", Data: `{"ca": {"corp-ca": {"certificate": "` + ca + `"}}}`},
+		{Root: "pki", Data: `{"ca": {"corp-ca": {"certificate": "` + ca + `"}},` +
+			`"certificate": {"corp-cert": {"certificate": "` + ca + `"}}}`},
 		vpnSection(`{
 		  "vpn": {
 		  "ipsec": {
 		    "site-to-site": {
 		      "peer": {
 		        "branch": {
-		          "authentication": {"mode": "eap-tls", "ca-certificate": "corp-ca"}
+		          "authentication": {"mode": "eap-tls", "ca-certificate": "corp-ca", "certificate": "corp-cert"}
 		        }
 		      }
 		    }
@@ -218,7 +256,7 @@ func TestValidateIPsecSectionsResolvesAgainstCandidatePKI(t *testing.T) {
 		    "site-to-site": {
 		      "peer": {
 		        "branch": {
-		          "authentication": {"mode": "eap-tls", "ca-certificate": "nowhere-ca"}
+		          "authentication": {"mode": "eap-tls", "ca-certificate": "nowhere-ca", "certificate": "corp-cert"}
 		        }
 		      }
 		    }

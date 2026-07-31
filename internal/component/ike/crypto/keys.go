@@ -2,6 +2,25 @@
 
 package crypto
 
+// encKeyMaterialLen returns the KEYMAT one direction takes for this cipher, in octets.
+//
+// An AEAD cipher takes a salt beyond its key. RFC 4106 Section 8.1: "The size of the
+// KEYMAT for the AES-GCM-ESP MUST be four octets longer than is needed for the
+// associated AES key." RFC 5282 Section 4 carries the same rule into the IKE SA.
+// AES-GCM-256 therefore takes 36 octets and AES-GCM-128 takes 20.
+//
+// The salt is read per algorithm from aeadSaltBytes. It never comes from one number
+// shared by every AEAD. A cipher whose salt is not four octets therefore cannot be
+// keyed silently at the wrong length.
+//
+// The AEAD verdict comes from the Transform ID, never from the IsAEAD field. A caller
+// that fills the ID and leaves the field at its zero value still gets the salt. The
+// Linux kernel refuses a short key. A short key also makes a peer read the second
+// direction's key at the wrong offset (ai/rules/fail-closed-guards.md).
+func encKeyMaterialLen(enc EncryptionTransform) int {
+	return int(enc.KeyLength)/8 + enc.ID.aeadSalt()
+}
+
 // SKKeys holds the IKE SA key hierarchy derived from SKEYSEED.
 type SKKeys struct {
 	SK_d  []byte // Key derivation key for Child SA KEYMAT.
@@ -50,10 +69,7 @@ func DeriveSKKeys(prfID PRFID, skeyseed, ni, nr, spiI, spiR []byte, enc Encrypti
 
 	skDLen := int(prf.OutputLength)
 	integKeyLen := int(integ.KeyLength)
-	encKeyLen := int(enc.KeyLength) / 8
-	if enc.IsAEAD {
-		encKeyLen += 4 // RFC 5282: AEAD key material includes 4-byte salt
-	}
+	encKeyLen := encKeyMaterialLen(enc)
 	prfKeyLen := int(prf.KeyLength)
 
 	totalLen := skDLen + 2*integKeyLen + 2*encKeyLen + 2*prfKeyLen
@@ -106,8 +122,11 @@ func (k *ChildSAKeys) Clear() {
 
 // DeriveChildSAKeys derives ESP keys from SK_d and nonces.
 // RFC 7296 Section 2.17: KEYMAT = prf+(SK_d, Ni | Nr).
+//
+// An AEAD cipher takes four octets of salt beyond its key (RFC 4106 Section 8.1), so
+// encKeyMaterialLen decides the length of each of the four keys below.
 func DeriveChildSAKeys(prfID PRFID, skD, ni, nr []byte, enc EncryptionTransform, integ IntegrityTransform) (*ChildSAKeys, error) {
-	encKeyLen := int(enc.KeyLength) / 8
+	encKeyLen := encKeyMaterialLen(enc)
 	integKeyLen := int(integ.KeyLength)
 
 	totalLen := 2*encKeyLen + 2*integKeyLen
@@ -135,8 +154,10 @@ func DeriveChildSAKeys(prfID PRFID, skD, ni, nr []byte, enc EncryptionTransform,
 
 // DeriveChildSAKeysPFS derives ESP keys with Perfect Forward Secrecy.
 // RFC 7296 Section 2.17: KEYMAT = prf+(SK_d, g^ir | Ni | Nr).
+//
+// The AEAD salt rule of DeriveChildSAKeys applies here without change.
 func DeriveChildSAKeysPFS(prfID PRFID, skD, dhSharedSecret, ni, nr []byte, enc EncryptionTransform, integ IntegrityTransform) (*ChildSAKeys, error) {
-	encKeyLen := int(enc.KeyLength) / 8
+	encKeyLen := encKeyMaterialLen(enc)
 	integKeyLen := int(integ.KeyLength)
 
 	totalLen := 2*encKeyLen + 2*integKeyLen
