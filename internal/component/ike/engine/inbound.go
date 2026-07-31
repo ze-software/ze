@@ -73,6 +73,26 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 			countErrorNotifySuppressed("unprotected-retransmit")
 			return ownedOutcome{}
 		}
+		// RFC 7296 Section 2.21.4 asks for a rate limit on what unprotected traffic
+		// can draw out of this node. The SK-presence test above raises the cost of a
+		// forgery from a 28-byte header to about forty octets. It does not remove the
+		// amplification: the cached response is several hundred octets.
+		//
+		// The token bucket is the second guard, and both are needed. The sibling
+		// site in handleResponderInbound (responder.go) carries the identical pair.
+		// A guard added to one replay site, with the other left open, is the
+		// failure ai/rules/before-writing-code.md names.
+		if !sa.cachedReplayAllowed() {
+			log.Debug("ike: cached response replay rate limited",
+				"peer", ps.peerName, "msgid", msg.Header.MessageID)
+			countErrorNotifySuppressed("replay-rate-limited")
+			return ownedOutcome{}
+		}
+		// The destination is the SA's STORED endpoint, through sendRaw, and never
+		// pkt.RemoteAddr. This request did not decrypt, so nothing corroborates its
+		// source. A cached replay is not "a response to a request Ze accepted": Ze
+		// recognized a Message ID, it did not accept the message. RFC 7296
+		// Section 2.11 therefore does not put this emission on the observed source.
 		if sa.lastResponseSet {
 			sendRaw(sa, tr, sa.lastResponse, log)
 		}
@@ -113,6 +133,20 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 		}
 		return ownedOutcome{}
 	}
+	// The message decrypted and its integrity check passed. classifyInbound already
+	// applied the Message ID window. Both preconditions of adoptAuthenticatedEndpoint
+	// therefore hold HERE and nowhere earlier in this function.
+	//
+	// The inboundRetransmit arm compared a Message ID and decrypted nothing. The
+	// inboundInvalid arm decrypts a response the window already refused, which RFC
+	// 7296 Section 2.23 calls out as replayable.
+	//
+	// This is what sends an established-SA response to the address and port the
+	// request came from (RFC 7296 Section 2.11). sendRaw reads the endpoint stored
+	// here. An UNAUTHENTICATED datagram never reaches this line, so it never moves
+	// the peer.
+	sa.adoptAuthenticatedEndpoint(pkt.RemoteAddr, pkt.NATT, log)
+
 	// RFC 7296 Section 3.10.1: an unrecognized notify that is neither an error in a
 	// response nor acted on elsewhere is ignored, and it is logged.
 	logIgnoredNotifies(inner, ps.peerName, isResponse, log)

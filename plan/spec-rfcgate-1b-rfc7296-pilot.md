@@ -1107,8 +1107,8 @@ the Obligation text.
 | `RFC7296-2.10-2` | MUST | Nonces used in IKEv2 MUST be at least 128 bits in size (§2.10) | impl-testable |
 | `RFC7296-2.10-3` | MUST | Nonces used in IKEv2 MUST be at least half the key size of the negotiated pseudorandom function (PRF) (§2.10) | impl-untested |
 | `RFC7296-2.11-1` | MUST | An implementation MUST accept incoming requests even if the source port is not 500 or 4500 (§2.11, §2.23) | impl-testable |
-| `RFC7296-2.11-2` | MUST | An implementation MUST respond to the address and port from which the request was received (§2.11, §2.23) | **NOT IMPL** |
-| `RFC7296-2.11-3` | MUST | It MUST specify the address and port at which the request was received as the source address and port in the response (§2.11) | **NOT IMPL** |
+| `RFC7296-2.11-2` | MUST | An implementation MUST respond to the address and port from which the request was received (§2.11, §2.23) | landed 2026-07-31, WP-8 |
+| `RFC7296-2.11-3` | MUST | It MUST specify the address and port at which the request was received as the source address and port in the response (§2.11) | landed 2026-07-31, WP-8, PORT half only, see OR-WP8-1 |
 | `RFC7296-2.12-1` | MUST | Achieving perfect forward secrecy requires that when a connection is closed, each endpoint MUST forget not only the keys used by the connection but also any information that could be used to recompute those keys (§2.12) | uncertain |
 | `RFC7296-2.13-1` | MUST | For algorithms that accept a variable-length key, a fixed key size MUST be specified as part of the cryptographic transform negotiated (§2.13) | impl-testable |
 | `RFC7296-2.13-2` | MUST | For algorithms for which not all values are valid keys, the algorithm by which keys are derived from arbitrary values MUST be specified by the cryptographic transform (§2.13) | impl-untested |
@@ -1151,11 +1151,11 @@ the Obligation text.
 | `RFC7296-2.22-2` | MUST NOT | Implementations of this specification MUST NOT accept an IPComp algorithm that was not proposed (§2.22) | **NOT IMPL** |
 | `RFC7296-2.22-3` | MUST NOT | Implementations of this specification MUST NOT accept more than one IPComp algorithm (§2.22) | **NOT IMPL** |
 | `RFC7296-2.22-4` | MUST NOT | Implementations of this specification MUST NOT compress using an algorithm other than one proposed and accepted in the setup of the Child SA (§2.22) | **NOT IMPL** |
-| `RFC7296-2.23-4` | MUST | An IPsec endpoint that discovers a NAT between it and its correspondent MUST send all subsequent traffic from port 4500 (§2.23) | **NOT IMPL** |
-| `RFC7296-2.23-5` | MUST NOT | UDP encapsulation MUST NOT be done on port 500 (§2.23) | **NOT IMPL** |
-| `RFC7296-2.23-6` | MUST | If Network Address Translation Traversal (NAT-T) is supported, all devices MUST be able to receive and process both UDP-encapsulated ESP and non-UDP-encapsulated ESP packets at any time (§2.23) | **NOT IMPL** |
+| `RFC7296-2.23-8` (was `-2.23-4`) | MUST | An IPsec endpoint that discovers a NAT between it and its correspondent (as described below) MUST send all subsequent traffic from port 4500 (§2.23) | landed 2026-07-31, WP-8 |
+| `RFC7296-2.23-9` (was `-2.23-5`) | MUST NOT | UDP encapsulation MUST NOT be done on port 500 (§2.23) | landed 2026-07-31, WP-8 |
+| `RFC7296-2.23-6` -> to land as `-2.23-10` | MUST | If Network Address Translation Traversal (NAT-T) is supported, all devices MUST be able to receive and process both UDP-encapsulated ESP and non-UDP-encapsulated ESP packets at any time (§2.23) | **NOT IMPL, OPEN OWNER QUESTION OR-WP8-4** |
 | `RFC7296-2.23-7` | MUST | Both the IKE initiator and responder MUST include in their IKE_SA_INIT packets Notify payloads of type NAT_DETECTION_SOURCE_IP and NAT_DETECTION_DESTINATION_IP (§2.23) | impl-untested |
-| `RFC7296-2.23-8` | MUST | Implementations MUST process received UDP-encapsulated ESP packets even when no NAT was detected (§2.23) | **NOT IMPL** |
+| `RFC7296-2.23-8` -> to land as `-2.23-11` | MUST | Implementations MUST process received UDP-encapsulated ESP packets even when no NAT was detected (§2.23) | **NOT IMPL, OPEN OWNER QUESTION OR-WP8-4** |
 | `RFC7296-2.23.1-1` | MUST | For transport mode, it MUST use exactly one IP address in the TSi and TSr payloads (§2.23.1, §2.23) | **NOT IMPL** |
 | `RFC7296-2.23.1-2` | MUST | The TSi entries MUST have exactly one IP address, and that MUST match the source address of the IKE SA (§2.23.1) | **NOT IMPL** |
 | `RFC7296-2.23.1-3` | MUST | The TSr entries MUST have exactly one IP address, and that MUST match the destination address of the IKE SA (§2.23.1) | **NOT IMPL** |
@@ -1433,6 +1433,76 @@ The class changed with it. `plan/spec-fixit-ike-dpd-cleartext.md` found that `se
 wrote a bare 28-byte header, so Ze sent its liveness probe in the clear. That spec builds
 the probe through `buildEncryptedMessageEx`. The row is now `impl-testable`, and a tagged
 pair in `internal/component/ike/engine/rfc7296_dpd_test.go` proves it.
+
+### WP-8's four §2.23 ids, and the two that did not land (2026-07-31)
+
+Section 2.23's mark was 7 at HEAD, so Appendix A's ordinals `-4`, `-5` and `-6` were all
+refused. The rows land as one contiguous block in Appendix A order, starting at mark+1:
+
+| Appendix A id | Landed as | Status |
+|---------------|-----------|--------|
+| `RFC7296-2.23-4` | `RFC7296-2.23-8` | landed |
+| `RFC7296-2.23-5` | `RFC7296-2.23-9` | landed |
+| `RFC7296-2.23-6` | reserved `RFC7296-2.23-10` | NOT landed, OR-WP8-4 |
+| `RFC7296-2.23-8` | reserved `RFC7296-2.23-11` | NOT landed, OR-WP8-4 |
+
+The two reserved ordinals stay free and stay in Appendix A order, so the pair can land
+later without a second renumbering.
+
+Section 2.11's mark was 1, so `-2` and `-3` landed at their Appendix A ordinals unchanged.
+
+### OR-WP8-4 -- Ze cannot receive BOTH ESP forms on one SA, and the kernel is why
+
+**The obligations.** `RFC7296-2.23-6` (`rfc/full/rfc7296.txt:3544-3548`): "all devices MUST
+be able to receive and process both UDP-encapsulated ESP and non-UDP-encapsulated ESP
+packets at any time." `RFC7296-2.23-8` (`:3624-3625`): "Implementations MUST process
+received UDP-encapsulated ESP packets even when no NAT was detected."
+
+**The measurement, not an inference.** `TestEncapKernelBindsOneESPFormPerState`
+(`internal/component/ike/dataplane/encap_integration_linux_test.go`) drives a real kernel in
+QEMU and records this table:
+
+| inbound XFRM state | bare ESP | UDP-encapsulated ESP |
+|--------------------|----------|----------------------|
+| no encapsulation template | accepted (reaches the crypto check) | refused, `XfrmInStateMismatch` |
+| ESP-in-UDP template | refused, `XfrmInStateMismatch` | accepted (reaches the crypto check) |
+
+An SPI with no state at all raises `XfrmInNoStates`. That is how the two verdicts are
+told apart.
+
+**Two states on one SPI do not help.** The state lookup is keyed on destination, SPI,
+protocol and family. It returns the first match, and the encapsulation check then
+drops the packet. That was measured too.
+
+**So one XFRM state accepts exactly one form, and Ze installs one state per SPI.** The
+"at any time" of `-2.23-6` is not reachable on the dataplane Ze ships.
+
+**What WP-8 did instead, and it is more conformant than before.** The Child SA's
+encapsulation now follows the PORT the IKE SA runs on, not Ze's own NAT verdict
+(`internal/component/ike/engine/child.go`).
+
+A peer that chooses UDP encapsulation with no NAT present runs its IKE on port 4500.
+`adoptAuthenticatedEndpoint` floats the SA on that authenticated observation. The
+inbound state is then built to accept the encapsulated form. That covers the realistic
+case `-2.23-8` describes. It does not cover a peer that alternates forms on one SA.
+
+Ze also now sets `UDP_ENCAP` on the port-4500 socket
+(`internal/component/ike/transport/encap_linux.go`). Before WP-8 Ze held that port with a
+plain socket, so the kernel never decapsulated and EVERY encapsulated ESP datagram died in
+user space. That was a real defect and it is closed, with a doctor check
+(`doctor-ipsec-udp-encap`) reporting the state.
+
+**The question for Thomas.** `ai/rules/rfc-compliance.md` reserves this decision: a
+classification that lowers what Ze owes is not the implementer's to make. Which way do you
+want `-2.23-6` and `-2.23-11` fixed?
+
+- Land them scoped to the port the SA runs on, with the tests above, and say plainly in
+  `docs/features/rfc-status.md` that a form change mid-SA is not handled.
+- Move the ESP receive path off XFRM so both forms can be accepted, which is a dataplane
+  change of a different size.
+- Something else.
+
+No `{gap}` and no `partial` was written for either row, because writing one IS the decision.
 
 **Nothing checks a plan table mechanically, and that is permitted.** `check_id_allocation`
 reads the summary, which is permanent and is the gate's evidence. A plan is deleted at

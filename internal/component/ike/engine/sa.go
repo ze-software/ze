@@ -5,11 +5,13 @@ package engine
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"log/slog"
 	"net"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/crypto"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
+	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
 )
 
@@ -141,6 +143,46 @@ type SA struct {
 	NATDetected bool
 	BehindNAT   bool // true if we are the side behind NAT
 
+	// peerEndpoint is the source address and port of the last message this SA
+	// AUTHENTICATED. It is the destination of every message the SA sends on its own
+	// initiative, and of every response the owner loop builds.
+	//
+	// RFC 7296 Section 2.11 MUST: an implementation
+	// "MUST respond to the address and port from which the request was received".
+	// RFC 7296 Section 2.23 repeats it, and adds that the port matters because a NAT
+	// translates it.
+	//
+	// It is written by adoptAuthenticatedEndpoint alone, and only after a decrypt and
+	// a Message ID window check. An unauthenticated datagram never moves it. Nil
+	// means no authenticated message has arrived yet, and remoteUDPAddr then falls
+	// back to the CONFIGURED remote rather than to whatever last arrived
+	// (ai/rules/fail-closed-guards.md).
+	//
+	// Owner-loop state after establishment, like lastResponse, so it needs no lock.
+	peerEndpoint *net.UDPAddr
+
+	// localPort names the UDP port this SA sends FROM.
+	//
+	// RFC 7296 Section 2.23 MUST: an endpoint
+	// "that discovers a NAT between it and its correspondent (as described below) MUST send all subsequent traffic from port 4500".
+	//
+	// Zero means the float decision has not been taken, and it reads as the IKE port.
+	// A zero that read as 4500 would be the zero-value trap, so the single read site
+	// in sendPath compares against transport.NATTPort rather than against zero.
+	//
+	// It answers a different question from NATDetected, which selects UDP
+	// encapsulation for the Child SA and starts the keepalive. Merging the two is the
+	// defect plan/spec-fixit-ike-responder-natt-port-float.md records.
+	localPort uint16
+
+	// ikeSocket and nattSocket are the two sockets this SA can send from. The session
+	// binds both when it creates the SA.
+	//
+	// A nil nattSocket with a floated localPort sends nothing. A floated peer reads a
+	// message from port 500 with no non-ESP marker as ESP, and drops it with no log.
+	ikeSocket  *transport.UDPTransport
+	nattSocket *transport.UDPTransport
+
 	// EAP state (RFC 7296 Section 2.16).
 	EAPSession any // *eap.Session, stored as any to avoid import cycle
 	EAPMSK     [64]byte
@@ -215,12 +257,155 @@ func SPIHex(spi [8]byte) string {
 	return hex.EncodeToString(spi[:])
 }
 
+// remoteUDPAddr returns the destination for a message this SA sends on its own
+// initiative, and for every response the owner loop builds.
+//
+// RFC 7296 Section 2.11 MUST: an implementation
+// "MUST respond to the address and port from which the request was received".
+// The authenticated observation is therefore preferred over the configured remote.
+//
+// The fallback is the CONFIGURED remote, never the datagram in hand. An
+// unauthenticated source address is attacker-chosen, and a fallback that used it
+// would let one forged packet aim the SA at a victim
+// (ai/rules/fail-closed-guards.md). The port of that fallback follows localPort, so
+// a floated SA reaches the peer's port 4500 before its first authenticated message.
+//
+// It returns a COPY. established.go rewrites the port of the value it gets back, and
+// a shared pointer would let that rewrite corrupt the SA's own state.
 func (sa *SA) remoteUDPAddr() *net.UDPAddr {
+	if sa.peerEndpoint != nil {
+		return &net.UDPAddr{
+			IP:   append(net.IP(nil), sa.peerEndpoint.IP...),
+			Port: sa.peerEndpoint.Port,
+			Zone: sa.peerEndpoint.Zone,
+		}
+	}
 	addr, err := net.ResolveUDPAddr("udp4", ikeAddr(sa.PeerCfg.RemoteAddress))
 	if err != nil {
 		return nil
 	}
+	if sa.localPort == transport.NATTPort {
+		addr.Port = transport.NATTPort
+	}
 	return addr
+}
+
+// bindSockets gives the SA the two sockets its session owns. The session calls it
+// once, when it creates the SA.
+func (sa *SA) bindSockets(ike, natt *transport.UDPTransport) {
+	sa.ikeSocket = ike
+	sa.nattSocket = natt
+}
+
+// inheritSendPath copies the send path of the SA this one replaces: both sockets,
+// the float verdict, and the authenticated peer endpoint.
+//
+// RFC 7296 Section 2.18 makes a rekeyed IKE SA the same conversation, with the same
+// peer, over the same path. None of the four is renegotiated.
+//
+// A replacement that started at port 500 with no endpoint drops every NAT-traversing
+// tunnel on its first rekey. That failure appears an hour after establishment.
+func (sa *SA) inheritSendPath(old *SA) {
+	sa.ikeSocket = old.ikeSocket
+	sa.nattSocket = old.nattSocket
+	sa.localPort = old.localPort
+	sa.peerEndpoint = old.peerEndpoint
+}
+
+// floatToNATTPort records that every later message this SA sends leaves from port
+// 4500. RFC 7296 Section 2.23 MUST: an endpoint
+// "that discovers a NAT between it and its correspondent (as described below) MUST send all subsequent traffic from port 4500".
+//
+// The float is sticky. The same sentence says ALL subsequent traffic, so nothing
+// moves the SA back to port 500 once a NAT is known.
+func (sa *SA) floatToNATTPort() {
+	sa.localPort = transport.NATTPort
+}
+
+// sendPath returns the socket this SA sends from, and whether that socket frames its
+// messages with the non-ESP marker of RFC 3948 Section 2.2.
+//
+// The fallback covers an SA the session never bound, which is every SA a unit test
+// builds by hand. It reports the role of the socket it was handed.
+//
+// It fails closed on the one case that matters. A floated SA with no NAT-T socket
+// returns nil, so nothing is sent.
+//
+// A floated peer reads a message from port 500 with no marker as ESP, and drops it
+// with no log. A silent fallback would therefore look like a working tunnel and
+// carry nothing (ai/rules/fail-closed-guards.md).
+func (sa *SA) sendPath(fallback *transport.UDPTransport) (*transport.UDPTransport, bool) {
+	if sa.localPort == transport.NATTPort {
+		if sa.nattSocket == nil {
+			return nil, false
+		}
+		return sa.nattSocket, true
+	}
+	if sa.ikeSocket != nil {
+		return sa.ikeSocket, sa.ikeSocket.IsNATT()
+	}
+	natT := fallback.IsNATT()
+	return fallback, natT
+}
+
+// adoptAuthenticatedEndpoint records where an AUTHENTICATED message came from, and
+// floats the SA when that message arrived on the NAT-T socket.
+//
+// CALLER OBLIGATIONS. Both are RFC conditions, and neither can be checked here.
+//
+//   - The message MUST have decrypted and its integrity check MUST have passed.
+//     RFC 7296 Section 2.23 names the trigger as a packet
+//     "whose integrity protection validates".
+//   - The Message ID window check MUST have run first. The same section states that
+//     "dynamic updates can only be done safely if replay protection is enabled",
+//     and the Message ID counter of Section 2.2 IS that replay protection.
+//
+// The caller therefore calls this AFTER decryptAndParse returns a nil error, and
+// never from a branch that only compared a Message ID.
+//
+// The FIRST observation always lands. It associates an endpoint with the SA rather
+// than changing one, and RFC 7296 Section 2.11 requires the response to reach the
+// port the request came from.
+//
+// A LATER observation that DIFFERS is the dynamic address update of RFC 7296
+// Section 2.23. It is refused while this node is behind a NAT. "A host behind a NAT
+// SHOULD NOT do this type of dynamic address update if a validated packet has
+// different port and/or address values because it opens a possible DoS attack".
+func (sa *SA) adoptAuthenticatedEndpoint(observed *net.UDPAddr, arrivedOnNATT bool, log *slog.Logger) {
+	if arrivedOnNATT {
+		sa.floatToNATTPort()
+	}
+	if observed == nil {
+		return
+	}
+	if sa.peerEndpoint == nil {
+		sa.peerEndpoint = copyUDPAddr(observed)
+		return
+	}
+	if sameUDPEndpoint(sa.peerEndpoint, observed) {
+		return
+	}
+	if sa.BehindNAT {
+		log.Debug("ike: authenticated packet came from a new endpoint, not adopted because this node is behind a NAT",
+			"peer", sa.PeerName, "stored", sa.peerEndpoint, "observed", observed)
+		return
+	}
+	log.Info("ike: peer endpoint moved, adopting the address of the validated packet",
+		"peer", sa.PeerName, "old", sa.peerEndpoint, "new", observed)
+	sa.peerEndpoint = copyUDPAddr(observed)
+}
+
+// copyUDPAddr detaches an address from the packet buffer that carried it, so a later
+// read of the SA cannot see a reused slice.
+func copyUDPAddr(a *net.UDPAddr) *net.UDPAddr {
+	return &net.UDPAddr{IP: append(net.IP(nil), a.IP...), Port: a.Port, Zone: a.Zone}
+}
+
+// sameUDPEndpoint reports whether two addresses name one endpoint. It compares the
+// address and the port, because RFC 7296 Section 2.23 makes a changed PORT alone a
+// reason to move the SA.
+func sameUDPEndpoint(a, b *net.UDPAddr) bool {
+	return a.Port == b.Port && a.IP.Equal(b.IP)
 }
 
 // initiatorNonce and responderNonce return the two IKE_SA_INIT nonces in the

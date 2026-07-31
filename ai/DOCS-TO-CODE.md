@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 302 design docs, 3142 files
+Total: 302 design docs, 3145 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3245,6 +3245,9 @@ Total: 302 design docs, 3142 files
 | `internal/component/ike/eap/rfc3748_test.go` | EAP framework (RFC 3748) |
 | `internal/component/ike/engine/eap_auth.go` | AUTH payload from EAP MSK |
 | `internal/component/ike/engine/eap_auth_test.go` | AUTH from MSK test |
+| `internal/component/ike/engine/udpencap.go` | UDP encapsulation readiness |
+| `internal/component/ike/transport/encap_linux.go` | UDP encapsulation of ESP |
+| `internal/component/ike/transport/encap_other.go` | UDP encapsulation of ESP |
 | `internal/component/ike/transport/keepalive.go` | NAT keepalive sender |
 | `internal/component/ike/transport/keepalive_test.go` | NAT keepalive tests |
 | `internal/component/ike/transport/nat.go` | NAT detection and port 4500 handling |

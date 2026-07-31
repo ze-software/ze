@@ -129,6 +129,11 @@ func espInstalled(peers map[string]*PeerSession, name string) bool {
 // Update reads the current SA table and peer session state to refresh all metrics.
 func (m *IPsecMetrics) Update() {
 	m.publishErrorNotifyCounts()
+	// RFC 7296 Section 2.23 needs the kernel to decapsulate ESP that arrives inside
+	// UDP. A failure to arm that is invisible on the wire: the tunnel establishes and
+	// carries nothing. The count rises on every listener rebuild that fails, so a
+	// reader sees a persistent condition rather than one startup line.
+	m.errorNotifySuppressed.With("udp-encap-unavailable").Set(float64(udpEncapFailureCount()))
 	table := ActiveTable()
 	if table == nil {
 		m.saCount.Set(0)

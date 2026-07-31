@@ -4,6 +4,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"net"
 
@@ -60,12 +61,36 @@ func natHashEqual(a, b []byte) bool {
 	return constantTimeEqualAuth(a, b)
 }
 
-// sendWithNATT sends an IKE message, prepending the non-ESP marker if NAT is detected.
-// RFC 3948 Section 2.2.
-func sendWithNATT(sa *SA, data []byte, tr *transport.UDPTransport, remote *net.UDPAddr) error {
-	if sa.NATDetected {
+// errNoReplyDestination reports that a response had no socket or no address to go to.
+var errNoReplyDestination = errors.New("ike: reply has no destination")
+
+// sendReply answers one request on the socket it ARRIVED on, addressed to the source
+// it came FROM.
+//
+// RFC 7296 Section 2.11 MUST (rfc/full/rfc7296.txt:2591-2593): an implementation
+// "MUST respond to the address and port from which the request was received. It MUST specify the address and port at which the request was received as the source address and port in the response".
+//
+// RFC 7296 Section 2.23 states the same obligation. It also gives the reason. A NAT
+// reads the port numbers of inbound packets to select the internal node.
+//
+// Three things this deliberately does NOT do. Each one was a defect.
+//
+//   - It does not consult sa.NATDetected. That flag records what ZE sees.
+//   - It does not rewrite the destination port to 4500. A NAT rarely maps a peer
+//     there, and discarding the observed port violates Section 2.11.
+//   - It does not rebuild the address from remote.IP alone.
+//
+// The marker follows the ARRIVAL socket. The role is read from the transport, never
+// compared against a port number. Under the ze.test.ike.port override neither socket
+// carries a well-known port, so a comparison picks the wrong framing in every
+// functional test (ai/rules/fail-closed-guards.md).
+func sendReply(tr *transport.UDPTransport, data []byte, remote *net.UDPAddr) error {
+	if tr == nil || remote == nil {
+		return errNoReplyDestination
+	}
+	if tr.IsNATT() {
+		// RFC 3948 Section 2.2: IKE on port 4500 carries the four-octet non-ESP marker.
 		data = transport.AddNonESPMarker(data)
-		remote = &net.UDPAddr{IP: remote.IP, Port: transport.NATTPort}
 	}
 	return tr.Send(data, remote)
 }

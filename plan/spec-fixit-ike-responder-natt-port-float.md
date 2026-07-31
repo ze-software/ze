@@ -15,22 +15,39 @@ Found on 2026-07-31. It is the first time the responder EAP interop scenario was
 
 ## Task
 
-**Two defects, and the second one turns the first into a dead session.**
+**NARROWED 2026-07-31 to defect 2. Defect 1 landed in RFC 7296 pilot WP-8.**
 
-**Defect 1: Ze gates the NAT-T reply form on its OWN NAT verdict, not the peer's.**
-`sendWithNATT` (`internal/component/ike/engine/eap_auth.go:65-71`) gates both the non-ESP
-marker and the destination port on `sa.NATDetected`. That field is Ze's own verdict. When
-Ze sees no NAT it replies with no marker, even to a peer that has already floated to 4500.
+~~**Defect 1: Ze gates the NAT-T reply form on its OWN NAT verdict, not the peer's.**~~
+Landed in `plan/spec-rfcgate-1b-rfc7296-pilot.md`, WP-8. The rows are `RFC7296-2.11-2`,
+`RFC7296-2.11-3` and `RFC7296-2.23-8`.
 
-`dispatchNATTInbound` (`engine/register.go:481-499`) accepts the request on 4500 and hands
-the port-500 transport to the handler, so the reply leaves from the wrong socket.
+`sendWithNATT` is gone. `sendReply` (`internal/component/ike/engine/eap_auth.go`) now
+derives the reply form from the socket the request ARRIVED on. It sends to the observed
+source verbatim. `sendRaw` (`engine/established.go`) picks the SA's own socket from its
+float verdict.
+
+**The claim about `dispatchNATTInbound` above was STALE, and a reader must not act on it.**
+It was re-read on 2026-07-31. `dispatchNATTInbound` is launched with `trNATT`
+(`engine/register.go`, `go dispatchNATTInbound(trNATT, table, log)`). It passes that same
+transport to `tryResponderSAInit` and to `routeInbound`. The pre-adoption responder path
+therefore always held the 4500 socket.
+
+The real loss was in `routeInbound`. It dropped the arrival transport when it handed a
+packet to an OWNED SA's owner loop. The session's own transport is always the port-500
+one. WP-8 carries the arrival role on `transport.Packet` instead.
 
 **Defect 2: a retransmitted IKE_AUTH kills the SA instead of replaying the cached response.**
-`handleResponderEAP` (`engine/responder_eap.go:230-234`) finds no EAP payload and no AUTH
-payload on the retransmit, and sets `StateDead`. RFC 7296 Section 2.1 makes a retransmission
-normal, and the responder is required to be able to answer it.
+STILL OPEN, and it is why this spec stays. `handleResponderEAP`
+(`engine/responder_eap.go`, the `eapPayload == nil` branch that logs
+`ike: EAP round missing EAP payload`) finds no EAP payload and no AUTH payload on the
+retransmit, and sets `StateDead`. RFC 7296 Section 2.1 makes a retransmission normal, and
+the responder is required to be able to answer it.
 
 Defect 2 is a defect on its own terms, whatever causes the retransmit.
+
+WP-8 did not absorb it. It is an RFC 7296 Section 2.1 retransmission obligation. It
+touches none of WP-8's producers. It has no row among the pilot's 113, so absorbing it
+would have shipped an untagged protocol fix. That choice is recorded as OR-WP8-3.
 
 ## Observed sequence
 
@@ -128,16 +145,16 @@ unaffected, which the scenario 03 control shows.
 
 | Id | Criterion |
 |----|-----------|
-| AC-1 | A reply to a request received on 4500 carries the non-ESP marker and leaves from 4500 |
-| AC-2 | The reply form follows the received datagram, never Ze's own NAT verdict |
+| ~~AC-1~~ | ~~A reply to a request received on 4500 carries the non-ESP marker and leaves from 4500~~ -- landed in RFC 7296 pilot WP-8, proven by `TestNattReplyLeavesFromTheArrivalSocket` |
+| ~~AC-2~~ | ~~The reply form follows the received datagram, never Ze's own NAT verdict~~ -- landed in RFC 7296 pilot WP-8. `sendReply` reads the arrival socket |
 | AC-3 | A retransmitted IKE_AUTH is answered with the cached response, and does not set `StateDead` |
-| AC-4 | Scenario 08 establishes, and scenario 03 still passes |
+| AC-4 | Scenario 08 establishes, and scenario 03 still passes -- KEPT, because defect 2 alone still blocks scenario 08 |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | | Feature Code | Test |
 |-------------|---|--------------|------|
-| IKE_AUTH on 4500 (`register.go:481`) | -> | the reply-form decision | `test/ipsec/ipsec-responder-natt-reply.ci` |
+| ~~IKE_AUTH on 4500~~ | -> | ~~the reply-form decision~~ | landed in RFC 7296 pilot WP-8 |
 | a retransmitted IKE_AUTH (`responder_eap.go:230`) | -> | the cached-response replay | `test/ipsec/ipsec-responder-retransmit.ci` |
 
 ## 🧪 TDD Test Plan
@@ -146,14 +163,14 @@ unaffected, which the scenario 03 control shows.
 
 | Test | Proves |
 |------|--------|
-| The reply form follows the received port, both ways | AC-1, AC-2 |
+| ~~The reply form follows the received port, both ways~~ | ~~AC-1, AC-2~~ -- landed in RFC 7296 pilot WP-8 |
 | A retransmit replays rather than kills | AC-3 |
 
 ### Functional Tests
 
 | Test | Role |
 |------|------|
-| `test/ipsec/ipsec-responder-natt-reply.ci` | AC-1 and AC-2 through the daemon, on every push |
+| ~~`test/ipsec/ipsec-responder-natt-reply.ci`~~ | ~~AC-1 and AC-2 through the daemon~~ -- superseded by the WP-8 unit pair in `internal/component/ike/engine/rfc7296_natt_test.go` |
 | `test/ipsec/ipsec-responder-retransmit.ci` | AC-3 through the daemon |
 | `test/ipsec-interop/scenarios/08-responder-eap-mschapv2` | AC-4 against a real peer |
 

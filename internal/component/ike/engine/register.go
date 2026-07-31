@@ -181,6 +181,17 @@ func init() {
 			Platforms:    []string{"any"},
 			Codes:        []string{"doctor-ipsec-iface"},
 			Check:        checkIPsecInterface,
+		}, {
+			// RFC 7296 Section 2.23 makes receiving UDP-encapsulated ESP a MUST. The
+			// kernel does it only while the NAT-T socket carries UDP_ENCAP, and a
+			// failure there is invisible: the tunnel establishes and carries nothing.
+			Name:         "ipsec-udp-encap",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        731,
+			Dependencies: []string{"config-loaded"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-ipsec-udp-encap"},
+			Check:        checkIPsecUDPEncap,
 		}},
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }
@@ -216,8 +227,9 @@ func runEngine(conn net.Conn) int {
 	}
 
 	type reEstablishCtx struct {
-		cfg *ipsec.IPsecConfig
-		tr  *transport.UDPTransport
+		cfg  *ipsec.IPsecConfig
+		tr   *transport.UDPTransport
+		natt *transport.UDPTransport
 	}
 	var reCtx atomic.Pointer[reEstablishCtx]
 
@@ -227,7 +239,7 @@ func runEngine(conn net.Conn) int {
 			return
 		}
 		eb := getEventBus()
-		reconcilePeers(rc.cfg, nil, activePeers, table, rc.tr, eb, log)
+		reconcilePeers(rc.cfg, nil, activePeers, table, rc.tr, rc.natt, eb, log)
 	}
 	reEstablishFn.Store(&reEstablish)
 
@@ -321,10 +333,35 @@ func runEngine(conn net.Conn) int {
 				}
 			}
 			var nErr error
-			trNATT, nErr = transport.NewUDPTransport(nattAddr, log)
+			trNATT, nErr = transport.NewNATTTransport(nattAddr, log)
 			if nErr != nil {
 				log.Warn("ike: failed to start NAT-T transport", "error", nErr)
 			} else {
+				// RFC 7296 Section 2.23 MUST: "all devices MUST be able to receive and
+				// process both UDP-encapsulated ESP and non-UDP-encapsulated ESP
+				// packets at any time."
+				//
+				// Ze holds port 4500. The kernel decapsulates ESP that arrives there
+				// only while this option is set. Without it, every encapsulated ESP
+				// datagram reaches dispatchNATTInbound, which reads an ESP SPI in place
+				// of the non-ESP marker and drops it. The installed XFRM state then
+				// matches nothing.
+				//
+				// It runs BEFORE trNATT.Run, so no datagram is read on an unprepared
+				// socket.
+				//
+				// The failure is reported rather than swallowed. It separates a working
+				// tunnel from one that carries no traffic. Doctor check ipsec-udp-encap
+				// reads the same state, so an operator sees it first
+				// (ai/rules/doctor-checks.md).
+				if encErr := transport.EnableESPInUDP(trNATT.Conn()); encErr != nil {
+					setUDPEncapFailure(encErr)
+					log.Warn("ike: udp encapsulation not enabled on port 4500, encapsulated ESP will be dropped",
+						"port", transport.NATTPort, "syscall", "setsockopt UDP_ENCAP", "error", encErr)
+					countUDPEncapFailure()
+				} else {
+					setUDPEncapFailure(nil)
+				}
 				go trNATT.Run()
 				go dispatchNATTInbound(trNATT, table, log)
 			}
@@ -343,9 +380,9 @@ func runEngine(conn net.Conn) int {
 		}
 
 		eb := getEventBus()
-		reconcilePeers(cfg, activeCfg, activePeers, table, tr, eb, log)
+		reconcilePeers(cfg, activeCfg, activePeers, table, tr, trNATT, eb, log)
 		activeCfg = cfg
-		reCtx.Store(&reEstablishCtx{cfg: cfg, tr: tr})
+		reCtx.Store(&reEstablishCtx{cfg: cfg, tr: tr, natt: trNATT})
 
 		if ipsecMetrics != nil {
 			ipsecMetrics.Update()
@@ -487,6 +524,9 @@ func dispatchNATTInbound(tr *transport.UDPTransport, table *SATable, log *slog.L
 			Data:       ikeData,
 			RemoteAddr: pkt.RemoteAddr,
 			LocalAddr:  pkt.LocalAddr,
+			// The marker is stripped, the arrival socket is not. RFC 7296
+			// Section 2.11 answers on the socket the request reached.
+			NATT: pkt.NATT,
 		}
 
 		sa := table.Lookup(iSPI, rSPI)
@@ -618,6 +658,11 @@ func tryResponderSAInit(pkt transport.Packet, iSPI, rSPI [8]byte, table *SATable
 		return true
 	}
 	sa, err := newResponderSA(ps.peerName, ps.peerCfg, ps.ikeGroup, ps.espGroup, iSPI)
+	if err == nil {
+		// Both sockets, before the IKE_SA_INIT is processed. detectResponderNAT runs
+		// inside that processing and can float the SA at once (RFC 7296 Section 2.23).
+		sa.bindSockets(ps.ike, ps.natt)
+	}
 	if err != nil {
 		log.Warn("ike: create responder SA failed", "peer", ps.peerName, "error", err)
 		ps.responderBusy.Store(false)

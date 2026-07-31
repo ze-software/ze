@@ -178,10 +178,11 @@ func (ps *PeerSession) startResponderEAP(sa *SA, msgID uint32, remoteSAi2 *wire.
 	}
 	cacheResponse(sa, msgID, resp)
 	sa.LastSentMsg = resp
-	if tr != nil && remote != nil {
-		if err := sendWithNATT(sa, resp, tr, remote); err != nil {
-			log.Warn("ike: send EAP first response failed", "peer", sa.PeerName, "error", err)
-		}
+	// RFC 7296 Section 2.11: the reply goes back to the address and port the request
+	// came from, on the socket it arrived on. The initiator has NOT authenticated
+	// yet, so nothing is stored on the SA here.
+	if err := sendReply(tr, resp, remote); err != nil {
+		log.Warn("ike: send EAP first response failed", "peer", sa.PeerName, "error", err)
 	}
 	sa.State = StateEAPInProgress
 	log.Debug("ike: responder EAP started", "peer", sa.PeerName)
@@ -269,9 +270,9 @@ func (ps *PeerSession) sendResponderEAP(sa *SA, msgID uint32, pkt *eap.Packet, t
 	}
 	cacheResponse(sa, msgID, resp)
 	sa.LastSentMsg = resp
-	if tr != nil && remote != nil {
-		if err := sendWithNATT(sa, resp, tr, remote); err != nil {
-			log.Warn("ike: send EAP response failed", "peer", sa.PeerName, "error", err)
-		}
+	// RFC 7296 Section 2.11: an EAP round is answered on its arrival socket, to its
+	// observed source. The peer authenticates only at the end of the EAP exchange.
+	if err := sendReply(tr, resp, remote); err != nil {
+		log.Warn("ike: send EAP response failed", "peer", sa.PeerName, "error", err)
 	}
 }

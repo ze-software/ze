@@ -101,7 +101,10 @@ func (ps *PeerSession) handleResponderInbound(sa *SA, msg *wire.Message, pkt tra
 			countErrorNotifySuppressed("replay-rate-limited")
 			return
 		}
-		if err := tr.Send(sa.lastResponse, pkt.RemoteAddr); err != nil {
+		// sendReply, not tr.Send. RFC 3948 Section 2.2 needs the non-ESP marker when
+		// the request reached the NAT-T socket. A bare replay there is one the peer
+		// reads as ESP, and drops.
+		if err := sendReply(tr, sa.lastResponse, pkt.RemoteAddr); err != nil {
 			log.Debug("ike: resend cached IKE_AUTH response failed", "peer", sa.PeerName, "error", err)
 		}
 	case StateAuthSent, StateAuthReceived, StateSAInitSent, StateDead:
@@ -240,8 +243,15 @@ func handleSAInitRequest(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport
 	cacheResponse(sa, msg.Header.MessageID, resp)
 	sa.State = StateSAInitReceived
 	sa.LastSentMsg = resp
+	// RFC 7296 Section 2.23 lets an initiator use port 4500 from the very start, so
+	// even an IKE_SA_INIT response can need the non-ESP marker. sendReply reads the
+	// arrival socket and frames the answer for it.
+	//
+	// A session with no transport has nothing to answer on, and that is not a
+	// failure: the unit harness drives this function with neither. The send is
+	// therefore skipped rather than reported.
 	if tr != nil && remote != nil {
-		if err := tr.Send(resp, remote); err != nil {
+		if err := sendReply(tr, resp, remote); err != nil {
 			log.Warn("ike: send IKE_SA_INIT response failed", "peer", sa.PeerName, "error", err)
 		}
 	}
@@ -252,10 +262,10 @@ func handleSAInitRequest(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport
 // resendResponderSAInit replays the cached IKE_SA_INIT response for a retransmitted
 // request (the initiator did not receive our first response). RFC 7296 Section 2.3.
 func resendResponderSAInit(sa *SA, tr *transport.UDPTransport, remote *net.UDPAddr, log *slog.Logger) {
-	if len(sa.ResponderSAInitMsg) == 0 || tr == nil || remote == nil {
+	if len(sa.ResponderSAInitMsg) == 0 {
 		return
 	}
-	if err := tr.Send(sa.ResponderSAInitMsg, remote); err != nil {
+	if err := sendReply(tr, sa.ResponderSAInitMsg, remote); err != nil {
 		log.Debug("ike: resend IKE_SA_INIT response failed", "peer", sa.PeerName, "error", err)
 	}
 }
@@ -336,6 +346,10 @@ func detectResponderNAT(sa *SA, msg *wire.Message) {
 				expected := transport.NATDetectionHash(msg.Header.InitiatorSPI, msg.Header.ResponderSPI, peerIP, transport.IKEPort)
 				if !natHashEqual(p.NotificationData, expected) {
 					sa.NATDetected = true
+					// RFC 7296 Section 2.23 MUST: an endpoint
+					// "that discovers a NAT between it and its correspondent (as described below) MUST send all subsequent traffic from port 4500".
+					// This is the discovery, so the float is taken here.
+					sa.floatToNATTPort()
 				}
 			}
 		case wire.NotifyNATDetectionDestIP:
@@ -344,6 +358,7 @@ func detectResponderNAT(sa *SA, msg *wire.Message) {
 				if !natHashEqual(p.NotificationData, expected) {
 					sa.NATDetected = true
 					sa.BehindNAT = true
+					sa.floatToNATTPort()
 				}
 			}
 		}
@@ -375,7 +390,7 @@ func sendSAInitNotify(sa *SA, tr *transport.UDPTransport, remote *net.UDPAddr, n
 		log.Warn("ike: SA_INIT notify too large, dropping", "peer", sa.PeerName, "notify", notifyType, "error", err)
 		return
 	}
-	if err := tr.Send(buf[:n], remote); err != nil {
+	if err := sendReply(tr, buf[:n], remote); err != nil {
 		log.Debug("ike: send SA_INIT notify failed", "peer", sa.PeerName, "error", err)
 	}
 }
@@ -460,6 +475,13 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 		sa.State = StateDead
 		return
 	}
+
+	// The initiator authenticated, so this observation is corroborated. It is taken
+	// HERE, before buildAuthResponse. That call installs the first Child SA, and the
+	// Child SA's UDP encapsulation follows the port this SA runs on (child.go).
+	// Taking it only in finishResponderEstablish installs the Child SA one step too
+	// early to see the float.
+	sa.adoptAuthenticatedEndpoint(remote, tr.IsNATT(), log)
 
 	resp, child, err := ps.buildAuthResponse(sa, msg.Header.MessageID, remoteSAi2, tsi, tsr, false, log)
 	if err != nil {
@@ -718,10 +740,13 @@ func (ps *PeerSession) finishResponderEstablish(sa *SA, msgID uint32, resp []byt
 	// math.MaxUint32.
 	sa.resumeRequestsAfter(msgID)
 	sa.LastSentMsg = resp
-	if tr != nil && remote != nil {
-		if err := sendWithNATT(sa, resp, tr, remote); err != nil {
-			log.Warn("ike: send IKE_AUTH response failed", "peer", sa.PeerName, "error", err)
-		}
+	// The initiator authenticated, so this observation of its source is corroborated.
+	// RFC 7296 Section 2.11 makes it the destination of every later message on this
+	// SA, and Section 2.23 explains why the PORT matters: a NAT picked it.
+	// Every caller reaches here only after verifyRemoteAuth or the EAP AUTH check.
+	sa.adoptAuthenticatedEndpoint(remote, tr.IsNATT(), log)
+	if err := sendReply(tr, resp, remote); err != nil {
+		log.Warn("ike: send IKE_AUTH response failed", "peer", sa.PeerName, "error", err)
 	}
 	sa.State = StateEstablished
 	sa.EstablishedAt = time.Now()
@@ -754,7 +779,7 @@ func (ps *PeerSession) respondAuthError(sa *SA, msgID uint32, notifyType uint16,
 		countErrorNotifySuppressed("no-destination")
 		return
 	}
-	if err := sendWithNATT(sa, resp, tr, remote); err != nil {
+	if err := sendReply(tr, resp, remote); err != nil {
 		log.Debug("ike: send IKE_AUTH error notify failed", "peer", sa.PeerName, "error", err)
 		countErrorNotifySuppressed("send-failed")
 		return
@@ -771,9 +796,7 @@ func (ps *PeerSession) sendAuthFailed(sa *SA, msgID uint32, tr *transport.UDPTra
 		log.Debug("ike: build AUTHENTICATION_FAILED failed", "peer", sa.PeerName, "error", err)
 		return
 	}
-	if tr != nil && remote != nil {
-		if err := sendWithNATT(sa, resp, tr, remote); err != nil {
-			log.Debug("ike: send AUTHENTICATION_FAILED failed", "peer", sa.PeerName, "error", err)
-		}
+	if err := sendReply(tr, resp, remote); err != nil {
+		log.Debug("ike: send AUTHENTICATION_FAILED failed", "peer", sa.PeerName, "error", err)
 	}
 }

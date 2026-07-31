@@ -476,6 +476,11 @@ func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.Payloa
 		CreatedAt:     time.Now(),
 		EstablishedAt: time.Now(),
 	}
+	// RFC 7296 Section 2.18: the replacement SA carries the same peer over the same
+	// path. It therefore inherits the float, the sockets, and the endpoint the old SA
+	// authenticated. A replacement that started at port 500 would break every
+	// NAT-traversing tunnel on its first rekey.
+	newSA.inheritSendPath(oldSA)
 	log.Info("ike-sa: rekeyed via CREATE_CHILD_SA",
 		"old-ispi", SPIHex(oldSA.InitiatorSPI), "new-ispi", SPIHex(pending.newInitiatorSPI))
 	return newSA, nil
@@ -616,6 +621,8 @@ func respondIKERekey(oldSA *SA, inner []wire.PayloadEntry, msgID uint32, log *sl
 		CreatedAt:     now,
 		EstablishedAt: now,
 	}
+	// RFC 7296 Section 2.18, as on the initiator path above.
+	newSA.inheritSendPath(oldSA)
 
 	// Response SA carries our new IKE SPI on the chosen proposal.
 	props := chosenIKEProposalToWire(chosen)

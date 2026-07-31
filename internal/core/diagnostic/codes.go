@@ -474,6 +474,17 @@ var builtinCodes = []CodeMeta{
 		Examples: []string{"ze doctor --json", "ze explain doctor-ipsec-iface"},
 	},
 	{
+		Code:  "doctor-ipsec-udp-encap",
+		Title: "IPsec UDP encapsulation not enabled",
+		Description: "The IKE NAT-T socket on UDP port 4500 does not carry the UDP_ENCAP option, " +
+			"so the kernel will not decapsulate ESP that arrives inside UDP. RFC 7296 Section 2.23 " +
+			"requires an implementation that supports NAT traversal to process UDP-encapsulated ESP " +
+			"at any time. A tunnel through a NAT will establish and then carry no traffic. On Linux " +
+			"this usually means the setsockopt call was refused. On another platform it means the " +
+			"host has no IPsec dataplane at all.",
+		Examples: []string{"ze doctor --json", "ze explain doctor-ipsec-udp-encap"},
+	},
+	{
 		Code:        "doctor-bgp-listen",
 		Title:       "BGP listener unavailable",
 		Description: "A configured BGP local address and port could not be bound before daemon startup.",

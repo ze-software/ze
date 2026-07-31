@@ -71,6 +71,20 @@ type PeerSession struct {
 	// serves every peer, so it must never block on one slow owner.
 	inbound chan transport.Packet
 
+	// ike and natt are the two sockets this session sends from: the port-500 one and
+	// the port-4500 NAT-T one. Either can be nil when its bind failed. Each SA the
+	// session creates is bound to both, so a NAT-detected SA has a socket to float to.
+	// RFC 7296 Section 2.23 MUST: an endpoint that discovers a NAT
+	// "MUST send all subsequent traffic from port 4500".
+	//
+	// They are the SESSION's sockets, never the socket a packet arrived on. A
+	// responder SA created from a datagram that reached port 4500 must still know
+	// which socket is which, and the arrival socket alone cannot say.
+	//
+	// Immutable after startPeerSession, so they are read from any goroutine.
+	ike  *transport.UDPTransport
+	natt *transport.UDPTransport
+
 	// pendingRekey and supersededChild are owned exclusively by the maintainSA
 	// loop (no lock): the CREATE_CHILD_SA exchange we initiated and await a
 	// response for, and (as rekey responder) the old Child SA kept installed
@@ -273,11 +287,14 @@ func (ps *PeerSession) StopGraceful() {
 
 // reconcilePeers diffs the new config against running peers and starts/stops
 // peer sessions as needed. Follows the PPPoE reconciliation pattern.
+// The natt parameter is the port-4500 socket, or nil when its bind failed. Every SA
+// a started session creates is bound to both sockets, so RFC 7296 Section 2.23's
+// "MUST send all subsequent traffic from port 4500" has a socket to send from.
 func reconcilePeers(
 	newCfg, _ *ipsec.IPsecConfig,
 	active map[string]*PeerSession,
 	table *SATable,
-	tr *transport.UDPTransport,
+	tr, natt *transport.UDPTransport,
 	bus ze.EventBus,
 	log *slog.Logger,
 ) {
@@ -345,7 +362,7 @@ func reconcilePeers(
 			log.Warn("ike: peer references unknown esp-group", "peer", name, "esp-group", peer.ESPGroup)
 			continue
 		}
-		ps := startPeerSession(name, peer, ikeGroup, espGroup, table, tr, bus, log)
+		ps := startPeerSession(name, peer, ikeGroup, espGroup, table, tr, natt, bus, log)
 		peersMu.Lock()
 		active[name] = ps
 		peersMu.Unlock()
@@ -371,7 +388,7 @@ func startPeerSession(
 	ikeGroup ipsec.IKEGroup,
 	espGroup ipsec.ESPGroup,
 	table *SATable,
-	tr *transport.UDPTransport,
+	tr, natt *transport.UDPTransport,
 	bus ze.EventBus,
 	log *slog.Logger,
 ) *PeerSession {
@@ -380,6 +397,8 @@ func startPeerSession(
 		peerCfg:   peer,
 		ikeGroup:  ikeGroup,
 		espGroup:  espGroup,
+		ike:       tr,
+		natt:      natt,
 		inbound:   make(chan transport.Packet, inboundQueueDepth),
 		stopCh:    make(chan struct{}),
 		done:      make(chan struct{}),

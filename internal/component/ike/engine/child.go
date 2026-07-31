@@ -68,6 +68,24 @@ type ChildSA struct {
 	ReqID       uint32
 	NATDetected bool
 
+	// UDPEncap records that this Child SA's ESP is wrapped in UDP on port 4500.
+	//
+	// Two independent RFC conditions set it, and either alone is enough.
+	//
+	// RFC 7296 Section 2.23 MUST: "if a NAT is detected, both devices MUST use UDP
+	// encapsulation for ESP." That is NATDetected.
+	//
+	// The same section also lets either side encapsulate
+	// "irrespective of the choice made by the other side",
+	// so a peer can encapsulate with no NAT present. A peer that does runs its IKE on
+	// port 4500 too, so the IKE SA's own port is the signal. That is localPort.
+	//
+	// In production the second implies the first, because every site that sets
+	// NATDetected also floats the SA. They are kept separate because they answer
+	// different questions, and merging them is the defect
+	// plan/spec-fixit-ike-responder-natt-port-float.md records.
+	UDPEncap bool
+
 	// LocalIsInitiator is true when this side sent Ni for this Child SA's KEYMAT
 	// (i.e. we are the CREATE_CHILD_SA / IKE_AUTH exchange initiator). RFC 7296
 	// Section 2.17: traffic from the initiator to the responder is keyed with the
@@ -194,6 +212,7 @@ func createFirstChildSA(
 		ESPGroup:         espGroup,
 		ReqID:            defaultReqID,
 		NATDetected:      sa.NATDetected,
+		UDPEncap:         sa.NATDetected || sa.localPort == transport.NATTPort,
 		LocalIsInitiator: sa.IsInitiator,
 	}
 
@@ -264,8 +283,26 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		IsAEAD:    isAEAD,
 	}
 
-	// RFC 3948: set UDP encapsulation when NAT is detected.
-	if child.NATDetected {
+	// RFC 3948: UDP encapsulation follows the PORT this SA runs on, not the NAT
+	// verdict. RFC 7296 Section 2.23 lets either side encapsulate
+	// "irrespective of the choice made by the other side",
+	// and a peer that encapsulates ESP runs its IKE on port 4500 too. The float is
+	// therefore the signal, and it is set both when a NAT is detected and when an
+	// AUTHENTICATED message arrives on port 4500 (sa.adoptAuthenticatedEndpoint).
+	//
+	// RFC 7296 Section 2.23 MUST NOT (rfc/full/rfc7296.txt:3544): "UDP encapsulation
+	// MUST NOT be done on port 500." Both ports below are the NAT-T constant, and the
+	// branch runs only for a floated SA, so no path here can encapsulate on port 500.
+	//
+	// MEASURED KERNEL CONSTRAINT, and it bounds what this can achieve. On Linux XFRM
+	// one inbound state accepts exactly ONE of the two ESP forms.
+	//
+	// A state carrying an ESP-in-UDP template rejects bare ESP with
+	// XfrmInStateMismatch. A state without one rejects encapsulated ESP the same way.
+	// Two states on one SPI do not help. The state lookup is not encapsulation-aware,
+	// so it returns the first and the mismatch check then drops the packet.
+	// TestEncapKernelBindsOneESPFormPerState records the truth table.
+	if child.UDPEncap {
 		inbound.UDPEncap = true
 		inbound.UDPEncapSPort = transport.NATTPort
 		inbound.UDPEncapDPort = transport.NATTPort
@@ -293,7 +330,7 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		IsAEAD:    isAEAD,
 	}
 
-	if child.NATDetected {
+	if child.UDPEncap {
 		outbound.UDPEncap = true
 		outbound.UDPEncapSPort = transport.NATTPort
 		outbound.UDPEncapDPort = transport.NATTPort

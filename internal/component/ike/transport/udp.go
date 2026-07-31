@@ -25,12 +25,33 @@ type Packet struct {
 	Data       []byte
 	RemoteAddr *net.UDPAddr
 	LocalAddr  *net.UDPAddr
+
+	// NATT records that this datagram arrived on the NAT-T socket, port 4500.
+	//
+	// RFC 7296 Section 2.11 MUST: an implementation
+	// "MUST specify the address and port at which the request was received as the source address and port in the response".
+	// A handler therefore needs to know which of the two sockets delivered the
+	// request, and the socket is what knows. Run stamps it from the transport's own
+	// role, so no handler infers it from a port number.
+	//
+	// The zero value is the plain IKE socket. That is what a hand-built Packet in a
+	// test means. It is also the unfloated default of RFC 7296 Section 2.23.
+	NATT bool
 }
 
 // UDPTransport listens on a UDP socket and dispatches incoming IKE packets.
 type UDPTransport struct {
 	logger *slog.Logger
 	conn   *net.UDPConn
+
+	// natT records that this socket is the NAT-T one, port 4500.
+	//
+	// RFC 3948 Section 2.2 puts a four-octet non-ESP marker on every IKE message
+	// that port carries, so a sender needs to know which socket it holds.
+	// The role is fixed at construction and never inferred from the bind port.
+	// A port comparison reads the wrong answer under the ze.test.ike.port override,
+	// where neither socket carries a well-known port.
+	natT bool
 
 	mu     sync.Mutex
 	closed bool
@@ -39,7 +60,21 @@ type UDPTransport struct {
 }
 
 // NewUDPTransport creates a transport listening on the given local address.
+// The socket carries plain IKE, so it adds no non-ESP marker.
 func NewUDPTransport(localAddr string, logger *slog.Logger) (*UDPTransport, error) {
+	return newTransport(localAddr, false, logger)
+}
+
+// NewNATTTransport creates the NAT-T transport, the one RFC 7296 Section 2.23
+// reserves for UDP-encapsulated ESP and IKE.
+//
+// IsNATT reports true for the result, so every sender that holds it frames its
+// messages with the non-ESP marker of RFC 3948 Section 2.2.
+func NewNATTTransport(localAddr string, logger *slog.Logger) (*UDPTransport, error) {
+	return newTransport(localAddr, true, logger)
+}
+
+func newTransport(localAddr string, natT bool, logger *slog.Logger) (*UDPTransport, error) {
 	addr, err := net.ResolveUDPAddr("udp4", localAddr)
 	if err != nil {
 		return nil, err
@@ -51,8 +86,20 @@ func NewUDPTransport(localAddr string, logger *slog.Logger) (*UDPTransport, erro
 	return &UDPTransport{
 		logger:  logger,
 		conn:    conn,
+		natT:    natT,
 		inbound: make(chan Packet, 64),
 	}, nil
+}
+
+// IsNATT reports whether this socket is the NAT-T one.
+//
+// It fails closed. A nil transport reads false, so a caller with no socket adds no
+// marker and sends nothing (ai/rules/fail-closed-guards.md).
+func (t *UDPTransport) IsNATT() bool {
+	if t == nil {
+		return false
+	}
+	return t.natT
 }
 
 // Recv returns the channel of inbound packets.
@@ -107,6 +154,7 @@ func (t *UDPTransport) Run() {
 			Data:       make([]byte, n),
 			RemoteAddr: remoteAddr,
 			LocalAddr:  t.localUDPAddr(),
+			NATT:       t.natT,
 		}
 		copy(pkt.Data, buf[:n])
 

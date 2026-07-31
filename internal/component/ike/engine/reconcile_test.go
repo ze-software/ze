@@ -31,7 +31,7 @@ func TestReconcilePeersAdded(t *testing.T) {
 	peer := testPeer()
 	cfg := testIPsecConfig(peer)
 
-	reconcilePeers(cfg, nil, active, table, nil, nil, log)
+	reconcilePeers(cfg, nil, active, table, nil, nil, nil, log)
 
 	if len(active) != 1 {
 		t.Fatalf("expected 1 active peer, got %d", len(active))
@@ -53,14 +53,14 @@ func TestReconcilePeersRemoved(t *testing.T) {
 
 	peer := testPeer()
 	cfg := testIPsecConfig(peer)
-	reconcilePeers(cfg, nil, active, table, nil, nil, log)
+	reconcilePeers(cfg, nil, active, table, nil, nil, nil, log)
 
 	if len(active) != 1 {
 		t.Fatalf("setup: expected 1 active peer, got %d", len(active))
 	}
 
 	emptyCfg := testIPsecConfig()
-	reconcilePeers(emptyCfg, cfg, active, table, nil, nil, log)
+	reconcilePeers(emptyCfg, cfg, active, table, nil, nil, nil, log)
 
 	if len(active) != 0 {
 		t.Fatalf("expected 0 active peers after removal, got %d", len(active))
@@ -74,14 +74,14 @@ func TestReconcilePeersChanged(t *testing.T) {
 
 	peer := testPeer()
 	cfg := testIPsecConfig(peer)
-	reconcilePeers(cfg, nil, active, table, nil, nil, log)
+	reconcilePeers(cfg, nil, active, table, nil, nil, nil, log)
 
 	oldPS := active["test-peer"]
 
 	changedPeer := peer
 	changedPeer.RemoteAddress = "198.51.100.1"
 	newCfg := testIPsecConfig(changedPeer)
-	reconcilePeers(newCfg, cfg, active, table, nil, nil, log)
+	reconcilePeers(newCfg, cfg, active, table, nil, nil, nil, log)
 
 	if len(active) != 1 {
 		t.Fatalf("expected 1 active peer, got %d", len(active))
@@ -104,11 +104,11 @@ func TestReconcilePeersUnchanged(t *testing.T) {
 
 	peer := testPeer()
 	cfg := testIPsecConfig(peer)
-	reconcilePeers(cfg, nil, active, table, nil, nil, log)
+	reconcilePeers(cfg, nil, active, table, nil, nil, nil, log)
 
 	oldPS := active["test-peer"]
 
-	reconcilePeers(cfg, cfg, active, table, nil, nil, log)
+	reconcilePeers(cfg, cfg, active, table, nil, nil, nil, log)
 
 	if active["test-peer"] != oldPS {
 		t.Fatal("unchanged peer should keep the same PeerSession")
@@ -136,7 +136,7 @@ func TestTerminateAllSAsReinitiates(t *testing.T) {
 
 	peer := testPeer() // connection-type initiate, so it re-initiates on reconcile
 	cfg := testIPsecConfig(peer)
-	reconcilePeers(cfg, nil, active, table, nil, nil, log)
+	reconcilePeers(cfg, nil, active, table, nil, nil, nil, log)
 	first := active[peer.Name]
 	if first == nil {
 		t.Fatal("setup: peer session was not started")
@@ -144,7 +144,7 @@ func TestTerminateAllSAsReinitiates(t *testing.T) {
 
 	// reEstablish re-runs reconcile against the SAME active map (as runEngine's closure
 	// does), so a peer TerminateAllSAs removed is started again.
-	reEst := func() { reconcilePeers(cfg, nil, active, table, nil, nil, log) }
+	reEst := func() { reconcilePeers(cfg, nil, active, table, nil, nil, nil, log) }
 	reEstablishFn.Store(&reEst)
 	t.Cleanup(func() { reEstablishFn.Store(nil) })
 

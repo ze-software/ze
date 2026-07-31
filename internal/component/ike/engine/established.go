@@ -73,11 +73,22 @@ func (ps *PeerSession) runEstablished(
 	emitRouteAdd(bus, child.TSRemote, log)
 
 	// RFC 3948 Section 2.3: start NAT keepalive when NAT is detected.
-	if sa.NATDetected && tr != nil {
+	//
+	// The keepalive holds the NAT binding open, so it MUST leave from the same port
+	// the SA's traffic leaves from. RFC 7296 Section 2.23 puts that at 4500. A
+	// keepalive from port 500 refreshes a mapping no traffic uses.
+	//
+	// The destination is the SA's stored endpoint. The keepalive is self-initiated,
+	// so no request corroborates any observation of its own.
+	if sa.NATDetected {
+		out, _ := sa.sendPath(tr)
 		remote := sa.remoteUDPAddr()
-		if remote != nil {
-			remote.Port = transport.NATTPort
-			ka := transport.NewKeepalive(tr.Conn(), remote, transport.DefaultKeepaliveInterval, log)
+		switch {
+		case out == nil || remote == nil:
+			log.Warn("ike: NAT detected but no keepalive path, the NAT binding will expire",
+				"peer", ps.peerName, "local-port", sa.localPort)
+		default:
+			ka := transport.NewKeepalive(out.Conn(), remote, transport.DefaultKeepaliveInterval, log)
 			go ka.Run()
 			defer ka.Stop()
 			log.Info("ike: NAT keepalive started", "peer", ps.peerName, "remote", remote)
@@ -383,16 +394,37 @@ func (ps *PeerSession) serviceRequestWindow(sa *SA, dpd *dpdState, now time.Time
 	log.Debug("ike: freed the request window, the answer never arrived", "peer", ps.peerName)
 }
 
-// sendRaw sends already-built wire bytes to the peer's IKE address.
+// sendRaw sends already-built wire bytes on the SA's OWN send path.
+//
+// The destination is sa.remoteUDPAddr. That is the endpoint of the last message this
+// SA authenticated, or the configured remote when none has arrived. It is never the
+// address of a datagram in hand.
+//
+// RFC 7296 Section 2.11 asks the response to reach the address the request came from.
+// adoptAuthenticatedEndpoint stores that address before the response is built, so the
+// response follows an AUTHENTICATED observation and not an attacker-chosen one.
+//
+// The source port follows sa.sendPath. RFC 7296 Section 2.23 MUST: an endpoint that
+// discovers a NAT "MUST send all subsequent traffic from port 4500". This is the one
+// site every post-establishment sender shares. Floating it here therefore floats the
+// DPD probe, both rekey exchanges, the Delete, each error notify, and each cached
+// replay. Before this, only the IKE_AUTH senders framed themselves for a NAT.
 func sendRaw(sa *SA, tr *transport.UDPTransport, msg []byte, log *slog.Logger) {
-	if tr == nil {
+	out, natT := sa.sendPath(tr)
+	if out == nil {
+		log.Warn("ike: no send path for the SA, message dropped",
+			"peer", sa.PeerName, "local-port", sa.localPort)
 		return
 	}
 	remote := sa.remoteUDPAddr()
 	if remote == nil {
 		return
 	}
-	if err := tr.Send(msg, remote); err != nil {
+	if natT {
+		// RFC 3948 Section 2.2: IKE on port 4500 carries the four-octet non-ESP marker.
+		msg = transport.AddNonESPMarker(msg)
+	}
+	if err := out.Send(msg, remote); err != nil {
 		log.Debug("ike: send failed", "peer", sa.PeerName, "error", err)
 	}
 }

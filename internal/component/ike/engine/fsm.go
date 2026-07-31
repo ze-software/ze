@@ -95,6 +95,10 @@ func (ps *PeerSession) runInitiator(
 	if err != nil {
 		return fmt.Errorf("ike: create SA: %w", err)
 	}
+	// Give the SA both sockets before anything sends. RFC 7296 Section 2.23 MUST: an
+	// endpoint that discovers a NAT "MUST send all subsequent traffic from port 4500",
+	// and sa.sendPath needs that socket in hand at the moment the verdict lands.
+	sa.bindSockets(tr, ps.natt)
 	ps.setSA(sa)
 
 	// RFC 7296 Section 2.6: initiator inserts SA with zero responder SPI initially.
@@ -361,6 +365,20 @@ func handleInbound(sa *SA, pkt transport.Packet, table *SATable, tr *transport.U
 		if msg.Header.ExchangeType == wire.ExchangeIKEAuth &&
 			msg.Header.Flags&wire.FlagResponse != 0 {
 			handleAuthResponse(sa, &msg, pkt.Data, table, tr, log)
+			// StateEstablished is reached only after verifyRemoteAuth accepted the
+			// responder's AUTH, so this observation is corroborated by an
+			// authenticated message. RFC 7296 Section 2.23 names that trigger: a
+			// packet "whose integrity protection validates". It is the initiator's
+			// first authenticated sight of where the peer really answers from, which
+			// under a NAT is neither the configured address nor port.
+			//
+			// The state IS the authentication signal here. That coupling is
+			// deliberate. handleAuthResponse establishes the SA at exactly one place,
+			// and only after the AUTH check. Moving the establish out of that path
+			// breaks this, so keep the two together.
+			if sa.State == StateEstablished {
+				sa.adoptAuthenticatedEndpoint(pkt.RemoteAddr, pkt.NATT, log)
+			}
 		}
 	case StateEAPInProgress:
 		// RFC 7296 Section 2.16: EAP exchange rounds within IKE_AUTH.
@@ -389,7 +407,11 @@ func handleSAInitResponse(
 	rawMsg []byte,
 	table *SATable,
 	tr *transport.UDPTransport,
-	remote *net.UDPAddr,
+	// The observed source of the IKE_SA_INIT response is deliberately NOT read. That
+	// message is UNAUTHENTICATED, and RFC 7296 Section 2.23 lets an endpoint move only
+	// on a packet "whose integrity protection validates". The initiator adopts an
+	// endpoint one exchange later, from the IKE_AUTH response (handleInbound).
+	_ *net.UDPAddr,
 	log *slog.Logger,
 ) {
 	copy(sa.ResponderSPI[:], msg.Header.ResponderSPI[:])
@@ -423,12 +445,18 @@ func handleSAInitResponse(
 			// RFC 7296 Section 2.23: check NAT detection notify payloads.
 			// SOURCE_IP from responder: hash of responder's own address.
 			// Mismatch means responder is behind NAT.
+			// RFC 7296 Section 2.23 MUST: the initiator, on a mismatch,
+			// "MUST tunnel all future IKE and ESP packets associated with this IKE SA over UDP port 4500".
+			// floatToNATTPort takes that decision once. Every later sender reads it
+			// through sa.sendPath, so the IKE_AUTH below and the whole established
+			// lifetime leave from 4500.
 			if p.NotifyMsgType == wire.NotifyNATDetectionSourceIP {
 				remoteIP := net.ParseIP(sa.PeerCfg.RemoteAddress)
 				if remoteIP != nil {
 					expected := transport.NATDetectionHash(sa.InitiatorSPI, sa.ResponderSPI, remoteIP, transport.IKEPort)
 					if !natHashEqual(p.NotificationData, expected) {
 						sa.NATDetected = true
+						sa.floatToNATTPort()
 					}
 				}
 			}
@@ -441,6 +469,7 @@ func handleSAInitResponse(
 					if !natHashEqual(p.NotificationData, expected) {
 						sa.NATDetected = true
 						sa.BehindNAT = true
+						sa.floatToNATTPort()
 					}
 				}
 			}
@@ -524,11 +553,13 @@ func handleSAInitResponse(
 	sa.RetransmitTime = time.Now().Add(retransmitBase)
 	sa.RetransmitCount = 0
 
-	if tr != nil && remote != nil {
-		if err := sendWithNATT(sa, authReq, tr, remote); err != nil {
-			log.Warn("ike: send IKE_AUTH failed", "peer", sa.PeerName, "error", err)
-		}
-	}
+	// The IKE_AUTH is a REQUEST this node raises, not an answer to one, so it goes on
+	// the SA's own send path. RFC 7296 Section 2.23 MUST: an initiator whose
+	// NAT_DETECTION payloads did not match the outer packet
+	// "MUST tunnel all future IKE and ESP packets associated with this IKE SA over UDP port 4500".
+	// The payload walk above took that verdict and called floatToNATTPort, so sendRaw
+	// reads the float here.
+	sendRaw(sa, tr, authReq, log)
 	log.Debug("ike: sent IKE_AUTH", "peer", sa.PeerName)
 }
 
@@ -790,12 +821,8 @@ func handleEAPResponse(sa *SA, msg *wire.Message, rawMsg []byte, tr *transport.U
 		sa.RetransmitTime = time.Now().Add(retransmitBase)
 		sa.RetransmitCount = 0
 
-		remote := sa.remoteUDPAddr()
-		if tr != nil && remote != nil {
-			if err := sendWithNATT(sa, authMsg, tr, remote); err != nil {
-				log.Warn("ike: send EAP AUTH failed", "peer", sa.PeerName, "error", err)
-			}
-		}
+		// A request this node raises, so it uses the SA's own send path.
+		sendRaw(sa, tr, authMsg, log)
 		log.Debug("ike: EAP success, sent AUTH from MSK", "peer", sa.PeerName)
 		return
 	}
@@ -820,12 +847,9 @@ func sendEAPResponsePacket(sa *SA, resp *eap.Packet, tr *transport.UDPTransport,
 		return
 	}
 	sa.LastSentMsg = msg
-	remote := sa.remoteUDPAddr()
-	if tr != nil && remote != nil {
-		if err := sendWithNATT(sa, msg, tr, remote); err != nil {
-			log.Warn("ike: send EAP response failed", "peer", sa.PeerName, "error", err)
-		}
-	}
+	// An EAP response is carried in an IKE_AUTH REQUEST the initiator raises, so it
+	// uses the SA's own send path (RFC 7296 Section 2.16).
+	sendRaw(sa, tr, msg, log)
 }
 
 // retransmitBackoff computes the delay for retransmission attempt n.
