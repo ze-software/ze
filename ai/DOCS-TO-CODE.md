@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 302 design docs, 3141 files
+Total: 302 design docs, 3142 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3205,6 +3205,7 @@ Total: 302 design docs, 3141 files
 | `internal/component/ike/engine/events.go` | IKE SA lifecycle events |
 | `internal/component/ike/engine/fsm.go` | IKE SA finite state machine |
 | `internal/component/ike/engine/initiator.go` | IKE_SA_INIT initiator logic |
+| `internal/component/ike/engine/notify_error.go` | error notification emission |
 | `internal/component/ike/engine/reconcile.go` | config reconciliation |
 | `internal/component/ike/engine/register.go` | IKE engine component registration |
 | `internal/component/ike/engine/remote_id.go` | remote identity policy |

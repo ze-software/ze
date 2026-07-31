@@ -402,7 +402,15 @@ func TestRkyIKERekeyDeleteIsTheLastRequestOnTheOldSA(t *testing.T) {
 // rekey.go:175 and builds the response at rekey.go:187, and handleCreateChildSAOwned
 // sends it at inbound.go:181. The SPI in the answer is already a live inbound SA.
 // RFC requirement: RFC7296-2.8-7 negative -- when the dataplane refuses the install the
-// responder answers nothing, so the answer follows the install and never leads it.
+// responder advertises no Child SA at all, so the answer follows the install and never
+// leads it. The refusal now draws an error notify rather than silence, because RFC 7296
+// Section 2.21.3 MUST answer every failing request on an authenticated SA. That notify
+// carries no SA payload and no SPI, so nothing is advertised that is not installed.
+// rfc-test-change-approved: 2026-07-31 owner standing approval for
+// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. The old assertion was
+// "no datagram", a proxy for "no SPI advertised" that held only while silence was the
+// only other outcome. The new assertion reads the datagram and proves the stronger
+// claim directly.
 func TestRkyResponderInstallsTheNewChildBeforeItAnswers(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, resp, _ := establishPSK(t)
@@ -476,10 +484,39 @@ func TestRkyResponderInstallsTheNewChildBeforeItAnswers(t *testing.T) {
 	if out2.newChild != nil {
 		t.Error("a refused install still produced a replacement Child SA")
 	}
-	if resp2.lastResponseID != beforeID {
-		t.Error("a refused install still cached a rekey response")
+	_ = beforeID
+
+	// rfc-test-change-approved: 2026-07-31 owner standing approval for
+	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	// The refusal is answered (RFC 7296 Section 2.21.3), and the answer advertises
+	// nothing. Reading the datagram proves the install-before-answer ordering directly,
+	// where the old "no datagram" assertion only implied it.
+	refused := rtxRecv(t, peerTr)
+	if refused == nil {
+		t.Fatal("a refused Child SA rekey drew no answer, so the peer burns its request window")
 	}
-	rtxExpectSilence(t, peerTr, myTr, remote, "after a refused Child SA install")
+	answer2, err := decryptAndParse(ini2, parseMsg(t, refused), refused)
+	if err != nil {
+		t.Fatalf("the peer could not decrypt the refusal: %v", err)
+	}
+	sawNotify := false
+	for i := range answer2 {
+		switch p := answer2[i].Payload.(type) {
+		case *wire.PayloadSA:
+			t.Error("the refusal advertises an SA payload, so it names an SPI that was never installed")
+		case *wire.PayloadNotify:
+			sawNotify = true
+			if p.NotifyMsgType != wire.NotifyNoProposalChosen {
+				t.Errorf("the refusal carries notify %d, want NO_PROPOSAL_CHOSEN", p.NotifyMsgType)
+			}
+		}
+	}
+	if !sawNotify {
+		t.Error("the refusal carries no notify, so the peer learns nothing")
+	}
+	if len(refuse.installed) != 0 {
+		t.Error("the dataplane holds an installed SA even though the install was refused")
+	}
 }
 
 // VALIDATES: during a peer Child SA rekey the old and the new inbound SA both stay

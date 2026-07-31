@@ -62,6 +62,76 @@ const (
 	NotifySignatureHashAlgorithms   uint16 = 16431
 )
 
+// NotifyStatusFloor is the first notify message type that reports status.
+//
+// RFC 7296 Section 3.10.1: "Types in the range 0 - 16383 are intended for reporting
+// errors." Every type at or above this floor is a status type.
+const NotifyStatusFloor uint16 = 16384
+
+// notifyTypeNames is the registry of every notify message type this implementation
+// understands. It is the single source for recognition and for log text, so a new
+// constant is registered here beside its declaration and nowhere else
+// (ai/rules/derive-not-hardcode.md).
+var notifyTypeNames = map[uint16]string{
+	NotifyUnsupportedCriticalPayload: "UNSUPPORTED_CRITICAL_PAYLOAD",
+	NotifyInvalidIKESPI:              "INVALID_IKE_SPI",
+	NotifyInvalidMajorVersion:        "INVALID_MAJOR_VERSION",
+	NotifyInvalidSyntax:              "INVALID_SYNTAX",
+	NotifyInvalidMessageID:           "INVALID_MESSAGE_ID",
+	NotifyInvalidSPI:                 "INVALID_SPI",
+	NotifyNoProposalChosen:           "NO_PROPOSAL_CHOSEN",
+	NotifyInvalidKEPayload:           "INVALID_KE_PAYLOAD",
+	NotifyAuthenticationFailed:       "AUTHENTICATION_FAILED",
+	NotifySinglePairRequired:         "SINGLE_PAIR_REQUIRED",
+	NotifyNoAdditionalSAs:            "NO_ADDITIONAL_SAS",
+	NotifyInternalAddressFailure:     "INTERNAL_ADDRESS_FAILURE",
+	NotifyFailedCPRequired:           "FAILED_CP_REQUIRED",
+	NotifyTSUnacceptable:             "TS_UNACCEPTABLE",
+	NotifyInvalidSelectors:           "INVALID_SELECTORS",
+	NotifyTemporaryFailure:           "TEMPORARY_FAILURE",
+	NotifyChildSANotFound:            "CHILD_SA_NOT_FOUND",
+
+	NotifyInitialContact:            "INITIAL_CONTACT",
+	NotifySetWindowSize:             "SET_WINDOW_SIZE",
+	NotifyAdditionalTSPossible:      "ADDITIONAL_TS_POSSIBLE",
+	NotifyIPCompSupported:           "IPCOMP_SUPPORTED",
+	NotifyNATDetectionSourceIP:      "NAT_DETECTION_SOURCE_IP",
+	NotifyNATDetectionDestIP:        "NAT_DETECTION_DESTINATION_IP",
+	NotifyCookie:                    "COOKIE",
+	NotifyUseTransportMode:          "USE_TRANSPORT_MODE",
+	NotifyRekeySA:                   "REKEY_SA",
+	NotifyESPTFCPaddingNotSupported: "ESP_TFC_PADDING_NOT_SUPPORTED",
+	NotifyNonFirstFragmentsAlso:     "NON_FIRST_FRAGMENTS_ALSO",
+	NotifyFragmentationSupported:    "IKEV2_FRAGMENTATION_SUPPORTED",
+	NotifySignatureHashAlgorithms:   "SIGNATURE_HASH_ALGORITHMS",
+}
+
+// NotifyIsError reports whether a notify message type reports an error.
+//
+// RFC 7296 Section 3.10.1 splits the number space at 16384. The two halves get
+// opposite treatment on receipt, so the split is a named test rather than a literal
+// repeated at each reader.
+func NotifyIsError(t uint16) bool { return t < NotifyStatusFloor }
+
+// NotifyTypeRecognized reports whether this implementation understands a notify
+// message type.
+//
+// It fails closed. A type absent from the registry reads false, so an unknown value
+// can never pass as understood (ai/rules/fail-closed-guards.md).
+func NotifyTypeRecognized(t uint16) bool {
+	_, ok := notifyTypeNames[t]
+	return ok
+}
+
+// NotifyTypeName returns the RFC name of a notify message type for log text, or
+// "UNRECOGNIZED" when the registry holds no entry.
+func NotifyTypeName(t uint16) string {
+	if name, ok := notifyTypeNames[t]; ok {
+		return name
+	}
+	return "UNRECOGNIZED"
+}
+
 // PayloadNotify is the Notify payload (type 41).
 type PayloadNotify struct {
 	ProtocolID       uint8

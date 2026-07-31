@@ -123,9 +123,11 @@ func (m *Message) ReadFrom(data []byte) error {
 			// the other proposals and transforms are processed as usual. The payload
 			// carries what survived, so the message stands.
 		case errors.Is(err, ErrUnknownPayload):
-			// RFC 7296 Section 3.2: unknown type with critical bit set must reject
+			// RFC 7296 Section 3.2: unknown type with critical bit set must reject.
+			// Section 2.5 puts the one-octet payload type in the answering Notify, so
+			// the error carries it out to the caller that builds that Notify.
 			if gh.Critical {
-				return ErrUnsupportedCrit
+				return &UnsupportedCritError{PayloadType: nextType}
 			}
 			payload = &PayloadRaw{PayloadType: nextType, Data: bodyData}
 		default:

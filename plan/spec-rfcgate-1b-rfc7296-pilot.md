@@ -1084,7 +1084,7 @@ the Obligation text.
 | `RFC7296-2.5-7` | MUST | The content of all fields marked RESERVED MUST be ignored by an implementation running version 2.0 (§2.5, §3.2, §3.3.1, §3.3.2, §3.5, §3.8, §3.13, §3.15, §3.15.1) | impl-testable |
 | `RFC7296-2.5-8` | MUST | Payload types that are not defined are reserved for future use; implementations of a version where they are undefined MUST skip over those payloads and ignore their contents (§2.5, §4) | impl-testable |
 | `RFC7296-2.5-9` | MUST | If the critical flag is set and the payload type is unrecognized, the message MUST be rejected (§2.5, §4) | impl-testable |
-| `RFC7296-2.5-10` | MUST | The response to the IKE request containing that payload MUST include a Notify payload UNSUPPORTED_CRITICAL_PAYLOAD, indicating an unsupported critical payload was included (§2.5) | **NOT IMPL** |
+| `RFC7296-2.5-18` (was `2.5-10`) | MUST | The response to the IKE request containing an unrecognized critical payload MUST include a Notify payload UNSUPPORTED_CRITICAL_PAYLOAD. In that Notify payload the Notification Data contains the one-octet payload type (§2.5) | impl-testable |
 | `RFC7296-2.5-11` | MUST | If the critical flag is not set and the payload type is unsupported, that payload MUST be ignored (§2.5) | impl-testable |
 | `RFC7296-2.5-17` | MUST NOT | Payloads sent in IKE response messages MUST NOT have the critical flag set (§2.5) | impl-testable |
 | `RFC7296-2.5-13` | MUST NOT | Implementations MUST NOT reject as invalid a message with those payloads in any other order (§2.5, §1.7) | impl-testable |
@@ -1136,17 +1136,17 @@ the Obligation text.
 | `RFC7296-2.19-5` | MUST NOT | The responder MUST NOT send a CFG_REPLY without having first received a CP(CFG_REQUEST) from the initiator (§2.19) | **NOT IMPL** |
 | `RFC7296-2.19-6` | MUST | In the case where the IRAS's configuration requires that CP be used for a given identity IDi, but IRAC has failed to send a CP(CFG_REQUEST), IRAS MUST fail the request, and terminate the Child SA creation with a FAILED_CP_REQUIRED error (§2.19) | **NOT IMPL** |
 | `RFC7296-2.20-1` | MUST | In that case, it MUST either return an empty string or no CP payload if CP is not supported (§2.20) | **NOT IMPL** |
-| `RFC7296-2.21.2-1` | MUST | Request messages that contain an unsupported critical payload, or where the whole message is malformed, MUST only lead to an UNSUPPORTED_CRITICAL_PAYLOAD or INVALID_SYNTAX Notification sent as a response (§2.21.2) | **NOT IMPL** |
-| `RFC7296-2.21.2-2` | MUST NOT | The responder may reply with error notifications for the piggybacked exchanges, and the initiator MUST NOT fail the authentication because of this (§2.21.2) | **NOT IMPL** |
-| `RFC7296-2.21.2-3` | MUST NOT | Extension documents may define new error notifications with these semantics, but MUST NOT use them unless the peer has been shown to understand them (§2.21.2) | **NOT IMPL** |
-| `RFC7296-2.21.3-1` | MUST | After the IKE SA is authenticated, all requests having errors MUST result in a response notifying the other end of the error (§2.21.3) | **NOT IMPL** |
-| `RFC7296-2.21.4-1` | MUST NOT | If the message is marked as a response, the node can audit the suspicious event but MUST NOT respond (§2.21.4) | **NOT IMPL** |
-| `RFC7296-2.21.4-2` | MUST | If a response is sent, the response MUST be sent to the IP address and port from where it came with the same IKE SPIs and the Message ID copied (§2.21.4) | **NOT IMPL** |
-| `RFC7296-2.21.4-3` | MUST NOT | The response MUST NOT be cryptographically protected (§2.21.4) | **NOT IMPL** |
-| `RFC7296-2.21.4-4` | MUST | The response MUST contain an INVALID_IKE_SPI Notify payload (§2.21.4) | **NOT IMPL** |
-| `RFC7296-2.21.4-5` | MUST NOT | A peer receiving such an unprotected Notify payload MUST NOT respond (§2.21.4) | **NOT IMPL** |
-| `RFC7296-2.21.4-6` | MUST NOT | A peer receiving such an unprotected Notify payload MUST NOT change the state of any existing SAs (§2.21.4) | **NOT IMPL** |
-| `RFC7296-2.21.4-7` | MUST NOT | The recipient MUST NOT change the state of any SAs as a result, but may wish to audit the event to aid in diagnosing malfunctions (§2.21.4) | **NOT IMPL** |
+| `RFC7296-2.21.2-1` | MUST | Request messages that contain an unsupported critical payload, or where the whole message is malformed, MUST only lead to an UNSUPPORTED_CRITICAL_PAYLOAD or INVALID_SYNTAX Notification sent as a response (§2.21.2) | impl-testable |
+| `RFC7296-2.21.2-2` | MUST NOT | The responder may reply with error notifications for the piggybacked exchanges, and the initiator MUST NOT fail the authentication because of this (§2.21.2) | impl-testable |
+| `RFC7296-2.21.2-3` | MUST NOT | Extension documents may define new error notifications with these semantics, but MUST NOT use them unless the peer has been shown to understand them (§2.21.2) | impl-testable |
+| `RFC7296-2.21.3-1` | MUST | After the IKE SA is authenticated, all requests having errors MUST result in a response notifying the other end of the error (§2.21.3) | impl-testable |
+| `RFC7296-2.21.4-1` | MUST NOT | If the message is marked as a response, the node can audit the suspicious event but MUST NOT respond (§2.21.4) | impl-testable |
+| `RFC7296-2.21.4-2` | MUST | If a response is sent, the response MUST be sent to the IP address and port from where it came with the same IKE SPIs and the Message ID copied (§2.21.4) | impl-testable |
+| `RFC7296-2.21.4-3` | MUST NOT | The response MUST NOT be cryptographically protected (§2.21.4) | impl-testable |
+| `RFC7296-2.21.4-4` | MUST | The response MUST contain an INVALID_IKE_SPI Notify payload (§2.21.4) | impl-testable |
+| `RFC7296-2.21.4-5` | MUST NOT | A peer receiving such an unprotected Notify payload MUST NOT respond (§2.21.4) | impl-testable |
+| `RFC7296-2.21.4-6` | MUST NOT | A peer receiving such an unprotected Notify payload MUST NOT change the state of any existing SAs (§2.21.4) | impl-testable |
+| `RFC7296-2.21.4-7` | MUST NOT | The recipient MUST NOT change the state of any SAs as a result, but may wish to audit the event to aid in diagnosing malfunctions (§2.21.4) | impl-testable |
 | `RFC7296-2.22-1` | MUST NOT | These payloads MUST NOT occur in messages that do not contain SA payloads (§2.22) | **NOT IMPL** |
 | `RFC7296-2.22-2` | MUST NOT | Implementations of this specification MUST NOT accept an IPComp algorithm that was not proposed (§2.22) | **NOT IMPL** |
 | `RFC7296-2.22-3` | MUST NOT | Implementations of this specification MUST NOT accept more than one IPComp algorithm (§2.22) | **NOT IMPL** |
@@ -1213,9 +1213,9 @@ the Obligation text.
 | `RFC7296-3.10-4` | MUST | For notifications concerning Child SAs, the Protocol ID field MUST contain either (2) to indicate AH or (3) to indicate ESP (§3.10) | **NOT IMPL** |
 | `RFC7296-3.10-5` | MUST | If the SPI field is empty, the Protocol ID field MUST be sent as zero and MUST be ignored on receipt (§3.10) | **NOT IMPL** |
 | `RFC7296-3.10-3` | MUST | For a notification concerning the IKE SA, the SPI Size MUST be zero and the SPI field must be empty (§3.10) | impl-testable |
-| `RFC7296-3.10.1-1` | MUST | An implementation receiving a Notify payload with one of these types that it does not recognize in a response MUST assume that the corresponding request has failed entirely (§3.10.1) | uncertain |
-| `RFC7296-3.10.1-2` | MUST | Unrecognized error types in a request and status types in a request or response MUST be ignored, and they should be logged (§3.10.1) | uncertain |
-| `RFC7296-3.10.1-3` | MUST | To avoid leaking information to someone probing a node, this status MUST be sent in response to any error not covered by one of the other status types (§3.10.1) | **NOT IMPL** |
+| `RFC7296-3.10.1-1` | MUST | An implementation receiving a Notify payload with one of these types that it does not recognize in a response MUST assume that the corresponding request has failed entirely (§3.10.1) | impl-testable |
+| `RFC7296-3.10.1-2` | MUST | Unrecognized error types in a request and status types in a request or response MUST be ignored, and they should be logged (§3.10.1) | impl-testable |
+| `RFC7296-3.10.1-3` | MUST | To avoid leaking information to someone probing a node, this status MUST be sent in response to any error not covered by one of the other status types (§3.10.1) | impl-testable |
 | `RFC7296-3.11-1` | MUST NOT | Each SPI MUST be for the same protocol. Mixing of protocol identifiers MUST NOT be performed in the Delete payload (§3.11) | impl-testable |
 | `RFC7296-3.11-2` | MUST | The SPI Size MUST be zero for IKE (SPI is in message header) or four for AH and ESP (§3.11) | impl-testable |
 | `RFC7296-3.12-4` | MUST NOT | A Vendor ID payload MUST NOT change the interpretation of any information defined in this specification, i.e., the critical bit MUST be set to 0 (§3.12) | impl-testable |
@@ -1469,6 +1469,32 @@ it. An id in Appendix A is a plan. Only an id in the summary is allocated.
 **For every remaining phase: land a section's rows together, or land them in ascending
 ordinal order.** A work-package grouping cuts across sections and will trip this again.
 The gate is right and the batching was wrong.
+
+### WP-3 landed 15 rows, and only section 2.5 needed a renumbering
+
+Measured at HEAD on 2026-07-31, after WP-5, the mark for section 2.5 was 17. Sections
+2.21.2, 2.21.3, 2.21.4 and 3.10.1 had no mark at all, so `check_id_allocation` skipped
+them and their Appendix A ordinals landed as written.
+
+| Appendix A id | Landed as | Note |
+|---------------|-----------|------|
+| `RFC7296-2.5-10` | `RFC7296-2.5-18` | mark was 17. The row text also regained the Notification Data clause, which Appendix A had dropped |
+| `RFC7296-2.21.2-1..-3` | unchanged | no mark |
+| `RFC7296-2.21.3-1` | unchanged | no mark |
+| `RFC7296-2.21.4-1..-7` | unchanged | no mark |
+| `RFC7296-3.10.1-1..-3` | unchanged | no mark |
+
+**Section 3.10.1 landed all three rows together, and that was the point.** Landing
+`3.10.1-3` alone would have set the mark to 3 and permanently blocked `3.10.1-1` and
+`3.10.1-2`, which the phase 3 triage assigns elsewhere. Both were in reach. `-2` was
+already classified provable. `-1` is the fail-entirely rule for an unrecognized error
+notify, and that is the consumption half of the same work package. A contiguous block
+from 1 strands no ordinal.
+
+**Two rows gained their obligation text back.** `2.5-18` had dropped "In that Notify
+payload, the Notification Data contains the one-octet payload type", which is the clause
+that made the typed `wire.UnsupportedCritError` necessary. `3.10.1-3` had dropped its
+antecedent: "this status" is INVALID_SYNTAX, and the row was unreadable without it.
 
 ### WP-5 landed six rows, and section 2.5 took a contiguous block
 

@@ -108,6 +108,13 @@ type SA struct {
 	lastResponseID  uint32
 	lastResponseSet bool
 
+	// cachedReplayLimiter bounds how often this SA replays lastResponse to an address
+	// it observed rather than to the configured peer.
+	// RFC 7296 Section 2.21.4 requires a rate limit on messages sent in answer to
+	// unprotected traffic. The cached response is the largest thing an
+	// unauthenticated datagram can draw out of Ze (notify_error.go).
+	cachedReplayLimiter *outboundNotifyLimiter
+
 	// The one self-initiated request this SA awaits an answer for. RFC 7296
 	// Section 2.3 calls it the window for requests we send. Its size is one,
 	// because Ze never sends a SET_WINDOW_SIZE notify and never reads one. Every

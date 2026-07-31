@@ -73,10 +73,36 @@ func (ps *PeerSession) handleResponderInbound(sa *SA, msg *wire.Message, pkt tra
 	case StateEstablished:
 		// Narrow window before runResponder adopts the SA into the owner loop: a
 		// retransmitted final IKE_AUTH is answered from the cached response.
-		if sa.lastResponseSet && msg.Header.MessageID == sa.lastResponseID && tr != nil && pkt.RemoteAddr != nil {
-			if err := tr.Send(sa.lastResponse, pkt.RemoteAddr); err != nil {
-				log.Debug("ike: resend cached IKE_AUTH response failed", "peer", sa.PeerName, "error", err)
-			}
+		//
+		// This send goes to pkt.RemoteAddr, the OBSERVED source.
+		// An attacker therefore chooses its destination.
+		// The cached IKE_AUTH response is several hundred octets, and the request that
+		// draws it is a 28-byte header.
+		// An unguarded replay here is a spoofable amplifier.
+		// Two guards bound it, and both are required.
+		//
+		// RFC 7296 Section 2.21.4 MUST NOT: an unprotected message draws no response.
+		// Each genuine retransmission of the final IKE_AUTH carries an Encrypted
+		// payload. carriesSKPayload therefore separates a real one from a bare forged
+		// header, and it needs no decrypt (notify_error.go).
+		// RFC 7296 Section 2.1 bounds a legitimate retransmission burst.
+		// The token bucket caps what survives the first guard.
+		if !sa.lastResponseSet || msg.Header.MessageID != sa.lastResponseID || tr == nil || pkt.RemoteAddr == nil {
+			return
+		}
+		if !carriesSKPayload(msg) {
+			log.Debug("ike: unprotected message at the cached message id, not answered",
+				"peer", sa.PeerName, "src", pkt.RemoteAddr)
+			countErrorNotifySuppressed("unprotected-retransmit")
+			return
+		}
+		if !sa.cachedReplayAllowed() {
+			log.Debug("ike: cached IKE_AUTH replay rate limited", "peer", sa.PeerName, "src", pkt.RemoteAddr)
+			countErrorNotifySuppressed("replay-rate-limited")
+			return
+		}
+		if err := tr.Send(sa.lastResponse, pkt.RemoteAddr); err != nil {
+			log.Debug("ike: resend cached IKE_AUTH response failed", "peer", sa.PeerName, "error", err)
 		}
 	case StateAuthSent, StateAuthReceived, StateSAInitSent, StateDead:
 		log.Debug("ike: responder message in unexpected state", "peer", sa.PeerName, "state", sa.State)
@@ -437,7 +463,14 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 
 	resp, child, err := ps.buildAuthResponse(sa, msg.Header.MessageID, remoteSAi2, tsi, tsr, false, log)
 	if err != nil {
+		// verifyRemoteAuth already passed, so the initiator authenticated.
+		// This refusal is about the piggybacked Child SA.
+		// RFC 7296 Section 2.21.2 answers it with an error notification, not silence.
+		// Ze still tears the IKE SA down.
+		// Section 2.21.2 gives a MAY to keep it alive with no Child SA.
+		// That needs a responder that can establish an IKE SA with no Child SA.
 		log.Warn("ike: build IKE_AUTH response failed", "peer", sa.PeerName, "error", err)
+		ps.respondAuthError(sa, msg.Header.MessageID, notifyForRefusal(err), tr, remote, log)
 		sa.State = StateDead
 		return
 	}
@@ -703,6 +736,30 @@ func (ps *PeerSession) finishResponderEstablish(sa *SA, msgID uint32, resp []byt
 		// one-SA-per-configured-peer, so an authenticated re-initiation always supersedes.
 		ps.signalSupersede(log)
 	}
+}
+
+// respondAuthError sends an SK-encrypted IKE_AUTH response carrying one error notify,
+// to the address the request came from. RFC 7296 Section 2.21.2.
+//
+// It does not cache the response. The IKE SA is about to die, so no retransmission of
+// this request will ever be classified against the cache.
+func (ps *PeerSession) respondAuthError(sa *SA, msgID uint32, notifyType uint16, tr *transport.UDPTransport, remote *net.UDPAddr, log *slog.Logger) {
+	resp, err := buildErrorNotifyResponse(sa, msgID, wire.ExchangeIKEAuth, notifyType, nil)
+	if err != nil {
+		log.Debug("ike: build IKE_AUTH error notify failed", "peer", sa.PeerName, "error", err)
+		countErrorNotifySuppressed("build-failed")
+		return
+	}
+	if tr == nil || remote == nil {
+		countErrorNotifySuppressed("no-destination")
+		return
+	}
+	if err := sendWithNATT(sa, resp, tr, remote); err != nil {
+		log.Debug("ike: send IKE_AUTH error notify failed", "peer", sa.PeerName, "error", err)
+		countErrorNotifySuppressed("send-failed")
+		return
+	}
+	countErrorNotifySent(notifyType, true)
 }
 
 // sendAuthFailed sends an SK-encrypted IKE_AUTH response carrying

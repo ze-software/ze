@@ -563,6 +563,17 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 		return
 	}
 
+	// RFC 7296 Section 3.10.1 MUST: an error notify type this implementation does not
+	// recognize, arriving in a response, means "the corresponding request has failed
+	// entirely". The IKE_AUTH request is that request, so the exchange ends here rather
+	// than continuing into an AUTH verification the response was never going to satisfy.
+	if err := failIfUnrecognizedErrorNotify(innerPayloads, sa.PeerName, log); err != nil {
+		sa.State = StateDead
+		return
+	}
+	// RFC 7296 Section 3.10.1: every other unrecognized notify is ignored, and logged.
+	logIgnoredNotifies(innerPayloads, sa.PeerName, true, log)
+
 	// RFC 7296 Section 2.5 says: implementations MUST NOT reject as invalid a message
 	// with those payloads in any other order.
 	// Section 1.7 removed the earlier allowance to do so.

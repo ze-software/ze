@@ -5,6 +5,8 @@ package wire
 import (
 	"errors"
 	"fmt"
+
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // RFC 7296 Section 3.2: generic payload header is 4 bytes.
@@ -31,6 +33,40 @@ var (
 	ErrLengthMismatch    = errors.New("ike: header length exceeds data")
 	ErrUnknownPayload    = errors.New("ike: unknown payload type")
 )
+
+// UnsupportedCritError reports an unrecognized payload whose critical bit is set.
+//
+// RFC 7296 Section 2.5 states the obligation in two parts.
+// The first part is
+// "If the critical flag is set and the payload type is unrecognized, the message MUST be rejected".
+// The second part is
+// "In that Notify payload, the Notification Data contains the one-octet payload type".
+// A bare sentinel discards the octet the Notification Data must carry.
+// The type therefore travels on the error itself.
+type UnsupportedCritError struct{ PayloadType uint8 }
+
+func (e *UnsupportedCritError) Error() string {
+	var b textbuf.Buffer
+	return b.Str("ike: unsupported critical payload type ").Uint8(e.PayloadType).String()
+}
+
+// Is makes errors.Is(err, ErrUnsupportedCrit) true for this typed error, so every
+// existing comparison keeps working while the payload type stays reachable.
+func (e *UnsupportedCritError) Is(target error) bool { return target == ErrUnsupportedCrit }
+
+// CriticalPayloadType returns the one-octet payload type an unsupported critical
+// payload error names, and whether err is such an error.
+//
+// It fails closed. Any other error, and a nil error, report false with a zero type.
+// A caller can therefore never read the zero as a valid payload type
+// (ai/rules/fail-closed-guards.md).
+func CriticalPayloadType(err error) (uint8, bool) {
+	var uc *UnsupportedCritError
+	if errors.As(err, &uc) && uc != nil {
+		return uc.PayloadType, true
+	}
+	return 0, false
+}
 
 // Payload type values (RFC 7296 Section 3.2).
 const (

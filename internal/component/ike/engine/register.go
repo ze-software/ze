@@ -449,6 +449,11 @@ func (l *inboundRateLimiter) allow() bool {
 // RFC 3948 Section 2.2: 4 zero bytes prefix distinguishes IKE from ESP.
 func dispatchNATTInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logger) {
 	limiter := newInboundRateLimiter(100, 200)
+	// RFC 7296 Section 2.21.4 rate-limits SENDING in answer to unprotected messages.
+	// It is a separate budget from the inbound processing limiter above.
+	// A flood of forged out-of-SA datagrams therefore cannot spend the allowance that
+	// keeps real sessions alive (notify_error.go).
+	notifyLimiter := newOutboundNotifyLimiter(unprotectedNotifyRate, unprotectedNotifyBurst)
 
 	for pkt := range tr.Recv() {
 		if transport.IsNATKeepalive(pkt.Data) {
@@ -493,6 +498,11 @@ func dispatchNATTInbound(tr *transport.UDPTransport, table *SATable, log *slog.L
 				continue
 			}
 			log.Debug("ike: no SA for NAT-T packet", "ispi", SPIHex(iSPI), "rspi", SPIHex(rSPI))
+			// RFC 7296 Section 2.21.4 gives a MAY here.
+			// A message received outside the context of a known IKE SA, and that is
+			// not a request to start one, can draw an unprotected INVALID_IKE_SPI.
+			// answerOutOfSA holds each guard.
+			answerOutOfSA(tr, nattPkt, true, notifyLimiter, log)
 			continue
 		}
 
@@ -636,6 +646,8 @@ func tryResponderSAInit(pkt transport.Packet, iSPI, rSPI [8]byte, table *SATable
 // correct SA by SPI pair.
 func dispatchInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logger) {
 	limiter := newInboundRateLimiter(100, 200)
+	// A separate SEND budget, for the reason given in dispatchNATTInbound.
+	notifyLimiter := newOutboundNotifyLimiter(unprotectedNotifyRate, unprotectedNotifyBurst)
 
 	for pkt := range tr.Recv() {
 		if len(pkt.Data) < 28 {
@@ -667,6 +679,9 @@ func dispatchInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logge
 				continue
 			}
 			log.Debug("ike: no SA for packet", "ispi", SPIHex(iSPI), "rspi", SPIHex(rSPI))
+			// RFC 7296 Section 2.21.4, as on the NAT-T path. This socket carries no
+			// non-ESP marker.
+			answerOutOfSA(tr, pkt, false, notifyLimiter, log)
 			continue
 		}
 

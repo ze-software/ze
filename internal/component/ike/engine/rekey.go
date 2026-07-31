@@ -188,7 +188,10 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 		}
 	}
 	if len(ni) == 0 || peerSPI == 0 {
-		return nil, nil, fmt.Errorf("child rekey request: missing Ni(%d) or ESP SPI(%d)", len(ni), peerSPI)
+		// A request missing a mandatory payload is malformed, not unsatisfiable, so it
+		// draws INVALID_SYNTAX rather than NO_PROPOSAL_CHOSEN (notify_error.go).
+		return nil, nil, fmt.Errorf("%w: child rekey request missing Ni(%d) or ESP SPI(%d)",
+			errMalformedRequest, len(ni), peerSPI)
 	}
 
 	// The suite that keys this replacement must be one the peer offered. The response
@@ -525,7 +528,9 @@ func respondIKERekey(oldSA *SA, inner []wire.PayloadEntry, msgID uint32, log *sl
 		}
 	}
 	if len(ni) == 0 || len(kei) == 0 || !haveSPI {
-		return nil, nil, fmt.Errorf("ike rekey request: missing Ni(%d)/KEi(%d)/SPI(%v)", len(ni), len(kei), haveSPI)
+		// Malformed, as on the Child SA path above.
+		return nil, nil, fmt.Errorf("%w: ike rekey request missing Ni(%d)/KEi(%d)/SPI(%v)",
+			errMalformedRequest, len(ni), len(kei), haveSPI)
 	}
 
 	// Select a proposal we accept for the new IKE SA.

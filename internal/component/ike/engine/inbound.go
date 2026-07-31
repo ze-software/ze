@@ -1,5 +1,6 @@
 // Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- inbound message handling for established SAs
 // RFC: rfc/short/rfc7296.md -- INFORMATIONAL (Section 1.4), CREATE_CHILD_SA (Section 1.3)
+// Related: notify_error.go -- the error notify this file sends when it refuses a request
 
 package engine
 
@@ -38,7 +39,15 @@ type ownedOutcome struct {
 func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *transport.UDPTransport, dp dataplane.Dataplane, log *slog.Logger) ownedOutcome {
 	var msg wire.Message
 	if err := msg.ReadFrom(pkt.Data); err != nil {
+		// This is the OUTER message, parsed before any decryption.
+		// A failure here means Ze never located the SK payload.
+		// Neither the Message ID nor the cryptographic checksum was ever validated.
+		// RFC 7296 Section 3.10.1 permits INVALID_SYNTAX only
+		// "for and in an encrypted packet if the Message ID and cryptographic checksum were valid".
+		// This site therefore stays a silent drop.
+		// An answer here turns a 28-byte forgery into a guaranteed reply.
 		log.Debug("ike: owned inbound parse error", "peer", ps.peerName, "error", err)
+		countErrorNotifySuppressed("outer-parse-unauthenticated")
 		return ownedOutcome{}
 	}
 
@@ -46,6 +55,24 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 	switch classifyInbound(sa, msg.Header.MessageID, isResponse, ps.pendingRekey) {
 	case inboundRetransmit:
 		// RFC 7296 §2.3: a duplicate request is answered from cache, not reprocessed.
+		//
+		// RFC 7296 Section 2.21.4 MUST NOT: "A peer receiving such an unprotected Notify
+		// payload MUST NOT respond". classifyInbound runs before the message is
+		// authenticated, so an unprotected forgery carrying the cached Message ID
+		// reaches this branch. Both SPIs and the Message ID travel in the clear in every
+		// IKE header, so an attacker who saw one datagram can build that forgery.
+		//
+		// Every genuine post-IKE_AUTH request is protected (RFC 7296 Section 1.4), so
+		// the presence of an Encrypted payload separates a real retransmission from a
+		// forgery. The test is structural and needs no key material. A full decrypt is
+		// not an option here, because the cache exists precisely so a duplicate is never
+		// decrypted twice.
+		if !carriesSKPayload(&msg) {
+			log.Debug("ike: unprotected message at the cached message id, not answered",
+				"peer", ps.peerName, "msgid", msg.Header.MessageID)
+			countErrorNotifySuppressed("unprotected-retransmit")
+			return ownedOutcome{}
+		}
 		if sa.lastResponseSet {
 			sendRaw(sa, tr, sa.lastResponse, log)
 		}
@@ -75,8 +102,20 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 	inner, err := decryptAndParse(sa, &msg, pkt.Data)
 	if err != nil {
 		log.Debug("ike: owned inbound decrypt failed", "peer", ps.peerName, "error", err)
+		// RFC 7296 Section 3.10.1 lets INVALID_SYNTAX go out only "in an encrypted packet
+		// if the Message ID and cryptographic checksum were valid". Both hold here and
+		// only here: classifyInbound returned inboundNewRequest, which means the Message
+		// ID equals sa.ExpectedMsgID, and errInnerParse is set only after decryptSKPayload
+		// verified the integrity check. A decrypt failure carries no such proof, so it
+		// stays silent. RFC 7296 Section 3.1 forbids answering a response at all.
+		if !isResponse && errors.Is(err, errInnerParse) {
+			ps.respondInnerParseError(sa, &msg, err, tr, log)
+		}
 		return ownedOutcome{}
 	}
+	// RFC 7296 Section 3.10.1: an unrecognized notify that is neither an error in a
+	// response nor acted on elsewhere is ignored, and it is logged.
+	logIgnoredNotifies(inner, ps.peerName, isResponse, log)
 
 	// Release site two of two, after authentication. This one carries the rekey
 	// response. A peer REQUEST also reaches here, and it must never free the window
@@ -117,7 +156,39 @@ func decryptAndParse(sa *SA, msg *wire.Message, raw []byte) ([]wire.PayloadEntry
 	if err != nil {
 		return nil, err
 	}
-	return wire.ParsePayloadChain(plain, sk.InnerNextPayload)
+	inner, err := wire.ParsePayloadChain(plain, sk.InnerNextPayload)
+	if err != nil {
+		// Mark the failure as an INNER one.
+		// The distinction decides whether an error notify can go out.
+		// Only a chain that failed AFTER the integrity check passed satisfies the
+		// INVALID_SYNTAX precondition of RFC 7296 Section 3.10.1.
+		// A decrypt failure returns unwrapped and stays silent.
+		return nil, fmt.Errorf("%w: %w", errInnerParse, err)
+	}
+	return inner, nil
+}
+
+// errInnerParse marks a failure to parse the inner payload chain of a message whose
+// SK payload already decrypted and passed its integrity check. RFC 7296 Section 3.10.1
+// allows an error notification only in that case.
+var errInnerParse = errors.New("ike: inner payload chain")
+
+// respondInnerParseError answers a request whose decrypted inner chain would not
+// parse. RFC 7296 Section 2.21.2 MUST: such a request "MUST only lead to an
+// UNSUPPORTED_CRITICAL_PAYLOAD or INVALID_SYNTAX Notification sent as a response".
+//
+// RFC 7296 Section 2.5 MUST: an unrecognized critical payload draws
+// UNSUPPORTED_CRITICAL_PAYLOAD whose "Notification Data contains the one-octet payload
+// type". Every other malformation draws INVALID_SYNTAX, which Section 3.10.1 makes the
+// answer "to any error not covered by one of the other status types".
+func (ps *PeerSession) respondInnerParseError(sa *SA, msg *wire.Message, err error, tr *transport.UDPTransport, log *slog.Logger) {
+	if ptype, ok := wire.CriticalPayloadType(err); ok {
+		ps.respondError(sa, msg.Header.MessageID, msg.Header.ExchangeType,
+			wire.NotifyUnsupportedCriticalPayload, []byte{ptype}, tr, log)
+		return
+	}
+	ps.respondError(sa, msg.Header.MessageID, msg.Header.ExchangeType,
+		wire.NotifyInvalidSyntax, nil, tr, log)
 }
 
 // handleCreateChildSAOwned drives Child SA and IKE SA rekeys. As initiator it
@@ -128,6 +199,16 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 	if isResponse {
 		p := ps.pendingRekey
 		if p == nil {
+			return ownedOutcome{}
+		}
+		// RFC 7296 Section 3.10.1 MUST:
+		// "An implementation receiving a Notify payload with one of these types that it does not recognize in a response MUST assume that the corresponding request has failed entirely".
+		// The rekey is that request.
+		// An unrecognized error type therefore ends it.
+		// The walk below never reads a response that carries no keys.
+		if err := failIfUnrecognizedErrorNotify(inner, ps.peerName, log); err != nil {
+			p.clear()
+			ps.pendingRekey = nil
 			return ownedOutcome{}
 		}
 		switch p.kind {
@@ -208,7 +289,14 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 		}
 		resp, newChild, err := respondChildRekey(sa, inner, old, msg.Header.MessageID, dp, log)
 		if err != nil {
+			// RFC 7296 Section 2.21.3 MUST:
+			// "After the IKE SA is authenticated, all requests having errors MUST result in a response notifying the other end of the error".
+			// Silence here spends the peer's single request window on retransmissions.
+			// It then closes a working IKE SA over one drifted algorithm.
+			// RFC 7296 Section 2.7 names NO_PROPOSAL_CHOSEN for a refused offer.
 			log.Warn("ike: child rekey respond failed", "peer", ps.peerName, "error", err)
+			ps.respondError(sa, msg.Header.MessageID, wire.ExchangeCreateChildSA,
+				notifyForRefusal(err), nil, tr, log)
 			return ownedOutcome{}
 		}
 		cacheResponse(sa, msg.Header.MessageID, resp)
@@ -247,7 +335,12 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 		}
 		resp, newSA, err := respondIKERekey(sa, inner, msg.Header.MessageID, log)
 		if err != nil {
+			// RFC 7296 Section 2.21.3, as on the Child SA path above. respondIKERekey
+			// already answers a KE-group mismatch with INVALID_KE_PAYLOAD and returns no
+			// error, so every error that reaches here was answered with silence.
 			log.Warn("ike: IKE rekey respond failed", "peer", ps.peerName, "error", err)
+			ps.respondError(sa, msg.Header.MessageID, wire.ExchangeCreateChildSA,
+				notifyForRefusal(err), nil, tr, log)
 			return ownedOutcome{}
 		}
 		cacheResponse(sa, msg.Header.MessageID, resp)
@@ -264,7 +357,13 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 		log.Info("ike: responded to peer IKE SA rekey", "peer", ps.peerName)
 		return ownedOutcome{}
 	}
-	log.Debug("ike: peer new-child request unsupported, ignoring", "peer", ps.peerName)
+	// A CREATE_CHILD_SA that is neither a Child rekey nor an IKE rekey asks for a NEW
+	// Child SA, which Ze does not create. RFC 7296 Section 2.21.3 MUST still answer it.
+	// RFC 7296 Section 3.10.1 blesses NO_PROPOSAL_CHOSEN as the "generic Child SA error
+	// when Child SA cannot be created for some other reason".
+	log.Info("ike: refusing a peer request for a new Child SA", "peer", ps.peerName)
+	ps.respondError(sa, msg.Header.MessageID, wire.ExchangeCreateChildSA,
+		wire.NotifyNoProposalChosen, nil, tr, log)
 	return ownedOutcome{}
 }
 
