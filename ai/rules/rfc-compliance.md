@@ -112,10 +112,10 @@ receives** a route with ATOMIC_AGGREGATE, and recording it as an aggregator rule
 let the readvertisement path be cited as evidence of non-applicability when it is
 the bound path.
 
-## What Keeps RFC Testing Valid (the six ratchets)
+## What Keeps RFC Testing Valid (the seven ratchets)
 
 `make ze-rfc-check` reads the WORKING TREE to judge coverage, and a tree cannot tell
-"never proven" from "stopped being proven". Six comparisons against HEAD supply that
+"never proven" from "stopped being proven". Seven comparisons against HEAD supply that
 difference. Each fires only on a real downgrade, so a green run means the evidence held,
 not that nobody looked.
 
@@ -127,12 +127,30 @@ not that nobody looked.
 | **Adding an RFC adds checking** | `check_new_summaries` | a summary that is NEW since HEAD declares gated MUSTs and is not in `rfc/enrolled.txt`, fails to parse, or captures zero requirements while `rfc/full/<stem>.txt` has MUST-level keywords |
 | **Non-unit evidence is monotonic, per tier** | `check_evidence_ratchet` | a requirement loses an evidence KIND it had at HEAD -- its `.ci` becomes a unit test, or its verify-tier binding is swapped for a nightly-tier interop one. Keyed by `kind/tier`, so a substitution that leaves the tag COUNT unchanged still fires: a unit test proves the algorithm, only a running functional or interop test proves the daemon or a peer. No annotation satisfies it |
 | **Extraction is monotonic** | `check_extraction_ratchet` | a stem that carried a sign-off at HEAD carries none now, or a signed stem's exclusion count RISES without a `resign-reason` and a bumped `signed-off` date. The first stops the bound being un-bound by deleting a file; the second stops the exclusion list becoming an escape hatch where every unmapped site is excluded with a shrug |
+| **Public disclosure is monotonic** | `check_status_completeness` | an RFC enrolled since HEAD has no row in `docs/features/rfc-status.md`, or a row that existed at HEAD is gone while its RFC stays enrolled. Enrolment gates that RFC's MUSTs, so the public page must say the RFC exists. A deleted row retires the public claim and leaves the obligation. It is also the one edit that makes `check_status_agreement`'s missing-row branch fire later, on somebody else's unrelated commit |
 
 Summaries that predate HEAD are the existing backlog and are deliberately grandfathered:
 a rule that reds the gate on unrelated work gets removed rather than obeyed. Where git
 cannot answer, every ratchet judges nothing rather than judging everything.
 
-**Beside the six, `check_drain_floor` compares the derived sign-off count against the drain policy in `rfc/drain-budget.txt` (a start date and a rate, and nothing else).** It is a schedule rather than a ratchet, and it ships INERT at rate 0: arming it is a one-line commit only the owner takes.
+**Beside the seven, `check_drain_floor` compares the derived sign-off count against the drain policy in `rfc/drain-budget.txt` (a start date and a rate, and nothing else).** It is a schedule rather than a ratchet, and it ships INERT at rate 0: arming it is a one-line commit only the owner takes.
+
+### The public ledger's edges (not ratchets, hard requirements)
+
+`docs/features/rfc-status.md` is the PUBLIC claim. A `{gap}` annotation is the private
+admission. `check_status_agreement` has always compared the two. But it reaches for a row
+only when a `{gap}` exists, so three classes of defect sat outside it. Each is now a hard
+requirement rather than a HEAD comparison, because each is clean on the tree today.
+
+| Guard | Refuses |
+|-------|---------|
+| `check_summary_disposition` | a summary in `rfc/short/` that is in neither `rfc/enrolled.txt` nor `rfc/not-enrolled.txt`. Also a stem in BOTH, a disposition naming a summary that does not exist, and a disposition deleted while the stem never reaches `rfc/enrolled.txt`. Also a `non-normative` reason that judges what ZE owes rather than what the DOCUMENT states. Un-enrolment used to be the one state that carried no information at all. Nine summaries sat outside every check with no recorded reason. Nothing distinguished "the RFC imposes nothing" from "nobody extracted it" from "we do not even have the text" |
+| `check_unproven_support` | a support claim over a summary that declares ZERO gated requirements. A claim is any Status other than `Unsupported` or `Future`, an empty cell included. Two ledgers agreeing on NOTHING is not conformance. It is the cheapest way to look green. Two escapes exist and both are evidence rather than assertion. One is a `non-normative` disposition whose reason states a property of the text. The other is a VALID `manual-walk` extraction sign-off carrying a `register-reason`. The second lets an Informational RFC that invokes RFC 2119 nowhere enrol on an honest zero, and it needs no fabricated MUST |
+| `check_gap_count_agreement` | a Remaining cell whose spelled number, sitting immediately before MUST or SHALL, disagrees with the real `{gap}` count. The COUNT is the only fact on that page a machine can own. It says how many annotations exist. It never says their classifications are right, which matters because the paragraph above VOIDS every annotation as authority. A Remaining PROSE derived from those classifications would launder a void judgement into generated text |
+
+Un-enrolment no longer exempts a `{gap}` from disclosure either. It gates only the
+MISSING-ROW branch. An un-enrolled RFC with no row makes no public claim to contradict. One
+that HAS a row was contradicting its own row in public, with nothing to notice.
 
 At edit time the `rfc-tagged-test` guard (`_rfc_tagged_change_err`) blocks a behavior
 change to any test carrying an `RFC requirement:` tag, and separately blocks REMOVING the

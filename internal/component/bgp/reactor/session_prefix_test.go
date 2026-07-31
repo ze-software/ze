@@ -85,6 +85,12 @@ func TestPrefixCountReset(t *testing.T) {
 //
 // VALIDATES: AC-5 "Warning logged" when count reaches warning threshold. Session stays up.
 // PREVENTS: Warning mechanism silently broken.
+// ste: ignore
+// RFC requirement: RFC4486-4-1 negative -- a count at the warning threshold is no decision to
+// stop the peering. So subcode 1 goes out on no NOTIFICATION at all. checkOK asserts both
+// halves. notif is nil, and the UPDATE is not dropped. That is what binds subcode 1 to the
+// teardown rather than to the counter moving.
+// Producer: internal/component/bgp/reactor/session_prefix.go:399 tests count > maximum.
 func TestPrefixWarningThreshold(t *testing.T) {
 	ps := newTestPeerSettingsWithPrefix(5, 3)
 	s := NewSession(ps)
@@ -104,6 +110,12 @@ func TestPrefixWarningThreshold(t *testing.T) {
 // RFC requirement: RFC4271-6.7-1 positive -- Cease is used here precisely because no fatal
 // protocol error exists: the peer's UPDATE was well formed and only a local policy limit was
 // reached (internal/component/bgp/reactor/session_prefix.go:399-416).
+// ste: ignore
+// RFC requirement: RFC4486-4-1 positive -- RFC 4486 section 4 names the SUBCODE this asserts.
+// RFC 4271 section 6.7 requires only the error CODE. Subcode 1 is 4486's, and so is the
+// optional AFI/SAFI/upper-bound Data field of Figure 1 that the last four assertions pin.
+// Producers: message.NotifyCeaseMaxPrefixes == 1 at
+// internal/component/bgp/message/notification.go:121, built at session_prefix.go:448-465.
 func TestPrefixExceedTeardown(t *testing.T) {
 	ps := newTestPeerSettingsWithPrefix(3, 2)
 	s := NewSession(ps)

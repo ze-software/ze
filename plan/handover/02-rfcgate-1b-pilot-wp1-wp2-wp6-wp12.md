@@ -174,3 +174,74 @@ file by SHA-256, so it is worthless on another machine. A new session runs its o
    design found: WP-3 must land BEFORE WP-8, because WP-8 makes Ze reply to the observed
    source. That turns an existing cached-response replay into a spoofable amplifier.
 5. Then `RFC7296-2.3-6`, whose ruling is recorded above and whose design was not written.
+
+## FIRST WORK ON THE NEW MACHINE: three confirmed defects in WP-1
+
+The sixth review round finished AFTER commit `60eaeb60e` landed. Its findings are
+therefore in HEAD, unfixed. Fix these before anything else.
+
+**1. A tag claims something no test proves.** `rfc7296_outstanding_test.go:268-271`.
+The tag on `TestOsrOwnerLoopKeepsAForeignWindowHeld` says the retire is "keyed to the DPD
+probe's own Message ID, so a window held by a Delete or a rekey survives".
+
+The test passes `dpd == nil` (`:294`), and `established.go:155` gates on
+`dpd.awaitingReply()`, so `retireRequest` is never called. The window survives because there
+is no DPD state, not because of any id comparison. **Delete `sa.requestMsgID != msgID` from
+`msgid.go:165` and the test stays green.**
+
+The sibling test does not cover it either. `osrSession` binds `ini` to the responder SA, so
+both ids are 2.
+
+Fix: give the test a non-nil `dpdState` with `awaitReply` true and
+`probeMsgID != ini.requestMsgID`, or reword the tag to what the test proves.
+
+**2. A sub-arm binds the wrong producer.** `rfc7296_noresponse_test.go:114-125`.
+`tryResponderSAInit` is called with no `RemoteAddr`, so `matchResponderPeer(nil)` returns
+nil (`register.go:557-559`) and `register.go:594-597` returns false whatever the R-flag
+check does. Deleting `|| pkt.Data[19]&wire.FlagResponse != 0` leaves `:116` green. The
+negative control at `:122-125` has no assertion in either branch.
+
+`RFC7296-3.1-12` is still proven overall by `TestNrsInformationalHandlerRefusesAResponse`
+(`:232`). Only this arm over-claims.
+
+**3. The commit message overstates one property.** `responder.go:681` does
+`sa.NextMsgID = msgID + 1` directly, bypassing `advanceMsgID`, and nothing validates the
+IKE_AUTH Message ID. An authenticated peer sending IKE_AUTH at `0xFFFFFFFF` wraps
+`NextMsgID` to 0.
+
+It is contained: `cacheResponse` on the line above sets `msgIDExhausted`, so the SA closes
+on the next tick. But `60eaeb60e`'s body says "The counter is never reset", and with this
+third direct write that is not accurate as written. Correct the record when you fix it.
+
+### Also raised, lower severity
+
+- `rfc7296_msgid_test.go:94` — `sa.reserveRequestWindow()` returns false through
+  `requestOutstanding`, so the `|| sa.msgIDExhausted` term of `msgid.go:117` is ungated and
+  no other test covers it. That term is the only thing stopping a request being built at the
+  frozen `MaxUint32` in the second before `maintainSA` closes the SA.
+- `rfc7296_setwindow_test.go:127-131`, `:158-161`, `:169-172` — arms that no mutation can
+  break, one of them carrying the `negative` polarity for `RFC7296-2.3-7`. The real gating
+  is at `:155` and `:166`.
+- Pre-existing: cancelling an unanswered DPD probe burns its Message ID
+  (`established.go:148-158`, `dpd.go:184-186`). Any authenticated peer REQUEST sets
+  `peerAlive`, which drops the probe. A probe lost outbound then has its id spent at Ze and
+  not at the peer. Every later Ze request is out of window until DPD tears the tunnel down.
+  The new comment at `msgid.go:158-163` states the premise without this consequence.
+- RFC 7296 Section 2.25's follow-on SHOULD (`rfc/full/rfc7296.txt:3927-3929`, close the IKE
+  SA after several minutes of repeated TEMPORARY_FAILURE) is not implemented. The hold
+  re-arms indefinitely with no consecutive-failure counter. Not extracted into the checklist.
+- `mk/test-functional.mk:217` arms 8 `.ci` tests that have never executed. None carries
+  `option=needs-linux`. `test/ipsec/ipsec-child-rekey.ci` drives the exact `startChildRekey`
+  path WP-1 changed. UNVERIFIED: nobody has watched them run in the gate.
+
+### What that round checked and found sound
+
+The saturating boundary freezes at `MaxUint32` with no wrap and no off-by-one. The
+`classifyInbound` reorder is a necessary companion and is gated. Neither hard-expiry branch
+deadlocks under the TEMPORARY_FAILURE hold. The two holds are genuinely per-kind.
+`retireRequest` cannot free a rekey's or a Delete's window.
+
+`ParseSetWindowSize` fails closed and is boundary-tested. The new compile check fails closed
+on every path and cannot accuse the wrong package. `-framepointer` is sound. All 24
+`all_suites` names have a `run_suite` line. All six new rows are verbatim against the RFC,
+with both polarities.

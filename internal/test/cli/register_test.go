@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/command/registry"
+	"github.com/ze-software/ze/internal/test/runner"
 )
 
 // coveredByBigRunner reports whether test/<name> is walked by one of the "big"
@@ -30,6 +31,27 @@ func bigRunnerCIDirNames() []string {
 		names = append(names, name)
 	}
 	names = append(names, predecessorTestDir)
+	return names
+}
+
+// draftDirName is the incubator directory under test/, taken from the runner
+// that resolves it (runner.SuiteDir) rather than re-spelled here.
+const draftDirName = runner.DraftDirName
+
+// draftSuiteNames returns the suite names that have drafts: the immediate
+// subdirectories of test/draft holding at least one .ci file.
+func draftSuiteNames(draftDir string) []string {
+	entries, err := os.ReadDir(draftDir)
+	if err != nil {
+		return nil
+	}
+	var names []string
+	for _, e := range entries {
+		if !e.IsDir() || !dirHasCIFiles(filepath.Join(draftDir, e.Name())) {
+			continue
+		}
+		names = append(names, e.Name())
+	}
 	return names
 }
 
@@ -83,6 +105,21 @@ func TestCIRootsRegistered(t *testing.T) {
 		name := e.Name()
 		full := filepath.Join(testDir, name)
 		if !dirHasCIFiles(full) {
+			continue
+		}
+		if name == draftDirName {
+			// test/draft is the incubator, not a suite. A runner reaches it as
+			// test/draft/<suite> under --draft (runner.SuiteDir), never as
+			// test/draft itself. Its CHILDREN carry the orphan risk instead.
+			// A draft filed under a misspelled or unregistered suite name is
+			// discovered by nothing. That is the same silent death this guard
+			// exists to prevent, so each child meets the same predicate.
+			for _, suite := range draftSuiteNames(full) {
+				if registry.HasRootHandler(suite) || coveredByBigRunner(suite) {
+					continue
+				}
+				orphans = append(orphans, filepath.Join(draftDirName, suite))
+			}
 			continue
 		}
 		if registry.HasRootHandler(name) || coveredByBigRunner(name) {

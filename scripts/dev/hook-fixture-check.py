@@ -19,13 +19,12 @@ dir. That harness cannot exercise the three hooks this runner covers:
     between two programs under a controlled environment, which a single-dispatcher
     exit code cannot express.
 
-Sections (select one with --only):
-    format-alloc   c_format_alloc guarded-file / comment-exemption logic
-    validate-spec  validate-spec.sh over ASCII / Unicode / malformed specs
-    commit-gate    commit_helper.py creation-time gates in git fixtures
-    session-id     lib/session-id.sh vs pretool-writeedit.py resolve ONE id
+Sections come from the SECTIONS registry at the bottom of this file, and --help
+derives the list from it. A hardcoded copy here drifted twice and missed half the
+sections, so this file keeps no second list (ai/rules/derive-not-hardcode.md).
 
     python3 scripts/dev/hook-fixture-check.py                 # all sections
+    python3 scripts/dev/hook-fixture-check.py --help          # list the sections
     python3 scripts/dev/hook-fixture-check.py --only validate-spec
 
 Exit 0 = every fixture matched its expectation, 1 = a hook regressed.
@@ -1594,6 +1593,41 @@ def _rfc_guard_scope_cases(results: Results, cw, tmp: str) -> None:
     )
     results.check("rfc-guard-ci-on-disk-covers-whole-file", blocked_on_rfc(r), repr(r))
 
+    # An interop scenario's check.py. `is_test` covers `_test.go` and a `/test/` `.ci` and
+    # NOTHING else, so when plan/spec-rfcgate-2-evidence.md started admitting interop
+    # evidence, two check.py files began carrying RFC obligations the gate counts as proof
+    # while this guard could not see them at all (spec-rfcgate-3-audit-teeth.md C-4).
+    scen = os.path.join(tmp, "test", "interop", "scenarios", "47-shape")
+    os.makedirs(scen, exist_ok=True)
+    py = os.path.join(scen, "check.py")
+    py_body = "    assert peer_installed(route), 'FRR must install the relayed route'\n"
+    with open(py, "w", encoding="utf-8") as fh:
+        fh.write(
+            "# RFC requirement: RFC7606-5.1-3 positive - the mixed shape is accepted.\n"
+            "def check():\n" + py_body
+        )
+    r = edit(py_body, py_body.replace("assert ", "# assert "), py)
+    results.check("rfc-guard-covers-tagged-check-py", blocked_on_rfc(r), repr(r))
+
+    # ...and only a TAGGED one. Widening the predicate to every .py in the repository would
+    # drag unrelated scenarios into a guard that has nothing to say about them.
+    plain = os.path.join(scen, "helper.py")
+    with open(plain, "w", encoding="utf-8") as fh:
+        fh.write("def check():\n" + py_body)
+    r = edit(py_body, py_body.replace("assert ", "# assert "), plain)
+    results.check("rfc-guard-untagged-py-unaffected", r is None, repr(r))
+
+    # A comment-only edit to a tagged check.py must PASS. `#` is Python's comment syntax and
+    # also the carrier its tag lives on, so judging it with the Go `//` stripper would read
+    # every re-worded comment as a behaviour change -- the over-blocking that gets a guard
+    # switched off.
+    r = edit(
+        "# RFC requirement: RFC7606-5.1-3 positive - the mixed shape is accepted.\n",
+        "# RFC requirement: RFC7606-5.1-3 positive - a mixed shape is accepted on receive.\n",
+        py,
+    )
+    results.check("rfc-guard-py-comment-edit-passes", r is None, repr(r))
+
     # A ONE-LINE func has no closing brace at column 0, so its span falls back to the cap.
     # If that cap were the next func KEYWORD instead of the next func's DOC COMMENT, the
     # one-liner would swallow the tag below it and block. This is the only shape where the
@@ -1853,6 +1887,70 @@ def run_delegation(results: Results) -> None:
         shutil.rmtree(work, ignore_errors=True)
 
 
+def run_delegation_reminder(results: Results) -> None:
+    """ai/rules/spec-delegation.md: the harness guard "Do not call the AgentTool
+    unless the user requested it" arrives LAST in the system prompt and wins on
+    position. UserPromptSubmit stdout is the only harness position that lands
+    after the whole system prompt, so the counter-reminder must reach STDOUT.
+    A stderr reminder is invisible to the model and guards nothing, which is the
+    one failure this section exists to catch."""
+    print("delegation-reminder:")
+
+    hook = os.path.join(HOOKS, "delegation-reminder.sh")
+    results.check("delegation-reminder-exists", os.path.isfile(hook), hook)
+
+    r = subprocess.run(
+        ["bash", hook],
+        input='{"prompt":"fixture"}',
+        text=True,
+        capture_output=True,
+        timeout=30,
+    )
+
+    results.check(
+        "delegation-reminder-exits-zero", r.returncode == 0, f"rc={r.returncode}"
+    )
+
+    # The two load-bearing substrings: the permission it grants, and the rule it
+    # cites. Asserting the whole line would make every re-wording a red.
+    results.check(
+        "delegation-reminder-grants-permission",
+        "needs no permission" in r.stdout,
+        repr(r.stdout),
+    )
+    results.check(
+        "delegation-reminder-cites-rule",
+        "spec-delegation.md" in r.stdout,
+        repr(r.stdout),
+    )
+
+    # THE point of the hook. UserPromptSubmit stdout reaches the model and stderr
+    # does not, so anything on stderr is a reminder the model never sees.
+    results.check("delegation-reminder-stderr-empty", r.stderr == "", repr(r.stderr))
+
+    # It fires every turn, so it must stay one line.
+    results.check(
+        "delegation-reminder-single-line",
+        len(r.stdout.strip().splitlines()) == 1,
+        repr(r.stdout),
+    )
+
+    # Present is not wired. Prove the hook is registered on UserPromptSubmit.
+    settings = os.path.join(ROOT, ".claude", "settings.json")
+    with open(settings, encoding="utf-8") as fh:
+        cfg = json.load(fh)
+    commands = [
+        entry.get("command", "")
+        for group in cfg.get("hooks", {}).get("UserPromptSubmit", [])
+        for entry in group.get("hooks", [])
+    ]
+    results.check(
+        "delegation-reminder-registered",
+        any(c.endswith("delegation-reminder.sh") for c in commands),
+        repr(commands),
+    )
+
+
 SECTIONS = {
     "format-alloc": run_format_alloc,
     "validate-spec": run_validate_spec,
@@ -1861,6 +1959,7 @@ SECTIONS = {
     "rfc-test-guard": run_rfc_test_guard,
     "mark-source-read": run_mark_source_read,
     "delegation": run_delegation,
+    "delegation-reminder": run_delegation_reminder,
 }
 
 

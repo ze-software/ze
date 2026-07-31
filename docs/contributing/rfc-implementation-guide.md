@@ -524,6 +524,26 @@ inside a `terminator=` block):
   pair or a reasoned annotation. Writing a summary does NOT enroll an RFC.
   Enrollment is a separate, deliberate step taken once the tests exist.
   <!-- source: Makefile — ze-rfc-check, ze-rfc-index, ze-rfc-extract, ze-rfc-extraction-status, ze-rfc-reseal -->
+- **Enrol it, or declare why not.** Every summary under `rfc/short/` is in
+  `rfc/enrolled.txt` or in `rfc/not-enrolled.txt`. One in neither reds the gate.
+  Un-enrolment used to be the one state that carried no information. So "the RFC
+  imposes nothing", "nobody extracted it" and "we do not even have the text" all
+  looked identical. A disposition row is `<stem>` TAB `<kind>` TAB `<reason>`, with
+  kind one of `non-normative`, `backlog` or `blocked`.
+
+  Only `non-normative` is a claim about conformance. Its reason must state a property
+  of the DOCUMENT: its category, a missing RFC 2119 section, a keyword scan. It must
+  never say the obligation does not apply to Ze. `backlog` and `blocked` are debt,
+  and the ledger renders them as debt. A row leaves the file only by arriving in
+  `rfc/enrolled.txt`.
+
+  Two related reds come from the same place. First, a `docs/features/rfc-status.md`
+  row that claims support over a summary with zero gated requirements. The escape is
+  evidence that zero is real: a `non-normative` disposition, or a `manual-walk`
+  extraction sign-off whose `register-reason` says why. Second, a Remaining cell that
+  spells a gap count immediately before MUST or SHALL must agree with the summary's
+  `{gap}` count.
+  <!-- source: scripts/dev/rfc_requirements.py — check_summary_disposition, check_unproven_support, check_gap_count_agreement -->
 - **Audit letter and spirit with `/ze-rfc-audit <rfc>`.** The gate proves a link
   exists, but it cannot read the test. The audit reads the RFC itself and each
   tagged test. It then judges whether the test would fail if the code stopped
@@ -563,6 +583,7 @@ Full rules: `ai/skills/ze-rfc.md`; audit method: `ai/skills/ze-rfc-audit.md`.
 [ ] Every MUST-level line in rfc/short/rfcNNNN.md has an id (allocated by /ze-rfc)
 [ ] Each gated MUST has a positive AND a negative tagged test, or a reasoned annotation
 [ ] make ze-rfc-check passes; rfc/enrolled.txt lists the RFC once its tests exist
+[ ] If not enrolled: rfc/not-enrolled.txt carries a kind and a reason for it
 ```
 
 ---

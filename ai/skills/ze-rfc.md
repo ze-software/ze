@@ -29,6 +29,31 @@ Generate a structured implementation summary from an RFC text file.
    `rfc/full/<stem>.txt` contains MUST-level keywords. **Enrolling a stem that was not
    enrolled at HEAD also requires an extraction sign-off** (`rfc/extraction/<stem>.json`);
    see "Extraction sign-off" below.
+
+6b. ENROL OR DECLARE (BLOCKING). Every summary under `rfc/short/` is in `rfc/enrolled.txt`
+   or in `rfc/not-enrolled.txt`. A summary in neither reds `make ze-rfc-check`
+   (`check_summary_disposition`). Un-enrolment with no recorded reason cannot be told apart
+   from work nobody has got to yet.
+
+   When you do not enrol, add the row `<stem>` TAB `<kind>` TAB `<reason>`, kind one of:
+
+   - `non-normative` — the DOCUMENT imposes no MUST-level obligation on any speaker. Say
+     what makes that true of the TEXT: its IETF category, the absence of an RFC 2119
+     key-words section, a keyword scan. It must NOT say the obligation does not apply to Ze.
+     That is a conformance judgement `ai/rules/rfc-compliance.md` reserves to the owner. The
+     gate rejects a reason phrased that way.
+   - `backlog` — DEBT. The extraction is owed, or its obligations are not yet proven.
+   - `blocked` — DEBT. Something outside the summary prevents enrolment, most often a
+     missing `rfc/full/<stem>.txt`.
+
+   A row leaves `rfc/not-enrolled.txt` only by arriving in `rfc/enrolled.txt`. A deletion
+   returns the summary to the undeclared state, and the gate refuses that too.
+
+   `check_unproven_support` reds separately when the public `docs/features/rfc-status.md`
+   row claims support and the summary declares zero gated requirements. Extract the
+   obligations. Or record the evidence that zero is a property of the document: a
+   `non-normative` disposition, or a `manual-walk` sign-off whose `register-reason` says
+   why.
 7. VERIFY: Re-read RFC and summary, check:
    - ALL wire formats captured with ASCII diagrams?
    - ALL MUST requirements listed?
