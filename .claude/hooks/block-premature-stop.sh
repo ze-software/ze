@@ -158,7 +158,13 @@ if [ -n "$SID" ]; then
         #
         # Unreachable before the release moved to SessionEnd: the claim used to die
         # on the first Stop, so it never survived long enough to age out.
-        touch "$MARKER" 2>/dev/null || true
+        #
+        # -c so a MISSING marker is never created. Plain touch creates the path,
+        # so if a sibling session's sweep deleted the marker between the -f test
+        # above and this line, the hook would resurrect it EMPTY. An empty marker
+        # makes every gate below skip silently, and it also blocks the orphan
+        # state-file reclaim at state-file.sh:114.
+        touch -c "$MARKER" 2>/dev/null || true
         SPEC=$(head -1 "$MARKER" 2>/dev/null || true)
         if [ -n "$SPEC" ] && [ "$SPEC" != "unassigned" ] && [ -f "plan/$SPEC" ]; then
             # Closure gate: block if this session's spec is implemented but the
@@ -194,7 +200,19 @@ if [ -n "$SID" ]; then
             # Warn, never block. A session can legitimately claim a spec and do
             # one mechanical edit, and a Stop hook that traps such a session is a
             # worse failure than the one it is catching.
-            if [ ! -f "tmp/session/.agent-spawned-${SID}" ]; then
+            #
+            # Heartbeat this marker too, for the same reason as the claim above.
+            # mark-agent-spawned.sh rewrites it only when an Agent actually runs,
+            # and TWO reapers delete it at 24h: lib/state-file.sh:92 and the
+            # unfiltered find at session-start.sh:22. A session older than a day
+            # that delegated yesterday but not today now KEEPS its claim, so
+            # without this it would lose only the spawn marker and the nudge would
+            # fire falsely, telling a properly supervising session it never
+            # delegated. -c again, so a missing marker is never created: creating
+            # it would silence the nudge for a session that really did work inline.
+            SPAWNED="tmp/session/.agent-spawned-${SID}"
+            touch -c "$SPAWNED" 2>/dev/null || true
+            if [ ! -f "$SPAWNED" ]; then
                 REASONS+=("Delegation: spec '$SPEC' worked with no subagent spawned")
             fi
         fi

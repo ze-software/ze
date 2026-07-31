@@ -75,9 +75,9 @@ goal, not "find more things to do."
 
 The Stop hook knows about this instruction and does not fight it.
 `.claude/hooks/block-premature-stop.sh` holds `what next` and `what would you like`
-in a second phrase list (`COMPLETION_PHRASES`, `:136-141`). It scans that list ONLY
+in a second phrase list (`COMPLETION_PHRASES`, `:133-138`). It scans that list ONLY
 when this session has a claimed spec whose Status is still `in-progress`. The flag
-is `OPEN_WORK`, set at `:180` and assembled at `:200-203`.
+is `OPEN_WORK`, set at `:193` and assembled at `:225-228`.
 
 So the question above is permitted when no work remains. It is refused with exit 2
 while a spec is open. The question is mandated behavior once the task is done. The

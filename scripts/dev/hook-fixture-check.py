@@ -2212,7 +2212,18 @@ def run_delegation(results: Results) -> None:
         )
 
         # And the refresh must actually save it from the sweep.
-        subprocess.run(
+        #
+        # A control marker rides the SAME sweep. Asserting only that the live
+        # claim survived is one-sided: it passes whether the heartbeat saved it
+        # or the sweep simply never ran. The control is aged and never touched,
+        # so it MUST be gone. If both survive, the sweep is broken or was never
+        # invoked, and this fixture says so instead of going green.
+        control = os.path.join(work, "tmp", "session", ".session-dead-fixture-sid")
+        with open(control, "w") as fh:
+            fh.write("spec-fixture.md\n")
+        os.utime(control, (old, old))
+
+        sweep = subprocess.run(
             [
                 "bash",
                 "-c",
@@ -2224,9 +2235,51 @@ def run_delegation(results: Results) -> None:
             timeout=60,
         )
         results.check(
+            "delegation-stale-sweep-actually-ran",
+            sweep.returncode == 0 and not os.path.isfile(control),
+            "the sweep did not run or reaped nothing, so the survival check "
+            f"below proves nothing (rc={sweep.returncode}, "
+            f"control_present={os.path.isfile(control)})",
+        )
+        results.check(
             "delegation-claim-survives-stale-sweep",
             os.path.isfile(marker),
             "the 24h sweep deleted a live session's claim",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # The spawn marker ages out too, and losing it is worse than losing the claim:
+    # the nudge fires FALSELY and tells a properly supervising session it never
+    # delegated. Newly reachable, because the claim now survives long enough for a
+    # session to still be gated when the spawn marker expires.
+    work = _deleg_project(spec="spec-fixture.md", spawned=True)
+    try:
+        spawned = os.path.join(work, "tmp", "session", f".agent-spawned-{_DELEG_SID}")
+        old = time.time() - 25 * 3600
+        os.utime(spawned, (old, old))
+        _, err = _run_stop_hook(work)
+        results.check(
+            "delegation-spawn-marker-heartbeat",
+            os.path.getmtime(spawned) > old + 3600 and "Delegation:" not in err,
+            f"spawn marker not refreshed, so a >24h session that DID delegate "
+            f"gets a false nudge: {err!r}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # The heartbeat must never CREATE a marker. A bare touch would resurrect a
+    # claim deleted by a sibling session's sweep as an EMPTY file, which silently
+    # skips every gate below it, and would invent a spawn marker for a session
+    # that never delegated, silencing the nudge it exists to raise.
+    work = _deleg_project(spec="spec-fixture.md", spawned=False)
+    try:
+        spawned = os.path.join(work, "tmp", "session", f".agent-spawned-{_DELEG_SID}")
+        _, err = _run_stop_hook(work)
+        results.check(
+            "delegation-heartbeat-never-creates-spawn-marker",
+            not os.path.isfile(spawned) and "Delegation:" in err,
+            "the heartbeat invented a spawn marker, silencing the nudge",
         )
     finally:
         shutil.rmtree(work, ignore_errors=True)

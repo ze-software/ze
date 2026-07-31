@@ -50,7 +50,7 @@ whether a session that claimed a spec ever delegated at all.
   Thomas re-registered `block-premature-stop.sh` on `Stop`, first in the array.
   The warning in the bullet above now fires as written. It exits 1, never 2, when
   this session claimed a spec and spawned no agent
-  (`.claude/hooks/block-premature-stop.sh:190-192`). The marker has a reader
+  (`.claude/hooks/block-premature-stop.sh:215-217`). The marker has a reader
   again. The nudge needs a CLAIMED spec, so a session that claimed none is never
   nudged, whatever it ran inline.
 

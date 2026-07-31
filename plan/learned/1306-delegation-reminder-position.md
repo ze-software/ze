@@ -25,7 +25,7 @@ rejected. It was not seen at the moment of the decision.
   gates run: two block with exit 2 (stop-phrase scan, spec-closure), and two warn
   with exit 1 (spec in-progress, delegation nudge). The last three need a CLAIMED
   spec, because each sits behind the `tmp/session/.session-<SID>` marker
-  (`.claude/hooks/block-premature-stop.sh:150-156`). Order is load-bearing, and
+  (`.claude/hooks/block-premature-stop.sh:150-169`). Order is load-bearing, and
   the release that deleted the marker on every `Stop` moved to `SessionEnd`, so
   the claim survives past turn one (`session-end-scratch.sh:60`).
   This correction voids every present-tense claim below under "Consequences" and
@@ -38,7 +38,7 @@ rejected. It was not seen at the moment of the decision.
   backticks as an example. The phrase was NAMED, not used, and a raw `grep -iE`
   cannot tell the two apart. The fix strips fenced blocks and inline backtick
   spans into a `SCAN` copy before the loop runs
-  (`.claude/hooks/block-premature-stop.sh:72-88`). It falls back to the raw text
+  (`.claude/hooks/block-premature-stop.sh:69-84`). It falls back to the raw text
   when the filter fails, so a broken filter scans more rather than less. Backticks
   only, deliberately: a filter over every double-quoted span would hide real
   permission-seeking that quotes something. Four fixtures pin it, and
