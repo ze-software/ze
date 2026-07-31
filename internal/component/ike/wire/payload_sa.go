@@ -46,7 +46,21 @@ var (
 	// are processed as usual". PayloadSA.ReadFrom drops the proposal and keeps the
 	// rest.
 	ErrProposalRejected = errors.New("ike: proposal rejected")
+	// ErrKEGroupNotOffered reports a Key Exchange payload whose Diffie-Hellman Group
+	// Num names a group that no proposal in the SA payload of the same message
+	// specifies (RFC 7296 Section 3.4).
+	ErrKEGroupNotOffered = errors.New("ike: key exchange group is not offered by any proposal in the same message")
+	// ErrKEWithoutDHProposal reports a Key Exchange payload in a message whose SA
+	// payload specifies no Diffie-Hellman group at all (RFC 7296 Section 3.4).
+	ErrKEWithoutDHProposal = errors.New("ike: key exchange payload present but no proposal specifies a diffie-hellman group")
 )
+
+// DHGroupNone is the Diffie-Hellman Transform ID that names no group (RFC 7296
+// Section 3.3.2). A proposal whose only DH transform is NONE therefore does not
+// "specify a Diffie-Hellman group" in the sense Section 3.4 uses, which is the
+// same reading Section 3.3.6 takes when it tells a responder that selected NONE to
+// omit the KE payload from its response.
+const DHGroupNone uint16 = 0
 
 // rejectTransform records why one transform is refused. The wrapper carries
 // ErrTransformRejected for the caller that drops the transform, and the cause for the
@@ -448,6 +462,62 @@ func (p *PayloadSA) ValidateInitialSPISize() error {
 		}
 	}
 	return nil
+}
+
+// SpecifiesDHGroup reports whether any proposal in the SA payload names a real
+// Diffie-Hellman group. The Transform ID NONE names no group (RFC 7296 Section
+// 3.3.2), so a proposal offering only NONE does not specify one.
+func (p *PayloadSA) SpecifiesDHGroup() bool {
+	for i := range p.Proposals {
+		for j := range p.Proposals[i].Transforms {
+			t := &p.Proposals[i].Transforms[j]
+			if t.Type == TransformTypeDH && t.ID != DHGroupNone {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// ValidateKEGroup checks a Key Exchange payload against the SA payload carried in
+// the SAME message. RFC 7296 Section 3.4 states two rules about that pairing:
+//
+//	"This Diffie-Hellman Group Num MUST match a Diffie-Hellman group specified in a
+//	proposal in the SA payload that is sent in the same message"
+//
+//	"If none of the proposals in that SA payload specifies a Diffie-Hellman group,
+//	the KE payload MUST NOT be present"
+//
+// Pass ke == nil when the message carries no Key Exchange payload; the absence of a
+// KE payload never violates either rule. Whether a KE payload is REQUIRED is a
+// different question that Section 1.2 governs, and this check deliberately does not
+// answer it.
+//
+// The rule is about one message, so only a caller holding both payloads of the same
+// message can apply it. The parse layer sees each payload alone and does not.
+func (p *PayloadSA) ValidateKEGroup(ke *PayloadKE) error {
+	if ke == nil {
+		return nil
+	}
+	if !p.SpecifiesDHGroup() {
+		return ErrKEWithoutDHProposal
+	}
+	// A KE payload that names NONE names no group, so it can never "match a
+	// Diffie-Hellman group specified in a proposal" however many the SA payload
+	// offers. Skipping NONE in the walk below keeps a NONE transform in the offer
+	// from vouching for it.
+	if ke.DHGroup == DHGroupNone {
+		return ErrKEGroupNotOffered
+	}
+	for i := range p.Proposals {
+		for j := range p.Proposals[i].Transforms {
+			t := &p.Proposals[i].Transforms[j]
+			if t.Type == TransformTypeDH && t.ID == ke.DHGroup {
+				return nil
+			}
+		}
+	}
+	return ErrKEGroupNotOffered
 }
 
 func (p *PayloadSA) WriteTo(buf []byte, off int) int {

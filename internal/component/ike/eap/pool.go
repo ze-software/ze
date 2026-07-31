@@ -22,8 +22,15 @@ type Pool struct {
 	size4     uint32
 	allocated map[uint32]bool
 
-	base6  net.IP
-	mask6  int
+	base6 net.IP
+	net6  *net.IPNet
+	mask6 int
+	// host6 selects the host bits inside the low 8 octets of the address.
+	// max6 is the count of host identifiers this prefix can name, capped at 1<<16.
+	// Both are derived once. The width 128-mask6 can exceed 63, and a uint64 shift
+	// that wide yields 0 in Go rather than the intended count.
+	host6  uint64
+	max6   uint64
 	next6  uint64
 	alloc6 map[uint64]bool
 
@@ -62,7 +69,24 @@ func NewPool(ipv4CIDR, ipv6CIDR string, dns []string, domain string) (*Pool, err
 			return nil, err
 		}
 		p.base6 = ip.Mask(ipNet.Mask)
+		p.net6 = ipNet
 		p.mask6, _ = ipNet.Mask.Size()
+		// Bound the range here rather than trusting the config validator. A caller that
+		// reaches NewPool by another route must still get an error instead of a pool that
+		// leases addresses outside its own prefix.
+		hostBits := 128 - p.mask6
+		if hostBits < 1 {
+			return nil, errors.New("pool: IPv6 range too small")
+		}
+		if hostBits >= 64 {
+			p.host6 = ^uint64(0)
+		} else {
+			p.host6 = (uint64(1) << uint(hostBits)) - 1
+		}
+		p.max6 = 1 << 16
+		if hostBits < 16 {
+			p.max6 = uint64(1) << uint(hostBits)
+		}
 		p.next6 = 1
 	}
 
@@ -147,18 +171,22 @@ func (p *Pool) allocateV4() (net.IP, error) {
 }
 
 func (p *Pool) allocateV6() (net.IP, error) {
-	maxHost := min(uint64(1)<<uint(128-p.mask6), 1<<16)
-	for range maxHost {
+	for range p.max6 {
 		hostID := p.next6
 		p.next6++
-		if p.next6 >= maxHost {
+		if p.next6 >= p.max6 {
 			p.next6 = 1
 		}
 		if !p.alloc6[hostID] {
 			p.alloc6[hostID] = true
 			ip6 := make(net.IP, 16)
 			copy(ip6, p.base6.To16())
-			binary.BigEndian.PutUint64(ip6[8:], hostID)
+			// OR the host identifier into the host bits. A plain PutUint64
+			// overwrites octets 8 through 15. For a prefix longer than /64 some
+			// of those octets are prefix, and the lease then falls outside the
+			// configured range.
+			low := binary.BigEndian.Uint64(ip6[8:])
+			binary.BigEndian.PutUint64(ip6[8:], low|(hostID&p.host6))
 			return ip6, nil
 		}
 	}
@@ -176,10 +204,15 @@ func (p *Pool) releaseV4Locked(ip4 net.IP) error {
 
 func (p *Pool) releaseV6Locked(ip6 net.IP) error {
 	full := ip6.To16()
-	if full == nil {
+	if full == nil || p.net6 == nil {
 		return ErrNotAllocated
 	}
-	hostID := binary.BigEndian.Uint64(full[8:])
+	// The host-bit mask maps many addresses onto one identifier. An address from
+	// outside the pool can therefore free the lease of a different client.
+	if !p.net6.Contains(full) {
+		return ErrNotAllocated
+	}
+	hostID := binary.BigEndian.Uint64(full[8:]) & p.host6
 	if !p.alloc6[hostID] {
 		return ErrNotAllocated
 	}

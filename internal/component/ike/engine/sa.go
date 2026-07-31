@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"log/slog"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/crypto"
@@ -163,6 +164,22 @@ type SA struct {
 	CreatedAt     time.Time
 	EstablishedAt time.Time
 
+	// hardExpiry is the instant this IKE SA's negotiated lifetime ends, held as unix
+	// nanoseconds. Zero means no lifetime was configured, so the SA never expires.
+	//
+	// RFC 7296 Section 2.8: "When the lifetime of a Security Association expires, the
+	// Security Association MUST NOT be used." The owner loop notices expiry once a
+	// second and tears the SA down, but a send can be reached between two ticks, so
+	// the deadline has to be readable from the send path itself rather than only from
+	// the loop's stack.
+	//
+	// It is reached through atomic.LoadInt64 and atomic.StoreInt64, and is not declared
+	// as an atomic.Int64. A test builds a twin SA of the opposite role from a copy of
+	// this struct. atomic.Int64 carries noCopy, so go vet rejects that copy. A plain
+	// int64 gives the same atomicity and permits the copy. The twin then inherits the
+	// deadline by value, which is correct.
+	hardExpiry int64
+
 	// Remote peer hash algorithms announced via SIGNATURE_HASH_ALGORITHMS notify
 	RemoteHashAlgos []uint16
 
@@ -282,6 +299,29 @@ func SPIPairKey(initiator, responder [8]byte) string {
 // SPIHex returns the hex string of an SPI.
 func SPIHex(spi [8]byte) string {
 	return hex.EncodeToString(spi[:])
+}
+
+// setHardExpiry records the instant this IKE SA's lifetime ends. A zero instant
+// clears the deadline, which is what an unconfigured lifetime means.
+func (sa *SA) setHardExpiry(at time.Time) {
+	if at.IsZero() {
+		atomic.StoreInt64(&sa.hardExpiry, 0)
+		return
+	}
+	atomic.StoreInt64(&sa.hardExpiry, at.UnixNano())
+}
+
+// lifetimeExpired reports whether this IKE SA's negotiated lifetime has run out.
+// RFC 7296 Section 2.8 forbids using the SA once it has.
+//
+// An SA with no configured lifetime never expires, so a zero deadline reports
+// false rather than "expired at the epoch".
+func (sa *SA) lifetimeExpired(now time.Time) bool {
+	deadline := atomic.LoadInt64(&sa.hardExpiry)
+	if deadline == 0 {
+		return false
+	}
+	return !now.Before(time.Unix(0, deadline))
 }
 
 // remoteUDPAddr returns the destination for a message this SA sends on its own

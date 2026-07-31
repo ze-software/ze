@@ -28,6 +28,10 @@ type ownedOutcome struct {
 	peerAlive    bool
 	dpdResp      bool
 	dpdRespMsgID uint32
+	// reestablish asks the owner loop to delete this session's SAs and build a fresh
+	// one through the initial exchanges. RFC 7296 Section 4 requires that fallback
+	// when a peer refuses a rekey with NO_ADDITIONAL_SAS.
+	reestablish bool
 }
 
 // handleOwnedInbound processes a packet delivered to this session's maintainSA
@@ -277,11 +281,21 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 				// RFC 7296 §2.25: a TEMPORARY_FAILURE answer means wait. The soft
 				// lifetime is a level trigger. Without this hold the next one-second
 				// tick retries against a peer that just asked for a delay.
-				if errors.Is(err, errTemporaryFailure) {
+				switch {
+				case errors.Is(err, errTemporaryFailure):
 					ps.childRekeyHoldUntil = time.Now().Add(temporaryFailureBackoff)
 					log.Info("child-sa: rekey refused with TEMPORARY_FAILURE, waiting",
 						"peer", ps.peerName, "backoff", temporaryFailureBackoff)
-				} else {
+				case errors.Is(err, errNoAdditionalSAs):
+					// RFC 7296 Section 4: this peer will never accept the rekey, so
+					// retrying it is pointless and the old SA still has to be replaced.
+					// The fallback the section requires is to delete the old SA and
+					// create a new one, which is what re-establishment does.
+					log.Info("child-sa: rekey refused with NO_ADDITIONAL_SAS, re-establishing",
+						"peer", ps.peerName)
+					ps.pendingRekey = nil
+					return ownedOutcome{reestablish: true}
+				default:
 					log.Warn("ike: child rekey response failed", "peer", ps.peerName, "error", err)
 				}
 				ps.pendingRekey = nil
@@ -300,11 +314,19 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 			newSA, err := applyIKERekeyResponse(sa, p, inner, log)
 			if err != nil {
 				// RFC 7296 §2.25, as on the Child SA path above.
-				if errors.Is(err, errTemporaryFailure) {
+				switch {
+				case errors.Is(err, errTemporaryFailure):
 					ps.ikeRekeyHoldUntil = time.Now().Add(temporaryFailureBackoff)
 					log.Info("ike-sa: rekey refused with TEMPORARY_FAILURE, waiting",
 						"peer", ps.peerName, "backoff", temporaryFailureBackoff)
-				} else {
+				case errors.Is(err, errNoAdditionalSAs):
+					// RFC 7296 Section 4, as on the Child SA path above.
+					log.Info("ike-sa: rekey refused with NO_ADDITIONAL_SAS, re-establishing",
+						"peer", ps.peerName)
+					p.clear()
+					ps.pendingRekey = nil
+					return ownedOutcome{reestablish: true}
+				default:
 					log.Warn("ike: IKE rekey response failed", "peer", ps.peerName, "error", err)
 				}
 				p.clear()

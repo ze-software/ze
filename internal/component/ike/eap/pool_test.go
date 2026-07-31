@@ -4,6 +4,7 @@ package eap
 
 import (
 	"errors"
+	"net"
 	"testing"
 )
 
@@ -116,6 +117,87 @@ func TestVirtualIPPoolDualStack(t *testing.T) {
 	}
 	if len(result.DNS6) != 1 {
 		t.Fatalf("DNS6 count: got %d, want 1", len(result.DNS6))
+	}
+}
+
+// VALIDATES: every IPv6 prefix ValidateRemoteAccess accepts (/48 through /126) leases
+// addresses that lie inside that prefix.
+// PREVENTS: a return to writing the host identifier over octets 8 through 15, which for a
+// prefix longer than /64 overwrites prefix octets and hands the client an address from a
+// different subnet.
+func TestVirtualIPPoolV6LeasesStayInsidePrefix(t *testing.T) {
+	// The bounds ValidateRemoteAccess permits, plus the widths on either side of the
+	// 64-bit boundary where the host-width arithmetic changes shape.
+	for _, cidr := range []string{
+		"2001:db8::/48",
+		"2001:db8::/64",
+		"2001:db8:0:0:1234:5678::/96",
+		"2001:db8::/112",
+		"2001:db8::/126",
+	} {
+		t.Run(cidr, func(t *testing.T) {
+			pool, err := NewPool("", cidr, nil, "")
+			if err != nil {
+				t.Fatalf("NewPool(%s): %v", cidr, err)
+			}
+			_, ipNet, err := net.ParseCIDR(cidr)
+			if err != nil {
+				t.Fatalf("ParseCIDR: %v", err)
+			}
+			result, err := pool.Allocate()
+			if err != nil {
+				t.Fatalf("Allocate from %s: %v", cidr, err)
+			}
+			if result.IPv6 == nil {
+				t.Fatalf("no IPv6 leased from %s", cidr)
+			}
+			if !ipNet.Contains(result.IPv6) {
+				t.Errorf("leased %s from pool %s: address is outside the configured prefix",
+					result.IPv6, cidr)
+			}
+			if result.IPv6.Equal(ipNet.IP) {
+				t.Errorf("leased the network address %s from pool %s", result.IPv6, cidr)
+			}
+			// The lease round-trips: Release accepts the address it just handed out.
+			if err := pool.Release(result.IPv6); err != nil {
+				t.Errorf("Release(%s) from pool %s: %v", result.IPv6, cidr, err)
+			}
+		})
+	}
+}
+
+// VALIDATES: NewPool bounds an IPv6 range itself instead of trusting its caller.
+// PREVENTS: a pool built past the config validator computing a host width of zero and
+// leasing the network address as though it were a client address.
+func TestVirtualIPPoolV6RejectsUnrepresentableRange(t *testing.T) {
+	if _, err := NewPool("", "2001:db8::1/128", nil, ""); err == nil {
+		t.Error("NewPool accepted a /128 IPv6 range, which names no host address")
+	}
+}
+
+// VALIDATES: Release refuses an address from outside the pool's own prefix.
+// PREVENTS: the host-bit mask folding a foreign address onto an in-pool identifier, which
+// would free a lease belonging to a different client.
+func TestVirtualIPPoolV6ReleaseRejectsForeignAddress(t *testing.T) {
+	pool, err := NewPool("", "2001:db8:0:0:1234:5678::/96", nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	leased, err := pool.Allocate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Same low-order host bits, different prefix: it must not free the lease above.
+	foreign := net.ParseIP("2001:db8:0:0:9999:9999::1")
+	if foreign == nil {
+		t.Fatal("bad test fixture address")
+	}
+	if err := pool.Release(foreign); !errors.Is(err, ErrNotAllocated) {
+		t.Fatalf("Release(%s): got %v, want ErrNotAllocated", foreign, err)
+	}
+	// The real lease is still held, so releasing it now still succeeds.
+	if err := pool.Release(leased.IPv6); err != nil {
+		t.Fatalf("Release(%s) after the foreign release: %v", leased.IPv6, err)
 	}
 }
 

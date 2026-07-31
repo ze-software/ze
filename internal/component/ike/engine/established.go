@@ -115,6 +115,16 @@ func (ps *PeerSession) maintainSA(
 	bus ze.EventBus,
 	log *slog.Logger,
 ) error {
+	// RFC 7296 Section 2.8 forbids USING an SA whose lifetime has expired, and the send
+	// path is what has to refuse. Publishing the deadline on the SA is what lets it:
+	// the loop below notices expiry only on a tick, and a send can be reached between
+	// two ticks. A nil ikeLT means no configured lifetime, and clears the deadline.
+	if ikeLT != nil {
+		sa.setHardExpiry(ikeLT.hardTime)
+	} else {
+		sa.setHardExpiry(time.Time{})
+	}
+
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
@@ -153,6 +163,16 @@ func (ps *PeerSession) maintainSA(
 			}
 		case pkt := <-ps.inbound:
 			out := ps.handleOwnedInbound(sa, pkt, tr, dp, log)
+			// RFC 7296 Section 4: the peer refused a rekey with NO_ADDITIONAL_SAS, so
+			// the required fallback is to delete the old SA and create a new one.
+			// Dropping the Child SA and ending the owner loop is that fallback: the
+			// caller's reconnect path runs IKE_SA_INIT and IKE_AUTH again, and those
+			// build a fresh Child SA. Returning errTimeout takes the same exit the hard
+			// lifetime uses, so the backoff and the teardown are the established ones.
+			if out.reestablish {
+				ps.cleanupChild(dp, bus, log)
+				return errTimeout
+			}
 			// Clear the DPD wait on an in-window authenticated inbound (peerAlive), or
 			// on an authenticated INFORMATIONAL response whose message ID matches the
 			// outstanding probe (matchesProbe rejects replays / out-of-window acks).
@@ -254,11 +274,12 @@ func (ps *PeerSession) maintainSA(
 				}
 			}
 
-			// Hard-expire only when no rekey is in flight: a rekey initiated at
-			// soft-expiry (which can be within jitter of the hard time) must be
-			// allowed to complete or exhaust its own retransmits, not be torn down
-			// the same tick it started.
-			if childLT != nil && childLT.hardExpired(now) && ps.pendingRekey == nil {
+			// RFC 7296 Section 2.8 is unconditional: once the lifetime expires the SA
+			// MUST NOT be used, and an in-flight rekey does not extend it. The rekey
+			// gets its room BEFORE the hard time instead -- newLifetimeState places the
+			// soft trigger at least a full retransmit budget earlier -- so a rekey that
+			// is still unanswered here has already exhausted that room.
+			if childLT != nil && childLT.hardExpired(now) {
 				log.Warn("child-sa: hard lifetime expired", "peer", ps.peerName)
 				ps.cleanupChild(dp, bus, log)
 				return errTimeout
@@ -280,7 +301,8 @@ func (ps *PeerSession) maintainSA(
 				ps.startIKERekey(sa, ikeGroup, tr, log)
 			}
 
-			if ikeLT != nil && ikeLT.hardExpired(now) && ps.pendingRekey == nil {
+			// Unconditional for the same reason as the Child SA above (Section 2.8).
+			if ikeLT != nil && ikeLT.hardExpired(now) {
 				log.Warn("ike-sa: hard lifetime expired", "peer", ps.peerName)
 				ps.cleanupChild(dp, bus, log)
 				return errTimeout

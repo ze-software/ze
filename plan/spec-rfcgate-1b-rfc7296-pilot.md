@@ -1394,6 +1394,53 @@ list is the one thing a reviewer would refuse.
 
 Run the extractor once the last row lands, and not before.
 
+## WP-6 and WP-12 residual rows landed (2026-07-31)
+
+The six rows the phase list left behind inside WP-6 and WP-12 are implemented and proven.
+Appendix A proposed four of the ids below its section's high-water mark, so those four were
+renumbered at landing. The Appendix A row text is unchanged; only the ordinal moved.
+
+| Appendix A id | Landed as | Section mark at landing | Why |
+|---------------|-----------|-------------------------|-----|
+| `RFC7296-3.4-2` | `RFC7296-3.4-2` | 1 | above the mark, unchanged |
+| `RFC7296-3.4-3` | `RFC7296-3.4-3` | 1 | above the mark, unchanged |
+| `RFC7296-3.3.6-6` | `RFC7296-3.3.6-8` | 7 | ordinal 6 is at or below the mark |
+| `RFC7296-2.4-5` | `RFC7296-2.4-14` | 13 | ordinal 5 is at or below the mark |
+| `RFC7296-2.8-4` | `RFC7296-2.8-8` | 7 | ordinal 4 is at or below the mark |
+| `RFC7296-4-1` | `RFC7296-4-1` | none | section 4 was empty; `4-1` is the lowest claimant and sets the mark |
+
+Section 4 had three other claimants and no mark, so `4-1` had to land first or be stranded
+permanently. It now sets the mark at 1, which leaves `4-2` and `4-3`
+(`plan/spec-ipsec-remote-access.md`) and `4-4` (WP-10) allocatable in that order.
+
+Four of the six needed production code; two were conformant and are proven by a pair that
+rests on a property the code has.
+
+| Id | State found | What landed |
+|----|-------------|-------------|
+| `3.4-2` | violated on the initiator receive paths | `PayloadSA.ValidateKEGroup` (`wire/payload_sa.go`), called from `handleSAInitResponse` (`engine/fsm.go`) and `applyIKERekeyResponse` (`engine/rekey.go`). The responder paths already enforced it transitively, because the selected proposal is drawn from the offer and the Section 1.2 check compares the KE group against the selection |
+| `3.4-3` | not implemented anywhere | the same validator: a KE payload is refused when no proposal specifies a group, and a Transform ID of NONE does not count as specifying one |
+| `3.3.6-8` | conformant | an IKE SA negotiation cannot select NONE (three independent refusals in `crypto/proposal.go`, and `chosen := *local` keeps the peer's group out of the result). The one exchange that does select NONE, a Child SA rekey without PFS, already ignores an inbound KE payload and emits none (`respondChildRekey`, `engine/rekey.go`) |
+| `2.4-14` | violated for an EAP peer | `mayBeReplicated` (`engine/auth.go`) withholds INITIAL_CONTACT from an EAP identity, which names a user rather than a device. A PSK or X.509 peer still sends it, so `RFC7296-2.4-4` is untouched |
+| `2.8-8` | violated | the hard deadline is published on the SA (`SA.setHardExpiry`, `engine/sa.go`) and refused at `buildEncryptedMessageEx` (`engine/auth.go`), which builds every protected message. Hard expiry in the owner loop is no longer gated on `ps.pendingRekey == nil`, and `rekeyLead` (`engine/rekey.go`) now guarantees a retransmit budget of headroom so that unconditional expiry does not cut off a rekey that started on time |
+| `4-1` | violated | `hasNoAdditionalSAs` and `errNoAdditionalSAs` (`engine/rekey.go`) classify the refusal, and `handleCreateChildSAOwned` (`engine/inbound.go`) sets `ownedOutcome.reestablish`, which makes the owner loop drop the Child SA and exit so the reconnect path rebuilds a fresh SA through the initial exchanges. Before this, NO_ADDITIONAL_SAS was a RECOGNIZED error notify, so it slipped past `failIfUnrecognizedErrorNotify` and surfaced as a generic "missing Nr" warning, and the level-triggered soft lifetime retried it every second until the hard lifetime dropped the tunnel |
+
+All fifteen mutations of these guards were killed. `rekeyLead` and the unconditional hard
+expiry are one change: either alone is a regression, because the previous soft trigger could
+coincide exactly with the hard time whenever `lifetimeJitter` returned zero.
+
+### A defect found while proving `3.3.6-8`, not fixed here
+
+`wireProposalsToIKE` (`engine/initiator.go`) collapses several transforms of one type to the
+LAST one seen, for DH, PRF and INTEG alike. RFC 7296 Section 3.3 lets a proposal offer
+several transforms of a type and expects the responder to select one it supports. A peer
+that offers `[group 14, group NONE]` in that order is therefore read as offering NONE alone
+and is refused with NO_PROPOSAL_CHOSEN, although group 14 was on offer and is configured.
+
+This is a live interoperability defect and it is NOT one of the six rows. It sits in the
+already-landed WP-6 negotiation rows, and correcting it changes which proposal is selected,
+so it needs an owner decision rather than a quiet fix. Raise it before the pilot closes.
+
 ## Two operating constraints found by landing rows out of order (2026-07-30)
 
 ### Ids must land in ASCENDING order within a section

@@ -24,6 +24,7 @@ import (
 	"hash"
 	"net"
 	"slices"
+	"time"
 
 	ikecrypto "github.com/ze-software/ze/internal/component/ike/crypto"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
@@ -85,6 +86,29 @@ func computeSignedOctets(sa *SA, isInitiator bool) ([]byte, error) {
 	return signed, nil
 }
 
+// mayBeReplicated reports whether the local end of this peer is one identity that two
+// systems CAN authenticate as at the same time.
+//
+// RFC 7296 Section 2.4 bars such an entity from sending INITIAL_CONTACT. It names the
+// case: "a roaming user's credentials where the user is allowed to connect to the
+// corporate firewall from two remote systems at the same time". The notification
+// asserts that this IKE SA is the ONLY one active between the two authenticated
+// identities. A responder acts on it and deletes the others. A replicable identity
+// that asserted it would stop the session its own second device holds.
+//
+// EAP is that case in ze's config model. An EAP credential names a USER. The
+// remote-access surface keys its eap-user list by user name, and one such user CAN
+// hold a session from a laptop and a phone at once. A pre-shared secret or an X.509
+// device certificate names one configured DEVICE. Ze runs one SA per configured
+// peer, so the assertion stays truthful there.
+//
+// The predicate reads the auth mode, not the connection type. A replicable credential
+// stays replicable whether this node dialed out or waited. The responder path sends
+// no INITIAL_CONTACT at all.
+func mayBeReplicated(peer ipsec.SiteToSitePeer) bool {
+	return ipsec.IsEAPMode(peer.Auth.Mode)
+}
+
 // buildAuthRequest constructs an encrypted IKE_AUTH request message.
 // RFC 7296 Section 2.16: when auth mode is EAP, the initiator omits AUTH
 // in the first IKE_AUTH to signal willingness to use EAP.
@@ -122,13 +146,17 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 	// RFC 7296 Section 2.4: INITIAL_CONTACT "MUST be in the first IKE_AUTH request or
 	// response" and "asserts that this IKE SA is the only IKE SA currently active
 	// between the authenticated identities", letting the responder delete any stale SA
-	// to us without waiting for a timeout. ze is one-SA-per-configured-peer, so this
-	// assertion is truthful on every first IKE_AUTH and is emitted unconditionally
-	// (spec-fixit-ipsec-clear-reestablish, open question 3). Rekey never reaches here
-	// (it uses CREATE_CHILD_SA on the existing SA).
-	innerPayloads = append(innerPayloads,
-		wire.PayloadEntry{Payload: &wire.PayloadNotify{NotifyMsgType: wire.NotifyInitialContact}},
-	)
+	// to us without waiting for a timeout. Rekey never reaches here (it uses
+	// CREATE_CHILD_SA on the existing SA).
+	//
+	// The same section forbids the assertion outright for a replicable identity: the
+	// notification "MUST NOT be sent by an entity that may be replicated". mayBeReplicated
+	// decides that, so a device identity still asserts it and a user identity never does.
+	if !mayBeReplicated(sa.PeerCfg) {
+		innerPayloads = append(innerPayloads,
+			wire.PayloadEntry{Payload: &wire.PayloadNotify{NotifyMsgType: wire.NotifyInitialContact}},
+		)
+	}
 
 	espSPI, saPayload, tsi, tsr, err := buildChildSAPayloads(sa)
 	if err != nil {
@@ -183,6 +211,15 @@ func buildEncryptedMessage(sa *SA, innerPayloads []wire.PayloadEntry, messageID 
 // and responses reuse the same SK wrapping as IKE_AUTH, differing only in the
 // header ExchangeType and the Response flag.
 func buildEncryptedMessageEx(sa *SA, innerPayloads []wire.PayloadEntry, messageID uint32, exchangeType, flags uint8) ([]byte, error) {
+	// RFC 7296 Section 2.8: "When the lifetime of a Security Association expires, the
+	// Security Association MUST NOT be used." Every message this node protects with the
+	// IKE SA's keys is built here, so this is the one place that can refuse to use an
+	// SA whose lifetime has run out. The owner loop also tears an expired SA down, but
+	// it looks once a second and a send can be reached between two of its ticks.
+	if sa.lifetimeExpired(time.Now()) {
+		return nil, errSAExpired
+	}
+
 	const maxInnerSize = 65536
 	innerBuf := make([]byte, maxInnerSize)
 	off := 0

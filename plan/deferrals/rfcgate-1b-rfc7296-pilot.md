@@ -33,6 +33,42 @@ deferral holder, so no `spec-rfcgate-1b-deferred-*` spec was created.
 | 2026-07-31 | spec-rfcgate-1b-rfc7296-pilot | Implement and prove `RFC7296-2.22-3` (an implementation MUST NOT accept more than one IPComp algorithm). Needs the IPCOMP_SUPPORTED notify, CPI allocation, Child SA binding and both dataplane backends, none of which exist | Owner decision 2026-07-31: create a spec to fully implement IPComp, and do not implement it in this session. RFC 7296 Section 2.22 makes offering and accepting IPComp a MAY. The row is conformant today by non-participation, and the owner chose a real feature over four tests over an absence | `plan/spec-ipsec-ipcomp.md` | deferred |
 | 2026-07-31 | spec-rfcgate-1b-rfc7296-pilot | Implement and prove `RFC7296-2.22-4` (an implementation MUST NOT compress using an algorithm other than one proposed and accepted in the setup of the Child SA). Needs the IPCOMP_SUPPORTED notify, CPI allocation, Child SA binding and both dataplane backends, none of which exist | Owner decision 2026-07-31: create a spec to fully implement IPComp, and do not implement it in this session. RFC 7296 Section 2.22 makes offering and accepting IPComp a MAY. The row is conformant today by non-participation, and the owner chose a real feature over four tests over an absence | `plan/spec-ipsec-ipcomp.md` | deferred |
 
+## Section 2.19 and Section 3.15.1 ordinals: read this before you allocate an id
+
+The pilot's half of WP-9 landed `RFC7296-2.19-1`, `-2.19-4`, `-2.20-1`, `-3.15.1-2`, `-5`,
+`-6` and `-7` at their Appendix A ordinals. The marks were measured first. No
+`RFC7296-2.19-*`, `RFC7296-2.20-*` or `RFC7296-3.15.1-*` id existed at HEAD. No mark was set,
+and every ordinal was free.
+
+Those rows set the high-water mark to **4 for Section 2.19** and **7 for Section 3.15.1**.
+`check_id_allocation` (`scripts/dev/rfc_requirements.py`) refuses a NEW id at or below its
+section's mark. Five of the deferred rows above can therefore no longer take their
+Appendix A ordinal:
+
+| Deferred row | Appendix A ordinal | Free after the pilot landed? |
+|--------------|--------------------|------------------------------|
+| `RFC7296-2.19-2` | -2 | **no**, mark is 4. Needs -7 or higher |
+| `RFC7296-2.19-3` | -3 | **no**, mark is 4. Needs -7 or higher |
+| `RFC7296-2.19-5` | -5 | yes |
+| `RFC7296-2.19-6` | -6 | yes |
+| `RFC7296-3.15.1-1` | -1 | **no**, mark is 7. Needs -8 or higher |
+| `RFC7296-3.15.1-3` | -3 | **no**, mark is 7. Needs -8 or higher |
+| `RFC7296-3.15.1-4` | -4 | **no**, mark is 7. Needs -8 or higher |
+
+This is the accepted cost of the package split. It is a renumbering rather than a loss,
+because the obligations still land and stay gated. `plan/spec-ipsec-remote-access.md` must
+allocate the five ids above their section mark. It must also record the Appendix A ordinal
+each one came from, so a reader can still match the row to Appendix A. The same precedent
+applies to `RFC7296-1.7-1`. Section 10 of `plan/handover/03-design-wp9.md` renumbers it to
+`RFC7296-1.7-3`, because the mark for Section 1.7 is 2.
+
+**Recompute the mark at the moment you land a row. Never hardcode it from this table**:
+
+    git show HEAD:rfc/short/rfc7296.md | grep -o 'RFC7296-2\.19-[0-9]*' | sort -V | tail -1
+
+Section 4 is untouched. The pilot's half of WP-9 took no Section 4 ordinal. So `4-1`, `4-2`,
+`4-3` and `4-4` are all still free, and the ascending-order rule above still governs them.
+
 ## Work package WP-11 left the pilot whole
 
 The four rows above are the entire WP-11 package (phase list item 13). No IPComp row stays

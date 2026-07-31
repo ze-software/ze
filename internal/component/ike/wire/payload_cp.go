@@ -12,6 +12,15 @@ const (
 	CFGTypeACK     uint8 = 4
 )
 
+// cpAttrTypeMask isolates the Configuration Attribute Type from the octet pair that carries
+// it. RFC 7296 Section 3.15.1 lays that pair out as |R| Attribute Type (15 bits) |, where R
+// is "Reserved (1 bit) - This bit MUST be set to zero and MUST be ignored on receipt". A
+// sixteen-bit read folds R into the type, so a peer that sets it turns INTERNAL_IP4_ADDRESS
+// (1) into 0x8001 and the attribute reads as unrecognized. RFC 7296 Section 2.5 states the
+// general rule this enforces: the content of a RESERVED field is ignored on receipt and sent
+// as zero.
+const cpAttrTypeMask uint16 = 0x7fff
+
 // Configuration attribute types (RFC 7296 Section 3.15.1).
 const (
 	CPAttrInternalIP4Address uint16 = 1
@@ -46,7 +55,8 @@ func (p *PayloadCP) WriteTo(buf []byte, off int) int {
 	buf[off+3] = 0
 	n := 4
 	for i := range p.Attrs {
-		binary.BigEndian.PutUint16(buf[off+n:], p.Attrs[i].Type)
+		// Send the Reserved bit as zero whatever the caller put in Type.
+		binary.BigEndian.PutUint16(buf[off+n:], p.Attrs[i].Type&cpAttrTypeMask)
 		binary.BigEndian.PutUint16(buf[off+n+2:], uint16(len(p.Attrs[i].Value)))
 		copy(buf[off+n+4:], p.Attrs[i].Value)
 		n += 4 + len(p.Attrs[i].Value)
@@ -70,7 +80,8 @@ func (p *PayloadCP) ReadFrom(data []byte) error {
 	p.Attrs = nil
 	off := 4
 	for off+4 <= len(data) {
-		atype := binary.BigEndian.Uint16(data[off:])
+		// Ignore the Reserved bit on receipt: only the low 15 bits name the attribute.
+		atype := binary.BigEndian.Uint16(data[off:]) & cpAttrTypeMask
 		alen := int(binary.BigEndian.Uint16(data[off+2:]))
 		off += 4
 		if off+alen > len(data) {

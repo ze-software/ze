@@ -28,6 +28,9 @@ var (
 	errAuthFailed     = errors.New("ike: authentication failed")
 	errTimeout        = errors.New("ike: retransmit timeout")
 	errInvalidMessage = errors.New("ike: invalid message")
+	// errSAExpired reports a refusal to protect a message with an IKE SA whose
+	// negotiated lifetime has run out (RFC 7296 Section 2.8).
+	errSAExpired = errors.New("ike: security association lifetime expired")
 )
 
 const (
@@ -524,6 +527,20 @@ func handleSAInitResponse(
 	if err := remoteSA.ValidateInitialSPISize(); err != nil {
 		log.Warn("ike: IKE_SA_INIT response carries an SPI in its proposals",
 			"peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+
+	// RFC 7296 Section 3.4: the Diffie-Hellman Group Num of the KE payload "MUST match
+	// a Diffie-Hellman group specified in a proposal in the SA payload that is sent in
+	// the same message", and where no proposal specifies a group "the KE payload MUST
+	// NOT be present". The responder's SAr1 carries the one proposal it accepted, so a
+	// KEr in any other group is a responder that answered in a group it never named.
+	// Deriving a shared secret from it would key the SA under a group this node never
+	// agreed to, so the exchange stops here.
+	if err := remoteSA.ValidateKEGroup(remoteKE); err != nil {
+		log.Warn("ike: IKE_SA_INIT response KE group disagrees with its SA payload",
+			"peer", sa.PeerName, "ke-group", remoteKE.DHGroup, "error", err)
 		sa.State = StateDead
 		return
 	}

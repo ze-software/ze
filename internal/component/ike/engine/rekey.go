@@ -39,6 +39,28 @@ func hasTemporaryFailure(inner []wire.PayloadEntry) bool {
 	return false
 }
 
+// errNoAdditionalSAs reports a rekey the peer refused with NO_ADDITIONAL_SAS. RFC
+// 7296 Section 4 makes the answer to that refusal mandatory and specific, so it is
+// distinguished from every other rekey failure: "If the responder rejects the
+// CREATE_CHILD_SA request with a NO_ADDITIONAL_SAS notification, the implementation
+// MUST be capable of instead deleting the old SA and creating a new one".
+var errNoAdditionalSAs = errors.New("ike: peer answered with NO_ADDITIONAL_SAS")
+
+// hasNoAdditionalSAs reports whether a payload chain carries a NO_ADDITIONAL_SAS
+// notify. RFC 7296 Section 4 describes the peer that sends it as a minimal
+// implementation, one that recognizes a CREATE_CHILD_SA request only to reject it.
+// Retrying the same exchange against such a peer can never succeed, so this answer
+// is separated from a transient failure.
+func hasNoAdditionalSAs(inner []wire.PayloadEntry) bool {
+	for i := range inner {
+		if n, ok := inner[i].Payload.(*wire.PayloadNotify); ok &&
+			n.NotifyMsgType == wire.NotifyNoAdditionalSAs {
+			return true
+		}
+	}
+	return false
+}
+
 // initiatorFlag returns the header Initiator flag for messages this side sends.
 // RFC 7296 §3.1: the flag marks the original initiator of the IKE SA, regardless
 // of who initiates a given exchange.
@@ -125,6 +147,13 @@ func applyChildRekeyResponse(sa *SA, pending *pendingRekey, inner []wire.Payload
 	// response carries the notify alone and the walk below would report a missing Nr.
 	if hasTemporaryFailure(inner) {
 		return nil, errTemporaryFailure
+	}
+	// RFC 7296 Section 4: a NO_ADDITIONAL_SAS answer is refusal, not delay. It is read
+	// here for the same reason as the notify above, and reported distinctly so the
+	// caller can take the delete-and-create fallback the section makes mandatory
+	// instead of retrying an exchange this peer will never accept.
+	if hasNoAdditionalSAs(inner) {
+		return nil, errNoAdditionalSAs
 	}
 	var nr []byte
 	var outSPI uint32
@@ -283,14 +312,35 @@ func newLifetimeState(lifetimeSec uint32) *lifetimeState {
 		return nil
 	}
 	lifetime := time.Duration(lifetimeSec) * time.Second
-	jitter := lifetimeJitter(lifetime)
 	now := time.Now()
-	soft := now.Add(lifetime - jitter)
 	hard := now.Add(lifetime)
+	soft := now.Add(lifetime - rekeyLead(lifetime))
 	return &lifetimeState{
 		softTime: soft,
 		hardTime: hard,
 	}
+}
+
+// rekeyLead is how far before the hard time the soft (rekey) trigger sits.
+//
+// Two things set it. RFC 7296 Section 2.8 asks for headroom -- "Enough time should
+// elapse between the time the new SA is established and the old one becomes unusable
+// so that traffic can be switched over to the new SA" -- and the same section's "MUST
+// NOT be used" makes the hard time a wall the owner loop will not move. A rekey that
+// begins too late is therefore cut off rather than tolerated, so the trigger must
+// leave a whole retransmit budget in front of that wall.
+//
+// lifetimeJitter alone cannot supply it: it returns a value in [0, 10%), so it can
+// return zero and put the trigger exactly ON the hard time. Taking the larger of the
+// jitter and the budget keeps the desynchronization Section 2.8 asks for (checklist
+// row RFC7296-2.8-3) while giving the exchange room to finish.
+//
+// A short configured lifetime cannot fund the full budget, so the lead is capped at
+// half the lifetime; the SA then rekeys at its midpoint.
+func rekeyLead(lifetime time.Duration) time.Duration {
+	budget := time.Duration(maxRetransmissions) * rekeyRetransmitTimeout
+	budget = min(budget, lifetime/2)
+	return max(lifetimeJitter(lifetime), budget)
 }
 
 // lifetimeJitter returns a random duration between 0 and 10% of the lifetime.
@@ -403,16 +453,22 @@ func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.Payloa
 	if hasTemporaryFailure(inner) {
 		return nil, errTemporaryFailure
 	}
+	// RFC 7296 Section 4, as on the Child SA path: refusal, not delay.
+	if hasNoAdditionalSAs(inner) {
+		return nil, errNoAdditionalSAs
+	}
 	var nr, ker []byte
 	var newResponderSPI [8]byte
 	haveSPI := false
 	var accepted *wire.PayloadSA
+	var acceptedKE *wire.PayloadKE
 	for _, pe := range inner {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadNonce:
 			nr = p.NonceData
 		case *wire.PayloadKE:
 			ker = p.KeyExchangeData
+			acceptedKE = p
 		case *wire.PayloadSA:
 			accepted = p
 			s, err := ikeSPIFromSA(p)
@@ -425,6 +481,15 @@ func applyIKERekeyResponse(oldSA *SA, pending *pendingRekey, inner []wire.Payloa
 	}
 	if len(nr) == 0 || len(ker) == 0 || !haveSPI {
 		return nil, fmt.Errorf("ike rekey response: missing Nr(%d)/KEr(%d)/SPI(%v)", len(nr), len(ker), haveSPI)
+	}
+
+	// RFC 7296 Section 3.4: the KE payload's Diffie-Hellman Group Num "MUST match a
+	// Diffie-Hellman group specified in a proposal in the SA payload that is sent in
+	// the same message". The rekey response carries the accepted proposal, so a KEr in
+	// another group would key the replacement IKE SA under a group this node never
+	// agreed to.
+	if err := accepted.ValidateKEGroup(acceptedKE); err != nil {
+		return nil, fmt.Errorf("ike rekey response: %w", err)
 	}
 
 	// RFC 7296 Section 3.3.6: the initiator checks the accepted offer against the IKE
