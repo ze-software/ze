@@ -69,6 +69,23 @@ def main():
         # is what makes the shutdown dispatch below safe. This is where the wait
         # belongs: after the events have been read, not before.
         api.wait_for_post_startup(timeout=5.0)
+        # Post-startup is NOT a barrier for the End-of-RIB the ze-peer expectation
+        # above asserts. The post-startup fan-out runs before StartPeers
+        # (plugin/server/startup.go), and the peer-up event that released this
+        # observer is emitted at peer_run.go before the goroutine that writes the
+        # EOR is even spawned. Shutting the daemon down here therefore races the
+        # frame the peer is waiting for, and the peer reports "connection closed
+        # before completion". Whether the race is lost is decided by how promptly
+        # the host scheduled the daemon, which is why this test passed alone and
+        # failed inside a full verify run.
+        #
+        # wait_peer_eor_sent gates on the product's own per-peer eor-sent counter,
+        # incremented by IncrEORSent (reactor/peer_initial_sync.go) only after the
+        # EOR write to the session succeeded and was flushed. Non-zero means the
+        # frame is already on the wire. This peer negotiates one family and never
+        # flaps, so neither documented caveat of the helper applies.
+        if not api.wait_peer_eor_sent(expected_peers=1):
+            runtime_fail('ze never put the initial-sync end-of-rib on the wire')
         dispatch(api, 'request shutdown')
         api.wait_for_shutdown()
 
