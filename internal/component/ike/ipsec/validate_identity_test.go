@@ -17,39 +17,51 @@ func vidPeer(localID, remoteID string) *IPsecConfig {
 	}
 }
 
-// VALIDATES: a distinguished-name identity is refused at verify, and the refusal names
+// VALIDATES: a distinguished-name LOCAL-id is refused at verify, and the refusal names
 // the peer, the leaf, and the value.
-// PREVENTS: a config that commits cleanly and then denies every peer. Ze compares
-// ID_IPV4_ADDR, ID_IPV6_ADDR, ID_FQDN, ID_RFC822_ADDR and ID_KEY_ID, and states that it
-// cannot compare ID_DER_ASN1_DN. A peer whose identity is a distinguished name asserts
-// ID_DER_ASN1_DN, so remote-id "CN=hq,O=Example" denied it at IKE_AUTH with a message
-// only the log carried (ai/rules/exact-or-reject.md).
-func TestVidDistinguishedNameIdentityIsRefusedAtVerify(t *testing.T) {
+// PREVENTS: a config that commits cleanly and then asserts an identity no peer expecting
+// a distinguished name accepts. encodeIKEID derives the type ze SENDS from the shape of
+// the value, and it has no ID_DER_ASN1_DN branch. A distinguished-name local-id therefore
+// goes out as ID_FQDN carrying the literal text (ai/rules/exact-or-reject.md).
+func TestVidDistinguishedNameLocalIDIsRefusedAtVerify(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
-		leaf  string
 		value string
 	}{
-		{"remote-id", "remote-id", "CN=hq,O=Example"},
-		{"remote-id lower case", "remote-id", "cn=hq"},
-		{"remote-id with spaces", "remote-id", "C = FR, O = Example"},
-		{"local-id", "local-id", "CN=branch,OU=Field"},
+		{"local-id", "CN=branch,OU=Field"},
+		{"local-id lower case", "cn=branch"},
+		{"local-id with spaces", "C = FR, O = Example"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := vidPeer("", tc.value)
-			if tc.leaf == "local-id" {
-				cfg = vidPeer(tc.value, "")
-			}
-			err := cfg.ValidateIdentities()
+			err := vidPeer(tc.value, "").ValidateIdentities()
 			if err == nil {
-				t.Fatalf("%s %q was accepted, and no peer can ever satisfy it", tc.leaf, tc.value)
+				t.Fatalf("local-id %q was accepted, and ze cannot send it as ID_DER_ASN1_DN", tc.value)
 			}
-			for _, want := range []string{"branch", tc.leaf, tc.value, "ID_DER_ASN1_DN"} {
+			for _, want := range []string{"branch", "local-id", tc.value, "ID_DER_ASN1_DN"} {
 				if !strings.Contains(err.Error(), want) {
 					t.Errorf("the refusal %q does not name %q", err, want)
 				}
 			}
 		})
+	}
+}
+
+// VALIDATES: a distinguished-name REMOTE-id commits.
+// PREVENTS: the commit-time refusal outliving the engine capability it existed to
+// announce. Ze used to refuse both leaves, because it had no way to compare an
+// ID_DER_ASN1_DN at all. RFC 7296 Section 4 requires it be possible to configure ze to
+// accept a PKIX certificate "where the ID passed is any of ID_KEY_ID, ID_FQDN,
+// ID_RFC822_ADDR, or ID_DER_ASN1_DN", and assertedIdentity plus certificateCarriesIdentity
+// now do that. A refusal left here would keep the MUST unreachable from config while the
+// engine can serve it (RFC7296-4-4).
+func TestVidDistinguishedNameRemoteIDCommits(t *testing.T) {
+	for _, value := range []string{
+		"CN=hq,O=Example", "cn=hq", "C = FR, O = Example",
+	} {
+		if err := vidPeer("", value).ValidateIdentities(); err != nil {
+			t.Errorf("remote-id %q was refused, so RFC 7296 Section 4's ID_DER_ASN1_DN "+
+				"acceptance cannot be configured: %v", value, err)
+		}
 	}
 }
 

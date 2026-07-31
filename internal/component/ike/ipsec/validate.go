@@ -1,5 +1,6 @@
 // Design: plan/learned/734-ipsec-3-data-model.md -- IPsec cross-reference validation
 // RFC: rfc/short/rfc7296.md -- Section 2.16, EAP responder public-key authentication
+// Related: identity.go -- the remote-id-type name-to-number mapping these checks read
 
 package ipsec
 
@@ -45,10 +46,19 @@ var rdnAttributes = map[string]bool{
 	"street": true, "t": true, "uid": true,
 }
 
-// distinguishedName reports whether an identity value is written as an X.500
+// IsDistinguishedName reports whether an identity value is written as an X.500
 // distinguished name. The test is the FIRST relative distinguished name: an attribute
 // name from rdnAttributes, then an equals sign. A value such as "gw=1" is not one, so an
 // opaque key id that happens to hold an equals sign still passes.
+//
+// It is exported because the engine's identity classifier must make the SAME reading as
+// the commit-time validator. Two independent notions of "this value is a DN" would let a
+// config commit on one reading and then be compared under the other
+// (ai/rules/derive-not-hardcode.md).
+func IsDistinguishedName(value string) bool {
+	return distinguishedName(value)
+}
+
 func distinguishedName(value string) bool {
 	head, _, found := strings.Cut(value, "=")
 	if !found {
@@ -57,36 +67,32 @@ func distinguishedName(value string) bool {
 	return rdnAttributes[strings.ToLower(strings.TrimSpace(head))]
 }
 
-// ValidateIdentities refuses a local-id or remote-id that no IKE_AUTH can ever satisfy.
+// ValidateIdentities refuses a local-id that no IKE_AUTH can ever satisfy.
 //
-// Ze compares five of the identity types RFC 7296 Section 3.5 assigns: ID_IPV4_ADDR,
-// ID_IPV6_ADDR, ID_FQDN, ID_RFC822_ADDR and ID_KEY_ID. It states that it cannot compare
-// ID_DER_ASN1_DN, because no rule in RFC 7296 gives a canonical text form for one.
-// A peer whose identity is a distinguished name asserts ID_DER_ASN1_DN.
-// A distinguished-name remote-id therefore denies every peer at IKE_AUTH.
-// Only the log carries that refusal, so refuse the config instead
+// A distinguished-name LOCAL-id is still refused. encodeIKEID derives the type ze sends
+// from the shape of the value, and it has no ID_DER_ASN1_DN branch. It would therefore
+// send the literal text as ID_FQDN, and a peer expecting a distinguished name refuses
+// that. Ze cannot deliver what the config asks for, so the config does not commit
 // (ai/rules/exact-or-reject.md).
 //
-// A distinguished-name local-id fails the same way from the other side. encodeIKEID sends
-// it as ID_FQDN carrying the literal text, and a peer that expects a distinguished name
-// refuses that.
+// A distinguished-name REMOTE-id is now accepted. The refusal that used to cover it was
+// lifted in the same change that gave the engine the capability. RFC 7296 Section 4
+// requires it be possible to configure ze to accept a PKIX certificate "where the ID
+// passed is any of ID_KEY_ID, ID_FQDN, ID_RFC822_ADDR, or ID_DER_ASN1_DN". assertedIdentity
+// now renders the asserted DER in RFC 4514 form for the policy comparison.
+// certificateCarriesIdentity then binds it against the certificate's own RawSubject with
+// bytes.Equal, which is exact and needs no canonical text form at all. The objection this
+// function used to record was correct about comparing a DN with operator TEXT and does not
+// reach the certificate comparison.
 func (c *IPsecConfig) ValidateIdentities() error {
 	for name := range c.Peers {
 		auth := c.Peers[name].Auth
-		for _, id := range []struct {
-			leaf  string
-			value string
-		}{
-			{"local-id", auth.LocalID},
-			{"remote-id", auth.RemoteID},
-		} {
-			if !distinguishedName(id.value) {
-				continue
-			}
+		if distinguishedName(auth.LocalID) {
 			return fmt.Errorf(
-				"ipsec peer %q: %s %q is a distinguished name, and ze cannot compare "+
-					"ID_DER_ASN1_DN. Set it to an address, an FQDN, a mail address, or a key id",
-				name, id.leaf, id.value)
+				"ipsec peer %q: local-id %q is a distinguished name, and ze sends the identity "+
+					"type derived from the value's shape, which has no ID_DER_ASN1_DN form. "+
+					"Set it to an address, an FQDN, a mail address, or a key id",
+				name, auth.LocalID)
 		}
 	}
 	return nil
@@ -169,6 +175,39 @@ func (c *IPsecConfig) ValidatePKIRefs(hasCA, hasCert func(string) bool, certCN f
 						name, peer.Auth.LocalID, cn)
 				}
 			}
+		}
+	}
+	return nil
+}
+
+// ValidateCertificateChains refuses a peer whose certificate-count is smaller than the
+// certificate chain its PKI entry actually holds.
+//
+// certChainLen reports the number of certificates a PKI entry would put on the wire: the
+// device certificate plus its intermediates. It returns 0 for a name the candidate PKI
+// section does not carry, and ValidatePKIRefs has already refused that case.
+//
+// Without this check the send path had two honest options and both are wrong. Truncating
+// the chain silently sends a path the peer cannot complete. The operator then sees a peer
+// that refuses ze's certificate, with nothing in ze's own logs to explain it. Ignoring the
+// bound makes certificate-count a decoration on the send side. Refusing at commit is the
+// third option, and it is the one ai/rules/exact-or-reject.md requires. Ze cannot deliver
+// exactly what the config asks for, so the config does not commit.
+func (c *IPsecConfig) ValidateCertificateChains(certChainLen func(string) int) error {
+	for name := range c.Peers {
+		peer := c.Peers[name]
+		cert := peer.Auth.Certificate
+		if cert == "" {
+			continue
+		}
+		held := certChainLen(cert)
+		limit := int(peer.Auth.CertificateChainLimit())
+		if held > limit {
+			return fmt.Errorf(
+				"ipsec peer %q: certificate %q holds a chain of %d and certificate-count allows %d, "+
+					"so ze would have to send a path the peer cannot complete. Raise "+
+					"certificate-count to %d, or name fewer intermediate certificates",
+				name, cert, held, limit, held)
 		}
 	}
 	return nil

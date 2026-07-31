@@ -508,6 +508,7 @@ func ntfConstantValue(name string) (uint16, bool) {
 		"NotifyNATDetectionDestIP":         wire.NotifyNATDetectionDestIP,
 		"NotifyCookie":                     wire.NotifyCookie,
 		"NotifyUseTransportMode":           wire.NotifyUseTransportMode,
+		"NotifyHTTPCertLookupSupported":    wire.NotifyHTTPCertLookupSupported,
 		"NotifyRekeySA":                    wire.NotifyRekeySA,
 		"NotifyESPTFCPaddingNotSupported":  wire.NotifyESPTFCPaddingNotSupported,
 		"NotifyNonFirstFragmentsAlso":      wire.NotifyNonFirstFragmentsAlso,

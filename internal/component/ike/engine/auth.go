@@ -1,5 +1,6 @@
 // Design: plan/learned/740-ipsec-7-ikev2-engine.md -- AUTH payload computation
 // Related: remote_id.go -- remote identity policy and certificate binding
+// Detail: cert_payload.go -- CERT payload assembly, the received-chain bound, Hash and URL
 // RFC: rfc/short/rfc7296.md -- Authentication of the IKE SA (Section 2.15)
 // RFC: rfc/short/rfc7427.md -- Digital Signature AUTH method 14
 package engine
@@ -17,7 +18,6 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/subtle"
-	"crypto/x509"
 	"encoding/asn1"
 	"errors"
 	"fmt"
@@ -138,7 +138,10 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 			{Payload: authPayload},
 		}
 		if sa.PeerCfg.Auth.Mode == ipsec.AuthX509 {
-			certPayloads := buildCertPayloads(sa)
+			certPayloads, err := buildCertPayloads(sa)
+			if err != nil {
+				return nil, err
+			}
 			innerPayloads = append(certPayloads, innerPayloads...)
 		}
 	}
@@ -156,6 +159,12 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 		innerPayloads = append(innerPayloads,
 			wire.PayloadEntry{Payload: &wire.PayloadNotify{NotifyMsgType: wire.NotifyInitialContact}},
 		)
+	}
+
+	// RFC 7296 Section 3.10 allows HTTP_CERT_LOOKUP_SUPPORTED in any message that can
+	// carry a CERTREQ, and Section 3.7 puts one in the IKE_AUTH request.
+	if notify := hashAndURLNotify(sa); notify != nil {
+		innerPayloads = append(innerPayloads, wire.PayloadEntry{Payload: notify})
 	}
 
 	espSPI, saPayload, tsi, tsr, err := buildChildSAPayloads(sa)
@@ -464,126 +473,6 @@ func verifyLegacyRSAAuth(sa *SA, authData, signedOctets []byte) error {
 	return rsa.VerifyPKCS1v15(rsaPub, crypto.SHA256, digest, authData)
 }
 
-// storeRemoteCerts records the CERT payloads of one IKE_AUTH message in wire order.
-//
-// RFC 7296 Section 3.6 states the rule.
-// "If multiple certificates are sent, the first certificate MUST contain the public key
-// associated with the private key used to sign the AUTH payload."
-// The first payload is therefore the peer certificate. Every later one is a link on the
-// path toward a trust anchor, and getRemoteCert offers those to x509 as intermediates.
-//
-// Both IKE_AUTH walks call this. Each used to assign the peer certificate on every CERT
-// payload, so the LAST certificate won. A conformant peer sending its leaf and then the
-// issuing intermediate had ze verify AUTH against the intermediate.
-func storeRemoteCerts(sa *SA, certs []*wire.PayloadCERT) {
-	if len(certs) == 0 {
-		return
-	}
-	sa.RemoteCertRaw = certs[0].CertData
-	sa.RemoteCertChainRaw = nil
-	for _, c := range certs[1:] {
-		sa.RemoteCertChainRaw = append(sa.RemoteCertChainRaw, c.CertData)
-	}
-}
-
-func getRemoteCert(sa *SA) (*x509.Certificate, error) {
-	if len(sa.RemoteCertRaw) == 0 {
-		return nil, fmt.Errorf("ike auth: no remote certificate received in IKE_AUTH")
-	}
-
-	cert, err := x509.ParseCertificate(sa.RemoteCertRaw)
-	if err != nil {
-		return nil, fmt.Errorf("ike auth: parse remote certificate: %w", err)
-	}
-
-	// A certificate with no trust anchor authenticates nobody. Ze holds one anchor
-	// per peer, ca-certificate. An empty value leaves nothing to chain to, and every
-	// self-signed certificate passes.
-	//
-	// Refuse it here. The caller treats what this function returns as the peer's
-	// identity (ai/rules/fail-closed-guards.md). ValidatePKIRefs refuses the same
-	// config at verify time. A peer that reaches this error changed its mode on the
-	// wire, or was never meant to send one.
-	caName := sa.PeerCfg.Auth.CACertificate
-	if caName == "" {
-		return nil, fmt.Errorf(
-			"ike auth: peer %q sent a certificate and no ca-certificate is configured, "+
-				"so nothing can validate it", sa.PeerName)
-	}
-	ca := pki.GetCA(caName)
-	if ca == nil {
-		return nil, fmt.Errorf("ike auth: CA %q not found in PKI store", caName)
-	}
-	pool := x509.NewCertPool()
-	pool.AddCert(ca.Certificate)
-
-	// The peer's own CERT payloads carry the path from its certificate toward the
-	// anchor. ca-certificate holds ONE certificate (pki.CACertEntry), so without this
-	// pool a leaf signed by an intermediate has no path and a two-level authority
-	// authenticates nobody. A supplied intermediate grants no trust on its own: x509
-	// still requires a signature chain that ends at the anchor above.
-	intermediates := x509.NewCertPool()
-	supplied := 0
-	for _, der := range sa.RemoteCertChainRaw {
-		inter, interErr := x509.ParseCertificate(der)
-		if interErr != nil {
-			getLogger().Warn("ike: remote sent an unparsable intermediate certificate",
-				"peer", sa.PeerName, "error", interErr)
-			continue
-		}
-		intermediates.AddCert(inter)
-		supplied++
-	}
-
-	// KeyUsages is stated rather than inherited. An empty field means
-	// ExtKeyUsageServerAuth in crypto/x509, and an IKE peer is not a TLS server. That
-	// default accepts a certificate with no extension, which is what gen-pki.sh mints,
-	// and refuses one that names clientAuth alone or strongSwan's id-kp-ipsecIKE from
-	// "pki --issue --flag ike". RFC 7296 puts no extended key usage rule on a peer
-	// certificate, so ze imposes none. internal/component/pki/store.go states the same
-	// value for the same reason.
-	if _, err := cert.Verify(x509.VerifyOptions{
-		Roots:         pool,
-		Intermediates: intermediates,
-		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
-	}); err != nil {
-		// The count is the actionable part. "signed by unknown authority" with no
-		// intermediate offered means the peer must send its chain. The same text with
-		// intermediates offered means the chain does not reach ca-certificate
-		// (ai/rules/error-messages.md).
-		return nil, fmt.Errorf(
-			"ike auth: remote certificate validation against ca-certificate %q, "+
-				"with %d intermediate certificate(s) supplied by peer %q: %w",
-			caName, supplied, sa.PeerName, err)
-	}
-
-	// The chain proves the authority issued this certificate. It does not prove the
-	// certificate speaks for the peer ze configured. An authority that issues to many
-	// clients therefore authenticates every one of them as this peer, because the peer
-	// chooses the identity its signature covers. remote-id closes that, and this is the
-	// certificate half of it (ai/rules/fail-closed-guards.md).
-	asserted, _ := assertedIdentity(sa.RemoteIDPayload)
-	want := sa.PeerCfg.Auth.RemoteID
-	if want == "" {
-		// The guard cannot deny, because the operator stated no expectation. It says so
-		// instead. Silence here reads as a check that passed.
-		getLogger().Warn(
-			"ike: remote-id is not set, so every certificate this authority issued authenticates as this peer",
-			"peer", sa.PeerName,
-			"ca-certificate", caName,
-			"asserted-identity", asserted)
-		return cert, nil
-	}
-	if !certificateCarriesIdentity(cert, sa.RemoteIDPayload, want) {
-		return nil, fmt.Errorf(
-			"ike auth: peer %q asserted identity %q, and its certificate carries no such identity. "+
-				"Issue a certificate whose subject alternative name or common name is %q, or correct remote-id",
-			sa.PeerName, asserted, want)
-	}
-
-	return cert, nil
-}
-
 // buildCertRequest builds a CERTREQ payload with the SHA-1 hash of the configured CA's public key.
 // RFC 7296 Section 3.7: CertAuthority is SHA-1(SubjectPublicKeyInfo DER).
 func buildCertRequest(sa *SA) *wire.PayloadCERTREQ {
@@ -632,39 +521,6 @@ func encodeIKEID(id string) (uint8, []byte) {
 		return wire.IDTypeIPv6Addr, ip.To16()
 	}
 	return wire.IDTypeFQDN, []byte(id)
-}
-
-func buildCertPayloads(sa *SA) []wire.PayloadEntry {
-	certName := sa.PeerCfg.Auth.Certificate
-	if certName == "" {
-		return nil
-	}
-	entry := pki.GetCertificate(certName)
-	if entry == nil {
-		return nil
-	}
-
-	// RFC 7296 Section 3.6 puts the certificate that verifies our AUTH first, and
-	// computeX509Auth signs with entry.PrivateKey, whose certificate is entry.Raw.
-	payloads := make([]wire.PayloadEntry, 0, 2)
-	payloads = append(payloads, wire.PayloadEntry{
-		Payload: &wire.PayloadCERT{
-			CertEncoding: wire.CertEncodingX509Sig,
-			CertData:     entry.Raw,
-		},
-	})
-	// The configured intermediate follows. pki config.go records one on the entry and
-	// pki store.go chains through it, and this payload list sent only the leaf. A peer
-	// anchored on the root then had no path to our certificate and refused it.
-	if len(entry.RawInter) > 0 {
-		payloads = append(payloads, wire.PayloadEntry{
-			Payload: &wire.PayloadCERT{
-				CertEncoding: wire.CertEncodingX509Sig,
-				CertData:     entry.RawInter,
-			},
-		})
-	}
-	return payloads
 }
 
 // skSendEncKey/skSendIntegKey/skRecvEncKey/skRecvIntegKey select the SK_* key for

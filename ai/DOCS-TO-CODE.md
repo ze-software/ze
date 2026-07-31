@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 302 design docs, 3148 files
+Total: 302 design docs, 3154 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -3182,6 +3182,8 @@ Total: 302 design docs, 3148 files
 |------|-------|
 | `internal/component/ike/ipsec/algorithm_support.go` | IPsec data model types |
 | `internal/component/ike/ipsec/config.go` | IPsec config parser |
+| `internal/component/ike/ipsec/config_auth_policy.go` | IPsec data model types |
+| `internal/component/ike/ipsec/identity.go` | IPsec data model types |
 | `internal/component/ike/ipsec/types.go` | IPsec data model types |
 | `internal/component/ike/ipsec/validate.go` | IPsec cross-reference validation |
 
@@ -3195,6 +3197,9 @@ Total: 302 design docs, 3148 files
 | `internal/component/ike/crypto/prf.go` | PRF and prf+ key expansion |
 | `internal/component/ike/crypto/proposal.go` | IKE/ESP proposal negotiation |
 | `internal/component/ike/crypto/transform.go` | IKEv2 transform type registry |
+| `internal/component/ike/engine/cert_payload.go` | IKEv2 certificate payload handling |
+| `internal/component/ike/engine/certbundle.go` | IKEv2 certificate payload handling |
+| `internal/component/ike/engine/certurl.go` | IKEv2 certificate payload handling |
 
 ## `plan/learned/740-ipsec-7-ikev2-engine.md`
 
@@ -3204,6 +3209,7 @@ Total: 302 design docs, 3148 files
 | `internal/component/ike/engine/config.go` | config parsing for IKE engine |
 | `internal/component/ike/engine/cookie.go` | responder COOKIE challenge |
 | `internal/component/ike/engine/doctor.go` | IKE engine readiness checks |
+| `internal/component/ike/engine/doctor_certurl.go` | IKE engine readiness checks |
 | `internal/component/ike/engine/events.go` | IKE SA lifecycle events |
 | `internal/component/ike/engine/fsm.go` | IKE SA finite state machine |
 | `internal/component/ike/engine/initiator.go` | IKE_SA_INIT initiator logic |

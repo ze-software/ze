@@ -196,22 +196,87 @@ same address. Certificate authorities issue an address alternative name under a
 tighter policy than a name, and this stops the peer from choosing the weaker
 field.
 
-Ze compares five identity types: `ID_IPV4_ADDR`, `ID_IPV6_ADDR`, `ID_FQDN`,
-`ID_RFC822_ADDR`, and `ID_KEY_ID`. A domain name and a mail address compare with
-the ASCII letters folded. An address compares as an address, so the encoding does
-not matter. A peer that asserts `ID_DER_ASN1_DN` or `ID_DER_ASN1_GN` is refused,
-because RFC 7296 states no canonical form to compare one against configured text.
-A `remote-id` or `local-id` written as a distinguished name is refused at commit
-for the same reason.
+Ze compares six identity types: `ID_IPV4_ADDR`, `ID_IPV6_ADDR`, `ID_FQDN`,
+`ID_RFC822_ADDR`, `ID_KEY_ID`, and `ID_DER_ASN1_DN`. A domain name and a mail
+address compare with the ASCII letters folded. An address compares as an address,
+so the encoding does not matter. A distinguished name compares in RFC 4514 string
+form, and it binds against the certificate subject octet for octet. A peer that
+asserts `ID_DER_ASN1_GN` is refused, because Ze compares no general name.
+
+A `local-id` written as a distinguished name is still refused at commit. Ze
+derives the type it SENDS from the shape of the value, and that derivation has no
+`ID_DER_ASN1_DN` form.
+
+RFC 7296 Section 4 requires that you can configure Ze to accept a PKIX peer whose
+identity is `ID_KEY_ID`. An opaque key id matches no certificate field, so Ze
+cannot derive that binding and denies it by default. Set `remote-id-type key-id`
+to state that the chain to `ca-certificate` plus the exact key id IS the binding
+you intend.
+
+`remote-id-type` also pins ONE identity type for the peer. Without it a text
+`remote-id` accepts `ID_FQDN`, `ID_RFC822_ADDR` and `ID_KEY_ID` alike. All three
+compare as text. Set `remote-id-type rfc822-address` when you know the value is a
+mail address. Ze then refuses a peer that asserts `ID_FQDN` with the same text.
+
+The leaf governs what Ze ACCEPTS. The type Ze sends still follows `local-id`.
 
 **An unset `remote-id` runs neither check.** Every certificate the configured
 authority issued then authenticates as this peer. Ze logs a warning that names
 the peer and the identity it accepted. Set `remote-id` whenever the authority
 issues to more than one client.
 
-<!-- source: internal/component/ike/engine/remote_id.go -- checkRemoteIdentity, certificateCarriesIdentity, hasSubjectAltName, configuredClass -->
-<!-- source: internal/component/ike/engine/auth.go -- verifyRemoteAuth, getRemoteCert, storeRemoteCerts, buildCertPayloads -->
+<!-- source: internal/component/ike/engine/remote_id.go -- checkRemoteIdentity, certificateCarriesIdentity, assertedIdentity, hasSubjectAltName, configuredClass -->
+<!-- source: internal/component/ike/engine/cert_payload.go -- getRemoteCert, storeRemoteCerts, buildCertPayloads -->
 <!-- source: internal/component/ike/ipsec/validate.go -- ValidateIdentities -->
+
+## Certificate chain length
+
+`certificate-count` bounds the X.509 chain in both directions. It is the most
+certificates Ze sends for the peer, and the most it accepts from it. RFC 7296
+Section 3.6 sets that figure at four, and the default is four, so a peer you never
+configure gets the conformant behavior.
+
+A peer that sends more than the bound is REFUSED. Ze does not truncate the chain.
+A silent trim hides from you that the limit was reached. It also makes the
+surviving certificates depend on the order the peer chose.
+
+Name the intermediates on the PKI certificate entry, in order from the issuer of
+your device certificate toward the trust anchor. Ze refuses at commit a peer whose
+`certificate-count` is smaller than the chain its PKI entry holds.
+
+<!-- source: internal/component/ike/engine/cert_payload.go -- storeRemoteCerts, localCertChain -->
+<!-- source: internal/component/ike/ipsec/validate.go -- ValidateCertificateChains -->
+
+## Hash and URL certificates
+
+`hash-and-url` replaces the certificate on the wire with a 20-octet SHA-1 hash and
+a URL that resolves to it (RFC 7296 Section 3.6). It keeps IKE messages short. Set
+`certificate-url` to the http URL where you publish this device's certificate.
+
+**The leaf defaults to false, and that default is a security property.** Resolving
+a URL a peer sends makes an outbound request on behalf of a peer that is NOT yet
+authenticated. Ze must fetch the certificate before it CAN authenticate the
+peer. With the leaf false Ze advertises nothing, a conforming peer
+sends no such payload, and Ze drops one from a peer that sends it anyway.
+
+When you enable it, the lookup is bounded:
+
+| Control | Bound |
+|---------|-------|
+| Scheme | `http` only. Every other scheme is refused before any name resolution |
+| Response size | 64 KiB |
+| Total timeout | 5 seconds |
+| Redirects | None. A redirect is refused |
+| Destination | Loopback, private, link-local, multicast and metadata addresses are denied |
+| Hash | The SHA-1 is verified BEFORE any parser reads the fetched bytes |
+| Cache | Keyed by the hash, never by the URL |
+
+Use `certificate-url-allow` to permit a destination the deny list refuses. Run
+`ze doctor` to check a configured `certificate-url`.
+
+<!-- source: internal/component/ike/engine/certurl.go -- fetchHashAndURL, certURLDenied, certURLClient -->
+<!-- source: internal/component/ike/engine/certbundle.go -- encodeCertBundle, decodeCertBundle -->
+<!-- source: internal/component/ike/engine/doctor_certurl.go -- checkIPsecCertURL -->
 
 The EAP peer validates the authenticator's certificate chain against that trust
 anchor. EAP-TLS has no server hostname, so the check validates the chain without

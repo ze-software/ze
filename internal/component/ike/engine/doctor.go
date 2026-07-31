@@ -1,5 +1,6 @@
 // Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE engine readiness checks
 // Related: register.go -- Registration.DoctorChecks declaration and resolveInterfaceAddr
+// Related: doctor_certurl.go -- the hash-and-url certificate URL readiness check
 
 package engine
 

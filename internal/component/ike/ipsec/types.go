@@ -1,8 +1,14 @@
 // Design: plan/learned/734-ipsec-3-data-model.md -- IPsec data model types
+// RFC: rfc/short/rfc7296.md -- identity types (Section 3.5), certificate payloads (Section 3.6)
 // Related: algorithm_support.go -- the predicates deciding which of these enums a build implements
 // Related: config.go -- the parser that fills these types from the config tree
 
 package ipsec
+
+import (
+	"net/netip"
+	"reflect"
+)
 
 const unknownEnum = "unknown"
 
@@ -385,6 +391,77 @@ type AuthConfig struct {
 	// requires it, because RFC 7296 Section 2.16 makes the responder sign its
 	// AUTH with a public key. ValidatePKIRefs enforces that.
 	Certificate string
+
+	// RemoteIDType pins the IKE ID type the peer must assert, as the type number
+	// from RFC 7296 Section 3.5 (wire.IDType*). Zero means unset, which is the
+	// default and keeps the historical behavior of accepting any comparable type.
+	//
+	// It is ACCEPT-SIDE ONLY. encodeIKEID still derives the type ze SENDS from
+	// local-id alone. The reason is that strongSwan refuses an IP value sent as
+	// ID_FQDN, and overloading one leaf across both directions would change that.
+	RemoteIDType uint8
+
+	// CertificateCount bounds the X.509 certificate chain in BOTH directions:
+	// the most ze sends, and the most it accepts before it refuses the message.
+	// RFC 7296 Section 3.6 sets the figure at four, and the YANG default is four
+	// so an operator who never touches the leaf gets the conformant behavior.
+	CertificateCount uint8
+
+	// HashAndURL turns on the Hash and URL certificate encodings of RFC 7296
+	// Section 3.6. Ze sends them, advertises HTTP_CERT_LOOKUP_SUPPORTED, and
+	// resolves one a peer sends. HashAndURL defaults to FALSE, and that default
+	// is a security property rather than a preference.
+	//
+	// Resolving a received payload means fetching a URL chosen by a peer that is
+	// not yet authenticated. With the leaf off, ze advertises nothing. A
+	// conforming peer then sends no such payload, and the collection loops drop a
+	// non-conforming one. As a result, certurl.go is unreachable.
+	HashAndURL bool
+
+	// CertificateURL is the http URL at which ze's own certificate is published,
+	// sent beside the SHA-1 in a Hash and URL CERT payload.
+	CertificateURL string
+
+	// CertificateURLAllow widens the fetcher's destination deny list. It is empty
+	// by default, leaving loopback, private, link-local and metadata addresses
+	// refused.
+	CertificateURLAllow []netip.Prefix
+}
+
+// Equal reports whether two authentication configurations are the same. It is the ONE
+// producer of that answer, and both peersEqual and remoteAccessEqual call it. A reload
+// decision therefore cannot disagree between a site-to-site peer and the remote-access
+// profile.
+//
+// The comparison is deliberately structural rather than a list of field names. Every
+// scalar field is compared by the `==` below, so a leaf added later is covered the day it
+// is added. A leaf that was merely NAMED in a hand-written field list would be inert on
+// reload. The operator edits it, the config commits, and `show configuration` agrees. But
+// the session never renegotiates, because nothing noticed the change.
+//
+// reflect.DeepEqual is what makes that total. A hand-written field list is the shape this
+// package already got wrong. peersEqual named six auth fields, and remoteAccessEqual used
+// struct equality. The two therefore disagreed about what "changed" meant, and a seventh
+// field would have had to be remembered twice. Reload is a cold path, because it runs when
+// an operator commits. The reflection therefore costs nothing that matters, and
+// healthcheck/config.go and reactor_api.go already take the same trade for the same reason.
+func (a AuthConfig) Equal(b AuthConfig) bool {
+	return reflect.DeepEqual(a, b)
+}
+
+// DefaultCertificateCount is the X.509 certificate chain bound ze applies when the
+// certificate-count leaf is absent. RFC 7296 Section 3.6 names four.
+const DefaultCertificateCount uint8 = 4
+
+// CertificateChainLimit reports the configured chain bound, substituting the RFC's
+// figure when the leaf is unset. Every consumer reads the bound through this, so a
+// zero-valued AuthConfig (a test fixture, a peer parsed before the leaf existed)
+// cannot silently mean "no limit" (ai/rules/fail-closed-guards.md).
+func (a AuthConfig) CertificateChainLimit() uint8 {
+	if a.CertificateCount == 0 {
+		return DefaultCertificateCount
+	}
+	return a.CertificateCount
 }
 
 // SiteToSitePeer is a remote IPsec VPN peer.
@@ -501,7 +578,7 @@ func remoteAccessEqual(a, b *RemoteAccessConfig) bool {
 	if a.IKEGroup != b.IKEGroup || a.ESPGroup != b.ESPGroup {
 		return false
 	}
-	if a.Auth != b.Auth {
+	if !a.Auth.Equal(b.Auth) {
 		return false
 	}
 	if a.Pool.Name != b.Pool.Name || a.Pool.Range != b.Pool.Range ||
@@ -536,10 +613,5 @@ func peersEqual(a, b *SiteToSitePeer) bool {
 		a.RemoteAddress == b.RemoteAddress &&
 		a.VTIBind == b.VTIBind &&
 		a.IfID == b.IfID &&
-		a.Auth.Mode == b.Auth.Mode &&
-		a.Auth.PSK == b.Auth.PSK &&
-		a.Auth.LocalID == b.Auth.LocalID &&
-		a.Auth.RemoteID == b.Auth.RemoteID &&
-		a.Auth.CACertificate == b.Auth.CACertificate &&
-		a.Auth.Certificate == b.Auth.Certificate
+		a.Auth.Equal(b.Auth)
 }

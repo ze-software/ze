@@ -168,8 +168,10 @@ func certPEM(ca *CACertEntry, entry *CertificateEntry) (*plugin.Response, error)
 	raw := certRawDER(ca, entry)
 	out := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: raw})
 
-	if entry != nil && entry.RawInter != nil {
-		out = append(out, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: entry.RawInter})...)
+	if entry != nil {
+		for _, inter := range entry.RawIntermediates {
+			out = append(out, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: inter})...)
+		}
 	}
 
 	return &plugin.Response{
@@ -194,8 +196,8 @@ func certBundlePEM(entry *CertificateEntry) (*plugin.Response, error) {
 	}
 
 	out := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: entry.Raw})
-	if entry.RawInter != nil {
-		out = append(out, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: entry.RawInter})...)
+	for _, inter := range entry.RawIntermediates {
+		out = append(out, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: inter})...)
 	}
 
 	keyPEM, keyErr := marshalPrivateKeyPEM(entry.PrivateKey)
@@ -286,8 +288,10 @@ func certDetailMap(name, typ string, cert *x509.Certificate, hasKey bool, now ti
 			caPool.AddCert(ca.Certificate)
 		}
 		intermediatePool := x509.NewCertPool()
-		if entry, ok := s.certificates[name]; ok && entry.Intermediate != nil {
-			intermediatePool.AddCert(entry.Intermediate)
+		if entry, ok := s.certificates[name]; ok {
+			for _, inter := range entry.Intermediates {
+				intermediatePool.AddCert(inter)
+			}
 		}
 		_, err := cert.Verify(x509.VerifyOptions{
 			Roots:         caPool,

@@ -2200,3 +2200,70 @@ unused symbol, was correct and gated by nothing. Reverting it left the suite gre
 That is the same defect this document records against four subagents, in a fifteen-line
 edit. The lesson is not that the supervisor was careless. It is that the property "this
 change is obviously right" is not evidence, whoever holds it.
+
+## WP-10 partial landing: five of nine rows (2026-07-31)
+
+Design: `plan/handover/03-design-wp10.md`. Five of WP-10's nine rows are implemented and
+proven. Four are NOT done and the package stays open. See the id-allocation note below
+before you land the remaining four: two sections have a contiguity constraint.
+
+### Landed
+
+| Appendix A id | Landed as | Section mark at landing | Why |
+|---------------|-----------|-------------------------|-----|
+| `RFC7296-2.15-3` | `RFC7296-2.15-3` | 2 | above the mark, unchanged |
+| `RFC7296-3.3.4-1` | `RFC7296-3.3.4-4` | 3 | ordinal 1 is at or below the mark |
+| `RFC7296-3.5-2` | `RFC7296-3.5-2` | none | section skipped by `check_id_allocation` |
+| `RFC7296-3.5-3` | `RFC7296-3.5-3` | none | same |
+| `RFC7296-3.5-4` | `RFC7296-3.5-4` | none | same |
+
+The Appendix A row text is unchanged. Only `3.3.4-1`'s ordinal moved. It produces the
+readable oddity the design predicted. The management-facility sentence is the FIRST of the
+three in §3.3.4. Its row now sits LAST, after the two sentences that depend on it.
+
+| Id | State found | What landed |
+|----|-------------|-------------|
+| `RFC7296-3.5-2` | conformant, misfiled NOT IMPL | tagged pair over `buildIDPayload` / `encodeIKEID`, and no production change |
+| `RFC7296-3.5-3` | conformant, misfiled NOT IMPL | tagged pair over `checkRemoteIdentity` / `remoteIDMatches`, and no production change |
+| `RFC7296-3.5-4` | conformant, misfiled NOT IMPL | tagged pair over `assertedAddr`, and no production change |
+| `RFC7296-3.3.4-4` | conformant, misfiled NOT IMPL | tagged pair over the `ike-group / proposal` facility, PLUS the `dh-group` implementability gate the design found missing |
+| `RFC7296-2.15-3` | absent | `parsePreSharedSecret` in `internal/component/ike/ipsec/config.go`, one YANG leaf, tagged pair |
+
+### The `dh-group` defect, fixed
+
+`parseIKEProposal` gated `encryption` and `hash` on implementability and did not gate
+`dh-group`. A proposal naming group 5 passed `ValidDHGroup` (range 1..31), committed, and
+reached `crypto.LookupDHGroup`, which returns the ZERO `DHGroupTransform` -- Transform ID
+0, which RFC 7296 Section 3.3.2 reserves. `DHGroupImplemented`
+(`internal/component/ike/ipsec/algorithm_support.go`) now closes it, mirroring the two
+sibling predicates, and `SupportedDHGroupIDs` derives the error's implemented set from the
+registry. It was recorded IN SCOPE in `plan/deferrals/rfcgate-1b-rfc7296-pilot.md`.
+
+### NOT done -- four rows, and the package stays open
+
+| Row | State | What remains |
+|-----|-------|--------------|
+| `RFC7296-3.6-1` | not started | `CertificateEntry.RawInter` scalar to slice across its four non-test readers, a `certificate-count` leaf, and the accept cap in `storeRemoteCerts` with error handling at BOTH call sites |
+| `RFC7296-3.6-2` | partial | encodings 12 and 13 have constants. The send half, the HTTP_CERT_LOOKUP_SUPPORTED notification, the config leaves and the accept-path wiring are absent |
+| `RFC7296-3.6-3` | code done, NOT enrolled | the bounded fetcher `internal/component/ike/engine/certurl.go` and its tests exist and are mutation-verified. It is NOT wired into either collection loop and carries no tag. See the contiguity note |
+| `RFC7296-4-4` | not started | ID_DER_ASN1_DN binding against `cert.RawSubject`, the ID_KEY_ID opt-in, the `remote-id-type` leaf, and lifting `ValidateIdentities`' DN refusal in the same change |
+
+### Id allocation: two contiguity constraints for whoever lands the rest
+
+**§3.6 must land as a contiguous block of three.** The section has no committed id, so
+`check_id_allocation` skips it and the FIRST package to land there sets the mark.
+Enrolling `3.6-3` alone would push the mark to 3 and strand `3.6-1` and `3.6-2`
+permanently. That is why the fetcher's tests carry no `RFC requirement:` tag today: the
+code is proven, the row is not claimed. Land all three together and tag them then.
+
+**§3.5 has a fourth Appendix A row this package did not own, and it is now stranded.**
+Appendix A holds `RFC7296-3.5-1` (the ID_FQDN / ID_RFC822_ADDR terminator MUST NOT, status
+`uncertain`) besides the three WP-10 rows. Landing `3.5-2`, `-3` and `-4` set the mark to
+4, so `3.5-1` can no longer take ordinal 1 and must land as `RFC7296-3.5-5`. The design's
+marks table classified §3.5 "accepted as-is" and did not apply its own §4 contiguity rule
+to it. That is the one gap found in the design. The cost is one ordinal and a renumbering,
+not a lost obligation.
+
+**§4 is untouched and still correctly ordered.** `4-4` was NOT landed, so the mark stays
+at 1 and `plan/spec-ipsec-remote-access.md` can still take `4-2` and `4-3` in order. Land
+those before WP-10's `4-4`.

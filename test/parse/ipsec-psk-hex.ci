@@ -1,0 +1,60 @@
+# Test: ze config validate accepts a hex-encoded pre-shared secret.
+# RFC 7296 Section 2.15: "It MUST also accept a hex encoding of the shared
+# secret" (RFC7296-2.15-3). The encoding is stated by the
+# pre-shared-secret-encoding leaf and is never guessed from the value, so this
+# config is the operator entry point the obligation names.
+# Unit proof: TestPSKAcceptsHexEncoding (internal/component/ike/ipsec/rfc7296_test.go).
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		ike-group IKE-HEX {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-HEX {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-HEX
+				esp-group ESP-HEX
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret 00ff410a1b2c3d4e5f60718293a4b5c6
+					pre-shared-secret-encoding hex
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

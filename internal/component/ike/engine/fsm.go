@@ -691,7 +691,7 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 		case *wire.PayloadAUTH:
 			authPayload = p
 		case *wire.PayloadCERT:
-			if p.CertEncoding == wire.CertEncodingX509Sig && len(p.CertData) > 0 {
+			if acceptedCertEncoding(sa, p) {
 				certPayloads = append(certPayloads, p)
 			}
 		case *wire.PayloadEAP:
@@ -712,7 +712,11 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 			}
 		}
 	}
-	storeRemoteCerts(sa, certPayloads)
+	if err := storeRemoteCerts(sa, certPayloads, log); err != nil {
+		log.Warn("ike: peer certificate chain refused", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
 
 	if err := recordPeerWindowSize(sa, setWindowSize); err != nil {
 		log.Warn("ike: peer SET_WINDOW_SIZE refused", "peer", sa.PeerName, "error", err)

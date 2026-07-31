@@ -3,10 +3,20 @@
 package wire
 
 // Certificate encoding types (RFC 7296 Section 3.6).
+//
+// The two Hash and URL encodings replace a long structure with a 20-octet SHA-1 hash of
+// the replaced value (RFC 7296 Section 3.6). A variable-length URL follows the hash, and
+// it resolves to the DER-encoded structure itself. Both ride in CertData unchanged, so
+// the codec below needs no case for them: the hash and the URL are split by the consumer.
 const (
-	CertEncodingX509Sig uint8 = 4
-	CertEncodingHashURL uint8 = 12
+	CertEncodingX509Sig       uint8 = 4
+	CertEncodingHashURL       uint8 = 12
+	CertEncodingHashURLBundle uint8 = 13
 )
+
+// CertHashURLHashLen is the length of the SHA-1 hash that prefixes a Hash and URL
+// payload's data (RFC 7296 Section 3.6).
+const CertHashURLHashLen = 20
 
 // PayloadCERT is the Certificate payload (type 37).
 type PayloadCERT struct {

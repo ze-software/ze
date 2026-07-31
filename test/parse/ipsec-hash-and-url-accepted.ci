@@ -1,0 +1,88 @@
+# Test: ze config validate ACCEPTS the whole RFC 7296 Section 3.6 certificate
+# surface: certificate-count, hash-and-url, certificate-url and the
+# certificate-url-allow leaf-list, together with an X.509 peer whose remote-id is
+# a distinguished name.
+#
+# It is the acceptance half of the two refusal tests beside it, and it carries
+# two obligations at once.
+#
+# RFC7296-3.6-2 and RFC7296-3.6-3: the Hash and URL formats and the http lookup
+# are reachable only when an operator turns them on, so the leaves that turn them
+# on must reach the daemon. A schema that refused this config would leave both
+# MUSTs unconfigurable whatever the engine can do.
+#
+# RFC7296-4-4: remote-id "CN=hq,O=Example" now COMMITS. Ze used to refuse a
+# distinguished name at verify because it could compare no ID_DER_ASN1_DN at all,
+# and that refusal was lifted in the same change that gave the engine the
+# binding. This asserts the lift reaches the operator entry point rather than
+# living only in the validator's unit test.
+#
+# Unit proof: TestChuBothHashAndURLFormatsAreConfigurable,
+# TestChuHashURLLookupUsesHTTPAndVerifiesTheHash
+# (internal/component/ike/engine/rfc7296_cert_chain_test.go),
+# TestVidDistinguishedNameRemoteIDCommits
+# (internal/component/ike/ipsec/validate_identity_test.go).
+# RFC requirement: RFC7296-3.6-2 positive -- the hash-and-url, certificate-url and
+# certificate-url-allow leaves reach the daemon, so the two Hash and URL formats are
+# reachable by configuration at the operator entry point.
+# RFC requirement: RFC7296-4-4 positive -- a distinguished-name remote-id commits, so
+# the ID_DER_ASN1_DN acceptance RFC 7296 Section 4 requires is configurable.
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		ike-group IKE-HU {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-HU {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-HU
+				esp-group ESP-HU
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+					remote-id CN=hq,O=Example
+					remote-id-type der-asn1-dn
+					certificate-count 4
+					hash-and-url true
+					certificate-url http://pki.example/device.der
+					certificate-url-allow 203.0.113.0/24
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

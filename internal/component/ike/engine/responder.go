@@ -282,6 +282,12 @@ func buildSAInitResponse(sa *SA, chosen crypto.IKEProposal) ([]byte, error) {
 		{Payload: buildSignatureHashAlgosNotify()},
 	}
 
+	// RFC 7296 Section 3.10 allows HTTP_CERT_LOOKUP_SUPPORTED in any message that can
+	// carry a CERTREQ, and Section 3.7 puts one in the IKE_SA_INIT response.
+	if notify := hashAndURLNotify(sa); notify != nil {
+		payloads = append(payloads, wire.PayloadEntry{Payload: notify})
+	}
+
 	localIP := net.ParseIP(sa.PeerCfg.LocalAddress)
 	remoteIP := net.ParseIP(sa.PeerCfg.RemoteAddress)
 	if localIP != nil && remoteIP != nil {
@@ -474,7 +480,7 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 		case *wire.PayloadAUTH:
 			authPayload = p
 		case *wire.PayloadCERT:
-			if p.CertEncoding == wire.CertEncodingX509Sig && len(p.CertData) > 0 {
+			if acceptedCertEncoding(sa, p) {
 				certPayloads = append(certPayloads, p)
 			}
 		case *wire.PayloadNotify:
@@ -502,7 +508,11 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 		}
 	}
 
-	storeRemoteCerts(sa, certPayloads)
+	if err := storeRemoteCerts(sa, certPayloads, log); err != nil {
+		log.Warn("ike: peer certificate chain refused", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
 
 	if err := recordPeerWindowSize(sa, setWindowSize); err != nil {
 		log.Warn("ike: peer SET_WINDOW_SIZE refused", "peer", sa.PeerName, "error", err)
@@ -748,7 +758,14 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 	inner := make([]wire.PayloadEntry, 0, 6)
 	inner = append(inner, wire.PayloadEntry{Payload: buildIDPayload(sa, false)})
 	if sa.PeerCfg.Auth.Mode == ipsec.AuthX509 {
-		inner = append(inner, buildCertPayloads(sa)...)
+		certPayloads, cErr := buildCertPayloads(sa)
+		if cErr != nil {
+			if dp != nil {
+				removeChildSA(child, dp, log)
+			}
+			return nil, nil, cErr
+		}
+		inner = append(inner, certPayloads...)
 	}
 	inner = append(inner,
 		wire.PayloadEntry{Payload: authPayload},

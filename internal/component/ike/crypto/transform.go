@@ -4,6 +4,7 @@ package crypto
 
 import (
 	"errors"
+	"slices"
 	"sort"
 )
 
@@ -237,6 +238,20 @@ func SupportedIntegrityNames() []string {
 // SupportedPRFNames lists every PRF this build implements, in sorted order.
 func SupportedPRFNames() []string {
 	return sortedKeys(prfRegistry)
+}
+
+// SupportedDHGroupIDs lists every Diffie-Hellman group this build implements, in
+// ascending order. RFC 7296 Section 3.3.2 assigns Transform Type 4 a far wider number
+// space than any build carries. The config parser therefore names this list in the error
+// it returns for a group it refuses, so the two can never disagree
+// (ai/rules/derive-not-hardcode.md).
+func SupportedDHGroupIDs() []uint8 {
+	ids := make([]uint8, 0, len(dhGroupRegistry))
+	for id := range dhGroupRegistry {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	return ids
 }
 
 func sortedKeys[V any](m map[string]V) []string {

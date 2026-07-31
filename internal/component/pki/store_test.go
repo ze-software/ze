@@ -467,12 +467,12 @@ func TestExportPEMWithIntermediate(t *testing.T) {
 		},
 		Certificates: map[string]*CertificateEntry{
 			"dev-inter": {
-				Name:         "dev-inter",
-				Certificate:  devCert,
-				Raw:          devDER,
-				PrivateKey:   devKey,
-				Intermediate: interCert,
-				RawInter:     interDER,
+				Name:             "dev-inter",
+				Certificate:      devCert,
+				Raw:              devDER,
+				PrivateKey:       devKey,
+				Intermediates:    []*x509.Certificate{interCert},
+				RawIntermediates: [][]byte{interDER},
 			},
 		},
 	}

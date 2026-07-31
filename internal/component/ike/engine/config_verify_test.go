@@ -81,11 +81,50 @@ func TestValidateIPsecSectionsRejectsUnknownGroupRef(t *testing.T) {
 }
 
 // VALIDATES: the identity validator runs inside the plugin's OnConfigVerify body, so a
-// distinguished-name remote-id is refused at commit.
-// PREVENTS: ValidateIdentities existing and never running. remote-id "CN=hq,O=Example"
-// committed clean and then denied every peer at IKE_AUTH, where only the log saw it
-// (ai/rules/wiring-completeness.md, ai/rules/exact-or-reject.md).
-func TestValidateIPsecSectionsRejectsADistinguishedNameRemoteID(t *testing.T) {
+// distinguished-name local-id is refused at commit.
+// PREVENTS: ValidateIdentities existing and never running. The value committed clean and
+// then produced an IKE_AUTH no peer expecting a distinguished name accepts, where only the
+// log saw it (ai/rules/wiring-completeness.md, ai/rules/exact-or-reject.md).
+//
+// The trigger is local-id rather than remote-id because a distinguished-name REMOTE-id is
+// now a supported configuration. RFC 7296 Section 4 requires ze be configurable to accept
+// a PKIX peer asserting ID_DER_ASN1_DN. The engine binds one against the certificate's
+// RawSubject. The SEND side has no such branch, so local-id still cannot carry a DN, and
+// it is the leaf that keeps this wiring assertion alive.
+func TestValidateIPsecSectionsRejectsADistinguishedNameLocalID(t *testing.T) {
+	sections := vpnSection(`{
+	  "vpn": {
+	  "ipsec": {
+	    "site-to-site": {
+	      "peer": {
+	        "branch": {
+	          "authentication": {
+	            "mode": "pre-shared-secret", "pre-shared-secret": "s3cret",
+	            "local-id": "CN=hq,O=Example"
+	          }
+	        }
+	      }
+	    }
+	  }
+	  }
+	}`)
+
+	err := validateIPsecSections(sections)
+
+	if err == nil {
+		t.Fatal("a distinguished-name local-id passed config verification")
+	}
+	if !strings.Contains(err.Error(), "ID_DER_ASN1_DN") {
+		t.Errorf("error %q does not explain why the identity can never match", err)
+	}
+}
+
+// VALIDATES: a distinguished-name remote-id reaches the daemon, through the same
+// OnConfigVerify body that refuses the local-id above.
+// PREVENTS: the two halves of the lift disagreeing. Lifting the refusal in
+// ValidateIdentities while some other validator in this body still rejected the value
+// would leave RFC7296-4-4 unreachable from config with nothing naming the cause.
+func TestValidateIPsecSectionsAcceptsADistinguishedNameRemoteID(t *testing.T) {
 	sections := vpnSection(`{
 	  "vpn": {
 	  "ipsec": {
@@ -103,13 +142,9 @@ func TestValidateIPsecSectionsRejectsADistinguishedNameRemoteID(t *testing.T) {
 	  }
 	}`)
 
-	err := validateIPsecSections(sections)
-
-	if err == nil {
-		t.Fatal("a distinguished-name remote-id passed config verification")
-	}
-	if !strings.Contains(err.Error(), "ID_DER_ASN1_DN") {
-		t.Errorf("error %q does not explain why the identity can never match", err)
+	if err := validateIPsecSections(sections); err != nil {
+		t.Fatalf("a distinguished-name remote-id was refused at commit, so RFC 7296 "+
+			"Section 4's ID_DER_ASN1_DN acceptance cannot be configured: %v", err)
 	}
 }
 

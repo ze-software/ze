@@ -485,6 +485,28 @@ var builtinCodes = []CodeMeta{
 		Examples: []string{"ze doctor --json", "ze explain doctor-ipsec-udp-encap"},
 	},
 	{
+		Code:  "doctor-ipsec-cert-url",
+		Title: "IPsec certificate URL unusable",
+		Description: "A peer has hash-and-url set, and its certificate-url is not a URL ze can " +
+			"publish its certificate at. RFC 7296 Section 3.6 requires support for the http scheme " +
+			"for hash-and-url lookup, and ze refuses every other scheme before any name resolution. " +
+			"A peer that asked for hash-and-url and cannot name a reachable http URL will fall back " +
+			"to nothing: the certificate never reaches the remote end and IKE_AUTH fails there.",
+		Examples: []string{"ze doctor --json", "ze explain doctor-ipsec-cert-url"},
+	},
+	{
+		Code:  "doctor-ipsec-cert-url-denied",
+		Title: "IPsec certificate URL denied by the fetcher",
+		Description: "A peer's certificate-url names a destination the hash-and-url fetcher refuses: " +
+			"a loopback, private, link-local or multicast address, or the cloud metadata address. " +
+			"That deny list exists because the fetch is made on behalf of a peer that is NOT yet " +
+			"authenticated, and the daemon runs on a router holding routes an internet host does " +
+			"not. The URL ze publishes must be reachable by the PEER, so a private address is " +
+			"usually a configuration mistake. Name the prefix in certificate-url-allow when it is " +
+			"deliberate.",
+		Examples: []string{"ze doctor --json", "ze explain doctor-ipsec-cert-url-denied"},
+	},
+	{
 		Code:        "doctor-bgp-listen",
 		Title:       "BGP listener unavailable",
 		Description: "A configured BGP local address and port could not be bound before daemon startup.",

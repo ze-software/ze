@@ -1,0 +1,48 @@
+# Test: ze config validate REFUSES a dh-group outside the range the data model
+# assigns. RFC 7296 Section 3.3.2 gives Transform Type 4 the range this leaf
+# encodes as `range "1..31"`, and the YANG schema is what enforces it.
+#
+# Deliberately NOT asserted here: that a dh-group INSIDE the range but absent
+# from the crypto registry (5, for example) is refused. DHGroupImplemented closes
+# that -- it was the defect this work package fixed -- but it runs in
+# parseIKEProposal, which `ze config validate` does not invoke, exactly as it does
+# not invoke the encryption and hash gates beside it. Unit proof:
+# TestIKESuitePolicyRejectsAnUnhonourableSuite row 3
+# (internal/component/ike/ipsec/rfc7296_test.go).
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		ike-group IKE-BAD-DH {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 32
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=dh-group

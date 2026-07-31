@@ -6,6 +6,7 @@ package ipsec
 
 import (
 	"github.com/ze-software/ze/internal/component/ike/crypto"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // The YANG enum offers every algorithm the data model can name. A build implements a
@@ -38,6 +39,21 @@ func HashImplemented(h HashAlgo) bool {
 	return err == nil
 }
 
+// DHGroupImplemented reports whether this build carries a Diffie-Hellman transform for
+// the group. ParseIPsecConfig refuses a proposal that names one it does not.
+//
+// ValidDHGroup alone is not enough. It answers whether the NUMBER is in the range RFC
+// 7296 Section 3.3.2 assigns Transform Type 4, which is 1..31, while the registry holds
+// three groups. A proposal naming group 5 therefore passed parse and reached the
+// negotiator, where LookupDHGroup returns the ZERO DHGroupTransform -- Transform ID 0,
+// which RFC 7296 Section 3.3.2 reserves. That is the zero-value trap of
+// ai/rules/fail-closed-guards.md reaching the wire, and it is the same failure the
+// encryption and hash gates above already close.
+func DHGroupImplemented(g DHGroup) bool {
+	_, err := crypto.LookupDHGroup(uint8(g))
+	return err == nil
+}
+
 func encryptionTransformFor(e EncryptionAlgo) (crypto.EncryptionTransform, error) {
 	return crypto.LookupEncryption(e.String())
 }
@@ -50,6 +66,25 @@ func integrityTransformFor(h HashAlgo) (crypto.IntegrityTransform, error) {
 // error message. Both derive from the crypto registry, so neither can drift from what
 // the daemon can actually key (ai/rules/derive-not-hardcode.md).
 func SupportedEncryptionNames() []string { return crypto.SupportedEncryptionNames() }
+
+// SupportedDHGroupIDs lists the Diffie-Hellman groups this build implements, for the
+// error DHGroupImplemented's caller returns. Derived for the same reason.
+func SupportedDHGroupIDs() []uint8 { return crypto.SupportedDHGroupIDs() }
+
+// joinDHGroupIDs renders the implemented group numbers as "14, 19, 20" for an error
+// message. The sibling predicates name a []string set, so they can use textbuf.Join.
+// A group is a number instead, so joinDHGroupIDs builds the list in one buffer rather
+// than through an intermediate []string (ai/rules/no-sprintf-alloc.md).
+func joinDHGroupIDs(ids []uint8) string {
+	var b textbuf.Buffer
+	for i, id := range ids {
+		if i > 0 {
+			b.Str(", ")
+		}
+		b.Uint8(id)
+	}
+	return b.String()
+}
 
 // integrityNames and prfNames name the two registries a usable hash needs an entry in.
 // They are variables rather than direct calls so a test can make the two disagree. No

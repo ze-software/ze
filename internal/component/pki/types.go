@@ -19,14 +19,23 @@ type CACertEntry struct {
 }
 
 // CertificateEntry holds a parsed device certificate with its private key
-// and optional intermediate certificate.
+// and any intermediate certificates on the path toward a trust anchor.
+//
+// The intermediates are a SLICE because RFC 7296 Section 3.6 requires an implementation
+// be "capable of being configured to send and accept up to four X.509 certificates in
+// support of authentication". buildCertPayloads sends the leaf plus every intermediate
+// this entry holds. A single intermediate field therefore capped the send side at two.
+// No operator setting was able to raise that cap.
+//
+// Intermediates and RawIntermediates are index-aligned: RawIntermediates[i] is the DER
+// that parsed into Intermediates[i].
 type CertificateEntry struct {
-	Name         string
-	Certificate  *x509.Certificate
-	Raw          []byte
-	PrivateKey   crypto.PrivateKey
-	Intermediate *x509.Certificate
-	RawInter     []byte
+	Name             string
+	Certificate      *x509.Certificate
+	Raw              []byte
+	PrivateKey       crypto.PrivateKey
+	Intermediates    []*x509.Certificate
+	RawIntermediates [][]byte
 }
 
 // CertSummary is the JSON-serializable summary for show pki certificates.

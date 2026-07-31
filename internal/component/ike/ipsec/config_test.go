@@ -137,6 +137,9 @@ func makePeerTree(peerName string, opts peerOpts) *config.Tree {
 	if opts.psk != "" {
 		auth.Set("pre-shared-secret", opts.psk)
 	}
+	if opts.pskEncoding != "" {
+		auth.Set("pre-shared-secret-encoding", opts.pskEncoding)
+	}
 	if opts.localID != "" {
 		auth.Set("local-id", opts.localID)
 	}
@@ -173,6 +176,7 @@ type peerOpts struct {
 	remoteAddr   string
 	authMode     string
 	psk          string
+	pskEncoding  string // pre-shared-secret-encoding; empty leaves the leaf absent
 	localID      string
 	remoteID     string
 	caCert       string

@@ -1,0 +1,66 @@
+# Test: ze config validate REFUSES a certificate-count outside 1..4.
+# RFC 7296 Section 3.6: "Implementations MUST be capable of being configured to
+# send and accept up to four X.509 certificates in support of authentication"
+# (RFC7296-3.6-1). Four is the figure the section names, so the YANG range
+# encodes it and the schema is what enforces the bound at the operator entry
+# point.
+# Unit proof: TestCcnCertificateCountIsBoundedAndConfigurable
+# (internal/component/ike/engine/rfc7296_cert_chain_test.go).
+# RFC requirement: RFC7296-3.6-1 negative -- the operator entry point refuses a
+# certificate-count above the four RFC 7296 Section 3.6 names, so the bound an
+# operator can ask for is the bound the section states.
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		ike-group IKE-CC {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-CC {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-CC
+				esp-group ESP-CC
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+					certificate-count 5
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=certificate-count

@@ -4,12 +4,15 @@
 package engine
 
 import (
+	"bytes"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/asn1"
 	"fmt"
 	"net/netip"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -128,9 +131,35 @@ func assertedIdentity(p *wire.PayloadID) (text string, comparable bool) {
 		// ID_FQDN and ID_RFC822_ADDR ASCII. A peer that breaks that rule must not put
 		// a control octet into a log line, or into an error a caller formats with %s.
 		return opaqueText(p.IDData), true
+	case wire.IDTypeDERASN1DN:
+		name, ok := assertedDN(p)
+		if !ok {
+			var b textbuf.Buffer
+			return b.Str("ID_DER_ASN1_DN that is not a valid DER distinguished name").String(), false
+		}
+		return name, true
 	}
 	var b textbuf.Buffer
 	return b.Str(idTypeName(p.IDType)).Str(" ").Str(opaqueText(p.IDData)).String(), false
+}
+
+// assertedDN renders an ID_DER_ASN1_DN payload as an RFC 4514 distinguished-name string.
+//
+// RFC 7296 Section 3.5 carries the value as "the binary DER encoding of an ASN.1 X.500
+// Distinguished Name". Comparing that against operator TEXT needs a canonical string
+// form, and RFC 4514 is the conventional one. pkix.RDNSequence.String implements RFC 4514.
+// An operator therefore writes a remote-id in the same form OpenSSL and strongSwan print.
+//
+// The rendering is used for the POLICY comparison against remote-id only. The binding
+// against the certificate is done on the DER itself in certificateCarriesIdentity, where
+// no rendering and therefore no canonicalization question arises.
+func assertedDN(p *wire.PayloadID) (string, bool) {
+	var rdn pkix.RDNSequence
+	rest, err := asn1.Unmarshal(p.IDData, &rdn)
+	if err != nil || len(rest) != 0 {
+		return "", false
+	}
+	return rdn.String(), true
 }
 
 // identityClass groups the certificate fields that one configured remote-id value can be
@@ -142,6 +171,11 @@ type identityClass uint8
 const (
 	classText identityClass = iota
 	classAddress
+	// classDN is the X.500 distinguished name carried by ID_DER_ASN1_DN. It is its own
+	// class because it is neither an address nor free text. The wire form is DER. The
+	// configured form is that DER rendered as an RFC 4514 string. And the certificate
+	// field it binds against is RawSubject rather than a SAN entry.
+	classDN
 )
 
 // configuredClass reads the class the operator wrote. encodeIKEID makes the same reading
@@ -150,6 +184,11 @@ const (
 func configuredClass(want string) identityClass {
 	if _, err := netip.ParseAddr(want); err == nil {
 		return classAddress
+	}
+	// The DN reading is the validator's own predicate rather than a second one. A value
+	// that commits as a DN is therefore compared as a DN.
+	if ipsec.IsDistinguishedName(want) {
+		return classDN
 	}
 	return classText
 }
@@ -171,6 +210,8 @@ func assertedClass(idType uint8) (identityClass, bool) {
 		return classAddress, true
 	case wire.IDTypeFQDN, wire.IDTypeRFC822Addr, wire.IDTypeKeyID:
 		return classText, true
+	case wire.IDTypeDERASN1DN:
+		return classDN, true
 	}
 	return classText, false
 }
@@ -220,6 +261,13 @@ func remoteIDMatches(want string, p *wire.PayloadID) bool {
 		return asciiEqualFold(string(p.IDData), want)
 	case wire.IDTypeKeyID:
 		return string(p.IDData) == want
+	case wire.IDTypeDERASN1DN:
+		// The asserted DER is rendered to RFC 4514 and compared with the operator's
+		// text. Attribute names are case-insensitive in that form, and the values are
+		// compared as written. Ze does not apply X.500 string-preparation rules,
+		// because RFC 7296 states none.
+		name, ok := assertedDN(p)
+		return ok && asciiEqualFold(name, want)
 	}
 	return false
 }
@@ -246,8 +294,21 @@ func checkRemoteIdentity(sa *SA) error {
 	if !comparable {
 		return fmt.Errorf(
 			"ike auth: peer %q asserted %s, which ze cannot compare with the configured remote-id %q. "+
-				"Configure the peer to send ID_IPV4_ADDR, ID_IPV6_ADDR, ID_FQDN, ID_RFC822_ADDR, or ID_KEY_ID",
+				"Configure the peer to send ID_IPV4_ADDR, ID_IPV6_ADDR, ID_FQDN, ID_RFC822_ADDR, "+
+				"ID_KEY_ID, or ID_DER_ASN1_DN",
 			sa.PeerName, asserted, want)
+	}
+
+	// remote-id-type pins the ONE type this peer can assert. Without it a text-valued
+	// remote-id accepts ID_FQDN, ID_RFC822_ADDR and ID_KEY_ID alike, because
+	// remoteIDMatches compares all three as text once the class agrees. That widening is
+	// harmless when the operator only knows the value. And it is exactly what an operator
+	// who knows the value is a mail address wants to close.
+	if pinned := sa.PeerCfg.Auth.RemoteIDType; pinned != 0 && sa.RemoteIDPayload.IDType != pinned {
+		return fmt.Errorf(
+			"ike auth: peer %q asserted %s and remote-id-type pins %s. "+
+				"Configure the peer to assert %s, or change remote-id-type",
+			sa.PeerName, idTypeName(sa.RemoteIDPayload.IDType), idTypeName(pinned), idTypeName(pinned))
 	}
 
 	if !remoteIDMatches(want, sa.RemoteIDPayload) {
@@ -320,13 +381,29 @@ func hasSubjectAltName(cert *x509.Certificate) bool {
 //
 // ID_KEY_ID never binds. A certificate holds no field that corresponds to an opaque
 // vendor identity, so the check denies rather than guesses (ai/rules/fail-closed-guards.md).
-func certificateCarriesIdentity(cert *x509.Certificate, p *wire.PayloadID, want string) bool {
+func certificateCarriesIdentity(cert *x509.Certificate, p *wire.PayloadID, want string, pinnedType uint8) bool {
 	if cert == nil || p == nil || len(p.IDData) == 0 {
 		return false
 	}
 	cn := ""
 	if !hasSubjectAltName(cert) {
 		cn = cert.Subject.CommonName
+	}
+
+	// RFC 7296 Section 4 requires that it be possible to configure ze to accept a PKIX
+	// certificate "where the ID passed is any of ID_KEY_ID, ID_FQDN, ID_RFC822_ADDR, or
+	// ID_DER_ASN1_DN".
+	//
+	// ID_KEY_ID is the one that cannot be derived. It is an opaque vendor value, and no
+	// certificate field corresponds to it. Ze therefore cannot prove the certificate
+	// carries it, and it denies by default rather than guessing.
+	//
+	// remote-id-type key-id is the operator stating that a chain to ca-certificate PLUS
+	// the exact key id IS the binding they intend. checkRemoteIdentity has already proven
+	// the asserted octets equal remote-id exactly. What is accepted here is a named value
+	// from a named authority, not any certificate that authority issued.
+	if p.IDType == wire.IDTypeKeyID {
+		return pinnedType == wire.IDTypeKeyID
 	}
 
 	// checkRemoteIdentity has already proven the asserted value equals want, so binding
@@ -347,6 +424,13 @@ func certificateCarriesIdentity(cert *x509.Certificate, p *wire.PayloadID, want 
 	}
 
 	switch p.IDType {
+	case wire.IDTypeDERASN1DN:
+		// The asserted value and the certificate's own subject are BOTH DER, so the
+		// comparison is exact and canonical with nothing guessed. This package records
+		// an objection against comparing a DN: no rule in RFC 7296 gives a canonical
+		// text form. That objection applies to comparing a DN against operator TEXT.
+		// It dissolves here, because bytes.Equal needs no text form at all.
+		return bytes.Equal(p.IDData, cert.RawSubject)
 	case wire.IDTypeFQDN:
 		asserted := string(p.IDData)
 		for _, name := range cert.DNSNames {

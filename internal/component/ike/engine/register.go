@@ -194,6 +194,18 @@ func init() {
 			Platforms:    []string{"any"},
 			Codes:        []string{"doctor-ipsec-udp-encap"},
 			Check:        checkIPsecUDPEncap,
+		}, {
+			// RFC 7296 Section 3.6's hash-and-url is an outbound network dependency:
+			// ze publishes its certificate at an operator-named http URL and the peer
+			// fetches it. A URL the peer cannot reach fails on the PEER's side, so
+			// nothing in ze's own logs explains it (ai/rules/doctor-checks.md).
+			Name:         "ipsec-cert-url",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        732,
+			Dependencies: []string{"config-loaded"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-ipsec-cert-url", "doctor-ipsec-cert-url-denied"},
+			Check:        checkIPsecCertURL,
 		}},
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }

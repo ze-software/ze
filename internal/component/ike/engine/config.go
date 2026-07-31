@@ -78,7 +78,12 @@ func parseVPNSections(sections []sdk.ConfigSection) (*ipsec.IPsecConfig, error) 
 // set, without installing it. An absent section yields an empty set, so a
 // certificate reference in a config that defines no PKI is correctly reported
 // as unresolvable.
-func candidatePKI(sections []sdk.ConfigSection) (hasCA, hasCert func(string) bool, certCN func(string) string, err error) {
+func candidatePKI(sections []sdk.ConfigSection) (
+	hasCA, hasCert func(string) bool,
+	certCN func(string) string,
+	certChainLen func(string) int,
+	err error,
+) {
 	cfg := &pki.PKIConfig{
 		CACerts:      make(map[string]*pki.CACertEntry),
 		Certificates: make(map[string]*pki.CertificateEntry),
@@ -89,7 +94,7 @@ func candidatePKI(sections []sdk.ConfigSection) (hasCA, hasCert func(string) boo
 		}
 		parsed, perr := parsePKIFromJSON(s.Data)
 		if perr != nil {
-			return nil, nil, nil, perr
+			return nil, nil, nil, nil, perr
 		}
 		cfg = parsed
 		break
@@ -104,7 +109,17 @@ func candidatePKI(sections []sdk.ConfigSection) (hasCA, hasCert func(string) boo
 		}
 		return entry.Certificate.Subject.CommonName
 	}
-	return hasCA, hasCert, certCN, nil
+	// The count ze would put on the wire: the device certificate plus its intermediates,
+	// which is exactly what localCertChain assembles. A name the candidate section does
+	// not carry reports 0, and ValidatePKIRefs refuses that separately.
+	certChainLen = func(name string) int {
+		entry := cfg.Certificates[name]
+		if entry == nil {
+			return 0
+		}
+		return 1 + len(entry.RawIntermediates)
+	}
+	return hasCA, hasCert, certCN, certChainLen, nil
 }
 
 // validateIPsecSections parses the delivered config sections and runs the
@@ -136,7 +151,7 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 	if err != nil {
 		return err
 	}
-	hasCA, hasCert, certCN, err := candidatePKI(sections)
+	hasCA, hasCert, certCN, certChainLen, err := candidatePKI(sections)
 	if err != nil {
 		return err
 	}
@@ -144,6 +159,9 @@ func validateIPsecSections(sections []sdk.ConfigSection) error {
 		return err
 	}
 	if err := cfg.ValidatePKIRefs(hasCA, hasCert, certCN); err != nil {
+		return err
+	}
+	if err := cfg.ValidateCertificateChains(certChainLen); err != nil {
 		return err
 	}
 	if err := cfg.ValidateIdentities(); err != nil {

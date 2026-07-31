@@ -92,7 +92,7 @@ func rccPKI(t *testing.T) (leafDER, interDER []byte, leafKey *ecdsa.PrivateKey) 
 		Certificates: map[string]*pki.CertificateEntry{
 			rccCertName: {
 				Name: rccCertName, Certificate: leafCert, Raw: leafDER, PrivateKey: leafKey,
-				Intermediate: interCert, RawInter: interDER,
+				Intermediates: []*x509.Certificate{interCert}, RawIntermediates: [][]byte{interDER},
 			},
 		},
 	}); err != nil {
@@ -271,7 +271,10 @@ func TestRccSentCertPayloadsCarryTheIntermediate(t *testing.T) {
 
 	sa := testSAWithKeys(t)
 	sa.PeerCfg.Auth = rccAuth()
-	entries := buildCertPayloads(sa)
+	entries, err := buildCertPayloads(sa)
+	if err != nil {
+		t.Fatalf("buildCertPayloads: %v", err)
+	}
 	if len(entries) != 2 {
 		t.Fatalf("buildCertPayloads emitted %d payloads, want the leaf and its intermediate", len(entries))
 	}

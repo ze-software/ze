@@ -1,0 +1,68 @@
+# Test: ze config validate REFUSES an unknown pre-shared-secret-encoding.
+# The leaf is an enumeration of exactly ascii and hex, so the YANG schema is what
+# rejects anything else, and that is the layer `ze config validate` genuinely
+# owns (ai/rules/config-design.md: maximum native constraints).
+#
+# Deliberately NOT asserted here: that a malformed hex VALUE is refused. That
+# check lives in parsePreSharedSecret, which `ze config validate` does not
+# invoke. Neither does it invoke the pre-existing encryption and hash
+# implementability gates: verified 2026-07-31 by validating a config naming
+# `encryption chacha20poly1305`, which this build does not implement and which
+# `ze config validate` reported as valid. That gap is pre-existing and systemic
+# across component parsers, and it is not this leaf's to close.
+# The value refusal is unit-proven by TestHexEncodingIsExplicitAndNeverGuessed.
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		ike-group IKE-HEX {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-HEX {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-HEX
+				esp-group ESP-HEX
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret 00ff41
+					pre-shared-secret-encoding base64
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=pre-shared-secret-encoding

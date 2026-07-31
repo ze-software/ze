@@ -198,7 +198,7 @@ func TestRidEmptyAssertedIdentityNeverBinds(t *testing.T) {
 	}
 	for _, idType := range []uint8{wire.IDTypeFQDN, wire.IDTypeRFC822Addr} {
 		p := &wire.PayloadID{IDPayloadType: wire.PayloadTypeIDr, IDType: idType}
-		if certificateCarriesIdentity(cert, p, "") {
+		if certificateCarriesIdentity(cert, p, "", 0) {
 			t.Errorf("an empty %s bound to a certificate with an empty common name",
 				idTypeName(idType))
 		}
@@ -327,22 +327,45 @@ func TestRidTrailingDotRefusalNamesTheTrailingDot(t *testing.T) {
 	}
 }
 
-// VALIDATES: an identity type ze cannot compare denies the peer and names the type.
-// PREVENTS: the guard falling through on a distinguished name. A check that cannot run is
-// a check that denies, never one that passes (ai/rules/fail-closed-guards.md).
+// VALIDATES: an identity type ze cannot compare denies the peer and names the type, and a
+// malformed distinguished name denies rather than rendering to something comparable.
+// PREVENTS: the guard falling through. A check that cannot run is a check that denies,
+// never one that passes (ai/rules/fail-closed-guards.md).
+//
+// ID_DER_ASN1_DN moved OUT of this test when RFC7296-4-4 made it comparable, and the two
+// cases below are what remains genuinely incomparable. ID_DER_ASN1_GN is still assigned by
+// RFC 7296 Section 3.5 and still has no comparison. And a DN whose octets are not valid
+// DER cannot be rendered at all. Both must deny by the not-comparable branch rather than
+// by a value mismatch, so the refusal names the TYPE.
 func TestRidDeniesAnIdentityTypeItCannotCompare(t *testing.T) {
-	anchor, sign := ridAnchor(t)
-	der, key := sign(t, "ze-test-client", nil, nil)
+	for _, tc := range []struct {
+		name   string
+		idType uint8
+		data   []byte
+		names  string
+	}{
+		{"general name", wire.IDTypeDERASN1GN, []byte{0x30, 0x00}, "ID_DER_ASN1_GN"},
+		{"malformed distinguished name", wire.IDTypeDERASN1DN, []byte{0xff, 0xff, 0xff}, "ID_DER_ASN1_DN"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			anchor, sign := ridAnchor(t)
+			der, key := sign(t, "ze-test-client", nil, nil)
 
-	sa := ridCertSA(t, anchor, "CN=ze-test-client")
-	sa.RemoteCertRaw = der
-	ridAssert(sa, wire.IDTypeDERASN1DN, []byte{0x30, 0x00})
-	err := verifyRemoteAuth(sa, rctDigitalSigAuth(t, sa, key))
-	if err == nil {
-		t.Fatal("an identity type ze cannot compare authenticated")
-	}
-	if !strings.Contains(err.Error(), "ID_DER_ASN1_DN") {
-		t.Errorf("the refusal %q does not name the identity type", err)
+			sa := ridCertSA(t, anchor, "CN=ze-test-client")
+			sa.RemoteCertRaw = der
+			ridAssert(sa, tc.idType, tc.data)
+			err := verifyRemoteAuth(sa, rctDigitalSigAuth(t, sa, key))
+			if err == nil {
+				t.Fatal("an identity type ze cannot compare authenticated")
+			}
+			if !strings.Contains(err.Error(), tc.names) {
+				t.Errorf("the refusal %q does not name the identity type %s", err, tc.names)
+			}
+			if !strings.Contains(err.Error(), "cannot compare") {
+				t.Errorf("the refusal %q is a value mismatch, not the not-comparable branch, "+
+					"so the type check did not run", err)
+			}
+		})
 	}
 }
 

@@ -60,8 +60,8 @@ func Validate(cfg *PKIConfig) error {
 		}
 
 		intermediatePool := x509.NewCertPool()
-		if entry.Intermediate != nil {
-			intermediatePool.AddCert(entry.Intermediate)
+		for _, inter := range entry.Intermediates {
+			intermediatePool.AddCert(inter)
 		}
 
 		_, err := entry.Certificate.Verify(x509.VerifyOptions{
@@ -141,8 +141,8 @@ func IntermediatePool() *x509.CertPool {
 	s := get()
 	pool := x509.NewCertPool()
 	for _, entry := range s.certificates {
-		if entry.Intermediate != nil {
-			pool.AddCert(entry.Intermediate)
+		for _, inter := range entry.Intermediates {
+			pool.AddCert(inter)
 		}
 	}
 	return pool
@@ -214,8 +214,8 @@ func ExportPEM(certName string) (certPath, keyPath, caPath string, err error) {
 	safe := safeName(certName)
 	certPath = filepath.Join(exportDir, "cert-"+safe+".pem")
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: entry.Raw})
-	if entry.RawInter != nil {
-		certPEM = append(certPEM, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: entry.RawInter})...)
+	for _, inter := range entry.RawIntermediates {
+		certPEM = append(certPEM, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: inter})...)
 	}
 	if wErr := os.WriteFile(certPath, certPEM, pemFilePerm); wErr != nil {
 		return "", "", "", fmt.Errorf("pki: write cert: %w", wErr)

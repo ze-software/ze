@@ -55,6 +55,7 @@ const (
 	NotifyNATDetectionDestIP        uint16 = 16389
 	NotifyCookie                    uint16 = 16390
 	NotifyUseTransportMode          uint16 = 16391
+	NotifyHTTPCertLookupSupported   uint16 = 16392
 	NotifyRekeySA                   uint16 = 16393
 	NotifyESPTFCPaddingNotSupported uint16 = 16394
 	NotifyNonFirstFragmentsAlso     uint16 = 16395
@@ -99,6 +100,7 @@ var notifyTypeNames = map[uint16]string{
 	NotifyNATDetectionDestIP:        "NAT_DETECTION_DESTINATION_IP",
 	NotifyCookie:                    "COOKIE",
 	NotifyUseTransportMode:          "USE_TRANSPORT_MODE",
+	NotifyHTTPCertLookupSupported:   "HTTP_CERT_LOOKUP_SUPPORTED",
 	NotifyRekeySA:                   "REKEY_SA",
 	NotifyESPTFCPaddingNotSupported: "ESP_TFC_PADDING_NOT_SUPPORTED",
 	NotifyNonFirstFragmentsAlso:     "NON_FIRST_FRAGMENTS_ALSO",

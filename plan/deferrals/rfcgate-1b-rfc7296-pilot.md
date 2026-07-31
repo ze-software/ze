@@ -66,8 +66,33 @@ applies to `RFC7296-1.7-1`. Section 10 of `plan/handover/03-design-wp9.md` renum
 
     git show HEAD:rfc/short/rfc7296.md | grep -o 'RFC7296-2\.19-[0-9]*' | sort -V | tail -1
 
-Section 4 is untouched. The pilot's half of WP-9 took no Section 4 ordinal. So `4-1`, `4-2`,
-`4-3` and `4-4` are all still free, and the ascending-order rule above still governs them.
+~~Section 4 is untouched. The pilot's half of WP-9 took no Section 4 ordinal. So `4-1`, `4-2`,
+`4-3` and `4-4` are all still free, and the ascending-order rule above still governs them.~~
+
+**Superseded 2026-08-01. Section 4's mark is now 4, and `4-2` and `4-3` must renumber.**
+
+Two commits moved it. `RFC7296-4-1` landed in `6ae8fb55d`, setting the mark to 1. WP-10 then
+landed `RFC7296-4-4` at its Appendix A ordinal, which is legal (4 > 1) and sets the mark to 4.
+
+`check_id_allocation` therefore refuses ordinals 2 and 3 from here on. The two rows deferred
+to `plan/spec-ipsec-remote-access.md` above must land as:
+
+| Deferred row | Appendix A ordinal | Land it as |
+|--------------|--------------------|------------|
+| `RFC7296-4-2` | -2 | `RFC7296-4-5` or higher |
+| `RFC7296-4-3` | -3 | `RFC7296-4-6` or higher |
+
+This is a renumbering rather than a loss. Section 2.19 and Section 3.15.1 above took the
+same cost. `plan/spec-ipsec-remote-access.md` must record the Appendix A ordinal each row
+came from, so a reader can still match the row to Appendix A.
+
+The ascending rule stated above was written when no Section 4 id existed at all. Commit
+`6ae8fb55d` overtook it before WP-10 ran. WP-10 was therefore unable to honor it by landing
+later.
+
+**Recompute at the moment you land. Never hardcode from this table:**
+
+    git show HEAD:rfc/short/rfc7296.md | grep -o 'RFC7296-4-[0-9]*' | sort -V | tail -1
 
 ## Work package WP-11 left the pilot whole
 
@@ -88,6 +113,7 @@ mistakes the discussion for a deferral.
 
 | Item | Where it belongs | Why it is not deferred |
 |------|------------------|------------------------|
-| The `dh-group` leaf accepts groups 1 to 31 with no implementability gate, while only 14, 19 and 20 exist. It surfaced while `RFC7296-3.3.4-1` was established | WP-10, inside this pilot | `ai/rules/no-parking.md`: a defect you find while you do something else is the reason you are the one who fixes it. It is a one-predicate change that mirrors the existing gate in `ipsec/config.go` |
+| ~~The `dh-group` leaf accepts groups 1 to 31 with no implementability gate, while only 14, 19 and 20 exist. It surfaced while `RFC7296-3.3.4-1` was established~~ **FIXED 2026-07-31** | WP-10, inside this pilot | `ai/rules/no-parking.md`: a defect you find while you do something else is the reason you are the one who fixes it. `DHGroupImplemented` (`internal/component/ike/ipsec/algorithm_support.go`) now gates it from `parseIKEProposal`, mirroring `EncryptionImplemented` and `HashImplemented`. Proven by `TestIKESuitePolicyRejectsAnUnhonourableSuite` row 3 |
+| ~~`storeRemoteCerts` accepts an UNBOUNDED certificate chain on receive, while `buildCertPayloads` caps the send side at two~~ **FIXED 2026-08-01** | WP-10, inside this pilot | `ai/rules/no-parking.md`. `certificate-count` (default 4, the figure RFC 7296 Section 3.6 names) now bounds BOTH directions. `storeRemoteCerts` (`internal/component/ike/engine/cert_payload.go`) REFUSES an over-long chain and stores nothing, so a refused message leaves the SA empty rather than half-filled. The send cap is gone: `CertificateEntry.RawIntermediates` is a slice and `ValidateCertificateChains` refuses at commit a peer whose count is smaller than its PKI chain. Proven by `TestCcnCertificateCountReachesFourInBothDirections`, `TestCcnCertificateCountIsBoundedAndConfigurable` and `TestCcnOverlongChainKillsTheSAOnBothRoles` |
 | Traffic selectors have no config surface, so there is nothing for `RFC7296-2.9-2` to narrow against | WP-7, inside this pilot | The policy IS the antecedent of the row. Narrowing written against a hardcoded policy is dead on arrival, and `narrowTS` in its current state is the proof of what that looks like |
 

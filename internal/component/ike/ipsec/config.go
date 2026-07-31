@@ -4,6 +4,7 @@
 package ipsec
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -428,6 +429,10 @@ func parseIKEProposal(groupName, numStr string, t *config.Tree) (IKEProposal, er
 		return p, fmt.Errorf("ipsec ike-group %q proposal %d: unsupported DH group %d (valid: 1-31)",
 			groupName, num, dh)
 	}
+	if !DHGroupImplemented(g) {
+		return p, fmt.Errorf("ipsec ike-group %q proposal %d: DH group %d is not implemented by this build (implemented: %s)",
+			groupName, num, dh, joinDHGroupIDs(SupportedDHGroupIDs()))
+	}
 	p.DHGroup = g
 
 	return p, nil
@@ -576,6 +581,61 @@ func parseEAPUser(name string, t *config.Tree, authMode AuthMode) (EAPUser, erro
 	return user, nil
 }
 
+// parsePreSharedSecret reads the shared secret the management interface supplies and
+// returns the octets the PRF will consume. RFC 7296 Section 2.15 puts three obligations
+// on this one function. It accepts ASCII strings of at least 64 octets. It adds no null
+// terminator. And it "MUST also accept a hex encoding of the shared secret"
+// (rfc/full/rfc7296.txt:2876-2881).
+//
+// The encoding is chosen by an EXPLICIT leaf and is NEVER guessed from the value. An
+// ASCII secret of "abcdef0123456789" is valid printable ASCII and also a valid hex
+// string. An implementation that autodetected would silently reinterpret a deployed
+// operator's secret as eight binary octets. It would break authentication that works
+// today. The at-rest obfuscation beside it uses the same discipline: secret.IsEncoded
+// tests for the reserved "$9$" marker rather than sniffing the value.
+//
+// Order matters. The "$9$" wrapper is unwrapped FIRST, so an operator can store a hex
+// secret obfuscated at rest and both mechanisms compose.
+//
+// The MAY at rfc/full/rfc7296.txt:2879-2881 ("MAY accept other encodings") is deliberately
+// not implemented.
+func parsePreSharedSecret(peerName string, t *config.Tree) (string, error) {
+	v, ok := t.Get("pre-shared-secret")
+	if !ok {
+		return "", nil
+	}
+	if secret.IsEncoded(v) {
+		decoded, err := secret.Decode(v)
+		if err != nil {
+			return "", fmt.Errorf("ipsec peer %q pre-shared-secret decode: %w", peerName, err)
+		}
+		v = decoded
+	}
+
+	encoding, ok := t.Get("pre-shared-secret-encoding")
+	if !ok || encoding == "ascii" {
+		return v, nil
+	}
+	if encoding != "hex" {
+		return "", fmt.Errorf(
+			"ipsec peer %q pre-shared-secret-encoding: unsupported value %q (valid: ascii, hex)",
+			peerName, encoding)
+	}
+
+	// Fail closed on a malformed value: never fall back to treating it as ASCII. A
+	// silent fallback would turn a typo in a hex secret into a working-looking config
+	// that authenticates against nothing. The operator would then debug the peer
+	// (ai/rules/exact-or-reject.md).
+	raw, err := hex.DecodeString(v)
+	if err != nil {
+		return "", fmt.Errorf(
+			"ipsec peer %q pre-shared-secret: pre-shared-secret-encoding is hex and the value is not "+
+				"valid hex (%w); supply an even number of hexadecimal digits, or set "+
+				"pre-shared-secret-encoding to ascii", peerName, err)
+	}
+	return string(raw), nil
+}
+
 func parseAuthConfig(peerName string, t *config.Tree) (AuthConfig, error) {
 	var auth AuthConfig
 
@@ -595,32 +655,26 @@ func parseAuthConfig(peerName string, t *config.Tree) (AuthConfig, error) {
 	if v, ok := t.Get("remote-id"); ok {
 		auth.RemoteID = v
 	}
+	if err := parseIdentityPolicy(peerName, t, &auth); err != nil {
+		return auth, err
+	}
+	if err := parseCertificatePolicy(peerName, t, &auth); err != nil {
+		return auth, err
+	}
 
 	switch mode {
 	case AuthPreSharedSecret:
-		if v, ok := t.Get("pre-shared-secret"); ok {
-			if secret.IsEncoded(v) {
-				decoded, err := secret.Decode(v)
-				if err != nil {
-					return auth, fmt.Errorf("ipsec peer %q pre-shared-secret decode: %w", peerName, err)
-				}
-				auth.PSK = decoded
-			} else {
-				auth.PSK = v
-			}
+		psk, err := parsePreSharedSecret(peerName, t)
+		if err != nil {
+			return auth, err
 		}
+		auth.PSK = psk
 	case AuthEAPMSCHAPv2:
-		if v, ok := t.Get("pre-shared-secret"); ok {
-			if secret.IsEncoded(v) {
-				decoded, err := secret.Decode(v)
-				if err != nil {
-					return auth, fmt.Errorf("ipsec peer %q pre-shared-secret decode: %w", peerName, err)
-				}
-				auth.PSK = decoded
-			} else {
-				auth.PSK = v
-			}
+		psk, err := parsePreSharedSecret(peerName, t)
+		if err != nil {
+			return auth, err
 		}
+		auth.PSK = psk
 		if v, ok := t.Get("ca-certificate"); ok {
 			auth.CACertificate = v
 		}

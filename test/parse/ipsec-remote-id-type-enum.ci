@@ -1,0 +1,71 @@
+# Test: ze config validate REFUSES a remote-id-type outside the enumeration.
+# RFC 7296 Section 4 requires it be possible to configure ze to accept a PKIX
+# certificate "where the ID passed is any of ID_KEY_ID, ID_FQDN, ID_RFC822_ADDR,
+# or ID_DER_ASN1_DN" (RFC7296-4-4). remote-id-type is the leaf that reaches the
+# two of those ze cannot derive, so the set of names it accepts is a closed
+# enumeration and the YANG schema is what closes it.
+#
+# Deliberately NOT asserted here: that remote-id-type key-id actually permits an
+# ID_KEY_ID peer to authenticate. That runs in certificateCarriesIdentity, which
+# `ze config validate` never reaches -- the same boundary the dh-group parse test
+# records. Unit proof: TestCfmConformanceConfigurationSetIsAcceptable and
+# TestCfmConformanceSetDoesNotAcceptWhatItMustNot
+# (internal/component/ike/engine/rfc7296_conformance_test.go).
+# RFC requirement: RFC7296-4-4 negative -- remote-id-type is a closed set at the
+# operator entry point, so a name outside the identity types RFC 7296 Section 4
+# requires is refused at commit rather than silently ignored at run time.
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		ike-group IKE-RIT {
+			proposal 1 {
+				encryption aes256gcm
+				hash sha256
+				dh-group 14
+			}
+		}
+		esp-group ESP-RIT {
+			proposal 1 {
+				encryption aes256gcm
+			}
+		}
+		site-to-site {
+			peer branch-1 {
+				ike-group IKE-RIT
+				esp-group ESP-RIT
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+					remote-id-type der-asn1-gn
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=remote-id-type

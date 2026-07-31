@@ -163,7 +163,14 @@ func (ps *PeerSession) startResponderEAP(sa *SA, msgID uint32, remoteSAi2 *wire.
 	inner := make([]wire.PayloadEntry, 0, 4)
 	inner = append(inner, wire.PayloadEntry{Payload: buildIDPayload(sa, false)})
 	if sa.PeerCfg.Auth.Certificate != "" {
-		inner = append(inner, buildCertPayloads(sa)...)
+		certPayloads, cErr := buildCertPayloads(sa)
+		if cErr != nil {
+			log.Warn("ike: responder EAP certificate payloads failed",
+				"peer", sa.PeerName, "error", cErr)
+			sa.State = StateDead
+			return
+		}
+		inner = append(inner, certPayloads...)
 	}
 	inner = append(inner,
 		wire.PayloadEntry{Payload: serverAuth},

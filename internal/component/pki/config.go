@@ -144,7 +144,15 @@ func parseDeviceCert(name string, tree *config.Tree) (*CertificateEntry, error) 
 		Raw:         der,
 	}
 
-	if interB64, iOk := tree.Get("intermediate"); iOk && interB64 != "" {
+	// intermediate is a leaf-list, so an operator can name every certificate on the path
+	// from this one toward the trust anchor. RFC 7296 Section 3.6 requires ze be capable
+	// of being configured to send up to four X.509 certificates, and the leaf plus three
+	// intermediates is that maximum. GetSlice reads a single value and a bracket list
+	// alike, so a config naming one intermediate parses exactly as it did before.
+	for _, interB64 := range tree.GetSlice("intermediate") {
+		if interB64 == "" {
+			continue
+		}
 		interDER, iErr := base64.StdEncoding.DecodeString(interB64)
 		if iErr != nil {
 			return nil, fmt.Errorf("pki: intermediate base64 decode: %w", iErr)
@@ -153,8 +161,8 @@ func parseDeviceCert(name string, tree *config.Tree) (*CertificateEntry, error) 
 		if iErr != nil {
 			return nil, fmt.Errorf("pki: intermediate x509 parse: %w", iErr)
 		}
-		entry.Intermediate = interCert
-		entry.RawInter = interDER
+		entry.Intermediates = append(entry.Intermediates, interCert)
+		entry.RawIntermediates = append(entry.RawIntermediates, interDER)
 	}
 
 	privContainer := tree.GetContainer("private")
