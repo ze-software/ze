@@ -95,6 +95,18 @@ mismatch.
 | 5 | Residual rows: 3 from WP-6, 3 from WP-12 including `RFC7296-4-1` | none |
 | 6 | Closure: audit, Review Gate, learned summary, the two commits | `/ze-close` |
 
+## The other three specs of the closed umbrella
+
+`plan/spec-rfcgate-0-umbrella.md` was closed by `7c14eec20` (learned summary
+`plan/learned/1304-rfcgate-0-umbrella.md`). Four specs of its set are still open: this
+pilot and three children. None of the three is closeable as it stands.
+
+| Spec | State |
+|------|-------|
+| `spec-rfcgate-2-deferred-rs-replay-evidence.md` | Its original premise is REFUTED with producing-code evidence, and the spec records that. It is NOT therefore closeable: it re-scoped itself to a live gap. `RFC7947-x-1` has unit-only evidence, and `TestRelayStoredRouteForwardsThroughForwardRail` asserts the destination peer and a non-empty body only, nothing about the AS_PATH transform. No rs-client relay test exists |
+| `spec-rfcgate-2-deferred-unrun-interop-trees.md` | Three interop trees have runners and no automated caller, so the gate classifies them `unrun` and REFUSES a tag placed there. Do this one early: it is the reason every IPsec package in this pilot is forced to unit-tier evidence |
+| `spec-rfcgate-2-deferred-nonunit-evidence-backfill.md` | About 2571 gated MUSTs rest on in-process unit tests. Scope it before you start |
+
 ## Id allocation, measured 2026-07-31
 
 `check_id_allocation` (`scripts/dev/rfc_requirements.py`) refuses an ordinal at or below its
