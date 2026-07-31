@@ -249,17 +249,23 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 // send/receive key halves in installChildSA (RFC 7296 Section 2.17).
 func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKeys, localIsInitiator bool) *ChildSA {
 	return &ChildSA{
-		InboundSPI:       inSPI,
-		OutboundSPI:      outSPI,
-		LocalAddr:        old.LocalAddr,
-		RemoteAddr:       old.RemoteAddr,
-		IfID:             old.IfID,
-		TSLocal:          old.TSLocal,
-		TSRemote:         old.TSRemote,
-		Keys:             keys,
-		ESPGroup:         old.ESPGroup,
-		ReqID:            old.ReqID,
-		NATDetected:      old.NATDetected,
+		InboundSPI:  inSPI,
+		OutboundSPI: outSPI,
+		LocalAddr:   old.LocalAddr,
+		RemoteAddr:  old.RemoteAddr,
+		IfID:        old.IfID,
+		TSLocal:     old.TSLocal,
+		TSRemote:    old.TSRemote,
+		Keys:        keys,
+		ESPGroup:    old.ESPGroup,
+		ReqID:       old.ReqID,
+		NATDetected: old.NATDetected,
+		// UDPEncap decides whether installChildSA gives the XFRM state an ESP-in-UDP
+		// template (child.go). createFirstChildSA is its only other writer, so a rekeyed
+		// child that does not inherit it installs a state with no template. The kernel
+		// then refuses the encapsulated ESP the peer keeps sending, and a NAT-traversing
+		// tunnel carries nothing from its first Child SA rekey onward.
+		UDPEncap:         old.UDPEncap,
 		LocalIsInitiator: localIsInitiator,
 	}
 }

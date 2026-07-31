@@ -441,7 +441,12 @@ func TestEncapNeverRequestedOnPort500(t *testing.T) {
 		t.Fatalf("transport.NATTPort == transport.IKEPort == %d; the two constants collided", transport.NATTPort)
 	}
 
-	checked := 0
+	// rfc-test-change-approved: 2026-07-31 owner standing approval for
+	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. The counter used to
+	// increment BEFORE the `if !p.UDPEncap { continue }`, so it reached its target while
+	// every port assertion was skipped. Pinning createFirstChildSA to UDPEncap false left
+	// this test green with zero assertions run, which is the shape it exists to prevent.
+	encapChecked, plainChecked := 0, 0
 	for _, nat := range []bool{false, true} {
 		sa := testSA()
 		sa.NATDetected = nat
@@ -456,18 +461,65 @@ func TestEncapNeverRequestedOnPort500(t *testing.T) {
 			t.Fatalf("nat=%v: installed %d SAs, want 2", nat, len(dp.sas))
 		}
 		for i, p := range dp.sas {
-			checked++
 			if !p.UDPEncap {
+				plainChecked++
 				continue
 			}
+			encapChecked++
 			if p.UDPEncapSPort == transport.IKEPort || p.UDPEncapDPort == transport.IKEPort {
 				t.Errorf("nat=%v SA[%d]: encapsulation requested on port 500 (sport=%d dport=%d)",
 					nat, i, p.UDPEncapSPort, p.UDPEncapDPort)
 			}
 		}
 	}
-	if checked != 4 {
-		t.Fatalf("only %d SA params were examined, want 4; the sweep did not cover both NAT states", checked)
+	// Anti-vacuity. The port assertion runs only on an ENCAPSULATED SA, so the count that
+	// matters is the encapsulated one. A builder that stopped requesting encapsulation
+	// would leave encapChecked at zero and fail here rather than pass silently.
+	if encapChecked != 2 {
+		t.Fatalf("%d encapsulated SA params were examined, want 2; the port assertion ran on "+
+			"nothing, so this test proves nothing about which port Ze asks for", encapChecked)
+	}
+	if plainChecked != 2 {
+		t.Fatalf("%d unencapsulated SA params were seen, want 2; the no-NAT arm did not run",
+			plainChecked)
+	}
+}
+
+// VALIDATES: a rekeyed Child SA inherits UDPEncap, so its XFRM state keeps the ESP-in-UDP
+// template the first Child SA was given.
+// PREVENTS: a NAT-traversing tunnel that establishes, rekeys, and then carries nothing.
+//
+// rfc-test-change-approved: 2026-07-31 owner standing approval for
+// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. This test is new.
+//
+// createFirstChildSA is the only other writer of UDPEncap, and installChildSA gates the
+// ESP-in-UDP template on it. A rekeyed child that does not inherit the field installs a
+// state with no template, and the kernel then refuses the encapsulated ESP the peer keeps
+// sending. The review that found this checked the field's writers, which no test did.
+//
+// RFC requirement: RFC7296-2.23-8 positive -- RFC 7296 Section 2.23 requires both devices to
+// use UDP encapsulation for ESP once a NAT is detected. The obligation binds for the life of
+// the tunnel, not only its first Child SA, so a rekey that drops the encapsulation breaks it.
+func TestNattRekeyedChildKeepsUDPEncap(t *testing.T) {
+	for _, encap := range []bool{false, true} {
+		old := &ChildSA{
+			LocalAddr:   net.IPv4(10, 0, 0, 1),
+			RemoteAddr:  net.IPv4(10, 0, 0, 2),
+			NATDetected: encap,
+			UDPEncap:    encap,
+		}
+		got := newRekeyedChild(old, 0x11111111, 0x22222222, nil, true)
+		if got.UDPEncap != encap {
+			t.Errorf("rekeyed child UDPEncap = %v, want %v; installChildSA gates the "+
+				"ESP-in-UDP template on this field, so a rekey that drops it installs a "+
+				"state the kernel will not match against the peer's encapsulated ESP",
+				got.UDPEncap, encap)
+		}
+		// The control: NATDetected was already inherited before this fix, so a test that
+		// only read that field would have stayed green through the whole defect.
+		if got.NATDetected != encap {
+			t.Errorf("rekeyed child NATDetected = %v, want %v", got.NATDetected, encap)
+		}
 	}
 }
 
