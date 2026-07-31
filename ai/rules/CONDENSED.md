@@ -38,6 +38,10 @@ Repair metadata is plan-only.
 3. If Ze cannot prove a repair is safe, use `requires-human-review` with id `manual-review`.
 ## Prefer Skills Over Raw Agents
 When a skill covers the task (`/ze-rfc`, `/ze-review`, `/ze-implement`, etc.), use it instead of spawning a raw agent or improvising the workflow.
+- **`.claude/hooks/pretool-agent-skill.py` BLOCKS the spawn** when the agent prompt asks for something a skill covers. It matches the ASK, never the subject: "review this diff" is routed, "explain how review works" is not.
+- **Naming the skill in the prompt satisfies the gate**, so a subagent that must follow `/ze-explore` is spawned by saying so.
+- The map it enforces: research is `/ze-explore`, review is `/ze-review`, spec conformance is `/ze-review-spec`, a red test is `/ze-debug`, spec work is `/ze-implement`, bug classes are `/ze-hunt`, spec audit is `/ze-audit`.
+- A hand-written prompt reproduces a worse version of the skill and drops every gate it carries. That is what the gate exists to stop.
 ## Commit Script Generation
 Use `scripts/dev/commit_helper.py` for commit script preparation.
 ## Skills
@@ -1077,6 +1081,13 @@ Write what changes the reader's next action.
 - **Give a count plus the exceptions, not a row per item.** "12 call sites updated, 2 refused and are listed below" is complete. Twelve identical rows are not more complete.
 - **Every line in a directive section enters EVERY session through `CONDENSED.md`.** Before you add one, ask whether it changes an action. When it does not, put it under `## Rationale` or `## Examples`. The digest drops both.
 - **A pointer line points. It never summarises.** An entry in `ai/LEARNED-INDEX.md`, `ai/INDEX.md`, or any other index says what the target answers, then stops. Under 120 characters after the link. A reader who wants the content opens the target.
+## Write like a person
+Explanations, questions, and requests for a decision go in plain English.
+- **Ask for a decision the way you would ask a colleague.** "Do you want the IKE work in this commit, or kept separate?" beats a paragraph about commit ownership and verification scope.
+- **Say the thing, then the reason.** Not the reason, the qualifier, the caveat, and then the thing.
+- **Drop the machinery from the sentence.** File names, gate names, and rule ids belong in the report where a reader needs to act on them, never inside a sentence explaining what happened.
+- **No stacked qualifiers.** One sentence, one claim. If a sentence needs three commas to survive, it is two sentences.
+- **This is not a license to be vague.** Plain is not loose. Say exactly what happened, in words a person would use.
 ## Budgets
 A record earns its length from what the reader must DO.
 | Artifact | Contains | Budget |
@@ -1942,6 +1953,7 @@ The per-check shell hooks were consolidated into one Python dispatcher per trigg
 |---|---|---|
 | `.claude/hooks/pretool-bash.py` | PreToolUse `Bash` | every Bash check below |
 | `.claude/hooks/pretool-writeedit.py` | PreToolUse `Write\|Edit\|MultiEdit\|NotebookEdit` | every Write/Edit check below |
+| `.claude/hooks/pretool-agent-skill.py` | PreToolUse `Task\|Agent` | the skills-over-raw-agents gate (`ai/rules/agent-tooling.md`) |
 | `.claude/hooks/posttool-writeedit.py` | PostToolUse `Write\|Edit` | the formatters (gofmt/goimports/golangci, ruff) + cheap advisory checks |
 **Changing a check:** edit the function in the relevant dispatcher (not a `.sh`),
 **Reads never block:** `Read`, `Grep`, `Glob`, `LSP`, `WebFetch`, `WebSearch`
@@ -1963,6 +1975,7 @@ The five commit-time gates (spec-audit, deferral-in-diff, deferral-unassigned, w
 | Check | Enforces | Triggers on | What it does |
 |---|---|---|---|
 | design-without-lsp | `session-start.md`, `no-fabrication.md` | design/spec `.md` | Blocks edits to `plan/design-*.md` / `plan/spec-*.md` unless the implementation was investigated in the last 30 min: LSP invoked OR a `.go` under `internal/`/`pkg/`/`cmd/` was read. BLOCKING. | <!-- doc-links: ignore (hook trigger patterns, files may not exist) -->
+| c_model_phase | `model-selection.md` | code suffixes, never `.md` | Blocks an implementation edit made on a planning/review model. The payload carries no model, so it reads the tail of `transcript_path`. Escape: record the operator's decision in `tmp/session/.model-ack-<sid>`. BLOCKING. |
 | pre-write-go | `before-writing-code.md` | `internal/**/*.go` | Blocks without proper session state. BLOCKING. |
 | source-edit-spec-not-in-progress | `planning.md` | source/test/learned | Blocks edits when selected spec is not `in-progress`. BLOCKING. |
 | encoding-alloc | `buffer-first.md` | wire-encode `.go` | Blocks `make()`/`append()`/`Bytes()`/`Pack()` in wire-facing code. BLOCKING. |
@@ -2619,8 +2632,10 @@ A session cannot change its own model.
 | "Switching costs a round trip" | The round trip is the point. It is the boundary |
 | "The review model can write the fix faster" | Then the fix is unreviewed work written by the reviewer. Two rules broken, not one |
 ## Enforcement
-- The session is the enforcement point: announce the boundary, and stop rather than crossing it on the wrong model.
-- No hook or gate checks the running model. Nothing will catch this for you.
+- **`c_model_phase` in `.claude/hooks/pretool-writeedit.py` BLOCKS an implementation edit made on a planning/review model.** It resolves the running model from the transcript, because the hook payload carries none. It fires on `.go`, `.py`, `.sh`, `.ci`, `.et`, `.yang`, `.mk`, `.tmpl` and `.rego`, and never on `.md`. The table above puts "doc edits that follow from the code" in the implementation phase, so the gate is deliberately narrower than the rule: it cannot tell a spec from a doc that follows code, and blocking `/ze-spec` on its own model would be the worse error. Doc edits stay yours to judge.
+- **The escape is a deliberate act, not a flag.** When the operator decides to proceed on this model, record the reason in `tmp/session/.model-ack-<sid>`. Write that file on the operator's instruction only. It is the same contract as the spec-closure ack.
+- The gate cannot see PHASE, only the model. It reads an implementation edit as the boundary crossing, so a genuine one-line mechanical fix on the review model needs the ack too.
+- The session is still the enforcement point for the reverse direction: nothing stops you reviewing on the implementation model. Announce the boundary and stop.
 
 ---
 

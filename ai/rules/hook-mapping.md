@@ -20,6 +20,7 @@ functions inside these files, not separate scripts:
 |---|---|---|
 | `.claude/hooks/pretool-bash.py` | PreToolUse `Bash` | every Bash check below |
 | `.claude/hooks/pretool-writeedit.py` | PreToolUse `Write\|Edit\|MultiEdit\|NotebookEdit` | every Write/Edit check below |
+| `.claude/hooks/pretool-agent-skill.py` | PreToolUse `Task\|Agent` | the skills-over-raw-agents gate (`ai/rules/agent-tooling.md`) |
 | `.claude/hooks/posttool-writeedit.py` | PostToolUse `Write\|Edit` | the formatters (gofmt/goimports/golangci, ruff) + cheap advisory checks |
 
 Still standalone (single-purpose or deliberately not folded):
@@ -87,6 +88,7 @@ wiring-at-commit, doc-drift) used to sit here but gated on the literal
 | Check | Enforces | Triggers on | What it does |
 |---|---|---|---|
 | design-without-lsp | `session-start.md`, `no-fabrication.md` | design/spec `.md` | Blocks edits to `plan/design-*.md` / `plan/spec-*.md` unless the implementation was investigated in the last 30 min: LSP invoked OR a `.go` under `internal/`/`pkg/`/`cmd/` was read. BLOCKING. | <!-- doc-links: ignore (hook trigger patterns, files may not exist) -->
+| c_model_phase | `model-selection.md` | code suffixes, never `.md` | Blocks an implementation edit made on a planning/review model. The payload carries no model, so it reads the tail of `transcript_path`. Escape: record the operator's decision in `tmp/session/.model-ack-<sid>`. BLOCKING. |
 | pre-write-go | `before-writing-code.md` | `internal/**/*.go` | Blocks without proper session state. BLOCKING. |
 | source-edit-spec-not-in-progress | `planning.md` | source/test/learned | Blocks edits when selected spec is not `in-progress`. BLOCKING. |
 | encoding-alloc | `buffer-first.md` | wire-encode `.go` | Blocks `make()`/`append()`/`Bytes()`/`Pack()` in wire-facing code. BLOCKING. |

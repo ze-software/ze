@@ -139,6 +139,101 @@ def session_id():
     return _ze_session_id.session_id()
 
 
+# --------------------------------------------------------------------------- #
+# Phase-to-model boundary (ai/rules/model-selection.md).
+#
+# Planning and review run on Opus 5. Implementation runs on Opus 4.8. Until this
+# check existed the rule said so and nothing enforced it: "No hook or gate checks
+# the running model. Nothing will catch this for you." A session therefore wrote
+# a rule, edited 34 files and rewrote three tests on the review model without
+# ever announcing the boundary (2026-07-31).
+#
+# The PreToolUse payload carries no model, but it carries transcript_path, and
+# the transcript records message.model per assistant turn. That is the only
+# available source, so this reads the tail of it.
+#
+# BLOCKS the first implementation edit of a session that is on a planning/review
+# model. The escape is a deliberate act, the same contract the spec-closure gate
+# uses: write tmp/session/.model-ack-<sid> with the reason. Write it ONLY when
+# the operator has decided to proceed on this model.
+_IMPL_SUFFIXES = (".go", ".ci", ".et", ".yang", ".mk", ".tmpl", ".rego", ".py", ".sh")
+_REVIEW_TIER_MODELS = ("opus-5",)
+_TRANSCRIPT_TAIL_BYTES = 262144
+
+
+def _transcript_model(path):
+    """Model of the LAST assistant message, from the tail of the transcript.
+
+    Reads a bounded tail because a transcript grows without limit and this runs
+    on every edit. Returns "" when the model cannot be determined, and the check
+    then stands down: an unknown model must never block work.
+    """
+    if not path or not os.path.isfile(path):
+        return ""
+    try:
+        import json as _json
+
+        size = os.path.getsize(path)
+        with open(path, "rb") as fh:
+            if size > _TRANSCRIPT_TAIL_BYTES:
+                fh.seek(size - _TRANSCRIPT_TAIL_BYTES)
+                fh.readline()  # discard the partial line
+            lines = fh.read().decode("utf-8", "replace").splitlines()
+        for line in reversed(lines):
+            if '"model"' not in line:
+                continue
+            try:
+                d = _json.loads(line)
+            except Exception:
+                continue
+            # A subagent line carries ITS model. Taking it would let any
+            # sonnet/haiku subagent stand the gate down for the main session.
+            if d.get("isSidechain"):
+                continue
+            model = (d.get("message") or {}).get("model")
+            if model:
+                return model
+        # The tail held no usable line. One oversized tool result is enough to
+        # do that, and returning "" here would silently disarm the gate. Say so.
+        sys.stderr.write(
+            "note: model-phase gate could not read a model from the transcript "
+            "tail; the phase boundary is UNCHECKED (ai/rules/model-selection.md)\n"
+        )
+    except Exception:
+        return ""
+    return ""
+
+
+def c_model_phase(ctx):
+    fp = ctx.get("fp") or ""
+    if not fp.endswith(_IMPL_SUFFIXES):
+        return None
+    # The harness passes ABSOLUTE paths, so a startswith("tmp/") test never
+    # matched and every scratch write blocked. /ze-close is a review-phase
+    # skill that MUST write tmp/commit-<session>.sh, so this exclusion is
+    # load-bearing, not a convenience.
+    scratch = os.sep + "tmp" + os.sep
+    if "scratchpad" in fp or scratch in fp or fp.startswith("tmp" + os.sep):
+        return None
+    sid = session_id()
+    if os.path.isfile(os.path.join(PROJECT_DIR, "tmp/session", f".model-ack-{sid}")):
+        return None
+    model = _transcript_model(ctx.get("transcript"))
+    if not model or not any(m in model for m in _REVIEW_TIER_MODELS):
+        return None
+    return (
+        2,
+        "\u274c Blocked: phase-to-model boundary (ai/rules/model-selection.md).\n"
+        f"  This session is on {model}, the PLANNING and REVIEW model.\n"
+        f"  Editing {fp} is implementation, and implementation runs on Opus 4.8.\n"
+        "  Announce the boundary and stop, so the operator can switch or start an\n"
+        "  implementation session. Reviewing your own implementation on the model\n"
+        "  that wrote it is the failure this prevents.\n"
+        "  This is the operator's call, not yours. Ask, and record their answer\n"
+        f"  in tmp/session/.model-ack-{sid} only after they give it.",
+    )
+
+
 def state_file(sid):
     marker = os.path.join(PROJECT_DIR, "tmp/session", f".session-{sid}")
     spec = ""
@@ -1950,6 +2045,7 @@ def c_ci_sleep_justification(ctx):
 
 
 CHECKS = (
+    c_model_phase,
     c_generated_files,
     c_design_without_lsp,
     c_claude_plans,
@@ -2012,6 +2108,7 @@ def main():
         "ti": ti,
         "fp": ti.get("file_path") or "",
         "content": std_content(ti),
+        "transcript": payload.get("transcript_path") or "",
     }
 
     worst = 0

@@ -17,6 +17,10 @@ parallel lenses one level down and costs exactly the independence they exist to
 provide (`ai/rules/critical-review.md`).
 
 Launch the agents this skill defines, all in ONE message, on `model: opus`.
+**Start every agent prompt with `Serving /ze-review-deep:`.** The gate in
+`.claude/hooks/pretool-agent-skill.py` blocks a raw agent when a skill covers
+the ask, and these fan-out prompts ask for exactly that. The prefix says the
+routing already happened.
 Never trade their model down for cost; cut their NUMBER instead
 (`ai/rules/model-selection.md`). You do not need to ask permission to spawn them
 (`ai/INSTRUCTIONS.md`, STANDING REQUEST).

@@ -20,6 +20,18 @@ Write what changes the reader's next action. Write nothing else.
 - **Every line in a directive section enters EVERY session through `CONDENSED.md`.** Before you add one, ask whether it changes an action. When it does not, put it under `## Rationale` or `## Examples`. The digest drops both.
 - **A pointer line points. It never summarises.** An entry in `ai/LEARNED-INDEX.md`, `ai/INDEX.md`, or any other index says what the target answers, then stops. Under 120 characters after the link. A reader who wants the content opens the target.
 
+## Write like a person
+
+Explanations, questions, and requests for a decision go in plain English. Nobody
+talks the way a rule file reads, and a reader should not have to decode a sentence
+to answer a simple question.
+
+- **Ask for a decision the way you would ask a colleague.** "Do you want the IKE work in this commit, or kept separate?" beats a paragraph about commit ownership and verification scope.
+- **Say the thing, then the reason.** Not the reason, the qualifier, the caveat, and then the thing.
+- **Drop the machinery from the sentence.** File names, gate names, and rule ids belong in the report where a reader needs to act on them, never inside a sentence explaining what happened.
+- **No stacked qualifiers.** One sentence, one claim. If a sentence needs three commas to survive, it is two sentences.
+- **This is not a license to be vague.** Plain is not loose. Say exactly what happened, in words a person would use.
+
 ## Budgets
 
 A record earns its length from what the reader must DO. Over budget means cut, never split into two documents.

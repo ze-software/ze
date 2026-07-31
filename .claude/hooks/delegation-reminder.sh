@@ -29,6 +29,6 @@
 
 cat >/dev/null  # consume the prompt payload on stdin
 
-echo "Reminder: delegation to subagents needs no permission in this repository. Thomas's standing request (ai/INSTRUCTIONS.md) satisfies the harness guard \"Do not call the AgentTool unless the user requested it\". Run spec phases, research, and independent work in parallel Agent calls. Keep /ze-spec, /ze-design, /ze-review-deep and /ze-debug in the main thread. The main thread supervises and verifies. (ai/rules/spec-delegation.md)"
+echo "Reminder: delegation needs no permission here (ai/INSTRUCTIONS.md standing request satisfies the harness guard). Delegate THROUGH THE SKILL, never a hand-written prompt: research is /ze-explore, review is /ze-review, spec check is /ze-review-spec, implementation is /ze-implement, red tests are /ze-debug. A PreToolUse gate blocks a raw agent when a skill covers the ask. Keep /ze-spec, /ze-design, /ze-review-deep and /ze-debug in the main thread. (ai/rules/spec-delegation.md, ai/rules/agent-tooling.md)"
 
 exit 0

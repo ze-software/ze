@@ -2362,6 +2362,186 @@ def run_delegation_reminder(results: Results) -> None:
     )
 
 
+def run_phase_gates(results: Results) -> None:
+    print("phase-gates:")
+    """The two gates that stop a session doing the right work the wrong way.
+
+    Both were added on 2026-07-31 after a session ran five hand-written agents
+    where skills existed, and did every implementation edit on the review model.
+    Neither rule had a gate; both said so in their own text.
+    """
+    # --- skills over raw agents (pretool-agent-skill.py) ---
+    hook = os.path.join(ROOT, ".claude", "hooks", "pretool-agent-skill.py")
+    results.check("agent-skill-hook-exists", os.path.isfile(hook), hook)
+
+    def spawn(prompt, tool="Agent"):
+        payload = json.dumps({"tool_name": tool, "tool_input": {"prompt": prompt}})
+        return subprocess.run(
+            [sys.executable, hook], input=payload, capture_output=True, text=True
+        )
+
+    r = spawn("Survey the rules and report which ones cause bloat")
+    results.check("agent-skill-blocks-research", r.returncode == 2, repr(r.stdout))
+    results.check("agent-skill-names-explore", "/ze-explore" in r.stderr, repr(r.stderr))
+
+    r = spawn("Perform an independent critical review of the diff and find bugs")
+    results.check("agent-skill-blocks-review", r.returncode == 2, repr(r.stderr))
+    # Exact, not substring: "/ze-review" also matches /ze-review-spec and
+    # /ze-review-deep, so a mis-route used to pass this fixture.
+    results.check(
+        "agent-skill-names-review",
+        re.search(r"/ze-review\b(?!-)", r.stderr) is not None,
+        repr(r.stderr),
+    )
+
+    # Naming the skill IS the routing, so it must pass.
+    r = spawn("Follow /ze-explore and survey the rules")
+    results.check("agent-skill-named-skill-passes", r.returncode == 0, repr(r.stderr))
+
+    # Not every agent task has a covering skill. Over-blocking kills delegation,
+    # which is the failure this must not trade for.
+    r = spawn("Translate this YANG container into a Go struct")
+    results.check("agent-skill-uncovered-task-passes", r.returncode == 0, repr(r.stderr))
+
+    # The first version matched any ze-<word>, so the repo path and any
+    # `make ze-verify` in a prompt switched the whole gate off.
+    r = spawn("Review the diff in /Users/x/Code/github.com/ze-software/ze/main and find bugs")
+    results.check("agent-skill-repo-path-is-not-a-skill", r.returncode == 2, repr(r.stderr))
+    r = spawn("Independently review this change for bugs. Run make ze-verify first.")
+    results.check("agent-skill-make-target-is-not-a-skill", r.returncode == 2, repr(r.stderr))
+    # A name that is not a skill on disk must not count as routing.
+    r = spawn("Follow /ze-nonexistent and review the diff for bugs")
+    results.check("agent-skill-unknown-skill-name-blocks", r.returncode == 2, repr(r.stderr))
+
+    # A guard that wedges delegation on bad input is worse than no guard.
+    r = subprocess.run(
+        [sys.executable, hook], input="not json", capture_output=True, text=True
+    )
+    results.check("agent-skill-malformed-input-passes", r.returncode == 0, repr(r.stderr))
+
+    # Present is not wired.
+    with open(os.path.join(ROOT, ".claude", "settings.json"), encoding="utf-8") as fh:
+        cfg = json.load(fh)
+    pre = [
+        entry.get("command", "")
+        for group in cfg.get("hooks", {}).get("PreToolUse", [])
+        if "Agent" in (group.get("matcher") or "")
+        for entry in group.get("hooks", [])
+    ]
+    results.check(
+        "agent-skill-registered",
+        any(c.endswith("pretool-agent-skill.py") for c in pre),
+        repr(pre),
+    )
+
+    # The per-turn reminder must NAME the skills, or the model delegates and
+    # improvises. That is exactly what happened before this existed.
+    reminder = os.path.join(ROOT, ".claude", "hooks", "delegation-reminder.sh")
+    r = subprocess.run([reminder], input="{}", capture_output=True, text=True)
+    results.check(
+        "delegation-reminder-names-skills",
+        "/ze-explore" in r.stdout and "/ze-review" in r.stdout,
+        repr(r.stdout),
+    )
+
+    # --- phase-to-model boundary (c_model_phase) ---
+    mod = _load_pretool_writeedit()
+    results.check(
+        "model-phase-check-registered",
+        any(getattr(c, "__name__", "") == "c_model_phase" for c in mod.CHECKS),
+        repr([getattr(c, "__name__", "") for c in mod.CHECKS]),
+    )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        transcript = os.path.join(tmp, "t.jsonl")
+        with open(transcript, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"message": {"model": "claude-opus-5"}}) + "\n")
+
+        def probe(fp, path=transcript):
+            return mod.c_model_phase({"fp": fp, "transcript": path})
+
+        # THE ACK MUST BE ISOLATED. A live session that recorded its own
+        # operator decision would otherwise mask every blocking assertion below,
+        # and the whole section would pass while the gate did nothing. That is
+        # exactly how this section first ran.
+        sid = mod.session_id()
+        ack = os.path.join(ROOT, "tmp", "session", f".model-ack-{sid}")
+        stashed = os.path.join(tmp, "stashed-ack")
+        if os.path.isfile(ack):
+            shutil.move(ack, stashed)
+
+        # A review-tier model editing implementation is the boundary crossing.
+        verdict = probe("internal/component/bgp/reactor/peer.go")
+        results.check(
+            "model-phase-blocks-go-on-review-model",
+            verdict is not None and verdict[0] == 2,
+            repr(verdict),
+        )
+        results.check(
+            "model-phase-names-the-rule",
+            verdict is not None and "model-selection.md" in verdict[1],
+            repr(verdict),
+        )
+        # Markdown is planning and review work. Blocking it would break /ze-spec.
+        results.check(
+            "model-phase-ignores-markdown",
+            probe("plan/spec-x.md") is None,
+            "a spec edit must never be read as implementation",
+        )
+        # An implementation-tier model must pass.
+        impl = os.path.join(tmp, "impl.jsonl")
+        with open(impl, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"message": {"model": "claude-opus-4-8"}}) + "\n")
+        results.check(
+            "model-phase-allows-implementation-model",
+            probe("internal/x.go", impl) is None,
+            "opus 4.8 is the implementation model",
+        )
+        # A subagent's model must never stand the gate down for the session.
+        side = os.path.join(tmp, "side.jsonl")
+        with open(side, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps({"message": {"model": "claude-opus-5"}}) + "\n")
+            fh.write(
+                json.dumps(
+                    {"isSidechain": True, "message": {"model": "claude-sonnet-4-5"}}
+                )
+                + "\n"
+            )
+        results.check(
+            "model-phase-ignores-sidechain-model",
+            (probe("internal/x.go", side) or (0,))[0] == 2,
+            "a subagent line must not disarm the gate",
+        )
+        # /ze-close is a review-phase skill that MUST write tmp/commit-*.sh.
+        results.check(
+            "model-phase-ignores-absolute-tmp-path",
+            probe(os.path.join(ROOT, "tmp", "commit-abc.sh")) is None,
+            "the harness passes absolute paths, so the tmp exclusion must match one",
+        )
+
+        # Unknown model: stand down. A gate that cannot tell must not block.
+        results.check(
+            "model-phase-unknown-model-passes",
+            probe("internal/x.go", os.path.join(tmp, "missing.jsonl")) is None,
+            "an unreadable transcript must never block work",
+        )
+        # The escape is a deliberate act, and it must actually work.
+        try:
+            os.makedirs(os.path.dirname(ack), exist_ok=True)
+            with open(ack, "w", encoding="utf-8") as fh:
+                fh.write("fixture\n")
+            results.check(
+                "model-phase-ack-releases-the-gate",
+                probe("internal/x.go") is None,
+                "the recorded operator decision must release the gate",
+            )
+        finally:
+            if os.path.isfile(ack):
+                os.remove(ack)
+            if os.path.isfile(stashed):
+                shutil.move(stashed, ack)
+
+
 SECTIONS = {
     "format-alloc": run_format_alloc,
     "validate-spec": run_validate_spec,
@@ -2371,6 +2551,7 @@ SECTIONS = {
     "mark-source-read": run_mark_source_read,
     "delegation": run_delegation,
     "delegation-reminder": run_delegation_reminder,
+    "phase-gates": run_phase_gates,
 }
 
 

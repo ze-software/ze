@@ -68,6 +68,17 @@
             "blocking": true
           }
         ]
+      },
+      {
+        "matcher": "Task|Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/pretool-agent-skill.py",
+            "timeout": 30,
+            "blocking": true
+          }
+        ]
       }
     ],
     "PreCompact": [
