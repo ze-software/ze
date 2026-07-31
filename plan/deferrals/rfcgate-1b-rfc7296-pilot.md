@@ -41,3 +41,14 @@ partial landing sets the mark and strands the rest.
 | 2026-07-31 | spec-rfcgate-1b-rfc7296-pilot | Meet the source-ADDRESS half of `RFC7296-2.11-3` on a multi-homed host. Both IKE listeners bind the wildcard by default. `WriteToUDP` therefore lets the route table choose the source address. `pkt.LocalAddr` is captured and no sender reads it | WP-8 implemented and tagged the PORT half only. Its tag says so. The address half needs `IP_PKTINFO` plus a `sendmsg` path, or one socket per local address. Both change listener lifecycle. The choice is the owner's (OR-WP8-1) | `plan/spec-rfcgate-1b-rfc7296-pilot.md` | deferred |
 | 2026-07-31 | spec-rfcgate-1b-rfc7296-pilot | Fix defect 2 of `plan/spec-fixit-ike-responder-natt-port-float.md`: `handleResponderEAP` sets `StateDead` on a retransmitted IKE_AUTH instead of replaying the cached response (RFC 7296 Section 2.1) | WP-8 subsumed defect 1 of that spec and NARROWED it rather than closing it. Defect 2 touches none of WP-8's producers and has no row among the pilot's 113, so absorbing it would have shipped an untagged protocol fix (OR-WP8-3) | `plan/spec-fixit-ike-responder-natt-port-float.md` | deferred |
 
+## Two items the design documents name, and neither is deferred
+
+`plan/handover/03-design-wp10.md` (R-WP10-16) and `plan/handover/03-design-wp7.md` (R-WP7-6)
+each discuss whether a finding is in scope. Both are recorded here as IN SCOPE, so no reader
+mistakes the discussion for a deferral.
+
+| Item | Where it belongs | Why it is not deferred |
+|------|------------------|------------------------|
+| The `dh-group` leaf accepts groups 1 to 31 with no implementability gate, while only 14, 19 and 20 exist. It surfaced while `RFC7296-3.3.4-1` was established | WP-10, inside this pilot | `ai/rules/no-parking.md`: a defect you find while you do something else is the reason you are the one who fixes it. It is a one-predicate change that mirrors the existing gate in `ipsec/config.go` |
+| Traffic selectors have no config surface, so there is nothing for `RFC7296-2.9-2` to narrow against | WP-7, inside this pilot | The policy IS the antecedent of the row. Narrowing written against a hardcoded policy is dead on arrival, and `narrowTS` in its current state is the proof of what that looks like |
+
