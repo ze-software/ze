@@ -24,21 +24,36 @@ even admitted "No hook or gate checks the running model."
 - Implementation on a review-tier model now stops at the first `.go`, `.py`, `.sh`, `.ci`, `.et`, `.yang`, `.mk`, `.tmpl` or `.rego` edit.
 - Spawning a raw agent for research, review, spec review, debugging, implementation, hunting or auditing now fails and names the skill.
 - The gate cannot see the phase, only the model. A one-line mechanical fix on the review model needs the ack too, which the rule's own exception would have allowed.
-- Nothing checks the reverse direction. Reviewing on the implementation model is still on the session to notice.
+- Review is gated at both ends: spawning a review agent, and recording the artifact with `review_gate.py record`. Recording is the one that matters, because that is the moment a review is claimed.
+- All three gates read the model through one module, `scripts/dev/running_model.py`. Two copies of that answer would drift, and the gates must agree.
 
 ## Gotchas
 
 - **A "has it been routed already" test must check against the real names.** The first version matched any `ze-<word>`, so the repo path `ze-software` and any `make ze-verify` in a prompt switched the gate off. It now requires a slash and a skill that exists in `ai/skills/`.
 - **A new gate breaks the workflows that do the very thing it watches for.** Three of the eleven fan-out prompts in `/ze-review-deep` tripped it. Those prompts now say which skill they serve, which is true and was worth stating anyway.
+- **Claude slugifies a checkout path by replacing dots as well as slashes.** `github.com` becomes `github-com` in `~/.claude/projects/`. Missing that made the transcript lookup find nothing and report the model as unknown, which stands every gate down silently.
 - **The harness passes absolute paths.** A `startswith("tmp/")` exclusion matched nothing, so scratch writes blocked, including the commit script `/ze-close` must write.
 
 - **A fixture that shares live session state can pass while the gate does nothing.** The model fixtures first ran green because the session's own ack file was releasing the gate. They now move it aside and put it back.
 - **Everything a gate reads must be isolated in its test, not just its inputs.** The transcript was faked from the start; the ack was not, because it lives in the real tree.
 
+- **A "which session am I" lookup must never fall back to "the newest one".** The reader guessed a neighbour's model whenever the session id's transcript was missing, and this project directory holds several live transcripts. A wrong model confidently blocks correct work and confidently passes an off-model review, which is worse than admitting it cannot tell.
+- **`f(path=None)` and `f(path="")` are different questions.** None means "work it out". Empty means the caller had a path and it was empty. Collapsing them made the one gate with a reliable path inherit the fallback it existed to avoid.
+- **Mentioning a skill is not asking for one.** Matching the name anywhere blocked "apply the fixes /ze-review reported", which is implementation. The gate now matches a routing prefix or the ask itself.
+- **Two lists of the same thing disagreed on the day they were written.** The spawn gate's review-skill list left out `/ze-close`, which is the very thing that records the artifact.
+
+- **Telling review from work-about-review is a question of the verb, not of word position.** A line-anchored routing regex missed "Please follow /ze-review ..." and "/ze-review the diff", and caught "Per /ze-review findings, fix the parser bug". Naming a review skill now means review, unless an implementation verb opens the prompt.
+- **One noun broke it.** "fixes" was in the implementation-verb list, so "Round 2 of /ze-review over the fixes" read as implementation. Only the verb form counts.
+- **Two gates asking the same question must read the same source.** The edit gate used the payload's transcript; the spawn gate threw its own away and re-resolved, so they disagreed for the same session.
+- **An escape file that can be empty is not a recorded decision.** The ack now needs a reason in it.
+- **The fixture leak came back twice more.** One probe set a session id whose transcript did not exist, so the gate stood down before reaching what was under test; another inherited the live session id, whose real ack disarmed it. Isolate everything a gate reads, not just its obvious input.
+
 ## Files
 
 - `.claude/hooks/pretool-writeedit.py` -- `c_model_phase`, and the transcript reader
-- `.claude/hooks/pretool-agent-skill.py` -- new, blocks a raw agent where a skill exists
+- `.claude/hooks/pretool-agent-skill.py` -- new, blocks a raw agent where a skill exists, and a review off Opus 5
+- `scripts/dev/running_model.py` -- new, the one reader of which model is driving the session
+- `scripts/dev/review_gate.py` -- refuses to record a review made off the review model
 - `.claude/hooks/delegation-reminder.sh` -- the per-turn line now names the skills
 - `.claude/settings.json` -- the new `PreToolUse Task|Agent` registration
 - `scripts/dev/hook-fixture-check.py` -- the `phase-gates` section, 17 fixtures

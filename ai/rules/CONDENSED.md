@@ -772,6 +772,8 @@ lens (logic/wiring/removed-behavior; security/edge-cases/test-quality; the featu
 3. **Verify the reviewers too.** A reviewer can be wrong. Before acting on a
 4. **Looped to zero.** Every fix is new code that needs a fresh pass. Re-review
 5. **Evidenced by an artifact, not narrated.** Record the pass with
+## The review model
+Review runs on Opus 5 (`ai/rules/model-selection.md`).
 ## Enforcement (structural — a hook, not discipline)
 `scripts/dev/commit_helper.py` refuses a spec-closure commit (one that adds a `plan/learned/NNN-*.md` or removes a `plan/spec-*.md`) unless `review_gate.py check` passes: a CLEAN artifact exists, covers every...
 **What the hook can and cannot prove.** It proves a *fresh, hash-pinned, clean
@@ -1953,7 +1955,7 @@ The per-check shell hooks were consolidated into one Python dispatcher per trigg
 |---|---|---|
 | `.claude/hooks/pretool-bash.py` | PreToolUse `Bash` | every Bash check below |
 | `.claude/hooks/pretool-writeedit.py` | PreToolUse `Write\|Edit\|MultiEdit\|NotebookEdit` | every Write/Edit check below |
-| `.claude/hooks/pretool-agent-skill.py` | PreToolUse `Task\|Agent` | the skills-over-raw-agents gate (`ai/rules/agent-tooling.md`) |
+| `.claude/hooks/pretool-agent-skill.py` | PreToolUse `Task\|Agent` | two gates: skills-over-raw-agents (`ai/rules/agent-tooling.md`), and review-runs-on-Opus-5 (`ai/rules/model-selection.md`) |
 | `.claude/hooks/posttool-writeedit.py` | PostToolUse `Write\|Edit` | the formatters (gofmt/goimports/golangci, ruff) + cheap advisory checks |
 **Changing a check:** edit the function in the relevant dispatcher (not a `.sh`),
 **Reads never block:** `Read`, `Grep`, `Glob`, `LSP`, `WebFetch`, `WebSearch`
@@ -2635,7 +2637,10 @@ A session cannot change its own model.
 - **`c_model_phase` in `.claude/hooks/pretool-writeedit.py` BLOCKS an implementation edit made on a planning/review model.** It resolves the running model from the transcript, because the hook payload carries none. It fires on `.go`, `.py`, `.sh`, `.ci`, `.et`, `.yang`, `.mk`, `.tmpl` and `.rego`, and never on `.md`. The table above puts "doc edits that follow from the code" in the implementation phase, so the gate is deliberately narrower than the rule: it cannot tell a spec from a doc that follows code, and blocking `/ze-spec` on its own model would be the worse error. Doc edits stay yours to judge.
 - **The escape is a deliberate act, not a flag.** When the operator decides to proceed on this model, record the reason in `tmp/session/.model-ack-<sid>`. Write that file on the operator's instruction only. It is the same contract as the spec-closure ack.
 - The gate cannot see PHASE, only the model. It reads an implementation edit as the boundary crossing, so a genuine one-line mechanical fix on the review model needs the ack too.
-- The session is still the enforcement point for the reverse direction: nothing stops you reviewing on the implementation model. Announce the boundary and stop.
+- **Review is gated at both ends.** `.claude/hooks/pretool-agent-skill.py` refuses to SPAWN a review agent when the session is not on Opus 5, and `scripts/dev/review_gate.py record` refuses to RECORD the artifact. The second is the one that matters, because recording is the moment a review is claimed.
+- **A subagent inherits the PHASE, not the task shape.** Spawning a reviewer from an implementation session still reviews on the wrong model, and it is usually the session that wrote the code (`ai/rules/critical-review.md`).
+- **The record gate has an operator escape: `--model-override "<reason>"`.** Their call, not yours.
+- **All three gates share one reader, `scripts/dev/running_model.py`.** It resolves the model from the session transcript, skips subagent lines, and answers nothing when it cannot tell. Every caller then stands down and SAYS so, rather than going quiet.
 
 ---
 

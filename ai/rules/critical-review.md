@@ -43,6 +43,10 @@ reviewers caught on the same diff minutes later.
    SHA-256 of every code/test file the reviewers examined. The spec's Review Gate
    section pastes the reviewers' actual findings and each fix.
 
+## The review model
+
+Review runs on Opus 5 (`ai/rules/model-selection.md`). Two gates enforce it: the spawn of a review agent, and `review_gate.py record`. A review performed on the implementation model is usually the session that wrote the code, which is the independence this rule exists to protect.
+
 ## Enforcement (structural — a hook, not discipline)
 
 `scripts/dev/commit_helper.py` refuses a spec-closure commit (one that adds a

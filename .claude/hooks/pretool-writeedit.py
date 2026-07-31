@@ -157,51 +157,39 @@ def session_id():
 # uses: write tmp/session/.model-ack-<sid> with the reason. Write it ONLY when
 # the operator has decided to proceed on this model.
 _IMPL_SUFFIXES = (".go", ".ci", ".et", ".yang", ".mk", ".tmpl", ".rego", ".py", ".sh")
-_REVIEW_TIER_MODELS = ("opus-5",)
-_TRANSCRIPT_TAIL_BYTES = 262144
 
 
 def _transcript_model(path):
-    """Model of the LAST assistant message, from the tail of the transcript.
+    """Delegate to the ONE shared reader (scripts/dev/running_model.py).
 
-    Reads a bounded tail because a transcript grows without limit and this runs
-    on every edit. Returns "" when the model cannot be determined, and the check
-    then stands down: an unknown model must never block work.
+    A second copy of "which model is running" drifts from the first, and the two
+    gates that ask must agree. The payload's transcript_path is passed straight
+    through, because it is more reliable than the reader's own fallback.
     """
-    if not path or not os.path.isfile(path):
-        return ""
     try:
-        import json as _json
+        sys.path.insert(0, os.path.join(PROJECT_DIR, "scripts", "dev"))
+        import running_model as rm
 
-        size = os.path.getsize(path)
-        with open(path, "rb") as fh:
-            if size > _TRANSCRIPT_TAIL_BYTES:
-                fh.seek(size - _TRANSCRIPT_TAIL_BYTES)
-                fh.readline()  # discard the partial line
-            lines = fh.read().decode("utf-8", "replace").splitlines()
-        for line in reversed(lines):
-            if '"model"' not in line:
-                continue
-            try:
-                d = _json.loads(line)
-            except Exception:
-                continue
-            # A subagent line carries ITS model. Taking it would let any
-            # sonnet/haiku subagent stand the gate down for the main session.
-            if d.get("isSidechain"):
-                continue
-            model = (d.get("message") or {}).get("model")
-            if model:
-                return model
-        # The tail held no usable line. One oversized tool result is enough to
-        # do that, and returning "" here would silently disarm the gate. Say so.
-        sys.stderr.write(
-            "note: model-phase gate could not read a model from the transcript "
-            "tail; the phase boundary is UNCHECKED (ai/rules/model-selection.md)\n"
-        )
+        model = rm.running_model(path)
     except Exception:
         return ""
-    return ""
+    if not model:
+        sys.stderr.write(
+            "note: model-phase gate could not read a model from the transcript; "
+            "the phase boundary is UNCHECKED (ai/rules/model-selection.md)\n"
+        )
+    return model
+
+
+def _is_review_tier(model):
+    """Tier test from the shared reader, so the literal lives in ONE place."""
+    try:
+        sys.path.insert(0, os.path.join(PROJECT_DIR, "scripts", "dev"))
+        import running_model as rm
+
+        return rm.is_review_tier(model)
+    except Exception:
+        return False  # cannot tell the tier: do not block
 
 
 def c_model_phase(ctx):
@@ -219,7 +207,7 @@ def c_model_phase(ctx):
     if os.path.isfile(os.path.join(PROJECT_DIR, "tmp/session", f".model-ack-{sid}")):
         return None
     model = _transcript_model(ctx.get("transcript"))
-    if not model or not any(m in model for m in _REVIEW_TIER_MODELS):
+    if not model or not _is_review_tier(model):
         return None
     return (
         2,

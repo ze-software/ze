@@ -20,7 +20,7 @@ functions inside these files, not separate scripts:
 |---|---|---|
 | `.claude/hooks/pretool-bash.py` | PreToolUse `Bash` | every Bash check below |
 | `.claude/hooks/pretool-writeedit.py` | PreToolUse `Write\|Edit\|MultiEdit\|NotebookEdit` | every Write/Edit check below |
-| `.claude/hooks/pretool-agent-skill.py` | PreToolUse `Task\|Agent` | the skills-over-raw-agents gate (`ai/rules/agent-tooling.md`) |
+| `.claude/hooks/pretool-agent-skill.py` | PreToolUse `Task\|Agent` | two gates: skills-over-raw-agents (`ai/rules/agent-tooling.md`), and review-runs-on-Opus-5 (`ai/rules/model-selection.md`) |
 | `.claude/hooks/posttool-writeedit.py` | PostToolUse `Write\|Edit` | the formatters (gofmt/goimports/golangci, ruff) + cheap advisory checks |
 
 Still standalone (single-purpose or deliberately not folded):

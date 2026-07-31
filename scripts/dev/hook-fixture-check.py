@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import glob
 import json
 import os
 import re
@@ -2443,6 +2444,233 @@ def run_phase_gates(results: Results) -> None:
         "/ze-explore" in r.stdout and "/ze-review" in r.stdout,
         repr(r.stdout),
     )
+
+    # --- review runs on Opus 5 (both enforcement points) ---
+    #
+    # A fake HOME gives a fake ~/.claude/projects/<slug>/, which is how the
+    # shared reader finds a transcript. That is the only way to drive these two
+    # gates from a model this session is not running.
+    with tempfile.TemporaryDirectory() as home:
+        # Ask the production code where transcripts live. Recomputing the
+        # slug here would reproduce a slug bug in the test and stay green.
+        sys.path.insert(0, os.path.join(ROOT, "scripts", "dev"))
+        import running_model as _rm
+
+        real_home = os.environ.get("HOME", "")
+        os.environ["HOME"] = home
+        os.environ["CLAUDE_PROJECT_DIR"] = ROOT
+        try:
+            tdir = _rm.transcript_dir()
+        finally:
+            if real_home:
+                os.environ["HOME"] = real_home
+        os.makedirs(tdir)
+        transcript = os.path.join(tdir, "s.jsonl")
+
+        def as_model(model):
+            with open(transcript, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps({"message": {"model": model}}) + "\n")
+            env = dict(os.environ, HOME=home, CLAUDE_PROJECT_DIR=ROOT)
+            env.pop("CLAUDE_CODE_SESSION_ID", None)
+            return env
+
+        env = as_model("claude-opus-4-8")
+        payload = json.dumps(
+            {
+                "tool_name": "Agent",
+                "tool_input": {"prompt": "Follow /ze-review over the diff"},
+            }
+        )
+        r = subprocess.run(
+            [sys.executable, hook], input=payload, capture_output=True,
+            text=True, env=env,
+        )
+        results.check(
+            "review-model-blocks-spawn-off-opus-5", r.returncode == 2, repr(r.stderr)
+        )
+        results.check(
+            "review-model-spawn-names-the-rule",
+            "model-selection.md" in r.stderr,
+            repr(r.stderr),
+        )
+
+        env5 = as_model("claude-opus-5")
+        r = subprocess.run(
+            [sys.executable, hook], input=payload, capture_output=True,
+            text=True, env=env5,
+        )
+        results.check(
+            "review-model-allows-spawn-on-opus-5", r.returncode == 0, repr(r.stderr)
+        )
+
+        # Recording the artifact is the moment a review is CLAIMED.
+        gate = os.path.join(ROOT, "scripts", "dev", "review_gate.py")
+        env = as_model("claude-opus-4-8")
+        cmd = [
+            sys.executable, gate, "record", "--spec", "fixture-model-probe",
+            "--verdict", "clean", "--files", "scripts/dev/running_model.py",
+        ]
+        r = subprocess.run(cmd, capture_output=True, text=True, env=env, cwd=ROOT)
+        results.check(
+            "review-model-record-blocked-off-opus-5",
+            r.returncode == 2,
+            repr(r.stdout + r.stderr),
+        )
+        r = subprocess.run(
+            cmd + ["--model-override", "fixture"],
+            capture_output=True, text=True, env=env, cwd=ROOT,
+        )
+        results.check(
+            "review-model-record-override-works",
+            r.returncode == 0,
+            repr(r.stdout + r.stderr),
+        )
+        for leftover in glob.glob(os.path.join(ROOT, "tmp", "review", "fixture-model-probe-*.md")):
+            os.remove(leftover)
+
+        # BLOCKER: a session id whose transcript does not exist must answer
+        # nothing. Falling back to the newest file returns a NEIGHBOUR session's
+        # model, and this project directory holds several live transcripts.
+        env_ghost = dict(os.environ, HOME=home, CLAUDE_PROJECT_DIR=ROOT)
+        env_ghost["CLAUDE_CODE_SESSION_ID"] = "aaaaaaaa-0000-0000-0000-000000000000"
+        probe_src = (
+            "import sys;sys.path.insert(0, %r);import running_model as rm;"
+            "print(rm.running_model() or 'unknown')"
+            % os.path.join(ROOT, "scripts", "dev")
+        )
+        r = subprocess.run(
+            [sys.executable, "-c", probe_src],
+            capture_output=True, text=True, env=env_ghost, cwd=ROOT,
+        )
+        results.check(
+            "review-model-missing-sid-file-is-unknown",
+            r.stdout.strip() == "unknown",
+            repr(r.stdout),
+        )
+        # An explicitly EMPTY path is not "work it out". The edit gate passes the
+        # payload path, and it must not inherit the fallback.
+        r = subprocess.run(
+            [sys.executable, "-c", probe_src.replace("rm.running_model()", "rm.running_model('')")],
+            capture_output=True, text=True, env=dict(os.environ, CLAUDE_PROJECT_DIR=ROOT), cwd=ROOT,
+        )
+        results.check(
+            "review-model-empty-path-is-unknown",
+            r.stdout.strip() == "unknown",
+            repr(r.stdout),
+        )
+
+        # BLOCKER: mentioning a skill is not asking for a review. Fixing review
+        # findings is implementation and belongs on the implementation model.
+        env48 = as_model("claude-opus-4-8")
+        for name, prompt, want in (
+            ("review-model-allows-fixing-findings",
+             "Apply the fixes that /ze-review reported in the artifact", 0),
+            ("review-model-allows-editing-a-skill-file",
+             "Update ai/skills/ze-review.md to mention the new gate", 0),
+            ("review-model-blocks-routed-review",
+             "Follow /ze-review over the uncommitted diff", 2),
+        ):
+            rr = subprocess.run(
+                [sys.executable, hook],
+                input=json.dumps({"tool_name": "Agent", "tool_input": {"prompt": prompt}}),
+                capture_output=True, text=True, env=env48,
+            )
+            results.check(name, rr.returncode == want, f"rc={rr.returncode} {rr.stderr[:120]}")
+
+        # Round 2: the routing regex was wrong in BOTH directions. These are the
+        # exact prompts it got wrong. A review prompt does not announce itself in
+        # a fixed shape, and mentioning a review is not performing one.
+        env48 = as_model("claude-opus-4-8")
+        for prompt, want, why in (
+            ("Please follow /ze-review over the diff", 2, "polite lead-in"),
+            ("/ze-review the uncommitted diff", 2, "skill first"),
+            ("You are the /ze-review agent for this change", 2, "role form"),
+            ("Round 2 of /ze-review over the fixes", 2, "'fixes' is a noun here"),
+            ("Apply the fixes that /ze-review reported", 0, "implementation"),
+            ("Per /ze-review findings, fix the parser bug", 0, "implementation"),
+            ("Update ai/skills/ze-review.md to mention the gate", 0, "editing a file"),
+        ):
+            rr = subprocess.run(
+                [sys.executable, hook],
+                input=json.dumps(
+                    {"tool_name": "Agent", "tool_input": {"prompt": prompt}}
+                ),
+                capture_output=True, text=True, env=env48,
+            )
+            results.check(
+                "review-model-verb-%s" % why.replace(" ", "-").replace("'", ""),
+                rr.returncode == want,
+                f"rc={rr.returncode} want={want}: {prompt}",
+            )
+
+        # An EMPTY ack is not a recorded decision.
+        sid_env = dict(env48)
+        sid_env["CLAUDE_CODE_SESSION_ID"] = "fixture-ack-probe"
+        ackp = os.path.join(ROOT, "tmp", "session", ".model-ack-fixture-ack-probe")
+        os.makedirs(os.path.dirname(ackp), exist_ok=True)
+        try:
+            for body, want, label in (("", 2, "empty"), ("operator said proceed", 0, "with-reason")):
+                with open(ackp, "w", encoding="utf-8") as fh:
+                    fh.write(body)
+                rr = subprocess.run(
+                    [sys.executable, hook],
+                    input=json.dumps(
+                        {"tool_name": "Agent",
+                         "transcript_path": transcript,
+                         "tool_input": {"prompt": "Follow /ze-review over the diff"}}
+                    ),
+                    capture_output=True, text=True, env=sid_env,
+                )
+                results.check(
+                    f"review-model-ack-{label}",
+                    rr.returncode == want,
+                    f"rc={rr.returncode} want={want}",
+                )
+        finally:
+            if os.path.isfile(ackp):
+                os.remove(ackp)
+
+        # Both gates must read the SAME transcript. The spawn gate threw the
+        # payload path away and re-resolved, so the two disagreed.
+        #
+        # The env must NOT carry the live session id: this session has a real
+        # .model-ack file, and it would disarm the gate under test.
+        env_no_sid = dict(os.environ, CLAUDE_PROJECT_DIR=ROOT)
+        env_no_sid.pop("CLAUDE_CODE_SESSION_ID", None)
+        rr = subprocess.run(
+            [sys.executable, hook],
+            input=json.dumps(
+                {
+                    "tool_name": "Agent",
+                    "transcript_path": transcript,
+                    "tool_input": {"prompt": "Follow /ze-review over the diff"},
+                }
+            ),
+            capture_output=True, text=True,
+            env=env_no_sid,
+        )
+        results.check(
+            "review-model-spawn-uses-payload-transcript",
+            rr.returncode == 2,
+            f"rc={rr.returncode}; the payload names a 4.8 transcript",
+        )
+
+        # Unreadable transcript: stand down, and say so rather than go quiet.
+        env_blind = dict(os.environ, HOME=os.path.join(home, "nope"), CLAUDE_PROJECT_DIR=ROOT)
+        env_blind.pop("CLAUDE_CODE_SESSION_ID", None)
+        r = subprocess.run(
+            [sys.executable, hook], input=payload, capture_output=True,
+            text=True, env=env_blind,
+        )
+        results.check(
+            "review-model-unknown-stands-down", r.returncode == 0, repr(r.stderr)
+        )
+        # A guard that cannot deny must SPEAK (ai/rules/fail-closed-guards.md).
+        results.check(
+            "review-model-unknown-says-so",
+            "UNCHECKED" in r.stderr,
+            repr(r.stderr),
+        )
 
     # --- phase-to-model boundary (c_model_phase) ---
     mod = _load_pretool_writeedit()

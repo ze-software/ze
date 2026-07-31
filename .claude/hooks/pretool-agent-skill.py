@@ -104,6 +104,126 @@ def verdict(prompt: str) -> tuple[str, str] | None:
     return None
 
 
+# Skills whose work IS review. ai/rules/model-selection.md puts review on Opus 5,
+# and a review done on the implementation model is the author grading their own
+# work. The skills gate already knows when a prompt asks for a review, so it is
+# the earliest place that can say so -- before the agent runs, rather than when
+# the artifact is recorded.
+_REVIEW_SKILLS = (
+    "/ze-review",
+    "/ze-review-spec",
+    "/ze-review-deep",
+    "/ze-audit",
+    "/ze-close",  # it RUNS review_gate.py record, so it is review-phase work
+)
+# Telling a review apart from work ABOUT a review is a question of the verb, not
+# of where a word sits in the line. A line-anchored routing regex got it wrong in
+# both directions: it missed "Please follow /ze-review ...", "/ze-review the
+# diff" and "You are the /ze-review agent", and it caught "Per /ze-review
+# findings, fix the parser bug", which is implementation.
+#
+# So: a prompt that names a review skill IS review work, unless an
+# implementation verb governs it. Fixing what a review found is implementation
+# and belongs on the implementation model.
+_ANY_SKILL_REF = re.compile(r"(/ze-[a-z0-9-]+)")
+_IMPLEMENTATION_VERB = re.compile(
+    # "fixes" is the NOUN in "review over the fixes", so only the verb form
+    # counts. That one word made a round-2 review prompt read as implementation.
+    r"\b(apply|fix|implement|update|edit|rewrite|refactor|rename|migrate|"
+    r"add|write|remove|delete|port|wire)\b",
+    re.IGNORECASE,
+)
+# Only the opening of a prompt says what the agent is FOR. A review prompt that
+# later says "fix" (as an instruction to the reviewer) must still read as review.
+_VERB_WINDOW = 160
+
+
+def _load_reader():
+    root = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+    sys.path.insert(0, os.path.join(root, "scripts", "dev"))
+    import running_model as rm
+
+    return rm
+
+
+def _running_model(transcript: str | None = None) -> str:
+    """The session's model via the ONE shared reader, or '' when unreadable.
+
+    The payload's transcript_path is passed through when present. Throwing it
+    away and re-resolving made this gate answer differently from the edit gate
+    for the same session.
+    """
+    try:
+        return _load_reader().running_model(transcript)
+    except Exception:
+        return ""
+
+
+def rm_is_review_tier(model: str) -> bool:
+    """Tier test from the shared reader, so the literal lives in ONE place."""
+    try:
+        return _load_reader().is_review_tier(model)
+    except Exception:
+        return True  # cannot tell the tier: do not block
+
+
+def _ack_recorded() -> bool:
+    """The operator's recorded decision, the same escape the edit gate uses."""
+    root = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+    sid = os.environ.get("CLAUDE_CODE_SESSION_ID", "").strip()
+    if not sid:
+        return False
+    path = os.path.join(root, "tmp", "session", f".model-ack-{sid}")
+    try:
+        # An EMPTY file is not a recorded decision. Requiring the reason makes
+        # the escape an act rather than a touch.
+        return len(open(path, encoding="utf-8").read().strip()) >= 10
+    except Exception:
+        return False
+
+
+def _is_review_work(prompt: str) -> bool:
+    """Will this agent PERFORM a review, or work on the output of one?"""
+    if _IMPLEMENTATION_VERB.search(prompt[:_VERB_WINDOW]):
+        return False
+    names_review = any(
+        m.group(1).lower() in _REVIEW_SKILLS for m in _ANY_SKILL_REF.finditer(prompt)
+    )
+    if names_review:
+        return True
+    hit = verdict(prompt)
+    return bool(hit) and hit[0] in _REVIEW_SKILLS
+
+
+def review_model_refusal(prompt: str, transcript: str | None = None) -> str:
+    """Why this review may not run here, or '' when it may."""
+    if not _is_review_work(prompt):
+        return ""
+    if _ack_recorded():
+        return ""
+    model = _running_model(transcript)
+    if not model:
+        # Fail-closed guards must deny or SPEAK. This one cannot deny, so it
+        # says so (ai/rules/fail-closed-guards.md). The record gate still checks.
+        sys.stderr.write(
+            "note: could not determine the running model, so the review-model "
+            "boundary is UNCHECKED here (ai/rules/model-selection.md)\n"
+        )
+        return ""
+    if rm_is_review_tier(model):
+        return ""
+    return (
+        f"\u274c Blocked: review runs on Opus 5, and this session is on {model}\n"
+        "  (ai/rules/model-selection.md).\n"
+        "  A subagent inherits the PHASE, not the task shape, so spawning a\n"
+        "  reviewer from an implementation session still reviews on the wrong\n"
+        "  model. Worse, it is usually the session that wrote the code.\n"
+        "  Say so and stop, so the operator can switch or start a review session.\n"
+        "  If the operator decides otherwise, their reason goes in\n"
+        "  tmp/session/.model-ack-<sid>, the same escape the edit gate uses."
+    )
+
+
 def main() -> int:
     try:
         payload = json.load(sys.stdin)
@@ -112,7 +232,12 @@ def main() -> int:
     if payload.get("tool_name") not in ("Agent", "Task"):
         return 0
     ti = payload.get("tool_input") or {}
-    hit = verdict(str(ti.get("prompt") or ""))
+    prompt = str(ti.get("prompt") or "")
+    refusal = review_model_refusal(prompt, payload.get("transcript_path"))
+    if refusal:
+        sys.stderr.write(refusal + "\n")
+        return 2
+    hit = verdict(prompt)
     if hit is None:
         return 0
     skill, matched = hit

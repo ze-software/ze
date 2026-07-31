@@ -115,7 +115,72 @@ def cmd_hash(files: list[str]) -> int:
     return 0
 
 
+# --------------------------------------------------------------------------- #
+# The review model (ai/rules/model-selection.md).
+#
+# Review runs on Opus 5. Recording the artifact is the moment a review is
+# CLAIMED, so it is the right place to check. The reverse boundary -- editing
+# code on the review model -- is gated separately by c_model_phase in
+# .claude/hooks/pretool-writeedit.py.
+
+
+def _running_model() -> str:
+    """The session's model via the ONE shared reader, or '' when unreadable."""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import running_model as rm
+
+        return rm.running_model()
+    except Exception:
+        return ""
+
+
+def _model_refusal(force: str) -> str:
+    """Why this session may not record a review, or '' when it may."""
+    model = _running_model()
+    if not model:
+        # Cannot tell. Say so and allow: a gate that guesses would refuse real
+        # reviews on a machine whose transcript it cannot read.
+        print(
+            "review_gate: WARNING could not determine the running model; "
+            "the review-model boundary is UNCHECKED "
+            "(ai/rules/model-selection.md)",
+            file=sys.stderr,
+        )
+        return ""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import running_model as rm
+
+        if rm.is_review_tier(model):
+            return ""
+    except Exception:
+        return ""
+    if force:
+        print(
+            f"review_gate: WARNING recording a review made on {model}, "
+            f"not the review model. Operator reason: {force}",
+            file=sys.stderr,
+        )
+        return ""
+    return (
+        f"review_gate: BLOCKED this session is on {model}. Review runs on "
+        "Opus 5 (ai/rules/model-selection.md).\n"
+        "  A review performed on the implementation model is the author "
+        "grading their own work,\n"
+        "  which is the failure the independent-review rule exists to "
+        "prevent (ai/rules/critical-review.md).\n"
+        "  Switch to Opus 5 and re-run the review, or pass --model-override "
+        "with the operator's reason."
+    )
+
+
 def cmd_record(args: argparse.Namespace) -> int:
+    override = str(getattr(args, "model_override", "") or "")
+    refusal = _model_refusal(override)
+    if refusal:
+        print(refusal, file=sys.stderr)
+        return 2
     files = sorted(set(args.files))
     if not files:
         print("review_gate: record needs --files", file=sys.stderr)
@@ -134,13 +199,15 @@ def cmd_record(args: argparse.Namespace) -> int:
     out = artifact_path(args.spec)
     stem = args.spec.removeprefix("spec-").removesuffix(".md")
     lines = [
-        f"<!-- ze-review spec={stem} verdict={verdict} reviewers={args.reviewers or 'unspecified'} ts={ts} -->",
+        f"<!-- ze-review spec={stem} verdict={verdict} reviewers={args.reviewers or 'unspecified'} model={_running_model() or 'unknown'} ts={ts} -->",
         f"# Independent review — {stem}",
         "",
         "files:",
     ]
     for f in files:
         lines.append(f"  {file_hash(f)}  {f}")
+    if override:
+        lines += ["", f"model-override: {override}"]
     lines += ["", "## Findings", "", findings or "(none recorded)", ""]
     out.write_text("\n".join(lines), encoding="utf-8")
     print(f"review_gate: wrote {out} ({len(files)} files, verdict={verdict})")
@@ -163,7 +230,38 @@ def _parse_artifact(spec: str) -> tuple[str, dict[str, str]] | None:
     return header.group("verdict").lower(), hashes
 
 
+def _report_recorded_model(spec: str) -> None:
+    """Say which model produced the artifact when it was not the review model.
+
+    Recording stamps `model=` into the header, and nothing read it back, so a
+    review recorded under --model-override or while the reader was blind looked
+    identical to a clean one at check time.
+    """
+    try:
+        text = artifact_path(spec).read_text(encoding="utf-8")
+    except Exception:
+        return
+    m = re.search(r"model=(\S+)", text)
+    if not m:
+        return
+    model = m.group(1)
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import running_model as rm
+
+        on_review_model = rm.is_review_tier(model)
+    except Exception:
+        on_review_model = False
+    if not on_review_model:
+        print(
+            f"review_gate: NOTE this artifact was recorded on {model}, not the "
+            "review model (ai/rules/model-selection.md)",
+            file=sys.stderr,
+        )
+
+
 def cmd_check(args: argparse.Namespace) -> int:
+    _report_recorded_model(args.spec)
     parsed = _parse_artifact(args.spec)
     out = artifact_path(args.spec)
     if parsed is None:
@@ -219,6 +317,12 @@ def main(argv: list[str]) -> int:
     r.add_argument("--files", nargs="+", required=True)
     r.add_argument("--reviewers")
     r.add_argument("--findings-file")
+    r.add_argument(
+        "--model-override",
+        default="",
+        help="operator reason to record a review made off the review model "
+        "(ai/rules/model-selection.md). Their call, not yours.",
+    )
 
     c = sub.add_parser("check")
     c.add_argument("--spec", required=True)
