@@ -117,6 +117,11 @@ type SA struct {
 	// unauthenticated datagram can draw out of Ze (notify_error.go).
 	cachedReplayLimiter *outboundNotifyLimiter
 
+	// invalidMsgIDLimiter bounds how many INVALID_MESSAGE_ID notifications this SA
+	// raises. RFC 7296 Section 2.3 MUST: "notifications of this type MUST be rate
+	// limited". The emitter lives in notify_invalid_msgid.go.
+	invalidMsgIDLimiter *outboundNotifyLimiter
+
 	// The one self-initiated request this SA awaits an answer for. RFC 7296
 	// Section 2.3 calls it the window for requests we send. Its size is one,
 	// because Ze never sends a SET_WINDOW_SIZE notify and never reads one. Every
@@ -131,6 +136,28 @@ type SA struct {
 	LastSentMsg     []byte
 	RetransmitTime  time.Time
 	RetransmitCount int
+
+	// Cookie is the COOKIE notification data a responder challenged this initiation
+	// with, echoed as the FIRST payload of the next IKE_SA_INIT request.
+	//
+	// RFC 7296 Section 2.6 MUST: "If the IKE_SA_INIT response includes the COOKIE
+	// notification, the initiator MUST then retry the IKE_SA_INIT request, and include
+	// the COOKIE notification containing the received data as the first payload, and
+	// all other payloads unchanged." Nil means the request carries no cookie, which is
+	// what every first attempt does.
+	//
+	// It survives a later INVALID_KE_PAYLOAD retry, because Section 2.6.1's shorter
+	// exchange carries the retained cookie beside a corrected KE payload.
+	Cookie []byte
+
+	// SAInitRetries counts the IKE_SA_INIT retries of this cycle, across BOTH causes.
+	//
+	// One shared counter, never one per cause. RFC 7296 Section 2.6.1 describes a
+	// responder that folds KEi into its cookie calculation and therefore answers a
+	// corrected retry with a NEW cookie; a per-cause counter would let that alternate
+	// COOKIE / INVALID_KE_PAYLOAD without bound. The exchange must converge or give up,
+	// never oscillate.
+	SAInitRetries int
 
 	// Lifecycle
 	CreatedAt     time.Time

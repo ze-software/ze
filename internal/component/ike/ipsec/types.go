@@ -1,4 +1,6 @@
 // Design: plan/learned/734-ipsec-3-data-model.md -- IPsec data model types
+// Related: algorithm_support.go -- the predicates deciding which of these enums a build implements
+// Related: config.go -- the parser that fills these types from the config tree
 
 package ipsec
 
@@ -425,7 +427,13 @@ type RemoteAccessConfig struct {
 
 // IPsecConfig holds the complete parsed IPsec configuration.
 type IPsecConfig struct {
-	Interface    string
+	Interface string
+
+	// CookieThreshold is the number of half-open IKE SAs the responder tolerates
+	// before an inbound IKE_SA_INIT must answer a COOKIE challenge (RFC 7296
+	// Section 2.6). Zero, the YANG default, challenges every inbound initiation.
+	CookieThreshold uint32
+
 	ESPGroups    map[string]ESPGroup
 	IKEGroups    map[string]IKEGroup
 	Peers        map[string]SiteToSitePeer

@@ -112,9 +112,34 @@ func (ps *PeerSession) handleOwnedInbound(sa *SA, pkt transport.Packet, tr *tran
 				return ownedOutcome{dpdResp: true, dpdRespMsgID: msg.Header.MessageID}
 			}
 		}
+		// RFC 7296 Section 2.3: an out-of-window REQUEST draws an INVALID_MESSAGE_ID.
+		// The notification is not an answer to this request. It is a new INFORMATIONAL
+		// request, and it carries a Message ID of its own. The invalid request therefore
+		// stays unacknowledged, and no response goes out. That is the MUST NOT of the
+		// same sentence, and RFC7296-2.3-5.
+		//
+		// The decrypt runs FIRST, and its failure is silent. classifyInbound judged this
+		// message before any authentication. Both SPIs and the Message ID travel in the
+		// clear. An off-path attacker can therefore build a datagram that reaches here.
+		// An emission before the decrypt would let one forgery spend this SA's request
+		// window. It would stall the liveness probe, the Delete and the rekey.
+		//
+		// RFC 7296 Section 3.1 forbids an answer to anything marked as a response. The
+		// !isResponse guard therefore comes first.
+		if !isResponse {
+			if _, err := decryptAndParse(sa, &msg, pkt.Data); err == nil {
+				ps.sendInvalidMessageID(sa, msg.Header.MessageID, tr, log)
+			} else {
+				// Deliberately not logged above debug. A louder line here is an oracle
+				// that tells an off-path prober its guess reached a live SA.
+				countErrorNotifySuppressed("invalid-msgid-unauthenticated")
+			}
+		}
 		log.Debug("ike: owned inbound out of window",
 			"peer", ps.peerName, "exchange", msg.Header.ExchangeType, "msgid", msg.Header.MessageID,
 			"response", isResponse, "expected", sa.ExpectedMsgID)
+		// No peerAlive. An out-of-window message is no evidence of liveness (RFC 7296
+		// Section 2.4). A replay can therefore never mask a dead peer.
 		return ownedOutcome{}
 	case inboundNewRequest, inboundResponse:
 	}

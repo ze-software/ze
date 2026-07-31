@@ -211,10 +211,19 @@ func TestOsrOutOfWindowRequestIsNotAcknowledged(t *testing.T) {
 	}
 
 	// The invalid request. Its id is far outside the one-request window.
+	//
+	// rfc-test-change-approved: 2026-07-31 owner standing approval for
+	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. These requests are built
+	// with the PEER SA's real keys, so they authenticate, and an authenticated
+	// out-of-window request now draws an INVALID_MESSAGE_ID. RFC 7296 Section 2.3 raises
+	// that as a NEW REQUEST carrying its own Message ID, which is why this row's MUST NOT
+	// survives untouched. rtxExpectSilence cannot tell "no response" from "no datagram at
+	// all", and only the first was ever required. The replacement forbids every response,
+	// so it still fails the moment Ze acknowledges one of these requests.
 	for _, offset := range []uint32{5, 100, 0xFFFF} {
 		bad := osrRequest(t, peer, ini.ExpectedMsgID+offset)
 		ps.handleOwnedInbound(ini, transport.Packet{Data: bad}, myTr, nil, log)
-		rtxExpectSilence(t, peerTr, myTr, remote, "a request outside the window")
+		rtxExpectNoAcknowledgement(t, peerTr, myTr, remote, "a request outside the window")
 	}
 
 	// A retransmit of the previous request replays the cached response. The drop is

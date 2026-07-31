@@ -220,6 +220,56 @@ DNS-name matching.
 <!-- source: internal/component/ike/eap/peer.go -- verifyServerChain, startTLSClient -->
 
 
+## Denial-of-service protection
+
+RFC 7296 Section 2.6 names two attacks on an IKE responder: state and CPU exhaustion
+from initiation requests with forged source addresses. The answer is a COOKIE. Ze
+answers an inbound IKE_SA_INIT with a COOKIE notification and commits no state, and the
+initiator must repeat its request with that cookie as the first payload before Ze
+creates an SA or takes the peer's half-open handshake slot.
+
+`cookie-threshold` sets how many half-open IKE SAs Ze tolerates before it challenges.
+It defaults to `0`, which challenges every inbound initiation. That default costs a
+genuine peer one extra round trip and closes a real availability hole: a responder peer
+has one half-open slot, held for 30 seconds, so a single spoofed datagram bearing that
+peer's source address would otherwise deny it service, and one datagram every 30 seconds
+would deny it indefinitely. Raise the value to tolerate that many half-open handshakes
+before challenging.
+
+```text
+vpn {
+    ipsec {
+        cookie-threshold 0;
+    }
+}
+```
+
+The cookie is an HMAC-SHA256 over the initiator's nonce, its source address and its SPI,
+under a secret Ze generates and rotates every 60 seconds. A cookie minted under the
+previous secret stays valid for one further interval, so a rotation never breaks an
+in-flight handshake. A cookie that does not match is ignored rather than rejected, as
+the RFC requires: the message is processed as though it carried no cookie, which for a
+pressured responder means issuing a fresh challenge.
+
+<!-- source: internal/component/ike/engine/cookie.go -- mintCookie, verifyCookie, cookieRequired -->
+<!-- source: internal/component/ike/engine/register.go -- tryResponderSAInit, the gate before the half-open slot -->
+
+## Diffie-Hellman group correction
+
+An initiator has to guess which Diffie-Hellman group the responder will pick. When the
+guess is wrong the responder answers INVALID_KE_PAYLOAD naming the group it accepts, and
+Ze retries the IKE_SA_INIT under that group. Without this, Ze could never establish with
+a peer that prefers a different group.
+
+The retry re-offers the whole configured proposal set rather than narrowing it to the
+suite carrying the responder's group. RFC 7296 Section 1.2 requires that, because the
+rejection is unauthenticated and a narrowed re-offer would let an attacker who forges one
+notify choose the cipher. Ze also refuses a group it never proposed, which stops the same
+attacker choosing the group. Both COOKIE and INVALID_KE_PAYLOAD retries share one budget
+of three per connection attempt, so two peers can never oscillate between them.
+
+<!-- source: internal/component/ike/engine/sa_init_retry.go -- retrySAInit, parseInvalidKEGroup, groupIsProposed -->
+
 ## Rekeying
 
 Both Child SAs and IKE SAs are rekeyed with an on-wire CREATE_CHILD_SA exchange. This replaced an earlier local-only key roll that could silently desynchronise a live tunnel. A Child SA rekey carries `N(REKEY_SA)` with fresh nonces and traffic selectors. An IKE SA rekey performs a fresh Diffie-Hellman exchange and resets the message-ID counters.
@@ -272,13 +322,15 @@ The IPsec component registers with the health registry. It reports `healthy` whe
 
 Prometheus exposes `ze_ipsec_sa_count`, `ze_ipsec_tunnel_up{peer}`, `ze_ipsec_tunnel_degraded{peer}`, and `ze_ipsec_rekey_total{peer}`.
 
+Three more counters report the COOKIE challenge described under [Denial-of-service protection](#denial-of-service-protection). `ze_ipsec_cookie_challenges_total{peer}` counts the challenges Ze issues, `ze_ipsec_cookie_verify_failures_total{peer}` counts inbound cookies that did not verify, and `ze_ipsec_sa_init_retries_total{peer,cause}` counts the IKE_SA_INIT retries Ze sends, labeled `cookie` or `invalid-ke-payload`. A rising verify-failure count is either an attacker probing the half-open slot or a secret rotation catching an in-flight challenge. A rising retry count on the `cookie` cause is the signature of the forged-notify flood RFC 7296 Section 2.6 describes.
+
 `ze_ipsec_tunnel_up` reads 1 only when the IKE SA is established and the Child SA is
 installed in the dataplane. A tunnel whose ESP install the kernel refused reads
 `ze_ipsec_tunnel_up` 0 and `ze_ipsec_tunnel_degraded` 1. Such a tunnel has a live
 control plane and carries no encrypted traffic. Alert on the degraded gauge, because
 the two gauges together separate a lost session from a session with no ESP.
 
-<!-- source: internal/component/ike/engine/metrics.go -- tunnelUp and tunnelDegraded -->
+<!-- source: internal/component/ike/engine/metrics.go -- tunnelUp, tunnelDegraded, cookieChallenges, cookieVerifyFailures, saInitRetries -->
 <!-- source: internal/component/ike/engine/child.go -- ChildSA.ESPInstalled -->
 
 The daemon logs `child-sa: dataplane refused the ESP state, tunnel is degraded and

@@ -1,0 +1,178 @@
+# Functional test: the responder challenges an inbound IKE_SA_INIT with a COOKIE and
+# the initiator answers it, RFC 7296 Section 2.6.
+# Spec: plan/spec-rfcgate-1b-rfc7296-pilot.md, rows RFC7296-2.6-3/-4/-5.
+#
+# Two unprivileged ze instances negotiate IKEv2 over loopback, exactly as
+# ipsec-sa-installed.ci does. The responder runs at the default cookie-threshold of
+# zero, so it challenges the FIRST initiation: RFC 7296 Section 2.6 requires a
+# responder to commit no state "until it knows the initiator can receive packets at
+# the address from which it claims to be sending them".
+#
+# The discriminating assertion is the initiator's own log line. Establishment alone
+# would pass over a responder that never challenged, so this test gates on the retry
+# actually happening AND on the exchange completing afterwards. Its pair,
+# ipsec-cookie-threshold-tolerates.ci, raises the threshold and asserts the same log
+# line is ABSENT while establishment still succeeds; together they say the threshold
+# is what drives the challenge rather than something unconditional.
+
+option=env:var=ze_test_ike_port:value=$PORT2
+# noop dataplane: unprivileged XFRM install is EPERM-fatal by design
+# (engine/child.go); control-plane tests opt out of the kernel entirely.
+option=env:var=ze_test_ike_dataplane:value=noop
+# The retry is logged at INFO by retrySAInit (engine/sa_init_retry.go); the default
+# level is WARN, so the subsystem is raised to make the line observable.
+option=env:var=ze.log.ike:value=info
+option=timeout:value=40s
+
+# ── Responder daemon (background): challenges every initiation ──
+stdin=responder:terminator=EOF_RESPONDER
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 2.2.2.2
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		# Zero is also the YANG default; it is written out here because it is the
+		# behaviour under test.
+		cookie-threshold 0
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer initiator {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type respond
+				local-address 127.0.0.2
+				remote-address 127.0.0.1
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_RESPONDER
+
+# ── Initiator daemon (foreground) ──
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "ze-test engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.1.1.1
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=background:seq=1:exec=ze -:stdin=responder
+cmd=foreground:seq=2:exec=ze -:stdin=config:timeout=35s
+
+# The exchange completes. Gate on the negotiated ESP encryption algorithm, which the
+# SA row carries only once IKE_AUTH is done -- a plain "established" would false-match
+# the always-present established-at key.
+command=show vpn ipsec sa
+expect=output:contains=peer-1:timeout=20
+command=show vpn ipsec sa | json
+expect=output:contains=aes-cbc:timeout=20
+expect=output:contains=sha256:timeout=5
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+
+# The challenge really happened, and the initiator answered it. Without this the test
+# would pass over a responder that admitted the first datagram unchallenged.
+expect=stderr:contains=ike: retrying IKE_SA_INIT
+expect=stderr:contains=cause=cookie
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

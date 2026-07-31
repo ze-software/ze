@@ -573,6 +573,7 @@ func TestResponderEAPSessionWired(t *testing.T) {
 // concurrent second attempt while busy, and drops an IKE_SA_INIT from an
 // unconfigured source.
 func TestRunResponderAcceptsInboundAndBounds(t *testing.T) {
+	admitWithoutCookieChallenge(t)
 	log := slogutil.DiscardLogger()
 	ikeGroup := testIKEGroup()
 	espGroup := testESPGroup()
@@ -627,6 +628,9 @@ func TestRunResponderAcceptsInboundAndBounds(t *testing.T) {
 // just before a fresh IKE_SA_INIT arrives from the peer.
 func ownedResponder(t *testing.T) (ps *PeerSession, old *SA, table *SATable) {
 	t.Helper()
+	// These tests are about what the responder does AFTER an initiation is admitted.
+	// The COOKIE challenge is the admission gate, and rfc7296_cookie_test.go proves it.
+	admitWithoutCookieChallenge(t)
 	_, old, ps = establishPSK(t)
 	ps.stopCh = make(chan struct{})
 	ps.done = make(chan struct{})

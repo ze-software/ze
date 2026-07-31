@@ -42,6 +42,7 @@ ze-fuzz-test:
 	$(GO_TEST) -fuzz=^FuzzConfigParser$$ -fuzztime=10s -timeout=60s ./internal/component/config
 	$(GO_TEST) -fuzz=^FuzzTokenizer$$ -fuzztime=10s -timeout=60s ./internal/component/config
 	$(GO_TEST) -fuzz=^FuzzEncodeDecode$$ -fuzztime=10s -timeout=60s ./internal/component/config/secret
+	$(GO_TEST) -fuzz=^FuzzScanSAInitPreState$$ -fuzztime=10s -timeout=60s ./internal/component/ike/engine
 	$(GO_TEST) -fuzz=^FuzzAVPIterator$$ -fuzztime=10s -timeout=60s ./internal/component/l2tp
 	$(GO_TEST) -fuzz=^FuzzHiddenDecrypt$$ -fuzztime=10s -timeout=60s ./internal/component/l2tp
 	$(GO_TEST) -fuzz=^FuzzOnReceiveSequence$$ -fuzztime=10s -timeout=60s ./internal/component/l2tp

@@ -82,6 +82,46 @@ func rtxExpectSilence(t *testing.T, peerTr, myTr *transport.UDPTransport, remote
 	}
 }
 
+// rtxExpectNoAcknowledgement proves the action just performed ACKNOWLEDGED nothing.
+//
+// It is the correct assertion for a request Ze refused, and rtxExpectSilence is not.
+// RFC 7296 Section 2.3 requires that "the invalid request MUST NOT be acknowledged".
+// It also requires that the INVALID_MESSAGE_ID notification
+// "MUST NOT be sent in a response". Neither sentence requires Ze to write nothing. The
+// same paragraph tells Ze to
+// "inform the other side by initiating an INFORMATIONAL exchange". That is a new
+// REQUEST, and it carries a Message ID of its own (notify_invalid_msgid.go).
+//
+// So a datagram is allowed here, and an ACKNOWLEDGEMENT is not. The Response flag is
+// what separates them, and every datagram that arrives before the sentinel is checked
+// for it. An acknowledgement is by definition a message marked as a response. The cached
+// response carries that flag too, so this one test also proves the refused request drew
+// no replay of it.
+//
+// test-relax: the Message ID comparison this helper carried for one revision was a FALSE
+// POSITIVE, and it never shipped. RFC 7296 Section 2.2 gives each direction its own
+// sequence. Ze's own next request id and the peer's refused request id are therefore
+// independent counters, and they CAN hold the same value. They do exactly that
+// in TestRtxResponderIgnoresRequestWithForgottenResponse, where the responder's outbound
+// counter still reads 2 while the forgotten peer request is also id 2.
+//
+// The Response flag below is the sound discriminator. It also subsumes the case the id
+// check reached for. A response that names the refused request fails on the flag first.
+//
+// This remains strictly stronger than the silence it replaces on the property that
+// matters. Silence passed whenever Ze wrote nothing, including for the wrong reason.
+// This fails on any response at all.
+func rtxExpectNoAcknowledgement(t *testing.T, peerTr, myTr *transport.UDPTransport, remote *net.UDPAddr, what string) {
+	t.Helper()
+	for _, raw := range imiDrain(t, peerTr, myTr, remote, what) {
+		hdr := parseMsg(t, raw).Header
+		if hdr.Flags&wire.FlagResponse != 0 {
+			t.Errorf("%s: ze answered with a response at Message ID %d; RFC 7296 Section 2.3 forbids acknowledging it",
+				what, hdr.MessageID)
+		}
+	}
+}
+
 // rtxIKEDelete builds the initiator's INFORMATIONAL request that deletes the IKE
 // SA, at the given Message ID. The Delete gives the request a visible effect on
 // the responder, so a second pass over it is detectable.
@@ -217,7 +257,14 @@ func TestRtxResponderReplaysCachedResponseOnlyForDuplicate(t *testing.T) {
 	if resp.State != StateEstablished {
 		t.Error("an out-of-window request ran the Delete")
 	}
-	rtxExpectSilence(t, peerTr, myTr, remote, "out-of-window request")
+	// rfc-test-change-approved: 2026-07-31 owner standing approval for
+	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	// An authenticated out-of-window request now draws an INVALID_MESSAGE_ID.
+	// RFC 7296 Section 2.3 raises that as a new REQUEST.
+	// The old rtxExpectSilence asserted more than the RFC does.
+	// The replacement still forbids every response.
+	// The cached response carries that flag, so no replay of it can pass either.
+	rtxExpectNoAcknowledgement(t, peerTr, myTr, remote, "out-of-window request")
 }
 
 // VALIDATES: a request whose response the responder no longer holds is dropped in full.
@@ -273,7 +320,16 @@ func TestRtxResponderIgnoresRequestWithForgottenResponse(t *testing.T) {
 	if resp.State != StateEstablished {
 		t.Error("the forgotten request ran its Delete payload")
 	}
-	rtxExpectSilence(t, peerTr, myTr, remote, "request with a forgotten response")
+	// rfc-test-change-approved: 2026-07-31 owner standing approval for
+	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	// The forgotten request is out of window, so it now draws an INVALID_MESSAGE_ID.
+	// RFC7296-2.1-6 claims it "draws no answer".
+	// The replacement asserts exactly that: no datagram marked as a response.
+	//
+	// This site is also why the helper cannot test the Message ID.
+	// The responder's own outbound counter still reads 2 here.
+	// That is the id of the forgotten peer request too (RFC 7296 Section 2.2).
+	rtxExpectNoAcknowledgement(t, peerTr, myTr, remote, "request with a forgotten response")
 }
 
 // VALIDATES: an unanswered post-establishment request is resent until the session stops.

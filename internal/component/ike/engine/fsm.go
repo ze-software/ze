@@ -1,5 +1,6 @@
 // Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE SA finite state machine
 // RFC: rfc/short/rfc7296.md -- IKE_SA_INIT and IKE_AUTH exchanges (Sections 1.2, 2.4)
+// Related: sa_init_retry.go -- the corrected IKE_SA_INIT retry handleSAInitResponse calls into
 package engine
 
 import (
@@ -425,6 +426,15 @@ func handleSAInitResponse(
 	var remoteKE *wire.PayloadKE
 	var remoteNonce *wire.PayloadNonce
 
+	// A retry cause is RECORDED here and acted on after the loop, never inside it. A
+	// message may legally carry several notifies, and acting mid-loop would let payload
+	// order decide which cause wins. RFC 7296 Section 2.6.1's shorter exchange shows
+	// COOKIE and INVALID_KE_PAYLOAD in the same exchange, so the precedence has to be
+	// explicit: COOKIE first, because a cookie challenge means the responder committed
+	// no state and never evaluated the KE payload at all.
+	retryFor := retryCauseNone
+	var retryData []byte
+
 	for _, pe := range msg.Payloads {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadSA:
@@ -438,6 +448,23 @@ func handleSAInitResponse(
 				log.Warn("ike: remote sent NO_PROPOSAL_CHOSEN", "peer", sa.PeerName)
 				sa.State = StateDead
 				return
+			}
+			// RFC 7296 Section 2.6 MUST: "If the IKE_SA_INIT response includes the
+			// COOKIE notification, the initiator MUST then retry the IKE_SA_INIT
+			// request, and include the COOKIE notification containing the received
+			// data as the first payload, and all other payloads unchanged."
+			if p.NotifyMsgType == wire.NotifyCookie {
+				retryFor = retryCookie
+				retryData = p.NotificationData
+			}
+			// RFC 7296 Section 1.2 MUST: "If the initiator guesses wrong, the
+			// responder will respond with a Notify payload of type
+			// INVALID_KE_PAYLOAD indicating the selected group. In this case, the
+			// initiator MUST retry the IKE_SA_INIT with the corrected Diffie-Hellman
+			// group."
+			if p.NotifyMsgType == wire.NotifyInvalidKEPayload && retryFor == retryCauseNone {
+				retryFor = retryInvalidKE
+				retryData = p.NotificationData
 			}
 			if p.NotifyMsgType == wire.NotifySignatureHashAlgorithms {
 				sa.RemoteHashAlgos = parseHashAlgoNotify(p.NotificationData)
@@ -474,6 +501,15 @@ func handleSAInitResponse(
 				}
 			}
 		}
+	}
+
+	// The retry runs BEFORE the completeness gate below, because a notify-only response
+	// carries no SA, KE or Nonce by design. RFC 7296 Section 2.21.1 names both notifies
+	// as ones that "may lead to a subsequent successful exchange", and retrySAInit
+	// bounds how many times this node acts on an unauthenticated one.
+	if retryFor != retryCauseNone {
+		retrySAInit(sa, retryFor, retryData, table, tr, log)
+		return
 	}
 
 	if remoteSA == nil || remoteKE == nil || remoteNonce == nil {

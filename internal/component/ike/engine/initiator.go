@@ -50,18 +50,40 @@ func newInitiatorSA(peerName string, peer ipsec.SiteToSitePeer, ikeGroup ipsec.I
 // buildSAInitRequest constructs an IKE_SA_INIT request message.
 // RFC 7296 Section 2.23: includes NAT_DETECTION_*_IP notify payloads.
 func buildSAInitRequest(sa *SA, ikeGroup ipsec.IKEGroup) []byte {
+	// RFC 7296 Section 1.2 MUST: a retry after INVALID_KE_PAYLOAD "MUST again propose
+	// its full set of acceptable cryptographic suites because the rejection message was
+	// unauthenticated and otherwise an active attacker could trick the endpoints into
+	// negotiating a weaker suite than a stronger one that they both prefer". The offer
+	// is therefore built from the whole configured group on every attempt, and is never
+	// narrowed to the group the responder named.
 	proposals := buildWireIKEProposals(ikeGroup)
-	dhGroupID := crypto.DHGroupID(ikeGroup.Proposals[0].DHGroup)
+	// The KE payload names the group of the key it actually carries, read from the
+	// DHExchange rather than recomputed from the config index. The two were computed
+	// independently from that one index and could already drift; after an
+	// INVALID_KE_PAYLOAD retry they WOULD drift, because the retry replaces the key
+	// without touching the config.
+	dhGroupID := sa.LocalDH.GroupID
 
-	payloads := []wire.PayloadEntry{
-		{Payload: &wire.PayloadSA{Proposals: proposals}},
-		{Payload: &wire.PayloadKE{
+	payloads := make([]wire.PayloadEntry, 0, 6)
+	if len(sa.Cookie) > 0 {
+		// RFC 7296 Section 2.6 MUST: the retry must "include the COOKIE notification
+		// containing the received data as the first payload, and all other payloads
+		// unchanged". Message.WriteTo emits the slice in order, so position zero here
+		// is position zero on the wire.
+		payloads = append(payloads, wire.PayloadEntry{Payload: &wire.PayloadNotify{
+			NotifyMsgType:    wire.NotifyCookie,
+			NotificationData: sa.Cookie,
+		}})
+	}
+	payloads = append(payloads,
+		wire.PayloadEntry{Payload: &wire.PayloadSA{Proposals: proposals}},
+		wire.PayloadEntry{Payload: &wire.PayloadKE{
 			DHGroup:         uint16(dhGroupID),
 			KeyExchangeData: sa.LocalDH.PublicKey,
 		}},
-		{Payload: &wire.PayloadNonce{NonceData: sa.LocalNonce}},
-		{Payload: buildSignatureHashAlgosNotify()},
-	}
+		wire.PayloadEntry{Payload: &wire.PayloadNonce{NonceData: sa.LocalNonce}},
+		wire.PayloadEntry{Payload: buildSignatureHashAlgosNotify()},
+	)
 
 	localIP := net.ParseIP(sa.PeerCfg.LocalAddress)
 	remoteIP := net.ParseIP(sa.PeerCfg.RemoteAddress)
@@ -82,10 +104,14 @@ func buildSAInitRequest(sa *SA, ikeGroup ipsec.IKEGroup) []byte {
 	}
 
 	// Size the buffer to the message length so WriteTo (which indexes buf
-	// directly) can never overrun. The request is built entirely from ze's own
-	// configuration (proposals, our DH public key), so its length is not
-	// remotely influenced; a Len()-sized allocation bounds it without an error
-	// path. RFC 7296 Section 3.1. See spec-fixit-fixed-buffer-overflow.
+	// directly) can never overrun. A Len()-sized allocation bounds it without an
+	// error path. RFC 7296 Section 3.1. See spec-fixit-fixed-buffer-overflow.
+	//
+	// One field IS remotely influenced: sa.Cookie holds octets a responder chose.
+	// RFC 7296 Section 2.6 bounds it at 64, retrySAInit refuses anything outside
+	// that bound before it reaches this field, and the allocation below is sized
+	// from the message rather than fixed, so the bound is a conformance rule here
+	// and not the thing that stops an overrun.
 	buf := make([]byte, msg.Len())
 	n := msg.WriteTo(buf, 0)
 	return buf[:n]

@@ -454,6 +454,9 @@ func TestSesAcceptedProposalKeepsItsProtocol(t *testing.T) {
 // 10.0.0.1 and returns its session and an empty SA table.
 func sesRespondPeer(t *testing.T) (*PeerSession, *SATable) {
 	t.Helper()
+	// The COOKIE challenge is an admission gate these tests must pass to reach their
+	// own subject; rfc7296_cookie_test.go proves the gate itself.
+	admitWithoutCookieChallenge(t)
 	_, respPeer := responderTestPeers(ipsec.AuthPreSharedSecret, "k")
 	ps := &PeerSession{
 		peerName: "ze",

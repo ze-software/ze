@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 302 design docs, 3145 files
+Total: 302 design docs, 3148 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2551,6 +2551,7 @@ Total: 302 design docs, 3145 files
 ## `plan/learned/1069-ipsec-13-rekey-wire.md`
 
 - `internal/component/ike/engine/msgid.go` -- RFC 7296 §2.3 message-ID handling
+- `internal/component/ike/engine/notify_invalid_msgid.go` -- RFC 7296 Section 2.3 message-ID handling
 
 ## `plan/learned/1070-forked-route-install.md`
 
@@ -3201,6 +3202,7 @@ Total: 302 design docs, 3145 files
 |------|-------|
 | `internal/component/ike/engine/auth.go` | AUTH payload computation |
 | `internal/component/ike/engine/config.go` | config parsing for IKE engine |
+| `internal/component/ike/engine/cookie.go` | responder COOKIE challenge |
 | `internal/component/ike/engine/doctor.go` | IKE engine readiness checks |
 | `internal/component/ike/engine/events.go` | IKE SA lifecycle events |
 | `internal/component/ike/engine/fsm.go` | IKE SA finite state machine |
@@ -3210,6 +3212,7 @@ Total: 302 design docs, 3145 files
 | `internal/component/ike/engine/register.go` | IKE engine component registration |
 | `internal/component/ike/engine/remote_id.go` | remote identity policy |
 | `internal/component/ike/engine/sa.go` | IKE SA state |
+| `internal/component/ike/engine/sa_init_retry.go` | IKE_SA_INIT retry on COOKIE and INVALID_KE_PAYLOAD |
 | `internal/component/ike/engine/table.go` | IKE SA table |
 | `internal/component/ike/transport/udp.go` | IKE UDP transport |
 

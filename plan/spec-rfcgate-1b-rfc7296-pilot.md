@@ -332,7 +332,7 @@ out-of-window message can reach.
 
 | Package | The security-relevant invariant |
 |---|---|
-| WP-1 (Message ID, window) | Widening the accept predicate is the danger, not the rollover fix. `classifyInbound` (`internal/component/ike/engine/msgid.go:69-93`) accepts exactly one request at `ExpectedMsgID` today. Supporting a window > 1 means accepting a RANGE, and every message in that range is a replay candidate. The window must be bounded by the peer's stated SET_WINDOW_SIZE and by a local cap, an out-of-window message must be dropped without a response (`RFC7296-2.3-5`), and INVALID_MESSAGE_ID must be rate limited (`RFC7296-2.3-6`) or it becomes an amplification primitive. The exhaustion fix itself must CLOSE or REKEY, never reset the counter |
+| WP-1 (Message ID, window) | Widening the accept predicate is the danger, not the rollover fix. `classifyInbound` (`internal/component/ike/engine/msgid.go:69-93`) accepts exactly one request at `ExpectedMsgID` today. Supporting a window > 1 means accepting a RANGE, and every message in that range is a replay candidate. The window must be bounded by the peer's stated SET_WINDOW_SIZE and by a local cap, an out-of-window message must be dropped without a response (`RFC7296-2.3-5`), and INVALID_MESSAGE_ID must be rate limited (`RFC7296-2.3-9`, allocated from `2.3-6`) or it becomes an amplification primitive. The exhaustion fix itself must CLOSE or REKEY, never reset the counter |
 | WP-2 (INFORMATIONAL encryption) | Encrypting the DPD probe must not weaken the response path: `handleDPDResponse` correlates by Message ID (`internal/component/ike/engine/dpd.go:30-32`), which is what rejects a replayed response masking a dead peer. That correlation must survive the change. The I-bit fix is one line and changes nothing security-relevant, but it is wire-visible to a conforming peer |
 | WP-3 (error notifications) | Every notification this package ADDS is a new unauthenticated response Ze emits, so each is an amplification and information-disclosure surface. RFC 7296 constrains them precisely and the constraints are the security property: the response MUST NOT be cryptographically protected (`2.21.4-3`), MUST go to the source address and port with the SPIs and Message ID copied (`2.21.4-2`), a peer receiving one MUST NOT respond (`2.21.4-5`) and MUST NOT change SA state (`2.21.4-6`, `-7`). A missing "MUST NOT respond" turns two Ze instances into a packet loop. Rate limiting is mandatory (`RFC7296-2.4-12`, already implemented) |
 | WP-4 (COOKIE) | The COOKIE secret and its rotation are the whole security value. A cookie that is not bound to the initiator's address and a rotating local secret is a token an attacker mints. The data is 1 to 64 octets (`RFC7296-2.6-3`); the initiator must echo it unchanged as the FIRST payload with everything else unchanged (`2.6-4`); a mismatched cookie must be IGNORED and the message processed as if absent (`2.6-5`), which is a deliberate fail-open the RFC specifies and must not be "hardened" into a rejection |
@@ -624,8 +624,8 @@ risk, and each is its own landing (see Landing Strategy).
      resolve to implemented join phase 2's pattern; rows that resolve to not-implemented
      join their work package below and the package's row count is updated in this spec
 
-4. **Phase: WP-1 -- Message ID lifecycle and the request window** (6 rows landed:
-   `2.2-2`, `2.3-5`, `2.3-7`, `2.3-8`, `2.25-1`, `3.1-12`. `2.3-6` is held, see below)
+4. **Phase: WP-1 -- Message ID lifecycle and the request window** (7 rows landed:
+   `2.2-2`, `2.3-5`, `2.3-7`, `2.3-8`, `2.3-9`, `2.25-1`, `3.1-12`)
    - Tests: `TestMidOutboundCounterFreezesAtTheCeiling`,
      `TestMidNearExhaustionRekeysTheIKESA`, `TestMidInboundCounterFreezesAtTheCeiling`,
      `TestMidTemporaryFailureDefersTheRetry`, `TestMidTemporaryFailureDefersTheIKERekey`,
@@ -635,18 +635,35 @@ risk, and each is its own landing (see Landing Strategy).
      `TestOsrOwnerLoopKeepsAForeignWindowHeld`,
      `TestOsrOutOfWindowRequestIsNotAcknowledged`,
      `TestNrsResponseNeverDrawsAResponse`, `TestNrsInformationalHandlerRefusesAResponse`,
-     `TestNtfySetWindowSizeDataIsFourOctets`
+     `TestNtfySetWindowSizeDataIsFourOctets`,
+     `TestImiRateLimitCapsTheNotification`, `TestImiUnauthenticatedRequestDrawsNothing`,
+     `TestImiNotificationCarriesTheFourOctetMessageID`,
+     `TestImiHeldWindowSuppressesTheNotification`
    - Files: `engine/sa.go`, `engine/msgid.go`, `engine/fsm.go`, `engine/inbound.go`,
      `engine/rekey.go`, `engine/dpd.go`, `engine/established.go`, `engine/reconcile.go`,
      `engine/responder.go`, `wire/payload_notify.go`, `cmd/show_ipsec.go`
    - Verify: AC-11; the accept predicate is bounded and the Security Review's WP-1
      invariant holds; `make ze-ipsec-interop-test` green
 
-   **`RFC7296-2.3-6` is held for an owner ruling and was NOT landed.** RFC 7296 §2.3
-   makes sending INVALID_MESSAGE_ID OPTIONAL in the same sentence that makes the rate
-   limit a MUST (`rfc/full/rfc7296.txt:1506-1509`). Ze sends the notification nowhere, so
-   the MUST has nothing to bind. Whether "never send" satisfies the row is the owner's
-   call, not this package's.
+   **The held row is now landed as `RFC7296-2.3-9`.** RFC 7296 §2.3 makes sending
+   INVALID_MESSAGE_ID OPTIONAL in the same sentence that makes the rate limit a MUST
+   (`rfc/full/rfc7296.txt:1506-1509`). The owner ruled: implement it, with the exposure
+   bounded.
+
+   Ze now raises the notification for an authenticated out-of-window REQUEST. It raises
+   it as a NEW INFORMATIONAL request (`engine/notify_invalid_msgid.go`). Three bounds
+   apply. Each one is conformant, because the sending itself is OPTIONAL:
+
+   | Bound | Guard | Proven by |
+   |-------|-------|-----------|
+   | Emit only after the request AUTHENTICATES | `decryptAndParse` precedes the call (`engine/inbound.go`) | `TestImiUnauthenticatedRequestDrawsNothing` |
+   | Emit only when the request window is FREE | `reserveRequestWindow` (`engine/msgid.go`) | `TestImiHeldWindowSuppressesTheNotification` |
+   | Rate limit, per SA -- **this is the row's MUST** | `invalidMsgIDAllowed`, a token bucket reusing WP-3's `outboundNotifyLimiter` | `TestImiRateLimitCapsTheNotification` |
+
+   `RFC7296-2.3-5` stays green and stays meaningful. The emission is a REQUEST that
+   carries its own Message ID, and never a response. Its test was strengthened rather
+   than weakened, under the owner's standing approval. `rtxExpectSilence` cannot tell
+   "no response" from "no datagram at all", and only the first was ever required.
 
    **Ordinal allocation, recorded so the next package does not pay for it twice.** §2.3's
    high-water mark at HEAD was 4 and §3.1's was 11. Three planned ids were below their
@@ -775,7 +792,7 @@ checks a reviewer runs against the diff.
 | Input validation | Every new parse path over attacker-controlled bytes bounds its iteration by a length the header declares, not by an attacker-supplied count, and rejects rather than truncating |
 | Accept-predicate widening | Any change to `classifyInbound` or the Message ID window is examined for what it now ACCEPTS. A widened window is a widened replay surface, and the SET_WINDOW_SIZE value is peer-supplied |
 | Unauthenticated response surface | Every notification added by WP-3 is checked against `RFC7296-2.21.4-3` (not cryptographically protected), `-5` (recipient MUST NOT respond) and `-6`/`-7` (MUST NOT change SA state). A missing MUST NOT-respond is a packet loop between two Ze instances |
-| Rate limiting | Every new unauthenticated emission is rate limited (`RFC7296-2.4-12`, `2.3-6`). An unlimited notify is an amplification primitive |
+| Rate limiting | Every new unauthenticated emission is rate limited (`RFC7296-2.4-12`, `2.3-9`). An unlimited notify is an amplification primitive |
 | Endpoint adoption | The observed source address/port (WP-8) is used for the reply only; an established SA's stored peer endpoint changes only on an authenticated message |
 | Authorization fails closed | `RFC7296-2.19-5` and `2.19-6` are authorization checks. Neither may fall through to the permissive branch on a miss (`ai/rules/fail-closed-guards.md`) |
 | Outbound fetch | Hash-and-URL certificate lookup (`RFC7296-3.6-2`, `-3`) fetches an attacker-named http URL. Bound the size, the timeout and the redirect count, and state whether the scheme allowlist is enforced |
@@ -1068,7 +1085,7 @@ the Obligation text.
 | `RFC7296-2.3-8` | MUST | An IKE endpoint MUST be prepared to accept and process a request while it has a request outstanding in order to avoid a deadlock in this situation (§2.3) | landed WP-1 |
 | `RFC7296-2.3-4` | MUST NOT | An IKE endpoint MUST NOT exceed the peer's stated window size for transmitted IKE requests (§2.3) | impl-testable |
 | `RFC7296-2.3-5` | MUST NOT | This Notify message MUST NOT be sent in a response; the invalid request MUST NOT be acknowledged (§2.3) | landed WP-1 |
-| `RFC7296-2.3-6` | MUST | Sending this notification is OPTIONAL, and notifications of this type MUST be rate limited (§2.3) | **NOT IMPL** -- held for an owner ruling. If approved it must take ordinal `2.3-9` or higher |
+| `RFC7296-2.3-9` | MUST | Sending this notification is OPTIONAL, and notifications of this type MUST be rate limited (§2.3) | landed WP-1 |
 | `RFC7296-2.4-5` | MUST NOT | This notification MUST NOT be sent by an entity that may be replicated (§2.4) | **NOT IMPL** |
 | `RFC7296-2.4-11` | MUST | An endpoint MUST conclude that the other endpoint has failed only when repeated attempts to contact it have gone unanswered for a timeout period or when a cryptographically protected INITIAL_CONTACT notification is received on a different IKE SA to the same authenticated identity (§2.4) | impl-untested |
 | `RFC7296-2.4-12` | MUST | Implementations MUST limit the rate at which they take actions based on unprotected messages (§2.4) | impl-untested |
@@ -1749,7 +1766,7 @@ unsited, and each one names what is missing:
 
 | Row | What does not exist |
 |-----|---------------------|
-| `RFC7296-2.3-6` | No outbound rate limiter to extend |
+| ~~`RFC7296-2.3-6`~~ | ~~No outbound rate limiter to extend~~ -- superseded: WP-3 landed `outboundNotifyLimiter` (`engine/notify_error.go`), and the row landed on it as `RFC7296-2.3-9` |
 | `RFC7296-2.4-5` | No replication concept in the config model |
 | `RFC7296-2.5-5` | No version-negotiation state machine |
 | `RFC7296-2.21.2-3` | No extension-notify surface |

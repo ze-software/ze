@@ -1,4 +1,5 @@
 // Design: plan/learned/745-ipsec-10-cli-diag.md -- IPsec Prometheus metrics
+// RFC: rfc/short/rfc7296.md -- error notification and COOKIE counters (Sections 2.6, 2.21.4)
 
 package engine
 
@@ -17,6 +18,9 @@ type IPsecMetrics struct {
 	rekeyTotal            metrics.GaugeVec
 	errorNotifySent       metrics.GaugeVec
 	errorNotifySuppressed metrics.GaugeVec
+	cookieChallenges      metrics.GaugeVec
+	cookieVerifyFailures  metrics.GaugeVec
+	saInitRetries         metrics.GaugeVec
 }
 
 // errorNotifyStats counts the error notifications this node emits, and the ones a
@@ -39,6 +43,73 @@ var errorNotifyStats = struct {
 type errorNotifyKey struct {
 	notifyType uint16
 	protected  bool
+}
+
+// cookieStats counts the COOKIE challenges this node issues, the cookies that failed to
+// verify, and the IKE_SA_INIT retries it sends.
+//
+// They record here for the reason errorNotifyStats does: the emitters are free functions
+// on the dispatch goroutine (cookie.go, sa_init_retry.go, responder.go) and hold no
+// registry handle. Update publishes the totals.
+//
+// The retry count is the operator's signal for the forged-notify flood RFC 7296
+// Section 2.6 describes, where each forged reply costs this node two packets.
+var cookieStats = struct {
+	mu             sync.Mutex
+	challenges     map[string]uint64
+	verifyFailures map[string]uint64
+	retries        map[saInitRetryKey]uint64
+}{
+	challenges:     map[string]uint64{},
+	verifyFailures: map[string]uint64{},
+	retries:        map[saInitRetryKey]uint64{},
+}
+
+// saInitRetryKey labels one IKE_SA_INIT retry by peer and by what caused it.
+type saInitRetryKey struct {
+	peer  string
+	cause retryCause
+}
+
+// countCookieChallenge records one COOKIE challenge put on the wire.
+func countCookieChallenge(peer string) {
+	cookieStats.mu.Lock()
+	defer cookieStats.mu.Unlock()
+	cookieStats.challenges[peer]++
+}
+
+// countCookieVerifyFailure records one inbound cookie that did not verify. A rising rate
+// is either an attacker probing the half-open slot or a secret rotation catching an
+// in-flight challenge.
+func countCookieVerifyFailure(peer string) {
+	cookieStats.mu.Lock()
+	defer cookieStats.mu.Unlock()
+	cookieStats.verifyFailures[peer]++
+}
+
+// countSAInitRetry records one IKE_SA_INIT retry, by the cause that drove it.
+func countSAInitRetry(peer string, cause retryCause) {
+	cookieStats.mu.Lock()
+	defer cookieStats.mu.Unlock()
+	cookieStats.retries[saInitRetryKey{peer: peer, cause: cause}]++
+}
+
+// cookieChallengeCount reports how many challenges have gone out to one peer.
+//
+// It fails closed for the READER, not for a guard: an unrecorded peer reads zero, which
+// is the true count. A test that asserts a challenge fired must therefore assert a RISE
+// (ai/rules/fail-closed-guards.md).
+func cookieChallengeCount(peer string) uint64 {
+	cookieStats.mu.Lock()
+	defer cookieStats.mu.Unlock()
+	return cookieStats.challenges[peer]
+}
+
+// saInitRetryCount reports how many retries of one cause have gone out to one peer.
+func saInitRetryCount(peer string, cause retryCause) uint64 {
+	cookieStats.mu.Lock()
+	defer cookieStats.mu.Unlock()
+	return cookieStats.retries[saInitRetryKey{peer: peer, cause: cause}]
 }
 
 // countErrorNotifySent records one error notification put on the wire.
@@ -94,6 +165,15 @@ func RegisterMetrics(reg metrics.Registry) *IPsecMetrics {
 		errorNotifySuppressed: reg.GaugeVec("ze_ipsec_error_notify_suppressed_total",
 			"Cumulative error notifications a guard stopped, by the name of the guard",
 			[]string{"reason"}),
+		cookieChallenges: reg.GaugeVec("ze_ipsec_cookie_challenges_total",
+			"Cumulative COOKIE challenges sent to an inbound initiation, by peer",
+			[]string{"peer"}),
+		cookieVerifyFailures: reg.GaugeVec("ze_ipsec_cookie_verify_failures_total",
+			"Cumulative inbound cookies that did not verify, by peer",
+			[]string{"peer"}),
+		saInitRetries: reg.GaugeVec("ze_ipsec_sa_init_retries_total",
+			"Cumulative IKE_SA_INIT retries sent, by peer and by the notify that caused them",
+			[]string{"peer", "cause"}),
 	}
 }
 
@@ -113,6 +193,21 @@ func (m *IPsecMetrics) publishErrorNotifyCounts() {
 	}
 }
 
+// publishCookieCounts copies the COOKIE and retry counters into their gauges.
+func (m *IPsecMetrics) publishCookieCounts() {
+	cookieStats.mu.Lock()
+	defer cookieStats.mu.Unlock()
+	for peer, count := range cookieStats.challenges {
+		m.cookieChallenges.With(peer).Set(float64(count))
+	}
+	for peer, count := range cookieStats.verifyFailures {
+		m.cookieVerifyFailures.With(peer).Set(float64(count))
+	}
+	for key, count := range cookieStats.retries {
+		m.saInitRetries.With(key.peer, key.cause.String()).Set(float64(count))
+	}
+}
+
 // espInstalled reports whether this peer's current Child SA is in the dataplane.
 //
 // It fails closed. An unknown peer, a session without a Child SA, and a Child SA
@@ -129,6 +224,7 @@ func espInstalled(peers map[string]*PeerSession, name string) bool {
 // Update reads the current SA table and peer session state to refresh all metrics.
 func (m *IPsecMetrics) Update() {
 	m.publishErrorNotifyCounts()
+	m.publishCookieCounts()
 	// RFC 7296 Section 2.23 needs the kernel to decapsulate ESP that arrives inside
 	// UDP. A failure to arm that is invisible on the wire: the tunnel establishes and
 	// carries nothing. The count rises on every listener rebuild that fails, so a

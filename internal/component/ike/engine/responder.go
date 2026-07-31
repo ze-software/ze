@@ -368,13 +368,32 @@ func detectResponderNAT(sa *SA, msg *wire.Message) {
 // sendSAInitNotify sends an unencrypted IKE_SA_INIT response carrying a single
 // notify (NO_PROPOSAL_CHOSEN / INVALID_KE_PAYLOAD). RFC 7296 Section 2.21.
 func sendSAInitNotify(sa *SA, tr *transport.UDPTransport, remote *net.UDPAddr, notifyType uint16, data []byte, log *slog.Logger) {
+	sendSAInitNotifyRaw(tr, remote, sa.InitiatorSPI, sa.ResponderSPI, notifyType, data, sa.PeerName, log)
+}
+
+// sendSAInitNotifyRaw encodes and sends one unencrypted IKE_SA_INIT notify response.
+//
+// It takes SPIs rather than an *SA because the COOKIE challenge has no SA: the whole
+// point of the challenge is that no state is committed until the sender proves it
+// receives at its claimed address (RFC 7296 Section 2.6). Every IKE_SA_INIT notify this
+// node sends goes through this one encoder, so the 512-octet bound and the
+// drop-never-truncate rule hold for all of them.
+func sendSAInitNotifyRaw(
+	tr *transport.UDPTransport,
+	remote *net.UDPAddr,
+	spiI, spiR [8]byte,
+	notifyType uint16,
+	data []byte,
+	peerName string,
+	log *slog.Logger,
+) {
 	if tr == nil || remote == nil {
 		return
 	}
 	msg := wire.Message{
 		Header: wire.Header{
-			InitiatorSPI: sa.InitiatorSPI,
-			ResponderSPI: sa.ResponderSPI,
+			InitiatorSPI: spiI,
+			ResponderSPI: spiR,
 			MajorVersion: 2,
 			ExchangeType: wire.ExchangeIKESAInit,
 			Flags:        wire.FlagResponse,
@@ -387,12 +406,45 @@ func sendSAInitNotify(sa *SA, tr *transport.UDPTransport, remote *net.UDPAddr, n
 	if err != nil {
 		// RFC 7296 Section 3: a truncated IKE message is malformed. Drop rather
 		// than send a partial notify (ai/rules/no-workarounds-for-missing-behavior.md).
-		log.Warn("ike: SA_INIT notify too large, dropping", "peer", sa.PeerName, "notify", notifyType, "error", err)
+		log.Warn("ike: SA_INIT notify too large, dropping", "peer", peerName, "notify", notifyType, "error", err)
 		return
 	}
 	if err := sendReply(tr, buf[:n], remote); err != nil {
-		log.Debug("ike: send SA_INIT notify failed", "peer", sa.PeerName, "error", err)
+		log.Debug("ike: send SA_INIT notify failed", "peer", peerName, "error", err)
 	}
+}
+
+// sendCookieChallenge answers an inbound IKE_SA_INIT with a COOKIE notification, and
+// commits no state doing it.
+//
+// RFC 7296 Section 2.6 fixes the header: "When the IKE_SA_INIT exchange does not result
+// in the creation of an IKE SA due to INVALID_KE_PAYLOAD, NO_PROPOSAL_CHOSEN, or COOKIE,
+// the responder's SPI will be zero also in the response message."
+//
+// The response is strictly SMALLER than the request that drew it, so it can never
+// amplify: 28 octets of header, 4 of generic header, 4 of notify and a 33-octet cookie
+// answer an IKE_SA_INIT whose KE payload alone is 256 octets for MODP-2048. Its only
+// destination is the source address of the datagram, which matchResponderPeer has
+// already matched against a CONFIGURED peer, so it cannot be aimed at a third party.
+// Its rate is bounded one-for-one by the inbound token bucket in dispatchInbound.
+func sendCookieChallenge(
+	tr *transport.UDPTransport,
+	remote *net.UDPAddr,
+	spiI [8]byte,
+	cookie []byte,
+	peerName string,
+	log *slog.Logger,
+) {
+	// RFC 7296 Section 2.6 MUST: the cookie data is "between 1 and 64 octets in length
+	// (inclusive)". mintCookie returns cookieDataLen, so this can only fire on a code
+	// change -- which is exactly what makes it the guard rather than a comment.
+	if len(cookie) < minCookieLen || len(cookie) > maxCookieLen {
+		log.Warn("ike: refusing to send a COOKIE outside the 1..64 octet bound",
+			"peer", peerName, "length", len(cookie))
+		return
+	}
+	countCookieChallenge(peerName)
+	sendSAInitNotifyRaw(tr, remote, spiI, [8]byte{}, wire.NotifyCookie, cookie, peerName, log)
 }
 
 // handleAuthRequest processes an inbound IKE_AUTH request as the responder:

@@ -98,6 +98,17 @@ func ParseIPsecConfig(tree *config.Tree) (*IPsecConfig, error) {
 		cfg.Interface = v
 	}
 
+	// RFC 7296 Section 2.6: how many half-open IKE SAs the responder tolerates before
+	// it challenges an inbound initiation with a COOKIE. Absent means the YANG default
+	// of zero, which challenges every initiation.
+	if v, ok := ipsecRoot.Get("cookie-threshold"); ok {
+		n, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("ipsec cookie-threshold %q: %w", v, err)
+		}
+		cfg.CookieThreshold = uint32(n)
+	}
+
 	for _, entry := range ipsecRoot.GetListOrdered("esp-group") {
 		g, err := parseESPGroup(entry.Key, entry.Value)
 		if err != nil {

@@ -1,4 +1,6 @@
 // Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE engine component registration
+// Related: cookie.go -- the COOKIE challenge that gates the half-open slot in tryResponderSAInit
+// Related: notify_error.go -- the unprotected sender answering a datagram that matched no SA
 package engine
 
 import (
@@ -275,6 +277,11 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return fmt.Errorf("ike config: %w", err)
 		}
+
+		// RFC 7296 Section 2.6. Published before any peer is reconciled, so an
+		// initiation that arrives during the reconcile is judged against the config
+		// being applied rather than the one being replaced.
+		SetCookieThreshold(cfg.CookieThreshold)
 
 		if cfg.Interface != "" {
 			ifIP, ifErr := resolveInterfaceAddr(cfg.Interface)
@@ -645,6 +652,41 @@ func tryResponderSAInit(pkt transport.Packet, iSPI, rSPI [8]byte, table *SATable
 	if ps == nil {
 		log.Debug("ike: unsolicited IKE_SA_INIT from unconfigured source", "src", pkt.RemoteAddr)
 		return false
+	}
+	// RFC 7296 Section 2.6, and the whole reason this block sits HERE rather than after
+	// the CAS below: a responder "commits no state to an SA until it knows the initiator
+	// can receive packets at the address from which it claims to be sending them".
+	//
+	// The CAS below takes this peer's ONLY half-open slot, and reapStaleHandshake frees
+	// it only after responderHandshakeTimeout. Before this gate existed, one spoofed
+	// datagram bearing a configured peer's source address denied that peer's IKE for 30
+	// seconds, and a datagram every 30 seconds denied it indefinitely. The inbound token
+	// bucket does not help: it is global and generous, and the attack needs one packet
+	// per 30 seconds. Moving this block after the CAS reopens exactly that defect.
+	if cookieRequired(ps) {
+		cookie, nonce, scanned := scanSAInitPreState(pkt.Data)
+		if !scanned || len(nonce) == 0 || !verifyCookie(cookie, iSPI, nonce, cookieRemoteIP(pkt.RemoteAddr), time.Now()) {
+			if len(cookie) > 0 {
+				countCookieVerifyFailure(ps.peerName)
+			}
+			// RFC 7296 Section 2.6 MUST: a cookie that does not match is IGNORED, not
+			// rejected -- "process the message as if no cookie had been included;
+			// usually this means sending a response containing a new cookie". A
+			// pressured responder processes a cookie-less initiation by challenging
+			// it, so that is what happens here. No SA, no CAS, no table entry.
+			//
+			// Do NOT "harden" this into a rejection. It would break conformance with
+			// the paragraph above, and TestCkeMismatchedCookieIsIgnoredNotRejected
+			// exists to catch it.
+			fresh := mintCookie(iSPI, nonce, cookieRemoteIP(pkt.RemoteAddr), time.Now())
+			if fresh == nil {
+				log.Warn("ike: cannot mint a COOKIE, dropping the initiation", "peer", ps.peerName, "src", pkt.RemoteAddr)
+				return true
+			}
+			log.Debug("ike: challenging inbound IKE_SA_INIT with a COOKIE", "peer", ps.peerName, "src", pkt.RemoteAddr)
+			sendCookieChallenge(tr, pkt.RemoteAddr, iSPI, fresh, ps.peerName, log)
+			return true
+		}
 	}
 	// One in-flight HALF-OPEN handshake per responder peer (AC-6). A genuine
 	// retransmit finds the SA already in the SATable and never reaches this path.

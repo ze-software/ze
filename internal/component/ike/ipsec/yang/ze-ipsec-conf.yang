@@ -53,6 +53,20 @@ module ze-ipsec-conf {
                 description "WAN interface for IPsec traffic.";
             }
 
+            leaf cookie-threshold {
+                type uint32;
+                default 0;
+                description
+                    "Number of half-open IKE SAs tolerated before an inbound
+                     IKE_SA_INIT must answer a COOKIE challenge. RFC 7296
+                     Section 2.6 makes the challenge the answer to state and CPU
+                     exhaustion from forged source addresses. The default of 0
+                     challenges every inbound initiation, which costs one extra
+                     round trip and stops a single spoofed datagram taking a
+                     peer's only half-open handshake slot. Raise it to tolerate
+                     that many half-open handshakes before challenging.";
+            }
+
             list esp-group {
                 key "name";
                 description "ESP (Encapsulating Security Payload) group.";
