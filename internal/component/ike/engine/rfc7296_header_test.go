@@ -77,15 +77,15 @@ func engineBuiltMessages(t *testing.T) []struct {
 }
 
 // RFC requirement: RFC7296-3.1-5 positive -- every message the engine builds sets the major version
-// to 2. buildSAInitRequest (initiator.go:74), buildSAInitResponse (responder.go:243) and
-// writeAuthHeaderWithMsgID (auth.go:622) all set MajorVersion 2. Every encrypted exchange
-// routes through writeAuthHeaderWithMsgID, and Header.WriteTo (header.go:44) packs the version
+// to 2. buildSAInitRequest (initiator.go:75), buildSAInitResponse (responder.go:259) and
+// writeAuthHeaderWithMsgID (auth.go:759) all set MajorVersion 2. Every encrypted exchange
+// routes through writeAuthHeaderWithMsgID, and Header.WriteTo (header.go:39) packs the version
 // into the high nibble.
 // RFC requirement: RFC7296-3.1-6 positive -- the same builders set the minor version to 0. The low
 // nibble of the version octet is therefore zero on every message ze emits.
 //
 // RFC requirement: RFC7296-3.1-5 negative -- version 2 is asserted on receipt too, not only on send.
-// dispatchInbound drops a datagram whose major version is not 2 (register.go:637), so a
+// dispatchInbound drops a datagram whose major version is not 2 (register.go:645), so a
 // non-version-2 message is never processed as IKEv2.
 // RFC requirement: RFC7296-3.1-6 negative -- the minor nibble is written, not left to chance. An
 // explicitly non-zero MinorVersion does reach the wire. The zero on every built message
@@ -114,7 +114,7 @@ func TestBuiltMessagesCarryVersion2Point0(t *testing.T) {
 }
 
 // RFC requirement: RFC7296-2.5-2 positive -- Ze drops a message whose major version is higher than 2.
-// dispatchInbound tests the high nibble of octet 17 (register.go:635-638). It then continues,
+// dispatchInbound tests the high nibble of octet 17 (register.go:645-647). It then continues,
 // and it delivers the packet to no SA.
 // RFC requirement: RFC7296-2.5-2 negative -- the drop is version-specific. An otherwise identical
 // datagram whose major version IS 2 is delivered to the owning session. dispatchInbound does
@@ -199,15 +199,15 @@ func TestHigherMajorVersionDropped(t *testing.T) {
 }
 
 // RFC requirement: RFC7296-3.1-3 positive -- the initiator SPI is never zero. GenerateSPI redraws
-// until the eight octets are not all zero (sa.go:134-144). newInitiatorSA and newResponderSA
+// until the eight octets are not all zero (sa.go:179-189). newInitiatorSA and newResponderSA
 // both take their SPI from it.
 // RFC requirement: RFC7296-3.1-4 positive -- the responder SPI is zero in the first message of the
 // initial exchange. newInitiatorSA leaves SA.ResponderSPI at its zero value, and
-// buildSAInitRequest copies only the initiator SPI into the header (initiator.go:71-81).
+// buildSAInitRequest copies only the initiator SPI into the header (initiator.go:70-81).
 // Octets 8..15 of the IKE_SA_INIT request are therefore zero.
 //
 // RFC requirement: RFC7296-3.1-3 negative -- the rule is enforced on receipt too. dispatchInbound
-// drops a datagram whose initiator SPI is all zeroes (register.go:644-647). It does not match
+// drops a datagram whose initiator SPI is all zeroes (register.go:657-659). It does not match
 // that datagram against the SA table.
 // RFC requirement: RFC7296-3.1-4 negative -- the zero is confined to that first message. The
 // IKE_SA_INIT RESPONSE and every later message carry a non-zero responder SPI, so a peer can
@@ -284,7 +284,7 @@ func TestSPIZeroRules(t *testing.T) {
 
 // RFC requirement: RFC7296-2.6-2 positive -- each endpoint's SPI is a unique identifier of an IKE SA.
 // GenerateSPI draws eight random octets, so two SAs created back to back hold different SPIs.
-// SATable keys on the PAIR (SPIPairKey, sa.go:157), so exactly one key addresses one SA.
+// SATable keys on the PAIR (SPIPairKey, sa.go:202), so exactly one key addresses one SA.
 // RFC requirement: RFC7296-2.6-2 negative -- uniqueness is enforced, not assumed. SATable.Insert
 // refuses a second SA whose SPI pair is already present (table.go:19-28). It rejects the
 // collision, and it does not overwrite the first SA.
@@ -327,7 +327,7 @@ func TestSPIsAreUniqueIdentifiers(t *testing.T) {
 
 // RFC requirement: RFC7296-3.1-7 positive -- the engine clears the X bits in every message it sends.
 // Every message the engine builds carries flags drawn only from FlagInitiator and FlagResponse
-// (initiator.go:78, responder.go:247, initiatorFlag rekey.go:25-30). A mask of the flags octet
+// (initiator.go:78, responder.go:262, initiatorFlag rekey.go:45-50). A mask of the flags octet
 // with the X-bit set therefore yields zero.
 // RFC requirement: RFC7296-3.1-11 positive -- the engine clears the V bit in every message it sends.
 // No builder sets wire.FlagVersion, so bit 4 is zero on every message ze emits.
@@ -372,11 +372,11 @@ func TestBuiltMessagesClearXAndVBits(t *testing.T) {
 
 // RFC requirement: RFC7296-3.1-9 positive -- the R bit is clear in every request and set in every
 // response. Each request the engine builds passes flags without wire.FlagResponse. Each
-// response ORs it in (handleInformationalOwned inbound.go:270, buildSAInitResponse
-// responder.go:247).
+// response ORs it in (handleInformationalOwned inbound.go:339, buildSAInitResponse
+// responder.go:262).
 // RFC requirement: RFC7296-3.1-9 negative -- the bit is read, not ignored. handleResponderInbound
-// refuses to process a message whose R bit is set (responder.go:58-61). handleOwnedInbound
-// classifies by it (inbound.go:43), so a request mislabeled as a response is treated
+// refuses to process a message whose R bit is set (responder.go:53-56). handleOwnedInbound
+// classifies by it (inbound.go:45-46), so a request mislabeled as a response is treated
 // differently.
 func TestResponseBitMatchesDirection(t *testing.T) {
 	for _, m := range engineBuiltMessages(t) {
@@ -419,7 +419,7 @@ func TestResponseBitMatchesDirection(t *testing.T) {
 
 // RFC requirement: RFC7296-3.1-8 positive -- the receive path ignores the X bits. An IKE_SA_INIT
 // request whose five X bits are all set is processed exactly as the same request with them
-// clear. Header.ReadFrom stores the octet (header.go:63), and every consumer tests only
+// clear. Header.ReadFrom stores the octet (header.go:53-70), and every consumer tests only
 // FlagResponse or FlagInitiator.
 // RFC requirement: RFC7296-3.1-11 negative -- the receive path ignores the V bit as well. A set V bit
 // changes no decision, so a peer that announces a higher major version capability is still

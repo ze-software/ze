@@ -1077,16 +1077,16 @@ the Obligation text.
 | `RFC7296-2.4-10` | MUST | If an IKE endpoint chooses to delete Child SAs, it MUST send Delete payloads to the other end notifying it of the deletion (§2.4) | impl-testable |
 | `RFC7296-2.5-1` | MUST | The minor version number indicates new capabilities, and MUST be ignored by a node with a smaller minor version number, but used for informational purposes by the node with the larger minor version number (§2.5, §3.1) | impl-testable |
 | `RFC7296-2.5-2` | MUST | If an endpoint receives a message with a higher major version number, it MUST drop the message (§2.5, §3.1) | impl-testable |
-| `RFC7296-2.5-3` | MUST | If an endpoint supports major version n, and major version m, it MUST support all versions between n and m (§2.5) | uncertain |
-| `RFC7296-2.5-4` | MUST | If it receives a message with a major version that it supports, it MUST respond with that version number (§2.5) | uncertain |
-| `RFC7296-2.5-5` | MUST | If they mistakenly negotiate to version n, then both will notice that the other side can support a higher version number, and they MUST break the connection and reconnect using version n+1 (§2.5) | **NOT IMPL** |
+| `RFC7296-2.5-14` | MUST | If an endpoint supports major version n, and major version m, it MUST support all versions between n and m (§2.5) | impl-testable |
+| `RFC7296-2.5-15` | MUST | If it receives a message with a major version that it supports, it MUST respond with that version number (§2.5) | impl-testable |
+| `RFC7296-2.5-16` | MUST | If they mistakenly negotiate to version n, then both will notice that the other side can support a higher version number, and they MUST break the connection and reconnect using version n+1 (§2.5) | impl-testable |
 | `RFC7296-2.5-6` | MUST | Also, for forward compatibility, all fields marked RESERVED MUST be set to zero by an implementation running version 2.0 (§2.5, §3.2, §3.3.1, §3.3.2, §3.5, §3.8, §3.13, §3.15, §3.15.1) | impl-testable |
 | `RFC7296-2.5-7` | MUST | The content of all fields marked RESERVED MUST be ignored by an implementation running version 2.0 (§2.5, §3.2, §3.3.1, §3.3.2, §3.5, §3.8, §3.13, §3.15, §3.15.1) | impl-testable |
 | `RFC7296-2.5-8` | MUST | Payload types that are not defined are reserved for future use; implementations of a version where they are undefined MUST skip over those payloads and ignore their contents (§2.5, §4) | impl-testable |
 | `RFC7296-2.5-9` | MUST | If the critical flag is set and the payload type is unrecognized, the message MUST be rejected (§2.5, §4) | impl-testable |
 | `RFC7296-2.5-10` | MUST | The response to the IKE request containing that payload MUST include a Notify payload UNSUPPORTED_CRITICAL_PAYLOAD, indicating an unsupported critical payload was included (§2.5) | **NOT IMPL** |
 | `RFC7296-2.5-11` | MUST | If the critical flag is not set and the payload type is unsupported, that payload MUST be ignored (§2.5) | impl-testable |
-| `RFC7296-2.5-12` | MUST NOT | Payloads sent in IKE response messages MUST NOT have the critical flag set (§2.5) | **NOT IMPL** |
+| `RFC7296-2.5-17` | MUST NOT | Payloads sent in IKE response messages MUST NOT have the critical flag set (§2.5) | impl-testable |
 | `RFC7296-2.5-13` | MUST NOT | Implementations MUST NOT reject as invalid a message with those payloads in any other order (§2.5, §1.7) | impl-testable |
 | `RFC7296-2.6-2` | MUST | Each endpoint chooses one of the two SPIs and MUST choose them so as to be unique identifiers of an IKE SA (§2.6) | impl-testable |
 | `RFC7296-2.6-3` | MUST | The data associated with this notification MUST be between 1 and 64 octets in length (inclusive) (§2.6) | **NOT IMPL** |
@@ -1174,7 +1174,7 @@ the Obligation text.
 | `RFC7296-3.1-12` | MUST NOT | An IKE endpoint MUST NOT generate a response to a message that is marked as being a response `(with one exception; see Section 2.21.2)` (§3.1) | landed WP-1 |
 | `RFC7296-3.1-11` | MUST | Implementations of IKEv2 MUST clear the V bit when sending and MUST ignore it in incoming messages (§3.1) | impl-testable |
 | `RFC7296-3.1-13` | MUST | The I bit MUST be set in messages sent by the original initiator of the IKE SA and MUST be cleared in messages sent by the original responder (§3.1) | **NOT IMPL** |
-| `RFC7296-3.2-1` | MUST | The Critical bit MUST be set to zero for payload types defined in this document (§3.2) | **NOT IMPL** |
+| `RFC7296-3.2-4` | MUST | The Critical bit MUST be set to zero for payload types defined in this document (§3.2) | impl-testable |
 | `RFC7296-3.2-2` | MUST | The Critical bit MUST be ignored by the recipient if the recipient understands the payload type code in the Next Payload field of the previous payload (§3.2) | impl-testable |
 | `RFC7296-3.2-3` | MUST | All implementations MUST understand all payload types defined in this document (§3.2, §4) | impl-testable |
 | `RFC7296-3.3-3` | MUST | An SA payload MAY contain multiple proposals. If there is more than one, they MUST be ordered from most preferred to least preferred (§3.3) | impl-testable |
@@ -1218,7 +1218,7 @@ the Obligation text.
 | `RFC7296-3.10.1-3` | MUST | To avoid leaking information to someone probing a node, this status MUST be sent in response to any error not covered by one of the other status types (§3.10.1) | **NOT IMPL** |
 | `RFC7296-3.11-1` | MUST NOT | Each SPI MUST be for the same protocol. Mixing of protocol identifiers MUST NOT be performed in the Delete payload (§3.11) | impl-testable |
 | `RFC7296-3.11-2` | MUST | The SPI Size MUST be zero for IKE (SPI is in message header) or four for AH and ESP (§3.11) | impl-testable |
-| `RFC7296-3.12-1` | MUST NOT | A Vendor ID payload MUST NOT change the interpretation of any information defined in this specification, i.e., the critical bit MUST be set to 0 (§3.12) | **NOT IMPL** |
+| `RFC7296-3.12-4` | MUST NOT | A Vendor ID payload MUST NOT change the interpretation of any information defined in this specification, i.e., the critical bit MUST be set to 0 (§3.12) | impl-testable |
 | `RFC7296-3.12-2` | MUST | Unfamiliar Vendor IDs MUST be ignored (§3.12) | impl-testable |
 | `RFC7296-3.12-3` | MUST | Writers of documents who wish to extend this protocol MUST define a Vendor ID payload to announce the ability to implement the extension in the document (§3.12) | impl-untested |
 | `RFC7296-3.13.1-1` | MUST | For protocols for which port is undefined (including protocol 0), or if all ports are allowed, the Start Port field MUST be zero (§3.13.1) | **NOT IMPL** |
@@ -1470,6 +1470,44 @@ it. An id in Appendix A is a plan. Only an id in the summary is allocated.
 ordinal order.** A work-package grouping cuts across sections and will trip this again.
 The gate is right and the batching was wrong.
 
+### WP-5 landed six rows, and section 2.5 took a contiguous block
+
+Measured at HEAD on 2026-07-31, the marks were 13 for section 2.5, 3 for section 3.2 and 3
+for section 3.12. Every one of WP-5's six Appendix A ordinals sat at or below its mark, so
+`check_id_allocation` refused all six.
+
+| Appendix A id | Landed as | Owner |
+|---------------|-----------|-------|
+| `RFC7296-2.5-3` | `RFC7296-2.5-14` | OR-D, folded into WP-5 |
+| `RFC7296-2.5-4` | `RFC7296-2.5-15` | phase 2b, folded into WP-5 |
+| `RFC7296-2.5-5` | `RFC7296-2.5-16` | WP-5, OR-D extended by the owner |
+| `RFC7296-2.5-12` | `RFC7296-2.5-17` | WP-5 |
+| `RFC7296-3.2-1` | `RFC7296-3.2-4` | WP-5 |
+| `RFC7296-3.12-1` | `RFC7296-3.12-4` | WP-5 |
+
+The four section-2.5 rows landed as ONE contiguous block from 14, in Appendix A ordinal
+order. Landing only WP-5's own two at 16 and 17 would have pushed the mark to 17 and
+stranded 14 and 15 permanently, for WP-3 and for phase 2b. That is why `2.5-3` and `2.5-4`
+were folded in. Section 2.5's one remaining Appendix A row is WP-3's `2.5-10`, which now
+takes `2.5-18` or higher.
+
+**Three superseding verdicts.** The 2026-07-30 triage covered `RFC7296-3.2-1`, `2.5-12`
+and `3.12-1`. It said they "hold only by absence" and "MUST stay NOT IMPL". That reading is
+superseded. It assumed the expiring-negative shape recorded under `RFC7296-3.4-1`. That
+row's negative argued that nothing on the receive side compensates.
+
+These three argue the opposite way, from properties the code HAS. The encoder honors
+`PayloadEntry.Critical`, and both parsers produce a `true` value from attacker-controlled
+wire input. `RFC7296-3.1-11` is the in-tree precedent for exactly this shape.
+
+The triage's "no version-negotiation state machine" entry for `2.5-5` is likewise
+superseded. The obligation's consequent orders a reconnect at major version n+1, and RFC
+7296 defines version 2.0 with no IKEv3 to reconnect to. Its antecedent needs a supported set
+of size two or more, and ze enforces the singleton {2} at both dispatch loops.
+
+**All six rows are `impl-testable`, proven, and WP-5 changed no production code.** The
+package is tests, six summary rows, and citation corrections.
+
 ### The ipsec functional suite was never run, and now is
 
 `test/ipsec/` holds 8 `.ci` files and a registered runner root
@@ -1666,8 +1704,8 @@ phase 2b row set and needs a tagged pair.
 `ai/rules/rfc-compliance.md`, which reserves a compliance judgement to the owner.
 
 OR-D: `RFC7296-2.5-3` is discharged by proof, never by annotation. Ze supports the singleton
-{2}, and the inbound gate is an equality test on the raw header byte (`register.go:455` and
-`register.go:625`). A tagged pair must assert that Ze accepts major version 2 and drops every
+{2}, and the inbound gate is an equality test on the raw header byte (`register.go:466` and
+`register.go:645`). A tagged pair must assert that Ze accepts major version 2 and drops every
 other value. The row stays gated, so a future second supported version cannot pass unnoticed.
 
 OR-E: `RFC7296-2.16-5` is discharged by proof, never by annotation. Ze refuses every EAP
