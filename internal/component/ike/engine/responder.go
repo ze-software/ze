@@ -678,7 +678,12 @@ func (ps *PeerSession) finishResponderEstablish(sa *SA, msgID uint32, resp []byt
 		ps.setChildSA(child)
 	}
 	cacheResponse(sa, msgID, resp) // advances ExpectedMsgID to msgID+1 (=2)
-	sa.NextMsgID = msgID + 1       // our next self-initiated request (DPD/Delete)
+	// Our next self-initiated request (DPD, Delete, rekey). It goes through
+	// resumeRequestsAfter (msgid.go) rather than written directly. That way it shares
+	// Section 2.2's ceiling, which advanceMsgID applies on the initiator side (fsm.go). A
+	// direct `msgID + 1` wraps to 0 for a peer that authenticates its final IKE_AUTH at
+	// math.MaxUint32.
+	sa.resumeRequestsAfter(msgID)
 	sa.LastSentMsg = resp
 	if tr != nil && remote != nil {
 		if err := sendWithNATT(sa, resp, tr, remote); err != nil {

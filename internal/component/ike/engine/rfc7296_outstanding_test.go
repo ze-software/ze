@@ -4,11 +4,19 @@
 //
 // Helpers here start with `osr`, so they cannot collide with the sibling RFC files in
 // this package. This file reuses the `rtx` loopback helpers and the `win` DPD helper.
+//
+// rfc-test-change-approved: 2026-07-31 the owner gave standing approval to strengthen a
+// tagged test whose tag asserted more than its body drove, for the whole of
+// plan/spec-rfcgate-1b-rfc7296-pilot.md. It covers edits that make a tagged test assert MORE
+// than before, and nothing that weakens one. Here it covers
+// TestOsrOwnerLoopKeepsAForeignWindowHeld, which passed dpd == nil and so never reached
+// retireRequest at all.
 
 package engine
 
 import (
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
@@ -260,15 +268,24 @@ func TestOsrClassifierRejectsOutOfWindow(t *testing.T) {
 	}
 }
 
-// VALIDATES: the owner loop retires only the DPD probe's own window. A window held by a
-// Delete or a rekey survives an authenticated inbound message.
+// VALIDATES: the owner loop retires the request window only while a DPD probe is actually
+// awaiting its reply. A window held by a Delete or a rekey survives an authenticated
+// inbound message.
 // PREVENTS: freeing the window on every authenticated inbound, which lets a second
 // request go out beside a request that is still unanswered.
 //
+// rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the whole of
+// plan/spec-rfcgate-1b-rfc7296-pilot.md, to strengthen a tagged test whose tag asserted more
+// than its body drove. This body passed dpd == nil. So established.go's awaitingReply gate
+// short-circuited, and retireRequest was never called. No mutation of either guard turned
+// the test red. The approval covers strengthening only, never weakening.
+//
 // RFC requirement: RFC7296-2.3-8 negative -- accepting and processing a peer request is bounded.
-// The retire in maintainSA (established.go) is keyed to the DPD probe's own Message ID,
-// so a window held by a Delete or a rekey survives. RFC 7296 Section 2.3 still requires
-// Ze to wait for the answer to that request, and the second request is refused.
+// maintainSA (established.go) reaches retireRequest only through its awaitingReply gate. A
+// window held by a Delete or a rekey therefore survives an authenticated inbound. Section 2.3
+// still requires Ze to wait for the answer to that request, and the second request is
+// refused. The Message ID half of the same guard is pinned by
+// TestOsrRetireOnlyFreesItsOwnWindow, which drives retireRequest directly.
 func TestOsrOwnerLoopKeepsAForeignWindowHeld(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ini, peer, ps, peerTr, myTr := osrSession(t)
@@ -285,13 +302,32 @@ func TestOsrOwnerLoopKeepsAForeignWindowHeld(t *testing.T) {
 	}
 	heldBy := ini.requestMsgID
 
+	// DPD state that is NOT awaiting a reply. That is the only state reachable while
+	// another request holds the window, because sendDPD takes the window itself and
+	// refuses when it is already held. handleDPDResponse leaves probeMsgID behind when it
+	// clears awaitReply, so a stale id here is what the loop really sees.
+	//
+	// probeMsgID carries the Delete's own id ON PURPOSE. That makes awaitingReply the single
+	// guard under test. Remove that gate and the window is freed here, rather than being
+	// caught by the Message ID comparison behind it. The long interval keeps the ticker from
+	// raising a probe of its own.
+	dpd := &dpdState{
+		interval:   time.Hour,
+		timeout:    time.Hour,
+		lastSent:   time.Now(),
+		probeMsgID: heldBy,
+	}
+	if dpd.awaitingReply() {
+		t.Fatal("the test's DPD state is awaiting a reply; it must not be, or the retire " +
+			"runs and this test stops isolating the awaitingReply gate")
+	}
+
 	ps.stopCh = make(chan struct{})
 	ps.supersede = make(chan struct{}, 1)
 	ps.inbound = make(chan transport.Packet, 4)
 	done := make(chan struct{})
 	go func() {
-		// No DPD state at all, so nothing in the loop owns the outstanding request.
-		_ = ps.maintainSA(ini, nil, nil, nil,
+		_ = ps.maintainSA(ini, dpd, nil, nil,
 			testIKEGroup(), NewSATable(), &rkyDP{}, myTr, nil, log)
 		close(done)
 	}()
@@ -314,4 +350,51 @@ func TestOsrOwnerLoopKeepsAForeignWindowHeld(t *testing.T) {
 	ps.sendDeleteIKE(ini, myTr, log)
 	rtxExpectSilence(t, peerTr, myTr, remote,
 		"an IKE Delete while the ESP Delete's window is still held")
+}
+
+// VALIDATES: retireRequest frees the window only for the request that actually holds it.
+// A probe abandoned at any other Message ID leaves the window where it is.
+// PREVENTS: an abandoned DPD probe freeing a Delete's or a rekey's window, which would put
+// two of our own requests in flight on one SA.
+//
+// rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the whole of
+// plan/spec-rfcgate-1b-rfc7296-pilot.md, to strengthen tagged coverage. This test is new. It
+// adds proof, and it removes none.
+//
+// It drives the producer directly rather than through maintainSA. The owner loop reaches
+// retireRequest only while a probe awaits its reply. And sendDPD refuses the window when
+// another request already holds it. The loop therefore cannot present retireRequest with a
+// foreign id itself. The comparison is a fail-closed guard on the function's own contract
+// (ai/rules/fail-closed-guards.md), and this is where that contract is proven.
+//
+// RFC requirement: RFC7296-2.3-8 negative -- accepting and processing a peer request is bounded.
+// Section 2.3 lets the next request go out only once the outstanding one is settled. Nothing
+// can therefore free a window that belongs to a different Message ID. The loop half of the
+// same guard is pinned by TestOsrOwnerLoopKeepsAForeignWindowHeld.
+func TestOsrRetireOnlyFreesItsOwnWindow(t *testing.T) {
+	sa := testSA()
+	sa.NextMsgID = 7
+	if !sa.reserveRequestWindow() {
+		t.Fatal("the window was not free on a fresh SA, so nothing below is a retire test")
+	}
+	held := sa.requestMsgID
+	if held != 7 {
+		t.Fatalf("the window was taken at id %d, want 7 (the SA's NextMsgID)", held)
+	}
+
+	for _, foreign := range []uint32{held - 1, held + 1, 0, ^uint32(0)} {
+		sa.retireRequest(foreign)
+		if !sa.requestOutstanding {
+			t.Fatalf("retireRequest(%d) freed a window held at id %d; only the holder's own "+
+				"id may retire it, or an abandoned probe frees a Delete's window and two "+
+				"requests go out at once", foreign, held)
+		}
+	}
+
+	// The control. The holder's own id DOES free the window. The four refusals above are
+	// therefore the Message ID comparison speaking, and not a function that frees nothing.
+	sa.retireRequest(held)
+	if sa.requestOutstanding {
+		t.Fatalf("retireRequest(%d) did not free the window it holds", held)
+	}
 }

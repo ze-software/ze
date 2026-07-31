@@ -171,13 +171,21 @@ func TestEapAuthResponderRefusesWithoutCertificate(t *testing.T) {
 			if err == nil {
 				t.Fatal("computeServerAuth accepted an EAP peer with no certificate")
 			}
+			// rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the
+			// whole of plan/spec-rfcgate-1b-rfc7296-pilot.md, to strengthen a tagged test
+			// whose arm no input reaches. The AUTH-data comparison used to sit after an
+			// unconditional failure on the same `auth != nil` condition, so `auth` was
+			// provably nil by the time the comparison ran and it was dead in both directions
+			// (go vet: "impossible condition: nil != nil"). Nesting it makes a reintroduced
+			// pre-shared-key fallback fail on THAT line, which is what the arm was written
+			// for. The approval covers strengthening only, never weakening.
 			if auth != nil {
+				// Name the specific outcome the RFC forbids before the general one, so a
+				// reintroduced fallback is reported as itself and not as "an AUTH payload".
+				if bytes.Equal(auth.AuthData, pskAuth.AuthData) {
+					t.Fatal("responder answered an EAP exchange with a pre-shared-key AUTH")
+				}
 				t.Fatalf("refusal still returned an AUTH payload, method %d", auth.AuthMethod)
-			}
-			// Restate the specific outcome the RFC forbids, so a reintroduced
-			// fallback fails here and not only on the nil check above.
-			if auth != nil && bytes.Equal(auth.AuthData, pskAuth.AuthData) {
-				t.Fatal("responder answered an EAP exchange with a pre-shared-key AUTH")
 			}
 
 			msg := err.Error()

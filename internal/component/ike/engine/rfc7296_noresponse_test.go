@@ -4,9 +4,15 @@
 // Helpers here start with `nrs`, so they cannot collide with the sibling RFC files in
 // this package. This file reuses the `rtx` loopback helpers and the `rky` recorder.
 
+// rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the whole of
+// plan/spec-rfcgate-1b-rfc7296-pilot.md, to strengthen tagged tests. `net` is imported so the
+// "out of SA admission" arm can give its packet a source address and actually reach the
+// producer its tag names.
+
 package engine
 
 import (
+	"net"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
@@ -102,26 +108,55 @@ func TestNrsResponseNeverDrawsAResponse(t *testing.T) {
 	})
 
 	// Producer two: out-of-SA IKE_SA_INIT admission.
+	//
+	// rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the whole
+	// of plan/spec-rfcgate-1b-rfc7296-pilot.md, to strengthen a tagged test whose body did
+	// not reach the producer it named. This arm sent a packet with no RemoteAddr. So
+	// matchResponderPeer(nil) returned nil (register.go:557-559), and register.go:594-597
+	// returned false whatever the R-flag check did. Deleting that check left the arm green,
+	// and its negative control asserted nothing in either branch. The approval covers
+	// strengthening only, never weakening.
 	t.Run("out of SA admission", func(t *testing.T) {
-		iniPeer, _ := responderTestPeers(ipsec.AuthPreSharedSecret, "noresp-admit")
+		iniPeer, respPeer := responderTestPeers(ipsec.AuthPreSharedSecret, "noresp-admit")
 		ini, err := newInitiatorSA("ze", iniPeer, testIKEGroup(), testESPGroup())
 		if err != nil {
 			t.Fatalf("newInitiatorSA: %v", err)
 		}
 		req := buildSAInitRequest(ini, testIKEGroup())
 
+		// The admission path has to be REACHABLE for the refusal below to mean anything.
+		// tryResponderSAInit declines a source that matches no configured peer before it
+		// reads the flag. So a `respond` peer is registered here, and the packet is given
+		// the source address that peer names. The flag is then the ONLY difference between
+		// the two calls.
+		ps := &PeerSession{peerName: "noresp-admit", peerCfg: respPeer,
+			ikeGroup: testIKEGroup(), espGroup: testESPGroup()}
+		setActivePeers(map[string]*PeerSession{ps.peerName: ps})
+		t.Cleanup(func() { setActivePeers(nil) })
+		src := &net.UDPAddr{IP: net.ParseIP(respPeer.RemoteAddress), Port: 500}
+		if matchResponderPeer(src) != ps {
+			t.Fatal("the registered responder peer does not match the packet source; the " +
+				"admission path is unreachable and neither call below tests the R bit")
+		}
+
 		var zeroSPI [8]byte
-		if tryResponderSAInit(transport.Packet{Data: nrsFlip(req, true)},
+		if tryResponderSAInit(transport.Packet{Data: nrsFlip(req, true), RemoteAddr: src},
 			ini.InitiatorSPI, zeroSPI, NewSATable(), nil, log) {
 			t.Error("a message marked as a response created a responder SA; it must never " +
 				"be admitted, because admitting it draws an answer")
 		}
-		// Negative: the admission path is reachable, so the refusal above is the flag
-		// speaking. No configured peer matches this packet, so admission still declines
-		// further down, and the flag check is the only difference between the two calls.
-		if tryResponderSAInit(transport.Packet{Data: nrsFlip(req, false)},
+		if ps.responderBusy.Load() {
+			t.Error("a message marked as a response reached the half-open admission gate; " +
+				"the R-bit check must refuse it before any state is taken")
+		}
+
+		// Negative: the SAME packet with the flag cleared IS admitted. The refusal above is
+		// therefore the Response flag speaking, and not a source the responder never
+		// matched.
+		if !tryResponderSAInit(transport.Packet{Data: nrsFlip(req, false), RemoteAddr: src},
 			ini.InitiatorSPI, zeroSPI, NewSATable(), nil, log) {
-			t.Log("the request was admitted")
+			t.Error("an IKE_SA_INIT request from a configured responder peer was not " +
+				"admitted, so the refusal above proves nothing about the R bit")
 		}
 	})
 

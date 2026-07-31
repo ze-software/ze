@@ -29,23 +29,15 @@ func midTemporaryFailure() []wire.PayloadEntry {
 	}
 }
 
-// midChildRekeyPending returns a Child SA rekey this side initiated, awaiting an answer
-// at msgID. It is the state a response handler finds when the peer answers.
-func midChildRekeyPending(t *testing.T, old *ChildSA, msgID uint32) *pendingRekey {
-	t.Helper()
-	newSPI, err := GenerateESPSPI()
-	if err != nil {
-		t.Fatalf("GenerateESPSPI: %v", err)
-	}
-	return &pendingRekey{
-		kind:          rekeyChild,
-		messageID:     msgID,
-		sentAt:        time.Now(),
-		localNonce:    testNonce(7),
-		newInboundSPI: newSPI,
-		oldChild:      old,
-	}
-}
+// test-relax: the unused helper midChildRekeyPending was removed here. No test called it, so
+// it carried no coverage. Its only failure path was a constructor guard on its own input.
+// `make ze-lint-changed` fails this package while it stands ("func midChildRekeyPending is
+// unused"). A later work package that needs the same fixture builds the one it needs.
+//
+// rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the whole of
+// plan/spec-rfcgate-1b-rfc7296-pilot.md, to strengthen tagged coverage. Removing dead
+// scaffolding from a tagged file removes no proof. Every RFC7296-2.2-2 tag in this file
+// keeps its test and its assertions.
 
 // VALIDATES: the outbound Message ID stops at the 32-bit ceiling instead of wrapping,
 // and the owner loop closes the SA once it stops.
@@ -449,5 +441,72 @@ func TestMidTemporaryFailureDefersTheIKERekey(t *testing.T) {
 	}
 	if ps.pendingRekey != nil {
 		ps.pendingRekey.clear()
+	}
+}
+
+// VALIDATES: the responder's own request counter is set past the IKE_AUTH it answered
+// through the same 32-bit ceiling the initiator uses, so it never wraps to 0.
+// PREVENTS: `sa.NextMsgID = msgID + 1` written straight into the SA, which returns the
+// counter to 0 for a peer whose final IKE_AUTH carries math.MaxUint32.
+//
+// rfc-test-change-approved: 2026-07-31 the owner gave standing approval, for the whole of
+// plan/spec-rfcgate-1b-rfc7296-pilot.md, to strengthen tagged coverage. This test is new. It
+// adds proof for a producer that had none, and it removes none.
+//
+// The initiator advances its counter through advanceMsgID (fsm.go). That is where the
+// ceiling lives. finishResponderEstablish (responder.go) is the responder's counterpart, and
+// it wrote the counter directly. It was therefore the one path to a counter reset.
+//
+// Two facts bound the exposure, and neither makes the wrap safe. Only an authenticated peer
+// reaches this producer, because IKE_AUTH is protected under the SK_* keys. And cacheResponse
+// on the line above already marks the SA exhausted, so an SA that got there closed on the
+// next tick. The window between the write and the tick is still a live SA whose next request
+// carries an id it has already spent.
+//
+// RFC requirement: RFC7296-2.2-2 positive -- Section 2.2 requires the IKE SA to be closed or
+// rekeyed once the Message ID no longer fits in 32 bits. The checklist row carries the
+// sentence verbatim (rfc/full/rfc7296.txt:1437-1440). resumeRequestsAfter (msgid.go) freezes
+// the counter at math.MaxUint32 and marks the SA exhausted, which is what closes it.
+//
+// RFC requirement: RFC7296-2.2-2 negative -- the freeze is scoped to the ceiling. An ordinary
+// final IKE_AUTH at id 1 still leaves the counter at 2 and the SA usable. The frozen counter
+// above is therefore the ceiling speaking, and not a producer that stopped setting it.
+func TestMidResponderEstablishDoesNotWrapTheCounter(t *testing.T) {
+	log := slogutil.DiscardLogger()
+
+	// Negative control first. An ordinary IKE_AUTH leaves the counter one past the request
+	// it answered, per Section 2.2's "the first pair of IKE_AUTH messages will have an ID
+	// of 1, the second (when EAP is used) will be 2, and so on".
+	ok := testSA()
+	okPS := &PeerSession{peerName: ok.PeerName}
+	okPS.finishResponderEstablish(ok, 1, []byte("cached response"), nil, nil, nil, log)
+	if ok.NextMsgID != 2 {
+		t.Errorf("NextMsgID = %d after the responder answered IKE_AUTH at id 1, want 2",
+			ok.NextMsgID)
+	}
+	if ok.msgIDExhausted {
+		t.Error("an SA established at id 1 is marked exhausted; the ceiling fired far below it")
+	}
+	if !ok.reserveRequestWindow() {
+		t.Error("a freshly established SA cannot raise its first request")
+	}
+
+	// The ceiling. Section 2.2 leaves no id above math.MaxUint32.
+	sa := testSA()
+	ps := &PeerSession{peerName: sa.PeerName}
+	ps.finishResponderEstablish(sa, math.MaxUint32, []byte("cached response"), nil, nil, nil, log)
+	if sa.NextMsgID != math.MaxUint32 {
+		t.Errorf("NextMsgID = %d after the responder answered at the last legal id, want %d; "+
+			"a wrap spends an id this SA has already used under one set of keys, and "+
+			"Section 2.2 calls the Message ID the replay protection",
+			sa.NextMsgID, uint32(math.MaxUint32))
+	}
+	if !sa.msgIDExhausted {
+		t.Fatal("the SA is not marked exhausted after the responder answered at the ceiling, " +
+			"so nothing closes it")
+	}
+	if sa.reserveRequestWindow() {
+		t.Error("an exhausted SA still reserved the request window; no later request may be " +
+			"built on it")
 	}
 }
