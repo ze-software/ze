@@ -22,10 +22,12 @@ phase itself.
 - **If you are that agent:** run the steps below. You have no LSP tool and cannot
   ask the user, so when you hit a STOP-and-ask condition, halt and put the
   question in your report for the main thread to carry.
-- **Either way:** every claim in the report cites `file:line` for the function
-  that PRODUCES the behavior (`ai/rules/no-fabrication.md`). The main thread
-  verifies each one against source before acting; relaying a report unverified
-  is fabrication with an extra hop.
+- **Either way:** every claim in the report names the function that PRODUCES the
+  behavior, as the file plus the symbol (`ai/rules/no-fabrication.md`). The main
+  thread verifies each one against source before acting; relaying a report
+  unverified is fabrication with an extra hop. Report the conclusion and the
+  evidence that would overturn it, never the search. Under 40 lines
+  (`ai/rules/detail-budget.md`).
 
 ## Why this is not part of /ze-implement
 
@@ -70,7 +72,7 @@ still missing, go back: this skill does not implement.
    - Run the verification method specified in the table
    - Paste evidence (grep output, test output, ls output)
    - If anything is missing or incomplete, return to `/ze-implement` and implement it
-   - Also re-read Acceptance Criteria -- verify each AC-N with file:line evidence
+   - Also re-read Acceptance Criteria -- verify each AC-N against the producing function
    - **Goal Validation (BLOCKING):** Fill the spec's **Goal Validation** table. For each goal stated in the Task section, provide concrete evidence (test name, interop scenario, benchmark result) that the goal is achieved. Per `ai/rules/interop-and-goal-validation.md`: "tests pass" alone is not sufficient; map goals to evidence.
    - **Assumptions Resolved (BLOCKING):** Every A-N row in **Risks & Assumptions** must be `confirmed` or `broken` with evidence -- none left `unvalidated`. Fill the spec's Pre-Commit Verification "Assumptions Resolved" table. Broken assumptions need Mistake Log + Deviations entries. Copy surviving R-N risks into the Executive Summary "Risks & observations".
    - **Interop (BLOCKING for protocol features):** If the spec adds/changes protocol behavior, verify an interop test scenario exists and passes. If none exists, create one before proceeding.
@@ -107,7 +109,7 @@ still missing, go back: this skill does not implement.
    - Invoke `/ze-review` on the uncommitted changes. It runs its own automated pre-checks (`make ze-validate`, `scripts/dev/audit-test-relaxation.py`) as its step 0.
    - **Record the machine artifact, not just prose:** `python3 scripts/dev/review_gate.py record --spec <spec> ...`, then `check`. `commit_helper.py` runs that same `check` on the closure commit and refuses without a fresh, hash-pinned, CLEAN artifact, so a hand-written table alone does not satisfy the gate. Put the artifact path and the `check` result in the Review Gate table.
    - Record every BLOCKER/ISSUE under `### Findings fixed` (Severity / Finding / Location / Fixed by) so the learned summary can carry them forward. NOTEs do not block: record and proceed.
-   - Fix every BLOCKER and ISSUE (anything above NOTE) per `ai/rules/diagnosis-before-fix.md`: write the root cause traced to `file:line`, take the `[source]` fix, and record it under `### Fixes applied`. NOTE-only findings do not block -- record them and proceed.
+   - Fix every BLOCKER and ISSUE (anything above NOTE) per `ai/rules/diagnosis-before-fix.md`. Write the root cause traced to the producing function. Take the `[source]` fix and record it under `### Fixes applied`. NOTE-only findings do not block -- record them and proceed.
    - Re-run `make ze-lint && make ze-unit-test && make ze-functional-test`.
    - Re-run `/ze-review`; add a `### Run 2+` block. Loop until a run reports 0 BLOCKER and 0 ISSUE. No cap on re-runs -- each fix is new code that needs a fresh review. If the same finding survives 3 fix attempts (3-Fix Rule, `ai/rules/anti-rationalization.md`), STOP and ask the user.
    - Paste the final clean run into the Review Gate section. The gate is satisfied only when the last run shows 0 BLOCKER, 0 ISSUE.
@@ -147,7 +149,7 @@ still missing, go back: this skill does not implement.
 
 ## Rules
 
-- **Diagnosis before fix (BLOCKING).** When a review finding or a red gate appears, write the five-part Diagnosis before editing (`ai/rules/diagnosis-before-fix.md`): symptom, root cause traced to `file:line`, owning layer, two fixes labeled `[workaround]`/`[source]`, why not the workaround. Renaming, skipping, special-casing, or weakening a test to reach green is a workaround, not a fix.
+- **Diagnosis before fix (BLOCKING).** When a review finding or a red gate appears, write the five-part Diagnosis before editing (`ai/rules/diagnosis-before-fix.md`). It gives the symptom, the root cause as a producing function, the owning layer, two fixes labeled `[workaround]`/`[source]`, and why not the workaround. Renaming, skipping, special-casing, or weakening a test to reach green is a workaround, not a fix.
 - **No deferred work.** Closure is not a place to discover that something was skipped. If a deliverable is missing, the spec is not ready to close: return to `/ze-implement` and finish it, or raise the scope question with the user (`ai/rules/no-partial-completion.md`).
 - **The Review Gate (step 5) is BLOCKING and is not optional.** Step 6 may not prepare the commit script until the spec's **Review Gate** section shows a final `/ze-review` run with 0 BLOCKER and 0 ISSUE.
 - If the spec is missing a **Deliverables Checklist**, **Security Review Checklist**, or **Documentation Update Checklist**, STOP and inform the user that the spec needs updating before it can be closed.

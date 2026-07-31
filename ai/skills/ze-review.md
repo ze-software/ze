@@ -23,10 +23,12 @@ phase itself.
 - **If you are that agent:** run the steps below. You have no LSP tool and cannot
   ask the user, so when you hit a STOP-and-ask condition, halt and put the
   question in your report for the main thread to carry.
-- **Either way:** every claim in the report cites `file:line` for the function
-  that PRODUCES the behavior (`ai/rules/no-fabrication.md`). The main thread
-  verifies each one against source before acting; relaying a report unverified
-  is fabrication with an extra hop.
+- **Either way:** every claim in the report names the function that PRODUCES the
+  behavior, as the file plus the symbol (`ai/rules/no-fabrication.md`). The main
+  thread verifies each one against source before acting; relaying a report
+  unverified is fabrication with an extra hop. Report the conclusion and the
+  evidence that would overturn it, never the search. Under 40 lines
+  (`ai/rules/detail-budget.md`).
 
 ## Steps
 
@@ -70,7 +72,7 @@ phase itself.
     | Bridge command | An existing bridge command family | `parseFamilyToAFISAFI` case, `convertAnnounceFamily` regex, command parser, event translation |
     | CLI command | An existing CLI command | `registry.MustRegisterLocal`, handler, completion, YANG entry |
 
-    Find the most similar existing feature. Diff its registrations, handlers, and tests against the new feature. Report anything the reference has that the new feature lacks as a BLOCKER: "missing [component] -- reference [feature] has it at [file:line]."
+    Find the most similar existing feature. Diff its registrations, handlers, and tests against the new feature. Report anything the reference has that the new feature lacks as a BLOCKER: "missing [component] -- reference [feature] has it in [file] [symbol]."
 
 2. **Functional test coverage (BLOCKING — immediately after wiring):** For every new or changed user-facing behavior in the diff, verify a functional test (`.ci` or `.et`) exists that exercises the full path. Apply the mapping from `ai/rules/functional-test-gate.md`: match the change type to the required test directory and check for a test covering the behavior.
 

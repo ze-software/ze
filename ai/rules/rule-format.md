@@ -36,6 +36,22 @@ Reference rules (a lookup table, a glossary, an architecture summary) get a
 trigger too, phrased as the moment you would reach for them: "looking up which
 check enforces a rule", "reasoning about where a component sits".
 
+## The body has a budget too
+
+The lint caps the trigger line. Nothing caps the body, which is why every long
+rule in the corpus is format-legal. `ai/rules/detail-budget.md` sets the standard,
+and these four points are the ones a rule author breaks first.
+
+| Requirement | Why |
+|-------------|-----|
+| One example for one point. A second example earns its place only by showing a DIFFERENT reading | A second instance of the same reading teaches nothing and enters every session through the digest |
+| An ambiguous directive gets both readings and a statement of which governs, never a third example | Examples hide an ambiguity. Named readings end it |
+| One table per distinction. Delete the paragraph that repeats the table | Two statements of one cut drift apart, and then the reader must decide which is current |
+| State the obligation and name the gate. Never narrate the gate's implementation | Flags, exit codes, guard order, and line offsets live in the script and its fixtures. A rule that copies them holds a stale second copy |
+
+A rule over about 150 lines is carrying reference material. Move the tables to
+`docs/` and link to them, or split the rule at its real seam.
+
 `scripts/dev/rules_lint.py` enforces all of this. When a line legitimately
 describes ANOTHER artifact's severity (as `hook-mapping.md` does), mark that
 line `<!-- severity-note: whose severity this is -->`. The marker is

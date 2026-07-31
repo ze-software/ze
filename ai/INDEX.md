@@ -170,6 +170,7 @@ artifact type. Check them whenever your work touches the described concern.
 | Concern | Rule | When it applies |
 |---|---|---|
 | Every word you write | `ai/rules/simplified-technical-english.md`, guide: `docs/contributing/writing-style.md` | Rule one. ASD-STE100 Issue 9 for all repository writing: docs, comments, error messages, CLI output, YANG descriptions, specs, commit and PR text. Six banned habits. Gate: `make ze-ste-check`. Report: `make ze-ste-review` |
+| How much you write | `ai/rules/detail-budget.md` | Any report, rule, doc, commit body, or learned summary. Per-artifact budgets |
 | Listing/enumerating things | `ai/rules/derive-not-hardcode.md` | Help text, usage strings, error messages, any output that enumerates items |
 | Goroutine lifecycle | `ai/rules/goroutine-lifecycle.md` | Any `go func()`, any `OnStarted` callback, any worker pattern |
 | File size | `ai/rules/file-modularity.md` | Modified file exceeds 600 lines |

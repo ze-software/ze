@@ -48,7 +48,7 @@ Rationale: `ai/rationale/rfc-compliance.md`
 | Close a spec, review, or audit whose RFC rows are anything other than implemented-and-proven | Ask before closing, not after |
 | Answer "is this conformant enough" with anything but yes | Ask. "Enough" is Thomas's word to say, never yours |
 
-**How to ask (never "may I skip it").** Quote the requirement id and the RFC section text verbatim, cite the producing code as `file:line` (`ai/rules/no-fabrication.md`), state what full implementation plus a tagged test would actually cost, then ask which way he wants it fixed. Offering "leave it non-conformant" as an option is banned (`ai/rules/no-parking.md`).
+**How to ask (never "may I skip it").** Quote the requirement id and the RFC section text verbatim, name the producing function (`ai/rules/no-fabrication.md`), state what full implementation plus a tagged test would actually cost, then ask which way he wants it fixed. Offering "leave it non-conformant" as an option is banned (`ai/rules/no-parking.md`).
 
 **Every earlier answer that pointed away from full compliance or full proof is VOID.** Thomas voided them on 2026-07-27. A prior decision to skip, defer, partially implement, or leave a requirement untested is not authority, cannot be cited as one, and does not survive being rediscovered.
 

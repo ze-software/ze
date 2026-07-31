@@ -9,7 +9,7 @@ dropped. When a rule governs your current action, open its full file (the
 path under each heading) before acting -- this digest maps directives, it is
 not a substitute for the rule.
 
-Rules: 96
+Rules: 97
 
 ---
 
@@ -1060,6 +1060,48 @@ Detail for the pool/buffer/lazy principles: `ai/rules/buffer-first.md`, `ai/rule
 
 ---
 
+## Detail Budget
+`ai/rules/detail-budget.md`
+**When:** writing anything a reader acts on: a reply, a rule, a document, a commit body, a learned summary, or an agent report — **Severity:** advisory — **Related:** fix-dont-record, no-fabrication, rule-format, simplified-technical-english
+
+## Directives
+Write what changes the reader's next action.
+- **Detail is a cost the reader pays, not proof that you did the work.** A fact the reader can recover in seconds by opening the code is not written down.
+- **Cite a location so the reader can NAVIGATE, never to show that you looked.** Verification is an action you take (read the producing function). The citation is a pointer for the reader, and it is a separate decision.
+- **Name the file and the symbol: `session.go` `Session.Run`.** A line number is correct when the line IS the fact, or when a gate or generator pins it. Examples: a stack frame, a generated ledger row, a gate's own message, a `file:line -> sha` audit entry, a `ai/digests/` anchor that `make ze-digest-check` validates, a handoff edit range, and a `<!-- source: -->` anchor. Everywhere else the number rots at the next edit, and a reader who has the symbol never needs it.
+- **One example for one point.** A second example earns its place only when it shows a DIFFERENT reading. A second instance of the same reading teaches nothing and costs every future session.
+- **When a directive can be read two ways, write both readings and name the one that governs.** More examples hide an ambiguity. Naming the readings ends it.
+- **Never make the same cut twice.** When a table and a paragraph draw the same distinction, keep the table and delete the paragraph.
+- **State the obligation, name the gate, stop.** How a gate is implemented (flags, exit codes, guard order, retry bounds, byte offsets) belongs in the script and its fixtures. A rule that narrates its own enforcement code is a second, stale copy of that code.
+- **Report the conclusion, not the search.** What you tried, in what order, and how long it took are yours. The reader needs the answer, the evidence that would overturn it, and what is still open.
+- **Give a count plus the exceptions, not a row per item.** "12 call sites updated, 2 refused and are listed below" is complete. Twelve identical rows are not more complete.
+- **Every line in a directive section enters EVERY session through `CONDENSED.md`.** Before you add one, ask whether it changes an action. When it does not, put it under `## Rationale` or `## Examples`. The digest drops both.
+- **A pointer line points. It never summarises.** An entry in `ai/LEARNED-INDEX.md`, `ai/INDEX.md`, or any other index says what the target answers, then stops. Under 120 characters after the link. A reader who wants the content opens the target.
+## Budgets
+A record earns its length from what the reader must DO.
+| Artifact | Contains | Budget |
+|----------|----------|--------|
+| Reply to the user | what changed, what proves it, what is not done | under 15 lines, tables before prose |
+| Subagent report to the main thread | the conclusion, the evidence that would overturn it, open questions | under 40 lines |
+| Review finding | the claim, where it lives, how it fails | 3 lines |
+| Commit subject | what changed, imperative | one line |
+| Commit body | the defect, its cause, what the fix does | under 15 lines |
+| Known-failure shard | the failing output, the repro command, the next step | under 20 lines |
+| Learned summary | what the code cannot tell a future reader | 25 to 35 lines (`ai/rules/planning.md`) |
+| Index or pointer line | what the target answers | under 120 characters after the link |
+| Rule file | trigger, directives, one example for each | under 150 lines. Above that, move reference tables to `docs/` and link |
+## Banned
+| Banned | Why |
+|--------|-----|
+| Recounting dead ends, wrong hypotheses, or the order you tried things | The reader needs the answer, not the route to it |
+| Any sentence about the difficulty or size of the work | It changes no action |
+| Restating a fact in the next paragraph, or "as noted above" | Say it once, in the place the reader looks first |
+| A line number for a claim the symbol name already locates | It rots at the next edit and forces a re-index |
+| Pasting a whole file, table, or log when the answer is one row | Quote the row |
+| A third example to settle an ambiguity two readings would settle | The ambiguity survives, now hidden |
+
+---
+
 ## Diagnosis Before Fix
 `ai/rules/diagnosis-before-fix.md`
 **When:** Before changing code to make a symptom go away (failing test, rejected input, error, red gate, broken demo), write the Diagnosis first — **Severity:** blocking
@@ -1068,7 +1110,7 @@ Detail for the pool/buffer/lazy principles: `ai/rules/buffer-first.md`, `ai/rule
 Before changing code to make a symptom go away (failing test, rejected input, error, red gate, broken demo), write the Diagnosis first.
 ## The Diagnosis (write all five before any edit)
 1. **Symptom** — the exact failure, verbatim (error text, rejected input, failing assertion).
-2. **Root cause** — traced to the exact `file:line` where behavior diverges from intent. Read the path; do not guess. If you cannot cite the line, you have not diagnosed it yet.
+2. **Root cause** — traced to the exact function where behavior diverges from intent, named as the file plus the symbol. Read the path; do not guess. If you cannot name it, you have not diagnosed it yet.
 3. **Owning layer** — which layer/component owns the correct fix.
 4. **Two candidate fixes, labeled** — at least one `[workaround]` and one `[source]`. Name what each changes and what each leaves broken for the next caller.
 5. **Why not the workaround** — one sentence on why the local edit is wrong.
@@ -1511,7 +1553,7 @@ Learned: `plan/learned/363-file-modularity.md`.
 
 ## Fix, Don't Record. Say It Short.
 `ai/rules/fix-dont-record.md`
-**When:** when a test fails, a gate goes red, or you are about to write a problem down instead of fixing it — **Severity:** blocking — **Related:** no-parking, anti-rationalization, flaky-under-load, testing, ci-sleep-justification
+**When:** when a test fails, a gate goes red, or you are about to write a problem down instead of fixing it — **Severity:** blocking — **Related:** no-parking, anti-rationalization, flaky-under-load, testing, ci-sleep-justification, detail-budget
 
 ## Directives
 Two failures, one rule: writing a problem down instead of fixing it, and writing at length instead of writing what matters.
@@ -1546,13 +1588,6 @@ Find what the test waits ON, and make it wait for the thing instead of for a dur
 | the same failure in a shard, a commit body, a report and a summary | pick one place |
 ## Length is not evidence
 A record earns its length from what a future reader must DO, never from what you went through.
-| Artifact | Contains | Budget |
-|----------|----------|--------|
-| Commit subject | what changed, imperative | one line |
-| Commit body | the defect, its cause with `file:line`, what the fix does | under 15 lines. No investigation narrative, no "in sequence it was X, then Y" |
-| Known-failure shard | the failing output, the repro command, the next step | under 20 lines |
-| Report to the user | what is fixed, what is not, what proves it | shortest form that is complete |
-| Learned summary | what a future reader needs that the code cannot tell them | per `ai/rules/planning.md` |
 
 ---
 
@@ -1998,14 +2033,14 @@ Also Make targets, not Claude hooks.
 Make targets and a commit-time gate, not Claude hooks.
 | Check | Enforces | Triggers on | What it does |
 |---|---|---|---|
-| `ste_problems` (`commit_helper.py`) | `simplified-technical-english.md` | `commit_helper.py create` with any `.md`, `.go`, or `.yang` in the commit | Runs `ste_check.py --check` over the FILES OF THAT COMMIT and BLOCKS when one of the six banned ASD-STE100 habits grew against HEAD. Commit scope is deliberate: several sessions share this checkout, so a tree-wide prose gate judges a colleague's in-flight sentences and gets switched off. BLOCKING. |
+| `ste_problems` (`commit_helper.py`) | `simplified-technical-english.md` | `commit_helper.py create` with any `.md`, `.go`, or `.yang` in the commit | Runs `ste_check.py --check` over the FILES OF THAT COMMIT and PRINTS the six banned ASD-STE100 habits that grew against HEAD. Advisory: STE is a guideline, so this never refuses a commit. Commit scope is deliberate: several sessions share this checkout, so a tree-wide prose gate judges a colleague's in-flight sentences and gets switched off. BLOCKING. |
 | `make ze-ste-check` | `simplified-technical-english.md` | on demand, before you prepare a commit | The same comparison over every changed file in the working tree. It prints the file, the habit, and only the new findings. Surfaces are Markdown in `docs/`, `ai/`, `plan/`, and the root, prose comments in `.go`, and `description` strings in `.yang`. Renames follow `-M`, so a moved legacy document does not report its inherited content as new. Deliberately NOT in `ze-doc-test`. Whole-tree report: `make ze-ste-review`. |
 ## Commit-time gates (`scripts/dev/commit_helper.py`)
 These are NOT Claude hooks.
 | Gate | Enforces | Severity | What it does |
 |---|---|---|---|
 | verify-status / structural-gate | `git-safety.md` | BLOCK | Refuses a script over a non-green `ze-verify` (structural reds are unbypassable). |
-| ste (`ste_problems`) | `simplified-technical-english.md` | BLOCK | Runs `ste_check.py --check` over the commit's own `.md`, `.go`, and `.yang` files and refuses when one of the six banned ASD-STE100 habits grew against HEAD. Legacy prose in a file you touched costs nothing, because each file is compared with its own HEAD version. Scoped to the commit for the same reason discovery-index materializes a commit view: a concurrent session's uncommitted prose must not block your commit. Prints the file, the habit, and only the new findings. |
+| ste (`ste_problems`) | `simplified-technical-english.md` | WARN | Runs `ste_check.py --check` over the commit's own `.md`, `.go`, and `.yang` files and prints the six banned ASD-STE100 habits that grew against HEAD. It never refuses. Legacy prose in a file you touched costs nothing, because each file is compared with its own HEAD version. Scoped to the commit for the same reason discovery-index materializes a commit view: a concurrent session's uncommitted prose must not block your commit. Prints the file, the habit, and only the new findings. |
 | discovery-index | `discovery-updates.md` | BLOCK | Refuses when a generated index (PACKAGE-MAP / DOCS-TO-CODE / LEARNED-FULL-INDEX) would be left incoherent. Judged on the tree the COMMIT PRODUCES (HEAD + adds - removes), materialized under `tmp/commit-view-*` and checked with the commit's OWN generators via `--root`, never on the working tree: a concurrent session's uncommitted sources must neither block your commit nor be swept into your index. **Every** index whose generator exists is verified, not just the ones the commit visibly feeds -- `package_map` keys its rows on directory existence, so a new `.go` can drift PACKAGE-MAP while feeding only DOCS-TO-CODE. Cost: the view is built on EVERY commit the gate examines, not only ones touching an index source, because the candidate set comes from generator existence -- about 5.5s total (~2s working-tree freshness, ~3.6s to materialize and check). If the view cannot be built it does NOT fail closed: it warns on stderr and falls back to the working-tree verdict, which is the only evidence left. BLOCKING. |
 | deferral-unassigned | `deferral-tracking.md` | BLOCK | Folds over every shard in `plan/deferrals/` and flags an open row with no Destination. |
 | deferral-in-diff | `deferral-tracking.md` | BLOCK | Blocks when the commit's added lines contain deferral language and no `plan/deferrals/` shard is part of the commit (diff computed in a throwaway git index). |
@@ -2016,7 +2051,7 @@ These are NOT Claude hooks.
 | Runner | Covers |
 |---|---|
 | `scripts/dev/hook-parity-check.py` | Golden exit-code regression for the three consolidated dispatchers. `--bless` regenerates the golden; re-bless only intentionally changed cases. Fixture dirs live under `~/.cache` (a `/tmp` or in-repo path trips `system-tmp`/`throwaway-tests` or the module lint and diverges from the golden). |
-| `scripts/dev/hook-fixture-check.py` | Behaviour the golden table cannot isolate: `c_format_alloc` (called directly), `validate-spec.sh` (ASCII/Unicode/malformed specs), the `commit_helper.py` commit-time gates (git-initialized fixtures), `delegation` (35 fixtures over fixture projects), and `delegation-reminder` (the UserPromptSubmit stdout contract). The `delegation` section covers `mark-agent-spawned.sh`, the Stop-hook nudge, and the `subagent-context.sh` spec injection. It pins the `Stop` array registration and its order with `delegation-stop-hook-registered` and `delegation-stop-hook-runs-before-marker-release`. It pins BOTH ends of the claim lifetime. Alive past turn one: `delegation-summary-reaches-end`, `delegation-claim-survives-stop`, `delegation-nudge-fires-on-second-stop`. Released at the right event: `delegation-claim-released-at-session-end`, `delegation-claim-survives-resume`. Without those last two, deleting the release line left the whole suite green. It pins the two phrase tiers with `stop-phrase-what-next-allowed-when-no-open-work`, `stop-phrase-what-next-blocks-with-open-work` and `stop-phrase-permission-blocks-without-open-work`. It pins the input and retry guards with `stop-hook-malformed-input-allows-stop`, `stop-hook-honours-stop-hook-active` and `stop-hook-retry-still-runs-state-checks`, the last proving a retry still runs the state gates. It pins the stop-phrase markup filter with `stop-phrase-blocks-real-use`, `stop-phrase-ignores-backticks`, `stop-phrase-ignores-fenced-block`, `stop-phrase-fence-is-not-a-bypass`, `stop-phrase-unclosed-fence-still-blocks`, `stop-phrase-all-markup-scans-raw-text`, `stop-phrase-nested-fence-ignored` and `stop-phrase-unpaired-backtick-still-blocks`. It pins the two 24h heartbeats with `delegation-claim-heartbeat-on-stop`, `delegation-claim-survives-stale-sweep`, `delegation-stale-sweep-actually-ran`, `delegation-spawn-marker-heartbeat` and `delegation-heartbeat-never-creates-spawn-marker`. `delegation-stale-sweep-actually-ran` is the control for that survival pair. It plants an aged marker in the same sweep, and that marker MUST be reaped. A sweep that never ran therefore cannot pass as a rescue. Sections selectable with `--only`. |
+| `scripts/dev/hook-fixture-check.py` | Behaviour the golden table cannot isolate: `c_format_alloc`, `validate-spec.sh`, the `commit_helper.py` commit-time gates over git-initialized fixtures, and the 35 `delegation` fixtures. Those 35 pin what no other test reaches. The `Stop` array registration and its order. BOTH ends of the claim lifetime: alive past turn one, released at `SessionEnd`, kept across a resume. The two stop-phrase tiers. The markup filter that must fail toward scanning MORE. Deleting the release line once left the whole suite green. Sections selectable with `--only`. |
 ## Session Lifecycle Hooks
 **UserPromptSubmit stdout reaches the model. UserPromptSubmit stderr does not.**
 A reminder that must land in the context writes to stdout.
@@ -2024,9 +2059,9 @@ A reminder that must land in the context writes to stdout.
 |---|---|---|
 | `session-start.sh` | SessionStart | Prints status summary. Creates session marker. |
 | `compaction-reminder.sh` | UserPromptSubmit | Detects compaction; reminds to read `post-compaction.md`. Writes to **stderr**, so it costs no context tokens. |
-| `verify-claim-reminder.sh` | UserPromptSubmit | Emits one **stdout** line per turn. The line states three things. Cite the producing `file:line` for any claim about code. Read the producer, not the caller. Label an uncited claim unverified. Enforces `ai/rules/no-fabrication.md`. A banner read once at session start does not survive to the turn that makes the claim, so this lands in fresh context. |
+| `verify-claim-reminder.sh` | UserPromptSubmit | Emits one **stdout** line per turn. Verify a claim about code by reading the function that PRODUCES the behavior, not the caller. Label an unread claim unverified. Name the file and the symbol, and use a line number only when the line IS the fact. Report the conclusion, not the search. Enforces `ai/rules/no-fabrication.md` and `ai/rules/detail-budget.md`. A banner read once at session start does not survive to the turn that makes the claim, so this lands in fresh context. |
 | `delegation-reminder.sh` | UserPromptSubmit | Emits one **stdout** line per turn: subagent delegation needs no permission in this repository. The harness appends the guard "Do not call the AgentTool unless the user requested it" to the END of the system prompt, where it wins on position. `ai/INSTRUCTIONS.md` "STANDING REQUEST: delegate to subagents" IS the request that guard defers to, but it sits far earlier in the same prompt and loses. UserPromptSubmit stdout is the only harness position that lands after the whole system prompt, so the counter goes there. Unconditional by design: a conditional reminder adds a "did the condition fire" failure mode, and the reminder is correct on every turn. Enforces `ai/rules/spec-delegation.md`. Fixtures: `python3 scripts/dev/hook-fixture-check.py --only delegation-reminder`. |
-| `block-premature-stop.sh` | Stop (**first**, ahead of `session-end-summary.sh`) | **Live and BLOCKING** since 2026-07-31, on owner instruction, with `timeout: 10` and `blocking: true`. Malformed input exits 0 before any gate (`:36-37`). The `\|\| TEXT=""` is load-bearing, because `set -eo pipefail` made a jq parse failure exit 5, a code the header never defines. Four gates then run. THE RETRY BOUND GATES THE PHRASE SCAN AND NOTHING ELSE. `stop_hook_active` on stdin means a Stop hook ALREADY refused this stop. It sets the flag `STOP_RETRY` (`:26-29`), which skips the scan loop alone (`:232-239`). The scan needs that bound. Its only escape is rewording, and a session obeying a rule that mandates the wording cannot reword. The other three gates need no bound, and an EARLY EXIT here used to switch them all off. Tripping any phrase on turn N disabled the spec-closure gate for turn N+1. The closure gate has its own two escapes, running commit B or writing `tmp/session/.closure-ack-<stem>`, and it prints the second in the message it blocks with. `stop-hook-retry-still-runs-state-checks` pins that. THE PHRASE SCAN HAS TWO TIERS (`:232-239`, exit 2 at `:258-267`). `PHRASES` (`:92-121`) always blocks: ownership-dodging, premature handoff, permission-seeking, and `or something else`. `COMPLETION_PHRASES` (`:133-138`: `what next`, `what would you like`, `what do you want to do`) joins the scan ONLY when work remains. The in-progress warning sets `OPEN_WORK=1` beside itself (`:193`), and the assembly is at `:225-228`. THE PHRASES WERE SPLIT, NEVER DELETED, so the detection survives. `.claude/rules/session-start.md:72` REQUIRES the question `What next?` once the original task is done. An unconditional scan therefore blocked a sentence another live rule mandates, with no way to satisfy both. The state check RUNS BEFORE the scan for this reason, and the closure gate's own exit 2 inside it stays unconditional. Two fixtures pin the pair: `stop-phrase-what-next-allowed-when-no-open-work` (rc=0, no claim) and `stop-phrase-what-next-blocks-with-open-work` (rc=2, claimed in-progress spec). The scan reads a filtered copy (`:69-84`): a phrase inside a fenced block or inline backticks is NAMED, not used, and does not block. That filter fails toward scanning MORE, never less, under FOUR guards (`:51-63`). An unclosed fence emits its lines. A fence closes only on a run at least as long as the opener. The hook scans an all-markup message raw. GUARD 4: inline spans are stripped only on a line whose backticks BALANCE (`:80`). A left-to-right pass let a stray backtick pair with the OPENING tick of a later span, and delete the request between them. Fixture: `stop-phrase-unpaired-backtick-still-blocks`. The spec-closure gate blocks with exit 2 (`:174-182`) and shells to `scripts/dev/spec-closure-check.py --spec`, which runs well inside the 10s timeout. The spec still-in-progress warning exits 1 (`:191-194`), and its `\| Status \|` pattern tolerates surrounding spaces to match `spec-closure-check.py:54`, the other reader of that field. The delegation nudge exits 1 and never blocks (`:215-217`). The last three fire ONLY when this session CLAIMED a spec. Each one sits behind the `tmp/session/.session-<SID>` marker read at `:150-169`. THE HOOK HEARTBEATS TWO MARKERS. Both calls use `touch -c`, so a missing marker is never created. The claim is at `:167`, and the spawn marker `tmp/session/.agent-spawned-<SID>` is at `:214`. Both markers age out at 24h. Without the refresh a long session loses its claim and every gate above it. It also loses the spawn marker, and then gets a FALSE delegation nudge. With no spec claimed, only the stop-phrase scan runs (fixture `delegation-no-spec-no-nudge`). TWO FACTS MAKE THOSE THREE REACHABLE, AND ORDER IS ONLY THE FIRST. (1) Order: the hook runs before anything that releases the claim. (2) Marker lifetime: the claim survives past turn one. `session-end-summary.sh` used to call `_release_session` (`.claude/hooks/lib/state-file.sh:71-76`) on every Stop event, and a Stop hook fires between every turn. All three gates therefore fired once per claim, then stayed silent. The closure gate suffered worst, because it can only exit 3 after commit A lands. The release now runs on `SessionEnd` (`session-end-scratch.sh:60`), against the id read from stdin (`:21-35`) and validated at `:43-46`, with a `reason = resume` guard at `:38`. HISTORY: the hook was registered on no event from 2026-06-29 (`41e5fa44f`) to 2026-07-31. It stayed on disk, its fixtures stayed green, and three rules called it live. Only the `Stop` array said otherwise, and no reader checked it. Six fixtures pin registration, order and lifetime: `delegation-stop-hook-registered`, `delegation-stop-hook-runs-before-marker-release`, `delegation-claim-survives-stop`, `delegation-nudge-fires-on-second-stop`, `delegation-claim-released-at-session-end` and `delegation-claim-survives-resume`. Five more pin the two heartbeats: `delegation-claim-heartbeat-on-stop`, `delegation-claim-survives-stale-sweep`, `delegation-stale-sweep-actually-ran` (the control that proves the sweep ran at all), `delegation-spawn-marker-heartbeat` and `delegation-heartbeat-never-creates-spawn-marker`. The `delegation` section holds 35 fixtures in total (`scripts/dev/hook-fixture-check.py`). |
+| `block-premature-stop.sh` | Stop (**first**, ahead of `session-end-summary.sh`) | **Live and BLOCKING** since 2026-07-31. Four gates run. All but the first need a session that CLAIMED a spec. (1) **Stop-phrase scan**, exit 2. `PHRASES` covers ownership-dodging, premature handoff and permission-seeking, and it always blocks. `COMPLETION_PHRASES` (`what next`, `what would you like`) blocks ONLY while a claimed spec is `in-progress`, because `.claude/rules/session-start.md` REQUIRES that question once the task is done. A phrase inside backticks or a closed fence is quoted, not used, and does not block. (2) **Spec-closure gate**, exit 2, when `spec-closure-check.py --spec` reports the spec completed but not closed. That check runs well inside the hook's 10s timeout, and a slower one would fail the gate open with no signal. Two escapes: run commit B, or write `tmp/session/.closure-ack-<stem>`. (3) **Spec still in-progress** warning, exit 1. (4) **Delegation nudge**, exit 1, when the session claimed a spec and spawned no agent. A harness retry (`stop_hook_active`) bounds the phrase scan ALONE, whose only escape is rewording. The other three stay armed, because each has an escape of its own. Gates 2 to 4 need the claim marker to outlive turn one, so the release moved from `Stop` to `SessionEnd`. Behaviour is pinned by 35 fixtures: `python3 scripts/dev/hook-fixture-check.py --only delegation`. |
 | `session-end-summary.sh` | Stop | Writes session state snapshot. It no longer releases the spec claim: that moved to `SessionEnd` (`session-end-scratch.sh:60`) so the claim survives the turn-by-turn `Stop`. |
 | `session-end-deferrals.sh` | Stop | Prints open deferral count. Advisory. |
 | `pre-compact-save.sh` | PreCompact | Saves session state before compaction. |
@@ -2115,7 +2150,7 @@ Before marking any spec done, complete line-by-line audit comparing spec to impl
 Before: writing summary to `plan/learned/`, claiming "done", asking to commit.
 ## Process
 1. Extract all requirements from spec: task items, AC-N assertions, TDD tests, files listed
-2. Verify each with status: ✅ Done (file:line), ⚠️ Partial, ❌ Skipped, 🔄 Changed
+2. Verify each with status: ✅ Done (file + symbol), ⚠️ Partial, ❌ Skipped, 🔄 Changed
 3. Fill audit table in spec (template in `plan/TEMPLATE.md`)
 ## Approval Required
 - ⚠️ Partial: document what's missing, ASK user
@@ -2128,7 +2163,7 @@ Before: writing summary to `plan/learned/`, claiming "done", asking to commit.
 | Feature works | Test name + output | "make ze-verify passes" |
 | Feature is wired in | Wiring test that exercises entry→feature path | Unit test with mock/fake entry point |
 | AC-N done (wiring) | Functional test name exercising full path | Unit test in isolation |
-| AC-N done (logic) | Unit test name + file:line, assertion matches AC text | "should work" |
+| AC-N done (logic) | Unit test name + file, assertion matches AC text | "should work" |
 | AC-N done (behavior) | Test asserts the AC's expected behavior directly | Test asserts mechanism (e.g., "no error" as proxy for "rejected") |
 ## AC Evidence Verification (BLOCKING)
 For each AC-N, quote the expected behavior from the AC table, then name the test and its assertion.
@@ -2754,7 +2789,7 @@ This rule is hook-enforced.
 
 ## No Fabrication
 `ai/rules/no-fabrication.md`
-**When:** when stating what code does, or recommending work premised on a behavioral claim — **Severity:** blocking
+**When:** when stating what code does, or recommending work premised on a behavioral claim — **Severity:** blocking — **Related:** detail-budget, critical-review
 
 ## Directives
 State only what the source explicitly says or does.
@@ -2764,7 +2799,7 @@ If the source material does not contain the information needed to answer the que
 A claim about what code *does* at runtime is not verified until you have read the code that produces the behavior.
 ## Mechanical check
 Before answering a factual question about file content:
-1. Can I point to the exact line(s) that state the answer? If yes, answer.
+1. Can I point to the text that states the answer? If yes, answer.
 2. If no: "The file doesn't say. [what's missing]."
 1. Name the single keystone fact the claim depends on (e.g. "a session-down yields `err == nil`").
 2. Read the function that *produces* that fact (returns or sets the value), not only the one that consumes it.
@@ -3377,7 +3412,7 @@ Closure once depended on remembering the two-commit step, so it was routinely dr
 | Gate | Where | Fires when |
 |------|-------|-----------|
 | Detector | `scripts/dev/spec-closure-check.py` | `--list` reports completed-but-not-closed specs in two tiers; `--spec <s>` exits 3 only for a high-confidence one. High confidence = a **committed** `plan/learned/NNN-<slug>.md` whose slug **exactly equals** the spec stem while the spec is still `in-progress` and is **not an umbrella** (commit A ran, commit B did not). Weaker `[umbrella]` / `[weak-match]` candidates (child/sibling/predecessor summaries) are listed under NEEDS VERIFICATION and must be audited before closing — they are usually false positives. Only the high-confidence set triggers the `--spec` block. |
-| Stop-hook block | `.claude/hooks/block-premature-stop.sh` | This session CLAIMED a spec, the detector exits 3 for it, and no ack exists. The hook then refuses the session an end (exit 2, `:174-182`). Live and first in the `Stop` array since 2026-07-31. It sat on no event from 2026-06-29 (`41e5fa44f`) until then. Two facts make it reachable, and array order alone is not enough. The hook must run before anything that releases the claim, AND the claim must survive to the turn where the detector exits 3. That turn comes many turns after the claim, because the detector needs commit A to have landed. Releasing the claim on `Stop` therefore made this gate unreachable in the one situation it exists for, so the release moved to `SessionEnd` (`.claude/hooks/session-end-scratch.sh:60`). Escape hatch: record why the spec is genuinely open in `tmp/session/.closure-ack-<stem>`, which `spec-closure-check.py:266-269` reads to return 0 instead of 3. The gate is scoped to a claimed spec, because it sits behind the `tmp/session/.session-<SID>` marker (`:150-169`). A session that claimed no spec is never asked to close one. The hook heartbeats that marker on the way past (`:167`), so a session running longer than 24h keeps the gate armed. This gate carries NO retry bound, and it is not meant to. The hook's `STOP_RETRY` flag (`:26-29`) skips the phrase scan alone, so a refused stop on turn N leaves the closure gate armed on turn N+1. Two escapes make that safe: run commit B, or write the ack above. An earlier version exited the whole hook on the retry and switched this gate off. |
+| Stop-hook block | `.claude/hooks/block-premature-stop.sh` | This session CLAIMED a spec, the detector exits 3 for it, and no ack exists. The hook refuses the session an end (exit 2). Escape: record why the spec is genuinely open in `tmp/session/.closure-ack-<stem>`. A session that claimed no spec is never asked to close one. The gate carries no retry bound on purpose: a refused stop leaves it armed next turn, and it has two escapes of its own (run commit B, or write the ack). |
 | Commit reminder | `scripts/dev/commit_helper.py` | A commit adds a learned summary but removes no spec: it prints the closure-commit reminder to stderr. |
 ## Verify Specs Against Code (BLOCKING)
 Never report spec progress by reading the spec alone.
@@ -4078,7 +4113,7 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 | Defer an RFC requirement to a follow-up spec, a deferral row, or a known-failure shard | Ask. Recording is not fixing (`ai/rules/no-parking.md`), and the deferral machinery is not a compliance decision procedure |
 | Close a spec, review, or audit whose RFC rows are anything other than implemented-and-proven | Ask before closing, not after |
 | Answer "is this conformant enough" with anything but yes | Ask. "Enough" is Thomas's word to say, never yours |
-**How to ask (never "may I skip it").** Quote the requirement id and the RFC section text verbatim, cite the producing code as `file:line` (`ai/rules/no-fabrication.md`), state what full implementation plus a tagged test would actually cost, then ask which way he wants it fixed. Offering "leave it non-conformant" as an option is banned (`ai/rules/no-parking.md`).
+**How to ask (never "may I skip it").** Quote the requirement id and the RFC section text verbatim, name the producing function (`ai/rules/no-fabrication.md`), state what full implementation plus a tagged test would actually cost, then ask which way he wants it fixed. Offering "leave it non-conformant" as an option is banned (`ai/rules/no-parking.md`).
 **Every earlier answer that pointed away from full compliance or full proof is VOID.** Thomas voided them on 2026-07-27. A prior decision to skip, defer, partially implement, or leave a requirement untested is not authority, cannot be cited as one, and does not survive being rediscovered.
 | Where a void answer hides | What to do when you meet one |
 |---------------------------|------------------------------|
@@ -4196,6 +4231,14 @@ Every `ai/rules/*.md` rule (except the generated `INDEX.md` and `CONDENSED.md`) 
 | Name what the author is DOING or what has HAPPENED, never what they must do | "All CLI commands MUST follow these patterns" matches every task and therefore routes nothing. "adding or changing a CLI subcommand, flag, or exit code" routes |
 | One complete clause, one line | A trigger that ends on a comma, a dangling `by`/`with`/`the`, or an unbalanced `**` was copied out of a wrapped bold body line. Three such triggers shipped into `CONDENSED.md` unnoticed |
 | Do not restate the directive | The directive belongs under `## Directives`, where the digest picks it up. Duplicating it in the trigger costs tokens in every session and routes nothing |
+## The body has a budget too
+The lint caps the trigger line.
+| Requirement | Why |
+|-------------|-----|
+| One example for one point. A second example earns its place only by showing a DIFFERENT reading | A second instance of the same reading teaches nothing and enters every session through the digest |
+| An ambiguous directive gets both readings and a statement of which governs, never a third example | Examples hide an ambiguity. Named readings end it |
+| One table per distinction. Delete the paragraph that repeats the table | Two statements of one cut drift apart, and then the reader must decide which is current |
+| State the obligation and name the gate. Never narrate the gate's implementation | Flags, exit codes, guard order, and line offsets live in the script and its fixtures. A rule that copies them holds a stale second copy |
 - The metadata block MUST be contiguous and immediately follow the title
 - Put imperative content under `## Directives` (or the rule's own directive
 - Put the "why" under `## Rationale` and code under `## Examples`. The digest
@@ -4255,10 +4298,14 @@ Place at file top, after `// Design:` and `// Related:` lines:
 
 ## Simplified Technical English (ASD-STE100 Issue 9)
 `ai/rules/simplified-technical-english.md`
-**When:** writing or reviewing any prose in this repository: docs, comments, error messages, CLI output, YANG descriptions, specs, or commit messages — **Severity:** blocking — **Related:** language-and-spelling, documentation, error-messages, comparison-honesty
+**When:** writing or reviewing any prose in this repository: docs, comments, error messages, CLI output, YANG descriptions, specs, or commit messages — **Severity:** advisory — **Related:** language-and-spelling, documentation, error-messages, comparison-honesty
 
 ## Directives
-Ze writes in ASD-STE100 Simplified Technical English, Issue 9 (2025-01-15).
+**This is a GUIDELINE. It is not a law, and it is not a gate.** It exists to make
+text clearer for a reader.
+- **Never rewrite a sentence only to satisfy a count.** An edit that changes no meaning for a reader is pure overhead, and it is the thing this guideline exists to remove. A sentence two words over the limit is not a defect.
+- **The checker reports. It does not refuse.** `make ze-ste-check` and the commit-time check print findings and let the work through. Apply a finding when it makes the text clearer, and ignore it when it does not.
+- **Aim at the six habits, not at the arithmetic.** The word and sentence counts below are a smell test for a run-on, never a target to hit.
 - **Write every sentence in STE.** One topic per sentence, active voice, the imperative form for instructions, and an approved verb for every action.
 - **The six habits in the next section are the operative list.** A numbered STE rule bans each one. Learn the six first, then read the standard for the remainder.
 - **A short, plain, repetitive sentence is correct.** Elegant variation is a defect, not a style.
@@ -4319,7 +4366,7 @@ Ze writes in ASD-STE100 Simplified Technical English, Issue 9 (2025-01-15).
 ## Enforcement
 | Command | What it does |
 |---------|--------------|
-| `scripts/dev/commit_helper.py create` | **The gate.** `ste_problems` BLOCKS a commit whose own `.md`, `.go`, or `.yang` files grew a habit. It runs on the files of that commit, so the prose it judges has one author |
+| `scripts/dev/commit_helper.py create` | **Advisory.** `ste_problems` PRINTS findings for a commit's own `.md`, `.go`, or `.yang` files. It never refuses the commit. It runs on the files of that commit, so the prose it judges has one author |
 | `make ze-ste-check` | The same gate over every changed file in the working tree. Run it before you prepare a commit. About 2 seconds |
 | `make ze-ste-review` | The whole-tree report. Every finding with its `file:line`, its habit number, and the replacement to use |
 | `make ze-ste-review-changed` | The same report for changed files only |
@@ -4359,11 +4406,11 @@ Before you publish a sentence, answer six questions:
 | Review gate | `/ze-review`, `/ze-review-spec` | subagent | verifies each finding, decides which are real, loops until zero |
 | Review gate, deep | `/ze-review-deep` | **main thread**, and it fans out itself | verifies each finding, decides which are real, loops until zero |
 | Close | `/ze-close` | subagent | confirms the Review Gate artifact is clean, then that the two closure commits actually ran |
-| Debug a red test or gate | `/ze-debug` | **main thread**, and it fans out itself | confirms the diagnosis names a `file:line` root cause, not a symptom |
+| Debug a red test or gate | `/ze-debug` | **main thread**, and it fans out itself | confirms the diagnosis names a root-cause function, not a symptom |
 | Verify | `/ze-verify` | subagent | reads the failure index, decides what to fix next |
 **Launch independent phases in ONE message with parallel `Agent` calls.** Two review lenses, two research questions, or two independent spec areas are concurrent work, not a queue.
 **Give every subagent the spec path, the phase it is in, and the rules that govern it.** A subagent inherits no session state: name `plan/<spec>.md`, the `ai/rules/` files that apply, and what its report must contain. It has no LSP tool and cannot ask the user -- do not hand it work that needs either.
-**Verify what a subagent reports; never relay it as fact.** An agent's report is a claim, not evidence (`ai/rules/no-fabrication.md`). Before acting on a finding or repeating it to the user, confirm the `file:line` it cites actually produces the behavior it describes.
+**Verify what a subagent reports; never relay it as fact.** An agent's report is a claim, not evidence (`ai/rules/no-fabrication.md`). Before acting on a finding or repeating it to the user, confirm the code it cites actually produces the behavior it describes.
 **Anything the user must answer stays in the main thread.** A subagent cannot hold a dialogue with the user, so `/ze-spec` and `/ze-design` question gates, scope reductions, and RFC-compliance escalations (`ai/rules/rfc-compliance.md`) are raised by the main thread, never delegated away.
 **Delegation never dilutes the independence of review.** Reviewer subagents must be spawned separately from the implementation agent and must not be given the implementer's reasoning as their starting point (`ai/rules/critical-review.md`).
 **Delegation does not override phase-to-model boundaries.** Subagents inherit the PHASE, not the task shape (`ai/rules/model-selection.md`), so the main thread still announces a boundary and stops rather than delegating an implementation phase from a review session to get around the switch.
@@ -4380,8 +4427,8 @@ Before you publish a sentence, answer six questions:
 - **`.claude/hooks/delegation-reminder.sh` repeats that standing request on every turn.** The harness guard arrives near the END of the system prompt and wins on position. UserPromptSubmit stdout is the one position known to land after the whole system prompt, so the counter goes there. Both halves of that premise are convention, not proof: nothing in this repository demonstrates where the harness puts hook stdout, or that it reads it at all. The bullet above is the authority. This hook makes that authority arrive late enough to count. Its line names the main-thread exceptions on purpose. A reminder that wins on position would otherwise push `/ze-design` into a subagent, and a subagent cannot call `AskUserQuestion`.
 - **Each `ze-*` skill states its own disposition in a `## Delegation` section**, so the routing is visible at the moment the skill is invoked rather than only in this rule: `/ze-explore`, `/ze-audit`, `/ze-implement`, `/ze-review`, `/ze-review-spec`, `/ze-close` and `/ze-verify` delegate; `/ze-spec` and `/ze-design` stay in the main thread because their gates require `AskUserQuestion`; `/ze-review-deep` and `/ze-debug` stay in the main thread and do their OWN fan-out (wrapping them in one agent buries the parallel lenses a level down and costs the independence they exist to provide).
 - **`.claude/hooks/subagent-context.sh` hands every agent the parent's claimed spec, its Status, and the subagent contract**, so the per-spawn briefing this rule requires is not manual work. A rule that costs more to follow than to break loses; that is what this hook removes.
-- **`.claude/hooks/block-premature-stop.sh` IS registered on `Stop`, and it fires.** Thomas re-registered it on 2026-07-31, after it sat on no event from 2026-06-29 (`41e5fa44f`). It warns with exit 1 when this session CLAIMED a spec and never spawned an agent (`.claude/hooks/block-premature-stop.sh:215-217`). It reads the marker `mark-agent-spawned.sh` writes, and it heartbeats that marker first (`:214`). A session older than 24h that DID delegate is therefore never nudged falsely. The nudge never blocks. It is scoped: it sits behind the claim marker `tmp/session/.session-<SID>` (`:150-169`). A session that claimed no spec gets no nudge, whatever it ran inline (fixture `delegation-no-spec-no-nudge`).
-- **The nudge now survives past turn one.** Position in the `Stop` array is necessary, and it is not sufficient. `session-end-summary.sh` released the claim at the end of every Stop event, and a Stop hook fires between every turn. The nudge therefore reported once per claim, then stayed silent for the rest of the session. The release moved to `SessionEnd` (`.claude/hooks/session-end-scratch.sh:60`). A session that works inline for twenty turns is now warned on all twenty. Six fixtures pin registration, order and lifetime: `delegation-stop-hook-registered`, `delegation-stop-hook-runs-before-marker-release`, `delegation-claim-survives-stop`, `delegation-nudge-fires-on-second-stop`, `delegation-claim-released-at-session-end` and `delegation-claim-survives-resume`. The last two pin the OFF half of the lifetime, which nothing tested until a deleted release line left the suite green. Fixtures: `python3 scripts/dev/hook-fixture-check.py --only delegation` (35 in the section).
+- **`.claude/hooks/block-premature-stop.sh` IS registered on `Stop`, and it fires.** Thomas re-registered it on 2026-07-31, after it sat on no event from 2026-06-29 (`41e5fa44f`). It warns with exit 1 when this session CLAIMED a spec and never spawned an agent. It reads the marker `mark-agent-spawned.sh` writes, and it heartbeats that marker first. A session older than 24h that DID delegate is therefore never nudged falsely. The nudge never blocks. It is scoped: it sits behind the claim marker `tmp/session/.session-<SID>`. A session that claimed no spec gets no nudge, whatever it ran inline (fixture `delegation-no-spec-no-nudge`).
+- **The nudge survives past turn one.** Position in the `Stop` array is necessary and not sufficient: the claim marker must outlive the turn it was made. `session-end-summary.sh` released it on every `Stop`, so the nudge fired once per claim and then went silent. The release moved to `SessionEnd`. Six fixtures pin registration, order, and both ends of the lifetime: `python3 scripts/dev/hook-fixture-check.py --only delegation` (35 in the section).
 - **Nothing checks the MODEL.** `ai/rules/model-selection.md` still has no gate at all, so the phase-to-model boundary remains yours to announce and stop at.
 
 ---

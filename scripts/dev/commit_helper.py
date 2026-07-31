@@ -1471,17 +1471,18 @@ STE_HABIT_GREW = 3
 
 
 def ste_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
-    """BLOCK a commit whose own prose grew an ASD-STE100 habit.
+    """REPORT, never block, when a commit's own prose grew an ASD-STE100 habit.
 
-    Rule one of the repository is Simplified Technical English
-    (ai/rules/simplified-technical-english.md). This is the only place where the
-    six banned habits can be attributed to ONE author: several sessions share
-    this checkout, so a tree-wide prose gate reports a colleague's in-flight
-    sentences, and a gate that reddens for someone else's typing gets switched
-    off. The files of one commit are the right unit.
+    Simplified Technical English (ai/rules/simplified-technical-english.md) is a
+    GUIDELINE. It exists to make text clearer for a reader, and it is not a law.
+    Owner directive, 2026-07-31: a prose gate that refuses a commit makes an
+    author spend edits on wording that changes no meaning, which is the overhead
+    the guideline exists to remove. So this prints its findings and returns [].
 
-    Each file is compared against its own HEAD version, so legacy prose in a file
-    you touched costs nothing. Only the sentences you added count.
+    Findings are still worth printing. This is the only place where the six
+    habits can be attributed to ONE author: several sessions share this checkout,
+    so a tree-wide report names a colleague's in-flight sentences. Each file is
+    compared against its own HEAD version, so only your new sentences count.
     """
     checker = repo / "scripts" / "dev" / "ste_check.py"
     if not checker.exists():
@@ -1505,7 +1506,15 @@ def ste_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
         print(f"warning: ste gate could not run ({exc}); prose is UNCHECKED", file=sys.stderr)
         return []
     if res.returncode == STE_HABIT_GREW:
-        return [(res.stdout + res.stderr).rstrip()]
+        # Advisory: print and let the commit through. Read the findings, fix what
+        # makes the text clearer, and ignore what does not.
+        print((res.stdout + res.stderr).rstrip(), file=sys.stderr)
+        print(
+            "note: ASD-STE100 is a guideline, not a gate. Apply a finding when it "
+            "helps the reader; never rewrite a sentence only to satisfy a count.",
+            file=sys.stderr,
+        )
+        return []
     if res.returncode != 0:
         print(
             f"warning: ste gate could not judge (exit {res.returncode}); "

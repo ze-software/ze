@@ -75,10 +75,13 @@
 
 # Ze - {{TOOL}} Instructions
 
-## RULE ONE: every word Ze publishes is Simplified Technical English
+## Ze publishes in Simplified Technical English
 
 **Ze writes in ASD-STE100 Simplified Technical English, Issue 9 (2025-01-15).**
-This is the first rule of the repository. It covers `docs/`, code comments, error
+**This is a GUIDELINE, not a law and not a gate.** It exists to make text clearer
+for a reader. Never rewrite a sentence only to satisfy a word count: an edit that
+changes no meaning is overhead, which is the thing the guideline removes. The
+checker reports and lets the work through. It covers `docs/`, code comments, error
 messages, CLI output, YANG descriptions, `ai/` rules, `plan/` specs, and commit
 messages. Full rule: `ai/rules/simplified-technical-english.md`. Working guide,
 committed and complete on its own: `docs/contributing/writing-style.md`.
@@ -129,11 +132,23 @@ user prompt to trigger it.
 ## Verify before you claim
 
 Before stating what code does, or recommending work premised on a behavioral
-claim, cite the function that PRODUCES the behavior as `file:line`. Reading a
-value's caller and inferring its producer is not evidence; read the producer.
-If you cannot cite it, label the claim "unverified" and do not recommend work
-on it. A coherent story is a hypothesis, not a finding. Full rule:
-`ai/rules/no-fabrication.md`.
+claim, read the function that PRODUCES the behavior. Reading a value's caller
+and inferring its producer is not evidence. If you have not read the producer,
+label the claim "unverified" and do not recommend work on it. A coherent story
+is a hypothesis, not a finding. Full rule: `ai/rules/no-fabrication.md`.
+
+Verification is what you DO. The citation is a separate decision, made for the
+reader. Name the file and the symbol. Use a line number only when the line IS
+the fact. Full rule: `ai/rules/detail-budget.md`.
+
+## Say it once, say it short
+
+Detail is a cost the reader pays, not proof that you did the work. Report what
+changes their next action: what changed, what it means, what is not done. A fact
+they can recover by opening the code is not written down. The search that found
+it is never narrated. One example settles one point. When a directive can be
+read two ways, give both readings rather than a third example. Full rule:
+`ai/rules/detail-budget.md`.
 
 ## Core Architecture
 
@@ -249,13 +264,14 @@ means "no rule applies".
 
 | Action | Read first |
 |--------|-----------|
-| Write ANY prose: docs, comments, error messages, CLI output, specs, commit messages | `ai/rules/simplified-technical-english.md` -- rule one. ASD-STE100 Issue 9. No synonym rotation, no hedging, no frozen verbs, no marketing adjectives, no run-ons, no phrasal verbs |
+| Write ANY prose: docs, comments, error messages, CLI output, specs, commit messages | `ai/rules/simplified-technical-english.md` -- a GUIDELINE, not a gate. ASD-STE100 Issue 9. No synonym rotation, no hedging, no frozen verbs, no marketing adjectives, no run-ons, no phrasal verbs |
 | Start a session | `.claude/rules/session-start.md` |
 | Edit CLAUDE.md, AGENTS.md, any synced file, or add an agent behavior rule | `ai/rules/canonical-sources.md` -- never edit generated files; shared rules go in `ai/rules/` |
 | Design or implement anything | `ai/rules/design-context.md` -- grep ze before proposing, never default to trained instincts |
 | Start a planning, implementation, or review phase | `ai/rules/model-selection.md` -- planning and review run on Opus 5, implementation runs on Opus 4.8; announce the boundary and stop rather than crossing it on the wrong model |
 | Work on ANY spec (research, design, implement, review, close) | `ai/rules/spec-delegation.md` -- the main thread supervises only; each phase runs in a subagent through its `ze-*` skill, and the main thread verifies the report rather than relaying it |
-| Make a behavioral claim about code, or recommend work based on one | `ai/rules/no-fabrication.md` -- cite the producing function `file:line`; read the producer, not the caller; if you can't cite it, label it unverified |
+| Make a behavioral claim about code, or recommend work based on one | `ai/rules/no-fabrication.md` -- read the producer, not the caller. Name the file and the symbol. If you did not read it, label it unverified |
+| Write a report, a rule, a doc, a commit body, or a learned summary | `ai/rules/detail-budget.md` -- write what changes the reader's next action, then stop. One example for one point. Two readings beat a third example. Budgets for each artifact |
 | Find recurring development friction or problem patterns | `ai/rules/friction-reporting.md` -- report the pattern and decide whether a new or changed rule would prevent it |
 | Write any code | `ai/rules/before-writing-code.md`, relevant `ai/patterns/`, `ai/rules/hook-mapping.md` (which checks will fire) |
 | Write or review a guard (auth check, validator, constraint, ratchet, lookup that gates behavior) | `ai/rules/fail-closed-guards.md` -- fail closed or say something; a zero value must never be a valid-looking answer; drive the guard's test from its entry point, never the helper alone |

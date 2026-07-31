@@ -2,6 +2,7 @@
 
 **When:** when stating what code does, or recommending work premised on a behavioral claim
 **Severity:** blocking
+**Related:** detail-budget, critical-review
 
 ## Directives
 
@@ -28,6 +29,12 @@ system it binds to does with it. Read the decision record before asserting
 intent, especially before calling something a mistake, and read the foreign
 system's own source before asserting its semantics.
 
+Verification and citation are two decisions, and this rule owns the first.
+Verification is an action: read the producing function. The citation is written
+for the reader, and it names the file and the symbol. A line number appears only
+when the line IS the fact. A pasted line number proves nothing about what you
+read, and it goes stale at the next edit (`ai/rules/detail-budget.md`).
+
 A self-consistent story is a hypothesis, not a finding. Coherence is not
 verification, and breadth of research (many files skimmed) does not substitute
 for reading the one function the claim depends on.
@@ -43,7 +50,7 @@ what `Run` returns on session end, was inferred from the caller, never read.
 
 Before answering a factual question about file content:
 
-1. Can I point to the exact line(s) that state the answer? If yes, answer.
+1. Can I point to the text that states the answer? If yes, answer.
 2. If no: "The file doesn't say. [what's missing]."
 
 Before claiming code behaves a certain way, or recommending work premised on it:

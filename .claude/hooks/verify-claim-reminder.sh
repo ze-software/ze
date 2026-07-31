@@ -9,6 +9,6 @@
 
 cat >/dev/null  # consume the prompt payload on stdin
 
-echo "Reminder: cite the producing function (file:line) for any claim about what code does, or any recommendation premised on one. Read the producer, not the caller. If you cannot cite it, call it unverified. (ai/rules/no-fabrication.md)"
+echo "Reminder: verify a claim about code by reading the function that PRODUCES it, not the caller. Unread means unverified. Cite file + symbol, not a line number. Report the conclusion, not the search. (no-fabrication.md, detail-budget.md)"
 
 exit 0

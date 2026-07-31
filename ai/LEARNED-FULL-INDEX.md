@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1280 summaries
+Total: 1281 summaries
 
 ## 000-099
 
@@ -1359,3 +1359,4 @@ Total: 1280 summaries
 | 1306 | The Delegation Rule Lost on Position, Not on Argument | `plan/learned/1306-delegation-reminder-position.md` |
 | 1307 | A suite can be counted, tiered, and never run | `plan/learned/1307-rfc-evidence-tier-vacuity.md` |
 | 1308 | Stop hook re-registration | `plan/learned/1308-stop-hook-reregistration.md` |
+| 1309 | Detail budget | `plan/learned/1309-detail-budget.md` |

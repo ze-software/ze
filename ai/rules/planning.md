@@ -332,7 +332,7 @@ gates exist for it, and all three run. The `Stop` array in
 | Gate | Where | Fires when |
 |------|-------|-----------|
 | Detector | `scripts/dev/spec-closure-check.py` | `--list` reports completed-but-not-closed specs in two tiers; `--spec <s>` exits 3 only for a high-confidence one. High confidence = a **committed** `plan/learned/NNN-<slug>.md` whose slug **exactly equals** the spec stem while the spec is still `in-progress` and is **not an umbrella** (commit A ran, commit B did not). Weaker `[umbrella]` / `[weak-match]` candidates (child/sibling/predecessor summaries) are listed under NEEDS VERIFICATION and must be audited before closing — they are usually false positives. Only the high-confidence set triggers the `--spec` block. |
-| Stop-hook block | `.claude/hooks/block-premature-stop.sh` | This session CLAIMED a spec, the detector exits 3 for it, and no ack exists. The hook then refuses the session an end (exit 2, `:174-182`). Live and first in the `Stop` array since 2026-07-31. It sat on no event from 2026-06-29 (`41e5fa44f`) until then. Two facts make it reachable, and array order alone is not enough. The hook must run before anything that releases the claim, AND the claim must survive to the turn where the detector exits 3. That turn comes many turns after the claim, because the detector needs commit A to have landed. Releasing the claim on `Stop` therefore made this gate unreachable in the one situation it exists for, so the release moved to `SessionEnd` (`.claude/hooks/session-end-scratch.sh:60`). Escape hatch: record why the spec is genuinely open in `tmp/session/.closure-ack-<stem>`, which `spec-closure-check.py:266-269` reads to return 0 instead of 3. The gate is scoped to a claimed spec, because it sits behind the `tmp/session/.session-<SID>` marker (`:150-169`). A session that claimed no spec is never asked to close one. The hook heartbeats that marker on the way past (`:167`), so a session running longer than 24h keeps the gate armed. This gate carries NO retry bound, and it is not meant to. The hook's `STOP_RETRY` flag (`:26-29`) skips the phrase scan alone, so a refused stop on turn N leaves the closure gate armed on turn N+1. Two escapes make that safe: run commit B, or write the ack above. An earlier version exited the whole hook on the retry and switched this gate off. |
+| Stop-hook block | `.claude/hooks/block-premature-stop.sh` | This session CLAIMED a spec, the detector exits 3 for it, and no ack exists. The hook refuses the session an end (exit 2). Escape: record why the spec is genuinely open in `tmp/session/.closure-ack-<stem>`. A session that claimed no spec is never asked to close one. The gate carries no retry bound on purpose: a refused stop leaves it armed next turn, and it has two escapes of its own (run commit B, or write the ack). |
 | Commit reminder | `scripts/dev/commit_helper.py` | A commit adds a learned summary but removes no spec: it prints the closure-commit reminder to stderr. |
 
 Run `scripts/dev/spec-closure-check.py --list` any time to see the backlog.
@@ -355,6 +355,11 @@ Before marking a spec done, for every deferral: verify the receiving spec exists
 ## Executive Summary Report
 
 Present to user when all work is complete. Format below.
+
+The sections are a checklist of what to cover, never a quota to fill. A section
+with nothing to report says "None" on one line. The whole report stays under
+about 15 lines: what changed, what it means, what is not done. No investigation
+narrative (`ai/rules/detail-budget.md`).
 
 ```
 ## Executive Summary
@@ -399,7 +404,9 @@ Every row must be answered Yes/No. Every Yes must name the file and what to add.
 When a spec is complete, write a concise summary to `plan/learned/` using the next available number.
 Allocate the number with `scripts/dev/commit_helper.py learned-next <slug>`: it takes max(existing `plan/learned/NNNN-*.md` prefixes) + 1 and creates the file immediately, so concurrent sessions in one tree cannot collide. Include the created file in the Commit A helper command.
 
-The summary (~25-35 lines) uses this fixed 5-section format:
+The summary is 25 to 35 lines and uses this fixed 5-section format. The budget is
+real: summaries averaged 27 lines in the first hundred and 93 in the last hundred.
+Over budget means cut, never a second file (`ai/rules/detail-budget.md`).
 
 | Section | Content |
 |---------|---------|

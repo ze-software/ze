@@ -23,16 +23,18 @@ phase itself.
 - **If you are that agent:** run the steps below. You have no LSP tool and cannot
   ask the user, so when you hit a STOP-and-ask condition, halt and put the
   question in your report for the main thread to carry.
-- **Either way:** every claim in the report cites `file:line` for the function
-  that PRODUCES the behavior (`ai/rules/no-fabrication.md`). The main thread
-  verifies each one against source before acting; relaying a report unverified
-  is fabrication with an extra hop.
+- **Either way:** every claim in the report names the function that PRODUCES the
+  behavior, as the file plus the symbol (`ai/rules/no-fabrication.md`). The main
+  thread verifies each one against source before acting; relaying a report
+  unverified is fabrication with an extra hop. Report the conclusion and the
+  evidence that would overturn it, never the search. Under 40 lines
+  (`ai/rules/detail-budget.md`).
 
 ## Steps
 
 1. **Read the spec:** Run `scripts/dev/spec-session.sh current`, then read `plan/<spec-name>`
 2. **Check git history:** Run `git log --oneline -20` -- avoid proposing work that's already done
-3. **Validate requirements:** For every AC in the spec, find the implementation (file:line). Is it correct? Complete?
+3. **Validate requirements:** For every AC in the spec, find the implementation (file + symbol). Is it correct? Complete?
 4. **Check test existence:** For every test in the TDD Plan, verify it exists with the exact name listed. If renamed, note the actual name.
 5. **Check file lists:** For every file in "Files to Modify" and "Files to Create", verify it was modified/created.
 6. **Check wiring tests:** For every row in the Wiring Test table, verify the .ci file exists and tests the claimed path.

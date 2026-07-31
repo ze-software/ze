@@ -1258,7 +1258,16 @@ class TestSTEGate(unittest.TestCase):
             )
             self.assertEqual(ch.ste_problems(root, ("docs/x.md",)), [])
 
-    def test_new_habit_blocks_and_names_it(self):
+    def _ste_report(self, root, paths):
+        """STE is a guideline: ste_problems REPORTS to stderr and never blocks.
+        Returns the report text, and asserts the commit was not refused."""
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            problems = ch.ste_problems(root, paths)
+        self.assertEqual(problems, [], "STE is advisory and must never block a commit")
+        return err.getvalue()
+
+    def test_new_habit_is_reported_and_named(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(tmp)
             (root / "docs" / "x.md").write_text("# X\n\nZe starts the daemon.\n")
@@ -1266,12 +1275,12 @@ class TestSTEGate(unittest.TestCase):
             (root / "docs" / "x.md").write_text(
                 "# X\n\nZe starts the daemon.\n\nIt should spin up seamlessly.\n"
             )
-            problems = ch.ste_problems(root, ("docs/x.md",))
-            self.assertTrue(problems)
-            self.assertIn("docs/x.md", problems[0])
-            self.assertIn("hedging", problems[0])
-            self.assertIn("phrasal-verbs", problems[0])
-            self.assertIn("marketing-adjectives", problems[0])
+            report = self._ste_report(root, ("docs/x.md",))
+            self.assertIn("docs/x.md", report)
+            self.assertIn("hedging", report)
+            self.assertIn("phrasal-verbs", report)
+            self.assertIn("marketing-adjectives", report)
+            self.assertIn("guideline", report)
 
     def test_inherited_prose_does_not_block(self):
         # The whole point of comparing against HEAD: touching a file that already
@@ -1296,7 +1305,7 @@ class TestSTEGate(unittest.TestCase):
             )
             self.assertEqual(ch.ste_problems(root, ("Makefile",)), [])
 
-    def test_dot_directory_path_is_gated(self):
+    def test_dot_directory_path_is_read(self):
         # `str.lstrip("./")` strips a character SET, so ".claude/rules/x.md"
         # became "claude/rules/x.md" and 20 tracked files were silently ungated.
         with tempfile.TemporaryDirectory() as tmp:
@@ -1307,11 +1316,12 @@ class TestSTEGate(unittest.TestCase):
             (root / ".claude" / "rules" / "x.md").write_text(
                 "# X\n\nZe starts.\n\nIt should spin up seamlessly.\n"
             )
-            problems = ch.ste_problems(root, (".claude/rules/x.md",))
-            self.assertTrue(problems, "a dot-directory path must still be gated")
-            self.assertIn(".claude/rules/x.md", problems[0])
+            report = self._ste_report(root, (".claude/rules/x.md",))
+            self.assertIn(
+                ".claude/rules/x.md", report, "a dot-directory path must still be read"
+            )
 
-    def test_dot_slash_prefix_is_gated(self):
+    def test_dot_slash_prefix_is_read(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = self._repo(tmp)
             (root / "docs" / "x.md").write_text("# X\n\nZe starts.\n")
@@ -1319,7 +1329,7 @@ class TestSTEGate(unittest.TestCase):
             (root / "docs" / "x.md").write_text(
                 "# X\n\nIt should spin up seamlessly.\n"
             )
-            self.assertTrue(ch.ste_problems(root, ("./docs/x.md",)))
+            self.assertIn("docs/x.md", self._ste_report(root, ("./docs/x.md",)))
 
     def test_missing_checker_never_blocks(self):
         with tempfile.TemporaryDirectory() as tmp:

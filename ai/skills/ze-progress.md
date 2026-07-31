@@ -17,7 +17,7 @@ Checked in order. The report stops at the first stage that is NOT satisfied.
 
 | # | Stage | Satisfied when |
 |---|-------|----------------|
-| 1 | Implementation | Every AC has file:line evidence, every TDD test exists, every "Files to Modify/Create" entry was touched, and the Wiring Test table rows all have a real `.ci` test |
+| 1 | Implementation | Every AC names the producing function, every TDD test exists, every "Files to Modify/Create" entry was touched, and the Wiring Test table rows all have a real `.ci` test |
 | 2 | Deferrals | No `open` row across the `plan/deferrals/` shards references the spec, OR every open row is explicitly user-approved to remain open |
 | 3 | Review | A review (`/ze-review`, `/ze-review-spec`, or `/ze-review-deep`) has run AFTER the most recent spec-related code edit, and every finding was fixed |
 | 4 | Commit A | `make ze-verify` passed AND all spec-scoped changes (code + tests + docs + completed spec file) are committed |
@@ -31,7 +31,7 @@ A spec is **done** only when stage 5 is complete. Stages 1 through 4 are checkpo
 2. **Read `plan/<spec-name>`.** Extract the metadata table (`Status`, `Updated`), the Acceptance Criteria table, the TDD Test Plan, the Files to Modify / Files to Create lists, and the Wiring Test table.
 3. **Check git state:** `git status`, `git log --oneline -20`, and `git log --oneline -- plan/<spec-name>`. Record the timestamp of the most recent commit touching any spec-scoped file.
 4. **Stage 1 -- Implementation:** Build the AC / TDD / Files table below by checking each row against the code:
-   - For every AC row in the spec: grep for the feature or the test that covers it. Mark `Done` only if a file:line exists; otherwise `Partial` or `Missing`.
+   - For every AC row in the spec: grep for the feature or the test that covers it. Mark `Done` only when the producing function exists; otherwise `Partial` or `Missing`.
    - For every TDD test name: `grep -rn "<TestName>" internal/ test/`. Mark `Present` or `Missing`. A renamed test is `Missing` unless the spec lists the new name.
    - For every "Files to Modify" entry: run `git log --oneline -- <file>` to confirm the file was touched during this spec's work window. Missing entry = `Missing`.
    - For every Wiring Test row: check that the named `.ci` or Go test exists and exercises the path.
@@ -120,7 +120,7 @@ Pick exactly ONE action based on the reported stage. Do not chain recommendation
 - **One stage at a time.** Stop at the first unsatisfied stage. Do not preview later stages or recommend batched actions.
 - **No optimism.** A missing test is Missing, even if "the code obviously works." A missing .ci wiring test means stage 1 is incomplete, even if unit tests pass.
 - **Verify before deferring.** Before reporting an open deferral as stage 2, grep for the thing being deferred. If it already exists in code, flag it as `resolvable-now` and recommend closing it.
-- **Honest evidence.** Every `Done` row MUST have a `file:line` or a test name. "Probably done" is `Partial`.
+- **Honest evidence.** Every `Done` row MUST name the producing function or a test name. "Probably done" is `Partial`.
 - **Never tick `[ ]` to `[x]`** in the spec file. Checkbox state is not a truth source; grep the code.
 - **Do not edit the spec.** If the Status field is wrong, note it in the report but do not change it -- the user decides when to update spec metadata.
 - **Respect the two-commit rule.** Stage 4 and stage 5 are separate commits. Never recommend squashing them.

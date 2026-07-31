@@ -2,7 +2,7 @@
 
 **When:** when a test fails, a gate goes red, or you are about to write a problem down instead of fixing it
 **Severity:** blocking
-**Related:** no-parking, anti-rationalization, flaky-under-load, testing, ci-sleep-justification
+**Related:** no-parking, anti-rationalization, flaky-under-load, testing, ci-sleep-justification, detail-budget
 
 ## Directives
 
@@ -86,30 +86,16 @@ a red whose mechanism is genuinely unknown still belongs there.
 
 A record earns its length from what a future reader must DO, never from what you
 went through. Investigations are not narrated: the wrong hypotheses, the order
-you tried things in, and how long it took are yours, not the reader's.
+you tried things in, and how long it took are yours, not the reader's. State the
+correction and move on.
 
-| Artifact | Contains | Budget |
-|----------|----------|--------|
-| Commit subject | what changed, imperative | one line |
-| Commit body | the defect, its cause with `file:line`, what the fix does | under 15 lines. No investigation narrative, no "in sequence it was X, then Y" |
-| Known-failure shard | the failing output, the repro command, the next step | under 20 lines |
-| Report to the user | what is fixed, what is not, what proves it | shortest form that is complete |
-| Learned summary | what a future reader needs that the code cannot tell them | per `ai/rules/planning.md` |
-
-Banned in all of them: recounting dead ends, restating the same fact in
-successive paragraphs, explaining why the previous attempt was wrong, and any
-sentence about the difficulty of the work.
-
-State the correction and move on. If a claim needs evidence, cite `file:line`
-rather than retelling how you obtained it.
+Budgets, the citation rule, and what is banned in every artifact:
+`ai/rules/detail-budget.md`. A commit body is under 15 lines and a known-failure
+shard is under 20.
 
 ## Rationale
 
-Both halves were paid for. A `plan/known-failures/` shard was written on
-2026-07-26 for three functional tests that failed only on a loaded host; the
-shard argued at length that the rotating failure set proved non-determinism,
-when a rotating set across teardown-shaped tests is the signature of one shared
-timing assumption -- a diagnosis, sitting unread inside its own record. The same
-session produced commit bodies that narrated three superseded hypotheses about a
-tc query before reaching the fix, so a reader had to discard two thirds of the
-message to find what the commit did.
+Both halves were paid for on 2026-07-26. A shard argued at length that a
+rotating failure set proved non-determinism, when a rotating set across
+teardown-shaped tests is the signature of one shared timing assumption. The
+diagnosis was sitting unread inside its own record.

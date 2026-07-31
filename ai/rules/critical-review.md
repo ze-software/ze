@@ -27,7 +27,7 @@ reviewers caught on the same diff minutes later.
 
 1. **Independent.** Spawn ≥2 reviewer subagents over the diff, each a distinct
    lens (logic/wiring/removed-behavior; security/edge-cases/test-quality; the
-   feature's own risk area). They read the PRODUCER (`file:line`), not the caller,
+   feature's own risk area). They read the PRODUCER, not the caller,
    and verify claims against source (`ai/rules/no-fabrication.md`).
 2. **Adversarial.** The question is "what can go wrong that nobody planned for?"
    Default findings PLAUSIBLE, not dismissed. Never discard wiring, removed-guard,

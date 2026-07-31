@@ -1,10 +1,17 @@
 # Simplified Technical English (ASD-STE100 Issue 9)
 
 **When:** writing or reviewing any prose in this repository: docs, comments, error messages, CLI output, YANG descriptions, specs, or commit messages
-**Severity:** blocking
+**Severity:** advisory
 **Related:** language-and-spelling, documentation, error-messages, comparison-honesty
 
 ## Directives
+
+**This is a GUIDELINE. It is not a law, and it is not a gate.** It exists to make
+text clearer for a reader. Owner directive, 2026-07-31.
+
+- **Never rewrite a sentence only to satisfy a count.** An edit that changes no meaning for a reader is pure overhead, and it is the thing this guideline exists to remove. A sentence two words over the limit is not a defect.
+- **The checker reports. It does not refuse.** `make ze-ste-check` and the commit-time check print findings and let the work through. Apply a finding when it makes the text clearer, and ignore it when it does not.
+- **Aim at the six habits, not at the arithmetic.** The word and sentence counts below are a smell test for a run-on, never a target to hit.
 
 Ze writes in ASD-STE100 Simplified Technical English, Issue 9 (2025-01-15). This is rule one of the repository. The working guide is `docs/contributing/writing-style.md`, which is committed and complete on its own.
 
@@ -78,7 +85,7 @@ Ze writes in ASD-STE100 Simplified Technical English, Issue 9 (2025-01-15). This
 
 | Command | What it does |
 |---------|--------------|
-| `scripts/dev/commit_helper.py create` | **The gate.** `ste_problems` BLOCKS a commit whose own `.md`, `.go`, or `.yang` files grew a habit. It runs on the files of that commit, so the prose it judges has one author |
+| `scripts/dev/commit_helper.py create` | **Advisory.** `ste_problems` PRINTS findings for a commit's own `.md`, `.go`, or `.yang` files. It never refuses the commit. It runs on the files of that commit, so the prose it judges has one author |
 | `make ze-ste-check` | The same gate over every changed file in the working tree. Run it before you prepare a commit. About 2 seconds |
 | `make ze-ste-review` | The whole-tree report. Every finding with its `file:line`, its habit number, and the replacement to use |
 | `make ze-ste-review-changed` | The same report for changed files only |

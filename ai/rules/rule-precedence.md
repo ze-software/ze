@@ -42,4 +42,4 @@ An implementation phase finishes and the Review Gate is next. Rung 4 applies: re
 
 A functional test fails on a busy host and passes in isolation. Rung 3 applies via `fix-dont-record`: the test waits on elapsed time instead of on state. Fix the wait. Do not write a known-failure shard, and do not report "flaky, passes in isolation" as an outcome.
 
-An RFC MUST is implemented but has no tagged test, and the spec is otherwise finished. Rung 2 applies: do not close, do not file a deferral. Quote the requirement and the producing `file:line`, say what a tagged test would cost, ask Thomas which way to proceed.
+An RFC MUST is implemented but has no tagged test, and the spec is otherwise finished. Rung 2 applies: do not close, do not file a deferral. Quote the requirement and name the producing function, say what a tagged test would cost, ask Thomas which way to proceed.

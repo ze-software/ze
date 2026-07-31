@@ -15,7 +15,7 @@ Before: writing summary to `plan/learned/`, claiming "done", asking to commit.
 ## Process
 
 1. Extract all requirements from spec: task items, AC-N assertions, TDD tests, files listed
-2. Verify each with status: ✅ Done (file:line), ⚠️ Partial, ❌ Skipped, 🔄 Changed
+2. Verify each with status: ✅ Done (file + symbol), ⚠️ Partial, ❌ Skipped, 🔄 Changed
 3. Fill audit table in spec (template in `plan/TEMPLATE.md`)
 
 ## Approval Required
@@ -44,7 +44,7 @@ Before: writing summary to `plan/learned/`, claiming "done", asking to commit.
 | Feature works | Test name + output | "make ze-verify passes" |
 | Feature is wired in | Wiring test that exercises entry→feature path | Unit test with mock/fake entry point |
 | AC-N done (wiring) | Functional test name exercising full path | Unit test in isolation |
-| AC-N done (logic) | Unit test name + file:line, assertion matches AC text | "should work" |
+| AC-N done (logic) | Unit test name + file, assertion matches AC text | "should work" |
 | AC-N done (behavior) | Test asserts the AC's expected behavior directly | Test asserts mechanism (e.g., "no error" as proxy for "rejected") |
 
 ## AC Evidence Verification (BLOCKING)

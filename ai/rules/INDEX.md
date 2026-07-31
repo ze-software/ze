@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 96 rules
+Total: 97 rules
 
 | Rule | When to read | Severity | File |
 |------|--------------|----------|------|
@@ -36,6 +36,7 @@ Total: 96 rules
 | Design Context | before any design decision: communication mechanism, naming, package placement, platform backend, or lifecycle | blocking | `ai/rules/design-context.md` |
 | Design Document References | creating or splitting any non-test, non-generated `.go` file | blocking | `ai/rules/design-doc-references.md` |
 | Design Principles | before any design decision that adds structure: a new abstraction, package, wrapper, or interface | advisory | `ai/rules/design-principles.md` |
+| Detail Budget | writing anything a reader acts on: a reply, a rule, a document, a commit body, a learned summary, or an agent report | advisory | `ai/rules/detail-budget.md` |
 | Diagnosis Before Fix | Before changing code to make a symptom go away (failing test, rejected input, error, red gate, broken demo), write the Diagnosis first | blocking | `ai/rules/diagnosis-before-fix.md` |
 | Discovery Updates | adding or changing anything future agents must discover: a feature, command, tool, gate, test type, or runtime dependency | blocking | `ai/rules/discovery-updates.md` |
 | Doctor Checks | when an implementation introduces a runtime dependency: a file, socket, port, kernel module, binary, or certificate | blocking | `ai/rules/doctor-checks.md` |
@@ -95,7 +96,7 @@ Total: 96 rules
 | Rule File Format | authoring or editing any `ai/rules/*.md` rule file | blocking | `ai/rules/rule-format.md` |
 | Rule Precedence | when two rules point in different directions, or you are deciding whether to stop, ask, delegate, or continue | blocking | `ai/rules/rule-precedence.md` |
 | Self-Documenting Code | implementing an external API, an RFC, or another project's wire or file format | blocking | `ai/rules/self-documenting.md` |
-| Simplified Technical English (ASD-STE100 Issue 9) | writing or reviewing any prose in this repository: docs, comments, error messages, CLI output, YANG descriptions, specs, or commit messages | blocking | `ai/rules/simplified-technical-english.md` |
+| Simplified Technical English (ASD-STE100 Issue 9) | writing or reviewing any prose in this repository: docs, comments, error messages, CLI output, YANG descriptions, specs, or commit messages | advisory | `ai/rules/simplified-technical-english.md` |
 | Spec Work Runs in Subagents; the Main Thread Supervises | starting, resuming, or continuing work on ANY spec -- research, design, implementation, review, audit, or closure -- in the main session thread | blocking | `ai/rules/spec-delegation.md` |
 | No Code in Specs | writing or editing a spec | blocking | `ai/rules/spec-no-code.md` |
 | Spec Preservation | closing a completed spec | blocking | `ai/rules/spec-preservation.md` |

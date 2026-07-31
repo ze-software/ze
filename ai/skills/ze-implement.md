@@ -23,10 +23,12 @@ phase itself.
 - **If you are that agent:** run the steps below. You have no LSP tool and cannot
   ask the user, so when you hit a STOP-and-ask condition, halt and put the
   question in your report for the main thread to carry.
-- **Either way:** every claim in the report cites `file:line` for the function
-  that PRODUCES the behavior (`ai/rules/no-fabrication.md`). The main thread
-  verifies each one against source before acting; relaying a report unverified
-  is fabrication with an extra hop.
+- **Either way:** every claim in the report names the function that PRODUCES the
+  behavior, as the file plus the symbol (`ai/rules/no-fabrication.md`). The main
+  thread verifies each one against source before acting; relaying a report
+  unverified is fabrication with an extra hop. Report the conclusion and the
+  evidence that would overturn it, never the search. Under 40 lines
+  (`ai/rules/detail-budget.md`).
 
 ## Scope: this skill stops before closure
 
@@ -88,7 +90,7 @@ is the only command the spec's Goal Gates name. Do not add a third spelling.
    Read the spec's **Wiring Test** table. For each row:
    - Identify the entry point (CLI command, web route, config leaf, plugin event, RPC handler).
    - If the entry point does not exist yet: implement the registration/skeleton now (handler that returns "not implemented" or equivalent). This is Phase 1 regardless of what the spec's Implementation Phases say.
-   - If the entry point exists: verify it with `grep` or LSP and record file:line.
+   - If the entry point exists: verify it with `grep` or LSP and record file + symbol.
    - Write the wiring test (the `.ci` or `_test.go` that exercises entry-point-to-feature-code). It should fail because the feature logic is a stub.
    Gate: every Wiring Test row has a registered entry point and a failing test before proceeding.
 5. **Implement feature phases:** Follow the spec's **Implementation Phases** section in order, filling in the stubs created in step 4. For each phase:
@@ -111,7 +113,7 @@ is the only command the spec's Goal Gates name. Do not add a third spelling.
    - **Prometheus counters:** If the feature has observable state (connections, errors, rates, gauges), verify counters are defined, registered in telemetry, and listed in the spec's Integration Checklist.
    - **YANG validation:** If YANG leaves were added, verify each has maximum native constraints (`range`, `length`, `pattern`, `enumeration`). If native is insufficient, verify a custom validator with `CompleteFn` exists per `ai/patterns/config-option.md`. A leaf with `type string` and no constraint is a red flag.
    - Do NOT agree with the spec blindly -- challenge architectural assumptions
-8. **Fix every issue found** in the review. For each fix apply `ai/rules/diagnosis-before-fix.md`: write the root cause traced to `file:line` and choose the `[source]` fix over the `[workaround]` before editing. Never make a finding disappear by weakening a test, renaming a symbol, or special-casing the failing input — that fixes where the problem shows up, not where it is.
+8. **Fix every issue found** in the review. For each fix apply `ai/rules/diagnosis-before-fix.md`: write the root cause traced to the producing function and choose the `[source]` fix over the `[workaround]` before editing. Never make a finding disappear by weakening a test, renaming a symbol, or special-casing the failing input — that fixes where the problem shows up, not where it is.
 9. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
 10. **Repeat steps 7-9** until the review finds zero issues and all tests pass. No cap on review passes -- each fix is new code that needs a fresh review. Stop only when a pass finds nothing.
 11. **Stop here and hand off to `/ze-close`.** The implementation is done when
@@ -124,7 +126,7 @@ is the only command the spec's Goal Gates name. Do not add a third spelling.
 
 ## Rules
 
-- **Diagnosis before fix (BLOCKING).** When a test, gate, or review finding fails, write the five-part Diagnosis before editing (`ai/rules/diagnosis-before-fix.md`): symptom, root cause traced to `file:line`, owning layer, two fixes labeled `[workaround]`/`[source]`, why not the workaround. Fix the root cause at the owning layer. Renaming, skipping, special-casing, or weakening a test to reach green is a workaround, not a fix. When a check rejects you, ask: is the check wrong, is the input wrong, or is the check's data/config incomplete?
+- **Diagnosis before fix (BLOCKING).** When a test, gate, or review finding fails, write the five-part Diagnosis before editing (`ai/rules/diagnosis-before-fix.md`): symptom, root cause traced to the producing function, owning layer, two fixes labeled `[workaround]`/`[source]`, why not the workaround. Fix the root cause at the owning layer. Renaming, skipping, special-casing, or weakening a test to reach green is a workaround, not a fix. When a check rejects you, ask: is the check wrong, is the input wrong, or is the check's data/config incomplete?
 - **No deferred work.** Every item in the spec must be implemented fully before reporting completion. No TODOs, no stubs, no placeholder implementations, no "left as future work" notes, no comments like "// TODO: handle X later". If an item turns out to be blocked, ambiguous, or harder than expected, stop and raise it with the user to re-negotiate scope. Never silently skip or defer.
 - **Design-doc "Deferred to a later phase" sections are not authoritative.** When the user picks an option whose design doc carves out follow-on work as deferred, do NOT parrot that carve-out. Treat the entire problem as in scope and ask before excluding anything.
 - Do NOT skip the audit step -- re-implementing existing code wastes time

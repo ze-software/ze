@@ -13,7 +13,7 @@ Rationale: `ai/rationale/before-writing-code.md`
 [ ] 2. Grep/Glob for existing implementations — extend if found. Hook `check-existing-patterns.sh` blocks `Write` of a new `.go` under `internal/` when the first type name exists elsewhere. Grep `^type Foo ` first
 [ ] 3. Know source files — use digests if available; read + write digest if not
 [ ] 4. Verify file paths exist (Glob/Grep)
-[ ] 5. Wiring-first check — for every new feature, name the user entry point (CLI command, web route, config leaf, plugin event) and the file:line where it will be registered. If the entry point doesn't exist yet, it is Phase 1. If it does, name the function you will modify. "Library code someone will call" is not an answer.
+[ ] 5. Wiring-first check — for every new feature, name the user entry point (CLI command, web route, config leaf, plugin event) and the function where it will be registered. If the entry point doesn't exist yet, it is Phase 1. If it does, name the function you will modify. "Library code someone will call" is not an answer.
 [ ] 6. Buffer-first check (wire encoding) — `ai/rules/buffer-first.md`
 [ ] 7. Lazy-first check — can the consumer use existing wire methods? `design-principles.md` "Lazy over eager"
 [ ] 8. Bulk-edit check — >2 files with same pattern? Change ONE, test, confirm, THEN `scripts/dev/replace.py` (preview before `--apply`). Never assume
