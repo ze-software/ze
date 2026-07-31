@@ -1337,7 +1337,13 @@ def c_pre_write_go(ctx):
     sid = session_id()
     sstate = state_file(sid)
     selected = ""
-    marker = os.path.join(PROJECT_DIR, ".claude", f".session-{sid}")
+    # The claim marker lives under tmp/session/ (lib/state-file.sh _claim_spec,
+    # and scripts/dev/spec-session.sh). This read used the legacy .claude/ path,
+    # which has one reader and zero writers repo-wide, so `selected` was always
+    # empty and the "state file must mention the claimed spec" branch below was
+    # dead. Note state_file() above already resolves the correct path, so this
+    # one function was reading two different marker locations.
+    marker = os.path.join(PROJECT_DIR, "tmp", "session", f".session-{sid}")
     if os.path.isfile(marker):
         try:
             with open(marker) as fh:

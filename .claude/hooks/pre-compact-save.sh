@@ -12,7 +12,10 @@ TIMESTAMP=$(date -Iseconds)
 
 # Read current spec from session marker
 SID=$(_session_id)
-MARKER=".claude/.session-${SID}"
+# Sibling of the same defect fixed in session-end-summary.sh: the marker lives
+# under tmp/session/ (lib/state-file.sh _claim_spec), not the legacy .claude/
+# path, so the post-compaction snapshot never recorded the Active Spec section.
+MARKER="tmp/session/.session-${SID}"
 SELECTED_SPEC=""
 if [ -f "$MARKER" ]; then
     SELECTED_SPEC=$(head -1 "$MARKER" 2>/dev/null)

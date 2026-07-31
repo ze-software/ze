@@ -1771,11 +1771,14 @@ def _deleg_env(work: str) -> dict:
     return dict(os.environ, CLAUDE_PROJECT_DIR=work, CLAUDE_CODE_SESSION_ID=_DELEG_SID)
 
 
-def _run_stop_hook(work: str) -> tuple[int, str]:
-    """Drive block-premature-stop.sh with a message carrying no stop phrases, so
-    only the STATE reasons can fire."""
+def _run_stop_hook(work: str, message: str | None = None) -> tuple[int, str]:
+    """Drive block-premature-stop.sh. The default message carries no stop phrases,
+    so only the STATE reasons can fire. Pass `message` to drive the phrase scan."""
     payload = json.dumps(
-        {"last_assistant_message": "Implemented the change and ran the tests."}
+        {
+            "last_assistant_message": message
+            or "Implemented the change and ran the tests."
+        }
     )
     r = subprocess.run(
         ["bash", os.path.join(HOOKS, "block-premature-stop.sh")],
@@ -1882,6 +1885,323 @@ def run_delegation(results: Results) -> None:
             "delegation-context-no-spec-block",
             "Spec claimed by" not in r.stdout and r.returncode == 0,
             r.stdout,
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # Present is not wired. Every fixture above passes against a script that is
+    # registered on NO event, which is exactly the state block-premature-stop.sh
+    # sat in from 2026-06-29 to 2026-07-31: on disk, green in this file, and
+    # described as live by three rules, while the Stop array said otherwise.
+    settings = os.path.join(ROOT, ".claude", "settings.json")
+    with open(settings, encoding="utf-8") as fh:
+        cfg = json.load(fh)
+    stop = [
+        entry.get("command", "")
+        for group in cfg.get("hooks", {}).get("Stop", [])
+        for entry in group.get("hooks", [])
+    ]
+    results.check(
+        "delegation-stop-hook-registered",
+        any(c.endswith("block-premature-stop.sh") for c in stop),
+        repr(stop),
+    )
+
+    # ORDER IS LOAD-BEARING, though it is not sufficient on its own.
+    # session-end-summary.sh USED TO call _release_session, deleting
+    # tmp/session/.session-<SID> (lib/state-file.sh) on every Stop event.
+    # block-premature-stop.sh reads that marker to decide whether to run the
+    # closure gate, the in-progress warning and this delegation nudge, so it must
+    # still run first. The release now happens on SessionEnd instead, which is
+    # what keeps the claim alive past turn one; `delegation-claim-survives-stop`
+    # below pins that half, and this fixture pins the ordering half. Neither
+    # alone makes the three gates work.
+    def _index(suffix: str) -> int:
+        for i, c in enumerate(stop):
+            if c.endswith(suffix):
+                return i
+        return -1
+
+    guard, summary = _index("block-premature-stop.sh"), _index("session-end-summary.sh")
+    results.check(
+        "delegation-stop-hook-runs-before-marker-release",
+        guard >= 0 and (summary < 0 or guard < summary),
+        f"block-premature-stop at {guard}, session-end-summary at {summary}: {stop!r}",
+    )
+
+    # PHRASE SCAN: a banned phrase that is QUOTED is being named, not used.
+    # The scan blocked its own first live turn on 2026-07-31, on a report that
+    # documented `would you like me to` as an example inside backticks.
+    work = _deleg_project(spec=None)
+    try:
+        # Still blocks when the phrase is genuinely used.
+        rc, err = _run_stop_hook(work, "Done. Would you like me to run the tests?")
+        results.check("stop-phrase-blocks-real-use", rc == 2, f"rc={rc} {err}")
+
+        # Does not block when the phrase sits in an inline code span.
+        rc, err = _run_stop_hook(
+            work, "The scan matches `would you like me to` and blocks the turn."
+        )
+        results.check("stop-phrase-ignores-backticks", rc == 0, f"rc={rc} {err}")
+
+        # Does not block when the phrase sits in a fenced block.
+        fenced = "Banned patterns:\n\n```\nwould you like me to\nshall I proceed\n```\n\nRegistered and verified."
+        rc, err = _run_stop_hook(work, fenced)
+        results.check("stop-phrase-ignores-fenced-block", rc == 0, f"rc={rc} {err}")
+
+        # A phrase outside the fence still blocks, so the fence is not a bypass.
+        #
+        # Assert WHICH phrase matched, not merely that something did. Checking
+        # rc == 2 alone made this fixture decorative: under an inverted fence
+        # toggle the outside text is discarded and the FENCED phrase matches, so
+        # it stayed green through the exact bypass it exists to disprove.
+        #
+        # The fenced phrase is ordered EARLIER in PHRASES than the outside one,
+        # and the loop breaks on first match. So if the fence ever leaks, the
+        # reported pattern changes and this fixture goes red. With the two
+        # phrases the other way round a leak is invisible, because the outside
+        # phrase matches first either way.
+        mixed = (
+            "Example:\n\n```\nlet me know if you need it\n```"
+            "\n\nDone. Would you like me to continue?"
+        )
+        rc, err = _run_stop_hook(work, mixed)
+        results.check(
+            "stop-phrase-fence-is-not-a-bypass",
+            rc == 2 and "would you like me to" in err and "let me know" not in err,
+            f"rc={rc} {err}",
+        )
+
+        # An UNCLOSED fence is not a code block. Dropping the lines after it made
+        # the gate fail OPEN: a real request passed with rc=0.
+        unclosed = (
+            "Intro\n\n```bash\nmake ze-verify\n\nDone. Would you like me to continue?"
+        )
+        rc, err = _run_stop_hook(work, unclosed)
+        results.check(
+            "stop-phrase-unclosed-fence-still-blocks",
+            rc == 2 and "would you like me to" in err,
+            f"rc={rc} {err}",
+        )
+
+        # All-markup must not strip the message down to nothing and match nothing.
+        allfence = "```\nWould you like me to continue?\n```"
+        rc, err = _run_stop_hook(work, allfence)
+        results.check(
+            "stop-phrase-all-markup-scans-raw-text",
+            rc == 2 and "would you like me to" in err,
+            f"rc={rc} {err}",
+        )
+
+        # A fence closes only on a run at least as long as the opening one, so a
+        # ````markdown wrapper does not leak its inner block.
+        nested = (
+            "Example:\n\n````markdown\n```\nwould you like me to\n```\n````\n\nDone."
+        )
+        rc, err = _run_stop_hook(work, nested)
+        results.check("stop-phrase-nested-fence-ignored", rc == 0, f"rc={rc} {err}")
+
+        # Unparseable input must ALLOW the stop, with a documented exit code.
+        # Under `set -eo pipefail` the jq failure used to kill the script, so the
+        # hook returned 5, which its own header does not define.
+        r = subprocess.run(
+            ["bash", os.path.join(HOOKS, "block-premature-stop.sh")],
+            input="not json",
+            text=True,
+            capture_output=True,
+            env=_deleg_env(work),
+            timeout=60,
+        )
+        results.check(
+            "stop-hook-malformed-input-allows-stop",
+            r.returncode == 0,
+            f"rc={r.returncode} {r.stderr}",
+        )
+
+        # Loop bound: a stop already refused once is not refused again.
+        r = subprocess.run(
+            ["bash", os.path.join(HOOKS, "block-premature-stop.sh")],
+            input=json.dumps(
+                {
+                    "stop_hook_active": True,
+                    "last_assistant_message": "Would you like me to continue?",
+                }
+            ),
+            text=True,
+            capture_output=True,
+            env=_deleg_env(work),
+            timeout=60,
+        )
+        results.check(
+            "stop-hook-honours-stop-hook-active",
+            r.returncode == 0,
+            f"rc={r.returncode} {r.stderr}",
+        )
+
+        # .claude/rules/session-start.md:72 REQUIRES asking "What next?" once the
+        # original task is done. With no claimed in-progress spec there is no open
+        # work, so the completion list must not fire. This project has no spec.
+        rc, err = _run_stop_hook(work, "Spec closed and committed. What next?")
+        results.check(
+            "stop-phrase-what-next-allowed-when-no-open-work",
+            rc == 0,
+            f"rc={rc} {err}",
+        )
+
+        # Permission-seeking is a different failure and still blocks with no claim.
+        rc, err = _run_stop_hook(work, "Done. Would you like me to run the tests?")
+        results.check(
+            "stop-phrase-permission-blocks-without-open-work",
+            rc == 2,
+            f"rc={rc} {err}",
+        )
+
+        # An UNPAIRED backtick must not delete the request. A left-to-right strip
+        # pairs the stray tick with the OPENING tick of the later legitimate span
+        # and removes everything between, which is where the request sits. A
+        # dropped closing backtick is an ordinary typo, so this needs no intent.
+        stray = (
+            "I fixed the ` escaping bug. "
+            "Would you like me to also run `make ze-verify`?"
+        )
+        rc, err = _run_stop_hook(work, stray)
+        results.check(
+            "stop-phrase-unpaired-backtick-still-blocks",
+            rc == 2 and "would you like me to" in err,
+            f"rc={rc} {err}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # The retry bound must gate the PHRASE SCAN ONLY. An early exit also skipped
+    # the spec-closure gate, which is a real exit 2 and needs no bound because it
+    # has two documented escapes. Proxy for that: on a retry the state checks must
+    # still run, so the delegation nudge still warns.
+    work = _deleg_project(spec="spec-fixture.md", spawned=False)
+    try:
+        r = subprocess.run(
+            ["bash", os.path.join(HOOKS, "block-premature-stop.sh")],
+            input=json.dumps(
+                {
+                    "stop_hook_active": True,
+                    "last_assistant_message": "Would you like me to continue?",
+                }
+            ),
+            text=True,
+            capture_output=True,
+            env=_deleg_env(work),
+            timeout=60,
+        )
+        results.check(
+            "stop-hook-retry-still-runs-state-checks",
+            r.returncode == 1 and "Delegation:" in r.stderr,
+            f"rc={r.returncode} {r.stderr!r}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # The same completion phrase DOES block while a claimed spec is in-progress,
+    # which is the state that means work remains. Without this pair the fix reads
+    # as "deleted the phrases" rather than "made them conditional".
+    work = _deleg_project(spec="spec-fixture.md", status="in-progress", spawned=True)
+    try:
+        rc, err = _run_stop_hook(work, "Spec closed and committed. What next?")
+        results.check(
+            "stop-phrase-what-next-blocks-with-open-work",
+            rc == 2 and "what next" in err.lower(),
+            f"rc={rc} {err}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # MARKER LIFETIME: the array order is necessary but NOT sufficient. Releasing
+    # the claim on Stop destroyed it after turn one, so the closure gate, the
+    # in-progress warning and the delegation nudge each fired once per claim and
+    # were silent afterwards. The closure gate suffered worst, since it can only
+    # exit 3 once commit A has landed, many turns after the claim. Drive two
+    # consecutive Stop events and require the nudge on BOTH.
+    work = _deleg_project(spec="spec-fixture.md", spawned=False)
+    try:
+        # session-end-summary.sh returns early on a clean tree, which is the path
+        # that skips the release entirely. Give it a dirty git repo so it runs to
+        # the END, where the release actually lived. Without this the fixture
+        # passes even with the bug restored, which is how the first version of it
+        # was written and why it caught nothing.
+        subprocess.run(["git", "init", "-q", "."], cwd=work, capture_output=True)
+        with open(os.path.join(work, "dirty.txt"), "w") as fh:
+            fh.write("uncommitted\n")
+
+        _, err1 = _run_stop_hook(work)
+        summary = subprocess.run(
+            ["bash", os.path.join(HOOKS, "session-end-summary.sh")],
+            input="{}",
+            text=True,
+            capture_output=True,
+            env=_deleg_env(work),
+            timeout=60,
+        )
+        results.check(
+            "delegation-summary-reaches-end",
+            summary.returncode == 0
+            and os.path.isfile(
+                os.path.join(
+                    work, "tmp", "session", f"session-state-fixture-{_DELEG_SID}.md"
+                )
+            ),
+            "session-end-summary.sh did not run its full path, so the release "
+            f"site is untested (rc={summary.returncode})",
+        )
+        marker = os.path.join(work, "tmp", "session", f".session-{_DELEG_SID}")
+        results.check(
+            "delegation-claim-survives-stop",
+            os.path.isfile(marker),
+            "session-end-summary.sh released the claim on a Stop event",
+        )
+        _, err2 = _run_stop_hook(work)
+        results.check(
+            "delegation-nudge-fires-on-second-stop",
+            "Delegation:" in err1 and "Delegation:" in err2,
+            f"turn1={err1!r} turn2={err2!r}",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # The OFF half of the same lifetime. Moving the release to SessionEnd is only
+    # half a fix if nothing asserts the release still happens: deleting the line
+    # outright left the whole suite green, so a future session could "fix a leak"
+    # by removing the release and get a clean bar. SessionEnd resolves its id from
+    # stdin, not the environment, so drive it the way the harness does.
+    def _session_end(work: str, sid: str, reason: str) -> None:
+        subprocess.run(
+            ["bash", os.path.join(HOOKS, "session-end-scratch.sh")],
+            input=json.dumps({"session_id": sid, "reason": reason}),
+            text=True,
+            capture_output=True,
+            env=_deleg_env(work),
+            timeout=60,
+        )
+
+    work = _deleg_project(spec="spec-fixture.md")
+    try:
+        marker = os.path.join(work, "tmp", "session", f".session-{_DELEG_SID}")
+        _session_end(work, _DELEG_SID, "other")
+        results.check(
+            "delegation-claim-released-at-session-end",
+            not os.path.isfile(marker),
+            "SessionEnd did not release the claim, so claims leak forever",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+    # A session ending only to be resumed is not over, so it keeps its claim.
+    work = _deleg_project(spec="spec-fixture.md")
+    try:
+        marker = os.path.join(work, "tmp", "session", f".session-{_DELEG_SID}")
+        _session_end(work, _DELEG_SID, "resume")
+        results.check(
+            "delegation-claim-survives-resume",
+            os.path.isfile(marker),
+            "a resumed session lost its claim",
         )
     finally:
         shutil.rmtree(work, ignore_errors=True)

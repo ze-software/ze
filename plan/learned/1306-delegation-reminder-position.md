@@ -20,6 +20,30 @@ rejected. It was not seen at the moment of the decision.
 - **Unconditional over conditional.** A reminder gated on a claimed spec adds a "did the condition fire" failure mode. The reminder is correct on every turn, so it fires on every turn.
 - **No blocking gate.** A `PreToolUse` block on source edits would read `tmp/session/.agent-spawned-<sid>`. That marker is a one-time flag, so one throwaway spawn opens the gate for the rest of the session. It measures "did you ever spawn an agent", never "did you delegate this work". A gate that reads as enforcement and is not one is worse than a nudge.
 - **Leave `block-premature-stop.sh` unregistered** (owner decision, 2026-07-30), and correct every document that called it live. Ten surfaces did. Eight are corrected here: `ai/rules/spec-delegation.md`, `ai/rules/planning.md`, `.claude/hooks/README.md`, `.claude/memory/MEMORY.md`, `.claude/hooks/mark-agent-spawned.sh`, `scripts/dev/spec-closure-check.py`, `scripts/dev/spec_closure_check_test.go`, and `plan/learned/1289-delegation-by-default.md`. Two are held back because a concurrent session holds hunks in them: `ai/rules/hook-mapping.md` and `ai/INDEX.md`.
+- **CORRECTION (2026-07-31).** Thomas REVERSED the 2026-07-30 decision above and
+  re-registered `block-premature-stop.sh` on `Stop`, first in the array. All four
+  gates run: two block with exit 2 (stop-phrase scan, spec-closure), and two warn
+  with exit 1 (spec in-progress, delegation nudge). The last three need a CLAIMED
+  spec, because each sits behind the `tmp/session/.session-<SID>` marker
+  (`.claude/hooks/block-premature-stop.sh:150-156`). Order is load-bearing, and
+  the release that deleted the marker on every `Stop` moved to `SessionEnd`, so
+  the claim survives past turn one (`session-end-scratch.sh:60`).
+  This correction voids every present-tense claim below under "Consequences" and
+  "Gotchas", and the regenerated `CONDENSED.md` no longer disagrees with itself.
+  Two new fixtures pin the registration and the order:
+  `delegation-stop-hook-registered` and
+  `delegation-stop-hook-runs-before-marker-release`.
+- **A guard that reads prose blocks the prose that documents it.** On its first
+  live turn the stop-phrase scan refused a report that quoted a banned phrase in
+  backticks as an example. The phrase was NAMED, not used, and a raw `grep -iE`
+  cannot tell the two apart. The fix strips fenced blocks and inline backtick
+  spans into a `SCAN` copy before the loop runs
+  (`.claude/hooks/block-premature-stop.sh:72-88`). It falls back to the raw text
+  when the filter fails, so a broken filter scans more rather than less. Backticks
+  only, deliberately: a filter over every double-quoted span would hide real
+  permission-seeking that quotes something. Four fixtures pin it, and
+  `stop-phrase-fence-is-not-a-bypass` proves the exemption is not an evasion
+  route.
 - **A stale-claim census is itself a claim, and it was wrong four times.** The first sweep found four surfaces and wrote "the three documents". Review round three raised it to eight. Round four found the count sentence listed eight paths under a claim of seven, and it found a ninth surface. Checking that ninth showed the file was contended, making ten with two held back. Count by grepping the repository, then count the list you wrote, and treat both numbers as suspect until a reviewer reproduces them.
 - **Correct the rule's own table, not only its Enforcement prose.** `ai/rules/spec-delegation.md` listed `/ze-spec`, `/ze-design`, `/ze-review-deep` and `/ze-debug` under a column headed "Delegate to a subagent running", while its Enforcement bullet said those four stay in the main thread. The table now carries a `Runs in` column that names each exception. A reader opens the table first, so a correct footnote under a wrong table is still a wrong rule.
 

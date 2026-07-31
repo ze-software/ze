@@ -11,8 +11,78 @@ set -eo pipefail
 cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || cd "$(dirname "$0")/../.."
 
 INPUT=$(cat)
-TEXT=$(echo "$INPUT" | jq -r '.last_assistant_message // empty' 2>/dev/null)
+
+# Loop bound for the PHRASE SCAN ONLY. The harness sets stop_hook_active when
+# this session's stop was already refused by a Stop hook and it is trying again.
+# Refusing the retry too can trap a session with no way out, because the only
+# escape from the phrase scan is rewording, and a session obeying a rule that
+# mandates the wording has nothing to reword to.
+#
+# It is a FLAG, not an early exit. Exiting here would also skip the spec-closure
+# gate below, and that gate needs no loop bound: it has two documented escapes,
+# running commit B or writing tmp/session/.closure-ack-<stem>, and it prints the
+# second one in the very message it blocks with. An early exit here meant that
+# tripping any phrase on turn N switched the closure gate off for turn N+1.
+STOP_RETRY=false
+if [ "$(echo "$INPUT" | jq -r '.stop_hook_active // false' 2>/dev/null || echo false)" = "true" ]; then
+    STOP_RETRY=true
+fi
+
+# `|| TEXT=""` is load-bearing: under `set -eo pipefail` a jq parse failure kills
+# the script before the guard below, and the hook exited 5 on malformed input.
+# The header documents 0, 1 and 2 only, so a registered blocking hook was
+# returning an undefined code. Unparseable input allows the stop: a Stop gate
+# that refuses on garbage it cannot read traps the session for no reason.
+TEXT=$(echo "$INPUT" | jq -r '.last_assistant_message // empty' 2>/dev/null) || TEXT=""
 [ -z "$TEXT" ] && exit 0
+
+# A phrase inside a fenced block or `backticks` is NAMED, not used. Strip both
+# before the phrase scan. Without this the hook blocks any message that documents
+# its own banned phrases, which is what it did on the first turn after it was
+# registered on 2026-07-31: a report that quoted `would you like me to` as an
+# example was refused an end. The hook's own delegation nudge warns rather than
+# blocks for the same reason (see the comment above the marker check below): a
+# Stop gate that traps a legitimate turn is worse than the miss it prevents.
+#
+# EVERY failure mode here must scan MORE, never less. A filter that drops text is
+# a gate that silently switches itself off, which is worse than the false positive
+# it was added to stop. Four guards enforce that:
+#
+#   1. An UNCLOSED fence is not a code block. Lines after an unterminated ``` are
+#      buffered and emitted at EOF. The first version dropped them, so a message
+#      whose fence was never closed passed a real request with rc=0.
+#   2. A fence closes only on a run at least as long as the one that opened it,
+#      per the markdown rule. The first version toggled on any ```, so the inner
+#      fence of a ````markdown wrapper flipped parity and leaked its content.
+#   3. If stripping consumed EVERYTHING, the message was all markup. Scan the raw
+#      text instead of an empty string, which would match nothing at all.
+#   4. Inline spans are stripped only on a line whose backticks BALANCE. A stray
+#      backtick makes a left-to-right pass pair it with the OPENING tick of a
+#      later, legitimate span and delete the text between, which is where a real
+#      request tends to sit. A dropped closing backtick is an ordinary typo, so
+#      this was reachable without intent. An odd count leaves the line raw.
+#
+# Backticks only, deliberately. Stripping every double-quoted span would also
+# hide real permission-seeking that happens to quote something. The cost is that
+# a message quoting the PHRASES array below, which is written in double quotes,
+# still blocks.
+SCAN=$(printf '%s\n' "$TEXT" | awk '
+    function flush(  i) { for (i = 1; i <= np; i++) print pend[i]; np = 0 }
+    {
+        t = $0; sub(/^[[:space:]]+/, "", t)
+        n = 0; while (substr(t, n + 1, 1) == "`") n++
+        if (n >= 3) {
+            if (!fence)          { fence = 1; fencelen = n; np = 0; next }
+            else if (n >= fencelen) { fence = 0; np = 0; next }
+        }
+        if (fence) { pend[++np] = $0; next }
+        line = $0
+        if (gsub(/`/, "`", line) % 2 == 0) gsub(/`[^`]*`/, "", line)
+        print line
+    }
+    END { if (fence) flush() }
+') || SCAN="$TEXT"
+[ -z "${SCAN//[[:space:]]/}" ] && SCAN="$TEXT"
 
 REASONS=()
 
@@ -47,21 +117,32 @@ PHRASES=(
     "or (leave|skip|ignore) (them|it|this|that)"
     "or should I"
     # Choice-offering: presenting options instead of deciding
+    "or something else"
+)
+
+# Asking what to do NEXT is not the same failure as asking permission to do what
+# was already requested, and it is only premature when work actually remains.
+# .claude/rules/session-start.md:72 REQUIRES the opposite behaviour once the
+# original task is done: "stop and ask \"What next?\" instead of picking up other
+# uncommitted work". Scanning for these unconditionally blocked a sentence
+# another live rule mandates, with no way to comply with both.
+#
+# So these fire only when this session has an in-progress claimed spec, which is
+# the state that means work remains. With no such claim the session is entitled
+# to ask, and session-start.md tells it to.
+COMPLETION_PHRASES=(
     "what would you like"
     "what do you want to do"
-    "or something else"
     "what.s next"
     "what next"
 )
 
-for pattern in "${PHRASES[@]}"; do
-    if echo "$TEXT" | grep -iqE "$pattern"; then
-        REASONS+=("Stop phrase: $pattern")
-        break
-    fi
-done
-
 # --- State check: spec in-progress ---
+#
+# Runs BEFORE the phrase scan because the scan's completion list depends on
+# OPEN_WORK. Reordering is safe: this block's own exit 2 (the closure gate) is
+# unconditional, and the REASONS it appends are read only in the decision below.
+OPEN_WORK=0
 
 source .claude/hooks/lib/state-file.sh 2>/dev/null || true
 SID=$(_session_id 2>/dev/null || echo "")
@@ -86,8 +167,14 @@ if [ -n "$SID" ]; then
             # Fixed from a dead `^Status:` grep: specs write status as a
             # `| Status | in-progress |` metadata table, so the old anchored
             # pattern never matched a single spec.
-            if grep -qE "^\| Status \|.*in-progress" "plan/$SPEC" 2>/dev/null; then
+            # Tolerant of surrounding spaces, matching spec-closure-check.py:54
+            # (`^\|\s*Status\s*\|`) which reads the same field. A stricter pattern
+            # here would let the two consumers disagree about whether a spec is
+            # open, and the bug immediately above was a Status regex that matched
+            # no spec at all.
+            if grep -qE "^\|[[:space:]]*Status[[:space:]]*\|.*in-progress" "plan/$SPEC" 2>/dev/null; then
                 REASONS+=("Spec '$SPEC' still in-progress")
+                OPEN_WORK=1
             fi
             # Delegation nudge: this session claimed a spec and worked it without
             # ever spawning an agent, so it ran the phase inline instead of
@@ -102,6 +189,25 @@ if [ -n "$SID" ]; then
             fi
         fi
     fi
+fi
+
+# --- Stop phrase scan ---
+# The always-block list, plus the completion list only when work remains.
+
+SCAN_PATTERNS=("${PHRASES[@]}")
+if [ "$OPEN_WORK" = 1 ]; then
+    SCAN_PATTERNS+=("${COMPLETION_PHRASES[@]}")
+fi
+
+# STOP_RETRY bounds this scan and nothing else. The closure gate above already
+# ran, and it keeps its block on a retry.
+if [ "$STOP_RETRY" = false ]; then
+    for pattern in "${SCAN_PATTERNS[@]}"; do
+        if printf '%s\n' "$SCAN" | grep -iqE "$pattern"; then
+            REASONS+=("Stop phrase: $pattern")
+            break
+        fi
+    done
 fi
 
 # --- Decision ---

@@ -47,6 +47,18 @@ esac
 
 rm -rf "tmp/s/${sid}"
 
+# Release this session's spec claim. This lived in session-end-summary.sh, which
+# runs on Stop, so it destroyed the claim after the first turn and silenced the
+# three marker-gated checks in block-premature-stop.sh for the rest of the
+# session. SessionEnd is the event that actually means "this session is over",
+# and the `reason = resume` guard above already returned, so a session that will
+# come back keeps its claim.
+#
+# Written inline rather than through _release_session: that helper resolves the
+# id from CLAUDE_CODE_SESSION_ID, which SessionEnd does not export (see the
+# header). The id used here is the validated one from stdin.
+rm -f "tmp/session/.session-${sid}"
+
 # Also remove the session-suffixed binaries mk/session.mk built for this session
 # (bin/ze-<sid>, bin/ze-test-<sid>, ...). They sit in bin/ rather than under
 # tmp/s/<sid>/ because a binary's location decides where ze finds its config and

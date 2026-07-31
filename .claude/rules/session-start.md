@@ -72,3 +72,15 @@ Do not switch to a different line of work without confirming with the user first
 When the original task is done (e.g., spec closed), stop and ask "What next?" instead
 of picking up other uncommitted work. "Continue what you were doing" means the stated
 goal, not "find more things to do."
+
+The Stop hook knows about this instruction and does not fight it.
+`.claude/hooks/block-premature-stop.sh` holds `what next` and `what would you like`
+in a second phrase list (`COMPLETION_PHRASES`, `:136-141`). It scans that list ONLY
+when this session has a claimed spec whose Status is still `in-progress`. The flag
+is `OPEN_WORK`, set at `:180` and assembled at `:200-203`.
+
+So the question above is permitted when no work remains. It is refused with exit 2
+while a spec is open. The question is mandated behavior once the task is done. The
+same words mid-spec are premature stopping (`ai/rules/no-asking.md`). Fixtures:
+`stop-phrase-what-next-allowed-when-no-open-work` and
+`stop-phrase-what-next-blocks-with-open-work`.

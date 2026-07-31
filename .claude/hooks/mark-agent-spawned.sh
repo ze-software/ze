@@ -2,11 +2,12 @@
 # PostToolUse hook on Agent|Task: record that this session delegated at least
 # once (ai/rules/spec-delegation.md).
 #
-# NOTE: the marker currently has NO live consumer. It was written for
-# block-premature-stop.sh, which has been registered on no event since
-# 41e5fa44f (2026-06-29) and therefore never reads it. Check the Stop array in
-# .claude/settings.json before you cite that hook. The marker stays because it
-# is cheap and because a future Stop gate would want exactly this signal.
+# The consumer is block-premature-stop.sh:118-120. It reads this marker at Stop
+# and warns (exit 1, never blocks) when the session claimed a spec and never
+# delegated. That hook was registered on no event from 41e5fa44f (2026-06-29)
+# until Thomas re-registered it on 2026-07-31, so this marker had no reader for
+# a month. Check the Stop array in .claude/settings.json before you describe
+# either side as live.
 #
 # Companion to mark-lsp-invoked.sh / mark-source-read.sh, same marker convention.
 # Marker path: tmp/session/.agent-spawned-<SID>. Content: ISO-8601 timestamp.

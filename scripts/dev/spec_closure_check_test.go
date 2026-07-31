@@ -11,10 +11,10 @@ import (
 // the commit-time reminder in commit_helper.py. See ai/rules/planning.md
 // "Spec Closure" and ai/rules/hook-mapping.md.
 //
-// The Stop hook has been registered on no event since 41e5fa44f (2026-06-29).
-// The closure gate does not run, and only the commit-time reminder consumes this
-// detector. These tests still guard --spec, because the exit-3 contract is what
-// any future Stop gate would bind to.
+// The Stop hook was registered on no event from 41e5fa44f (2026-06-29) until
+// Thomas re-registered it on 2026-07-31. The closure gate runs again, so both
+// consumers are live: the Stop hook and the commit-time reminder. These tests
+// guard --spec, because the exit-3 contract is what the Stop gate binds to.
 
 const specMetaInProgress = `# Spec: widget
 

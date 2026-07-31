@@ -22,14 +22,15 @@ Modes:
   --spec <path|name>   Check one spec. Exit 3 if it is completed-but-not-closed,
                        0 otherwise.
 
---spec was written for the block-premature-stop Stop hook. That hook has been
-registered on NO event since 41e5fa44f (2026-06-29), so NOTHING calls --spec
-today and the closure gate does not run. Check the Stop array in
-.claude/settings.json before you describe this as enforced.
+--spec was written for the block-premature-stop Stop hook, and that hook calls it
+(.claude/hooks/block-premature-stop.sh:96). The hook was registered on NO event
+from 41e5fa44f (2026-06-29) until 2026-07-31, so the closure gate did not run for
+a month. Check the Stop array in .claude/settings.json before you describe this as
+enforced.
 
-The intended Stop-hook use was the only one that must never false-positive, so
---spec stays strict (committed learned summary required) and still honours an ack
-escape hatch, which likewise nothing reads today:
+The Stop-hook use is the one that must never false-positive, so --spec stays
+strict (committed learned summary required) and honours an ack escape hatch, read
+by cmd_spec below:
   tmp/session/.closure-ack-<stem>   (spec genuinely still open; do not block)
 
 Usage:

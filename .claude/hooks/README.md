@@ -4,7 +4,7 @@ Automated enforcement of `ai/rules/` requirements.
 
 ## Summary
 
-**Total: 40 rows below** (25 blocking, 14 advisory, 1 registered on no event)
+**Total: 40 rows below** (26 blocking, 14 advisory)
 
 > **This file is STALE and it is not the inventory.** Most rows name per-check
 > shell scripts that no longer exist: they were folded into the three Python
@@ -24,7 +24,7 @@ Automated enforcement of `ai/rules/` requirements.
 | `verify-claim-reminder.sh` | UserPromptSubmit | no-fabrication.md | Advisory (stdout, which by convention reaches the model) |
 | `delegation-reminder.sh` | UserPromptSubmit | spec-delegation.md | Advisory (stdout, which by convention reaches the model) |
 | `pre-compact-save.sh` | PreCompact | post-compaction.md | Advisory |
-| `block-premature-stop.sh` | **none -- NOT REGISTERED** | - | **Never fires.** Removed from `Stop` on 2026-06-29, commit `41e5fa44f` |
+| `block-premature-stop.sh` | Stop (first) | no-asking.md, planning.md, spec-delegation.md, session-start.md | **Blocking**. Re-registered 2026-07-31, after no event from 2026-06-29 (`41e5fa44f`). Phrase scan has two tiers, and the completion tier is state-gated. `stop_hook_active` skips the phrase scan alone, and the other three gates still run |
 | `session-end-summary.sh` | Stop | - | Advisory |
 | `session-end-scratch.sh` | SessionEnd | bash-output.md | Advisory |
 | `block-destructive-git.sh` | PreToolUse:Bash | git-safety.md | **Blocking** |
@@ -103,7 +103,7 @@ Automated enforcement of `ai/rules/` requirements.
 | `session-start.sh` | Status summary at session start |
 | `block-until-lsp.sh` | Refuses every tool call until `ToolSearch select:LSP` loads the LSP tool |
 | `pre-compact-save.sh` | Auto-save session state before compaction |
-| `block-premature-stop.sh` | **NOTHING. Registered on no event.** It was written to block a stop on ownership-dodging, permission-seeking and premature handoff. It also refused a stop while a spec was implemented but not closed. None of that runs |
+| `block-premature-stop.sh` | Blocks a stop on ownership-dodging, permission-seeking and premature handoff (exit 2). The phrase scan has two tiers. `PHRASES` always blocks. `COMPLETION_PHRASES` (`what next`, `what would you like`) blocks ONLY when a claimed spec is still in-progress, because `.claude/rules/session-start.md:72` requires that question once the task is done. A phrase inside a fenced block or inline backticks is NAMED rather than used, and does not block. Four guards keep that filter scanning MORE rather than less, and guard 4 strips inline spans only on a line whose backticks balance. When the harness sets `stop_hook_active` the hook skips the PHRASE SCAN alone. That bounds a refusal loop, and the other three gates stay armed. It exits 0 on input it cannot parse. Also refuses a stop while a CLAIMED spec is implemented but not closed, and warns (exit 1) when a claimed spec was worked with no subagent. The state checks need a claimed spec, and they need it on every turn rather than only the first. Runs first at `Stop`, and the claim release runs at `SessionEnd` (`session-end-scratch.sh:60`) so the marker survives the turn-by-turn `Stop`. Fixtures: `python3 scripts/dev/hook-fixture-check.py --only delegation` (30) |
 | `session-end-summary.sh` | Append git state summary at session end |
 | `compaction-reminder.sh` | Re-read reminder after compaction |
 | `verify-claim-reminder.sh` | One line per turn: cite the producing `file:line` before a behavioral claim |

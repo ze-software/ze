@@ -24,7 +24,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 
 ## Moved to ai/rules/ or .claude/rules/
 
-- feedback_autonomous_work -> ai/rules/no-asking.md. NOT enforced by a hook: block-premature-stop.sh was removed from `Stop` on 2026-06-29 (commit `41e5fa44f`) and fires on nothing
+- feedback_autonomous_work -> ai/rules/no-asking.md. Enforced at Stop by block-premature-stop.sh, which blocks a stop on permission-seeking phrases (exit 2). It sat unregistered from 2026-06-29 (`41e5fa44f`) to 2026-07-31
 - feedback_memory_is_in_repo -> derivable from project structure
 - feedback_no_em_dashes -> ~/.claude/CLAUDE.md global rule
 - feedback_no_taskoutput_polling -> ai/rules/git-safety.md (verify section)
