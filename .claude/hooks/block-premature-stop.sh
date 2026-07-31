@@ -149,6 +149,16 @@ SID=$(_session_id 2>/dev/null || echo "")
 if [ -n "$SID" ]; then
     MARKER="tmp/session/.session-${SID}"
     if [ -f "$MARKER" ]; then
+        # Liveness heartbeat. _cleanup_stale_markers (lib/state-file.sh:82) deletes
+        # a marker whose MTIME is over 24h old, and it runs from session-start.sh
+        # on every session start in this checkout. _claim_spec sets that mtime once
+        # and nothing else ever rewrites it, so a session running longer than 24h
+        # had its LIVE claim swept the moment any other session started. Reading
+        # the claim here proves this session is alive, so refresh it on the way past.
+        #
+        # Unreachable before the release moved to SessionEnd: the claim used to die
+        # on the first Stop, so it never survived long enough to age out.
+        touch "$MARKER" 2>/dev/null || true
         SPEC=$(head -1 "$MARKER" 2>/dev/null || true)
         if [ -n "$SPEC" ] && [ "$SPEC" != "unassigned" ] && [ -f "plan/$SPEC" ]; then
             # Closure gate: block if this session's spec is implemented but the

@@ -2193,6 +2193,44 @@ def run_delegation(results: Results) -> None:
     finally:
         shutil.rmtree(work, ignore_errors=True)
 
+    # A live session's claim must not age out. _cleanup_stale_markers deletes a
+    # marker over 24h old and runs at every session start, while _claim_spec sets
+    # the mtime once. A session running longer than a day lost its claim, and all
+    # three marker-gated checks with it, as soon as any other session started.
+    # Reaching a Stop proves the session is alive, so the hook refreshes it.
+    work = _deleg_project(spec="spec-fixture.md", spawned=False)
+    try:
+        marker = os.path.join(work, "tmp", "session", f".session-{_DELEG_SID}")
+        old = time.time() - 25 * 3600
+        os.utime(marker, (old, old))
+        _run_stop_hook(work)
+        results.check(
+            "delegation-claim-heartbeat-on-stop",
+            os.path.getmtime(marker) > old + 3600,
+            "the hook did not refresh the claim, so a >24h session loses it to "
+            "_cleanup_stale_markers the next time any session starts",
+        )
+
+        # And the refresh must actually save it from the sweep.
+        subprocess.run(
+            [
+                "bash",
+                "-c",
+                "source .claude/hooks/lib/state-file.sh; _cleanup_stale_markers",
+            ],
+            cwd=work,
+            capture_output=True,
+            env=_deleg_env(work),
+            timeout=60,
+        )
+        results.check(
+            "delegation-claim-survives-stale-sweep",
+            os.path.isfile(marker),
+            "the 24h sweep deleted a live session's claim",
+        )
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
     # A session ending only to be resumed is not over, so it keeps its claim.
     work = _deleg_project(spec="spec-fixture.md")
     try:
