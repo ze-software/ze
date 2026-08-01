@@ -43,7 +43,8 @@ func TestDynamicGroupContainsAddr(t *testing.T) {
 
 func TestFindDynamicGroup(t *testing.T) {
 	r := &Reactor{
-		peers: make(map[netip.AddrPort]*Peer),
+		attrModHandlers: attrModHandlersWithDefaults(),
+		peers:           make(map[netip.AddrPort]*Peer),
 	}
 
 	groupA := newTestDynamicGroup("group-a", []string{"185.1.69.0/24"}, 100)

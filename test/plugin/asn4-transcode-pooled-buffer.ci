@@ -1,0 +1,190 @@
+# asn4-transcode-pooled-buffer -- RFC 6793 cross-context ASN4 transcode on the
+# shared forward path (reactor/forward_body.go fwdUpdateForDestination)
+#
+# VALIDATES: RFC 6793 Section 4.2.2 -- when a route learned from a NEW (4-octet
+# ASN) speaker is sent to an OLD speaker, AS_PATH is re-encoded to 2-octet form
+# with AS_TRANS (23456) standing in for every non-mappable ASN, and the original
+# 4-octet path is carried in a new AS4_PATH attribute (type 17).
+# VALIDATES: RFC 6793 Section 4.2.2 second clause -- AS4_PATH is sent because the
+# path is NOT composed of mappable four-octet AS numbers only. (wireu
+# as4PathForPath owns that rule; hasNonMappableASN is the predicate.)
+#
+# PREVENTS: sending raw 4-octet AS_PATH bytes to a peer that never negotiated
+# RFC 6793, which the peer reads as a different, corrupt AS path; and the
+# converse, dropping AS4_PATH so the real 4-octet ASN is unrecoverable
+# downstream.
+#
+# WHY THE RECEIVER IS iBGP -- this is the whole point of the file, and it is what
+# makes it different from test/plugin/bgp-rs-asn4-transcode.ci:
+#
+# There are THREE transcode sites, and they are not interchangeable. Two of them
+# are EBGP-only pre-passes that run BEFORE the shared body builder and hand it a
+# wire whose context already says ASN4=false:
+#   - reactor_api_forward.go:724 getEBGPWire()  (EBGP, non-RS-client: prepend + transcode)
+#   - reactor_api_forward.go:732 / forward_rs.go:395  (EBGP RS-client: transcode, no prepend)
+# bgp-rs-asn4-transcode.ci pins the second one -- its header says so, and its
+# `rs-client true` is load-bearing for exactly that reason.
+#
+# The THIRD site is the one under test here: buildFwdBody sees srcCtxID !=
+# destCtxID and calls fwdUpdateForDestination (forward_body.go:174), which takes
+# a READ-POOL buffer (getReadBuf), runs wireu.TranscodeASPath into it, and
+# re-parses zero-copy so the emitted sections ALIAS that pooled buffer. The
+# buffer is written to TCP by a forward-pool worker long after the call returns,
+# so the caller adopts the handle onto the ReceivedUpdate instead of releasing it
+# (lifetime contract A, docs/architecture/memory/lifetime-contracts.md).
+#
+# An iBGP destination is what reaches it. facts.isEBGP is false, so NEITHER EBGP
+# pre-pass runs, peerWire keeps the source (ASN4=true) context, and the ASN4
+# mismatch is left for fwdUpdateForDestination to resolve. Make the receiver EBGP
+# and this file silently re-tests one of the other two sites instead -- the same
+# trap bgp-rs-asn4-transcode.ci fell into from the other direction.
+#
+# NO LOCAL_PREF in the source frame: the source is EBGP, RFC 4271 Section 5.1.5
+# forbids it, and ze correctly tombstones it (RFC 7606 Section 7.5), which would
+# change every byte offset asserted below.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=15s
+option=bind:value=0.0.0.0
+# Map conn=N to a peer by remote IP instead of accept order (peer_connmap.go), and
+# handshake both peers before any conn script runs -- otherwise which client
+# connects first is a race and the announce can land on the receiver.
+option=conn_map:value=remote-ip
+
+# Source peer (conn=1, EBGP AS 65001, ASN4 negotiated): one UPDATE whose AS_PATH
+# carries the non-mappable ASN 4200000000 (0xFA56EA00).
+#   0000                withdrawn routes length = 0
+#   0014                total path attribute length = 20
+#   40010100            ORIGIN = IGP
+#   4002060201FA56EA00  AS_PATH AS_SEQUENCE[4200000000], 4-octet (ASN4 on)
+#   40030401010101      NEXT_HOP 1.1.1.1
+#   180A0000            NLRI 10.0.0.0/24
+# attrs = 4+9+7 = 20 = 0x14; body = 2+2+20+4 = 28; total = 19+28 = 47 = 0x2F.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000014400101004002060201FA56EA0040030401010101180A0000
+
+# The SOURCE's own EOR (RFC 4724 Section 4.1). Only conn=1's is asserted on the
+# wire: the RFC constrains no ordering between the EOR and routes learned AFTER
+# the initial update, so on conn=2 the forwarded route may legitimately arrive
+# first, and pinning conn=2's EOR turns that permitted ordering into a flake.
+# Same conclusion as bgp-rs-asn4-transcode.ci and bgp-rs-fastpath-ebgp-shared.ci.
+# That BOTH EORs are sent is enforced by run_rs_observer(expected_peers=2), which
+# fails closed when either is missing.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Receiver peer (conn=2, iBGP AS 65000, ASN4 DISABLED): the transcoded UPDATE,
+# byte-equality.
+#
+# Derived from RFC 6793 Section 4.2.2 for a NEW->OLD send with a non-mappable AS,
+# and from wireu.TranscodeASPath's emission order (it rewrites attributes in
+# place, in source order, then APPENDS AS4_PATH), NOT from observed output:
+#   40010100            ORIGIN unchanged (default branch, copied verbatim)
+#   40020402015BA0      AS_PATH re-encoded 2-octet: AS_SEQUENCE[AS_TRANS], and
+#                       AS_TRANS = 23456 = 0x5BA0. Value length 6 -> 4, so the
+#                       attribute shrinks by 2 bytes.
+#   40030401010101      NEXT_HOP unchanged -- the destination is iBGP, so there
+#                       is no next-hop-self and no AS_PATH prepend either: an
+#                       AS_PATH of [65000, AS_TRANS] here would mean an EBGP
+#                       pre-pass ran and this file is testing the wrong site.
+#   C011060201FA56EA00  AS4_PATH (optional transitive 0xC0, type 17 = 0x11,
+#                       length 6) carrying the original 4-octet 4200000000.
+#                       RFC 6793 Section 4.2.2: it MUST be sent, because the path
+#                       is not all-mappable.
+#   180A0000            NLRI unchanged
+# attrs = 4+7+7+9 = 27 = 0x1B; body = 2+2+27+4 = 35; total = 19+35 = 54 = 0x36.
+# The length arithmetic is itself an assertion: TranscodeASPath backfills the
+# attribute-length field, and an off-by-two there is exactly the bug that makes a
+# peer read the trailing NLRI as an attribute header.
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020402015BA040030401010101C011060201FA56EA00180A0000
+EOF_PEER
+
+# Observer: block until both peers are established and each has flushed its EOR,
+# and until the forwarded 10.0.0.0/24 is on the wire, then shut down.
+# Event-driven (subscribe + wait_for_event), never a sleep, and it fails closed
+# on a stalled replay.
+tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+from ze_api import API
+
+API().run_rs_observer(expected_peers=2, forward_prefix="10.0.0.0/24")
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	external shutdown-after-up {
+		run ./shutdown-after-up.run
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+			rs-fast-path enable
+		}
+	}
+	peer receiver-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				asn4 disable
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+			rs-fast-path enable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+# A transcode that could not get a buffer or failed to parse logs this and drops
+# the route silently; the byte assertion above would then time out with no clue.
+reject=stderr:pattern=encoding update for forward

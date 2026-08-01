@@ -285,3 +285,109 @@ func TestAnnounceBuilderModeIsEditSetOverEmptyBase(t *testing.T) {
 	assert.Equal(t, []int{1, 2, 3, 5, 8, 32}, codes)
 	assertAscending(t, codes)
 }
+
+// TestAnnounceStripsLocalPrefTowardExternalPeer closes the batch rail's half of
+// RFC 4271 Section 5.1.5.
+//
+// "A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to
+// external peers, except in the case of BGP Confederations [RFC3065]."
+// (RFC 4271 Section 5.1.5, rfc/full/rfc4271.txt.)
+//
+// The confederation exception has no configuration surface in Ze: a session is
+// internal when LocalAS == PeerAS (Peer.IsIBGP) and external otherwise, and there
+// is no confederation identifier in PeerSettings or the YANG tree. So the MUST NOT
+// applies to every peer this daemon calls external, and the queued rail already
+// behaved that way -- it writes LOCAL_PREF only under `if isIBGP`. The batch rail
+// did not: it copied the caller's attribute block VERBATIM and nothing removed
+// code 5, so an operator-supplied local-preference crossed the AS boundary
+// whenever the destination peer had finished its initial sync.
+//
+// RFC requirement: RFC4271-5.1.5-2 positive -- an API announce toward an EXTERNAL
+// peer carries no LOCAL_PREF even when the caller supplied one, on both rails.
+// RFC requirement: RFC4271-5.1.5-1 negative -- the strip is confined to external
+// peers: the same announce toward an INTERNAL peer keeps the caller's value, so
+// the removal is a decision about the session rather than an unconditional drop.
+// VALIDATES: buildBatchAnnounceUpdate emits no attribute type 5 toward an external
+// peer, and buildRIBRouteUpdate agrees byte for byte.
+// PREVENTS: an internal preference value leaking across an AS boundary, and the
+// two announce rails disagreeing about it by scheduling.
+func TestAnnounceStripsLocalPrefTowardExternalPeer(t *testing.T) {
+	// ORIGIN igp, AS_PATH [65000], LOCAL_PREF 300, COMMUNITY 65000:100.
+	packed, err := hex.DecodeString(strings.ReplaceAll(
+		"400101 00 4002 06 02010000fde8 4005040000012c c0080465000064", " ", ""))
+	require.NoError(t, err)
+
+	wn := nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)
+	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
+
+	batchRail := func(isIBGP bool) []byte {
+		update := adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
+			bgptypes.NLRIBatch{
+				Family:  family.IPv4Unicast,
+				NLRIs:   []nlri.NLRI{wn},
+				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
+				Wire:    attribute.NewAttributesWire(packed, bgpctx.APIContextID),
+			},
+			netip.MustParseAddr("10.0.0.1"), isIBGP, false /*rsClient*/, true /*asn4*/, false /*addPath*/, 65000)
+		require.NotNil(t, update)
+		return update.PathAttributes
+	}
+	queuedRail := func(isIBGP bool) []byte {
+		aw := attribute.NewAttributesWire(packed, bgpctx.APIContextID)
+		attrs, err := aw.All()
+		require.NoError(t, err)
+		asPathAttr, err := aw.Get(attribute.AttrASPath)
+		require.NoError(t, err)
+		asp, ok := asPathAttr.(*attribute.ASPath)
+		require.True(t, ok)
+		asPath := adapter.buildBatchASPathAttr(asp, 0, isIBGP, false /*rsClient*/, 65000)
+		route := rib.NewRouteWithASPath(wn, netip.MustParseAddr("10.0.0.1"), attrs, asPath)
+		update := buildRIBRouteUpdate(make([]byte, message.MaxMsgLen), route, 65000, isIBGP, true /*asn4*/, false)
+		require.NotNil(t, update)
+		return update.PathAttributes
+	}
+
+	t.Run("external-peer-must-not-carry-local-pref", func(t *testing.T) {
+		batch := batchRail(false)
+		_, _, ok := findPathAttr(batch, byte(attribute.AttrLocalPref))
+		assert.False(t, ok, "RFC 4271 Section 5.1.5: an external peer MUST NOT be sent LOCAL_PREF")
+
+		// The absence is specific: the caller's other attributes still arrive.
+		assert.Equal(t, []int{1, 2, 3, 8}, attrCodes(t, batch))
+		assertAscending(t, attrCodes(t, batch))
+
+		assert.Equal(t, hex.EncodeToString(queuedRail(false)), hex.EncodeToString(batch),
+			"both rails must strip it, and strip it identically")
+	})
+
+	t.Run("internal-peer-keeps-the-callers-value", func(t *testing.T) {
+		batch := batchRail(true)
+		_, value, ok := findPathAttr(batch, byte(attribute.AttrLocalPref))
+		require.True(t, ok, "an internal peer must still receive LOCAL_PREF")
+		assert.Equal(t, "0000012c", hex.EncodeToString(value),
+			"the caller's degree of preference survives; it is not replaced by the default 100")
+
+		assert.Equal(t, []int{1, 2, 3, 5, 8}, attrCodes(t, batch))
+		assert.Equal(t, hex.EncodeToString(queuedRail(true)), hex.EncodeToString(batch),
+			"both rails must keep it, and keep it identically")
+	})
+
+	t.Run("builder-supplied-local-pref-is-stripped-too", func(t *testing.T) {
+		b := attribute.NewBuilder()
+		b.SetOrigin(0)
+		b.SetASPath([]uint32{65000})
+		b.SetLocalPref(300)
+		b.AddCommunity(65000, 100)
+		update := adapter.buildBatchAnnounceUpdate(make([]byte, message.MaxMsgLen), make([]byte, message.MaxMsgLen),
+			bgptypes.NLRIBatch{
+				Family:  family.IPv4Unicast,
+				NLRIs:   []nlri.NLRI{wn},
+				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
+				Attrs:   b,
+			},
+			netip.MustParseAddr("10.0.0.1"), false /*eBGP*/, false, true, false, 65000)
+		require.NotNil(t, update)
+		_, _, ok := findPathAttr(update.PathAttributes, byte(attribute.AttrLocalPref))
+		assert.False(t, ok, "a Builder-supplied LOCAL_PREF must not reach an external peer either")
+	})
+}

@@ -61,8 +61,10 @@ func TestAnnounceNLRIBatch_RejectsBatchTooLargeForBuildBuffer(t *testing.T) {
 	})
 
 	r := &Reactor{
-		config: &Config{LocalAS: 65000},
-		peers:  map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		config:          &Config{LocalAS: 65000},
+		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -439,8 +441,10 @@ func establishedIPv6Adapter(t *testing.T) *reactorAPIAdapter {
 	})
 
 	r := &Reactor{
-		config: &Config{LocalAS: 65000},
-		peers:  map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		config:          &Config{LocalAS: 65000},
+		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 	}
 	return &reactorAPIAdapter{r: r}
 }

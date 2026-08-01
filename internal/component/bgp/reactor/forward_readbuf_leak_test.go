@@ -24,6 +24,7 @@ package reactor
 
 import (
 	"net/netip"
+	"sync"
 	"testing"
 	"time"
 
@@ -183,16 +184,22 @@ func TestForwardPoolBalanceLocalASOverride(t *testing.T) {
 		defer pool.Stop()
 
 		r := &Reactor{
-			recentUpdates: cache,
-			peers:         map[netip.AddrPort]*Peer{dst.Settings().PeerKey(): dst},
-			fwdPool:       pool,
+
+			attrModHandlers: attrModHandlersWithDefaults(),
+			recentUpdates:   cache,
+			peers:           map[netip.AddrPort]*Peer{dst.Settings().PeerKey(): dst},
+			fwdPool:         pool,
 		}
 		adapter := &reactorAPIAdapter{r: r}
 
 		require.NoError(t, adapter.forwardUpdateCore(update, id, []*Peer{dst}, leakTestSource))
 
 		_, afterBorrow := bufMuxStd.Stats()
-		require.Equal(t, before+1, afterBorrow, "one read buffer must be borrowed for the dual-AS wire")
+		// RE-AIMED (spec-wire-edit-3): the dual-AS prepend is an edit-set slot
+		// now, not a whole rewritten payload, so NO read buffer is borrowed here.
+		// Asserting zero borrows is stronger than the old "one borrow, later
+		// returned": there is nothing to adopt and so nothing that can leak.
+		require.Equal(t, before, afterBorrow, "the dual-AS prepend must borrow no read buffer")
 
 		ackAndAwaitEvict(t, cache, id)
 
@@ -214,7 +221,9 @@ func TestForwardPoolBalanceLocalASOverride(t *testing.T) {
 		defer pool.Stop()
 
 		r := &Reactor{
-			recentUpdates: cache,
+
+			attrModHandlers: attrModHandlersWithDefaults(),
+			recentUpdates:   cache,
 			peers: map[netip.AddrPort]*Peer{
 				src.Settings().PeerKey(): src,
 				dst.Settings().PeerKey(): dst,
@@ -225,7 +234,11 @@ func TestForwardPoolBalanceLocalASOverride(t *testing.T) {
 		reactorForwardRS(r, update, id, netip.MustParseAddr("10.0.0.1"), src)
 
 		_, afterBorrow := bufMuxStd.Stats()
-		require.Equal(t, before+1, afterBorrow, "one read buffer must be borrowed for the dual-AS wire")
+		// RE-AIMED (spec-wire-edit-3): the dual-AS prepend is an edit-set slot
+		// now, not a whole rewritten payload, so NO read buffer is borrowed here.
+		// Asserting zero borrows is stronger than the old "one borrow, later
+		// returned": there is nothing to adopt and so nothing that can leak.
+		require.Equal(t, before, afterBorrow, "the dual-AS prepend must borrow no read buffer")
 
 		ackAndAwaitEvict(t, cache, id)
 
@@ -266,7 +279,9 @@ func TestForwardRSTranscodePoolBalance(t *testing.T) {
 		defer pool.Stop()
 
 		r := &Reactor{
-			recentUpdates: cache,
+
+			attrModHandlers: attrModHandlersWithDefaults(),
+			recentUpdates:   cache,
 			peers: map[netip.AddrPort]*Peer{
 				src.Settings().PeerKey():     src,
 				dstDual.Settings().PeerKey(): dstDual,
@@ -278,8 +293,10 @@ func TestForwardRSTranscodePoolBalance(t *testing.T) {
 		reactorForwardRS(r, update, id, netip.MustParseAddr("10.0.0.1"), src)
 
 		_, afterBorrow := bufMuxStd.Stats()
-		require.Equal(t, before+2, afterBorrow,
-			"two read buffers must be borrowed (dual-AS wire + transcode wire)")
+		// RE-AIMED (spec-wire-edit-3): both the dual-AS prepend and the RS-client
+		// transcode are edit-set slots now, so neither borrows a read buffer.
+		require.Equal(t, before, afterBorrow,
+			"neither the dual-AS prepend nor the RS-client transcode borrows a read buffer")
 
 		ackAndAwaitEvict(t, cache, id)
 
@@ -300,16 +317,20 @@ func TestForwardRSTranscodePoolBalance(t *testing.T) {
 		defer pool.Stop()
 
 		r := &Reactor{
-			recentUpdates: cache,
-			peers:         map[netip.AddrPort]*Peer{dstRS.Settings().PeerKey(): dstRS},
-			fwdPool:       pool,
+
+			attrModHandlers: attrModHandlersWithDefaults(),
+			recentUpdates:   cache,
+			peers:           map[netip.AddrPort]*Peer{dstRS.Settings().PeerKey(): dstRS},
+			fwdPool:         pool,
 		}
 		adapter := &reactorAPIAdapter{r: r}
 
 		require.NoError(t, adapter.forwardUpdateCore(update, id, []*Peer{dstRS}, leakTestSource))
 
 		_, afterBorrow := bufMuxStd.Stats()
-		require.Equal(t, before+1, afterBorrow, "one read buffer must be borrowed for the transcode wire")
+		// RE-AIMED (spec-wire-edit-3): the RS-client ASN4 transcode is an edit-set
+		// slot now, so no read buffer is borrowed for it.
+		require.Equal(t, before, afterBorrow, "the RS-client transcode must borrow no read buffer")
 
 		ackAndAwaitEvict(t, cache, id)
 
@@ -343,6 +364,14 @@ func TestForwardBufferReturnAfterDispatch(t *testing.T) {
 	// Worker blocks inside the handler so we can observe the retain being held
 	// (safeBatchHandle calls done()/Release only after the handler returns).
 	blocker := make(chan struct{})
+	// A failed assertion below calls t.FailNow, which exits this goroutine. If the
+	// only close(blocker) sat on the happy path, the pool worker would stay parked
+	// on <-blocker forever and pool.Stop would never return -- turning one failed
+	// assertion into a hung test binary. Releasing through a guarded closure means
+	// a failure reports as a failure.
+	var releaseOnce sync.Once
+	releaseWorker := func() { releaseOnce.Do(func() { close(blocker) }) }
+	defer releaseWorker()
 	handlerEntered := make(chan struct{}, 1)
 	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
 		// The body still aliases the adopted read buffer here.
@@ -358,9 +387,11 @@ func TestForwardBufferReturnAfterDispatch(t *testing.T) {
 	defer pool.Stop()
 
 	r := &Reactor{
-		recentUpdates: cache,
-		peers:         map[netip.AddrPort]*Peer{dst.Settings().PeerKey(): dst},
-		fwdPool:       pool,
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
+		peers:           map[netip.AddrPort]*Peer{dst.Settings().PeerKey(): dst},
+		fwdPool:         pool,
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -373,7 +404,11 @@ func TestForwardBufferReturnAfterDispatch(t *testing.T) {
 		t.Fatal("dispatch worker never ran")
 	}
 	_, held := bufMuxStd.Stats()
-	require.Equal(t, before+1, held, "adopted buffer must still be in use while the item is pending")
+	// RE-AIMED (spec-wire-edit-3): no buffer is adopted for this wire any more, so
+	// the in-use count never rises. The invariant this test guards -- a pooled
+	// buffer aliased into an async write is returned exactly once -- is satisfied
+	// vacuously at this site because no buffer is borrowed at all.
+	require.Equal(t, before, held, "no read buffer is borrowed, so none is held while the item is pending")
 
 	// Ack the plugin consumer; the entry stays alive because the worker still
 	// holds a retain (buffer must NOT be returned yet).
@@ -381,11 +416,11 @@ func TestForwardBufferReturnAfterDispatch(t *testing.T) {
 	_, stillCached := cache.Get(id)
 	require.True(t, stillCached, "entry must survive while a dispatched item holds a retain")
 	_, stillHeld := bufMuxStd.Stats()
-	require.Equal(t, before+1, stillHeld, "adopted buffer must not be returned before the last write completes")
+	require.Equal(t, before, stillHeld, "no read buffer is borrowed, so none can be returned early")
 
 	// Release the worker; safeBatchHandle now calls done() -> Release -> eviction
 	// drains the adopted handle.
-	close(blocker)
+	releaseWorker()
 	require.Eventually(t, func() bool {
 		_, ok := cache.Get(id)
 		return !ok

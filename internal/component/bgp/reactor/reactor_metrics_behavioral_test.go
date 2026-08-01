@@ -106,9 +106,10 @@ func TestReloadParseErrorIncrementsErrorCounter(t *testing.T) {
 func TestPeerEventsIncrementChurnCounters(t *testing.T) {
 	reg := newSpyRegistry()
 	r := &Reactor{
-		peers:    make(map[netip.AddrPort]*Peer),
-		rmetrics: initReactorMetrics(reg, "test", "1.2.3.4", "65000"),
-		clock:    clock.RealClock{},
+		attrModHandlers: attrModHandlersWithDefaults(),
+		peers:           make(map[netip.AddrPort]*Peer),
+		rmetrics:        initReactorMetrics(reg, "test", "1.2.3.4", "65000"),
+		clock:           clock.RealClock{},
 	}
 
 	settings := NewPeerSettings(netip.MustParseAddr("198.51.100.7"), 65000, 65001, 0x01010101)

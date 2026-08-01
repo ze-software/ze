@@ -6,7 +6,7 @@
 | Scope | protocol |
 | Depends | `plan/spec-wire-edit-2-edit-apply.md` |
 | Phase | 6/7 |
-| Deferral shard | `plan/deferrals/spec-wire-edit-4-api-origin.md` |
+| Deferral shard | `plan/deferrals/wire-edit-4-api-origin.md` |
 | Updated | 2026-08-01 |
 
 Child 4 of `plan/spec-wire-edit-0-umbrella.md`. It removes the second attribute
@@ -51,9 +51,21 @@ materialised by the same one-pass writer the forward path uses. Then:
 - the rail-agreement tests become structurally true instead of separately maintained,
 - text-to-wire conversion happens once, and the per-route cost of an API route equals that of a forwarded route with the same touched-attribute count.
 
-**Non-goal.** No change to which attributes an API announce carries, to the
-mandatory-attribute rules, or to the AS_PATH construction the announce rails
-apply. This child changes who writes the bytes, not what they say.
+**Non-goal, with ONE owner-approved exception.** This child changes who writes the
+bytes, not what they say -- except for RFC 4271 Section 5.1.5, which Thomas ruled
+on 2026-08-01 must be fixed inside child 4.
+
+**Behavior change (eBGP announce bytes MOVE).** RFC 4271 Section 5.1.5: "A BGP
+speaker MUST NOT include this attribute in UPDATE messages it sends to external
+peers, except in the case of BGP Confederations [RFC3065]." The batch rail copied
+the caller's attribute block verbatim and nothing removed type code 5, so an
+operator-supplied local-preference crossed the AS boundary on every announce to an
+external peer that had finished its initial sync. The queued rail wrote LOCAL_PREF
+only under `if isIBGP` and was already conformant. The batch rail now matches it, so
+an API announce carrying LOCAL_PREF to an eBGP peer is SHORTER by seven octets than
+it was. The confederation exception has no configuration surface in Ze (a session is
+internal when LocalAS == PeerAS; nothing names a confederation), so the prohibition
+covers every peer this daemon calls external.
 
 ## Required Reading
 
@@ -126,6 +138,7 @@ apply. This child changes who writes the bytes, not what they say.
 
 **Behavior to change:**
 - Both rails build an edit set over an empty base and hand it to the shared one-pass writer.
+- The batch rail DROPS a caller-supplied LOCAL_PREF toward an external peer (RFC 4271 Section 5.1.5), matching the queued rail. This is the one change in this child that moves bytes on purpose.
 - `Builder.WriteTo` and its emission-order logic retire; the `Builder` becomes an intent collector whose output is slots, not bytes.
 - `findAttrInsertPosition` and `insertAttrOrdered` retire, because merge-insert is the writer's property.
 - `attrWriter` retires; its limit discipline becomes a region bound the shared writer takes as an argument.
@@ -221,6 +234,8 @@ apply. This child changes who writes the bytes, not what they say.
 | AC-8 | After this child lands | `findAttrInsertPosition` and `insertAttrOrdered` are gone from the batch rail |
 | AC-9 | An announce using the `Builder` raw-wire escape hatch | The pre-encoded bytes reach the wire unchanged |
 | AC-10 | The full existing announce corpus | Every `.ci` under `test/plugin/` and `test/encode/` passes with no expectation edited |
+| AC-11 | An API announce carrying LOCAL_PREF, destination an EXTERNAL peer | No attribute type 5 reaches the wire, on both rails, and the two agree byte for byte (RFC 4271 Section 5.1.5) |
+| AC-12 | The same announce, destination an INTERNAL peer | The caller's LOCAL_PREF value survives unchanged; the strip is confined to external peers |
 
 ## End-to-End User Stories
 

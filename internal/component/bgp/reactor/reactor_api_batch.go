@@ -631,10 +631,23 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 		rewrittenASPath = a.announceASPathRewrite(existingASPath, isIBGP, rsClient, srcKnown, localAS)
 	}
 
+	// RFC 4271 Section 5.1.5: "A BGP speaker MUST NOT include this attribute in
+	// UPDATE messages it sends to external peers, except in the case of BGP
+	// Confederations [RFC3065]." The confederation exception has no configuration
+	// surface here -- a session is internal when LocalAS == PeerAS (Peer.IsIBGP) and
+	// external otherwise, and nothing in PeerSettings or the YANG tree names a
+	// confederation -- so the prohibition covers every peer this daemon calls
+	// external. If a confederation member-AS ever becomes configurable, this is one
+	// of the sites that has to grow the exception.
+	localPrefAllowed := isIBGP
+
 	// The Builder's attributes, in the ascending order AppendAttributes declares.
 	for _, attr := range builderAttrs {
 		if attr.Code() == attribute.AttrASPath && rewrittenASPath != nil {
 			continue // the prepended path replaces it below, under the destination context
+		}
+		if attr.Code() == attribute.AttrLocalPref && !localPrefAllowed {
+			continue // Section 5.1.5, above
 		}
 		plan.add(attr, nil)
 	}
@@ -686,10 +699,25 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 			[]netip.Addr{nextHop}, nlriBytes), nil)
 	}
 
-	// RFC 4271 Section 5.1.5: LOCAL_PREF is well-known mandatory on an internal
-	// session. A caller-supplied one wins.
-	if isIBGP && !hasCode(attribute.AttrLocalPref) {
-		plan.add(attribute.LocalPref(100), nil)
+	// RFC 4271 Section 5.1.5, the obligation half: LOCAL_PREF SHALL be included in
+	// every UPDATE toward an internal peer, so one is synthesized when the caller
+	// supplied none. A caller-supplied value wins.
+	//
+	// The prohibition half is the strip. Until 2026-08-01 this rail only ever ADDED
+	// the attribute: the caller's block was copied verbatim, so an operator-supplied
+	// local-preference crossed the AS boundary on every announce to an external peer
+	// that had finished its initial sync. The queued rail writes LOCAL_PREF only
+	// under `if isIBGP` and was right; this makes the two agree by construction
+	// rather than leaving the answer to Peer.ShouldQueue.
+	switch {
+	case localPrefAllowed:
+		if !hasCode(attribute.AttrLocalPref) {
+			plan.add(attribute.LocalPref(100), nil)
+		}
+	default:
+		if _, _, _, found := attribute.AttrFind(base, attribute.AttrLocalPref); found {
+			plan.drop(uint8(attribute.AttrLocalPref))
+		}
 	}
 
 	n, ok := plan.emit(base, attrBuf)

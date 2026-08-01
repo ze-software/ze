@@ -136,113 +136,14 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		return skipped, 0
 	}
 
-	// EBGP wire cache: lazily generate AS-PATH-prepended wires per (localAS, secondaryAS, asn4).
-	type ebgpWireKey struct {
-		localAS     uint32
-		secondaryAS uint32
-		asn4        bool
-	}
-	type ebgpWireEntry struct {
-		wire   *wireu.WireUpdate
-		failed bool
-	}
-	var ebgpWireCache map[ebgpWireKey]*ebgpWireEntry
-	var srcASN4 bool
-	var srcASN4Set bool
-	var cachedLocalASN4, cachedLocalASN2 uint32
-	var cachedLocalASN4Set, cachedLocalASN2Set bool
-
-	getEBGPWire := func(localAS, secondaryAS uint32, asn4 bool) (*wireu.WireUpdate, bool) {
-		ek := ebgpWireKey{localAS: localAS, secondaryAS: secondaryAS, asn4: asn4}
-		if ebgpWireCache != nil {
-			if e, ok := ebgpWireCache[ek]; ok {
-				return e.wire, !e.failed
-			}
-		} else {
-			ebgpWireCache = make(map[ebgpWireKey]*ebgpWireEntry)
-		}
-
-		if !srcASN4Set {
-			srcASN4Set = true
-			if srcCtxID := update.WireUpdate.SourceCtxID(); srcCtxID != 0 {
-				if srcCtx := bgpctx.Registry.Get(srcCtxID); srcCtx != nil {
-					srcASN4 = srcCtx.ASN4()
-				}
-			}
-		}
-
-		// Single-prepend fast path via ReceivedUpdate cache.
-		if secondaryAS == 0 {
-			cachedLocal := &cachedLocalASN4
-			cachedSet := &cachedLocalASN4Set
-			if !asn4 {
-				cachedLocal = &cachedLocalASN2
-				cachedSet = &cachedLocalASN2Set
-			}
-			if !*cachedSet {
-				*cachedSet = true
-				*cachedLocal = localAS
-				wire, err := update.EBGPWire(localAS, srcASN4, asn4)
-				if err != nil {
-					ebgpWireCache[ek] = &ebgpWireEntry{failed: true}
-					return nil, false
-				}
-				ebgpWireCache[ek] = &ebgpWireEntry{wire: wire}
-				return wire, true
-			}
-			if *cachedLocal == localAS {
-				if e, ok := ebgpWireCache[ek]; ok {
-					return e.wire, !e.failed
-				}
-			}
-		}
-
-		// Generate wire via RewriteASPath / RewriteASPathDual.
-		payload := update.WireUpdate.Payload()
-		extendedMessage := len(payload) > message.MaxMsgLen-message.HeaderLen
-		buf := getReadBuf(extendedMessage)
-		if buf.Buf == nil {
-			ebgpWireCache[ek] = &ebgpWireEntry{failed: true}
-			return nil, false
-		}
-		var n int
-		var err error
-		if secondaryAS != 0 {
-			n, err = wireu.RewriteASPathDual(buf.Buf, payload, localAS, secondaryAS, srcASN4, asn4)
-		} else {
-			n, err = wireu.RewriteASPath(buf.Buf, payload, localAS, srcASN4, asn4)
-		}
-		if err != nil || n == 0 {
-			ReturnReadBuffer(buf)
-			ebgpWireCache[ek] = &ebgpWireEntry{failed: true}
-			return nil, false
-		}
-		wire := wireu.NewWireUpdate(buf.Buf[:n], fwdContextIDWithASN4(update.WireUpdate.SourceCtxID(), asn4))
-		wire.SetMessageID(update.WireUpdate.MessageID())
-		wire.SetSourceID(update.WireUpdate.SourceID())
-		// Site 5: buf backs the per-key local-AS / dual-AS variant aliased zero-copy
-		// into async writes; adopt onto the entry, return at eviction (D-1/D-2).
-		update.adoptFwdHandle(buf)
-		ebgpWireCache[ek] = &ebgpWireEntry{wire: wire}
-		return wire, true
-	}
-
-	// Resolve srcASN4 eagerly: one registry lookup, used by both getEBGPWire
-	// and the RS-client transcode guard. Zero cost on the common path where
-	// all peers share the same ASN4 capability.
-	if !srcASN4Set {
-		srcASN4Set = true
-		if srcCtxID := update.WireUpdate.SourceCtxID(); srcCtxID != 0 {
-			if srcCtx := bgpctx.Registry.Get(srcCtxID); srcCtx != nil {
-				srcASN4 = srcCtx.ASN4()
-			}
+	// The source's ASN width, resolved once for the whole client fan-out: it is
+	// the SrcASN4 half of every client's AS-path intent.
+	srcASN4 := false
+	if srcCtxID := update.WireUpdate.SourceCtxID(); srcCtxID != 0 {
+		if srcCtx := bgpctx.Registry.Get(srcCtxID); srcCtx != nil {
+			srcASN4 = srcCtx.ASN4()
 		}
 	}
-
-	// RFC 6793 Section 4.2.2: lazily-generated transcode wire for RS-client
-	// peers that lack ASN4. Only allocated on the first mismatch peer.
-	var rsTranscodeWire *wireu.WireUpdate
-	var rsTranscodeSet, rsTranscodeFailed bool
 
 	// Build source PeerFilterInfo once for egress filter chain.
 	var srcFilter filterapi.PeerFilterInfo
@@ -317,6 +218,11 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	// roughly eight times worse.
 	var mods filterapi.ModAccumulator
 
+	// Hoisted with the accumulator: the resolver holds its generators inline, so
+	// one value serves the whole client fan-out without allocating per client.
+	var aspathEdit wireu.ASPathEdit
+	var prependBuf [2]uint32
+
 	for _, peer := range matchingPeers {
 		facts := peer.forwardFacts()
 		if facts == nil {
@@ -377,53 +283,44 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		applyFactsNextHop(facts, &mods)
 		applyFactsSendCommunity(facts, &mods)
 
+		// The AS-path family is recorded as INTENT, exactly as on the general
+		// forward rail, so the one-pass writer emits it into the client's buffer
+		// alongside every other edit and no intermediate payload is produced.
+		// Recorded BEFORE the AS-override so that override's Set still wins.
+		aspathWidthChanged := false
+		if facts.isEBGP {
+			intent := wireu.ASPathIntent{SrcASN4: srcASN4, DstASN4: facts.sendASN4}
+			if !facts.rsClient {
+				// RFC 4271 Section 9.1.2, with RFC 7705 Section 3.3 ordering: the
+				// override ends up outermost, so it is the LAST element.
+				if facts.secondaryAS != 0 {
+					prependBuf[0] = facts.secondaryAS
+					prependBuf[1] = facts.localAS
+					intent.Prepend = prependBuf[:2]
+				} else {
+					prependBuf[0] = facts.localAS
+					intent.Prepend = prependBuf[:1]
+				}
+			}
+			// RFC 7947 Section 2.2.2: an RS client's AS_PATH is never modified, so
+			// Prepend stays empty and Record transcodes only.
+			changed, aspErr := aspathEdit.Record(&mods, update.WireUpdate.Payload(), intent)
+			if aspErr != nil {
+				fwdLogger().Warn("AS_PATH resolve failed, suppressing route",
+					"peer", facts.addr, "localAS", facts.localAS,
+					"secondaryAS", facts.secondaryAS, "asn4", facts.sendASN4, "err", aspErr)
+				continue
+			}
+			aspathWidthChanged = changed && srcASN4 != facts.sendASN4
+		}
+
 		if facts.asOverride && facts.isEBGP {
 			applyASOverride(facts.peerAS, facts.localAS, update.WireUpdate, facts.sendASN4, &mods)
 		}
 
-		// RFC 7947 Section 2.2.2: RS MUST NOT modify AS_PATH for RS-client peers.
-		// RFC 6793 Section 4.2.2: MUST transcode ASN4→ASN2 even for RS-clients.
+		// No intermediate rewritten payload, so no read buffer is borrowed here and
+		// nothing is adopted onto the entry.
 		peerWire := update.WireUpdate
-		if facts.isEBGP && !facts.rsClient {
-			wire, ok := getEBGPWire(facts.localAS, facts.secondaryAS, facts.sendASN4)
-			if !ok {
-				continue
-			}
-			if wire != nil {
-				peerWire = wire
-			}
-		} else if facts.isEBGP && facts.rsClient && srcASN4 && !facts.sendASN4 {
-			if rsTranscodeFailed {
-				continue
-			}
-			if !rsTranscodeSet {
-				rsTranscodeSet = true
-				payload := update.WireUpdate.Payload()
-				extendedMessage := len(payload) > message.MaxMsgLen-message.HeaderLen
-				buf := getReadBuf(extendedMessage)
-				if buf.Buf == nil {
-					rsTranscodeFailed = true
-					continue
-				}
-				n, err := wireu.TranscodeASPath(buf.Buf, payload, srcASN4, false)
-				if err != nil || n <= 0 {
-					ReturnReadBuffer(buf)
-					rsTranscodeFailed = true
-					continue
-				}
-				wire := wireu.NewWireUpdate(buf.Buf[:n], fwdContextIDWithASN4(update.WireUpdate.SourceCtxID(), false))
-				wire.SetMessageID(update.WireUpdate.MessageID())
-				wire.SetSourceID(update.WireUpdate.SourceID())
-				// Site 6: buf backs the per-call RS-client transcode wire aliased
-				// zero-copy into async writes; adopt onto the entry, return at
-				// eviction (D-1/D-2).
-				update.adoptFwdHandle(buf)
-				rsTranscodeWire = wire
-			}
-			if rsTranscodeWire != nil {
-				peerWire = rsTranscodeWire
-			}
-		}
 
 		var modBufIdx int
 		var modPoolRef *peerPool
@@ -456,7 +353,11 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 				continue
 			}
 			if modified != nil {
-				peerWire = wireu.NewWireUpdate(modified, peerWire.SourceCtxID())
+				ctxID := peerWire.SourceCtxID()
+				if aspathWidthChanged {
+					ctxID = fwdContextIDWithASN4(peerWire.SourceCtxID(), facts.sendASN4)
+				}
+				peerWire = wireu.NewWireUpdate(modified, ctxID)
 				modBufIdx = bufIdx
 				modPoolRef = modPool
 			}

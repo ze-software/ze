@@ -392,165 +392,20 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		return errForwardNoSource
 	}
 
-	// EBGP preparation: lazily generate patched wires keyed by (localAS, secondaryAS, asn4).
-	// RFC 4271 S9.1.2: EBGP speakers MUST prepend their own AS to AS_PATH.
-	// RFC 6793 S4: ASN4->ASN2 transcoding uses AS_TRANS=23456.
+	// RFC 4271 Section 9.1.2 (prepend the local AS to an EBGP peer) and RFC 6793
+	// Section 4.2.2 (ASN4 transcoding, AS_TRANS) are recorded as INTENT on the
+	// per-destination accumulator in the loop below, not produced here as a whole
+	// rewritten payload.
 	//
-	// LocalAS can differ per peer (RFC 7705 local-as override), so wire variants
-	// are cached per (localAS, secondaryAS, dstASN4) combination rather than assuming
-	// a single LocalAS for all EBGP peers.
-	//
-	// secondaryAS != 0 enables dual-AS prepend: the peer sees AS_PATH starting
-	// with localAS (the override it expects) followed by secondaryAS (the router's
-	// real global AS). This is the default behavior when a peer has a local-as
-	// override and neither no-prepend nor replace-as modifier is set.
-	//
-	// The first (localAS, 0) per dstASN4 variant uses ReceivedUpdate.EBGPWire
-	// (which caches in the ReceivedUpdate for reuse across ForwardUpdate calls).
-	// Additional keys are generated directly via wireu.RewriteASPath /
-	// RewriteASPathDual, since ReceivedUpdate's cache is keyed by dstASN4 only
-	// and cannot hold dual-prepended variants.
-	type ebgpWireKey struct {
-		localAS     uint32
-		secondaryAS uint32
-		asn4        bool
-	}
-	type ebgpWireEntry struct {
-		wire   *wireu.WireUpdate
-		failed bool
-	}
-	var ebgpWireCache map[ebgpWireKey]*ebgpWireEntry
-	var srcASN4 bool
-	var srcASN4Set bool
-	var cachedLocalASN4, cachedLocalASN2 uint32
-	var cachedLocalASN4Set, cachedLocalASN2Set bool
-
-	getEBGPWire := func(baseWire *wireu.WireUpdate, localAS, secondaryAS uint32, asn4 bool) (*wireu.WireUpdate, bool) {
-		if baseWire == nil {
-			return nil, false
-		}
-		if baseWire != update.WireUpdate {
-			srcCtx := bgpctx.Registry.Get(baseWire.SourceCtxID())
-			baseSrcASN4 := srcCtx != nil && srcCtx.ASN4()
-			extendedMessage := len(baseWire.Payload()) > message.MaxMsgLen-message.HeaderLen
-			dst := getReadBuf(extendedMessage)
-			if dst.Buf == nil {
-				return nil, false
-			}
-			var n int
-			var err error
-			if secondaryAS != 0 {
-				n, err = wireu.RewriteASPathDual(dst.Buf, baseWire.Payload(), localAS, secondaryAS, baseSrcASN4, asn4)
-			} else {
-				n, err = wireu.RewriteASPath(dst.Buf, baseWire.Payload(), localAS, baseSrcASN4, asn4)
-			}
-			if err != nil {
-				ReturnReadBuffer(dst)
-				fwdLogger().Warn("EBGP wire rewrite failed",
-					"id", updateID, "localAS", localAS, "secondaryAS", secondaryAS, "asn4", asn4, "err", err)
-				return nil, false
-			}
-			wire := wireu.NewWireUpdate(dst.Buf[:n], fwdContextIDWithASN4(baseWire.SourceCtxID(), asn4))
-			wire.SetMessageID(baseWire.MessageID())
-			wire.SetSourceID(baseWire.SourceID())
-			// Site 1: dst backs wire (an export-override variant) and is aliased
-			// zero-copy into async writes; adopt it onto the entry so the cache
-			// returns it once at eviction, never at end of call (D-1/D-2).
-			update.adoptFwdHandle(dst)
-			return wire, true
-		}
-		ek := ebgpWireKey{localAS: localAS, secondaryAS: secondaryAS, asn4: asn4}
-		if ebgpWireCache == nil {
-			ebgpWireCache = make(map[ebgpWireKey]*ebgpWireEntry)
-		}
-		if entry, ok := ebgpWireCache[ek]; ok {
-			return entry.wire, !entry.failed
-		}
-		if !srcASN4Set {
-			srcCtxID := update.WireUpdate.SourceCtxID()
-			srcCtx := bgpctx.Registry.Get(srcCtxID)
-			srcASN4 = srcCtx != nil && srcCtx.ASN4()
-			srcASN4Set = true
-		}
-
-		canUseUpdateCache := false
-		if secondaryAS == 0 {
-			if asn4 {
-				if !cachedLocalASN4Set {
-					cachedLocalASN4 = localAS
-					cachedLocalASN4Set = true
-					canUseUpdateCache = true
-				} else if cachedLocalASN4 == localAS {
-					canUseUpdateCache = true
-				}
-			} else {
-				if !cachedLocalASN2Set {
-					cachedLocalASN2 = localAS
-					cachedLocalASN2Set = true
-					canUseUpdateCache = true
-				} else if cachedLocalASN2 == localAS {
-					canUseUpdateCache = true
-				}
-			}
-		}
-
-		if canUseUpdateCache {
-			wire, err := update.EBGPWire(localAS, srcASN4, asn4)
-			if err != nil {
-				fwdLogger().Warn("EBGP wire rewrite failed",
-					"id", updateID, "localAS", localAS, "asn4", asn4, "err", err)
-				ebgpWireCache[ek] = &ebgpWireEntry{failed: true}
-				return nil, false
-			}
-			ebgpWireCache[ek] = &ebgpWireEntry{wire: wire}
-			return wire, true
-		}
-
-		payload := update.WireUpdate.Payload()
-		extendedMessage := len(payload) > message.MaxMsgLen-message.HeaderLen
-		dst := getReadBuf(extendedMessage)
-		if dst.Buf == nil {
-			ebgpWireCache[ek] = &ebgpWireEntry{failed: true}
-			return nil, false
-		}
-		var n int
-		var err error
-		if secondaryAS != 0 {
-			n, err = wireu.RewriteASPathDual(dst.Buf, payload, localAS, secondaryAS, srcASN4, asn4)
-		} else {
-			n, err = wireu.RewriteASPath(dst.Buf, payload, localAS, srcASN4, asn4)
-		}
-		if err != nil {
-			ReturnReadBuffer(dst)
-			fwdLogger().Warn("EBGP wire rewrite failed",
-				"id", updateID, "localAS", localAS, "secondaryAS", secondaryAS, "asn4", asn4, "err", err)
-			ebgpWireCache[ek] = &ebgpWireEntry{failed: true}
-			return nil, false
-		}
-		wire := wireu.NewWireUpdate(dst.Buf[:n], fwdContextIDWithASN4(update.WireUpdate.SourceCtxID(), asn4))
-		wire.SetMessageID(update.WireUpdate.MessageID())
-		wire.SetSourceID(update.WireUpdate.SourceID())
-		// Site 2: dst backs wire (a per-key local-AS / dual-AS variant) for the
-		// rest of this entry's lifetime and is aliased zero-copy into async
-		// writes; adopt it onto the entry so the cache returns it exactly once at
-		// eviction (D-1/D-2). Previously dropped here -- the leak this spec fixes.
-		update.adoptFwdHandle(dst)
-		ebgpWireCache[ek] = &ebgpWireEntry{wire: wire}
-		return wire, true
-	}
-
-	// Resolve srcASN4 eagerly for the RS-client transcode guard.
-	if !srcASN4Set {
-		srcCtxID := update.WireUpdate.SourceCtxID()
-		srcCtx := bgpctx.Registry.Get(srcCtxID)
-		srcASN4 = srcCtx != nil && srcCtx.ASN4()
-		srcASN4Set = true
-	}
-
-	// RFC 6793 Section 4.2.2: lazily-generated transcode wire for RS-client
-	// peers that lack ASN4. Only allocated on the first mismatch peer.
-	var rsTranscodeWire *wireu.WireUpdate
-	var rsTranscodeSet, rsTranscodeFailed bool
+	// The (localAS, secondaryAS, dstASN4) wire cache that used to live here, and
+	// the two atomic per-update EBGP wire slots it fell back on, existed only to
+	// amortize a full payload copy across destinations. With the AS-path family
+	// folded into the edit set there is no intermediate payload to share, so both
+	// caches and the read-buffer adoption they required are gone.
+	// The source's ASN width, resolved once for the whole fan-out: it is the
+	// SrcASN4 half of every destination's AS-path intent.
+	srcCtx := bgpctx.Registry.Get(update.WireUpdate.SourceCtxID())
+	srcASN4 := srcCtx != nil && srcCtx.ASN4()
 
 	var parseCache fwdParseCache
 	var dispatchedCount int
@@ -613,6 +468,13 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 	// is stated on Reset, and buildModifiedPayload honors it by copying every
 	// op value into the destination's own output buffer before returning.
 	var mods filterapi.ModAccumulator
+
+	// Hoisted for the same reason the accumulator is: the resolver holds every
+	// generator it can record inline, so one value serves the whole fan-out
+	// without allocating per destination. Same isolation contract, too -- nothing
+	// may read a generator after the Reset that follows it.
+	var aspathEdit wireu.ASPathEdit
+	var prependBuf [2]uint32
 
 	for _, peer := range matchingPeers {
 		facts := peer.forwardFacts()
@@ -713,76 +575,59 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			peerBaseWire = exportWireOverride
 		}
 
+		// The AS-path family is recorded as INTENT, so the exactly-sized one-pass
+		// writer emits it into the destination buffer alongside every other edit.
+		// It used to be produced as a whole rewritten payload first, which made an
+		// EBGP destination carrying any policy pay two full payload copies.
+		//
+		// Recorded BEFORE the AS-override on purpose: both write AS_PATH, the last
+		// Set wins, and the override winning is the order these two have always had.
+		peerBaseSrcASN4 := srcASN4
+		if peerBaseWire != update.WireUpdate {
+			if c := bgpctx.Registry.Get(peerBaseWire.SourceCtxID()); c != nil {
+				peerBaseSrcASN4 = c.ASN4()
+			}
+		}
+		aspathWidthChanged := false
+		if facts.isEBGP {
+			intent := wireu.ASPathIntent{SrcASN4: peerBaseSrcASN4, DstASN4: facts.sendASN4}
+			if !facts.rsClient {
+				// RFC 7705 Section 3.3: the globally configured AS is appended first
+				// and the override immediately after, so the override ends up
+				// outermost. The intent carries innermost first.
+				if facts.secondaryAS != 0 {
+					prependBuf[0] = facts.secondaryAS
+					prependBuf[1] = facts.localAS
+					intent.Prepend = prependBuf[:2]
+				} else {
+					prependBuf[0] = facts.localAS
+					intent.Prepend = prependBuf[:1]
+				}
+			}
+			// RFC 7947 Section 2.2.2: an RS client's AS_PATH is never modified, so
+			// Prepend stays empty and Record transcodes only -- which RFC 6793
+			// Section 4.2.2 still requires when the widths differ.
+			changed, aspErr := aspathEdit.Record(&mods, peerBaseWire.Payload(), intent)
+			if aspErr != nil {
+				// Fail closed: an EBGP peer receiving an unprepended path is a
+				// routing-loop risk, and a two-octet peer reads a four-octet path as
+				// garbage (ai/rules/fail-closed-guards.md).
+				fwdLogger().Warn("AS_PATH resolve failed, suppressing route",
+					"id", updateID, "peer", facts.addr, "localAS", facts.localAS,
+					"secondaryAS", facts.secondaryAS, "asn4", facts.sendASN4, "err", aspErr)
+				continue
+			}
+			aspathWidthChanged = changed && peerBaseSrcASN4 != facts.sendASN4
+		}
+
 		if facts.asOverride && facts.isEBGP {
 			applyASOverride(facts.peerAS, facts.localAS, peerBaseWire, facts.sendASN4, &mods)
 		}
 
-		// RFC 4271 S9.1.2: EBGP peers get AS-PATH-prepended wire.
-		// RFC 7947 Section 2.2.2: RS MUST NOT modify AS_PATH for RS-client peers.
-		// RFC 6793 Section 4.2.2: MUST transcode ASN4→ASN2 even for RS-clients.
+		// The prepend and the transcode are already recorded as intent above, so no
+		// intermediate rewritten payload is produced here, no read buffer is
+		// borrowed, and nothing is adopted onto the entry.
 		peerWire := peerBaseWire
-		if facts.isEBGP && !facts.rsClient {
-			wire, ok := getEBGPWire(peerBaseWire, facts.localAS, facts.secondaryAS, facts.sendASN4)
-			if !ok {
-				continue
-			}
-			if wire != nil {
-				peerWire = wire
-			}
-		} else if facts.isEBGP && facts.rsClient && srcASN4 && !facts.sendASN4 {
-			if peerBaseWire != update.WireUpdate {
-				// Export-filter override: transcode inline (not cacheable).
-				// srcASN4 is still correct: exportWireOverride preserves SourceCtxID.
-				extMsg := len(peerBaseWire.Payload()) > message.MaxMsgLen-message.HeaderLen
-				buf := getReadBuf(extMsg)
-				if buf.Buf == nil {
-					continue
-				}
-				n, err := wireu.TranscodeASPath(buf.Buf, peerBaseWire.Payload(), srcASN4, false)
-				if err != nil || n <= 0 {
-					ReturnReadBuffer(buf)
-					continue
-				}
-				peerWire = wireu.NewWireUpdate(buf.Buf[:n], fwdContextIDWithASN4(peerBaseWire.SourceCtxID(), false))
-				peerWire.SetMessageID(peerBaseWire.MessageID())
-				peerWire.SetSourceID(peerBaseWire.SourceID())
-				// Site 3: buf backs peerWire (an export-override RS-client transcode)
-				// aliased zero-copy into async writes; adopt onto the entry, return
-				// at eviction (D-1/D-2).
-				update.adoptFwdHandle(buf)
-			} else {
-				if rsTranscodeFailed {
-					continue
-				}
-				if !rsTranscodeSet {
-					rsTranscodeSet = true
-					payload := update.WireUpdate.Payload()
-					extMsg := len(payload) > message.MaxMsgLen-message.HeaderLen
-					buf := getReadBuf(extMsg)
-					if buf.Buf == nil {
-						rsTranscodeFailed = true
-						continue
-					}
-					n, err := wireu.TranscodeASPath(buf.Buf, payload, srcASN4, false)
-					if err != nil || n <= 0 {
-						ReturnReadBuffer(buf)
-						rsTranscodeFailed = true
-						continue
-					}
-					wire := wireu.NewWireUpdate(buf.Buf[:n], fwdContextIDWithASN4(update.WireUpdate.SourceCtxID(), false))
-					wire.SetMessageID(update.WireUpdate.MessageID())
-					wire.SetSourceID(update.WireUpdate.SourceID())
-					// Site 4: buf backs the per-call RS-client transcode wire aliased
-					// zero-copy into async writes; adopt onto the entry, return at
-					// eviction (D-1/D-2).
-					update.adoptFwdHandle(buf)
-					rsTranscodeWire = wire
-				}
-				if rsTranscodeWire != nil {
-					peerWire = rsTranscodeWire
-				}
-			}
-		}
 
 		var modBufIdx int
 		var modPoolRef *peerPool
@@ -818,7 +663,16 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 				continue
 			}
 			if modified != nil {
-				peerWire = wireu.NewWireUpdate(modified, peerWire.SourceCtxID())
+				// An ASN4 transcode folded into the rebuild changed the AS number
+				// width of these bytes, so the wire must carry the DESTINATION's
+				// context. Labeling it with the source context would let buildFwdBody
+				// read the two as matching and forward re-encoded bytes as if they were
+				// still the source's, or transcode them a second time.
+				ctxID := peerWire.SourceCtxID()
+				if aspathWidthChanged {
+					ctxID = fwdContextIDWithASN4(peerWire.SourceCtxID(), facts.sendASN4)
+				}
+				peerWire = wireu.NewWireUpdate(modified, ctxID)
 				modBufIdx = bufIdx
 				modPoolRef = modPool
 			}

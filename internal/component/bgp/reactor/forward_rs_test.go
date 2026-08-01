@@ -199,7 +199,9 @@ func TestReactorForwardRSBasic(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates: cache,
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
 		peers: map[netip.AddrPort]*Peer{
 			src.Settings().PeerKey():  src,
 			dst1.Settings().PeerKey(): dst1,
@@ -288,7 +290,9 @@ func TestReactorForwardRSFallback(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates: cache,
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
 		peers: map[netip.AddrPort]*Peer{
 			src.Settings().PeerKey():  src,
 			dst1.Settings().PeerKey(): dst1,
@@ -382,7 +386,9 @@ func TestReactorForwardRSEBGPPrepend(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates: cache,
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
 		peers: map[netip.AddrPort]*Peer{
 			src.Settings().PeerKey(): src,
 			dst.Settings().PeerKey(): dst,
@@ -470,7 +476,9 @@ func TestReactorForwardRSTransparent(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates: cache,
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
 		peers: map[netip.AddrPort]*Peer{
 			src.Settings().PeerKey(): src,
 			dst.Settings().PeerKey(): dst,
@@ -542,7 +550,9 @@ func TestReactorForwardRSBufferLifetime(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates: cache,
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
 		peers: map[netip.AddrPort]*Peer{
 			src.Settings().PeerKey():  src,
 			dst1.Settings().PeerKey(): dst1,
@@ -711,7 +721,9 @@ func TestReactorForwardRSCacheLifetime(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates: cache,
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
 		peers: map[netip.AddrPort]*Peer{
 			src.Settings().PeerKey(): src,
 			dst.Settings().PeerKey(): dst,
@@ -956,9 +968,11 @@ func BenchmarkReactorForwardRS(b *testing.B) {
 	defer cache.Stop()
 
 	r := &Reactor{
-		recentUpdates: cache,
-		peers:         peers,
-		fwdPool:       testPool,
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
+		peers:           peers,
+		fwdPool:         testPool,
 	}
 
 	sourceAddr := netip.MustParseAddr("10.0.0.1")

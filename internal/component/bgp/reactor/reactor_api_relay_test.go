@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"net/netip"
 	"sync"
@@ -69,8 +70,9 @@ func relayFixtureAS(t *testing.T, srcAS, dstAS uint32) (*reactorAPIAdapter, *Rec
 
 	cache := NewRecentUpdateCache(100)
 	r := &Reactor{
-		recentUpdates: cache,
-		clock:         clock.RealClock{},
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
+		clock:           clock.RealClock{},
 		peers: map[netip.AddrPort]*Peer{
 			src.Settings().PeerKey(): src,
 			dst.Settings().PeerKey(): dst,
@@ -117,6 +119,133 @@ func TestRelayStoredRouteForwardsThroughForwardRail(t *testing.T) {
 	// gone -- a lingering entry is a pinned buffer.
 	require.Eventually(t, func() bool { return cache.Len() == 0 }, 2*time.Second, 10*time.Millisecond,
 		"relay cache entry must be evicted, returning its pooled buffer")
+}
+
+// relayBodyASPath returns the AS_PATH ASNs carried by a forwarded UPDATE body.
+// The body shape is RFC 4271 Section 4.3: withdrawn-routes length, withdrawn
+// routes, total-path-attribute length, attributes, NLRI.
+//
+// It reads the AS_PATH the destination peer actually receives, which is the only
+// thing that can distinguish "the route server left the path alone" from "the
+// route server prepended its AS". Asserting a non-empty body cannot.
+func relayBodyASPath(t *testing.T, body []byte) []uint32 {
+	t.Helper()
+	require.GreaterOrEqual(t, len(body), 4, "an UPDATE body carries both length fields")
+	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
+	attrLenOff := 2 + withdrawnLen
+	require.LessOrEqual(t, attrLenOff+2, len(body), "attribute-length field is inside the body")
+	attrLen := int(binary.BigEndian.Uint16(body[attrLenOff : attrLenOff+2]))
+	attrOff := attrLenOff + 2
+	require.LessOrEqual(t, attrOff+attrLen, len(body), "attribute block is inside the body")
+
+	path := forwardBodyFindASPath(t, body[attrOff:attrOff+attrLen], true)
+	require.NotNil(t, path, "the forwarded body must carry an AS_PATH")
+	require.Len(t, path.Segments, 1, "the fixture route carries one AS_SEQUENCE")
+	return path.Segments[0].ASNs
+}
+
+// storedRouteASPath returns the AS_PATH as it was RECEIVED, decoded from the
+// stored attribute bytes. It is the "before" half of the transform assertions.
+func storedRouteASPath(t *testing.T) []uint32 {
+	t.Helper()
+	attrs := mustHex(t, storedIPv4Route("10.0.0.1").AttrHex)
+	path := forwardBodyFindASPath(t, attrs, true)
+	require.NotNil(t, path, "the stored route must carry an AS_PATH")
+	require.Len(t, path.Segments, 1)
+	return path.Segments[0].ASNs
+}
+
+// relayDispatchedBody runs a one-route replay to 10.0.0.2 and returns the wire
+// body the destination peer received.
+func relayDispatchedBody(t *testing.T, api *reactorAPIAdapter, dispatched *[]fwdItem, mu *sync.Mutex, done chan struct{}) []byte {
+	t.Helper()
+	require.NoError(t, api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
+		[]rpc.StoredRoute{storedIPv4Route("10.0.0.1")}))
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("relayed route never reached the forward pool")
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, *dispatched, 1, "exactly one destination dispatch")
+	item := (*dispatched)[0]
+	require.Equal(t, netip.MustParseAddr("10.0.0.2"), item.peer.Settings().Address)
+	require.NotEmpty(t, item.rawBodies, "the relay must produce wire bodies")
+	return item.rawBodies[0]
+}
+
+// TestRelayStoredRouteRSClientPreservesASPath proves a stored route replayed to
+// an RS-client peer reaches it with the AS_PATH it arrived with: the route
+// server does not insert itself.
+//
+// This pins the transform on the RELAY rail. The existing x-1 positive
+// (TestReactorForwardRSTransparent) drives reactorForwardRS, whose prepend gate
+// is a SEPARATE copy in forward_rs.go. The gate this test drives lives in
+// forwardUpdateCore (reactor_api_forward.go), which is what BOTH
+// RelayStoredRoute (peer-up replay) and ForwardUpdate reach. Before this test
+// neither polarity of x-1 was asserted on that gate at all, so reverting it
+// there broke a route server's peer-up replay with every test still green.
+//
+// RFC requirement: RFC7947-x-1 positive -- the route server SHOULD NOT prepend its own AS to
+// AS_PATH for an RS client; a route replayed to an RS client through RelayStoredRoute carries
+// the AS_PATH exactly as received, and the route server's own AS 65000 is absent from it.
+// VALIDATES: RFC 7947 Section 2.2.2.1 through the stored-route replay entry point.
+// PREVENTS: a peer-up replay silently prepending the route server's AS, which makes every
+// client peering look like transit through the IXP rather than direct eBGP between clients.
+func TestRelayStoredRouteRSClientPreservesASPath(t *testing.T) {
+	api, _, dispatched, mu, done := relayFixture(t)
+
+	// The RS-client leaf is the ONLY thing that selects the transparent path:
+	// facts.rsClient comes from PeerSettings.RSClient alone
+	// (peer_forward_facts.go), and its YANG default is false.
+	dst := api.r.peers[netip.MustParseAddrPort("10.0.0.2:179")]
+	require.NotNil(t, dst, "fixture must expose the destination peer")
+	dst.settings.RSClient = true
+	dst.refreshForwardFacts()
+	require.True(t, dst.forwardFacts().rsClient, "precondition: destination is an RS client")
+	require.True(t, dst.forwardFacts().isEBGP, "precondition: destination is eBGP, so the prepend gate is live")
+
+	before := storedRouteASPath(t)
+	after := relayBodyASPath(t, relayDispatchedBody(t, api, dispatched, mu, done))
+
+	assert.Equal(t, before, after,
+		"RFC 7947 S2.2.2.1: an RS client must receive the AS_PATH unchanged")
+	assert.NotContains(t, after, uint32(65000),
+		"the route server's own AS must not appear in the AS_PATH it relays")
+}
+
+// TestRelayStoredRoutePlainEBGPPrependsLocalAS is the confining half: the
+// no-prepend behavior above is specific to RS clients, not a blanket disable of
+// AS_PATH prepending on the relay rail.
+//
+// Without this, a mutation that never prepends (gate forced false) would leave
+// the positive test above green and nothing else on this rail would notice --
+// the relay would violate RFC 4271 Section 5.1.2 for every ordinary eBGP peer.
+//
+// RFC requirement: RFC7947-x-1 negative -- the "SHOULD NOT prepend own AS" transparency is
+// confined to RS clients: a plain (non-RS-client) eBGP destination replayed through
+// RelayStoredRoute DOES get the local AS 65000 prepended to the leading AS_SEQUENCE.
+// VALIDATES: RFC 4271 Section 5.1.2 still governs the relay rail for ordinary eBGP peers.
+// PREVENTS: suppressing the prepend for every peer instead of just RS clients, which would
+// make Ze advertise routes it relays as though they were directly adjacent.
+func TestRelayStoredRoutePlainEBGPPrependsLocalAS(t *testing.T) {
+	api, _, dispatched, mu, done := relayFixture(t)
+
+	// relayFixture leaves RSClient at its default (false), so this destination is
+	// an ordinary eBGP peer.
+	dst := api.r.peers[netip.MustParseAddrPort("10.0.0.2:179")]
+	require.NotNil(t, dst, "fixture must expose the destination peer")
+	require.False(t, dst.forwardFacts().rsClient, "precondition: destination is NOT an RS client")
+	require.True(t, dst.forwardFacts().isEBGP, "precondition: destination is eBGP")
+
+	before := storedRouteASPath(t)
+	after := relayBodyASPath(t, relayDispatchedBody(t, api, dispatched, mu, done))
+
+	assert.Equal(t, append([]uint32{65000}, before...), after,
+		"RFC 4271 S5.1.2: an ordinary eBGP peer receives the local AS at the head of AS_PATH")
 }
 
 // TestRelayStoredRouteCountsDispatchFailureAsIncomplete verifies a route that

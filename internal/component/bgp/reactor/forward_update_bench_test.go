@@ -69,7 +69,9 @@ func BenchmarkForwardDirect(b *testing.B) {
 	b.Cleanup(pool.Stop)
 
 	r := &Reactor{
-		recentUpdates: cache,
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
 		peers: map[netip.AddrPort]*Peer{
 			src.Settings().PeerKey(): src,
 			settings.PeerKey():       peer,
@@ -149,9 +151,11 @@ func BenchmarkForwardDirect_Batch(b *testing.B) {
 	b.Cleanup(pool.Stop)
 
 	r := &Reactor{
-		recentUpdates: cache,
-		peers:         peers,
-		fwdPool:       pool,
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
+		peers:           peers,
+		fwdPool:         pool,
 	}
 	adapter := &reactorAPIAdapter{r: r}
 

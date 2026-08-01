@@ -1,0 +1,185 @@
+# prefixsid-ebgp-discard-single-walk -- RFC 8669 Section 4 Prefix-SID discard from EBGP
+#
+# VALIDATES: RFC 8669 Section 4 -- a BGP Prefix-SID attribute (code 40) received
+# from an EBGP peer that the local config has NOT opted into accepting MUST be
+# discarded. Ze applies RFC 7606 Section 2 attribute-discard, which
+# draft-mangin-idr-attr-tombstone-00 Section 5.1 implements as an in-place
+# ATTR_TOMBSTONE marker (code 252, attribute.AttrTombstone).
+# VALIDATES: RFC 7606 Section 2 -- "the UPDATE message continues to be processed":
+# ORIGIN, AS_PATH, NEXT_HOP and the NLRI survive and the route is installed and
+# forwarded.
+#
+# PREVENTS: (a) leaking an unaccepted Prefix-SID from outside the SR domain into
+# the RIB and on to other peers; (b) the opposite regression, where the discard
+# escalates and the whole UPDATE is dropped or the session is reset; (c) a SECOND
+# marker being written -- attribute.AttributesWire rejects a duplicate code as a
+# hard error, so two markers silently drop MP routes at the RIB.
+#
+# WHY THE MARKER IS IN PLACE, NOT A REBUILD (session_validation.go enforceRFC7606
+# -> message/attr_discard.go ApplyAttrDiscard -> applyInPlace): exactly one
+# DiscardEntry, no upstream ATTR_TOMBSTONE in the frame, the Prefix-SID value is
+# 10 bytes (>= 2), and code 40 occurs once. All four in-place preconditions hold,
+# so the attribute keeps its offset and its length; only the flags byte, the type
+# byte and the first two value bytes change, and the rest of the value is zeroed.
+# That is why the forwarded UPDATE below is byte-for-byte the source UPDATE with
+# 13 bytes rewritten and the same 0x003C total length.
+#
+# WHY THE RECEIVER IS iBGP: the marker's Transitive bit is derived at RECEIVE
+# time (attrDiscardFlags), and Section 5.3's EBGP-boundary clear is applied per
+# destination on the EBGP egress path (wireu.rewriteASPathPrepend). An iBGP
+# destination takes neither that rewrite nor the AS_PATH prepend, so the wire the
+# receiver sees is the receive-time marker unmodified -- which is the thing this
+# test exists to pin. An EBGP receiver would assert the Section 5.3 clear
+# instead, which is a different requirement and belongs in its own test.
+#
+# NO LOCAL_PREF IN THE SOURCE FRAME: the source is an EBGP peer and RFC 4271
+# Section 5.1.5 forbids LOCAL_PREF towards external peers. Ze applies RFC 7606
+# Section 7.5 and would tombstone it too, producing a SECOND discard entry, which
+# switches ApplyAttrDiscard to the rebuild path and changes every byte offset
+# below. Same reasoning as bgp-rs-fastpath-ebgp-shared.ci:15-26.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=15s
+option=bind:value=0.0.0.0
+# Map conn=N to a peer by remote IP instead of accept order (peer_connmap.go).
+# Without it, which client connects first is a race and the source's UPDATE can
+# be sent on the receiver's connection, so no forwarding happens at all. It also
+# handshakes the whole batch before running any conn's script, so both peers are
+# established before the announce below.
+option=conn_map:value=remote-ip
+
+# Source peer (conn=1, EBGP AS 65001, ASN4 negotiated): one UPDATE carrying a
+# Prefix-SID the local config never opted into.
+#   0000                        withdrawn routes length = 0
+#   0021                        total path attribute length = 33
+#   40010100                    ORIGIN = IGP
+#   40020602010000FDE9          AS_PATH AS_SEQUENCE[65001], 4-octet (ASN4 on)
+#   40030401010101              NEXT_HOP 1.1.1.1
+#   C0280A01000700000000000064  PREFIX_SID (RFC 8669): flags 0xC0 optional
+#                               transitive, code 40 (0x28), length 10, value =
+#                               Label-Index TLV (type 1, length 7, RESERVED 0,
+#                               Flags 0, Label Index 100)
+#   180A0000                    NLRI 10.0.0.0/24
+# attrs = 4+9+7+13 = 33 = 0x21; body = 2+2+33+4 = 41; total = 19+41 = 60 = 0x3C.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C02000000214001010040020602010000FDE940030401010101C0280A01000700000000000064180A0000
+
+# The SOURCE's own EOR. RFC 4724 Section 4.1: the End-of-RIB marker MUST be sent
+# once the initial routing update completes. Only conn=1's EOR is asserted on the
+# wire: the RFC constrains no ordering against routes learned AFTER the initial
+# update, so on conn=2 the forwarded route may legitimately overtake conn=2's own
+# EOR, and pinning it there turns a permitted ordering into a flake. The same
+# conclusion bgp-rs-asn4-transcode.ci and bgp-rs-fastpath-ebgp-shared.ci reached.
+# That BOTH EORs are sent is still enforced, by run_rs_observer(expected_peers=2),
+# which fails closed when either is missing.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Receiver peer (conn=2, iBGP AS 65000): the forwarded UPDATE, byte-equality.
+#
+# Derived from draft-mangin-idr-attr-tombstone-00 Section 5.1 steps 1-8 applied to
+# the source frame above, NOT from observed output. Exactly ONE attribute changes,
+# and it changes in place:
+#   C0280A0100070000000000 0064  ->  C0FC0A2801 0000000000000000
+#   flags  0xC0 -> 0x80|(0xC0&0x50) = 0xC0   (step 2, unchanged here: the
+#                                             Prefix-SID is optional transitive)
+#   type   0x28 (40) -> 0xFC (252 = ATTR_TOMBSTONE)          (steps 3-4)
+#   len    0x0A unchanged                                    (step 8)
+#   val[0] 0x28  original attribute code 40                  (step 5)
+#   val[1] 0x01  DiscardReasonEBGPInvalid                    (step 6)
+#   val[2..9] zeroed                                         (step 7)
+# Every other byte is identical to the source frame, including the 0x003C total
+# length and the 0x0021 attribute length -- that identity IS the in-place claim.
+# An escalation to treat-as-withdraw or session-reset produces no UPDATE here at
+# all, and a rebuild produces a shorter frame with the marker moved to the end,
+# so this single rule discriminates all three outcomes.
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C02000000214001010040020602010000FDE940030401010101C0FC0A28010000000000000000180A0000
+EOF_PEER
+
+# Observer: block until both peers are established and each has flushed its EOR,
+# and until the forwarded 10.0.0.0/24 is on the wire, then shut down. Event-driven
+# (subscribe + wait_for_event), never a sleep, and it fails closed on a stalled
+# replay -- without every peer's EOR the forwarded UPDATE is unobservable.
+tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+from ze_api import API
+
+API().run_rs_observer(expected_peers=2, forward_prefix="10.0.0.0/24")
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	external shutdown-after-up {
+		run ./shutdown-after-up.run
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+			rs-fast-path enable
+		}
+	}
+	peer receiver-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+			rs-fast-path enable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error
+# RFC 8669 Section 4 is a discard, never an escalation: neither of these may fire.
+reject=stderr:pattern=RFC 7606 session-reset

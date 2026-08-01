@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Scope | protocol |
 | Depends | `plan/spec-wire-edit-2-edit-apply.md` |
-| Phase | 1/6 |
+| Phase | 4/6 |
 | Deferral shard | `plan/deferrals/spec-wire-edit-3-aspath-fold.md` |
 | Updated | 2026-08-01 |
 

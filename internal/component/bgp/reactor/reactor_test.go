@@ -2308,6 +2308,7 @@ func TestReactorpauseAllReads(t *testing.T) {
 // PREVENTS: bgp-rs withdrawal propagation failing with "no peers match selector".
 func TestGetMatchingPeersExclusion(t *testing.T) {
 	r := &Reactor{
+		attrModHandlers: attrModHandlersWithDefaults(),
 		peers: map[netip.AddrPort]*Peer{
 			netip.MustParseAddrPort("127.0.0.1:179"): {settings: &PeerSettings{Address: mustParseAddr("127.0.0.1")}},
 			netip.MustParseAddrPort("127.0.0.2:179"): {settings: &PeerSettings{Address: mustParseAddr("127.0.0.2")}},

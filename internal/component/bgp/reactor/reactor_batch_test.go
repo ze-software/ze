@@ -191,8 +191,9 @@ func TestBuildBatchASPath_ExplicitAlreadyLeadingNotDoubled(t *testing.T) {
 // PREVENTS: Silent failure on bad peer selector.
 func TestAnnounceNLRIBatch_NoMatchingPeers(t *testing.T) {
 	r := &Reactor{
-		config: &Config{LocalAS: 65000},
-		peers:  make(map[netip.AddrPort]*Peer),
+		attrModHandlers: attrModHandlersWithDefaults(),
+		config:          &Config{LocalAS: 65000},
+		peers:           make(map[netip.AddrPort]*Peer),
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -212,8 +213,9 @@ func TestAnnounceNLRIBatch_NoMatchingPeers(t *testing.T) {
 // PREVENTS: Silent failure on bad peer selector.
 func TestWithdrawNLRIBatch_NoMatchingPeers(t *testing.T) {
 	r := &Reactor{
-		config: &Config{LocalAS: 65000},
-		peers:  make(map[netip.AddrPort]*Peer),
+		attrModHandlers: attrModHandlersWithDefaults(),
+		config:          &Config{LocalAS: 65000},
+		peers:           make(map[netip.AddrPort]*Peer),
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -248,8 +250,10 @@ func TestAnnounceNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 	})
 
 	r := &Reactor{
-		config: &Config{LocalAS: 65000},
-		peers:  map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		config:          &Config{LocalAS: 65000},
+		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -287,8 +291,10 @@ func TestWithdrawNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 	})
 
 	r := &Reactor{
-		config: &Config{LocalAS: 65000},
-		peers:  map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		config:          &Config{LocalAS: 65000},
+		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -320,8 +326,10 @@ func TestAnnounceNLRIBatch_QueueForNonEstablished(t *testing.T) {
 	peer.state.Store(int32(PeerStateActive))
 
 	r := &Reactor{
-		config: &Config{LocalAS: 65000},
-		peers:  map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		config:          &Config{LocalAS: 65000},
+		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -362,8 +370,10 @@ func TestWithdrawNLRIBatch_QueueForNonEstablished(t *testing.T) {
 	peer.state.Store(int32(PeerStateActive))
 
 	r := &Reactor{
-		config: &Config{LocalAS: 65000},
-		peers:  map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		config:          &Config{LocalAS: 65000},
+		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 

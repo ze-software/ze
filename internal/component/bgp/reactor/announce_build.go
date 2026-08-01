@@ -105,6 +105,7 @@ type announcePlanEntry struct {
 	code   uint8
 	flags  byte
 	ext    bool // the attribute declares the Extended Length header whatever its size
+	remove bool // the attribute leaves the UPDATE: the base carries it and the rail must not emit it
 }
 
 // announceAttrs collects the attributes one announce contributes and materializes
@@ -273,6 +274,29 @@ func (p *announceAttrs) add(attr attribute.Attribute, dstCtx *bgpctx.EncodingCon
 	}
 }
 
+// drop removes an attribute the BASE carries from the announce.
+//
+// It is the third thing a rail can say about a type code, beside contributing a
+// value and leaving the base alone, and it exists because a mandatory-attribute
+// rule can be a prohibition as well as an obligation: RFC 4271 Section 5.1.5
+// forbids LOCAL_PREF toward an external peer, and the caller's block is copied
+// through, so "say nothing" emits it.
+//
+// The base is not rewritten. The slot's kind makes the writer emit nothing for
+// that code, exactly as a filter handler's Drop does on the forward path, so the
+// removal costs a skipped copy rather than a memmove.
+func (p *announceAttrs) drop(code uint8) {
+	if p.failed {
+		return
+	}
+	if p.planned(code) {
+		p.fail("duplicate attribute type code")
+		return
+	}
+	p.plans = append(p.plans, announcePlanEntry{code: code, remove: true})
+	p.present[code>>6] |= uint64(1) << (code & 63)
+}
+
 // emit materializes the announce into dst and returns the bytes written.
 //
 // base is the caller's verbatim attribute block, or nil for an announce built
@@ -338,10 +362,14 @@ func (p *announceAttrs) emit(base, dst []byte) (int, bool) {
 			src = base[srcOff : srcOff+srcLen]
 		}
 		ap := edit.Attr(e.code, src, srcOff, srcLen, valOff, valLen, ops[i:i+1], i)
-		ap.Op(0)
-		if e.ext {
+		switch {
+		case e.remove:
+			ap.Drop()
+		case e.ext:
+			ap.Op(0)
 			ap.EmitExtended(e.flags, e.code)
-		} else {
+		default:
+			ap.Op(0)
 			ap.Emit(e.flags, e.code)
 		}
 		if id := edit.Commit(ap); edit.SlotFailed(id) {

@@ -405,6 +405,14 @@ func New(config *Config) *Reactor {
 	if maxEntries == 0 {
 		maxEntries = 1000000 // Default: 1M entries
 	}
+	// Built here rather than only in startAPIServer, which is where it used to be
+	// established. A nil map makes planAttr refuse every attribute edit and
+	// suppress the route, so a Reactor that forwards before the API server has
+	// started would drop routes for a reason that has nothing to do with them.
+	// Plugins register their handlers at init(), which is complete before New
+	// runs, so the map is fully populated here; startAPIServer rebuilding it
+	// later is harmless.
+	defaultAttrModHandlers := attrModHandlersWithDefaults()
 
 	// ze.fwd.chan.size overrides the per-destination forward pool channel capacity.
 	// Default: 64. Invalid/zero/negative values use default.
@@ -425,6 +433,7 @@ func New(config *Config) *Reactor {
 	initFwdWriteDeadline()
 
 	r := &Reactor{
+		attrModHandlers:   defaultAttrModHandlers,
 		config:            config,
 		clock:             clock.RealClock{},
 		dialer:            &network.RealDialer{},

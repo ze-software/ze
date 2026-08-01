@@ -120,7 +120,8 @@ func TestForwardUpdate_DispatchesToPool(t *testing.T) {
 
 	// Build reactor with test pool
 	r := &Reactor{
-		recentUpdates: cache,
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
 		peers: map[netip.AddrPort]*Peer{
 			src.Settings().PeerKey(): src,
 			settings.PeerKey():       peer,
@@ -231,7 +232,9 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates: cache,
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
 		peers: map[netip.AddrPort]*Peer{
 			src.Settings().PeerKey(): src,
 			peer1Settings.PeerKey():  peer1,
@@ -319,7 +322,9 @@ func TestForwardUpdate_DispatchToStoppedPool(t *testing.T) {
 	testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates: cache,
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
 		peers: map[netip.AddrPort]*Peer{
 			src.Settings().PeerKey(): src,
 			peerSettings.PeerKey():   peer,
@@ -1010,9 +1015,11 @@ func fastpathSetup(t *testing.T, nPeers int, msgID uint64) (
 	t.Cleanup(defaultPool.Stop)
 
 	r := &Reactor{
-		recentUpdates: cache,
-		peers:         peersMap,
-		fwdPool:       defaultPool,
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
+		peers:           peersMap,
+		fwdPool:         defaultPool,
 	}
 	adapter = &reactorAPIAdapter{r: r}
 	return adapter, peers, cache

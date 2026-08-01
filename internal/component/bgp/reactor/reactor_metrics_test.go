@@ -229,11 +229,13 @@ func TestUpdatePeriodicMetrics_SetsOverflowGauges(t *testing.T) {
 	}, time.Second, time.Millisecond)
 
 	r := &Reactor{
-		fwdPool:       pool,
-		rmetrics:      initReactorMetrics(reg, "test", "1.2.3.4", "65000"),
-		clock:         clock.RealClock{},
-		startTime:     time.Now().Add(-5 * time.Second),
-		recentUpdates: NewRecentUpdateCache(100),
+
+		attrModHandlers: attrModHandlersWithDefaults(),
+		fwdPool:         pool,
+		rmetrics:        initReactorMetrics(reg, "test", "1.2.3.4", "65000"),
+		clock:           clock.RealClock{},
+		startTime:       time.Now().Add(-5 * time.Second),
+		recentUpdates:   NewRecentUpdateCache(100),
 	}
 
 	r.updatePeriodicMetrics()
@@ -328,11 +330,12 @@ func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 
 	// Wire metrics and call updatePeriodicMetrics.
 	r := &Reactor{
-		fwdPool:       pool,
-		rmetrics:      initReactorMetrics(reg, "test", "1.2.3.4", "65000"),
-		clock:         clock.RealClock{},
-		startTime:     time.Now(),
-		recentUpdates: NewRecentUpdateCache(100),
+		attrModHandlers: attrModHandlersWithDefaults(),
+		fwdPool:         pool,
+		rmetrics:        initReactorMetrics(reg, "test", "1.2.3.4", "65000"),
+		clock:           clock.RealClock{},
+		startTime:       time.Now(),
+		recentUpdates:   NewRecentUpdateCache(100),
 	}
 
 	r.updatePeriodicMetrics()
