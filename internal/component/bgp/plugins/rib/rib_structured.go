@@ -159,6 +159,60 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	}
 	r.peerMu.Unlock()
 
+	// WITHDRAWALS RUN FIRST, AND THE ORDER IS LOAD-BEARING.
+	//
+	// RFC 4271 Section 4.3: "An UPDATE message SHOULD NOT include the same address
+	// prefix in the WITHDRAWN ROUTES and Network Layer Reachability Information
+	// fields. However, a BGP speaker MUST be able to process UPDATE messages in
+	// this form. A BGP speaker SHOULD treat an UPDATE message of this form as
+	// though the WITHDRAWN ROUTES do not contain the address prefix."
+	//
+	// Removing before inserting is what makes the announce win: the withdrawal
+	// lands on the previous state and the insert then re-adds the prefix, which is
+	// indistinguishable from the withdrawal never having named it. Inserting first
+	// left the prefix REMOVED, the opposite of what Section 4.3 asks for
+	// (RFC4271-4.3-5, RFC4271-4.3-7).
+	//
+	// All withdrawals precede all announces, across both the legacy sections and
+	// the multiprotocol ones, so the guarantee does not depend on which section
+	// carried the prefix.
+	ipv4Family := family.Family{AFI: 1, SAFI: 1}
+
+	// Process IPv4 unicast withdrawals (legacy Withdrawn section).
+	wdData, err := wu.Withdrawn()
+	if err == nil && len(wdData) > 0 {
+		addPath := ctx != nil && ctx.AddPath(ipv4Family)
+		if nlrisplit.Supported(ipv4Family) {
+			withdrawns, _ := nlrisplit.Split(ipv4Family, wdData, addPath)
+			for _, wd := range withdrawns {
+				peerRIB.Remove(ipv4Family, wd)
+				affected = append(affected, affectedPrefix{fam: ipv4Family, nlriBytes: wd, addPath: addPath})
+			}
+		}
+	}
+
+	// Process MP_UNREACH_NLRI withdrawals (multiprotocol families).
+	mpUnreach, err := wu.MPUnreach()
+	if err == nil && mpUnreach != nil {
+		fam := mpUnreach.Family()
+		if nlrisplit.Supported(fam) {
+			wdBytes := mpUnreach.WithdrawnBytes()
+			if len(wdBytes) > 0 {
+				addPath := ctx != nil && ctx.AddPath(fam)
+				withdrawns, _ := nlrisplit.Split(fam, wdBytes, addPath)
+				isLabeled := fam.SAFI == family.SAFIMPLSLabel
+				for _, wd := range withdrawns {
+					if isLabeled {
+						r.removeLabeled(peerRIB, fam, wd, addPath, &affected)
+					} else {
+						peerRIB.Remove(fam, wd)
+						affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wd, addPath: addPath})
+					}
+				}
+			}
+		}
+	}
+
 	// Parse attributes once for all announcements in this UPDATE.
 	// An UPDATE carries one attribute block shared by all announced NLRIs.
 	// Parsing per-NLRI was the dominant RIB allocation site (~57% of space).
@@ -176,7 +230,6 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	}
 
 	// Process IPv4 unicast announces (legacy NLRI section).
-	ipv4Family := family.Family{AFI: 1, SAFI: 1}
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
@@ -196,19 +249,6 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 					peerRIB.Insert(ipv4Family, attrBytes, wirePrefix, asn4)
 				}
 				affected = append(affected, affectedPrefix{fam: ipv4Family, nlriBytes: wirePrefix, addPath: addPath})
-			}
-		}
-	}
-
-	// Process IPv4 unicast withdrawals (legacy Withdrawn section).
-	wdData, err := wu.Withdrawn()
-	if err == nil && len(wdData) > 0 {
-		addPath := ctx != nil && ctx.AddPath(ipv4Family)
-		if nlrisplit.Supported(ipv4Family) {
-			withdrawns, _ := nlrisplit.Split(ipv4Family, wdData, addPath)
-			for _, wd := range withdrawns {
-				peerRIB.Remove(ipv4Family, wd)
-				affected = append(affected, affectedPrefix{fam: ipv4Family, nlriBytes: wd, addPath: addPath})
 			}
 		}
 	}
@@ -242,28 +282,6 @@ func (r *RIBManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 							peerRIB.Insert(fam, attrBytes, wirePrefix, asn4)
 						}
 						affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wirePrefix, addPath: addPath})
-					}
-				}
-			}
-		}
-	}
-
-	// Process MP_UNREACH_NLRI withdrawals (multiprotocol families).
-	mpUnreach, err := wu.MPUnreach()
-	if err == nil && mpUnreach != nil {
-		fam := mpUnreach.Family()
-		if nlrisplit.Supported(fam) {
-			wdBytes := mpUnreach.WithdrawnBytes()
-			if len(wdBytes) > 0 {
-				addPath := ctx != nil && ctx.AddPath(fam)
-				withdrawns, _ := nlrisplit.Split(fam, wdBytes, addPath)
-				isLabeled := fam.SAFI == family.SAFIMPLSLabel
-				for _, wd := range withdrawns {
-					if isLabeled {
-						r.removeLabeled(peerRIB, fam, wd, addPath, &affected)
-					} else {
-						peerRIB.Remove(fam, wd)
-						affected = append(affected, affectedPrefix{fam: fam, nlriBytes: wd, addPath: addPath})
 					}
 				}
 			}

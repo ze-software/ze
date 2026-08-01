@@ -200,13 +200,13 @@ A tag in a carrier nothing executes is REFUSED by `make ze-rfc-check`, not liste
 
 ## Audit coverage
 
-49 of 1534 auditable requirement(s) carry a `/ze-rfc-audit` verdict (3.19%), across 1 of 168 enrolled RFC(s). **Auditable** = gated, enrolled, and polarity coverage complete: a pair of tests, or one test over a `{single-polarity}` line saying why the other cannot exist. Until then there is nothing for an auditor to judge.
+49 of 1535 auditable requirement(s) carry a `/ze-rfc-audit` verdict (3.19%), across 1 of 168 enrolled RFC(s). **Auditable** = gated, enrolled, and polarity coverage complete: a pair of tests, or one test over a `{single-polarity}` line saying why the other cannot exist. Until then there is nothing for an auditor to judge.
 
 **Proven** (49) is the count that means what the badge implies: a verdict of `enforced` -- the tests would fail if the code stopped complying -- that is still fresh. It is NOT the **Both** column of the rollup above: that one answers which polarities exist, and a requirement can have both and still be judged `weak`. Every one of the 3 verdict(s) that is audited but not proven is named below with its verdict, so no requirement can read as proven and weak at once.
 
-The remaining 1485 carry no verdict at all. That is not a violation: the audit is sampled and the gate is total, so a missing verdict never fails `make ze-rfc-check`. It is published because an unmeasured semantic half is indistinguishable from a clean one.
+The remaining 1486 carry no verdict at all. That is not a violation: the audit is sampled and the gate is total, so a missing verdict never fails `make ze-rfc-check`. It is published because an unmeasured semantic half is indistinguishable from a clean one.
 
-Two partitions over two populations, because one denominator cannot carry both questions. **Requirements:** `Auditable` (1534) = `Audited` (49) + `Unaudited` (1485). **Records:** all 52 recorded verdict(s) = `Proven` (49) + `Not proven` (3), and the worklist below names every one of those 3. A verdict can sit on a requirement that is not auditable -- an annotated `{gap}` or `{not-applicable}` line carries no tagged test -- so the record totals are the wider of the two and are never a subset of `Audited`.
+Two partitions over two populations, because one denominator cannot carry both questions. **Requirements:** `Auditable` (1535) = `Audited` (49) + `Unaudited` (1486). **Records:** all 52 recorded verdict(s) = `Proven` (49) + `Not proven` (3), and the worklist below names every one of those 3. A verdict can sit on a requirement that is not auditable -- an annotated `{gap}` or `{not-applicable}` line carries no tagged test -- so the record totals are the wider of the two and are never a subset of `Audited`.
 
 | RFC | Auditable | Audited | Proven | Not proven | Unaudited |
 |---|---|---|---|---|---|
@@ -250,7 +250,7 @@ Two partitions over two populations, because one denominator cannot carry both q
 | `rfc3954` | 4 | 0 | 0 | 0 | 4 |
 | `rfc4035` | 14 | 0 | 0 | 0 | 14 |
 | `rfc4090` | 11 | 0 | 0 | 0 | 11 |
-| `rfc4271` | 53 | 0 | 0 | 0 | 53 |
+| `rfc4271` | 54 | 0 | 0 | 0 | 54 |
 | `rfc4301` | 8 | 0 | 0 | 0 | 8 |
 | `rfc4303` | 3 | 0 | 0 | 0 | 3 |
 | `rfc4360` | 2 | 0 | 0 | 0 | 2 |
@@ -2069,9 +2069,9 @@ Signed off by register: rfc2119 1, prose 0, manual-walk 1. Unsigned (grandfather
 | `RFC4271-4.3-2` | MUST | 4.3 | `internal/core/bgp/attribute/rfc4271_test.go:55` (unit/verify) | `internal/component/bgp/plugins/rib/storage/rfc4271_test.go:47` (unit/verify) |  |
 | `RFC4271-4.3-3` | MUST | 4.3 | `internal/core/bgp/attribute/rfc4271_test.go:80` (unit/verify) | -- | {single-polarity} the obligation is on the sender -- the flags octet ze writes must have its low-order four bits zero -- so there is no non-conformant input to reject. The receive-side mirror of the same rule ("MUST be ignored when received") is RFC4271-4.3-4 and is proven both ways there |
 | `RFC4271-4.3-4` | MUST | 4.3 | `internal/component/bgp/message/rfc4271_test.go:241` (unit/verify) | `internal/component/bgp/message/rfc4271_test.go:268` (unit/verify) |  |
-| `RFC4271-4.3-5` | MUST | 4.3 | -- | -- | {gap} ze processes such an UPDATE without erroring, but it applies the announce first and the withdrawal second, so the prefix ends up removed instead of installed: handleReceivedStructured inserts every NLRI (internal/component/bgp/plugins/rib/rib_structured.go:180-200) before it removes every withdrawn prefix (:203-213), and both are appended to the same `affected` list that Phase 3 re-evaluates (:271-286). RFC 4271 Section 4.3 requires the prefix to be treated as if it were not in the WITHDRAWN field |
+| `RFC4271-4.3-5` | MUST | 4.3 | `internal/component/bgp/plugins/rib/rib_rfc4271_mixed_update_test.go:35` (unit/verify) | -- | {single-polarity} the obligation is to ACCEPT a message shape, so there is no non-conformant input to reject -- every UPDATE of this form must be processed, and a negative case would have to assert the absence of an error, which proves nothing (ai/rules/tdd.md). The consequence the same paragraph asks for, treating the UPDATE as though WITHDRAWN did not contain the prefix, is RFC4271-4.3-7 and is proven by the same test |
 | `RFC4271-4.3-6` | SHOULD | 4.3 | -- | -- |  |
-| `RFC4271-4.3-7` | SHOULD | 4.3 | -- | -- |  |
+| `RFC4271-4.3-7` | SHOULD | 4.3 | `internal/component/bgp/plugins/rib/rib_rfc4271_mixed_update_test.go:38` (unit/verify) | -- |  |
 | `RFC4271-4.4-1` | MUST NOT | 4.4 | `internal/component/bgp/fsm/rfc4271_test.go:18` (unit/verify) | `internal/component/bgp/fsm/rfc4271_test.go:50` (unit/verify) |  |
 | `RFC4271-4.4-2` | MUST NOT | 4.4 | `internal/component/bgp/fsm/timer_test.go:142` (unit/verify) | `internal/component/bgp/fsm/timer_test.go:409` (unit/verify) |  |
 | `RFC4271-5-1` | MUST | 5 | `internal/component/bgp/message/rfc4271_test.go:472` (unit/verify) | `internal/component/bgp/message/rfc4271_test.go:501` (unit/verify) |  |
