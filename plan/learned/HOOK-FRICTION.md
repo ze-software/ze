@@ -1418,3 +1418,156 @@ and never compiles. A tag in a file that fails `go vet` is not evidence.
    to compile proves nothing, so nothing can be weakened by editing it.
 2. Make `check_coverage_ratchet` refuse a tag whose file does not compile. It is
    the difference between a green gate and a green gate that means something.
+
+---
+
+## `stress-repro.py` silently falls back to stale `bin/ze-test` and calls it a REPRODUCTION
+
+**Date:** 2026-08-01. **Tool:** `scripts/dev/stress-repro.py`.
+
+**What happened.** Proving a new `.ci` under load with
+`stress-repro.py "bgp plugin --draft" --test 1 --any-failure` reported
+`*** REPRODUCED on invocation 1 (exit 2) ***` on a test that passes. The capture
+file held only its own header: no stdout, no stderr, no test output.
+
+The run never reached a test. `_bin_from_env` falls back to `bin/ze-test` when
+neither `ze.test.bin` nor `ZE_TEST_BIN` is set, and this checkout's `bin/ze-test`
+was three weeks old and predates `--draft`. The real output was
+`flag provided but not defined: -draft`, exit 2.
+
+**Why it costs time.** A load reproducer exists to answer "is my test flaky". It
+answered "yes, on the first invocation" when the truth was "your runner is stale".
+The failure is indistinguishable from a genuine assertion flake by exit code, and
+the empty capture removes the one thing that would disambiguate it. The script
+already has a "never reached a test" hint path, and it did not fire here.
+
+**Workaround.** Pass the session binaries explicitly, which is what the make
+targets do:
+
+```
+env ZE_BIN=$PWD/bin/ze-<sid> ZE_TEST_BIN=$PWD/bin/ze-test-<sid> \
+    python3 scripts/dev/stress-repro.py "bgp plugin --draft" --test 1 --any-failure
+```
+
+**Suggested fixes.** Any one of these closes it.
+
+1. Put the child's stdout and stderr in the capture on EVERY reproduction, not
+   only on a recognised signature. The usage message was already in hand.
+2. Refuse to start when the resolved binary is older than the newest `.go` or
+   `.ci` under the suite, naming the path and its mtime. Under an AI session the
+   canonical binary is `bin/<name>-<session-id>`, so a bare `bin/ze-test` is
+   nearly always the wrong one (`ai/rules/bash-output.md`).
+3. Treat "exit non-zero with empty output" as a tooling error rather than a
+   reproduction: no test ran, so nothing was reproduced.
+
+## `check_test_deletion` has no path for an agent-created file the operator authorised
+
+**Date:** 2026-08-01
+**Hook:** `check_test_deletion`, `.claude/hooks/pretool-bash.py`
+**Category:** tooling friction, blocking with no escape
+
+**What happened.** A `.ci` was copied from `test/draft/ipsec/` into `test/ipsec/`
+to run it through the real make target. It failed, so it needed to come back out.
+Removing it is a one-line `rm` of a file created minutes earlier, whose original
+is still in the incubator. The operator authorised the removal three times, twice
+in answer to a direct question.
+
+The hook blocked all three attempts. It fires on any `rm` whose command TEXT
+matches `\.ci`, with no condition on whether the file is tracked, how old it is,
+or whether it duplicates another. It returns exit 2 with "user approval required",
+which is a message meant for an interactive approval dialog. In an agent session
+that dialog is surfaced to the model as an error, so the approval it asks for
+cannot be given from the side that is asking.
+
+**Why it costs time.** The stray file left the `ipsec` functional suite red at
+12/13, and `commit_helper.py create` gates on a green verify, so it blocked EVERY
+commit in the session until a human ran the command. Reformulating the `rm` to
+dodge the pattern would work and is the wrong answer: rewording a command to slip
+past a safety hook is the failure mode the rules exist to stop.
+
+**The general case.** Any agent that promotes a draft test, finds it red, and
+tries to withdraw it hits this. The promote-then-withdraw loop is the workflow
+`ai/rules/testing.md` prescribes ("Draft a Functional Test Before It Is Live"), so
+the hook blocks the recovery step of a documented procedure.
+
+**Suggested fixes.** Any one of these closes it.
+
+1. Allow the removal when the path is UNTRACKED (`git ls-files --error-unmatch`
+   fails). Untracked means no committed coverage can be lost, which is the whole
+   property the hook protects.
+2. Allow it when an identical file exists under `test/draft/`, which is exactly
+   the withdraw-a-promotion case.
+3. Give it the same operator-ack escape the other blocking gates carry, a file
+   under `tmp/session/`, so a human decision can reach the hook rather than only
+   the model.
+
+## Filed 2026-08-01 (bgp-update-withdraw-order): `c_rfc_tagged_test` blocks ADDING a test to a file whose tags you just wrote
+
+**What happened.** I created `rib_rfc4271_mixed_update_test.go` with two tagged
+tests, then appended two more covering the sibling code paths. The append needed
+three new imports. The guard refused the import edit, naming the very tags I had
+added minutes earlier.
+
+The cause is scope, not intent. `rfc_tagged_scope.tag_scope` widens to the WHOLE
+FILE when a hunk sits outside every function, and an import block always does. So
+any edit to the import list of a tagged file reads as a change to every tagged
+test in it, whatever the edit actually does.
+
+**Why it costs time.** The blocked edit left the package uncompilable: the two new
+tests were already in the file and their imports were not. Recovery needed an
+operator decision, because `// test-relax:` explicitly does not satisfy this guard
+and the restore-from-HEAD route is forbidden. A second round trip went on
+discovering that the `rfc-test-change-approved:` marker must appear INSIDE the
+edited hunk. Putting it at the top of the file, which is where a reader would look
+for it, does not satisfy the check.
+
+**The general case.** Adding coverage to a file that already proves an RFC
+obligation is the normal way coverage grows, and `ai/rules/no-test-deletion.md`
+prescribes exactly that ("ADD a new test case or function for the new issue").
+The guard cannot distinguish it from a rewrite, so growing a tagged file always
+costs an operator approval even when no existing assertion is touched.
+
+**Suggested fixes.** Any one of these closes it.
+
+1. Exempt a hunk that only adds import lines. An import cannot weaken an
+   assertion, and `goimports` rewrites that block routinely.
+2. Compare the set of tagged UNITS before and after. A pure addition leaves every
+   existing tagged function byte-identical, which is checkable and is the property
+   the guard actually cares about.
+3. Say in the refusal that the marker must sit in the edited hunk. The message
+   shows the marker's syntax but not its required position, which is the part that
+   cost the second round trip.
+
+## Filed 2026-08-01 (bgp-update-withdraw-order): "regen the ledger in the SAME commit" cannot be obeyed in a shared checkout
+
+**What happened.** `ai/rules/testing.md` requires that adding or moving an
+`RFC requirement:` tagged test be accompanied by `make ze-rfc-index` and a
+committed `ai/RFC-REQUIREMENTS.md`, in the same commit. I added two tagged tests
+and could not comply. The ledger is a WHOLE-TREE derivative, and a concurrent
+session held uncommitted tagged tests of its own, so every regeneration also
+captured their in-flight `file:line` positions.
+
+Committing it would have swept their work into a commit titled as a BGP fix.
+Omitting it left the ledger stale, which reds four `ze-verify` stages at once
+(`ze-rfc-check`, `ze-doc-test`, `ze-verify-wiring-docs` and `ze-unit-test-cached`,
+all one cause).
+
+**How it resolved, which is the interesting part.** The other session committed
+first, and its regeneration carried MY two rows into `HEAD`. The content landed
+correctly and only the attribution moved, which is the case
+`ai/rules/git-safety.md` already describes for shared files and tells you not to
+rewrite.
+
+**The general case.** Any generated file derived from the whole tree has this
+property. It can be committed truthfully only when no other session holds
+uncommitted sources for it. The rule as written assumes a quiet checkout.
+
+**Suggested fixes.**
+
+1. State the exception in `ai/rules/testing.md`: when a concurrent session holds
+   uncommitted tagged tests, omit the ledger, say so in the commit body, and let
+   the next regeneration carry the rows. That is what happened here, and it was
+   the right outcome.
+2. Or have `commit_helper.py` detect it. It already materialises a commit view for
+   the discovery-index gate, so it could downgrade the ledger requirement to a
+   warning naming the other session's files.
