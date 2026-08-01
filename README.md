@@ -71,7 +71,7 @@ If you are an ExaBGP user, we would love your feedback on the migration experien
 | Functional tests | 1,460+ `.ci` files and 160+ `.et` editor tests: config parsing, wire encoding, plugin behavior, reloads, UI/editor flows, L2TP, firewall, and web |
 | Fuzz testing | 70+ targets covering external input parsing as of 2026-07 |
 | Chaos testing | Deterministic replay with [configurable scenarios](docs/guide/chaos-testing.md) |
-| RFC requirement gate | 2,700+ MUST-level requirements across 166 enrolled RFCs and drafts, each proven by a positive and a negative test or annotated with a reason. See [RFC status](docs/features/rfc-status.md) |
+| RFC requirement gate | 2,900+ MUST-level requirements across 168 enrolled RFCs, drafts, and specifications, each proven by a positive and a negative test or annotated with a recorded reason, and every gap disclosed on the status ledger. See [how compliance is enforced](https://github.com/ze-software/ze/wiki/rfc-implementation) and the [RFC status ledger](docs/features/rfc-status.md) |
 
 ### Deployment
 
@@ -121,6 +121,7 @@ Requires **Go 1.26+** on a macOS or Linux development host. Windows is not a sup
 | **[User Guide](docs/guide/)** | Configuration, plugins, operations, and feature guides |
 | **[Design Document](docs/DESIGN.md)** | Full design rationale, wire format details, performance analysis |
 | **[Feature Inventory](docs/features.md)** | Protocols, attributes, capabilities, CLI commands |
+| **[RFC Compliance](https://github.com/ze-software/ze/wiki/rfc-implementation)** | How each MUST-level requirement is bound to tests, and where the gaps are published |
 | **[Command Reference](docs/guide/command-reference.md)** | All shell and runtime commands |
 | **[Plugin Development](docs/plugin-development/)** | Writing external plugins, IPC protocol, SDK |
 | **[Comparison](docs/comparison.md)** | Ze vs FRR, BIRD, GoBGP, OpenBGPd, and others |

@@ -257,6 +257,33 @@ limited English cannot look up, because a dictionary gives the wrong meaning.
 | `footgun`, `gnarly`, `hairy` | name the actual risk |
 | `sanity check` | validate, or verify |
 
+**Use the plain word unless the technical one earns its place.** Write for a
+capable reader who knows computing but not this repository: a good teacher does
+not simplify the idea, only the words around it. Reach for a technical term when
+it names something exactly and the plain word would lose that meaning. Everywhere
+else the plain word is the better one, and a term the reader must decode is a
+cost with no return.
+
+The test is whether you would say the sentence out loud to a colleague who has
+not read our code. If you would not, write the sentence you would say.
+
+| Avoid | Write |
+|-------|-------|
+| `N gated requirements` | N requirements the check enforces |
+| `the feature is gated behind ze_bgp` | the feature is compiled out unless `ze_bgp` is set |
+| `surface`, `artifact`, `mechanism` where a plain noun fits | the page, the file, the check |
+| `leverage`, `utilize`, `perform validation of` | use, use, validate |
+| `the request is serviced by the handler` | the handler answers the request |
+
+`gated` is the standing example of a word to remove. It tells the reader that
+something is restricted, but not by what. Name the thing that restricts.
+
+The opposite mistake is real too. Terms the code defines are exact, and replacing
+them breaks the link between the prose and the code. `carrier`, `polarity` and
+`disposition` name `CARRIERS`, the `RFC requirement: <ID> <polarity>` tag
+grammar, and the classification in `rfc/extraction/*.json`. Keep those, and
+expand them on first use.
+
 **Three words in a noun stack, no more.** The head noun is usually the last word,
 so every modifier in front of it is one more thing to hold. Break a longer stack
 with a preposition. Hyphens bind words into one unit, and three units is still
