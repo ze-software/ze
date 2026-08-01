@@ -103,7 +103,9 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 
 		switch action {
 		case "option":
-			parseOptionConfig(config, lineType, kv)
+			if err := parseOptionConfig(config, lineType, kv); err != nil {
+				return nil, nil, fmt.Errorf("line %d: %w", lineNum, err)
+			}
 
 		case "expect", "action":
 			// Pass through the ze-peer-consumed directives only:
@@ -126,7 +128,11 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 }
 
 // parseOptionConfig parses option lines into Config.
-func parseOptionConfig(config *Config, optType string, kv map[string]string) {
+//
+// It returns an error only for a directive whose misreading would make a test
+// assert against an input it never sent. Most options still fail soft, which is
+// the long-standing behavior of this parser and is not changed here.
+func parseOptionConfig(config *Config, optType string, kv map[string]string) error {
 	switch optType {
 	case "file":
 		// Ignored - handled by test runner
@@ -244,9 +250,67 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) {
 				}
 			}
 			config.SendRoutes = append(config.SendRoutes, route)
+		case "send-bulk":
+			spec, err := parseBulkSpec(kv)
+			if err != nil {
+				return err
+			}
+			config.SendBulk = append(config.SendBulk, spec)
 		}
 
 	case "timeout", "env":
 		// Ignored - handled by test runner
 	}
+	return nil
+}
+
+// parseBulkSpec reads option=update:value=send-bulk into an InjectSpec.
+//
+// Keys: prefix, count, next-hop, origin-as, max-msg (optional, default 4096),
+// eor (optional, "true" appends an End-of-RIB marker).
+//
+// Every key is validated and a bad one is an error rather than a zero value: a
+// spec that silently degrades to count=0 sends nothing, and a test asserting
+// that a route was NOT forwarded would then pass for the wrong reason
+// (ai/rules/fail-closed-guards.md).
+func parseBulkSpec(kv map[string]string) (InjectSpec, error) {
+	spec := InjectSpec{}
+
+	prefix, err := netip.ParsePrefix(kv["prefix"])
+	if err != nil {
+		return spec, fmt.Errorf("send-bulk prefix %q: %w", kv["prefix"], err)
+	}
+	spec.Prefix = prefix
+
+	count, err := strconv.Atoi(kv["count"])
+	if err != nil || count < 1 {
+		return spec, fmt.Errorf("send-bulk count %q: want a positive integer", kv["count"])
+	}
+	spec.Count = count
+
+	nextHop, err := netip.ParseAddr(kv["next-hop"])
+	if err != nil {
+		return spec, fmt.Errorf("send-bulk next-hop %q: %w", kv["next-hop"], err)
+	}
+	spec.NextHop = nextHop
+
+	asn, err := strconv.ParseUint(kv["origin-as"], 10, 32)
+	if err != nil {
+		return spec, fmt.Errorf("send-bulk origin-as %q: want a 32-bit ASN", kv["origin-as"])
+	}
+	spec.ASN = uint32(asn) //nolint:gosec // G115: bounded by ParseUint's 32-bit width
+
+	if v := kv["max-msg"]; v != "" {
+		maxMsg, err := strconv.Atoi(v)
+		if err != nil || maxMsg < bgpEORLen || maxMsg > bgpExtMsgLen {
+			return spec, fmt.Errorf("send-bulk max-msg %q: want %d..%d", v, bgpEORLen, bgpExtMsgLen)
+		}
+		spec.MaxMsgLen = maxMsg
+	}
+
+	// Default false: the EOR marker is a separate message, and a test that
+	// asserts on frame sequence must be able to choose whether one arrives.
+	spec.EndOfRIB = kv["eor"] == optTrue
+
+	return spec, nil
 }

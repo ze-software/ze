@@ -1,8 +1,11 @@
 package peer
 
 import (
+	"encoding/binary"
+	"net/netip"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -150,3 +153,138 @@ func TestLoadExpectFileRouterIDOverride(t *testing.T) {
 }
 
 func ptrUint32(v uint32) *uint32 { return new(v) }
+
+// TestLoadExpectFileSendBulkBoundaries pins the max-msg range.
+//
+// VALIDATES: option=update:value=send-bulk accepts max-msg over the whole legal
+// BGP message range and refuses one octet outside it at either end.
+// PREVENTS: a max-msg typo being clamped or ignored, which would send a
+// STANDARD-sized message where the test needs an RFC 8654 oversize one -- the
+// daemon then takes a different branch and the test passes against the wrong
+// input.
+func TestLoadExpectFileSendBulkBoundaries(t *testing.T) {
+	tests := []struct {
+		name    string
+		maxMsg  string
+		want    int
+		wantErr bool
+	}{
+		{"omitted defaults to RFC 4271", "", 0, false},
+		{"first valid: bare EOR", "23", 23, false},
+		{"invalid below", "22", 0, true},
+		{"standard ceiling", "4096", 4096, false},
+		{"last valid: RFC 8654 ceiling", "65535", 65535, false},
+		{"invalid above", "65536", 0, true},
+		{"not a number", "big", 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opt := "option=update:value=send-bulk:prefix=10.0.0.0/24:count=10:next-hop=10.0.0.1:origin-as=65001"
+			if tt.maxMsg != "" {
+				opt += ":max-msg=" + tt.maxMsg
+			}
+			path := filepath.Join(t.TempDir(), "expect.msg")
+			require.NoError(t, os.WriteFile(path, []byte(opt+"\n"), 0o600))
+
+			_, config, err := LoadExpectFile(path)
+			if tt.wantErr {
+				require.Error(t, err, "a max-msg outside the legal range must fail the load")
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, config.SendBulk, 1)
+			assert.Equal(t, tt.want, config.SendBulk[0].MaxMsgLen)
+		})
+	}
+}
+
+// TestLoadExpectFileSendBulkRejectsBadSpec pins the fail-closed contract.
+//
+// VALIDATES: every malformed send-bulk key fails the load rather than yielding a
+// zero-valued spec.
+// PREVENTS: the worst shape for this directive -- a spec that degrades to
+// count=0 sends NOTHING, so a test asserting a route was not forwarded passes
+// because no route was ever offered (ai/rules/fail-closed-guards.md).
+func TestLoadExpectFileSendBulkRejectsBadSpec(t *testing.T) {
+	base := map[string]string{
+		"prefix":    "10.0.0.0/24",
+		"count":     "10",
+		"next-hop":  "10.0.0.1",
+		"origin-as": "65001",
+	}
+	tests := []struct {
+		name string
+		key  string
+		val  string
+	}{
+		{"missing prefix", "prefix", ""},
+		{"prefix is a bare address", "prefix", "10.0.0.0"},
+		{"count zero", "count", "0"},
+		{"count negative", "count", "-1"},
+		{"count not a number", "count", "many"},
+		{"missing next-hop", "next-hop", ""},
+		{"next-hop not an address", "next-hop", "nowhere"},
+		{"missing origin-as", "origin-as", ""},
+		{"origin-as past 32 bits", "origin-as", "4294967296"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var sb strings.Builder
+			sb.WriteString("option=update:value=send-bulk")
+			for k, v := range base {
+				if k == tt.key {
+					v = tt.val
+				}
+				sb.WriteString(":" + k + "=" + v)
+			}
+			opt := sb.String()
+			path := filepath.Join(t.TempDir(), "expect.msg")
+			require.NoError(t, os.WriteFile(path, []byte(opt+"\n"), 0o600))
+
+			_, config, err := LoadExpectFile(path)
+			require.Error(t, err, "a malformed send-bulk spec must fail the load, not send nothing")
+			assert.Nil(t, config, "a failed load must not hand back a half-built config")
+		})
+	}
+}
+
+// TestSendBulkBuildsOneOversizeMessage pins the reason this directive exists.
+//
+// VALIDATES: a spec whose max-msg is raised to the RFC 8654 ceiling produces ONE
+// message larger than RFC 4271 allows, rather than several standard ones.
+// PREVENTS: the generator silently splitting the prefixes, which would hand the
+// daemon many small UPDATEs -- a different input, decided per message, and one
+// that cannot reach a path whose trigger is a single oversize body.
+func TestSendBulkBuildsOneOversizeMessage(t *testing.T) {
+	spec := InjectSpec{
+		Prefix:    netip.MustParsePrefix("10.0.0.0/24"),
+		Count:     16373,
+		NextHop:   netip.MustParseAddr("10.0.0.1"),
+		ASN:       65001,
+		MaxMsgLen: bgpExtMsgLen,
+	}
+	data, msgs, err := BuildUpdates(spec)
+	require.NoError(t, err)
+	assert.Equal(t, 1, msgs, "16373 /24 prefixes must fit one extended message")
+	require.Len(t, data, bgpExtMsgLen)
+
+	// The length field is the daemon's own framing input, so assert on it
+	// rather than on len(data) alone.
+	assert.Equal(t, uint16(bgpExtMsgLen), binary.BigEndian.Uint16(data[16:18]))
+	assert.Equal(t, byte(MsgUPDATE), data[18])
+
+	// The body is exactly maxUpdateBody (reactor/forward_build.go), which is what
+	// makes any egress addition overflow. If this number moves, the .ci that
+	// depends on it (test/plugin/modify-oversize-suppress.ci) is testing
+	// something else.
+	assert.Equal(t, 65516, len(data)-HeaderLen)
+
+	// The same spec at the default ceiling must NOT be one message, or the
+	// max-msg knob would be doing nothing.
+	spec.MaxMsgLen = 0
+	_, stdMsgs, err := BuildUpdates(spec)
+	require.NoError(t, err)
+	assert.Greater(t, stdMsgs, 1, "at the RFC 4271 ceiling the same prefixes must split")
+}

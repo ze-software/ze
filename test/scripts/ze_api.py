@@ -1508,6 +1508,132 @@ class API:
             delay=delay,
         )
 
+    def _peer_row_or_fail(self, addr: str, what: str) -> dict:
+        """Return one peer's detail row, or `runtime_fail` naming what is missing.
+
+        Deliberately NOT ``peer_counter``: that helper sums across matching peers
+        and returns its ``default`` when no row exists, so an absent peer reads as
+        the counter value 0. For a per-peer ABSENCE claim both behaviours are
+        wrong -- a missing row would satisfy "nothing was sent" for the wrong
+        reason (ai/rules/fail-closed-guards.md).
+        """
+        rows = self.peer_fields(addr)
+        row = rows.get(addr)
+        if not isinstance(row, dict) or not row:
+            runtime_fail(f"{what}: no peer row for {addr}; rows={sorted(rows)}")
+        return row
+
+    def assert_peer_received_only_eor(
+        self,
+        peer_addr: str,
+        source_addr: str | None = None,
+        expected_peers: int = 1,
+        families: int = 1,
+    ) -> None:
+        """Assert `peer_addr` was sent its End-of-RIB and NOTHING else.
+
+        This is the "the route did not reach this peer" assertion, and the whole
+        difficulty is that an absence is satisfied just as well by a daemon that
+        never got as far as deciding. Four things therefore have to hold before
+        the absence means anything, and each one `runtime_fail`s by itself:
+
+        1. ze wrote its initial-sync EOR to `expected_peers` peers
+           (:meth:`wait_peer_eor_sent`), so no session is still establishing.
+        2. :meth:`quiesce` settled, which drains the forward pool AND each peer's
+           initial-sync opQueue. After it returns the destination has either been
+           sent the route or refused it, which is what makes "still zero" a
+           statement about a DECISION rather than about timing.
+        3. `source_addr`, when given, received at least one UPDATE, so ze actually
+           had something to leak. Pass it whenever the route arrives from a peer.
+           Leaving it None is only correct when the caller proves ingress another
+           way, and a caller that does neither is asserting nothing.
+        4. `peer_addr` has a row, is established, and its ``eor-sent`` has reached
+           `families`. Below that the subtraction under-counts and would report a
+           leak as zero.
+
+        The leak count is ``updates-sent - eor-sent``: ``updates-sent`` counts
+        EVERY UPDATE including each EOR marker, so the difference is exactly the
+        routes that were not the marker.
+
+        Do NOT rely on the peer block's ``expect=bgp:`` frames for this. Once a
+        peer's expectations are satisfied it enters the linger loop, which reads
+        and DISCARDS whatever arrives (``Peer.completed``,
+        internal/test/peer/peer.go), so a leaked UPDATE after the EOR is
+        swallowed. Those frames prove the EOR arrived; they cannot prove nothing
+        followed it.
+        """
+        if not self.wait_peer_eor_sent(expected_peers=expected_peers):
+            runtime_fail(
+                f"ze never sent an initial-sync EOR to {expected_peers} peer(s); "
+                f"the forwarding decision for {peer_addr} was never reached"
+            )
+        if not self.quiesce():
+            runtime_fail(
+                f"quiesce barrier did not settle; the forwarding decision for "
+                f"{peer_addr} may not have been made yet"
+            )
+
+        if source_addr is not None:
+            source = self._peer_row_or_fail(source_addr, "source peer")
+            received = int(source.get("updates-received", 0) or 0)
+            if received < 1:
+                runtime_fail(
+                    f"source peer {source_addr} never delivered an UPDATE to ze "
+                    f"(updates-received={received}); the absence asserted below "
+                    f"would hold because nothing was offered: {source}"
+                )
+
+        dest = self._peer_row_or_fail(peer_addr, "destination peer")
+        state = str(dest.get("state", "")).lower()
+        if state != "established":
+            runtime_fail(
+                f"destination peer {peer_addr} is {state!r}, not established; a "
+                f"peer that is down is not a peer that was withheld from: {dest}"
+            )
+        eor_sent = int(dest.get("eor-sent", 0) or 0)
+        if eor_sent < families:
+            runtime_fail(
+                f"destination peer {peer_addr} has eor-sent={eor_sent}, want "
+                f">= {families}; the leak count below would under-report: {dest}"
+            )
+
+        leaked = int(dest.get("updates-sent", 0) or 0) - eor_sent
+        if leaked != 0:
+            runtime_fail(
+                f"{leaked} UPDATE(s) beyond the End-of-RIB reached {peer_addr}, "
+                f"which the policy was supposed to withhold: {dest}"
+            )
+
+    def assert_peer_received_beyond_eor(
+        self,
+        peer_addr: str,
+        minimum: int = 1,
+        expected_peers: int = 1,
+    ) -> int:
+        """Assert `peer_addr` was sent at least `minimum` UPDATEs beyond its EOR.
+
+        The positive mirror of :meth:`assert_peer_received_only_eor`, sharing its
+        barriers so the two cannot drift apart. Returns the count, so a caller can
+        assert further on it.
+        """
+        if not self.wait_peer_eor_sent(expected_peers=expected_peers):
+            runtime_fail(
+                f"ze never sent an initial-sync EOR to {expected_peers} peer(s)"
+            )
+        if not self.quiesce():
+            runtime_fail(f"quiesce barrier did not settle before reading {peer_addr}")
+
+        dest = self._peer_row_or_fail(peer_addr, "destination peer")
+        delivered = int(dest.get("updates-sent", 0) or 0) - int(
+            dest.get("eor-sent", 0) or 0
+        )
+        if delivered < minimum:
+            runtime_fail(
+                f"{peer_addr} was sent {delivered} UPDATE(s) beyond its "
+                f"End-of-RIB, want >= {minimum}: {dest}"
+            )
+        return delivered
+
     def wait_peers_established(
         self,
         expected_peers: int = 1,

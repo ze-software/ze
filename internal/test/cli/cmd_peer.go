@@ -197,6 +197,9 @@ func zeTestMergePeerFileConfig(config, fileConfig *peer.Config) {
 	if len(fileConfig.SendRoutes) > 0 {
 		config.SendRoutes = append(config.SendRoutes, fileConfig.SendRoutes...)
 	}
+	if len(fileConfig.SendBulk) > 0 {
+		config.SendBulk = append(config.SendBulk, fileConfig.SendBulk...)
+	}
 	if fileConfig.InspectOpenMessage {
 		config.InspectOpenMessage = true
 	}

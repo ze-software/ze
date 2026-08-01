@@ -1,4 +1,6 @@
 // Design: docs/architecture/testing/ci-format.md — stress injection from ze-test peer
+// RFC: rfc/short/rfc4271.md — UPDATE message format and the 4096-octet message ceiling
+// RFC: rfc/short/rfc8654.md — Extended Message capability, which raises that ceiling to 65535
 // Overview: peer.go — test peer runtime and mode dispatch
 // Related: message.go — BGP wire constants and KEEPALIVE builder reused here
 //
@@ -24,8 +26,9 @@ import (
 )
 
 const (
-	bgpMaxMsgLen = 4096 // RFC 4271 §4
-	bgpEORLen    = 23   // empty UPDATE: marker(16)+len(2)+type(1)+wdr(2)+attr(2)
+	bgpMaxMsgLen = 4096  // RFC 4271 §4
+	bgpExtMsgLen = 65535 // RFC 8654 §3, once the Extended Message capability is negotiated
+	bgpEORLen    = 23    // empty UPDATE: marker(16)+len(2)+type(1)+wdr(2)+attr(2)
 	// Path attribute flag bytes used here.
 	flagWKTrans       = 0x40 // well-known, transitive
 	flagOptNonTransEx = 0x90 // optional, non-transitive, extended length
@@ -50,6 +53,27 @@ type InjectSpec struct {
 	// Dwell keeps the session open this long after the last byte is written,
 	// sending KEEPALIVE every 30s. 0 = hold until ctx.Done or peer hangs up.
 	Dwell time.Duration
+	// MaxMsgLen caps one generated BGP message, header included. 0 means the
+	// RFC 4271 limit of 4096.
+	//
+	// A test that has negotiated the Extended Message capability (RFC 8654)
+	// raises this to 65535 so ONE UPDATE carries a body no standard message can
+	// hold. That is the only way a `.ci` reaches a daemon path whose input must
+	// be a single oversize UPDATE: splitting the prefixes across several
+	// standard messages produces a different input, because the daemon decides
+	// per message.
+	MaxMsgLen int
+}
+
+// msgLen returns the per-message ceiling, defaulting to the RFC 4271 limit.
+// Values outside [bgpEORLen, bgpExtMsgLen] are clamped rather than rejected:
+// the field is a test knob, and a silently truncated message would be a harder
+// failure to read than a capped one.
+func (s InjectSpec) msgLen() int {
+	if s.MaxMsgLen <= 0 {
+		return bgpMaxMsgLen
+	}
+	return min(max(s.MaxMsgLen, bgpEORLen), bgpExtMsgLen)
 }
 
 // BuildUpdates constructs the complete byte image for the inject stream.
@@ -85,7 +109,8 @@ func buildV4Unicast(spec InjectSpec) ([]byte, int, error) {
 	stride := 1 + plBytes
 	// Path attrs: ORIGIN(4) + AS_PATH(5+4) + NEXT_HOP(3+4) = 20 bytes.
 	const attrsLen = 4 + 9 + 7
-	budget := bgpMaxMsgLen - HeaderLen - 2 - 2 - attrsLen
+	maxMsg := spec.msgLen()
+	budget := maxMsg - HeaderLen - 2 - 2 - attrsLen
 	nlriPer := budget / stride
 	if nlriPer <= 0 {
 		return nil, 0, errors.New("attrs exceed BGP max message size")
@@ -120,7 +145,7 @@ func buildV4Unicast(spec InjectSpec) ([]byte, int, error) {
 	written := 0
 	writePrefix := func(at, msgLen int) int {
 		copy(buf[at:at+16], Marker)
-		//nolint:gosec // msgLen bounded by bgpMaxMsgLen (4096)
+		//nolint:gosec // msgLen bounded by spec.msgLen() (<= 65535)
 		binary.BigEndian.PutUint16(buf[at+16:at+18], uint16(msgLen))
 		buf[at+18] = MsgUPDATE
 		buf[at+19], buf[at+20] = 0, 0 // withdrawn routes length
@@ -182,7 +207,7 @@ func buildV6Unicast(spec InjectSpec) ([]byte, int, error) {
 	const baseAttrsLen = 4 + 9
 	// MP_REACH fixed part: attr flags(1)+type(1)+extlen(2)+AFI(2)+SAFI(1)+nh_len(1)+nh(16)+reserved(1) = 25.
 	const mpFixed = 25
-	budget := bgpMaxMsgLen - HeaderLen - 2 - 2 - baseAttrsLen - mpFixed
+	budget := spec.msgLen() - HeaderLen - 2 - 2 - baseAttrsLen - mpFixed
 	nlriPer := budget / stride
 	if nlriPer <= 0 {
 		return nil, 0, errors.New("attrs exceed BGP max message size")

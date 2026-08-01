@@ -130,6 +130,14 @@ type Config struct {
 	SendDefaultRoute bool
 	// SendRoutes: custom routes to send after OPEN (option=update:value=send-route:...)
 	SendRoutes []RouteToSend
+	// SendBulk: generated prefix runs to send after OPEN
+	// (option=update:value=send-bulk:...). Each spec is expanded by BuildUpdates
+	// into whole BGP messages, so one entry with a large MaxMsgLen produces a
+	// single oversize UPDATE rather than many standard ones. This is how a `.ci`
+	// expresses an UPDATE too large to write as a hex literal: a max-size RFC
+	// 8654 message is 131070 hex characters, which no reviewer can check and
+	// which exceeds the 64 KiB line limit of the `.ci` and peer-block scanners.
+	SendBulk []InjectSpec
 	// InspectOpenMessage: validate received OPEN message against expectations
 	InspectOpenMessage bool
 	// SendUnknownMessage: send an unknown message type (255) after OPEN
@@ -480,6 +488,21 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 		}
 		if _, err := conn.Write(msg); err != nil {
 			return Result{Success: false, Error: fmt.Errorf("write route %s: %w", route.Prefix, err)}
+		}
+	}
+
+	// Send generated prefix runs if configured. BuildUpdates sizes the whole
+	// byte image up front, so a spec whose MaxMsgLen was raised emits ONE
+	// oversize UPDATE and the daemon sees a single message, which is the input
+	// such a test exists to produce.
+	for i, spec := range p.config.SendBulk {
+		data, msgs, err := BuildUpdates(spec)
+		if err != nil {
+			return Result{Success: false, Error: fmt.Errorf("build bulk %d (%s x%d): %w", i, spec.Prefix, spec.Count, err)}
+		}
+		p.printf("sending bulk %s x%d as %d message(s), %d bytes\n", spec.Prefix, spec.Count, msgs, len(data))
+		if _, err := conn.Write(data); err != nil {
+			return Result{Success: false, Error: fmt.Errorf("write bulk %d: %w", i, err)}
 		}
 	}
 
