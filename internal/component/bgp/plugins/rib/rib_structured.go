@@ -385,30 +385,19 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 		r.ribOut[peerAddr] = make(map[family.Family]map[ribOutKey]ribOutEntry)
 	}
 
-	// Process IPv4 unicast announces (NLRI section).
+	// Withdrawals first here too, and for the same reason as the receive path above.
+	// RFC 4271 Section 4.3 says an UPDATE naming one prefix in both WITHDRAWN ROUTES and
+	// NLRI is treated as though WITHDRAWN did not name it (RFC4271-4.3-5,
+	// RFC4271-4.3-7). This is the record of what Ze SENT, so storing before removing made
+	// that record say "withdrawn" for a prefix the receiver will install: the two ends of
+	// one session disagreeing about the same message.
 	ipv4Family := family.IPv4Unicast
-	nlriData, err := wu.NLRI()
-	if err == nil && len(nlriData) > 0 {
-		addPath := ctx != nil && ctx.AddPath(ipv4Family)
-		r.storeSentEntries(peerAddr, ipv4Family, nlriData, addPath, msgID, attrHandle, sourcePeer)
-	}
 
 	// Process IPv4 unicast withdrawals.
 	wdData, err := wu.Withdrawn()
 	if err == nil && len(wdData) > 0 {
 		addPath := ctx != nil && ctx.AddPath(ipv4Family)
 		r.removeSentNLRIs(peerAddr, ipv4Family, wdData, addPath)
-	}
-
-	// Process MP_REACH_NLRI announces.
-	mpReach, err := wu.MPReach()
-	if err == nil && mpReach != nil {
-		fam := mpReach.Family()
-		nlriBytes := mpReach.NLRIBytes()
-		if len(nlriBytes) > 0 {
-			addPath := ctx != nil && ctx.AddPath(fam)
-			r.storeSentEntries(peerAddr, fam, nlriBytes, addPath, msgID, attrHandle, sourcePeer)
-		}
 	}
 
 	// Process MP_UNREACH_NLRI withdrawals.
@@ -419,6 +408,24 @@ func (r *RIBManager) handleSentStructured(se *rpc.StructuredEvent) {
 		if len(wdBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
 			r.removeSentNLRIs(peerAddr, fam, wdBytes, addPath)
+		}
+	}
+
+	// Process IPv4 unicast announces (NLRI section).
+	nlriData, err := wu.NLRI()
+	if err == nil && len(nlriData) > 0 {
+		addPath := ctx != nil && ctx.AddPath(ipv4Family)
+		r.storeSentEntries(peerAddr, ipv4Family, nlriData, addPath, msgID, attrHandle, sourcePeer)
+	}
+
+	// Process MP_REACH_NLRI announces.
+	mpReach, err := wu.MPReach()
+	if err == nil && mpReach != nil {
+		fam := mpReach.Family()
+		nlriBytes := mpReach.NLRIBytes()
+		if len(nlriBytes) > 0 {
+			addPath := ctx != nil && ctx.AddPath(fam)
+			r.storeSentEntries(peerAddr, fam, nlriBytes, addPath, msgID, attrHandle, sourcePeer)
 		}
 	}
 

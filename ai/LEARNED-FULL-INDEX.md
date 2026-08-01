@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 1283 summaries
+Total: 1284 summaries
 
 ## 000-099
 
@@ -1362,3 +1362,4 @@ Total: 1283 summaries
 | 1309 | Detail budget | `plan/learned/1309-detail-budget.md` |
 | 1310 | Phase gates: skills and model | `plan/learned/1310-phase-gates.md` |
 | 1311 | RFC compliance page, and the copies that rotted | `plan/learned/1311-rfc-compliance-docs.md` |
+| 1312 | UPDATE withdrawals run before announces | `plan/learned/1312-bgp-update-withdraw-order.md` |

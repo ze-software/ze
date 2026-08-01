@@ -295,15 +295,12 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 	// Build fam operations from wire sections.
 	ops := make(map[family.Family][]persistFamilyOp)
 
-	// IPv4 unicast announces.
-	nlriData, err := wu.NLRI()
-	if err == nil && len(nlriData) > 0 {
-		addPath := ctx != nil && ctx.AddPath(family.IPv4Unicast)
-		nlris := persistWireNLRIs(nlriData, addPath, false)
-		if len(nlris) > 0 {
-			ops[family.IPv4Unicast] = append(ops[family.IPv4Unicast], persistFamilyOp{Action: "add", NLRIs: nlris})
-		}
-	}
+	// Withdrawals are appended FIRST, and the order is load-bearing: the loop below
+	// applies each family's ops in slice order, so an "add" queued before a "del" for
+	// the same prefix would leave that prefix deleted. RFC 4271 Section 4.3 says an
+	// UPDATE naming one prefix in both WITHDRAWN ROUTES and NLRI is treated as though
+	// WITHDRAWN did not name it, so the "add" has to be applied last
+	// (RFC4271-4.3-5, RFC4271-4.3-7).
 
 	// IPv4 unicast withdrawals.
 	wdData, err := wu.Withdrawn()
@@ -312,20 +309,6 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 		nlris := persistWireNLRIs(wdData, addPath, false)
 		if len(nlris) > 0 {
 			ops[family.IPv4Unicast] = append(ops[family.IPv4Unicast], persistFamilyOp{Action: "del", NLRIs: nlris})
-		}
-	}
-
-	// MP_REACH_NLRI announces.
-	mpReach, err := wu.MPReach()
-	if err == nil && mpReach != nil {
-		fam := mpReach.Family()
-		nlriBytes := mpReach.NLRIBytes()
-		if len(nlriBytes) > 0 {
-			addPath := ctx != nil && ctx.AddPath(fam)
-			nlris := persistWireNLRIs(nlriBytes, addPath, fam.AFI == family.AFIIPv6)
-			if len(nlris) > 0 {
-				ops[fam] = append(ops[fam], persistFamilyOp{Action: "add", NLRIs: nlris})
-			}
 		}
 	}
 
@@ -339,6 +322,30 @@ func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
 			nlris := persistWireNLRIs(wdBytes, addPath, fam.AFI == family.AFIIPv6)
 			if len(nlris) > 0 {
 				ops[fam] = append(ops[fam], persistFamilyOp{Action: "del", NLRIs: nlris})
+			}
+		}
+	}
+
+	// IPv4 unicast announces.
+	nlriData, err := wu.NLRI()
+	if err == nil && len(nlriData) > 0 {
+		addPath := ctx != nil && ctx.AddPath(family.IPv4Unicast)
+		nlris := persistWireNLRIs(nlriData, addPath, false)
+		if len(nlris) > 0 {
+			ops[family.IPv4Unicast] = append(ops[family.IPv4Unicast], persistFamilyOp{Action: "add", NLRIs: nlris})
+		}
+	}
+
+	// MP_REACH_NLRI announces.
+	mpReach, err := wu.MPReach()
+	if err == nil && mpReach != nil {
+		fam := mpReach.Family()
+		nlriBytes := mpReach.NLRIBytes()
+		if len(nlriBytes) > 0 {
+			addPath := ctx != nil && ctx.AddPath(fam)
+			nlris := persistWireNLRIs(nlriBytes, addPath, fam.AFI == family.AFIIPv6)
+			if len(nlris) > 0 {
+				ops[fam] = append(ops[fam], persistFamilyOp{Action: "add", NLRIs: nlris})
 			}
 		}
 	}

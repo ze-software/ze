@@ -1,5 +1,12 @@
 package rib
 
+// rfc-test-change-approved: 2026-08-01 Thomas approved adding three imports
+// (routeaction, family, rpc) required by two NEW tests appended to this file, which
+// cover the pool and injection receive paths. No existing test, assertion or RFC tag was
+// changed, removed, reworded or re-tagged: the edit is three import lines plus new
+// functions. The guard fired because an import block sits outside every function, so its
+// scope is the whole file.
+
 import (
 	"net/netip"
 	"testing"
@@ -9,6 +16,12 @@ import (
 
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
+
+	// rfc-test-change-approved: 2026-08-01 Thomas approved these three imports for two
+	// NEW tests (pool and injection paths). No existing assertion or tag was touched.
+	"github.com/ze-software/ze/internal/core/bgp/routeaction"
+	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // RFC 4271 Section 4.3, the same prefix in WITHDRAWN ROUTES and NLRI.
@@ -70,6 +83,71 @@ func TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute(t *testing.T) {
 		"a repeat of the same mixed UPDATE leaves the route installed")
 	assert.Empty(t, bestChangePrefixes(bus, ribevents.BestChangeWithdraw),
 		"and still publishes no withdrawal")
+}
+
+// VALIDATES: the JSON/pool receive path treats the same-prefix UPDATE the same way as
+// the structured path: the prefix ends up installed.
+// PREVENTS: the two ingest paths disagreeing about one message. Before this, the pool
+// path applied every insert before every remove, so an external plugin feeding the same
+// prefix in both fields lost the route while a DirectBridge plugin kept it.
+//
+// RFC requirement: RFC4271-4.3-5 positive -- the pool path processes an UPDATE with the
+// same prefix in WITHDRAWN and NLRI.
+// RFC requirement: RFC4271-4.3-7 positive -- and treats it as though WITHDRAWN did not
+// contain the prefix.
+func TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute(t *testing.T) {
+	r := newTestRIBManager(t)
+	peer := netip.MustParseAddr("10.0.0.1")
+
+	// 10.0.0.0/8 in BOTH the raw NLRI and the raw Withdrawn map, one family.
+	const wire = "080a" // prefix length 8, one octet 0x0a
+	event := &Event{
+		Message:       &MessageInfo{Type: rpc.EventKindUpdate, ID: 300},
+		Peer:          mustMarshal(t, map[string]any{"local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}}),
+		RawAttributes: "40010100", // ORIGIN IGP
+		RawNLRI:       map[family.Family]string{family.IPv4Unicast: wire},
+		RawWithdrawn:  map[family.Family]string{family.IPv4Unicast: wire},
+		FamilyOps: map[family.Family][]FamilyOperation{
+			family.IPv4Unicast: {
+				{NextHop: "1.1.1.1", Action: routeaction.Add, NLRIs: []any{"10.0.0.0/8"}},
+			},
+		},
+	}
+
+	r.handleReceived(event)
+
+	require.NotNil(t, r.bgpPeers[peer], "the peer RIB is created")
+	assert.Equal(t, 1, r.bgpPeers[peer].Len(),
+		"the announce wins on the pool path too: the prefix stays installed")
+}
+
+// VALIDATES: the injection path treats the same-prefix UPDATE the same way.
+// PREVENTS: a BMP feed carrying the shape losing the route, so the injected view
+// disagrees with what the monitored router actually holds.
+//
+// RFC requirement: RFC4271-4.3-5 positive -- the injection path processes an UPDATE with
+// the same prefix in WITHDRAWN and NLRI.
+// RFC requirement: RFC4271-4.3-7 positive -- and treats it as though WITHDRAWN did not
+// contain the prefix.
+func TestRIBInjectSamePrefixInWithdrawnAndNLRIInstallsTheRoute(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Withdrawn 10.0.0.0/8, then attributes, then NLRI 10.0.0.0/8.
+	mixed := []byte{
+		0x00, 0x02, // Withdrawn Routes length 2
+		0x08, 0x0a, // withdrawn 10.0.0.0/8
+		0x00, 0x0e, // Total Path Attribute Length 14
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH = empty
+		0x40, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x01, // NEXT_HOP = 10.0.0.1
+		0x08, 0x0a, // NLRI 10.0.0.0/8 (the same prefix)
+	}
+	require.NoError(t, r.handleInjectWireRoute("bmp", "router1:10.0.0.1", mixed))
+
+	bmpPeers := r.ribInPool[bmpProtocolID]
+	require.NotNil(t, bmpPeers["router1:10.0.0.1"], "the injected peer RIB is created")
+	assert.Equal(t, 1, bmpPeers["router1:10.0.0.1"].Len(),
+		"the announce wins on the injection path too: the prefix stays installed")
 }
 
 // VALIDATES: the reordering does not disturb the ordinary case. A withdrawal and an

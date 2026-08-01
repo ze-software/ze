@@ -87,6 +87,37 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 
 	ipv4Family := family.Family{AFI: 1, SAFI: 1}
 
+	// Withdrawals first, for the reason handleReceivedStructured spells out: RFC 4271
+	// Section 4.3 says an UPDATE naming the same prefix in WITHDRAWN ROUTES and NLRI is
+	// treated as though WITHDRAWN did not name it, so the announce has to land last
+	// (RFC4271-4.3-5, RFC4271-4.3-7). This is the injection sibling of that path and had
+	// the same ordering.
+	//
+	// The withdrawal blocks carry their OWN error variables. `err` here still holds the
+	// result of the wu.NLRI() call above, which the announce block below tests; reusing
+	// it would silently make that block read the withdrawal's error instead.
+	wdData, wdErr := wu.Withdrawn()
+	if wdErr == nil && len(wdData) > 0 && nlrisplit.Supported(ipv4Family) {
+		withdrawns, _ := nlrisplit.Split(ipv4Family, wdData, false)
+		for _, wd := range withdrawns {
+			peerRIB.Remove(ipv4Family, wd)
+		}
+	}
+
+	mpUnreach, unreachErr := wu.MPUnreach()
+	if unreachErr == nil && mpUnreach != nil {
+		fam := mpUnreach.Family()
+		if nlrisplit.Supported(fam) {
+			wdBytes := mpUnreach.WithdrawnBytes()
+			if len(wdBytes) > 0 {
+				withdrawns, _ := nlrisplit.Split(fam, wdBytes, false)
+				for _, wd := range withdrawns {
+					peerRIB.Remove(fam, wd)
+				}
+			}
+		}
+	}
+
 	// nlriData already fetched above for validation.
 	if err == nil && len(nlriData) > 0 && nlrisplit.Supported(ipv4Family) {
 		prefixes, _ := nlrisplit.Split(ipv4Family, nlriData, false)
@@ -95,16 +126,8 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 		}
 	}
 
-	wdData, err := wu.Withdrawn()
-	if err == nil && len(wdData) > 0 && nlrisplit.Supported(ipv4Family) {
-		withdrawns, _ := nlrisplit.Split(ipv4Family, wdData, false)
-		for _, wd := range withdrawns {
-			peerRIB.Remove(ipv4Family, wd)
-		}
-	}
-
-	mpReach, err := wu.MPReach()
-	if err == nil && mpReach != nil {
+	mpReach, reachErr := wu.MPReach()
+	if reachErr == nil && mpReach != nil {
 		fam := mpReach.Family()
 		if nlrisplit.Supported(fam) {
 			nlriBytes := mpReach.NLRIBytes()
@@ -112,20 +135,6 @@ func (r *RIBManager) handleInjectWireRoute(protocol, peerKey string, updateBody 
 				prefixes, _ := nlrisplit.Split(fam, nlriBytes, false)
 				for _, wirePrefix := range prefixes {
 					peerRIB.Insert(fam, attrBytes, wirePrefix, true)
-				}
-			}
-		}
-	}
-
-	mpUnreach, err := wu.MPUnreach()
-	if err == nil && mpUnreach != nil {
-		fam := mpUnreach.Family()
-		if nlrisplit.Supported(fam) {
-			wdBytes := mpUnreach.WithdrawnBytes()
-			if len(wdBytes) > 0 {
-				withdrawns, _ := nlrisplit.Split(fam, wdBytes, false)
-				for _, wd := range withdrawns {
-					peerRIB.Remove(fam, wd)
 				}
 			}
 		}

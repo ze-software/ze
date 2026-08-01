@@ -347,19 +347,44 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// IPv4 unicast announces (body NLRI section).
-	if nlriData, err := wu.NLRI(); err == nil && len(nlriData) > 0 {
-		fam := family.IPv4Unicast
-		addPath := ctx != nil && ctx.AddPath(fam)
-		nhopHex := nhopHexFromWireAttr(msg.AttrsWire)
-		r.installStructuredNLRIs(peerAddr, fam, nlriData, addPath, attrHex, nhopHex, msg.MessageID)
-	}
+	// WITHDRAWALS RUN FIRST, AND THE ORDER IS LOAD-BEARING.
+	//
+	// RFC 4271 Section 4.3: a speaker MUST be able to process an UPDATE naming the same
+	// prefix in WITHDRAWN ROUTES and NLRI, and SHOULD treat it as though WITHDRAWN did
+	// not name the prefix (RFC4271-4.3-5, RFC4271-4.3-7). Removing before inserting is
+	// what makes the announce win; inserting first left the prefix absent.
+	//
+	// This view backs `show bgp peer ... rib` and BMP. It must not disagree with the RIB
+	// plugin about the same event, which is what the old ordering caused once
+	// internal/component/bgp/plugins/rib was fixed and this was not.
 
 	// IPv4 unicast withdrawals (body Withdrawn section).
 	if wdData, err := wu.Withdrawn(); err == nil && len(wdData) > 0 {
 		fam := family.IPv4Unicast
 		addPath := ctx != nil && ctx.AddPath(fam)
 		r.removeStructuredNLRIs(peerAddr, fam, wdData, addPath)
+	}
+
+	// MP_UNREACH_NLRI withdrawals.
+	if mpUnreach, err := wu.MPUnreach(); err == nil && mpUnreach != nil {
+		fam := mpUnreach.Family()
+		wdBytes := mpUnreach.WithdrawnBytes()
+		if len(wdBytes) > 0 {
+			addPath := ctx != nil && ctx.AddPath(fam)
+			if isSimplePrefixFamily(fam) {
+				r.removeStructuredNLRIs(peerAddr, fam, wdBytes, addPath)
+			} else {
+				r.removeComplexNLRIs(peerAddr, fam, wdBytes, addPath)
+			}
+		}
+	}
+
+	// IPv4 unicast announces (body NLRI section).
+	if nlriData, err := wu.NLRI(); err == nil && len(nlriData) > 0 {
+		fam := family.IPv4Unicast
+		addPath := ctx != nil && ctx.AddPath(fam)
+		nhopHex := nhopHexFromWireAttr(msg.AttrsWire)
+		r.installStructuredNLRIs(peerAddr, fam, nlriData, addPath, attrHex, nhopHex, msg.MessageID)
 	}
 
 	// MP_REACH_NLRI announces.
@@ -374,20 +399,6 @@ func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
 			} else {
 				// Complex families: fall back to Event path for correct NLRI handling.
 				r.installComplexNLRIs(peerAddr, fam, nlriBytes, addPath, attrHex, mpReach.NextHop().String(), msg.MessageID)
-			}
-		}
-	}
-
-	// MP_UNREACH_NLRI withdrawals.
-	if mpUnreach, err := wu.MPUnreach(); err == nil && mpUnreach != nil {
-		fam := mpUnreach.Family()
-		wdBytes := mpUnreach.WithdrawnBytes()
-		if len(wdBytes) > 0 {
-			addPath := ctx != nil && ctx.AddPath(fam)
-			if isSimplePrefixFamily(fam) {
-				r.removeStructuredNLRIs(peerAddr, fam, wdBytes, addPath)
-			} else {
-				r.removeComplexNLRIs(peerAddr, fam, wdBytes, addPath)
 			}
 		}
 	}
@@ -703,79 +714,89 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 			splitHexEntries = splitRawNLRIHex(rawNLRIHex, fam)
 		}
 
-		for _, op := range ops {
-			switch op.Action { //nolint:exhaustive // only Add/Del relevant for adj-rib-in
-			case routeaction.Add:
-				// Skip adds without essential fields -- routes missing attributes
-				// or next-hop cannot be reconstructed for relay.
-				if event.GetRawAttributesHex() == "" {
+		// Del before Add, and the order is load-bearing. RFC 4271 Section 4.3 says an
+		// UPDATE naming one prefix in both WITHDRAWN ROUTES and NLRI is treated as though
+		// WITHDRAWN did not name it, so the Add has to land last (RFC4271-4.3-5,
+		// RFC4271-4.3-7). These ops arrive in producer order, so a Del queued after an Add
+		// for one prefix used to win and the route vanished from this view.
+		for _, pass := range [...]routeaction.Action{routeaction.Del, routeaction.Add} {
+			for _, op := range ops {
+				if op.Action != pass {
 					continue
 				}
-				nhopHex := nhopToHex(op.NextHop)
-				if nhopHex == "" {
-					continue
-				}
-
-				for i, nlriVal := range op.NLRIs {
-					prefix, pathID := bgp.ParseNLRIValue(nlriVal)
-					if prefix == "" {
+				switch op.Action { //nolint:exhaustive // only Add/Del relevant for adj-rib-in
+				case routeaction.Add:
+					// Skip adds without essential fields -- routes missing attributes
+					// or next-hop cannot be reconstructed for relay.
+					if event.GetRawAttributesHex() == "" {
 						continue
 					}
-					rk := routeKeyFromStrings(fam, prefix, pathID)
+					nhopHex := nhopToHex(op.NextHop)
+					if nhopHex == "" {
+						continue
+					}
 
-					var nlriHex string
-					switch {
-					case i < len(splitHexEntries):
-						nlriHex = splitHexEntries[i]
-					case rawNLRIHex != "" && !isSimplePrefixFamily(fam):
-						if i > 0 {
+					for i, nlriVal := range op.NLRIs {
+						prefix, pathID := bgp.ParseNLRIValue(nlriVal)
+						if prefix == "" {
 							continue
 						}
-						nlriHex = rawNLRIHex
-					default:
-						nlriHex = prefixToWireHex(fam, prefix, pathID)
+						rk := routeKeyFromStrings(fam, prefix, pathID)
+
+						var nlriHex string
+						switch {
+						case i < len(splitHexEntries):
+							nlriHex = splitHexEntries[i]
+						case rawNLRIHex != "" && !isSimplePrefixFamily(fam):
+							if i > 0 {
+								continue
+							}
+							nlriHex = rawNLRIHex
+						default:
+							nlriHex = prefixToWireHex(fam, prefix, pathID)
+						}
+
+						route := &RawRoute{
+							Family:  fam,
+							AttrHex: event.GetRawAttributesHex(),
+							NHopHex: nhopHex,
+							NLRIHex: nlriHex,
+						}
+
+						if r.validationEnabled {
+							pr := &PendingRoute{
+								peerAddr:   peerAddr,
+								family:     fam,
+								prefix:     prefix,
+								routeKey:   rk,
+								route:      route,
+								receivedAt: time.Now(),
+								state:      ValidationPending,
+							}
+							if !r.applyEarlyDecision(peerAddr, rk, pr) {
+								pKey := pendingKey(peerAddr, rk)
+								r.pending[pKey] = pr
+							}
+						} else {
+							if r.ribIn[peerAddr] == nil {
+								r.ribIn[peerAddr] = newSeqMap()
+							}
+							r.seqCounter++
+							r.ribIn[peerAddr].Put(rk, r.seqCounter, route)
+						}
 					}
 
-					route := &RawRoute{
-						Family:  fam,
-						AttrHex: event.GetRawAttributesHex(),
-						NHopHex: nhopHex,
-						NLRIHex: nlriHex,
-					}
-
-					if r.validationEnabled {
-						pr := &PendingRoute{
-							peerAddr:   peerAddr,
-							family:     fam,
-							prefix:     prefix,
-							routeKey:   rk,
-							route:      route,
-							receivedAt: time.Now(),
-							state:      ValidationPending,
+				case routeaction.Del:
+					for _, nlriVal := range op.NLRIs {
+						prefix, pathID := bgp.ParseNLRIValue(nlriVal)
+						if prefix == "" {
+							continue
 						}
-						if !r.applyEarlyDecision(peerAddr, rk, pr) {
-							pKey := pendingKey(peerAddr, rk)
-							r.pending[pKey] = pr
+						rk := routeKeyFromStrings(fam, prefix, pathID)
+						r.removePending(peerAddr, rk)
+						if r.ribIn[peerAddr] != nil {
+							r.ribIn[peerAddr].Delete(rk)
 						}
-					} else {
-						if r.ribIn[peerAddr] == nil {
-							r.ribIn[peerAddr] = newSeqMap()
-						}
-						r.seqCounter++
-						r.ribIn[peerAddr].Put(rk, r.seqCounter, route)
-					}
-				}
-
-			case routeaction.Del:
-				for _, nlriVal := range op.NLRIs {
-					prefix, pathID := bgp.ParseNLRIValue(nlriVal)
-					if prefix == "" {
-						continue
-					}
-					rk := routeKeyFromStrings(fam, prefix, pathID)
-					r.removePending(peerAddr, rk)
-					if r.ribIn[peerAddr] != nil {
-						r.ribIn[peerAddr].Delete(rk)
 					}
 				}
 			}

@@ -341,6 +341,19 @@ func (rp *RPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 		aspaState, normalizedPath = aspaStateForPath(rp.aspaCache, asp.Segments)
 	}
 
+	// Remove withdrawn routes from the ASPA and origin trackers FIRST. Unconditional: the
+	// origin tracker is populated whenever RPKI is active, so it must be pruned on
+	// withdrawal even when ASPA is disabled (the ASPA tracker is empty then, so its
+	// removal is a no-op).
+	//
+	// The pruning runs BEFORE the announce tracking below, and the order is load-bearing.
+	// RFC 4271 Section 4.3 says an UPDATE naming one prefix in both WITHDRAWN ROUTES and
+	// NLRI is treated as though WITHDRAWN did not name it, so that prefix stays installed
+	// and must stay tracked (RFC4271-4.3-5, RFC4271-4.3-7). Pruning last dropped it from
+	// the tracker, and a route missing from the tracker is a route ASPA re-validation
+	// never revisits.
+	rp.removeWithdrawnFromTracker(peerAddr, wu, ctx)
+
 	// Validate IPv4 unicast NLRIs.
 	nlriData, err := wu.NLRI()
 	if err == nil && len(nlriData) > 0 {
@@ -370,10 +383,6 @@ func (rp *RPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 		}
 	}
 
-	// Remove withdrawn routes from the ASPA and origin trackers. Unconditional: the origin
-	// tracker is populated whenever RPKI is active, so it must be pruned on withdrawal even when
-	// ASPA is disabled (the ASPA tracker is empty then, so its removal is a no-op).
-	rp.removeWithdrawnFromTracker(peerAddr, wu, ctx)
 }
 
 // validateNLRIs walks wire NLRI bytes and validates each prefix against the ROA cache.

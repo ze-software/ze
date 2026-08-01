@@ -57,16 +57,15 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) *[]nlriRecord {
 		encCtx = bgpctx.Registry.Get(msg.AttrsWire.SourceContext())
 	}
 
-	// MP_REACH_NLRI -- announced routes.
-	if mp, err := wu.MPReach(); err == nil && mp != nil {
-		fam := mp.Family()
-		addPath := encCtx != nil && encCtx.AddPath(fam)
-		if isUnicast(fam) {
-			*sp = appendUnicastRecords(*sp, fam, fam.String(), mp.NLRIIterator(addPath), actionAdd)
-		} else {
-			*sp = appendAllocatingRecords(*sp, fam, mp, addPath, actionAdd)
-		}
-	}
+	// Withdrawn records are appended BEFORE announced ones, and the order is
+	// load-bearing: every consumer walks this slice in order, and
+	// updateWithdrawalMapText applies each record to a prefix-keyed map. RFC 4271
+	// Section 4.3 says an UPDATE naming one prefix in both WITHDRAWN ROUTES and NLRI is
+	// treated as though WITHDRAWN did not name it, so the "add" has to land last
+	// (RFC4271-4.3-5, RFC4271-4.3-7). Appending adds first deleted that prefix from the
+	// map, so a route the peer is still announcing would never be withdrawn when the
+	// peer goes down.
+	addPathV4 := encCtx != nil && encCtx.AddPath(family.IPv4Unicast)
 
 	// MP_UNREACH_NLRI -- withdrawn routes.
 	if mp, err := wu.MPUnreach(); err == nil && mp != nil {
@@ -80,15 +79,25 @@ func extractWireNLRIRecords(msg *bgptypes.RawMessage) *[]nlriRecord {
 		}
 	}
 
-	// IPv4 body NLRIs -- announced routes.
-	addPathV4 := encCtx != nil && encCtx.AddPath(family.IPv4Unicast)
-	if iter, err := wu.NLRIIterator(addPathV4); err == nil && iter != nil {
-		*sp = appendUnicastRecords(*sp, family.IPv4Unicast, "ipv4/unicast", iter, actionAdd)
-	}
-
 	// IPv4 body Withdrawn -- withdrawn routes.
 	if iter, err := wu.WithdrawnIterator(addPathV4); err == nil && iter != nil {
 		*sp = appendUnicastRecords(*sp, family.IPv4Unicast, "ipv4/unicast", iter, actionDel)
+	}
+
+	// MP_REACH_NLRI -- announced routes.
+	if mp, err := wu.MPReach(); err == nil && mp != nil {
+		fam := mp.Family()
+		addPath := encCtx != nil && encCtx.AddPath(fam)
+		if isUnicast(fam) {
+			*sp = appendUnicastRecords(*sp, fam, fam.String(), mp.NLRIIterator(addPath), actionAdd)
+		} else {
+			*sp = appendAllocatingRecords(*sp, fam, mp, addPath, actionAdd)
+		}
+	}
+
+	// IPv4 body NLRIs -- announced routes.
+	if iter, err := wu.NLRIIterator(addPathV4); err == nil && iter != nil {
+		*sp = appendUnicastRecords(*sp, family.IPv4Unicast, "ipv4/unicast", iter, actionAdd)
 	}
 
 	return sp

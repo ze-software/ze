@@ -43,19 +43,13 @@ func (rr *RouteReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptyp
 		encCtx = bgpctx.Registry.Get(msg.AttrsWire.SourceContext())
 	}
 
-	// MP_REACH_NLRI -- announced routes (add).
-	if mp, err := wu.MPReach(); err == nil && mp != nil {
-		fam := mp.Family()
-		addPath := encCtx != nil && encCtx.AddPath(fam)
-		if isUnicast(fam) {
-			if iter := mp.NLRIIterator(addPath); iter != nil {
-				rr.walkUnicastNLRIs(sourcePeer, fam.String(), iter, actionAdd)
-			}
-		} else {
-			nlris, nlriErr := mp.NLRIs(addPath)
-			rr.walkNLRIsAllocating(sourcePeer, fam, nlris, nlriErr, actionAdd)
-		}
-	}
+	// Withdrawals (del) run BEFORE announces (add), and the order is load-bearing.
+	// RFC 4271 Section 4.3 says an UPDATE naming one prefix in both WITHDRAWN ROUTES and
+	// NLRI is treated as though WITHDRAWN did not name it, so the prefix stays announced
+	// (RFC4271-4.3-5, RFC4271-4.3-7). Deleting last removed that prefix from this map, so
+	// a route the peer is still announcing would never be withdrawn when the peer goes
+	// down: a stale route with no later event to clear it.
+	addPathV4 := encCtx != nil && encCtx.AddPath(family.IPv4Unicast)
 
 	// MP_UNREACH_NLRI -- withdrawn routes (del).
 	if mp, err := wu.MPUnreach(); err == nil && mp != nil {
@@ -71,15 +65,28 @@ func (rr *RouteReflector) updateWithdrawalMapWire(sourcePeer string, msg *bgptyp
 		}
 	}
 
-	// IPv4 body NLRIs -- announced routes (add).
-	addPathV4 := encCtx != nil && encCtx.AddPath(family.IPv4Unicast)
-	if iter, err := wu.NLRIIterator(addPathV4); err == nil && iter != nil {
-		rr.walkUnicastNLRIs(sourcePeer, "ipv4/unicast", iter, actionAdd)
-	}
-
 	// IPv4 body Withdrawn -- withdrawn routes (del).
 	if iter, err := wu.WithdrawnIterator(addPathV4); err == nil && iter != nil {
 		rr.walkUnicastNLRIs(sourcePeer, "ipv4/unicast", iter, actionDel)
+	}
+
+	// MP_REACH_NLRI -- announced routes (add).
+	if mp, err := wu.MPReach(); err == nil && mp != nil {
+		fam := mp.Family()
+		addPath := encCtx != nil && encCtx.AddPath(fam)
+		if isUnicast(fam) {
+			if iter := mp.NLRIIterator(addPath); iter != nil {
+				rr.walkUnicastNLRIs(sourcePeer, fam.String(), iter, actionAdd)
+			}
+		} else {
+			nlris, nlriErr := mp.NLRIs(addPath)
+			rr.walkNLRIsAllocating(sourcePeer, fam, nlris, nlriErr, actionAdd)
+		}
+	}
+
+	// IPv4 body NLRIs -- announced routes (add).
+	if iter, err := wu.NLRIIterator(addPathV4); err == nil && iter != nil {
+		rr.walkUnicastNLRIs(sourcePeer, "ipv4/unicast", iter, actionAdd)
 	}
 }
 

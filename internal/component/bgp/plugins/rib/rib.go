@@ -922,17 +922,22 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr) {
 
 	attrBytes := event.GetRawAttributesBytes()
 
-	for _, fam := range event.RawNLRIFamilies() {
-		nlriBytes := event.GetRawNLRIBytes(fam)
-		if len(nlriBytes) > 0 {
-			r.insertPoolNLRIs(peerRIB, fam, nlriBytes, attrBytes, event.AddPath[fam])
-		}
-	}
-
+	// Withdrawals first, for the reason handleReceivedStructured spells out:
+	// RFC 4271 Section 4.3 says an UPDATE naming the same prefix in WITHDRAWN
+	// ROUTES and NLRI is treated as though WITHDRAWN did not name it, so the
+	// announce has to land last (RFC4271-4.3-5, RFC4271-4.3-7). This is the
+	// JSON/pool sibling of that path and had the same ordering.
 	for _, fam := range event.RawWithdrawnFamilies() {
 		wdBytes := event.GetRawWithdrawnBytes(fam)
 		if len(wdBytes) > 0 {
 			r.removePoolNLRIs(peerRIB, fam, wdBytes, event.AddPath[fam])
+		}
+	}
+
+	for _, fam := range event.RawNLRIFamilies() {
+		nlriBytes := event.GetRawNLRIBytes(fam)
+		if len(nlriBytes) > 0 {
+			r.insertPoolNLRIs(peerRIB, fam, nlriBytes, attrBytes, event.AddPath[fam])
 		}
 	}
 }
