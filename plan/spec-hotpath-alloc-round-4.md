@@ -252,8 +252,35 @@ whose fix is not local, not a latent bug.
 the Failure Routing entry for R-2 ("revert T1-2 and re-derive the lifetime") is
 the instruction that applies. This is that re-derivation, done before writing
 the bug rather than after a poison read found it.
+
+→ T1-2 landed with the adopt-handle shape (Thomas chose it, 2026-08-01).
+`fwdUpdateForDestination` returns a `BufHandle` beside the `*message.Update`;
+`buildFwdBody` carries it out on `fwdBodyResult.transcodeBuf`; both rails adopt
+it with `adoptFwdHandle` (sites 7 and 8), so it is released at cache eviction.
+Verified in the main thread rather than taken on report: the release decision is
+a single `defer` per call, and the only `for` in `buildFwdBody` sits in the
+mutually exclusive `sameCtx` branch, so the defer cannot accumulate.
+
+→ Finding, verified, and it is why the oversize case keeps a `make`:
+**`wireu.TranscodeASPath` never bounds-checks `dst`.** There is no `len(dst)`
+guard anywhere in `aspath_transcode.go`. It writes through `copy(dst[n:], ...)`,
+which TRUNCATES silently, and `binary.BigEndian.PutUint32(dst[n:], ...)`, which
+PANICS. So an undersized destination is either a silent wire corruption or a
+crash, and the caller carries an undocumented obligation
+(`ai/rules/api-contracts.md`). The pool class is therefore chosen from the
+REQUIRED size, not the payload size, because this site also widens 2 to 4 octets.
+Above `message.ExtMsgLen` no class fits and the site keeps a collector-owned
+`make`, which needs no handle. Documenting that obligation on `TranscodeASPath`
+belongs to `plan/spec-wire-edit-3-aspath-fold.md`, which rewrites that function;
+editing it here would collide with the child.
+
+→ Constraint: the Deliverables row `grep -n "make(\[\]byte" forward_body.go
+returns nothing on the transcode path` now contradicts the Boundary Tests row
+that sanctions the above-pool-class fallback. Reconcile at closure. The check was
+deliberately NOT edited to match the code
+(`ai/rules/no-workarounds-for-missing-behavior.md`).
 | A-4 | Hoisting the accumulator is safe: no operation buffer captured in one iteration is read in a later one. | `Op` stores the caller's slice without copying (`filterapi.go:132-134`) and `OpCopy` copies into the inline arena (`:139`). Both are consumed within the same iteration by `buildModifiedPayload`. | A retained slice would be read after reset, returning another destination's bytes. This is the one way T1-3 can be subtly wrong. | A test that fills the accumulator, resets, refills with fewer operations, and asserts no stale operation survives; plus a debug-build poison of the inline arena on reset. | unvalidated |
-| A-5 | The PrefixSID lookup can be folded into the RFC 7606 validator walk without changing the validator's result. | Both read the same `pathAttrs` slice; the PrefixSID check is a presence test with no effect on the validation verdict (`session_validation.go:110-125`). | Keep the second walk; T1-4 drops out with no effect on the rest. | Differential test over the existing RFC 7606 corpus asserting an identical verdict for every input. | unvalidated |
+| A-5 | The PrefixSID lookup can be folded into the RFC 7606 validator walk without changing the validator's result. | Both read the same `pathAttrs` slice; the PrefixSID check is a presence test with no effect on the validation verdict (`session_validation.go:110-125`). | Keep the second walk; T1-4 drops out with no effect on the rest. | Differential test over the existing RFC 7606 corpus asserting an identical verdict for every input. | confirmed (2026-08-01, `TestPrefixSIDSingleWalkSameVerdict`) |
 | A-6 | None of the Tier 1 items changes emitted wire bytes, except the deliberate suppression in T1-1. | T1-2 changes only where the buffer comes from, T1-3 only when the value is zeroed, T1-4 only how many times bytes are read. | A byte difference means the change was not what it looked like; stop and re-read. | A golden byte-comparison over a corpus of received UPDATEs times the transform matrix, run before and after each item. | unvalidated |
 
 ### Risks
@@ -314,8 +341,8 @@ the bug rather than after a poison read found it.
 | `TestBuildModifiedPayloadNoModsIsNotFailure` | `internal/component/bgp/reactor/forward_build_test.go` | AC-3: the legitimate empty case is unchanged | |
 | `TestForwardSuppressesOnModifyFailure` | `internal/component/bgp/reactor/forward_update_test.go` | AC-1: the caller suppresses rather than dispatching | |
 | `TestIngressAndEgressChainSuppressOnModifyFailure` | `internal/component/bgp/reactor/filter_ordered_test.go` | A-2: all three call sites handle the failure, not only the forward one | |
-| `TestTranscodeBufferPooled` | `internal/component/bgp/reactor/forward_body_test.go` | AC-4: no allocation on the cross-context path after the first | |
-| `TestTranscodeBufferSingleReturn` | `internal/component/bgp/reactor/forward_body_test.go` | AC-5: exactly one return, verified under the debug poison build | |
+| `TestTranscodeBufferPooled` | `internal/component/bgp/reactor/forward_body_test.go` | AC-4: no allocation on the cross-context path after the first | passing; mutation-verified (forcing the unpooled `make` turns it red) |
+| `TestTranscodeBufferSingleReturn` | `internal/component/bgp/reactor/forward_body_test.go` | AC-5: exactly one return, verified under the debug poison build | passing; mutation-verified (releasing on the success path turns it red AND trips bufmux's own double-return detector) |
 | `TestAccumulatorResetClearsEverything` | `internal/component/bgp/filterapi/filterapi_test.go` | AC-7, A-4: no operation, rewrite or arena byte survives a reset | |
 | `TestAccumulatorResetIsConstantTime` | `internal/component/bgp/filterapi/filterapi_test.go` | reset cost does not scale with the inline capacity, so the umbrella's larger value stays safe | |
 | `TestPerDestinationModificationIsolation` | `internal/component/bgp/reactor/forward_update_test.go` | AC-6: three destinations, three distinct modification sets | |
@@ -480,6 +507,7 @@ the bug rather than after a poison read found it.
 
 - The two answers "nothing to modify" and "I could not modify" have shared one nil return since the progressive build was written. The reactor already has vocabulary for exactly this distinction one layer up: `egressStepResult.failed` (`filter_ordered.go:70-77`) exists so that a filter plugin timeout is not reported as a policy decision. T1-1 is the same idea applied one layer down, and should borrow the vocabulary rather than invent a second one.
 - `ModAccumulator.Reset` (`filterapi.go:119`) was written for the per-destination loop and never wired to it. Both rails declare a fresh value per iteration instead. That is cheap today at 64 inline bytes and becomes expensive under `plan/spec-wire-edit-0-umbrella.md`, which grows the value roughly eightfold. T1-3 must therefore land **before** the umbrella, or the umbrella regresses the hot path it exists to improve.
+- T1-2's buffer SIZE turned out to be as load-bearing as its lifetime, and the two constraints pull against each other. `wireu.TranscodeASPath` never bounds-checks its destination: it writes through `copy` and `binary.BigEndian.PutUint32` at computed offsets, so an undersized destination truncates or panics rather than reporting. The 4→2 direction shrinks, but this call site also runs 2→4, which widens. The pool class is therefore chosen from the required size (`len(payload)*2+1024`, the size the site always asked for) rather than from the payload size, so a payload above roughly 1.5 KB correctly takes the 64 KB class. Above `message.ExtMsgLen` no pool class fits and the site keeps its `make`, which is safe precisely because a collector-owned buffer needs no handle. That fallback is why the change can never drop a route the old code forwarded.
 - Tier 2 is not a deferral. Each row names the umbrella child that removes it by construction, which is what `ai/rules/fix-dont-record.md` and `ai/rules/deferral-tracking.md` require of anything written down instead of fixed.
 - The single largest cost on this path is not in either tier: it is that five separate scanners re-derive the same attribute offsets per UPDATE. That is structural and is the umbrella's first child.
 

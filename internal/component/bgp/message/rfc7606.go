@@ -67,6 +67,19 @@ type RFC7606ValidationResult struct {
 	// leaving the duplicate on the wire. Ranges are in ascending order and
 	// non-overlapping (one forward parse). Empty when there are no duplicates.
 	DuplicateRanges []AttrRange
+	// PrefixSIDPresent reports a well-framed Prefix-SID attribute (code 40, RFC 8669) in
+	// the attribute section. The EBGP-boundary check of RFC 8669 Section 4
+	// (reactor.enforceRFC7606) reads it. That check no longer walks these bytes again.
+	//
+	// Only the two returns below a completed forward parse set it. Every earlier return
+	// abandons the parse and leaves it false. It therefore never reports absence for
+	// bytes the walk did not read.
+	//
+	// That false is safe, not merely cautious. Each of those returns carries
+	// treat-as-withdraw or session-reset. Section 4's discard applies only under a weaker
+	// action. The one early return that carries RFC7606ActionNone is the empty section,
+	// which holds no attribute of any code.
+	PrefixSIDPresent bool
 }
 
 // Attribute type codes per RFC 4271.
@@ -218,6 +231,11 @@ func ValidateUpdateRFC7606AddPath(
 	// duplicated non-MP attribute, recorded so the enforcement layer can strip them.
 	var duplicateRanges []AttrRange
 
+	// RFC 8669 Section 4: presence of the Prefix-SID attribute, observed on this walk so
+	// the EBGP-boundary check does not repeat it. Reported only if the loop below runs to
+	// completion (see PrefixSIDPresent).
+	var sawPrefixSID bool
+
 	// recordError updates the strongest action and tracks discard entries.
 	recordError := func(r *RFC7606ValidationResult) {
 		if r.Action == RFC7606ActionAttributeDiscard {
@@ -286,6 +304,15 @@ func ValidateUpdateRFC7606AddPath(
 
 		attrData := pathAttrs[pos : pos+attrLen]
 		pos += attrLen
+
+		// RFC 8669 Section 4: note the Prefix-SID attribute here. This point is after the
+		// bounds check and before every branch that can skip the iteration. Earlier would
+		// count an attribute whose declared length overruns the section. Later would miss
+		// the first occurrence, because the flags-error and duplicate paths below both
+		// continue.
+		if attrCode == attrCodePrefixSID {
+			sawPrefixSID = true
+		}
 
 		// RFC 7606 Section 3.c: Validate attribute flags
 		if flagsResult := validateAttributeFlags(attrCode, flags); flagsResult != nil {
@@ -418,15 +445,20 @@ func ValidateUpdateRFC7606AddPath(
 	}
 
 	if strongest == RFC7606ActionNone {
-		return &RFC7606ValidationResult{Action: RFC7606ActionNone, DuplicateRanges: duplicateRanges}
+		return &RFC7606ValidationResult{
+			Action:           RFC7606ActionNone,
+			DuplicateRanges:  duplicateRanges,
+			PrefixSIDPresent: sawPrefixSID,
+		}
 	}
 
 	return &RFC7606ValidationResult{
-		Action:          strongest,
-		AttrCode:        strongestCode,
-		Description:     strongestDesc,
-		DiscardEntries:  discardEntries,
-		DuplicateRanges: duplicateRanges,
+		Action:           strongest,
+		AttrCode:         strongestCode,
+		Description:      strongestDesc,
+		DiscardEntries:   discardEntries,
+		DuplicateRanges:  duplicateRanges,
+		PrefixSIDPresent: sawPrefixSID,
 	}
 }
 

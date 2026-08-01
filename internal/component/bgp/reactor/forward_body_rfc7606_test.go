@@ -168,6 +168,14 @@ func TestForwardSplitsMixedShapeAcrossContextsThatFits(t *testing.T) {
 
 	result, ok := buildFwdBody(wireu.NewWireUpdate(body, srcCtxID), message.MaxMsgLen, destCtxID, peer,
 		netip.MustParseAddr("192.0.2.14"), &fwdParseCache{})
+	// rfc-test-change-approved: 2026-08-01 Thomas approved adding the missing
+	// pool release here. No assertion changed: the test still proves the same
+	// RFC 7606 Section 5.1 obligation. It borrowed a read-pool buffer through
+	// buildFwdBody and never returned it, leaking one per run, which the sibling
+	// TestForwardCompliantShapeAcrossContextsNotSplit already avoids the same way.
+	// Stands in for the caller's adoptFwdHandle, which production does at cache
+	// eviction.
+	defer ReturnReadBuffer(result.transcodeBuf)
 	require.True(t, ok)
 	require.Empty(t, result.rawBodies, "mismatched contexts must not reuse the source bytes")
 	require.Greater(t, len(result.updates), 1, "a mixed re-encoded UPDATE must be split")
@@ -195,6 +203,9 @@ func TestForwardCompliantShapeAcrossContextsNotSplit(t *testing.T) {
 	body := fwdShapeBody(nil, forwardBodyBaseAttrs(t, 200000), forwardBodyNLRIs(4, false))
 	result, ok := buildFwdBody(wireu.NewWireUpdate(body, srcCtxID), message.MaxMsgLen, destCtxID, peer,
 		netip.MustParseAddr("192.0.2.15"), &fwdParseCache{})
+	// Stand in for the caller's adoptFwdHandle: the ASN4 mismatch borrows a
+	// read-pool buffer that production returns at cache eviction.
+	defer ReturnReadBuffer(result.transcodeBuf)
 	require.True(t, ok)
 	require.Len(t, result.updates, 1, "a compliant UPDATE must not be split")
 }

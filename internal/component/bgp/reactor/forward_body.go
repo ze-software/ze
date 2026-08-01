@@ -18,8 +18,18 @@ import (
 
 // fwdBodyResult holds the output of buildFwdBody.
 type fwdBodyResult struct {
-	rawBodies    [][]byte
-	updates      []*message.Update
+	rawBodies [][]byte
+	updates   []*message.Update
+
+	// transcodeBuf is the read-pool buffer backing the cross-context RFC 6793
+	// transcode, when one ran. The updates above alias it zero-copy, and they are
+	// written to TCP by a forward-pool worker AFTER buildFwdBody returns, so the
+	// caller MUST adopt it onto the ReceivedUpdate (adoptFwdHandle) rather than
+	// release it at end of call. It is then returned exactly once at cache
+	// eviction. Zero when no transcode ran, or when the transcode fell back to a
+	// collector-owned buffer; adoptFwdHandle ignores a zero handle.
+	transcodeBuf BufHandle
+
 	supersedeKey uint64
 	withdrawal   bool
 }
@@ -87,12 +97,24 @@ func buildFwdBody(
 		// or RFC 6793 four-octet ASNs the destination did not negotiate. Convert
 		// to destination-context UPDATE sections before applying RFC 8654 size
 		// splitting so every emitted chunk is valid for the recipient.
-		destUpdate, encodeErr := fwdUpdateForDestination(cache.update, srcCtxID, destCtxID)
+		destUpdate, transcodeBuf, encodeErr := fwdUpdateForDestination(cache.update, srcCtxID, destCtxID)
 		if encodeErr != nil {
 			fwdLogger().Warn("encoding update for forward",
 				"peer", peerAddr, "error", encodeErr)
 			return result, false
 		}
+		// destUpdate aliases transcodeBuf zero-copy (see fwdUpdateForDestination).
+		// This is the SINGLE point inside buildFwdBody that decides the handle's
+		// fate: on success it travels out on result for the caller to adopt onto
+		// the ReceivedUpdate, on any failure below it goes straight back to the
+		// pool. Never both -- a caller that sees ok=false never adopts.
+		defer func() {
+			if ok {
+				result.transcodeBuf = transcodeBuf
+				return
+			}
+			ReturnReadBuffer(transcodeBuf)
+		}()
 
 		// Same RFC 7606 Section 5.1 restriction as the raw branch above. This UPDATE is
 		// ze's own composition -- fwdUpdateForDestination rebuilt its sections for the
@@ -133,18 +155,34 @@ func fwdSplitParsedUpdate(update *message.Update, maxMsgSize int, addPath bool, 
 	})
 }
 
-func fwdUpdateForDestination(update *message.Update, srcCtxID, destCtxID bgpctx.ContextID) (*message.Update, error) {
+// fwdUpdateForDestination re-encodes update for the destination encoding context.
+//
+// Lifetime contract (docs/architecture/memory/lifetime-contracts.md, contract A).
+// The returned *message.Update ALIASES the returned BufHandle. message.UnpackUpdate
+// is zero-copy: it keeps its input as rawData and slices WithdrawnRoutes, PathAttributes
+// and NLRI out of that same array. fwdReencodeNLRIs returns its input unchanged when
+// source and destination agree on RFC 7911 ADD-PATH, and fwdReencodeMPAttributes returns
+// its input unchanged when nothing needed re-framing -- both the ordinary case here,
+// because this branch is entered on an RFC 6793 ASN4 mismatch, not an ADD-PATH one. So
+// every section of the result can point into the transcode buffer, and that buffer is
+// written to TCP by a forward-pool worker long after this call returns.
+//
+// The caller therefore MUST NOT release the handle at end of call. It adopts it onto the
+// ReceivedUpdate (adoptFwdHandle), which returns it exactly once at cache eviction. A
+// zero handle means there is nothing to adopt: either no transcode ran, or the transcode
+// wrote into a collector-owned buffer that needs no handle.
+func fwdUpdateForDestination(update *message.Update, srcCtxID, destCtxID bgpctx.ContextID) (destUpdate *message.Update, transcodeBuf BufHandle, err error) {
 	if srcCtxID == 0 || destCtxID == 0 || srcCtxID == destCtxID {
-		return update, nil
+		return update, BufHandle{}, nil
 	}
 
 	srcCtx := bgpctx.Registry.Get(srcCtxID)
 	if srcCtx == nil {
-		return nil, fmt.Errorf("unknown source context ID: %d", srcCtxID)
+		return nil, BufHandle{}, fmt.Errorf("unknown source context ID: %d", srcCtxID)
 	}
 	destCtx := bgpctx.Registry.Get(destCtxID)
 	if destCtx == nil {
-		return nil, fmt.Errorf("unknown destination context ID: %d", destCtxID)
+		return nil, BufHandle{}, fmt.Errorf("unknown destination context ID: %d", destCtxID)
 	}
 
 	// RFC 6793 ASN width changes live in AS_PATH/AS4_PATH attributes. Transcode
@@ -155,38 +193,78 @@ func fwdUpdateForDestination(update *message.Update, srcCtxID, destCtxID bgpctx.
 		if payload == nil {
 			payload = fwdPackUpdateBody(update)
 		}
-		buf := make([]byte, len(payload)*2+1024)
-		n, err := wireu.TranscodeASPath(buf, payload, srcCtx.ASN4(), destCtx.ASN4())
-		if err != nil {
-			return nil, fmt.Errorf("path attributes: %w", err)
+
+		// wireu.TranscodeASPath does not bounds-check dst: it copies and writes at
+		// computed offsets, so an undersized destination truncates or panics rather
+		// than reporting. Keep the size this call site has always asked for -- twice
+		// the payload plus slack, which covers the 2->4 ASN widening plus a new
+		// AS4_PATH and AS4_AGGREGATOR -- and take the smallest pool class holding it.
+		need := len(payload)*2 + 1024
+		var handle BufHandle
+		switch {
+		case need <= message.MaxMsgLen:
+			handle = getReadBuf(false)
+		case need <= message.ExtMsgLen:
+			handle = getReadBuf(true)
+		}
+		dst := handle.Buf
+		if dst == nil {
+			// pool-fallback: the requirement is above the largest pool class, or the
+			// read pools are at budget. A collector-owned buffer is safe to alias into
+			// the async write without a handle, which is exactly how this site worked
+			// before it was pooled, so falling back never drops a route.
+			dst = make([]byte, need)
+		}
+
+		// SINGLE return point for handle. It goes back to the pool here unless
+		// ownership leaves with the successful return below, where the caller adopts
+		// it. Zeroing the named handle on error first means no future edit can hand a
+		// buffer out beside an error and have it returned twice.
+		defer func() {
+			if err != nil {
+				transcodeBuf = BufHandle{}
+			}
+			if transcodeBuf.Buf == nil {
+				ReturnReadBuffer(handle)
+			}
+		}()
+
+		n, transErr := wireu.TranscodeASPath(dst, payload, srcCtx.ASN4(), destCtx.ASN4())
+		if transErr != nil {
+			return nil, BufHandle{}, fmt.Errorf("path attributes: %w", transErr)
 		}
 		if n > 0 {
-			baseUpdate, err = message.UnpackUpdate(buf[:n])
-			if err != nil {
-				return nil, fmt.Errorf("transcoded update: %w", err)
+			transcoded, unpackErr := message.UnpackUpdate(dst[:n])
+			if unpackErr != nil {
+				return nil, BufHandle{}, fmt.Errorf("transcoded update: %w", unpackErr)
 			}
+			// The parse is zero-copy, so baseUpdate now aliases dst. Carry the handle
+			// out only when dst came from the pool; a collector-owned dst keeps the
+			// zero handle and is kept alive by the reference in baseUpdate.
+			baseUpdate = transcoded
+			transcodeBuf = handle
 		}
 	}
 
 	withdrawn, err := fwdReencodeNLRIs(baseUpdate.WithdrawnRoutes, family.IPv4Unicast, srcCtx, destCtx)
 	if err != nil {
-		return nil, fmt.Errorf("withdrawn routes: %w", err)
+		return nil, BufHandle{}, fmt.Errorf("withdrawn routes: %w", err)
 	}
 	announced, err := fwdReencodeNLRIs(baseUpdate.NLRI, family.IPv4Unicast, srcCtx, destCtx)
 	if err != nil {
-		return nil, fmt.Errorf("nlri: %w", err)
+		return nil, BufHandle{}, fmt.Errorf("nlri: %w", err)
 	}
 
 	attrs, err := fwdReencodeMPAttributes(baseUpdate.PathAttributes, srcCtx, destCtx)
 	if err != nil {
-		return nil, fmt.Errorf("multiprotocol attributes: %w", err)
+		return nil, BufHandle{}, fmt.Errorf("multiprotocol attributes: %w", err)
 	}
 
 	return &message.Update{
 		WithdrawnRoutes: withdrawn,
 		PathAttributes:  attrs,
 		NLRI:            announced,
-	}, nil
+	}, transcodeBuf, nil
 }
 
 func fwdPackUpdateBody(update *message.Update) []byte {

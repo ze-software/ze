@@ -832,6 +832,11 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			if !ok {
 				continue
 			}
+			// Site 7: body.transcodeBuf backs the cross-context RFC 6793 transcode,
+			// whose sections body.updates aliases zero-copy -- and the body cache
+			// below hands those same sections to later destinations. Adopt onto the
+			// entry, return at eviction (D-1/D-2).
+			update.adoptFwdHandle(body.transcodeBuf)
 			item.rawBodies = body.rawBodies
 			item.updates = body.updates
 			item.supersedeKey = body.supersedeKey

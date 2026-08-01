@@ -59,6 +59,9 @@ func TestForwardSplitConvertsASN4Context(t *testing.T) {
 	rawBody := buildRawUpdateBody(nil, attrs, [][]byte{forwardBodyNLRIs(70, false)})
 
 	result, ok := buildFwdBody(wireu.NewWireUpdate(rawBody, srcCtxID), 170, destCtxID, peer, netip.MustParseAddr("192.0.2.3"), &fwdParseCache{})
+	// Stand in for the caller's adoptFwdHandle: the ASN4 mismatch borrows a
+	// read-pool buffer that production returns at cache eviction.
+	defer ReturnReadBuffer(result.transcodeBuf)
 	require.True(t, ok)
 	require.Empty(t, result.rawBodies)
 	require.Greater(t, len(result.updates), 1)
@@ -132,6 +135,146 @@ func TestForwardSplitSameContextKeepsRawSplit(t *testing.T) {
 		gotNLRI = append(gotNLRI, update.NLRI...)
 	}
 	assert.Equal(t, sourceNLRI, gotNLRI)
+}
+
+// crossContextTranscodeBody builds a source UPDATE that fits, carries a 4-byte
+// ASN, and therefore drives the RFC 6793 transcode branch of
+// fwdUpdateForDestination when forwarded to a 2-byte-ASN destination context.
+func crossContextTranscodeBody(t *testing.T) []byte {
+	t.Helper()
+	body := fwdShapeBody(nil, forwardBodyBaseAttrs(t, 200000), forwardBodyNLRIs(4, false))
+	require.LessOrEqual(t, message.HeaderLen+len(body), message.MaxMsgLen,
+		"guard: the body must FIT, so the transcode buffer is carried out rather than copied by the splitter")
+	return body
+}
+
+// VALIDATES: AC-4 -- the cross-context transcode takes its buffer from the shared
+// read pool instead of allocating a fresh one per forward, and takes none at all
+// when the destination context needs no transcode.
+// PREVENTS: a silent return to `make([]byte, len(payload)*2+1024)` per forward,
+// which is the ai/rules/buffer-first.md violation this item exists to remove. The
+// pool in-use delta is the only observable that separates the two: both produce
+// identical bytes.
+func TestTranscodeBufferPooled(t *testing.T) {
+	t.Run("cross_context_transcode_borrows_from_pool", func(t *testing.T) {
+		_, srcCtxID := registerForwardBodyTestContext(t, true, false)
+		destCtx, destCtxID := registerForwardBodyTestContext(t, false, false)
+		peer := forwardBodyTestPeer(destCtx, destCtxID)
+
+		_, before := bufMuxStd.Stats()
+
+		result, ok := buildFwdBody(wireu.NewWireUpdate(crossContextTranscodeBody(t), srcCtxID),
+			message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.20"), &fwdParseCache{})
+		require.True(t, ok)
+		require.Len(t, result.updates, 1, "guard: a fitting UPDATE must not be split")
+
+		_, borrowed := bufMuxStd.Stats()
+		assert.Equal(t, before+1, borrowed,
+			"the transcode must borrow exactly one read-pool buffer, not allocate one")
+		require.NotNil(t, result.transcodeBuf.Buf,
+			"the borrowed handle must travel out for the caller to adopt")
+
+		// The result aliases the buffer, so releasing is the caller's job. Stand in
+		// for it here so the pool is left as it was found.
+		ReturnReadBuffer(result.transcodeBuf)
+		_, after := bufMuxStd.Stats()
+		require.Equal(t, before, after)
+	})
+
+	t.Run("matching_context_borrows_nothing", func(t *testing.T) {
+		// Same ASN width, different ADD-PATH: the re-encode branch runs but the
+		// RFC 6793 transcode does not, so no buffer may be taken.
+		_, srcCtxID := registerForwardBodyTestContext(t, true, true)
+		destCtx, destCtxID := registerForwardBodyTestContext(t, true, false)
+		peer := forwardBodyTestPeer(destCtx, destCtxID)
+
+		body := fwdShapeBody(nil, forwardBodyBaseAttrs(t, 65000), forwardBodyNLRIs(4, true))
+
+		_, before := bufMuxStd.Stats()
+		result, ok := buildFwdBody(wireu.NewWireUpdate(body, srcCtxID),
+			message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.21"), &fwdParseCache{})
+		require.True(t, ok)
+		_, after := bufMuxStd.Stats()
+
+		assert.Equal(t, before, after, "no ASN width change means no transcode buffer")
+		assert.Nil(t, result.transcodeBuf.Buf, "nothing to adopt when nothing was borrowed")
+	})
+}
+
+// VALIDATES: AC-5 -- every borrowed transcode buffer is returned exactly once:
+// through adoption plus eviction on the success path, and inside the call on a
+// failure after acquisition, which hands the caller nothing to adopt.
+// PREVENTS: both halves of the lifetime bug. Returning the buffer at end of call
+// recycles it under a pending async write (another route's bytes on the wire);
+// never returning it leaks a pooled buffer per forward, which is the defect
+// spec-fixit-forward-readbuf-leak already fixed once for the sibling sites.
+func TestTranscodeBufferSingleReturn(t *testing.T) {
+	_, srcCtxID := registerForwardBodyTestContext(t, true, false)
+	destCtx, destCtxID := registerForwardBodyTestContext(t, false, false)
+	peer := forwardBodyTestPeer(destCtx, destCtxID)
+
+	t.Run("adopt_then_drain_returns_exactly_once", func(t *testing.T) {
+		_, before := bufMuxStd.Stats()
+
+		result, ok := buildFwdBody(wireu.NewWireUpdate(crossContextTranscodeBody(t), srcCtxID),
+			message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.22"), &fwdParseCache{})
+		require.True(t, ok)
+
+		// The production ownership chain: the caller adopts onto the entry, and the
+		// cache drains adopted handles once at eviction.
+		update := &ReceivedUpdate{WireUpdate: wireu.NewWireUpdate(nil, srcCtxID)}
+		update.adoptFwdHandle(result.transcodeBuf)
+
+		_, held := bufMuxStd.Stats()
+		require.Equal(t, before+1, held,
+			"the buffer must still be in use while the entry holds it: the updates alias it")
+
+		update.returnFwdHandles()
+		_, afterDrain := bufMuxStd.Stats()
+		assert.Equal(t, before, afterDrain, "eviction must return the adopted buffer")
+
+		// A second drain must not return it again. A double return would hand the
+		// same slot to two writers.
+		update.returnFwdHandles()
+		_, afterSecondDrain := bufMuxStd.Stats()
+		assert.Equal(t, before, afterSecondDrain, "the handle must be returned once, not twice")
+	})
+
+	t.Run("failure_after_acquisition_returns_and_adopts_nothing", func(t *testing.T) {
+		// ASN4 mismatch drives the transcode (buffer acquired), then an ADD-PATH
+		// mismatch sends the NLRI through the re-encoder, where a trailing byte
+		// fails it -- an error raised AFTER the buffer was taken.
+		_, badSrcCtxID := registerForwardBodyTestContext(t, true, true)
+		badDestCtx, badDestCtxID := registerForwardBodyTestContext(t, false, false)
+		badPeer := forwardBodyTestPeer(badDestCtx, badDestCtxID)
+
+		malformed := append(forwardBodyNLRIs(2, true), 0x18)
+		body := fwdShapeBody(nil, forwardBodyBaseAttrs(t, 200000), malformed)
+
+		_, before := bufMuxStd.Stats()
+		result, ok := buildFwdBody(wireu.NewWireUpdate(body, badSrcCtxID),
+			message.MaxMsgLen, badDestCtxID, badPeer, netip.MustParseAddr("192.0.2.23"), &fwdParseCache{})
+		require.False(t, ok, "guard: malformed NLRI must fail the re-encode")
+
+		_, after := bufMuxStd.Stats()
+		assert.Equal(t, before, after, "a failure after acquisition must return the buffer")
+		assert.Nil(t, result.transcodeBuf.Buf, "a failed body must hand the caller nothing to adopt")
+	})
+
+	t.Run("repeated_cycles_stay_at_baseline", func(t *testing.T) {
+		_, before := bufMuxStd.Stats()
+		for range 8 {
+			result, ok := buildFwdBody(wireu.NewWireUpdate(crossContextTranscodeBody(t), srcCtxID),
+				message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.24"), &fwdParseCache{})
+			require.True(t, ok)
+			update := &ReceivedUpdate{WireUpdate: wireu.NewWireUpdate(nil, srcCtxID)}
+			update.adoptFwdHandle(result.transcodeBuf)
+			update.returnFwdHandles()
+		}
+		_, after := bufMuxStd.Stats()
+		assert.Equal(t, before, after,
+			"repeated borrow/adopt/drain cycles must neither leak nor over-return")
+	})
 }
 
 func registerForwardBodyTestContext(t *testing.T, asn4, addPath bool) (*bgpctx.EncodingContext, bgpctx.ContextID) {

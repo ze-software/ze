@@ -108,8 +108,13 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 	result := message.ValidateUpdateRFC7606AddPath(pathAttrs, hasNLRI, isIBGP, asn4, addPathFor)
 
 	// RFC 8669 Section 4: discard PrefixSID from EBGP unless configured to accept.
+	//
+	// Presence comes from the walk above, not from a second walk of the same bytes.
+	// PrefixSIDPresent is false whenever that walk abandoned the section early. Every
+	// such abandonment carries treat-as-withdraw or session-reset, and the guards below
+	// already decline to act on both. The two forms therefore agree on every input.
 	if !isIBGP && !s.settings.AcceptSRv6PrefixSID {
-		if _, _, _, found := attribute.AttrFind(pathAttrs, attribute.AttrPrefixSID); found {
+		if result.PrefixSIDPresent {
 			entry := message.DiscardEntry{Code: uint8(attribute.AttrPrefixSID), Reason: message.DiscardReasonEBGPInvalid}
 			if result.Action < message.RFC7606ActionAttributeDiscard {
 				result = &message.RFC7606ValidationResult{

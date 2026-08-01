@@ -479,6 +479,11 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			if !ok {
 				continue
 			}
+			// Site 8: body.transcodeBuf backs the cross-context RFC 6793 transcode,
+			// whose sections body.updates aliases zero-copy -- and the body slots
+			// below hand those same sections to later destinations. Adopt onto the
+			// entry, return at eviction (D-1/D-2).
+			update.adoptFwdHandle(body.transcodeBuf)
 			item.rawBodies = body.rawBodies
 			item.updates = body.updates
 			item.supersedeKey = body.supersedeKey
