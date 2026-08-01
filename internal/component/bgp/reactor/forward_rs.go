@@ -190,6 +190,16 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	var bodySlots [4]fwdBodyCacheSlot
 	var bodySlotCount int
 
+	// Same gate, same table type, same lifetime as the general rail
+	// (reactor_api_forward.go). One implementation for both rails is the point:
+	// keeping two was how this rail's body cache came to stop at four slots
+	// while the other one grew a map.
+	var dedup *fwdDedupTable
+	if groupsEnabled && !r.forwardDedupOff && len(matchingPeers) > 1 {
+		dedup = getFwdDedupTable()
+		defer putFwdDedupTable(dedup)
+	}
+
 	var parseCache fwdParseCache
 
 	// RFC 7947: Parse community-based forwarding policy for RS-client peers.
@@ -340,17 +350,35 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		} else if mods.HasModifications() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := r.fwdPool.OutgoingPool(peerKey)
-			modified, bufIdx, modFail := buildModifiedPayload(peerWire.Payload(), &mods, r.attrModHandlers, modPool, nil)
-			// Counts AND says it, once per reason per second; see
-			// recordModifyFailure. The route server fans one UPDATE out to every
-			// client, so this is the rail where an unbounded line hurt most.
-			r.recordModifyFailureAddr(modFail, modifySiteRouteServer, facts.addr)
-			if modFail.failed() {
-				// Fail closed, as on the general forward rail. On the route
-				// server this is the path that strips control communities
-				// (RFC 7947), so a silent unmodified forward leaks them to
-				// every client.
-				continue
+
+			// The same dedup as the general rail, from the same implementation.
+			// This is the rail where it matters most: a route server fans every
+			// route out to every client, and RFC 7947 gives clients with the
+			// same community policy an identical edit set by construction.
+			var modified []byte
+			var bufIdx int
+			shared, cand := dedup.begin(fwdDedupIdentity{base: peerWire}, &mods)
+			if shared != nil {
+				modified, bufIdx = copyMaterialization(shared, modPool)
+			} else {
+				var modFail modifyFailure
+				modified, bufIdx, modFail = buildModifiedPayload(peerWire.Payload(), &mods, r.attrModHandlers, modPool, nil)
+				// Counts AND says it, once per reason per second; see
+				// recordModifyFailure. The route server fans one UPDATE out to every
+				// client, so this is the rail where an unbounded line hurt most.
+				r.recordModifyFailureAddr(modFail, modifySiteRouteServer, facts.addr)
+				if modFail.failed() {
+					// Fail closed, as on the general forward rail. On the route
+					// server this is the path that strips control communities
+					// (RFC 7947), so a silent unmodified forward leaks them to
+					// every client.
+					dedup.abandon(cand)
+					continue
+				}
+				if modified != nil {
+					recordMaterialization()
+				}
+				dedup.commit(cand, modified)
 			}
 			if modified != nil {
 				ctxID := peerWire.SourceCtxID()

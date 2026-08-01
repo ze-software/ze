@@ -300,6 +300,22 @@ type Reactor struct {
 	// group-aware UPDATE building and forwarding. nil when disabled.
 	updateGroups *UpdateGroupIndex
 
+	// forwardDedupOff turns off sharing one UPDATE rebuild between forward
+	// destinations whose edit sets are equal (forward_dedup.go).
+	//
+	// Negative, against ai/rules/config-naming.md's positive-assertion rule,
+	// because the ZERO VALUE has to mean "on". Every Reactor a test builds is a
+	// struct literal, so a positive field would leave the feature silently off
+	// in exactly the places that must exercise it. The env var operators see is
+	// positive (ze.bgp.reactor.forward-dedup, default true) and this is its
+	// inverse, set once at construction.
+	//
+	// It exists as an escape hatch rather than a tuning knob: the failure this
+	// feature could have is one peer receiving another peer's UPDATE, and a
+	// feature with that blast radius should be switchable off without also
+	// giving up update groups.
+	forwardDedupOff bool
+
 	// Config tree for plugin JSON delivery
 	configTree map[string]any
 
@@ -448,6 +464,8 @@ func New(config *Config) *Reactor {
 		}),
 		configTree:   config.ConfigTree,
 		updateGroups: NewUpdateGroupIndexFromEnv(),
+		// See the field's own comment for why the flag is stored inverted.
+		forwardDedupOff: !env.GetBool("ze.bgp.reactor.forward-dedup", true),
 		// Cache the RS fast-path forwarding capability at construction. Plugins
 		// activate it from init() (which runs before any reactor is built), so a
 		// binary without the rs plugin leaves this false and the fast path inert.

@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | `plan/spec-wire-edit-3-aspath-fold.md` |
-| Phase | 5 |
+| Phase | 1/7 |
 | Deferral shard | `plan/deferrals/spec-wire-edit-5-fanout-dedup.md` |
-| Updated | 2026-07-28 |
+| Updated | 2026-08-01 |
 
 Child 5 of `plan/spec-wire-edit-0-umbrella.md`. It restores fan-out sharing, but
 upstream of the copy rather than downstream of it.
@@ -156,7 +156,7 @@ many times identical bytes are produced, never which bytes.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Fingerprinting pays off from a fan-out of two upward. | Hashing a few hundred bytes of edit set replaces a payload copy of 100 to 4000 bytes plus a pool-buffer acquisition. | Gate dedup on a measured fan-out threshold, or drop the child entirely: children 1 to 4 stand alone. | `BenchmarkFanoutDedup` comparing per-destination cost with dedup on and off at fan-out 1, 2, 10 and 100. | unvalidated |
+| A-1 | Fingerprinting pays off from a fan-out of two upward. | Hashing a few hundred bytes of edit set replaces a payload copy of 100 to 4000 bytes plus a pool-buffer acquisition. | Gate dedup on a measured fan-out threshold, or drop the child entirely: children 1 to 4 stand alone. | `BenchmarkFanoutDedup` comparing per-destination cost with dedup on and off at fan-out 1, 2, 10 and 100. | **confirmed, with one exception.** Interleaved A/B, medians of 6, ns per destination: (1,1) 1632 -> 1605 (control); (2,1) 1338 -> 1198, -10.5%; (2,2) 1330 -> 1374, **+3.3%**; (10,2) 1210 -> 1036, -14.4%; (100,2) 1158 -> 827, -28.6%; (100,100) 1174 -> 1207, **+2.8%**. It pays from a fan-out of two WITHIN ONE GROUP. Where every destination is its own group it costs ~3%: the digest nothing can amortize. Allocations per operation are identical in both arms at every point. |
 | A-2 | Destinations in one update group usually produce equal edit sets. | The facts-driven producers (`internal/component/bgp/reactor/peer_forward_facts.go:228`, `internal/component/bgp/reactor/peer_forward_facts.go:246`) read per-peer settings that a group shares by construction. | The equality classes are small and the win is small; A-1's benchmark already measures that case. | Instrumented run recording the distribution of equality-class sizes over a real fan-out. | unvalidated |
 | A-3 | Every field that can change output bytes is reachable from the edit set, so the fingerprint is complete. | The edit set is the sole input to the writer after `plan/spec-wire-edit-2-edit-apply.md`, other than the base, context and extended flag, all of which are in the identity. | A field outside the fingerprint means two destinations can share bytes that should differ, which is the catastrophic case. This must be found by construction, not by test. | A field-by-field audit of the edit set against the writer's inputs, plus a property test that mutates each field and asserts the fingerprint changes. | unvalidated |
 | A-4 | A shared materialisation can be released correctly without per-peer buffer indices. | The current lifecycle returns the buffer from the item that owns it (`internal/component/bgp/reactor/reactor_api_forward.go:800`), which is a one-to-one model. | Fall back to materialising per destination and sharing only the parsed body, which is what the current cache does. | A soak run under the debug buffer poison, plus a test that releases items out of order. | unvalidated |
@@ -171,6 +171,31 @@ many times identical bytes are produced, never which bytes.
 | R-4 | Dedup disturbs the zero-copy passthrough, turning a free forward into a hashed one. | The fast-path `.ci` files and a benchmark at fan-out 1. | An empty edit set short-circuits before any fingerprint is computed: there is nothing to share. |
 | R-5 | Reflector clients in different clusters, or RS clients with different community policies, are wrongly grouped. | Dedicated tests for both. | Their edit sets differ in CLUSTER_LIST and community bytes respectively, so equality separates them. The tests pin that rather than trusting it. |
 | R-6 | The win does not appear in the existing perf baseline, which is a single-peer convergence run with almost no fan-out. | The baseline shows nothing either way. | The benchmark in A-1 is the proof, not the baseline. This is stated up front so a flat baseline is not read as a failed change. |
+
+## Deviation: the rebuild is shared, the BUFFER is not
+
+The spec above assumes a shared materialization referenced by several forward
+items, and spends A-4, A-5, R-3 and half the Blast Radius on making that safe.
+A measurement taken before any of it was written says not to.
+
+`BenchmarkFanoutRebuildOnly` decomposes the per-destination cost the dedup can
+recover. On the fixture payload the `buildModifiedPayload` rebuild is **416 ns**
+and a flat `copy` of its result is **2.1 ns**. So a destination that reuses an
+earlier one's PLAN and copies the bytes into its own per-peer pool buffer keeps
+99.5% of the available win, and the one-buffer-one-item ownership model is
+untouched: every buffer still has exactly one owner and one return, exactly as
+before this child.
+
+What that changes in the spec above:
+
+| Spec item | Disposition |
+|-----------|-------------|
+| A-4 (shared release without per-peer indices) | Does not arise. No buffer is shared, so the release path is unchanged from HEAD. `TestSharedBufferOwnedByExactlyOneItem` pins that no two forward items ever hold one buffer. |
+| A-5 (splitting a shared materialization) | Does not arise. `buildFwdBody` still runs per destination over that destination's own bytes. |
+| R-3 (shared buffer lifetime) | Removed by construction rather than mitigated. |
+| AC-8 (out-of-order release of a shared buffer) | Re-read as its GOAL: no double return, no use-after-free. Proven more strongly, by there being no shared buffer at all. |
+| The identity carrying destination context / extended flag / max message size | Dropped. Those decide how a payload is SPLIT, which is still per destination. The rebuilt bytes depend only on the source payload and the edit set -- see `buildModifiedPayload`'s signature, which is the whole argument. |
+| The remaining ~120 ns per destination (`buildFwdBody` plus the wire wrapper) | NOT recovered. Taking it requires the shared buffer this deviation exists to avoid. Measured and deliberately left. |
 
 ## Blast Radius
 

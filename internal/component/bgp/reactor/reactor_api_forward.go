@@ -438,6 +438,16 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		fwdBodyCache = make(map[fwdBodyCacheKey]*fwdBodyCacheEntry)
 	}
 
+	// The edit-set dedup rides the SAME gate the body cache already had, so the
+	// feature inherits an existing off switch instead of adding one, and a
+	// deployment with update groups disabled behaves exactly as it did before.
+	// A fan-out of one has nothing to share, so it never pays for a digest.
+	var dedup *fwdDedupTable
+	if groupsEnabled && !a.r.forwardDedupOff && len(matchingPeers) > 1 {
+		dedup = getFwdDedupTable()
+		defer putFwdDedupTable(dedup)
+	}
+
 	srcFilter := srcInfo.filterInfo
 	srcAddr := update.SourcePeerIP
 
@@ -648,19 +658,45 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 		} else if mods.HasModifications() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := a.r.fwdPool.OutgoingPool(peerKey)
-			modified, bufIdx, modFail := buildModifiedPayload(peerWire.Payload(), &mods, a.r.attrModHandlers, modPool, nil)
-			// Counts AND says it, once per reason per second; see
-			// recordModifyFailure. This fires once per DESTINATION, so an
-			// unbounded line here scaled with fan-out.
-			a.r.recordModifyFailureAddr(modFail, modifySiteEgressForward, facts.addr)
-			if modFail.failed() {
-				// Fail closed. The policy asked for a change we could not make,
-				// so forwarding this route sends exactly what the policy exists
-				// to prevent (ai/rules/fail-closed-guards.md). This is a step
-				// that COULD NOT RUN, not a policy decision, so it is not
-				// counted as a policy suppression -- same distinction the
-				// egress chain draws with egressStepResult.failed.
-				continue
+
+			// Ask, before rebuilding, whether an earlier destination in this
+			// same fan-out already produced exactly these bytes. A route server
+			// or reflector sends one route to every client in a group, and the
+			// group's members share their policy by construction, so the answer
+			// is usually yes and the rebuild it skips is the most expensive step
+			// on this path.
+			//
+			// The reuse is a COPY into this destination's own buffer, not a
+			// shared one: the rebuild costs 416ns and the copy 2ns
+			// (BenchmarkFanoutRebuildOnly), so the entire ownership question --
+			// one buffer, several items, released after the last worker -- buys
+			// 0.5% and is not worth its blast radius.
+			var modified []byte
+			var bufIdx int
+			shared, cand := dedup.begin(fwdDedupIdentity{base: peerWire}, &mods)
+			if shared != nil {
+				modified, bufIdx = copyMaterialization(shared, modPool)
+			} else {
+				var modFail modifyFailure
+				modified, bufIdx, modFail = buildModifiedPayload(peerWire.Payload(), &mods, a.r.attrModHandlers, modPool, nil)
+				// Counts AND says it, once per reason per second; see
+				// recordModifyFailure. This fires once per DESTINATION, so an
+				// unbounded line here scaled with fan-out.
+				a.r.recordModifyFailureAddr(modFail, modifySiteEgressForward, facts.addr)
+				if modFail.failed() {
+					// Fail closed. The policy asked for a change we could not make,
+					// so forwarding this route sends exactly what the policy exists
+					// to prevent (ai/rules/fail-closed-guards.md). This is a step
+					// that COULD NOT RUN, not a policy decision, so it is not
+					// counted as a policy suppression -- same distinction the
+					// egress chain draws with egressStepResult.failed.
+					dedup.abandon(cand)
+					continue
+				}
+				if modified != nil {
+					recordMaterialization()
+				}
+				dedup.commit(cand, modified)
 			}
 			if modified != nil {
 				// An ASN4 transcode folded into the rebuild changed the AS number
