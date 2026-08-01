@@ -438,6 +438,15 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			modPool := r.fwdPool.OutgoingPool(peerKey)
 			modified, bufIdx, modFail := buildModifiedPayload(peerWire.Payload(), &mods, r.attrModHandlers, modPool, nil)
 			r.recordModifyFailure(modFail)
+			if modFail.failed() {
+				// Fail closed, as on the general forward rail. On the route
+				// server this is the path that strips control communities
+				// (RFC 7947), so a silent unmodified forward leaks them to
+				// every client.
+				fwdLogger().Warn("egress modification failed, suppressing route",
+					"peer", facts.addr, "reason", modFail.String())
+				continue
+			}
 			if modified != nil {
 				peerWire = wireu.NewWireUpdate(modified, peerWire.SourceCtxID())
 				modBufIdx = bufIdx

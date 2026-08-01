@@ -104,6 +104,42 @@ func TestDecideStaleReadvertise(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-1 — a readvertise modification that cannot be applied suppresses
+// the route instead of re-advertising it unmodified.
+// PREVENTS: The RFC 9494 stale re-advertise rail silently undoing its own egress
+// filter. Before T1-1 this call site read the build's nil as "no change needed"
+// and returned staleModify with a nil body, so the caller re-advertised the
+// stale route with none of the depreference the filter asked for. This is one of
+// the two call sites the spec's A-2 never named.
+func TestDecideStaleReadvertiseSuppressesOnModifyFailure(t *testing.T) {
+	dest := filterapi.PeerFilterInfo{
+		Address: mustParseAddr("10.0.0.2"),
+		PeerAS:  65001,
+		LocalAS: 65000,
+	}
+
+	// A withdrawn rewrite past the 2-octet Withdrawn Routes Length field. It is
+	// a modification (so HasModifications is true and the empty-accumulator
+	// early return cannot fire) that buildModifiedPayload must refuse.
+	oversize := func(_, _ filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
+		mods.SetWithdrawnRewrite(make([]byte, 65536))
+		return true
+	}
+
+	r := &Reactor{
+		readvertiseEgressFilters: []filterapi.EgressFilterFunc{oversize},
+		attrModHandlers:          attrModHandlersWithDefaults(),
+	}
+	a := &reactorAPIAdapter{r: r}
+
+	body := append([]byte(nil), minimalAnnounceBody...)
+	outcome, modified := a.decideStaleReadvertise(dest, body, 1)
+
+	assert.Equal(t, staleSuppress, outcome,
+		"an unapplicable modification must suppress, never re-advertise unmodified")
+	assert.Nil(t, modified, "suppression carries no body")
+}
+
 // TestDecideStaleReadvertise_NoFilters verifies that with no readvertise filters
 // registered the outcome is always keep (the common no-LLGR deployment): the
 // stale branch is inert.

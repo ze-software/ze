@@ -792,6 +792,17 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			modPool := a.r.fwdPool.OutgoingPool(peerKey)
 			modified, bufIdx, modFail := buildModifiedPayload(peerWire.Payload(), &mods, a.r.attrModHandlers, modPool, nil)
 			a.r.recordModifyFailure(modFail)
+			if modFail.failed() {
+				// Fail closed. The policy asked for a change we could not make,
+				// so forwarding this route sends exactly what the policy exists
+				// to prevent (ai/rules/fail-closed-guards.md). This is a step
+				// that COULD NOT RUN, not a policy decision, so it is not
+				// counted as a policy suppression -- same distinction the
+				// egress chain draws with egressStepResult.failed.
+				fwdLogger().Warn("egress modification failed, suppressing route",
+					"peer", facts.addr, "reason", modFail.String())
+				continue
+			}
 			if modified != nil {
 				peerWire = wireu.NewWireUpdate(modified, peerWire.SourceCtxID())
 				modBufIdx = bufIdx

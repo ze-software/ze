@@ -1490,6 +1490,17 @@ func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo
 	case mods.HasModifications():
 		modified, _, modFail := buildModifiedPayload(body, &mods, a.r.attrModHandlers, nil, nil)
 		a.r.recordModifyFailure(modFail)
+		if modFail.failed() || modified == nil {
+			// Fail closed. mods.HasModifications() is true, so a nil payload
+			// here can only mean the build refused; re-advertising the stale
+			// route unmodified would undo the RFC 9494 egress filter's decision.
+			// modified == nil with no named failure is unreachable today (the
+			// "nothing to apply" early return needs an EMPTY accumulator), and
+			// is folded in here so a future path cannot make it a silent leak.
+			fwdLogger().Warn("stale re-advertise modification failed, suppressing route",
+				"peer", dest.Address, "reason", modFail.String())
+			return staleSuppress, nil
+		}
 		return staleModify, modified
 	default:
 		return staleKeep, nil

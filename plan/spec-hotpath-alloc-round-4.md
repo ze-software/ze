@@ -222,7 +222,36 @@ may need to change instead.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The three nil-returning failure paths in `buildModifiedPayload` are reachable in production, not merely defensive. | `len(payload)+256` slack (`forward_build.go:104`) against modifications that can grow an attribute arbitrarily, for example a CLUSTER_LIST prepend on a long list or a community add on a near-full list. | If unreachable, T1-1 becomes documentation plus a counter that never fires, which is still worth having but is not urgent. | Land the counter first and observe it in a soak run before changing the behaviour. | unvalidated |
 | A-2 | No caller of `buildModifiedPayload` depends on nil meaning "forward unmodified". | The three call sites read nil identically as "skip the modification": `reactor_api_forward.go:785`, `filter_ordered.go:203`, `filter_ordered.go:303`. | A caller that genuinely wants the unmodified route needs an explicit signal rather than a shared nil. | Read all three call sites at implementation and add a test per site. | unvalidated |
-| A-3 | The cross-context transcode buffer fits the existing tiered acquisition without a new pool. | `acquireModBuf` (`forward_build.go:392`) already handles sizes above 4096 by falling through to a fresh allocation, which is the same worst case as today. | A new size class is needed; the change grows but stays local. | Benchmark the cross-context forward path before and after, at both standard and extended message sizes. | unvalidated |
+| A-3 | ~~The cross-context transcode buffer fits the existing tiered acquisition without a new pool.~~ | ~~`acquireModBuf` already handles sizes above 4096 by falling through to a fresh allocation.~~ | ~~A new size class is needed; the change grows but stays local.~~ | Read the aliasing chain out of `fwdUpdateForDestination`. | **broken** (2026-08-01) |
+
+→ A-3 is BROKEN, and the failure mode is lifetime, not size. The transcode
+buffer is aliased into an ASYNCHRONOUS TCP write, so a pooled buffer with a
+`defer Put` would recycle it under a pending write and put another route's bytes
+on the wire. Chain, each link read at its producer:
+`message.UnpackUpdate` (`message/update.go`) is explicitly zero-copy: it stores
+`rawData: data` and slices `Withdrawn`/`Attrs`/`NLRI` into the caller's array.
+`fwdReencodeNLRIs` (`reactor/forward_body.go`) RETURNS ITS INPUT unchanged when
+`srcAddPath == destAddPath`, and `fwdReencodeMPAttributes` returns its input
+unchanged when nothing needed re-framing. Both are the ordinary case, because
+this branch is entered on an ASN4 mismatch, not an ADD-PATH one. So the
+`&message.Update` that `fwdUpdateForDestination` returns has every field
+pointing into the transcode buffer. `buildFwdBody` appends that value straight
+into `result.updates`, which becomes `fwdItem.updates` and is written to TCP by
+a forward-pool worker goroutine.
+
+→ Decision: do NOT implement T1-2 as written. The safe shape is the one three
+existing sites already use for buffers aliased into async writes: acquire via
+`getReadBuf` and adopt onto the `ReceivedUpdate` with `adoptFwdHandle`, so the
+buffer is released at cache eviction rather than at function exit. That threads
+a handle through `fwdUpdateForDestination` and `buildFwdBody`, so T1-2's Files
+to Modify grows from `forward_body.go` alone to include `reactor_api_forward.go`
+and `forward_rs.go`. The plain `make` is CORRECT today; it is a rule violation
+whose fix is not local, not a latent bug.
+
+→ Constraint: the spec's R-2 anticipated this risk but A-3 assumed it away, and
+the Failure Routing entry for R-2 ("revert T1-2 and re-derive the lifetime") is
+the instruction that applies. This is that re-derivation, done before writing
+the bug rather than after a poison read found it.
 | A-4 | Hoisting the accumulator is safe: no operation buffer captured in one iteration is read in a later one. | `Op` stores the caller's slice without copying (`filterapi.go:132-134`) and `OpCopy` copies into the inline arena (`:139`). Both are consumed within the same iteration by `buildModifiedPayload`. | A retained slice would be read after reset, returning another destination's bytes. This is the one way T1-3 can be subtly wrong. | A test that fills the accumulator, resets, refills with fewer operations, and asserts no stale operation survives; plus a debug-build poison of the inline arena on reset. | unvalidated |
 | A-5 | The PrefixSID lookup can be folded into the RFC 7606 validator walk without changing the validator's result. | Both read the same `pathAttrs` slice; the PrefixSID check is a presence test with no effect on the validation verdict (`session_validation.go:110-125`). | Keep the second walk; T1-4 drops out with no effect on the rest. | Differential test over the existing RFC 7606 corpus asserting an identical verdict for every input. | unvalidated |
 | A-6 | None of the Tier 1 items changes emitted wire bytes, except the deliberate suppression in T1-1. | T1-2 changes only where the buffer comes from, T1-3 only when the value is zeroed, T1-4 only how many times bytes are read. | A byte difference means the change was not what it looked like; stop and re-read. | A golden byte-comparison over a corpus of received UPDATEs times the transform matrix, run before and after each item. | unvalidated |

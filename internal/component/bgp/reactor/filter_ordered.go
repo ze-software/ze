@@ -1,5 +1,7 @@
 // Design: docs/architecture/api/architecture.md -- unified BGP route filter pipeline
 // Spec: plan/spec-unify-filters.md -- one stage-ordered ingress/egress pass
+// RFC: rfc/short/rfc6996.md -- private-use ASNs, which the export chain strips
+// Related: forward_modify_failure.go -- why a modification could not be applied
 // Related: reactor_notify.go -- ingress pass invocation
 // Related: reactor_api_forward.go -- egress pass invocation (forwardUpdateCore)
 // Related: filter_chain.go -- PolicyFilterChain executor (the per-peer chain body)
@@ -202,6 +204,16 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 		if importMods.Len() > 0 || nlriOverride != nil {
 			modPayload, _, modFail := buildModifiedPayload(payload, &importMods, r.attrModHandlers, nil, nlriOverride)
 			r.recordModifyFailure(modFail)
+			if modFail.failed() {
+				// A guard MISS, not an accept. The import chain asked for a
+				// change we could not apply, so accepting the route installs
+				// exactly what the policy exists to reject -- the same
+				// fail-closed shape as the r.api == nil branch above
+				// (ai/rules/fail-closed-guards.md).
+				slog.Warn("import filter: modification failed -- fail-closed",
+					"peer", peerAddr.String(), "reason", modFail.String())
+				return ingressStepResult{} // accept == false: drop the route
+			}
 			if modPayload != nil {
 				return ingressStepResult{accept: true, modifiedPayload: modPayload}
 			}
@@ -304,6 +316,17 @@ func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, 
 		if exportMods.Len() > 0 || nlriOverride != nil {
 			modPayload, _, modFail := buildModifiedPayload(wireUpdate.Payload(), &exportMods, r.attrModHandlers, nil, nlriOverride)
 			r.recordModifyFailure(modFail)
+			if modFail.failed() {
+				// A guard MISS, not a policy decision: the chain produced a
+				// delta we could not apply, so sending the route leaks whatever
+				// the export policy was stripping (e.g. RFC 6996 private ASNs,
+				// the exact leak spec-fixit-private-asn-leak closed on the
+				// neighboring path). failed:true keeps the relay's
+				// completeness check from reading this as "policy said no".
+				slog.Warn("export filter: modification failed -- fail-closed",
+					"peer", destAddrStr, "reason", modFail.String())
+				return egressStepResult{failed: true} // accept == false: suppress for this peer
+			}
 			if modPayload != nil {
 				return egressStepResult{accept: true, wireOverride: wireu.NewWireUpdate(modPayload, wireUpdate.SourceCtxID())}
 			}

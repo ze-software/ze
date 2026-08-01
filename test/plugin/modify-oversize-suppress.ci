@@ -1,0 +1,211 @@
+# Test: an egress modification that cannot fit suppresses the route
+# VALIDATES: T1-1 -- buildModifiedPayload reports a failure distinct from "nothing
+#   to modify", and the caller suppresses the route instead of forwarding it
+#   UNMODIFIED (the leak: an export policy's tag silently not applied).
+# PREVENTS: a policy modification that overflows the output buffer being dropped
+#   on the floor while the untagged route still reaches the peer.
+#
+# Byte arithmetic (generated; see the spec's T1-1 detail section).
+#   source UPDATE body            = 1047 bytes (1039 attrs + 4 NLRI)
+#   output buffer L               = max(4096, 1047+256) = 4096
+#   written before LARGE_COMMUNITY = 24
+#   LARGE_COMMUNITY 15 -> 3616     (1 source value + 300 tagged, 12 bytes each)
+#     -> off = 3640, which is <= 4096, so the handler DOES write it
+#   verbatim tail after it        = 1004 (attribute 200) + 4 (NLRI) = 1008
+#     -> 3640 + 1008 = 4648 > 4096: safeCopy fails, modifyFailureOverflow
+#   valid K window                = [255, 338]; 300 sits 45 above the floor, 38 below the cap.
+# Below 255 the modification fits and the route is forwarded TAGGED; above 338
+# genericCommunityHandler skips the attribute instead (its own bounds check),
+# which is a different, silent path.
+
+# Source peer (ASN 65001) on 127.0.0.1
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=30s
+# The source must outlive the DEST peer's assertion. Without linger the source
+# closes as soon as its own EOR matches, ze reads that as session-down and
+# withdraws its routes, and the dest's absence assertion then passes because
+# there was nothing left to forward -- the wrong reason. Same rationale as
+# community-strip.ci and role-otc-egress-filter.ci.
+option=linger:value=true
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF042A020000040F4001010040020602010000FDE940030401010101C0200C0000FDE80000000000000000D0C803E800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_SOURCE
+
+# Dest peer (ASN 65002) on 127.0.0.2. The egress community tag cannot be applied
+# to this route, so this peer must see its own End-of-RIB and nothing else.
+stdin=dest:terminator=EOF_DEST
+option=tcp_connections:value=1
+option=timeout:value=30s
+# The dest must still BE an established forward target when the source's route
+# arrives, or selectForwardTargets skips it and the route is withheld because
+# there is no destination rather than because the modification failed.
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_DEST
+
+tmpfs=test-oversize.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert ze learned the route and withheld it from the peer whose tag would not fit.
+
+The dest peer's expect=bgp rule asserts an ABSENCE, and an absence is satisfied
+just as well by a daemon that never got as far as deciding. So both halves are
+required: the source's UPDATE was received (ze had something to leak), and the
+dest was sent nothing beyond its own End-of-RIB (ze did not leak it).
+"""
+import sys
+from ze_api import API, runtime_fail, result_json_data
+
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+
+def peer_rows(api):
+    data = result_json_data(dispatch(api, 'show bgp peer * detail'), {})
+    rows = data.get('peers', {}) if isinstance(data, dict) else {}
+    return rows if isinstance(rows, dict) else {}
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Barrier 1: both ze-peers assert the EOR frame, so neither session may be
+    # closed by the shutdown below before that frame is on the wire.
+    if not api.wait_peer_eor_sent(expected_peers=2):
+        runtime_fail('ze never sent an initial-sync EOR to both peers')
+
+    # Barrier 2: the forwarding decision for the source's route has been made.
+    # quiesce drains the forward pool AND each peer's initial-sync opQueue, so
+    # after it returns the dest has been either sent the route or refused it --
+    # which is what makes the "still 0" assertion below mean something.
+    if not api.quiesce():
+        runtime_fail('quiesce barrier did not settle; forwarding decision not yet made')
+
+    rows = peer_rows(api)
+    source = rows.get('127.0.0.1', {})
+    dest = rows.get('127.0.0.2', {})
+    if not source or not dest:
+        runtime_fail(f'peer detail missing a peer row: {sorted(rows)}')
+
+    # Positive half: ze received the route. Without this the assertion below is
+    # satisfied by a daemon that was never given anything to leak.
+    if int(source.get('updates-received', 0) or 0) < 1:
+        runtime_fail(f'source peer UPDATE never reached ze: {source}')
+
+    # Negative half: nothing but the End-of-RIB was written to the dest.
+    # updates-sent counts EVERY UPDATE including the EOR marker, so the
+    # difference is the route this test proves was withheld.
+    leaked = int(dest.get('updates-sent', 0) or 0) - int(dest.get('eor-sent', 0) or 0)
+    if leaked != 0:
+        runtime_fail(f'route with an unappliable egress tag leaked to the dest peer: {dest}')
+
+    print(f'OK: route accepted from the source, {leaked} routes beyond EOR sent to the dest',
+          file=sys.stderr)
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration: the dest peer tags 300 large communities on egress, which
+# cannot be written without pushing the trailing attribute past the output buffer.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-oversize {
+		run ./test-oversize.run
+		encoder json
+	}
+}
+bgp {
+	community {
+		large oversize {
+			value [ 65000:1:0 65000:1:1 65000:1:2 65000:1:3 65000:1:4 65000:1:5 65000:1:6 65000:1:7 65000:1:8 65000:1:9 65000:1:10 65000:1:11 65000:1:12 65000:1:13 65000:1:14 65000:1:15 65000:1:16 65000:1:17 65000:1:18 65000:1:19 65000:1:20 65000:1:21 65000:1:22 65000:1:23 65000:1:24 65000:1:25 65000:1:26 65000:1:27 65000:1:28 65000:1:29 65000:1:30 65000:1:31 65000:1:32 65000:1:33 65000:1:34 65000:1:35 65000:1:36 65000:1:37 65000:1:38 65000:1:39 65000:1:40 65000:1:41 65000:1:42 65000:1:43 65000:1:44 65000:1:45 65000:1:46 65000:1:47 65000:1:48 65000:1:49 65000:1:50 65000:1:51 65000:1:52 65000:1:53 65000:1:54 65000:1:55 65000:1:56 65000:1:57 65000:1:58 65000:1:59 65000:1:60 65000:1:61 65000:1:62 65000:1:63 65000:1:64 65000:1:65 65000:1:66 65000:1:67 65000:1:68 65000:1:69 65000:1:70 65000:1:71 65000:1:72 65000:1:73 65000:1:74 65000:1:75 65000:1:76 65000:1:77 65000:1:78 65000:1:79 65000:1:80 65000:1:81 65000:1:82 65000:1:83 65000:1:84 65000:1:85 65000:1:86 65000:1:87 65000:1:88 65000:1:89 65000:1:90 65000:1:91 65000:1:92 65000:1:93 65000:1:94 65000:1:95 65000:1:96 65000:1:97 65000:1:98 65000:1:99 65000:1:100 65000:1:101 65000:1:102 65000:1:103 65000:1:104 65000:1:105 65000:1:106 65000:1:107 65000:1:108 65000:1:109 65000:1:110 65000:1:111 65000:1:112 65000:1:113 65000:1:114 65000:1:115 65000:1:116 65000:1:117 65000:1:118 65000:1:119 65000:1:120 65000:1:121 65000:1:122 65000:1:123 65000:1:124 65000:1:125 65000:1:126 65000:1:127 65000:1:128 65000:1:129 65000:1:130 65000:1:131 65000:1:132 65000:1:133 65000:1:134 65000:1:135 65000:1:136 65000:1:137 65000:1:138 65000:1:139 65000:1:140 65000:1:141 65000:1:142 65000:1:143 65000:1:144 65000:1:145 65000:1:146 65000:1:147 65000:1:148 65000:1:149 65000:1:150 65000:1:151 65000:1:152 65000:1:153 65000:1:154 65000:1:155 65000:1:156 65000:1:157 65000:1:158 65000:1:159 65000:1:160 65000:1:161 65000:1:162 65000:1:163 65000:1:164 65000:1:165 65000:1:166 65000:1:167 65000:1:168 65000:1:169 65000:1:170 65000:1:171 65000:1:172 65000:1:173 65000:1:174 65000:1:175 65000:1:176 65000:1:177 65000:1:178 65000:1:179 65000:1:180 65000:1:181 65000:1:182 65000:1:183 65000:1:184 65000:1:185 65000:1:186 65000:1:187 65000:1:188 65000:1:189 65000:1:190 65000:1:191 65000:1:192 65000:1:193 65000:1:194 65000:1:195 65000:1:196 65000:1:197 65000:1:198 65000:1:199 65000:1:200 65000:1:201 65000:1:202 65000:1:203 65000:1:204 65000:1:205 65000:1:206 65000:1:207 65000:1:208 65000:1:209 65000:1:210 65000:1:211 65000:1:212 65000:1:213 65000:1:214 65000:1:215 65000:1:216 65000:1:217 65000:1:218 65000:1:219 65000:1:220 65000:1:221 65000:1:222 65000:1:223 65000:1:224 65000:1:225 65000:1:226 65000:1:227 65000:1:228 65000:1:229 65000:1:230 65000:1:231 65000:1:232 65000:1:233 65000:1:234 65000:1:235 65000:1:236 65000:1:237 65000:1:238 65000:1:239 65000:1:240 65000:1:241 65000:1:242 65000:1:243 65000:1:244 65000:1:245 65000:1:246 65000:1:247 65000:1:248 65000:1:249 65000:1:250 65000:1:251 65000:1:252 65000:1:253 65000:1:254 65000:1:255 65000:1:256 65000:1:257 65000:1:258 65000:1:259 65000:1:260 65000:1:261 65000:1:262 65000:1:263 65000:1:264 65000:1:265 65000:1:266 65000:1:267 65000:1:268 65000:1:269 65000:1:270 65000:1:271 65000:1:272 65000:1:273 65000:1:274 65000:1:275 65000:1:276 65000:1:277 65000:1:278 65000:1:279 65000:1:280 65000:1:281 65000:1:282 65000:1:283 65000:1:284 65000:1:285 65000:1:286 65000:1:287 65000:1:288 65000:1:289 65000:1:290 65000:1:291 65000:1:292 65000:1:293 65000:1:294 65000:1:295 65000:1:296 65000:1:297 65000:1:298 65000:1:299 ]
+		}
+	}
+
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		process test-oversize {
+			receive [ update state ]
+		}
+	}
+
+	peer dest-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		filter {
+			egress {
+				community {
+					tag oversize
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-community --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+# The suppression, with the reason. Matched as a PATTERN rather than the
+# forward rail's exact phrase because two rails can deliver this route and each
+# names itself: reactor_api_forward.go says "egress modification failed,
+# suppressing route" and reactor_api_batch.go says "stale re-advertise
+# modification failed, suppressing route". Which one runs depends on whether the
+# dest was already an established forward target, which is a scheduling
+# property, not a property of the behaviour under test. Both share this phrase.
+# reason=overflow pins WHICH modifyFailure, so a future change that suppresses
+# for a different reason does not quietly inherit this test's green.
+expect=stderr:pattern=modification failed, suppressing route
+expect=stderr:contains=peer=127.0.0.2 reason=overflow
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL
