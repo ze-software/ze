@@ -167,6 +167,13 @@ hoist's win to the fragment model.
 | T1-2 | The cross-context ASN4 transcode allocates `len(payload)*2+1024` bytes per forward, unpooled, in a helper. | `forward_body.go:158` | rule violation | `ai/rules/buffer-first.md` bans it, the pooled alternative sits 200 lines away in the same package (`forward_build.go:392`), and the umbrella rewrites the transcode but not this call site's buffer discipline. |
 | T1-3 | The modification accumulator is declared inside the destination loop on both rails, so its 64-byte inline arena is re-zeroed once per destination. `Reset` exists for exactly this and has no production caller. | `reactor_api_forward.go:632`, `forward_rs.go:339`, `filterapi.go:94`, `:119` | cost, dead code | The umbrella makes the accumulator larger, which makes per-iteration zeroing worse, so this must be true **before** the umbrella lands or the umbrella regresses the hot path. |
 | T1-4 | The PrefixSID lookup walks the attribute section a second time, immediately after the RFC 7606 validator walked it. | `session_validation.go:108` then `:112` | cost | Small, local, and independent of the representation change. |
+| T1-5 | **RFC 8669 Section 4 MUST violation, wire-visible.** An eBGP peer not configured to accept PrefixSID sends TWO OR MORE PrefixSID attributes and ONE SURVIVES onto the wire. Two independent causes: `message/attr_discard.go` `applyInPlace` locates via `AttrFind` and tombstones only the FIRST occurrence; and the Section 4 branch in `reactor/session_validation.go` `enforceRFC7606` replaces the result with a fresh struct carrying no `DuplicateRanges`, which skips the RFC 7606 Section 3.g keep-first strip that would have removed the copy. | `message/attr_discard.go` `applyInPlace`; `reactor/session_validation.go` `enforceRFC7606` | **correctness, RFC conformance** | Found 2026-08-01 while testing T1-4. Pre-existing and NOT caused by this spec, but "pre-existing" says when it started, not whose it is (`ai/rules/no-parking.md`), and a known wire-visible violation is not deferrable (`ai/rules/rfc-compliance.md`). |
+
+→ Decision (2026-08-01, Thomas): T1-5 is fixed HERE, fully tested, rather than
+recorded or split into its own spec. Raised to him because
+`ai/rules/rfc-compliance.md` reserves any answer short of full compliance for
+the owner; he chose full compliance with an RFC-tagged test proving
+multi-occurrence discard.
 
 ### T1-1 in detail
 
@@ -279,7 +286,38 @@ returns nothing on the transcode path` now contradicts the Boundary Tests row
 that sanctions the above-pool-class fallback. Reconcile at closure. The check was
 deliberately NOT edited to match the code
 (`ai/rules/no-workarounds-for-missing-behavior.md`).
-| A-4 | Hoisting the accumulator is safe: no operation buffer captured in one iteration is read in a later one. | `Op` stores the caller's slice without copying (`filterapi.go:132-134`) and `OpCopy` copies into the inline arena (`:139`). Both are consumed within the same iteration by `buildModifiedPayload`. | A retained slice would be read after reset, returning another destination's bytes. This is the one way T1-3 can be subtly wrong. | A test that fills the accumulator, resets, refills with fewer operations, and asserts no stale operation survives; plus a debug-build poison of the inline arena on reset. | unvalidated |
+| A-4 | Hoisting the accumulator is safe: no operation buffer captured in one iteration is read in a later one. | `Op` stores the caller's slice without copying (`filterapi.go:132-134`) and `OpCopy` copies into the inline arena (`:139`). Both are consumed within the same iteration by `buildModifiedPayload`. | A retained slice would be read after reset, returning another destination's bytes. This is the one way T1-3 can be subtly wrong. | A test that fills the accumulator, resets, refills with fewer operations, and asserts no stale operation survives; plus a debug-build poison of the inline arena on reset. | **confirmed** (2026-08-01) |
+
+→ A-4 CONFIRMED, by reading every consumer rather than by the poison build. Four
+facts, each read at its producer. (1) No goroutine captures the accumulator on
+either rail: neither destination loop contains a `go` statement, so nothing can
+read it after the iteration. (2) `buildModifiedPayload` (`reactor/forward_build.go`)
+consumes `Ops()` synchronously and copies every op VALUE into that destination's
+own output buffer, so nothing it returns aliases the accumulator. (3) The op
+buffers reaching the accumulator on these two rails all outlive it anyway --
+`communityStripBytes` and `origBuf` are per-UPDATE values declared above the
+loop, `facts.clusterIDBytes` and the `applyFactsNextHop` arrays live on the
+per-peer facts, and `applyASOverride` passes a fresh slice from
+`rewriteASPathOverride`. (4) The one caller that writes into the SHARED inline
+arena, `applyNextHopMod` (`reactor/reactor_api_forward.go`, the only `OpCopy`
+call site in the tree), is not reached from either rail: the live paths use
+`applyFactsNextHop`, which uses plain `Op`.
+
+→ Constraint: (4) is the fact that decays. The arena is now shared across
+destinations, so the FIRST `OpCopy` caller wired into either rail inherits an
+obligation that did not exist before the hoist. The obligation is now stated on
+`ModAccumulator.Reset` rather than left implicit, and
+`TestAccumulatorResetClearsEverything` fails if a future field is added to the
+accumulator without being cleared.
+
+→ Finding, and it is why `Reset` was NOT made to clear more: `a.ops = a.ops[:0]`
+leaves the dropped `AttrOp` entries (and their `Buf` pointers) in the backing
+array beyond `len`. That is unreachable through `Ops()`, `Len()` and
+`HasModifications()`, and clearing it would NOT close the real leak vector --
+which is a CONSUMER retaining an op slice, something no producer-side clear can
+prevent. Clearing would only add per-destination work proportional to the
+operation count, against a value the umbrella grows. Reset was left byte-identical
+to its pre-existing body; only its contract comment is new.
 | A-5 | The PrefixSID lookup can be folded into the RFC 7606 validator walk without changing the validator's result. | Both read the same `pathAttrs` slice; the PrefixSID check is a presence test with no effect on the validation verdict (`session_validation.go:110-125`). | Keep the second walk; T1-4 drops out with no effect on the rest. | Differential test over the existing RFC 7606 corpus asserting an identical verdict for every input. | confirmed (2026-08-01, `TestPrefixSIDSingleWalkSameVerdict`) |
 | A-6 | None of the Tier 1 items changes emitted wire bytes, except the deliberate suppression in T1-1. | T1-2 changes only where the buffer comes from, T1-3 only when the value is zeroed, T1-4 only how many times bytes are read. | A byte difference means the change was not what it looked like; stop and re-read. | A golden byte-comparison over a corpus of received UPDATEs times the transform matrix, run before and after each item. | unvalidated |
 
@@ -291,6 +329,37 @@ deliberately NOT edited to match the code
 | R-3 | Hoisting the accumulator leaks state between destinations, which produces wrong per-peer wire that unit tests on a single destination cannot see. | A multi-destination golden test diverges on the second destination onward. | A-4's test plus a functional test with three destinations having three different policies. |
 | R-4 | This spec and `plan/spec-wire-edit-0-umbrella.md` touch the same functions, so a long-lived branch conflicts. | Merge conflict in `forward_build.go` or `forward_body.go`. | Tier 1 lands first and completely, before umbrella child 2 starts. Tier 2 is the explicit non-overlap boundary. |
 | R-5 | Profiling shows none of the Tier 1 performance items near the top, making the work unjustified. | The captured profile itself. | T1-1 is a correctness fix and proceeds regardless. T1-2 is a rule violation and proceeds regardless. T1-3 and T1-4 are dropped if the profile does not support them, and that outcome is recorded here rather than retried. |
+
+→ Profile captured 2026-08-01 (`make ze-perf-bench PERF_DUT=ze PPROF=1`,
+artifacts under `tmp/perf-run/pprof/100000/`). **The gate is UNANSWERABLE as
+written, and that is the finding.**
+
+`forwardUpdateCore`, `reactorForwardRS`, `ModAccumulator`, `buildModifiedPayload`
+and `groupOpsByCode` appear NOWHERE in the CPU or allocation profile, across 300
+nodes. The three `memclr`-family hits present are map internals
+(`internal/runtime/maps.typedmemclr`), not the accumulator. The run is dominated
+by RIB work: `rib.(*RIBManager).handleReceivedStructured` at 58% cumulative,
+then bart trie operations and GC.
+
+That absence is a property of the BENCHMARK, not evidence the code is cheap. The
+perf run is a single-peer 100k-route convergence with almost no fan-out, which is
+exactly what the umbrella's own A-7 says, so the per-destination loop barely
+executes and the frame CANNOT appear. Total samples were 1.41s of 30s (4.7%
+utilisation): the daemon was mostly idle.
+
+→ Decision: R-5's "if the profile does not support them" presumes a profile
+CAPABLE of supporting them. Dropping T1-3 here would be dropping it on absence of
+evidence, and it would break the precondition this spec's own Task section calls
+load-bearing: umbrella child 2 grows the accumulator roughly eightfold, so the
+hoist must be true BEFORE it lands or child 2 regresses the loop it exists to
+speed up and mis-attributes the hoist's win to the fragment model. T1-3 proceeds
+on the precondition argument, NOT on a measured win, and this spec claims no
+throughput improvement from it.
+
+→ Constraint: a benchmark that can actually answer this needs fan-out. Until one
+exists, no Tier 1 or umbrella item touching the per-destination loop can be
+justified or refuted by `ze-perf-bench`. That gap belongs to
+`plan/spec-perf-next-0-umbrella.md`, which owns benchmark methodology.
 
 ## Blast Radius
 
@@ -323,6 +392,7 @@ deliberately NOT edited to match the code
 | AC-8 | A received UPDATE from an eBGP peer carrying PrefixSID, with acceptance not configured | The attribute is discarded exactly as today, with one attribute-section walk instead of two |
 | AC-9 | The full RFC 7606 validation corpus | The verdict for every input is identical before and after T1-4 |
 | AC-10 | A golden corpus of received UPDATEs times the transform matrix | Emitted bytes are identical before and after every Tier 1 item, except the deliberate suppression in AC-1 |
+| AC-11 | An eBGP peer with acceptance not configured sends one, two or three Prefix-SID attributes in one UPDATE | EVERY occurrence is discarded and none reaches the wire, with one ATTR_TOMBSTONE recording the discard and the rest of the UPDATE processed normally (RFC 8669 Section 4). On the two paths where the attribute is kept (iBGP, and an eBGP peer configured to accept) exactly one copy survives however many arrived, per RFC 7606 Section 3.g keep-first, and no marker is written |
 
 ## End-to-End User Stories
 
@@ -343,11 +413,15 @@ deliberately NOT edited to match the code
 | `TestIngressAndEgressChainSuppressOnModifyFailure` | `internal/component/bgp/reactor/filter_ordered_test.go` | A-2: all three call sites handle the failure, not only the forward one | |
 | `TestTranscodeBufferPooled` | `internal/component/bgp/reactor/forward_body_test.go` | AC-4: no allocation on the cross-context path after the first | passing; mutation-verified (forcing the unpooled `make` turns it red) |
 | `TestTranscodeBufferSingleReturn` | `internal/component/bgp/reactor/forward_body_test.go` | AC-5: exactly one return, verified under the debug poison build | passing; mutation-verified (releasing on the success path turns it red AND trips bufmux's own double-return detector) |
-| `TestAccumulatorResetClearsEverything` | `internal/component/bgp/filterapi/filterapi_test.go` | AC-7, A-4: no operation, rewrite or arena byte survives a reset | |
-| `TestAccumulatorResetIsConstantTime` | `internal/component/bgp/filterapi/filterapi_test.go` | reset cost does not scale with the inline capacity, so the umbrella's larger value stays safe | |
-| `TestPerDestinationModificationIsolation` | `internal/component/bgp/reactor/forward_update_test.go` | AC-6: three destinations, three distinct modification sets | |
+| `TestAccumulatorResetClearsEverything` | `internal/component/bgp/filterapi/filterapi_test.go` | AC-7, A-4: no operation, rewrite or arena byte survives a reset | passing; mutation-verified (a no-op `Reset` turns it red). Sweeps EVERY struct field by reflection, so a field added later without a clear fails it |
+| `TestAccumulatorResetIsConstantTime` | `internal/component/bgp/filterapi/filterapi_test.go` | reset cost does not scale with the inline capacity, so the umbrella's larger value stays safe | passing. Asserts STRUCTURALLY (the arena bytes survive Reset, and Reset allocates 0), never on wall-clock, which would be a flaky way to assert the same property |
+| `TestPerDestinationModificationIsolation` | `internal/component/bgp/reactor/forward_update_test.go` | AC-6: three destinations, three distinct modification sets | passing; mutation-verified (a no-op `Reset` turns it red with destination B receiving A's attribute value). Drives the real `forwardUpdateCore`; the third destination requests NO modification |
 | `TestPrefixSIDSingleWalkSameVerdict` | `internal/component/bgp/reactor/session_validation_test.go` | AC-8, AC-9: identical verdict, one walk | |
 | `TestGoldenBytesUnchangedTier1` | `internal/component/bgp/reactor/forward_build_test.go` | AC-10: byte identity across the transform matrix | |
+| `TestRFC8669PrefixSIDEveryOccurrenceDiscardedFromEBGP` | `internal/component/bgp/reactor/rfc8669_multi_test.go` | AC-11, T1-5: no Prefix-SID occurrence reaches the wire at 1, 2 or 3 copies. RFC-tagged (`RFC8669-4-1 negative`) | passing; red before both fixes (1 of 2, then 2 of 3, survived) |
+| `TestRFC8669PrefixSIDKeptPathsKeepExactlyOneCopy` | `internal/component/bgp/reactor/rfc8669_multi_test.go` | AC-11, T1-5: the iBGP and accept-configured paths keep exactly one copy and write no marker. RFC-tagged (`RFC8669-4-1 positive`) | passing; green before and after, so it pins the no-over-fire half |
+| `TestApplyAttrDiscardRemovesEveryOccurrence` | `internal/component/bgp/message/attr_discard_multi_test.go` | T1-5 cause 1 in isolation: `applyInPlace` tombstoned only the first occurrence | passing; mutation-verified (disabling the multi-occurrence guard turns it red while every reactor test stays green) |
+| `TestRFC8669PrefixSIDDiscardStillStripsUnrelatedDuplicate` | `internal/component/bgp/reactor/rfc8669_multi_test.go` | T1-5 cause 2 in isolation: the Section 4 branch dropped `DuplicateRanges`, disabling the Section 3.g strip for a co-occurring duplicate | passing; mutation-verified (restoring the fresh-struct build turns it red and nothing else) |
 | `BenchmarkForwardCrossContext` | `internal/component/bgp/reactor/forward_update_bench_test.go` | T1-2 before and after, allocations per operation | |
 | `BenchmarkForwardPerDestinationLoop` | `internal/component/bgp/reactor/forward_update_bench_test.go` | T1-3 before and after, at fan-out 1, 10 and 100 | |
 | `BenchmarkReceiveValidation` | `internal/component/bgp/reactor/hotpath_bench_test.go` | T1-4 before and after | |
@@ -367,7 +441,7 @@ deliberately NOT edited to match the code
 |------|----------|-------------------|--------|
 | `modify-oversize-suppress` | `test/plugin/modify-oversize-suppress.ci` | a policy modification that cannot fit suppresses the route instead of leaking it unmodified | |
 | `asn4-transcode-pooled-buffer` | `test/plugin/asn4-transcode-pooled-buffer.ci` | forwarding between a four-octet and a two-octet speaker produces identical wire with a pooled buffer | |
-| `modify-accumulator-per-peer-isolation` | `test/plugin/modify-accumulator-per-peer-isolation.ci` | three peers with three policies each receive only their own modifications | |
+| `modify-accumulator-per-peer-isolation` | `test/plugin/modify-accumulator-per-peer-isolation.ci` | three peers with three policies each receive only their own modifications | passing; mutation-verified (a no-op `Reset` puts client B's next-hop on client C's wire). 80/80 under `stress-repro.py`. Its observer waits for one forward PER CLIENT, not `run_rs_observer`'s first-forward-to-any-peer proxy |
 | `prefixsid-ebgp-discard-single-walk` | `test/plugin/prefixsid-ebgp-discard-single-walk.ci` | an eBGP route carrying PrefixSID is discarded exactly as before | |
 
 ### Interop Tests (Scope: protocol)

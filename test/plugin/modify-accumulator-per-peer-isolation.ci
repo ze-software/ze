@@ -1,0 +1,284 @@
+# modify-accumulator-per-peer-isolation -- one route fanned out to THREE clients
+# with THREE DIFFERENT next-hop policies. Each client must receive exactly its
+# own modification and nothing from the other two.
+#
+# VALIDATES: spec-hotpath-alloc-round-4 AC-6 (T1-3), on the GENERAL forwarding
+# rail (reactor/reactor_api_forward.go forwardUpdateCore).
+#
+# PREVENTS: the cross-peer leak T1-3 makes possible. Both rails used to declare a
+# fresh filterapi.ModAccumulator INSIDE the per-destination loop, so each
+# destination started from a guaranteed-empty value. T1-3 hoists ONE accumulator
+# above the loop and calls Reset at the top of each iteration, because
+# spec-wire-edit-2-edit-apply grows that value roughly eightfold and re-zeroing it
+# per destination would then dominate the loop. The storage is now SHARED, so an
+# incomplete Reset sends one peer another peer's attributes -- the spec's Security
+# Review calls this the highest-risk item in it, and its Blast Radius names this
+# exact failure.
+#
+# WHY THREE CLIENTS, AND WHY THE THIRD ASKS FOR NOTHING: a two-client test cannot
+# distinguish "reset worked" from "both clients wanted the same thing". The third
+# client's policy is `next-hop unchanged`, which produces NO accumulator
+# operations at all (peer_forward_facts.go precomputeNextHop maps both `auto` and
+# `unchanged` to nhModeNone), so with a correct Reset its route is forwarded
+# VERBATIM. A client whose policy changes nothing receiving a rewritten NEXT_HOP
+# is the leak in its purest form.
+#
+# The assertions are order-independent. The fan-out may visit the three clients in
+# any order, but in every order at least one client is preceded by another whose
+# operations would survive a broken Reset, so this cannot pass by luck.
+#
+# WHY THE RAIL IS THE GENERAL ONE: rs-fast-path is a SOURCE-side gate, so the
+# source peer deliberately does not carry it and forwarding goes through the
+# bgp-rs plugin's ForwardCached path into forwardUpdateCore. See
+# bgp-rs-community-strip-multi.ci, whose structure this file follows.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=4
+option=timeout:value=20s
+option=bind:value=0.0.0.0
+# Map conn=N by remote IP rather than accept order, and handshake every peer
+# before running any conn script -- see bgp-rs-reactor-fastpath.ci for why the
+# accept-order default makes this shape flaky (peer_connmap.go).
+option=conn_map:value=remote-ip
+
+# Source peer (conn=1, AS 65001) announces 10.0.0.0/24 with NEXT_HOP 1.1.1.1.
+#   0036        message length 54
+#   02          UPDATE
+#   0000        no withdrawn routes
+#   001B        27 bytes of path attributes
+#   40010100                ORIGIN = IGP
+#   40020602010000FDE9      AS_PATH = [65001]
+#   40030401010101          NEXT_HOP = 1.1.1.1   <- the byte string under test
+#   40050400000064          LOCAL_PREF = 100
+#   180A0000                NLRI 10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE94003040101010140050400000064180A0000
+
+# The source peer's own End-of-RIB, sent by its initial sync at establishment.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Client A (conn=2): `next-hop 192.0.2.22`. 192.0.2.22 = C0 00 02 16.
+# 40 03 04 = well-known transitive, NEXT_HOP, four bytes.
+expect=bgp:conn=2:seq=1:contains=400304C0000216
+
+# Client B (conn=3): `next-hop 192.0.2.33`. 192.0.2.33 = C0 00 02 21.
+# A broken Reset hands B whichever NEXT_HOP op landed first, so this is where a
+# leak from A surfaces.
+expect=bgp:conn=3:seq=1:contains=400304C0000221
+
+# Client C (conn=4): `next-hop unchanged`. It accumulates NOTHING, so it must
+# receive the source's own NEXT_HOP untouched. This is the assertion that fails
+# when a previous client's operations survive into C's iteration.
+expect=bgp:conn=4:seq=1:contains=40030401010101
+EOF_PEER
+
+# Observer: hold ze open until the forwarded route has reached EVERY client, then
+# shut down.
+#
+# NOT run_rs_observer(expected_peers=4, forward_prefix=...): that helper sets
+# forward_seen on the FIRST sent UPDATE carrying the prefix, to ANY peer
+# (ze_api.py wait_rs_replayed), which is a proxy for the condition this test
+# needs rather than the condition itself. With three receivers it lets the
+# shutdown race the second and third forwards, and stress-repro reproduced
+# exactly that on invocation 2 of 80: ze stopped with only some clients served
+# and the run failed as an unmatched peer-exchange rather than as anything about
+# the accumulator.
+#
+# So this waits on the real condition -- one forward observed per client address
+# -- and never on a duration (ai/rules/fix-dont-record.md). Progress rearms the
+# idle window, so a slow host cannot fail it; a genuinely wedged replay still
+# fails loudly through runtime_fail rather than hanging to the outer timeout.
+tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import time
+
+from ze_api import API, runtime_fail
+
+CLIENTS = {"127.0.0.2", "127.0.0.3", "127.0.0.4"}
+PREFIX = "10.0.0.0/24"
+IDLE = 30.0
+
+api = API()
+api.declare_done()
+api.wait_for_config()
+api.capability_done()
+api.wait_for_registry()
+api.subscribe(["update"])
+api.ready()
+
+served = set()
+hard_deadline = time.monotonic() + IDLE * 8
+idle_deadline = time.monotonic() + IDLE
+while served != CLIENTS:
+    remaining = min(idle_deadline, hard_deadline) - time.monotonic()
+    if remaining <= 0:
+        runtime_fail(
+            f"forward reached {sorted(served)}, expected every client of {sorted(CLIENTS)}"
+        )
+    ev = api.wait_for_event(timeout=min(remaining, 0.5))
+    if ev is None:
+        continue
+    try:
+        decoded = json.loads(ev)
+    except (json.JSONDecodeError, TypeError, ValueError):
+        continue
+    if not isinstance(decoded, dict):
+        continue
+    bgp = decoded.get("bgp", {})
+    if bgp.get("message", {}).get("direction") != "sent":
+        continue
+    update = bgp.get("update", {})
+    # No NLRI means an EOR (an empty UPDATE), which is not a forward.
+    if not update.get("nlri") or PREFIX not in json.dumps(update):
+        continue
+    addr = bgp.get("peer", {}).get("remote", {}).get("address")
+    if addr in CLIENTS and addr not in served:
+        served.add(addr)
+        idle_deadline = time.monotonic() + IDLE
+
+api.shutdown_fire_and_forget()
+api.wait_for_shutdown(timeout=15.0)
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	external shutdown-after-up {
+		run ./shutdown-after-up.run
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			# rs-client gates the route-server forwarding path this test rides.
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		# NO rs-fast-path here: the flag is source-side, so leaving it off is what
+		# selects the general rail this file covers.
+		behavior {
+			group-updates disable
+		}
+	}
+	peer client-a {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			rs-client true
+			# Modification set A.
+			next-hop 192.0.2.22
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+	peer client-b {
+		connection {
+			remote {
+				ip 127.0.0.3
+			}
+			local {
+				ip 127.0.0.3
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65003
+			}
+			router-id 1.2.3.4
+			rs-client true
+			# Modification set B: same KIND of operation as A, different value, so
+			# a leak shows up as the wrong address rather than a missing attribute.
+			next-hop 192.0.2.33
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+	peer client-c {
+		connection {
+			remote {
+				ip 127.0.0.4
+			}
+			local {
+				ip 127.0.0.4
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65004
+			}
+			router-id 1.2.3.4
+			rs-client true
+			# Modification set C: EMPTY. `unchanged` maps to nhModeNone, so no
+			# accumulator operation is produced and the route is forwarded verbatim.
+			next-hop unchanged
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

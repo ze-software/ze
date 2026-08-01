@@ -116,6 +116,27 @@ func (a *ModAccumulator) HasModifications() bool {
 	return len(a.ops) > 0 || a.nlriRewrite != nil || a.withdrawnRewrite != nil
 }
 
+// Reset returns the accumulator to its empty state so one value can serve a
+// whole per-destination fan-out. It is the per-destination entry point: the
+// forward rails (reactor/reactor_api_forward.go forwardUpdateCore and
+// reactor/forward_rs.go reactorForwardRS) declare ONE accumulator above the
+// destination loop and call Reset at the top of each iteration.
+//
+// CALLER OBLIGATION, and it is an isolation boundary rather than a style note.
+// A slice returned by Ops(), NLRIRewrite() or WithdrawnRewrite() MUST NOT be
+// read after the next Reset. Op stores the caller's slice without copying and
+// OpCopy hands back a window into the shared inline arena, so a slice kept
+// across a Reset reads the NEXT destination's bytes -- which is one peer being
+// sent another peer's attributes. Consume every operation before resetting;
+// buildModifiedPayload does, by copying each op value into that destination's
+// own output buffer before it returns.
+//
+// Reset clears every field a later destination can read: the operation count,
+// the withdraw flag, both NLRI rewrites and the arena offset. It deliberately
+// does NOT re-zero the inline array or the operations backing array. Both are
+// unreachable once the offset and the length are zero, and zeroing either would
+// make Reset scale with capacity -- which is the whole cost the hoist removes,
+// and which grows as the arena grows.
 func (a *ModAccumulator) Reset() {
 	a.ops = a.ops[:0]
 	a.withdraw = false

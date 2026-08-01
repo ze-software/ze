@@ -90,7 +90,8 @@ func ApplyAttrDiscard(pathAttrs []byte, entries []DiscardEntry) ([]byte, bool) {
 }
 
 // applyInPlace overwrites a single malformed attribute with ATTR_TOMBSTONE in-place.
-// Returns true if successful, false if the attribute is not found or value length < 2.
+// Returns true if successful, false if the attribute is not found, its value length is
+// < 2, or the code occurs more than once (see the multi-occurrence note below).
 //
 // Zero allocation — uses AttrFind (standalone function, no pointer receiver escape).
 //
@@ -106,6 +107,30 @@ func ApplyAttrDiscard(pathAttrs []byte, entries []DiscardEntry) ([]byte, bool) {
 func applyInPlace(pathAttrs []byte, entry DiscardEntry) bool {
 	hdrStart, flags, value, found := attribute.AttrFind(pathAttrs, attribute.AttributeCode(entry.Code))
 	if !found || len(value) < 2 {
+		return false
+	}
+
+	// RFC 7606 Section 2 ("the attribute MUST be discarded") and RFC 8669 Section 4 name
+	// the ATTRIBUTE, not its first occurrence. AttrFind returns the first match, so an
+	// in-place rewrite here leaves every later copy live on the wire. For a Prefix-SID
+	// repeated by an EBGP peer outside the SR domain that is the Section 4 MUST violated,
+	// with the surviving copy's label indices reaching the RIB and the forwarding plane.
+	//
+	// In-place cannot express a multi-occurrence discard. Section 5.1 of
+	// draft-mangin-idr-attr-tombstone-00 allows ONE merged marker, and stamping a second
+	// would itself be the duplicate code that attribute.AttributesWire rejects as a hard
+	// error. So decline, and let ApplyAttrDiscard fall through to rebuildWithAttrDiscard,
+	// which drops EVERY occurrence (removeCodes, both passes) and writes exactly one
+	// marker.
+	//
+	// Searching the remainder rather than counting keeps the happy path allocation-free:
+	// AttrFind is standalone for that reason (TestApplyAttrDiscardInPlaceZeroAlloc).
+	hdrLen := 3
+	if flags.IsExtLength() {
+		hdrLen = 4
+	}
+	if _, _, _, again := attribute.AttrFind(pathAttrs[hdrStart+hdrLen+len(value):],
+		attribute.AttributeCode(entry.Code)); again {
 		return false
 	}
 

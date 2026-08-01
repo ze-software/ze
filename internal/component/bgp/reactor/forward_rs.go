@@ -310,6 +310,13 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		origBuf[3] = byte(srcRemoteRouterID)
 	}
 
+	// One accumulator for the whole fan-out; see the identical hoist on the
+	// general rail (reactor_api_forward.go) for the isolation contract. The two
+	// rails MUST stay behaviorally identical: hoisting one only would leave the
+	// other paying the per-destination zeroing that umbrella child 2 makes
+	// roughly eight times worse.
+	var mods filterapi.ModAccumulator
+
 	for _, peer := range matchingPeers {
 		facts := peer.forwardFacts()
 		if facts == nil {
@@ -336,7 +343,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			}
 		}
 
-		var mods filterapi.ModAccumulator
+		mods.Reset()
 
 		// ONE operation carrying EVERY control community; see the identical site
 		// on the general rail (reactor_api_forward.go) for why the multi-value

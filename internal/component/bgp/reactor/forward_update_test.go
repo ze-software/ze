@@ -1623,3 +1623,158 @@ func TestResolveDestinationPeersAllInvalidReturnsSentinel(t *testing.T) {
 	assert.Nil(t, matched)
 	assert.ErrorIs(t, err, errNoDestinations)
 }
+
+// TestPerDestinationModificationIsolation drives the REAL per-destination loop
+// (forwardUpdateCore) with three destinations carrying three DIFFERENT
+// modification sets, and asserts each peer receives exactly its own.
+//
+// VALIDATES: AC-6 -- one route fanned out to three destinations with distinct
+// egress policies produces three distinct wires, none carrying another
+// destination's operations.
+// PREVENTS: The cross-peer leak T1-3 makes possible. The rails now share ONE
+// filterapi.ModAccumulator across the whole fan-out (hoisted above the loop,
+// Reset at the top of each iteration), so an incomplete Reset sends one peer
+// another peer's attributes. spec-hotpath-alloc-round-4's Security Review calls
+// this the highest-risk item in the spec, and its Blast Radius names exactly
+// this failure.
+//
+// Three destinations rather than two, and the third one deliberately asks for NO
+// modification: a peer whose policy says "change nothing" receiving a marker
+// attribute is the leak in its purest form, and it is invisible to any test with
+// a single destination or with a modification on every destination.
+//
+// The test is order-independent. Whatever order the fan-out visits the three
+// peers in, at least one of them is preceded by a destination whose operations
+// would survive a broken Reset, so the assertion set below cannot pass by luck.
+func TestPerDestinationModificationIsolation(t *testing.T) {
+	ctx := bgpctx.EncodingContextForASN4(true)
+	ctxID, _ := bgpctx.Registry.Register(ctx)
+
+	origAttrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN = IGP
+	payload := make([]byte, 2+2+len(origAttrs))
+	binary.BigEndian.PutUint16(payload[2:4], uint16(len(origAttrs)))
+	copy(payload[4:], origAttrs)
+
+	wu := wireu.NewWireUpdate(payload, ctxID)
+	wu.SetMessageID(700)
+
+	update := &ReceivedUpdate{
+		WireUpdate:   wu,
+		SourcePeerIP: netip.MustParseAddr(forwardSourceAddr),
+		ReceivedAt:   time.Now(),
+	}
+
+	cache := NewRecentUpdateCache(100)
+	cache.Add(update)
+
+	src := makeForwardSourcePeer(t, ctx, ctxID)
+
+	// Three destinations. markerFor is the policy: two distinct values, and one
+	// destination that asks for nothing at all.
+	const (
+		addrA = "10.0.0.2"
+		addrB = "10.0.0.3"
+		addrC = "10.0.0.4"
+	)
+	markerFor := map[string][]byte{
+		addrA: {0xAA, 0xAA},
+		addrB: {0xBB, 0xBB},
+		// addrC absent on purpose: its policy modifies nothing.
+	}
+
+	peers := map[netip.AddrPort]*Peer{src.Settings().PeerKey(): src}
+	for _, addr := range []string{addrA, addrB, addrC} {
+		settings := &PeerSettings{
+			Connection: ConnectionBoth,
+			Address:    netip.MustParseAddr(addr),
+			LocalAS:    65000,
+			PeerAS:     65000,
+			RouterID:   0x01020301,
+		}
+		peer := NewPeer(settings)
+		peer.state.Store(int32(PeerStateEstablished))
+		peer.negotiated.Store(&NegotiatedCapabilities{
+			families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
+			ExtendedMessage: false,
+		})
+		peer.sendCtx.Store(ctx)
+		peer.sendCtxID = ctxID
+		peer.refreshForwardFacts()
+		peers[settings.PeerKey()] = peer
+	}
+	cache.Activate(700, len(peers)-1)
+
+	egressFilter := func(_, dest filterapi.PeerFilterInfo, _ []byte, _ map[string]any, mods *filterapi.ModAccumulator) bool {
+		if marker, ok := markerFor[dest.Address.String()]; ok {
+			mods.Op(250, filterapi.AttrModSet, marker)
+		}
+		return true
+	}
+
+	// Writes ONE marker attribute from the first op for code 250. If a previous
+	// destination's op survived the Reset it sits at index 0, so this peer is
+	// handed the other peer's bytes -- which is what the assertions catch.
+	markerHandler := filterapi.AttrModHandler(func(_ []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
+		buf[off] = 0xC0
+		buf[off+1] = 250
+		buf[off+2] = byte(len(ops[0].Buf))
+		copy(buf[off+3:], ops[0].Buf)
+		return off + 3 + len(ops[0].Buf)
+	})
+
+	itemsCh := make(chan fwdItem, 8)
+	testPool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		for _, it := range items {
+			itemsCh <- it
+		}
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+	defer testPool.Stop()
+
+	r := &Reactor{
+		recentUpdates:      cache,
+		peers:              peers,
+		fwdPool:            testPool,
+		egressFilters:      []filterapi.EgressFilterFunc{egressFilter},
+		orderedEgressSteps: orderedEgressStepsFromFuncs(egressFilter),
+		attrModHandlers:    map[uint8]filterapi.AttrModHandler{250: markerHandler},
+	}
+	adapter := &reactorAPIAdapter{r: r}
+
+	sel, err := selector.Parse("*")
+	require.NoError(t, err)
+	require.NoError(t, adapter.ForwardUpdate(sel, 700, "test-plugin"))
+
+	got := make(map[string][]byte, 3)
+	for range 3 {
+		select {
+		case item := <-itemsCh:
+			require.Len(t, item.rawBodies, 1, "each destination gets one raw body")
+			got[item.peer.Settings().Address.String()] = item.rawBodies[0]
+		case <-time.After(2 * time.Second):
+			t.Fatalf("timeout: only %d of 3 destinations dispatched", len(got))
+		}
+	}
+	require.Len(t, got, 3, "each of the three destinations must be dispatched exactly once")
+
+	// A and B each carry their OWN marker and nothing else.
+	for addr, want := range markerFor {
+		body, ok := got[addr]
+		require.True(t, ok, "destination %s was not dispatched", addr)
+		value, found := bodyPathAttr(t, body, 250)
+		require.True(t, found, "destination %s lost its own modification", addr)
+		assert.Equal(t, want, value,
+			"destination %s received another destination's attribute value -- the accumulator leaked across the fan-out", addr)
+	}
+
+	// C asked for no modification, so its body must be exactly what arrived:
+	// ORIGIN alone, with no marker attribute from A or B.
+	bodyC, ok := got[addrC]
+	require.True(t, ok, "destination %s was not dispatched", addrC)
+	if value, found := bodyPathAttr(t, bodyC, 250); found {
+		t.Fatalf("destination %s asked for NO modification but received attribute 250 = %x -- "+
+			"another destination's operation survived the per-destination Reset", addrC, value)
+	}
+	assert.Equal(t, len(origAttrs), int(binary.BigEndian.Uint16(bodyC[2:4])),
+		"an unmodified destination must carry the source attribute section unchanged")
+	assert.Equal(t, payload, bodyC, "an unmodified destination must receive the source payload byte for byte")
+}

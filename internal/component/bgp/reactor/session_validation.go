@@ -117,13 +117,21 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 		if result.PrefixSIDPresent {
 			entry := message.DiscardEntry{Code: uint8(attribute.AttrPrefixSID), Reason: message.DiscardReasonEBGPInvalid}
 			if result.Action < message.RFC7606ActionAttributeDiscard {
-				result = &message.RFC7606ValidationResult{
-					Action:         message.RFC7606ActionAttributeDiscard,
-					AttrCode:       uint8(attribute.AttrPrefixSID),
-					Description:    "RFC 8669 Section 4: PrefixSID from EBGP discarded (not configured to accept)",
-					DiscardEntries: []message.DiscardEntry{entry},
-				}
-			} else if result.Action == message.RFC7606ActionAttributeDiscard {
+				// Raise the action ON the validator's own result. Building a fresh one
+				// here dropped every field this branch does not own, DuplicateRanges
+				// above all: without it the Section 3.g keep-first strip below silently
+				// did nothing, so a duplicated attribute stayed on the wire. When the
+				// duplicate was the Prefix-SID itself, the copy the discard did not
+				// reach survived and Section 4's MUST was violated on the wire.
+				//
+				// The fields set here are exactly the ones the validator leaves zero on
+				// this path (Action None means no strongest error was recorded), so the
+				// verdict this produces is the one the fresh struct produced.
+				result.Action = message.RFC7606ActionAttributeDiscard
+				result.AttrCode = uint8(attribute.AttrPrefixSID)
+				result.Description = "RFC 8669 Section 4: PrefixSID from EBGP discarded (not configured to accept)"
+			}
+			if result.Action == message.RFC7606ActionAttributeDiscard {
 				result.DiscardEntries = append(result.DiscardEntries, entry)
 			}
 		}

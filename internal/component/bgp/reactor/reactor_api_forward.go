@@ -601,6 +601,19 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 	var communityParsed bool
 	rsLocalAS := srcInfo.globalLocalAS
 
+	// One accumulator for the whole fan-out, Reset at the top of each
+	// destination instead of a fresh value per destination. Reset clears every
+	// field a later destination can read and leaves the inline arena alone, so
+	// the cost is independent of the arena size (filterapi.ModAccumulator.Reset).
+	//
+	// This is an ISOLATION BOUNDARY, not a micro-optimisation: the storage is
+	// now shared across destinations, so anything that outlived one iteration
+	// would send this peer the previous peer's attributes. Nothing may retain a
+	// slice returned by Ops() past the Reset that follows it -- the obligation
+	// is stated on Reset, and buildModifiedPayload honors it by copying every
+	// op value into the destination's own output buffer before returning.
+	var mods filterapi.ModAccumulator
+
 	for _, peer := range matchingPeers {
 		facts := peer.forwardFacts()
 		if facts == nil {
@@ -629,7 +642,7 @@ func (a *reactorAPIAdapter) forwardUpdateCore(update *ReceivedUpdate, updateID u
 			}
 		}
 
-		var mods filterapi.ModAccumulator
+		mods.Reset()
 
 		// ONE operation carrying EVERY control community, not one per value.
 		// filterapi.ModAccumulator.Op documents a Remove buffer as a whole number

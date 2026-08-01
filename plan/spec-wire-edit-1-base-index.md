@@ -170,6 +170,42 @@ this base is `plan/spec-wire-edit-2-edit-apply.md`.
 | A-3 | An 8-entry inline span array covers the common attribute count without a heap allocation. | The current builder pre-sizes to 8 (`internal/core/bgp/attribute/wire.go:298`), which is an existing judgement about the same distribution. | Raise the constant; the structure does not change. | Instrumented run recording the attribute-count distribution over a real feed. | unvalidated |
 | A-4 | No consumer relies on the parsed-value cache surviving on the index entry. | `parsed` is private and reachable only through `Get` (`internal/core/bgp/attribute/wire.go:63`), `All` and `ForEach`. | The side table gains the same caching semantics behind the same accessors. | Compile plus a grep for `parsed` across the tree at the start of implementation. | unvalidated |
 | A-5 | API-originated UPDATEs tolerate a first-use index build, since they never pass through `enforceRFC7606`. | `NewWireUpdate` (`internal/component/bgp/wireu/wire_update.go:60`) is the announce-rail constructor and has no validation pass. | The announce rails call the builder explicitly at construction. | Unit test asserting an API-built base answers `Has` correctly with no prior accessor call. | unvalidated |
+| A-6 | **The bytes the RFC 7606 walk indexes are the bytes that get published.** | Assumed silently by "emit the span index as a by-product of the walk". NOT stated anywhere in this spec before 2026-08-01. | The index must be built AFTER the rebuild paths, or rebuilt on them. "Pure addition, no second walk" weakens. | Read `enforceRFC7606` end to end, past the validator call. | **broken** (2026-08-01) |
+
+→ A-6 is BROKEN, and it is the load-bearing correction to this child. Found by a
+research pass on 2026-08-01 and confirmed in the main thread against
+`reactor/session_validation.go` `enforceRFC7606` and
+`message/attr_discard.go`. The published base is NOT always the array the
+validator walked. Two paths rebuild or mutate it AFTER the walk returns:
+
+- **RFC 7606 Section 3.g keep-first strip.** When the validator records
+  duplicate attributes, `enforceRFC7606` strips them and rebuilds the body, then
+  wraps the result in a NEW `WireUpdate`. Every span offset after the first
+  stripped range shifts, so an index built during the walk is wrong for the
+  object that is actually published.
+- **Attribute discard in place.** `ApplyAttrDiscard` takes an in-place branch for
+  the single-occurrence case, which OVERWRITES the type-code byte with
+  `AttrTombstone` and leaves the length alone. No new `WireUpdate` is built and
+  nothing signals the change. Offsets survive, but `span.code` goes stale: a
+  presence bitset built during the walk would report the original code as present
+  after it has been tombstoned.
+
+→ Constraint: build the index after those branches, or rebuild it on them. Both
+are malformed-input paths so the cost is irrelevant, but it is unspecified work
+and it means this child is not the "pure addition, zero output-byte change" the
+umbrella's Implementation Steps promise. `StripAttrRanges` and `ApplyAttrDiscard`
+are absent from this spec's Files to Modify and must be added.
+
+→ Constraint: T1-5 (`plan/spec-hotpath-alloc-round-4.md`, 2026-08-01) changed
+BOTH mechanisms while fixing an RFC 8669 Section 4 leak. `applyInPlace` now
+declines when the attribute code recurs, so the multi-occurrence case takes the
+rebuild path rather than the in-place one, and the Section 4 branch no longer
+discards `DuplicateRanges`. Re-read both before implementing this child; the
+descriptions above are current as of that change, not before it.
+
+→ Correction to the umbrella, same date: AC-6's saving from folding the PrefixSID
+walk does not exist on iBGP sessions. That second walk was always gated on
+`!isIBGP && !AcceptSRv6PrefixSID`. The umbrella states it unconditionally.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |

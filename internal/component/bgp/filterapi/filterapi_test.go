@@ -10,6 +10,7 @@ package filterapi
 
 import (
 	"bytes"
+	"reflect"
 	"testing"
 )
 
@@ -555,5 +556,161 @@ func TestReadvertiseEgressFuncs(t *testing.T) {
 	// Readvertise filter is a strict subset.
 	if got := len(EgressFilters()); got != 2 {
 		t.Fatalf("EgressFilters() len = %d, want 2", got)
+	}
+}
+
+// --- T1-3: Reset as the per-destination isolation boundary ---
+
+// VALIDATES: AC-7, A-4 -- Reset clears every field a later destination can read.
+// After a Reset the accumulator is indistinguishable from a fresh value through
+// its whole public surface, and a refill with FEWER operations exposes nothing
+// from the richer previous destination.
+//
+// PREVENTS: The cross-peer leak the hoist makes possible. The forward rails now
+// share ONE accumulator across every destination, so a field Reset forgets is
+// one peer receiving another peer's attributes -- the highest-risk failure in
+// spec-hotpath-alloc-round-4's Security Review.
+//
+// The reflection sweep is the load-bearing part: it fails when someone ADDS a
+// field to ModAccumulator and does not clear it, which is the way this decays.
+func TestAccumulatorResetClearsEverything(t *testing.T) {
+	// Destination 1: fill every field.
+	var mods ModAccumulator
+	mods.Op(35, AttrModSet, []byte{0x00, 0x00, 0xFD, 0xE8})
+	mods.Op(8, AttrModAdd, []byte{0xFF, 0xFF, 0x00, 0x01})
+	mods.OpCopy(16, AttrModRemove, []byte{0xAA, 0xBB, 0xCC, 0xDD})
+	mods.SetWithdraw()
+	mods.SetNLRIRewrite([]byte{24, 10, 0, 0})
+	mods.SetWithdrawnRewrite([]byte{24, 172, 16, 0})
+
+	if mods.Len() != 3 || !mods.IsWithdraw() || !mods.HasModifications() {
+		t.Fatal("fixture did not fill the accumulator")
+	}
+
+	mods.Reset()
+
+	// Public surface: identical to a fresh value.
+	var fresh ModAccumulator
+	if mods.Len() != fresh.Len() {
+		t.Fatalf("after Reset, Len() = %d, want %d", mods.Len(), fresh.Len())
+	}
+	if len(mods.Ops()) != 0 {
+		t.Fatalf("after Reset, Ops() len = %d, want 0", len(mods.Ops()))
+	}
+	if mods.IsWithdraw() {
+		t.Fatal("after Reset, IsWithdraw() is true -- destination 2 would be withdrawn by destination 1's policy")
+	}
+	if mods.NLRIRewrite() != nil {
+		t.Fatalf("after Reset, NLRIRewrite() = %x, want nil", mods.NLRIRewrite())
+	}
+	if mods.WithdrawnRewrite() != nil {
+		t.Fatalf("after Reset, WithdrawnRewrite() = %x, want nil", mods.WithdrawnRewrite())
+	}
+	if mods.HasModifications() {
+		t.Fatal("after Reset, HasModifications() is true -- the forward path would rebuild a payload from nothing")
+	}
+
+	// Every field, including ones added after this test was written. `inline` is
+	// the one deliberate exception: it is a bump arena made unreachable by
+	// inlineOff, and re-zeroing it is exactly the cost the hoist exists to
+	// remove. `ops` keeps its backing array by design; its LENGTH must be zero.
+	rv := reflect.ValueOf(&mods).Elem()
+	rt := rv.Type()
+	for i := range rt.NumField() {
+		name := rt.Field(i).Name
+		f := rv.Field(i)
+		switch name {
+		case "inline":
+			continue // deliberate: see TestAccumulatorResetIsConstantTime
+		case "ops":
+			if f.Len() != 0 {
+				t.Fatalf("after Reset, field %q has len %d, want 0", name, f.Len())
+			}
+		default:
+			if !f.IsZero() {
+				t.Fatalf("after Reset, field %q is not zero -- a later destination can read destination 1's state. "+
+					"If this field was just added, clear it in ModAccumulator.Reset", name)
+			}
+		}
+	}
+
+	// Destination 2: refill with FEWER operations than destination 1 had. This
+	// is the shape that exposes a partial reset -- a stale third op would still
+	// be reachable through Ops() if Reset had not truncated the slice.
+	mods.Op(9, AttrModSet, []byte{0x0A, 0x0B, 0x0C, 0x0D})
+
+	ops := mods.Ops()
+	if len(ops) != 1 {
+		t.Fatalf("destination 2 sees %d ops, want exactly its own 1 -- destination 1's operations survived", len(ops))
+	}
+	if ops[0].Code != 9 || ops[0].Action != AttrModSet {
+		t.Fatalf("destination 2 op = {code %d, action %d}, want {9, AttrModSet}", ops[0].Code, ops[0].Action)
+	}
+	if !bytes.Equal(ops[0].Buf, []byte{0x0A, 0x0B, 0x0C, 0x0D}) {
+		t.Fatalf("destination 2 op buf = %x, want 0a0b0c0d", ops[0].Buf)
+	}
+
+	// The arena is a bump allocator: destination 2's OpCopy must hand back a
+	// window holding ONLY destination 2's bytes, never a tail of destination 1's.
+	mods.OpCopy(17, AttrModSet, []byte{0x11, 0x22})
+	copied := mods.Ops()[1].Buf
+	if !bytes.Equal(copied, []byte{0x11, 0x22}) {
+		t.Fatalf("arena window after Reset = %x, want 1122 -- destination 1's bytes are readable", copied)
+	}
+}
+
+// VALIDATES: Reset's cost is independent of the inline arena size, so the
+// roughly eightfold arena growth in spec-wire-edit-2-edit-apply cannot turn the
+// per-destination Reset back into the per-destination zeroing this item removed.
+//
+// PREVENTS: A well-meaning "clear everything" edit to Reset that re-zeroes the
+// arena. That edit would look safer, pass every isolation test above, and
+// silently undo T1-3 -- the hoist would then buy nothing at all.
+//
+// The assertion is structural, not a timing measurement: Reset is O(1) exactly
+// when it writes nothing to the arena, so the test proves the arena bytes
+// survive it. A wall-clock comparison would be a flaky way to assert the same
+// property (ai/rules/fix-dont-record.md).
+func TestAccumulatorResetIsConstantTime(t *testing.T) {
+	var mods ModAccumulator
+
+	// Fill the whole arena so any zeroing is unmissable.
+	full := make([]byte, modAccumulatorInlineBytes)
+	for i := range full {
+		full[i] = byte(i + 1)
+	}
+	mods.OpCopy(8, AttrModSet, full)
+	if mods.inlineOff != modAccumulatorInlineBytes {
+		t.Fatalf("fixture did not fill the arena: inlineOff = %d, want %d", mods.inlineOff, modAccumulatorInlineBytes)
+	}
+
+	mods.Reset()
+
+	if mods.inlineOff != 0 {
+		t.Fatalf("after Reset, inlineOff = %d, want 0", mods.inlineOff)
+	}
+	if !bytes.Equal(mods.inline[:], full) {
+		t.Fatal("Reset wrote to the inline arena; its cost now scales with the arena size, " +
+			"which is the per-destination zeroing T1-3 removed")
+	}
+
+	// O(1) also means allocation-free, whatever the accumulator held.
+	mods.Op(1, AttrModSet, []byte{0x00})
+	mods.SetNLRIRewrite([]byte{24, 10, 0, 0})
+	if n := testing.AllocsPerRun(100, mods.Reset); n != 0 {
+		t.Fatalf("Reset allocates %v times per call, want 0", n)
+	}
+}
+
+// BenchmarkAccumulatorReset records the per-destination cost the forward rails
+// now pay instead of constructing a fresh accumulator per destination.
+func BenchmarkAccumulatorReset(b *testing.B) {
+	var mods ModAccumulator
+	value := []byte{0xFF, 0xFF, 0x00, 0x01}
+	for b.Loop() {
+		mods.Op(8, AttrModAdd, value)
+		mods.OpCopy(16, AttrModRemove, value)
+		mods.SetWithdraw()
+		mods.Reset()
 	}
 }
