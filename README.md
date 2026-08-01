@@ -71,7 +71,7 @@ If you are an ExaBGP user, we would love your feedback on the migration experien
 | Functional tests | 1,460+ `.ci` files and 160+ `.et` editor tests: config parsing, wire encoding, plugin behavior, reloads, UI/editor flows, L2TP, firewall, and web |
 | Fuzz testing | 70+ targets covering external input parsing as of 2026-07 |
 | Chaos testing | Deterministic replay with [configurable scenarios](docs/guide/chaos-testing.md) |
-| RFC requirement gate | 2,900+ MUST-level requirements across 168 enrolled RFCs, drafts, and specifications, each proven by a positive and a negative test or annotated with a recorded reason, and every gap disclosed on the status ledger. See [how compliance is enforced](https://github.com/ze-software/ze/wiki/rfc-implementation) and the [RFC status ledger](docs/features/rfc-status.md) |
+| RFC requirement gate | 2,900+ MUST-level requirements across 168 enrolled RFCs, drafts, and specifications, each proven by a positive and a negative test or annotated with a recorded reason, and every RFC carrying a gap flagged on the status ledger. See [how compliance is enforced](https://github.com/ze-software/ze/wiki/rfc-implementation) and the [RFC status ledger](docs/features/rfc-status.md) |
 
 ### Deployment
 

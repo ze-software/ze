@@ -46,9 +46,10 @@ against the code that produces it, linked from the README where quality is discu
   rule itself, which is where two drafts went wrong: the first banned that one word, the
   second banned three more beside it.
 - The rule is a directive, not a checker entry. `scripts/dev/ste_check.py` carries six
-  habits and no jargon list, so nothing catches a new `gated`, and the 867 existing uses
-  in `docs/`, `ai/` and `plan/` stay green. Making it mechanical means adding the word to
-  that checker, which is an implementation-phase change and was not done here.
+  habits and no jargon list, so nothing catches a new `gated`, and the 909 existing uses
+  across 228 files in `docs/`, `ai/` and `plan/` stay green. Making it mechanical means
+  adding the word to that checker, which is an implementation-phase change and was not
+  done here.
 - The README's RFC row is the one remaining hand-typed figure, deliberately rounded
   ("2,900+ across 168") so ordinary prose edits do not need a regeneration pass.
 - **One item stays open.** The aggregate figures the page states, the annotation split
@@ -78,6 +79,16 @@ against the code that produces it, linked from the README where quality is discu
   it is a comment plus a greppable trail. Four more on the repository diff, including a
   README claim that every annotation carries a "published" reason when only the 534 gaps
   do. Writing a page about verification does not exempt the page from verification.
+- **A third review round found four more false claims, after the first commit had
+  landed.** I recorded the review gate as clean while that round was still running,
+  because the owner asked to commit and `ai/rules/git-safety.md` makes an explicit commit
+  request a fast path. The round then found, among others, that the README's "every gap
+  disclosed on the status ledger" was wrong: `check_status_agreement` looks up one ROW
+  per RFC, so a single note satisfies all 534 gaps, and a `Partial` row passes with a
+  blank Remaining cell. Two rounds of independent review had already passed over that
+  sentence. The lesson is not "review more", it is that each round found real defects the
+  previous one missed, so the count of rounds is itself evidence about how wrong prose
+  can be while reading as careful.
 - **A wording rule written as a word ban is the wrong shape.** The owner objected to
   `gated`, so I banned `gated`, then widened it to `carrier`, `polarity` and
   `disposition`, which are exact names of real things and would have cut the
