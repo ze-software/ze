@@ -1739,6 +1739,47 @@ _RFC_APPROVED = re.compile(r"rfc-test-change-approved:[ \t]*\S")
 _GO_LINE_COMMENT = re.compile(r"//.*$", re.MULTILINE)
 _CI_LINE_COMMENT = re.compile(r"^[ \t]*#.*$", re.MULTILINE)
 _WS = re.compile(r"\s+")
+# One Go import line: an optional alias (`bgpctx`, `_`, `.`) then a quoted path. The
+# `import (` and `)` brackets count too, so growing a one-line import into a block passes.
+_GO_IMPORT_LINE = re.compile(
+    r'^(?:import\s*\(|\)|import\s+)?(?:[A-Za-z_.][\w.]*\s+)?"[^"]+"$'
+)
+_GO_IMPORT_DELIM = re.compile(r"^(?:import\s*\(|\))$")
+
+
+def _import_only_go_edit(old, new, fp):
+    """True when both sides of a .go edit are nothing but import lines.
+
+    An import cannot weaken an assertion, so an edit made ONLY of them is never the
+    thing this guard exists to catch. Without this, adding a test to a file that already
+    holds a tagged one always costs an operator approval: new tests need new imports, the
+    import block sits outside every function so `_enclosing_tagged_scope` widens to the
+    whole file, and `_behavior_bytes` then sees real code change (HOOK-FRICTION.md,
+    2026-08-01). That is the path `ai/rules/no-test-deletion.md` tells contributors to
+    take ("ADD a new test case or function"), so the guard was charging the honest route.
+
+    EVERY non-blank line on BOTH sides must match, which is what keeps it from becoming a
+    hole: an assertion smuggled into the same edit as an import leaves a line that is not
+    import-shaped, and the edit blocks as before. Comments are stripped first, so a doc
+    comment rewritten beside the imports does not defeat it.
+
+    One side may be empty. Deleting an import cannot remove an assertion: if the import is
+    still used the package stops compiling, which is loud, and if it is unused the deletion
+    changes no behaviour. Deleting a TEST is unaffected, because a function body is not
+    import-shaped. Both sides empty returns False, since `seen` never gets set.
+    """
+    if not fp.endswith(".go"):
+        return False
+    seen = False
+    for side in (old, new):
+        for line in _GO_LINE_COMMENT.sub("", side).splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            seen = True
+            if not (_GO_IMPORT_LINE.match(line) or _GO_IMPORT_DELIM.match(line)):
+                return False
+    return seen
 
 
 def _behavior_bytes(text, fp):
@@ -1826,6 +1867,11 @@ def _rfc_tagged_change_err(old, new, fp, tag_scope=None):
     dropped = sorted(set(_RFC_TAG.findall(old)) - set(_RFC_TAG.findall(new)))
     if dropped:
         return dropped
+    # Import-only edits pass, and this sits AFTER the tag-removal check on purpose: a tag
+    # lives in a comment, comments are stripped before the import test, so a hunk that
+    # deleted a tag while touching imports would otherwise read as import-only.
+    if _import_only_go_edit(old, new, fp):
+        return None
     # Behavior is judged on the HUNK, never on the widened scope: the scope answers "is
     # this test load-bearing for a compliance claim", the hunk answers "did the assertions
     # move". Judging the scope would make every reformat inside a tagged function a block.
@@ -1916,9 +1962,13 @@ def c_test_weakening(ctx):
             "  the user's approval.\n"
             "  Once the USER has approved, record what they approved on the changed test:\n"
             "    // rfc-test-change-approved: <date> <what the user approved and why>\n"
+            "  PUT IT IN THE LINES YOU ARE WRITING. This check reads only the replacement\n"
+            "  text of THIS edit, so the same marker at the top of the file does not\n"
+            "  satisfy it and the edit is refused again.\n"
             "  (auditable: grep -rn 'rfc-test-change-approved:')\n"
-            "  Reformatting and comment/tag edits are never blocked. A rename is, because\n"
-            "  this check cannot tell one from a rewrite -- approve it the same way.",
+            "  Reformatting and comment/tag edits are never blocked, and neither is a .go\n"
+            "  edit made only of import lines. A rename is, because this check cannot tell\n"
+            "  one from a rewrite -- approve it the same way.",
         )
     # Documented, auditable escape hatch. Forces a written reason instead of a
     # silent edit. Audit every relaxation: grep -rn 'test-relax:' --include='*_test.go'

@@ -1376,6 +1376,56 @@ def run_rfc_test_guard(results: Results) -> None:
     ).replace("TreatAsWithdraw", "SessionReset")
     results.check("rfc-guard-allows-user-approved", edit(tagged, approved) is None, "")
 
+    # An edit made ONLY of Go import lines passes. New tests need new imports, the import
+    # block sits outside every function so the scope widens to the whole file, and the
+    # guard used to charge an operator approval for GROWING a tagged file -- which is the
+    # route ai/rules/no-test-deletion.md prescribes (HOOK-FRICTION.md, 2026-08-01).
+    # These cases need the WIDENED scope, which is the whole file when the edited lines
+    # sit outside every function -- exactly where an import block lives. `edit` above
+    # cannot produce that: its `fp` does not exist, so _enclosing_tagged_scope gets an
+    # OSError and the scope falls back to the old side. Call the inner function with the
+    # scope the real hook would have read off disk.
+    def scoped(old: str, new: str, path: str = fp, scope: str = tagged):
+        return mod._rfc_tagged_change_err(old, new, path, tag_scope=scope)
+
+    go = "/repo/internal/component/bgp/plugins/rib/rfc4271_test.go"
+    imports_old = '\t"testing"\n'
+    imports_new = '\t"testing"\n\t"net/netip"\n'
+
+    r = scoped(imports_old, imports_new, go)
+    results.check("rfc-guard-allows-import-only-add", r is None, repr(r))
+
+    # Aliased and blank imports are still imports.
+    r = scoped(imports_old, '\tbgpctx "a/b/c"\n\t_ "d/e"\n', go)
+    results.check("rfc-guard-allows-aliased-import", r is None, repr(r))
+
+    # Growing a single import into a parenthesised block passes too.
+    r = scoped('import "testing"\n', 'import (\n\t"testing"\n\t"os"\n)\n', go)
+    results.check("rfc-guard-allows-import-block-growth", r is None, repr(r))
+
+    # The exemption is NOT a hole: one non-import line in the same edit blocks it.
+    r = scoped(imports_old, imports_new + "\trequire.NotEqual(t, want, got)\n", go)
+    results.check("rfc-guard-import-plus-assertion-blocks", r is not None, repr(r))
+
+    # Deleting a TEST is not import-only, because a function body is not import-shaped.
+    r = scoped(tagged, "", go)
+    results.check(
+        "rfc-guard-import-exemption-spares-no-test-delete", r is not None, repr(r)
+    )
+
+    # Go-only: a .ci carrier has no imports, so nothing about it changes.
+    r = scoped(imports_old, imports_new, "/repo/test/plugin/x.ci")
+    results.check("rfc-guard-import-exemption-is-go-only", r is not None, repr(r))
+
+    # A tag removed in the same breath as an import edit still blocks: the tag check runs
+    # first, precisely so a comment deletion cannot ride in on the exemption.
+    r = scoped(
+        "// RFC requirement: RFC7606-7.1-1 negative - x.\n" + imports_old,
+        imports_new,
+        go,
+    )
+    results.check("rfc-guard-import-edit-cannot-drop-a-tag", r is not None, repr(r))
+
     # An untagged test keeps the old behavior exactly: this guard adds a rule, it does not
     # replace c_test_weakening's heuristic.
     untagged = tagged.split("\n", 1)[1]
@@ -2383,7 +2433,9 @@ def run_phase_gates(results: Results) -> None:
 
     r = spawn("Survey the rules and report which ones cause bloat")
     results.check("agent-skill-blocks-research", r.returncode == 2, repr(r.stdout))
-    results.check("agent-skill-names-explore", "/ze-explore" in r.stderr, repr(r.stderr))
+    results.check(
+        "agent-skill-names-explore", "/ze-explore" in r.stderr, repr(r.stderr)
+    )
 
     r = spawn("Perform an independent critical review of the diff and find bugs")
     results.check("agent-skill-blocks-review", r.returncode == 2, repr(r.stderr))
@@ -2402,23 +2454,35 @@ def run_phase_gates(results: Results) -> None:
     # Not every agent task has a covering skill. Over-blocking kills delegation,
     # which is the failure this must not trade for.
     r = spawn("Translate this YANG container into a Go struct")
-    results.check("agent-skill-uncovered-task-passes", r.returncode == 0, repr(r.stderr))
+    results.check(
+        "agent-skill-uncovered-task-passes", r.returncode == 0, repr(r.stderr)
+    )
 
     # The first version matched any ze-<word>, so the repo path and any
     # `make ze-verify` in a prompt switched the whole gate off.
-    r = spawn("Review the diff in /Users/x/Code/github.com/ze-software/ze/main and find bugs")
-    results.check("agent-skill-repo-path-is-not-a-skill", r.returncode == 2, repr(r.stderr))
+    r = spawn(
+        "Review the diff in /Users/x/Code/github.com/ze-software/ze/main and find bugs"
+    )
+    results.check(
+        "agent-skill-repo-path-is-not-a-skill", r.returncode == 2, repr(r.stderr)
+    )
     r = spawn("Independently review this change for bugs. Run make ze-verify first.")
-    results.check("agent-skill-make-target-is-not-a-skill", r.returncode == 2, repr(r.stderr))
+    results.check(
+        "agent-skill-make-target-is-not-a-skill", r.returncode == 2, repr(r.stderr)
+    )
     # A name that is not a skill on disk must not count as routing.
     r = spawn("Follow /ze-nonexistent and review the diff for bugs")
-    results.check("agent-skill-unknown-skill-name-blocks", r.returncode == 2, repr(r.stderr))
+    results.check(
+        "agent-skill-unknown-skill-name-blocks", r.returncode == 2, repr(r.stderr)
+    )
 
     # A guard that wedges delegation on bad input is worse than no guard.
     r = subprocess.run(
         [sys.executable, hook], input="not json", capture_output=True, text=True
     )
-    results.check("agent-skill-malformed-input-passes", r.returncode == 0, repr(r.stderr))
+    results.check(
+        "agent-skill-malformed-input-passes", r.returncode == 0, repr(r.stderr)
+    )
 
     # Present is not wired.
     with open(os.path.join(ROOT, ".claude", "settings.json"), encoding="utf-8") as fh:
@@ -2482,8 +2546,11 @@ def run_phase_gates(results: Results) -> None:
             }
         )
         r = subprocess.run(
-            [sys.executable, hook], input=payload, capture_output=True,
-            text=True, env=env,
+            [sys.executable, hook],
+            input=payload,
+            capture_output=True,
+            text=True,
+            env=env,
         )
         results.check(
             "review-model-blocks-spawn-off-opus-5", r.returncode == 2, repr(r.stderr)
@@ -2496,8 +2563,11 @@ def run_phase_gates(results: Results) -> None:
 
         env5 = as_model("claude-opus-5")
         r = subprocess.run(
-            [sys.executable, hook], input=payload, capture_output=True,
-            text=True, env=env5,
+            [sys.executable, hook],
+            input=payload,
+            capture_output=True,
+            text=True,
+            env=env5,
         )
         results.check(
             "review-model-allows-spawn-on-opus-5", r.returncode == 0, repr(r.stderr)
@@ -2507,8 +2577,15 @@ def run_phase_gates(results: Results) -> None:
         gate = os.path.join(ROOT, "scripts", "dev", "review_gate.py")
         env = as_model("claude-opus-4-8")
         cmd = [
-            sys.executable, gate, "record", "--spec", "fixture-model-probe",
-            "--verdict", "clean", "--files", "scripts/dev/running_model.py",
+            sys.executable,
+            gate,
+            "record",
+            "--spec",
+            "fixture-model-probe",
+            "--verdict",
+            "clean",
+            "--files",
+            "scripts/dev/running_model.py",
         ]
         r = subprocess.run(cmd, capture_output=True, text=True, env=env, cwd=ROOT)
         results.check(
@@ -2518,14 +2595,19 @@ def run_phase_gates(results: Results) -> None:
         )
         r = subprocess.run(
             cmd + ["--model-override", "fixture"],
-            capture_output=True, text=True, env=env, cwd=ROOT,
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=ROOT,
         )
         results.check(
             "review-model-record-override-works",
             r.returncode == 0,
             repr(r.stdout + r.stderr),
         )
-        for leftover in glob.glob(os.path.join(ROOT, "tmp", "review", "fixture-model-probe-*.md")):
+        for leftover in glob.glob(
+            os.path.join(ROOT, "tmp", "review", "fixture-model-probe-*.md")
+        ):
             os.remove(leftover)
 
         # BLOCKER: a session id whose transcript does not exist must answer
@@ -2540,7 +2622,10 @@ def run_phase_gates(results: Results) -> None:
         )
         r = subprocess.run(
             [sys.executable, "-c", probe_src],
-            capture_output=True, text=True, env=env_ghost, cwd=ROOT,
+            capture_output=True,
+            text=True,
+            env=env_ghost,
+            cwd=ROOT,
         )
         results.check(
             "review-model-missing-sid-file-is-unknown",
@@ -2550,8 +2635,15 @@ def run_phase_gates(results: Results) -> None:
         # An explicitly EMPTY path is not "work it out". The edit gate passes the
         # payload path, and it must not inherit the fallback.
         r = subprocess.run(
-            [sys.executable, "-c", probe_src.replace("rm.running_model()", "rm.running_model('')")],
-            capture_output=True, text=True, env=dict(os.environ, CLAUDE_PROJECT_DIR=ROOT), cwd=ROOT,
+            [
+                sys.executable,
+                "-c",
+                probe_src.replace("rm.running_model()", "rm.running_model('')"),
+            ],
+            capture_output=True,
+            text=True,
+            env=dict(os.environ, CLAUDE_PROJECT_DIR=ROOT),
+            cwd=ROOT,
         )
         results.check(
             "review-model-empty-path-is-unknown",
@@ -2563,19 +2655,34 @@ def run_phase_gates(results: Results) -> None:
         # findings is implementation and belongs on the implementation model.
         env48 = as_model("claude-opus-4-8")
         for name, prompt, want in (
-            ("review-model-allows-fixing-findings",
-             "Apply the fixes that /ze-review reported in the artifact", 0),
-            ("review-model-allows-editing-a-skill-file",
-             "Update ai/skills/ze-review.md to mention the new gate", 0),
-            ("review-model-blocks-routed-review",
-             "Follow /ze-review over the uncommitted diff", 2),
+            (
+                "review-model-allows-fixing-findings",
+                "Apply the fixes that /ze-review reported in the artifact",
+                0,
+            ),
+            (
+                "review-model-allows-editing-a-skill-file",
+                "Update ai/skills/ze-review.md to mention the new gate",
+                0,
+            ),
+            (
+                "review-model-blocks-routed-review",
+                "Follow /ze-review over the uncommitted diff",
+                2,
+            ),
         ):
             rr = subprocess.run(
                 [sys.executable, hook],
-                input=json.dumps({"tool_name": "Agent", "tool_input": {"prompt": prompt}}),
-                capture_output=True, text=True, env=env48,
+                input=json.dumps(
+                    {"tool_name": "Agent", "tool_input": {"prompt": prompt}}
+                ),
+                capture_output=True,
+                text=True,
+                env=env48,
             )
-            results.check(name, rr.returncode == want, f"rc={rr.returncode} {rr.stderr[:120]}")
+            results.check(
+                name, rr.returncode == want, f"rc={rr.returncode} {rr.stderr[:120]}"
+            )
 
         # Round 2: the routing regex was wrong in BOTH directions. These are the
         # exact prompts it got wrong. A review prompt does not announce itself in
@@ -2595,7 +2702,9 @@ def run_phase_gates(results: Results) -> None:
                 input=json.dumps(
                     {"tool_name": "Agent", "tool_input": {"prompt": prompt}}
                 ),
-                capture_output=True, text=True, env=env48,
+                capture_output=True,
+                text=True,
+                env=env48,
             )
             results.check(
                 "review-model-verb-%s" % why.replace(" ", "-").replace("'", ""),
@@ -2609,17 +2718,24 @@ def run_phase_gates(results: Results) -> None:
         ackp = os.path.join(ROOT, "tmp", "session", ".model-ack-fixture-ack-probe")
         os.makedirs(os.path.dirname(ackp), exist_ok=True)
         try:
-            for body, want, label in (("", 2, "empty"), ("operator said proceed", 0, "with-reason")):
+            for body, want, label in (
+                ("", 2, "empty"),
+                ("operator said proceed", 0, "with-reason"),
+            ):
                 with open(ackp, "w", encoding="utf-8") as fh:
                     fh.write(body)
                 rr = subprocess.run(
                     [sys.executable, hook],
                     input=json.dumps(
-                        {"tool_name": "Agent",
-                         "transcript_path": transcript,
-                         "tool_input": {"prompt": "Follow /ze-review over the diff"}}
+                        {
+                            "tool_name": "Agent",
+                            "transcript_path": transcript,
+                            "tool_input": {"prompt": "Follow /ze-review over the diff"},
+                        }
                     ),
-                    capture_output=True, text=True, env=sid_env,
+                    capture_output=True,
+                    text=True,
+                    env=sid_env,
                 )
                 results.check(
                     f"review-model-ack-{label}",
@@ -2646,7 +2762,8 @@ def run_phase_gates(results: Results) -> None:
                     "tool_input": {"prompt": "Follow /ze-review over the diff"},
                 }
             ),
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
             env=env_no_sid,
         )
         results.check(
@@ -2656,11 +2773,16 @@ def run_phase_gates(results: Results) -> None:
         )
 
         # Unreadable transcript: stand down, and say so rather than go quiet.
-        env_blind = dict(os.environ, HOME=os.path.join(home, "nope"), CLAUDE_PROJECT_DIR=ROOT)
+        env_blind = dict(
+            os.environ, HOME=os.path.join(home, "nope"), CLAUDE_PROJECT_DIR=ROOT
+        )
         env_blind.pop("CLAUDE_CODE_SESSION_ID", None)
         r = subprocess.run(
-            [sys.executable, hook], input=payload, capture_output=True,
-            text=True, env=env_blind,
+            [sys.executable, hook],
+            input=payload,
+            capture_output=True,
+            text=True,
+            env=env_blind,
         )
         results.check(
             "review-model-unknown-stands-down", r.returncode == 0, repr(r.stderr)
