@@ -582,7 +582,7 @@ each is an acceptance criterion of this spec rather than a deferral:
 | Modify failures are observable | `grep -rn "bgp_update_modify_failed_total" internal/` returns the registration and every increment site |
 | An oversize modification suppresses | `make ze-functional-test TEST=modify-oversize-suppress` |
 | The test genuinely catches the leak | revert the caller change only and confirm the `.ci` turns red with the unmodified route on the wire |
-| The transcode buffer is pooled | `grep -n "make(\[\]byte" internal/component/bgp/reactor/forward_body.go` returns nothing on the transcode path |
+| The transcode buffer is pooled | ~~`grep -n "make(\[\]byte" internal/component/bgp/reactor/forward_body.go` returns nothing on the transcode path~~ **Superseded 2026-08-01 (closure).** That check contradicted the Boundary Tests row, which sanctions a fresh allocation above the pool class. The DELIVERABLE was wrong, not the code: `wireu.TranscodeASPath` never bounds-checks its destination, so the class is picked from the REQUIRED size and above `message.ExtMsgLen` no class fits. Replacement: `grep -n "getReadBuf\|make(\[\]byte" internal/component/bgp/reactor/forward_body.go` shows the transcode path taking `getReadBuf` for every size a pool class covers, and EXACTLY ONE `make` on that path, the above-`ExtMsgLen` fallback, which is collector-owned and adopts no handle |
 | Both rails hoist the accumulator | `grep -n "var mods filterapi.ModAccumulator" internal/component/bgp/reactor/` returns no match inside a loop body |
 | `Reset` has a production caller | `grep -rn "mods.Reset()" internal/` returns both rails |
 | Tier 2 untouched | `git diff --stat` lists none of the four Tier 2 files |
@@ -677,3 +677,228 @@ unchanged, each at the site it already lives:
 - [ ] Learned summary written to `plan/learned/NNN-hotpath-alloc-round-4.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-hotpath-alloc-round-4.md` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+Five Tier 1 items across four commits (`02b74bf44`, `3bb30c87b`, `8e67a9b03`,
+`1d48f2edd`), plus the six review findings F1-F6 fixed in `a1aec5e6c`.
+
+| Item | What landed |
+|------|-------------|
+| T1-1 | `modifyFailure` typed reason, `ze_bgp_update_modify_failed_total{reason}`, and FIVE call sites failing closed instead of forwarding unmodified (`reactor/forward_modify_failure.go`, `forward_build.go`, `filter_ordered.go`, `reactor_api_forward.go`, `forward_rs.go`, `reactor_api_batch.go`) |
+| T1-2 | Cross-context transcode buffer taken from the read pool and released at cache eviction via `adoptFwdHandle`, NOT at function exit (`reactor/forward_body.go` `fwdUpdateForDestination`) |
+| T1-3 | One accumulator hoisted above the destination loop on BOTH rails, `Reset()` per iteration (`reactor_api_forward.go`, `forward_rs.go`, `filterapi/filterapi.go`) |
+| T1-4 | Prefix-SID presence read off the RFC 7606 walk instead of a second `AttrFind` (`reactor/session_validation.go`) |
+| T1-5 | RFC 8669 Section 4: EVERY Prefix-SID occurrence discarded, and the Section 4 branch keeps `DuplicateRanges` so Section 3.g still strips (`message/attr_discard.go`, `reactor/session_validation.go`) |
+
+### Bugs Found/Fixed
+
+- **T1-5, wire-visible RFC 8669 Section 4 violation.** Found while testing T1-4.
+  Two independent causes: `applyInPlace` tombstoned only the FIRST occurrence,
+  and the Section 4 branch replaced the result with a fresh struct carrying no
+  `DuplicateRanges`. Covered by `TestRFC8669PrefixSIDEveryOccurrenceDiscardedFromEBGP`
+  (RFC-tagged, red before both fixes).
+- **F2**, merged ATTR_TOMBSTONE transitivity derived from the first occurrence
+  only. Covered by `TestApplyAttrDiscardMergedFlagsUseEveryOccurrence`.
+
+### Documentation Updates
+
+- `docs/guide/monitoring.md` -- `ze_bgp_update_modify_failed_total{reason}` row.
+- `docs/architecture/core-design.md` -- "Route Metadata and Modification
+  Accumulator": the per-destination `Reset` isolation contract and the
+  modify-failure suppression semantics, with four new source anchors.
+- `docs/features/rfc-status.md`, `ai/RFC-REQUIREMENTS.md`, `rfc/audit/rfc7606.json`
+  -- RFC ledger rows for `RFC8669-4-1`, both polarities.
+
+### Deviations from Plan
+
+| Planned | Actual | Why |
+|---------|--------|-----|
+| T1-2 via `acquireModBuf` with `defer Put` | `getReadBuf` + `adoptFwdHandle` | A-3 broken: the buffer is aliased into an ASYNCHRONOUS TCP write |
+| Counter documented in `docs/plugin-development/metrics.md` | `docs/guide/monitoring.md` | That is where the BGP counter table lives |
+| Three `buildModifiedPayload` call sites | Five | `forward_rs.go` and `reactor_api_batch.go` were never named by the spec |
+| Tier 1 is four items | Five (T1-5 added) | Found during T1-4 testing; Thomas chose full compliance over recording |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3 assumed the transcode buffer fits `acquireModBuf`'s tiering | It is aliased into an async TCP write, so lifetime, not size, is the constraint | Reading the aliasing chain out of `fwdUpdateForDestination` before writing the bug | Implemented with `adoptFwdHandle`; recorded in Deviations |
+| assumption | A-2's basis said THREE call sites read nil identically | FIVE | Making the return value mandatory turned the compiler into the enumerator | All five fail closed; two got tests from their own entry point (F1/AC-12) |
+| assumption | A-6 said no Tier 1 item changes wire bytes except T1-1's suppression | T1-5 changes them too, by design | T1-5 joined Tier 1 after A-6 was written | A-6 recorded `broken` by scope growth, not by surprise |
+| approach | The spec said three exit paths return nil after work has begun | Ten | Enumerated during T1-1 | All ten carry a typed reason |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| T1-1 fail-closed modification | ✅ Done | `reactor/forward_modify_failure.go`, five call sites | See AC-1, AC-12 |
+| T1-2 pooled transcode buffer | ✅ Done | `reactor/forward_body.go` `fwdUpdateForDestination` | Adopt-handle shape |
+| T1-3 hoisted accumulator, both rails | ✅ Done | `reactor_api_forward.go`, `forward_rs.go` | No throughput claim |
+| T1-4 single receive-time walk | ✅ Done | `reactor/session_validation.go` | eBGP + accept-off only |
+| T1-5 RFC 8669 Section 4 | ✅ Done | `message/attr_discard.go`, `session_validation.go` | RFC-tagged both polarities |
+| Tier 2 recorded, not fixed | ✅ Done | Tier 2 table | Boundary verified, see Goal Validation |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | ⚠️ Partial | `TestBuildModifiedPayloadOverflowReportsFailure` (unit, green); `test/plugin/modify-oversize-suppress.ci` behavioural half green | **The `.ci` reason assertion is RED.** See "Open blocker" below |
+| AC-2 | ✅ Done | `reactor_metrics.go` `updateModifyFailed`; `forward_modify_failure.go` `countModifyFailure` | Closed label set, nine constants |
+| AC-3 | ✅ Done | `TestBuildModifiedPayloadNoModsIsNotFailure` | Empty case unchanged |
+| AC-4 | ✅ Done | `TestTranscodeBufferPooled`, `TestGoldenBytesUnchangedCrossContextTranscode` | Bytes identical to the pre-T1-2 `make` |
+| AC-5 | ✅ Done | `TestTranscodeBufferSingleReturn` | Single return point, `defer` zeroes on error |
+| AC-6 | ✅ Done | `TestPerDestinationModificationIsolation`; `test/plugin/modify-accumulator-per-peer-isolation.ci` | Three destinations, three policies |
+| AC-7 | ✅ Done | `TestAccumulatorResetClearsEverything` | Reflection sweep over every field |
+| AC-8 | ✅ Done | `TestPrefixSIDSingleWalkSameVerdict`; `test/plugin/prefixsid-ebgp-discard-single-walk.ci` | |
+| AC-9 | ✅ Done | `TestPrefixSIDSingleWalkSameVerdict` | Identical verdict over the corpus |
+| AC-10 | ✅ Done | `TestGoldenBytesUnchangedTier1` | See AC-13 for the pool coverage F4 found missing |
+| AC-11 | ✅ Done | `TestRFC8669PrefixSIDEveryOccurrenceDiscardedFromEBGP`, `...KeptPathsKeepExactlyOneCopy` | RFC-tagged, both polarities, in `ai/RFC-REQUIREMENTS.md` |
+| AC-12 | ✅ Done | Four tests in `filter_ordered_test.go`, each mutation-verified independently | `policyFilterSeam` makes both chains drivable |
+| AC-13 | ✅ Done | `TestGoldenBytesUnchangedTier1PooledBuffer`, `TestPooledBufferIsNotReusedDirty`, `TestGoldenBytesUnchangedCrossContextTranscode` | Pool backing poisoned 0xEE |
+| AC-14 | ✅ Done | Three tests in `attr_discard_multi_test.go` | Mixed-transitive set yields 0x80 |
+| AC-15 | ✅ Done | `TestModifyFailureLogRateLimits` | Counter deliberately NOT rate-limited |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| All 19 named unit tests | ✅ Done | `reactor/`, `filterapi/`, `message/` | Every one exists; all four packages `ok` |
+| `modify-oversize-suppress` | ⚠️ Partial | `test/plugin/` | Behaviour green, reason assertion red |
+| `modify-accumulator-per-peer-isolation` | ✅ Done | `test/plugin/` | PASS |
+| `asn4-transcode-pooled-buffer` | ✅ Done | `test/plugin/` | PASS; promoted from `test/draft/` at closure |
+| `prefixsid-ebgp-discard-single-walk` | ✅ Done | `test/plugin/` | PASS; promoted from `test/draft/` at closure |
+| `BenchmarkForwardCrossContext`, `...PerDestinationLoop`, `BenchmarkReceiveValidation` | 🔄 Changed | -- | Not written. The profiling gate they served is unanswerable on `ze-perf-bench` (R-5); recorded, not silently dropped |
+| Interop `NN-asn4-transcode-pooled` | 🔄 Changed | -- | Not written. T1-2 emits byte-identical wire (AC-13), so there is no new protocol behaviour for a peer to accept |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| All 12 "Files to Modify" | ✅ Done | Plus `reactor/reactor.go`, `filter_chain.go` for the AC-12 seam |
+| `docs/plugin-development/metrics.md` | 🔄 Changed | Landed in `docs/guide/monitoring.md` |
+| All 4 "Files to Create" | ✅ Done | Two were promoted out of the gitignored `test/draft/` at closure |
+
+### Audit Summary
+- **Total items:** 15 AC + 6 requirements + 4 `.ci` = 25
+- **Done:** 22
+- **Partial:** 1 (AC-1 functional reason assertion -- see Open blocker)
+- **Skipped:** 0
+- **Changed:** 3 (benchmarks, interop, metrics doc location), each recorded above
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A policy modification that cannot be applied never leaks the route unmodified | functional | `test/plugin/modify-oversize-suppress.ci`: dest peer received ONLY the EOR frame (`0017:02:00000000`), source's UPDATE accepted. Behavioural half green in the 2026-08-01 run |
+| The same failure is observable | unit + doc | `ze_bgp_update_modify_failed_total{reason}` with a closed nine-value label set; `docs/guide/monitoring.md` |
+| The cross-context transcode allocates from a pool without a use-after-free | unit | `TestTranscodeBufferPooled` (borrow count), `TestTranscodeBufferSingleReturn` (double-return detector), `TestGoldenBytesUnchangedCrossContextTranscode` (byte identity vs the pre-T1-2 `make`) |
+| One accumulator per fan-out, with no cross-destination leakage | functional + unit | `test/plugin/modify-accumulator-per-peer-isolation.ci` PASS, mutation-verified (a no-op `Reset` puts client B's next-hop on client C's wire); `TestPerDestinationModificationIsolation` |
+| T1-3 improves throughput | **NOT CLAIMED** | The profile at `tmp/perf-run/pprof/100000/` does not contain the accumulator frame at all: `ze-perf-bench` is single-peer with almost no fan-out, so `forwardUpdateCore` and everything under it never executes. T1-3 landed as a PRECONDITION of wire-edit child 2, not as a measured win. Any reading of this closure as a performance result is wrong |
+| One receive-time attribute walk instead of two | unit | `TestPrefixSIDSingleWalkSameVerdict`; saving applies only to eBGP sessions with Prefix-SID acceptance off |
+| No Prefix-SID occurrence survives from an eBGP peer outside the SR domain | RFC-tagged unit | `TestRFC8669PrefixSIDEveryOccurrenceDiscardedFromEBGP` at 1, 2 and 3 copies; ledger row `RFC8669-4-1` in `ai/RFC-REQUIREMENTS.md` carries both polarities |
+| Tier 2 is handed off, not fixed | scope diff | `git diff --stat 02b74bf44^..1d48f2edd -- wireu/aspath_rewrite.go wireu/community.go attribute/wire.go filter_community/handler.go` is EMPTY |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| (no shard exists) | n/a | `plan/deferrals/spec-hotpath-alloc-round-4.md` was never created, and `grep -rl "hotpath-alloc-round-4" plan/deferrals/` returns nothing. Tier 2 is not a deferral: every T2 row names the umbrella child that removes it by construction |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/hotpath-alloc-round-4-2546e79c-8d57-4803-b856-593a4da12c55.md` |
+| `review_gate.py check` | **clean** (verdict=clean, 32 files pinned; re-run against commit A's file set exits 0) |
+| Reviewer lenses used | logic+wiring+removed-behaviour; security+edge-cases+test-quality (two independent agents, neither the implementing session) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| F1 | BLOCKER | Two of the five fail-closed call sites had no test from their OWN entry point; the ingress one turns an import-modify failure into a silent route DROP | `reactor/filter_ordered.go` | AC-12: `policyFilterSeam` + four mutation-verified tests |
+| F2 | ISSUE | Merged ATTR_TOMBSTONE flags derived from the FIRST occurrence only | `message/attr_discard.go` `localSetTransitive` | AC-14 |
+| F3 | ISSUE | Two unbounded warnings per destination per failing UPDATE; two callers used package-level `slog` | `reactor/forward_modify_failure.go` | AC-15 |
+| F4 | ISSUE | `goldenModifyCorpus` passed `pp == nil`, so byte identity never covered the per-peer pool or the transcode | `reactor/forward_modify_failure_test.go` | AC-13 |
+| F5 | ISSUE | Two `.ci` files listed under Files to Create were never written | `test/plugin/` | Written, mutation-verified, promoted out of `test/draft/` at closure |
+| F6 | NOTE | TDD table named the wrong file for `TestGoldenBytesUnchangedTier1` | spec | Corrected in place |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/modify-oversize-suppress.ci` | Yes | `ls` 2026-08-01 |
+| `test/plugin/modify-accumulator-per-peer-isolation.ci` | Yes | `ls` 2026-08-01 |
+| `test/plugin/asn4-transcode-pooled-buffer.ci` | Yes | `ls` shows 7.7K; was in gitignored `test/draft/plugin/`, moved at closure |
+| `test/plugin/prefixsid-ebgp-discard-single-walk.ci` | Yes | `ls` shows 7.8K; same, moved at closure |
+| `internal/component/bgp/reactor/forward_modify_failure.go` | Yes | read at closure; `modifyFailure`, `recordModifyFailure`, `countModifyFailure` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | Suppressed, not forwarded unmodified | `.ci` run 2026-08-01: dest peer wire is `FFFF...0017:02:00000000` (EOR only), source `updates-received >= 1`. Reason assertion red, see Open blocker |
+| AC-2 | Counter labelled by reason | `grep -n "updateModifyFailed"` -> `reactor_metrics.go`; nine label constants in `forward_modify_failure.go` |
+| AC-4/AC-5 | Pooled, returned exactly once | `sed -n '198,230p' forward_body.go`: `getReadBuf(false)` / `getReadBuf(true)` by REQUIRED size, one `defer` that zeroes the named handle on error |
+| AC-6/AC-7 | Hoist + reset on both rails | `grep "mods.Reset()"` -> `reactor_api_forward.go:513`, `forward_rs.go:262`, each INSIDE `for _, peer := range matchingPeers`, declaration above it |
+| AC-8 | One walk | `session_validation.go:117` reads `result.PrefixSIDPresent`; no second `AttrFind` remains in the file |
+| AC-11 | Every occurrence discarded | `grep "RFC requirement:" rfc8669_multi_test.go` -> two tags; `ai/RFC-REQUIREMENTS.md:4946` carries both polarities |
+| AC-12 | Both chains drivable | `grep "policyFilterSeam"` -> `filter_chain.go:387`, `reactor.go:281` |
+| All unit ACs | Green | `make ze-test-bgp` 2026-08-01: `ok` for `filterapi`, `message`, `reactor`, `reactor/filter` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| Modification cannot fit the output buffer | `test/plugin/modify-oversize-suppress.ci` | Read: asserts dest receives only EOR via `updates-sent - eor-sent == 0`, AND asserts the source's UPDATE arrived, so the absence cannot pass vacuously. Behaviour green; reason label red |
+| Forward to a peer with a different ASN4 capability | `test/plugin/asn4-transcode-pooled-buffer.ci` | Read: receiver is iBGP on purpose (an eBGP receiver diverts to `getEBGPWire`). PASS, mutation-verified |
+| One route, three peers, three policies | `test/plugin/modify-accumulator-per-peer-isolation.ci` | Read: observer waits for one forward PER CLIENT, not first-forward-to-any. PASS |
+| eBGP UPDATE carrying Prefix-SID | `test/plugin/prefixsid-ebgp-discard-single-walk.ci` | Read: asserts `ATTR_40` absent and the `ATTR_252` marker present. PASS |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | **confirmed** | The failure paths are reachable in a running daemon, not merely defensive: `modify-oversize-suppress.ci` drives one through the full daemon and the route is suppressed. This SUPERSEDES the planned soak-run validation, which is a weaker instrument than a deterministic reproduction |
+| A-2 | **confirmed, basis corrected** | The claim holds: no caller needed nil to mean "forward unmodified", and all now fail closed. Its BASIS was wrong -- FIVE call sites, not three. Mistake Log row recorded |
+| A-3 | **broken** | The transcode buffer is aliased into an asynchronous TCP write. Chain read at each producer: `message.UnpackUpdate` stores `rawData: data`; `fwdReencodeNLRIs` and `fwdReencodeMPAttributes` both RETURN THEIR INPUT in the ordinary case. Implemented with `adoptFwdHandle` |
+| A-4 | **confirmed** | Read at every consumer, not by the poison build: no `go` statement in either destination loop; `buildModifiedPayload` copies every op VALUE out; the only `OpCopy` call site is not reached from either rail |
+| A-5 | **confirmed** | `TestPrefixSIDSingleWalkSameVerdict`: identical verdict for every corpus input |
+| A-6 | **broken, by scope growth** | It held for every item it was WRITTEN about (T1-1..T1-4), proven by the golden corpus and AC-13. It is recorded broken rather than confirmed because T1-5 joined Tier 1 afterwards and DOES change emitted bytes by design: a second Prefix-SID that previously reached the wire no longer does. That is the point of T1-5, not a surprise |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| #12 internal architecture | `docs/architecture/core-design.md` "Route Metadata and Modification Accumulator" now states the per-destination `Reset` isolation contract and the suppression semantics; four source anchors added naming `filterapi.go`, `forward_modify_failure.go`, `reactor_api_forward.go`, `forward_rs.go` | Yes, written at closure |
+| #14 Prometheus counters | `docs/guide/monitoring.md:340` carries the `ze_bgp_update_modify_failed_total` row with its `reason` label | Yes |
+| #16 stale source anchors | `grep -rn "<!-- source:" docs/` for `forward_build.go`, `forward_body.go`, `filterapi.go`, `session_validation.go`: the only anchor naming a changed file was `core-design.md:623` (`filterapi.go -- ModAccumulator`), whose claim is now extended rather than contradicted | Yes |
+| #1-#11, #13, #15, #17 | No user-facing feature, config, CLI, RPC, plugin, wire-format or SDK change. T1-4 changes how many times bytes are read, not the verdict | No update needed |
+
+## Core Insight
+
+The two constraints on a pooled buffer are LIFETIME and SIZE, and this spec was
+written as though only size mattered. A-3 named size; the real hazard was that
+the buffer is aliased into an asynchronous TCP write, so the safe release point
+is cache eviction, not function exit. The general lesson is that a `defer Put`
+is only correct when nothing the function RETURNS points into the buffer, and
+the way to find out is to read the producers of every returned field rather than
+the call site.
+
+## Open blocker (closure withheld)
+
+`test/plugin/modify-oversize-suppress.ci` is **RED in the current tree**, and it
+is this spec's AC-1/AC-2 functional proof.
+
+| Field | Value |
+|-------|-------|
+| Symptom | `stderr does not contain "peer=127.0.0.2 reason=overflow"` |
+| Actual log | `msg="attr mod handler refused the modification, suppressing route" code=32`, then `msg="modification failed, suppressing route" site=egress-forward peer=127.0.0.2 reason=handler-fault` |
+| Root cause | `a1aec5e6c` (wire-edit child 2) replaced the progressive-build overflow mechanism with a fragment edit set. `applyOneAttrMod` (`reactor/forward_build.go`) now refuses inside `edit.Commit` / `edit.SlotFailed` BEFORE the output buffer can overflow, so the construction that reached `modifyFailureOverflow` at 300 large communities now reaches `modifyFailureHandlerFault` |
+| What is still proven | The T1-1 guarantee itself. The dest peer received ONLY the EOR frame, so the route was suppressed, not leaked. `TestBuildModifiedPayloadOverflowReportsFailure` still proves the overflow classification at unit level |
+| What is lost | The functional proof that the OVERFLOW reason specifically suppresses. The `.ci` header's byte arithmetic (a valid window of [255, 338]) was derived against the pre-edit-set code and is now wrong |
+| Why it was not fixed here | Re-deriving the window requires the new edit-set arithmetic, which two concurrent sessions are actively rewriting in `forward_build.go` and `filterapi/editset.go`. A value tuned now is wrong at their next commit. Tuning K until the assertion passes, or relaxing the assertion to accept any reason, are both test-weakening (`ai/rules/no-test-deletion.md`) |
+| Question for the owner | Which way: (a) wire-edit child 2 re-pins the reason as part of its own work, and this spec closes now with AC-1 recorded Partial and the row owned by `plan/spec-wire-edit-2-edit-apply.md`, or (b) this spec stays open until the overflow reason has a functional proof again |
+
+This is R-4 materialising ("this spec and the umbrella touch the same functions").
+The spec's mitigation assumed Tier 1 landing first was sufficient; it was not,
+because child 2 then changed a classification Tier 1's test pinned.

@@ -683,6 +683,23 @@ plugin-originated routes (not yet wired to ReceivedUpdate -- consuming specs con
 Egress filters receive `meta` (read) and `*ModAccumulator` (write) per destination peer.
 `ModAccumulator` lazily allocates on first `Op()` call -- zero cost when no filter writes mods.
 
+Both forward rails declare ONE accumulator above the destination loop and call
+`Reset()` at the top of each iteration. The storage is therefore shared across
+destinations, which makes `Reset` an isolation boundary rather than a
+micro-optimization: nothing may retain a slice returned by `Ops()` past the
+`Reset` that follows it, or one peer receives the previous peer's attributes.
+`buildModifiedPayload` honors that contract by copying every operation value
+into the destination's own output buffer before it returns.
+
+A modification that CANNOT be applied suppresses the route for that destination.
+`buildModifiedPayload` returns a typed `modifyFailure` (buffer overflow, an
+attribute-length result outside the two-octet range, or an oversize
+withdrawn-rewrite) that every caller reads as a failure, distinct from the nil
+that means "no modification was needed". The route is never forwarded
+unmodified, because forwarding it would leak whatever the policy exists to
+strip. Each suppression increments `ze_bgp_update_modify_failed_total{reason}`
+and logs at most one line per reason per second, carrying the count it replaced.
+
 Egress filters write `AttrOp` entries via `mods.Op(code, action, buf)`:
 
 | Field | Type | Purpose |
@@ -690,6 +707,11 @@ Egress filters write `AttrOp` entries via `mods.Op(code, action, buf)`:
 | Code | uint8 | Attribute type code (e.g., 35 for OTC) |
 | Action | uint8 | `AttrModSet`, `AttrModAdd`, `AttrModRemove`, `AttrModPrepend` |
 | Buf | []byte | Pre-built wire bytes of the VALUE |
+
+<!-- source: internal/component/bgp/filterapi/filterapi.go -- ModAccumulator.Reset, ModAccumulator.Op -->
+<!-- source: internal/component/bgp/reactor/forward_modify_failure.go -- modifyFailure, recordModifyFailure, modifyFailureLogInterval -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- forwardUpdateCore hoisted accumulator and per-destination Reset -->
+<!-- source: internal/component/bgp/reactor/forward_rs.go -- reactorForwardRS hoisted accumulator and per-destination Reset -->
 
 Multiple entries with the same code accumulate -- the handler receives all ops at once.
 When policy actions produce both an AS_PATH Set and Prepend, Set establishes the
