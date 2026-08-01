@@ -9201,16 +9201,22 @@ class TestGapCountAgreementRealFile(unittest.TestCase):
         rows = _status_rows()
         self.assertEqual(R.check_gap_count_agreement(reqs, rows), [])
 
-    def test_the_page_really_does_spell_sixty_counts(self):
+    def test_the_page_really_does_spell_the_judged_counts(self):
         """The discriminating half: a parser that matched NOTHING would also report zero
-        violations above, so the count of rows it judges is asserted too."""
+        violations above, so the count of rows it judges is asserted too.
+
+        59, not the 60 measured on 2026-07-30. rfc7296 left the judged population when its
+        last MUST gap was closed: the row now spells no number at all, because the check
+        reads One..Ninety-nine and has no word for zero. A stem that drops out this way is
+        the intended direction of travel, so the constant follows the page."""
         rows = _status_rows()
         judged = [
             stem
             for stem, row in rows.items()
             if R.spelled_gap_count(row["remaining"]) is not None
         ]
-        self.assertEqual(len(judged), 60, sorted(judged))
+        self.assertEqual(len(judged), 59, sorted(judged))
+        self.assertNotIn("rfc7296", judged)
 
     def test_the_unjudged_rows_are_the_seven_the_docstring_names(self):
         """The coverage limit check_gap_count_agreement states, MEASURED rather than remembered.

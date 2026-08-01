@@ -84,6 +84,87 @@ the 166-RFC corpus before 165 other stems are asked to use it.
 CONFIRMED unextracted MUST escapes the grandfather by definition. The walk confirmed 214.
 This spec is where that debt is paid.
 
+## WP-2 plus residuals: the twelve Appendix A obligations, landed 2026-08-01
+
+The pilot's closure pass found twelve Appendix A ids carrying `summary=0, ledger=0,
+tags=0`. WP-2 had been reported DONE and had never landed. All twelve are now in
+`rfc/short/rfc7296.md` with a tagged positive and negative pair each.
+
+**The Appendix A id and the landed id differ for most of them.** `check_id_allocation`
+refuses an ordinal at or below its section's high-water mark computed from committed HEAD,
+and a stranded ordinal is permanent, so each section was re-measured at `393593fba` and
+landed as one contiguous ascending block.
+
+| Appendix A id | Landed id | Section mark at `393593fba` | State before | What landed |
+|---------------|-----------|------------------------------|--------------|-------------|
+| `1.4.1-2` | `RFC7296-1.4.1-6` | 5 | **LIVE DEFECT** | `handleDeletePayload` never read `del.SPIs`, so a peer deleting a live Child SA was ignored and the XFRM state stayed installed. Delete now resolves each SPI to the pair it designates and closes it (`engine/delete.go`) |
+| `1.4.1-3` | `RFC7296-1.4.1-7` | 5 | not implemented | The crossing case. `PeerSession.deleteRequested` records a Delete this node issued, `crossOwnDelete` removes the outgoing half while processing the request and suppresses the paired Delete, `finishOwnDeletes` removes the incoming half on the response |
+| `1.5-1` | `RFC7296-1.5-1` | none | implemented, unproven | `sendInvalidIKESPI` refuses to answer a message marked as a response. The test feeds the emitter its OWN output and asserts silence, so the fixed point is measured rather than asserted |
+| `2.12-1` | `RFC7296-2.12-1` | none | **LIVE DEFECT** | Nothing cleared an IKE SA's keys on close. `SA.forgetKeys` erases SK_*, the DH private value and the EAP MSK and releases the nonces, and it runs on every path that ends an SA including an abandoned half-open handshake |
+| `2.16-3` | `RFC7296-2.16-12` | 11 | implemented, unproven | The EAP shared key generates the AUTH of messages 7 and 8 |
+| `2.16-8` | `RFC7296-2.16-13` | 11 | implemented, unproven | The EAP AUTH payloads follow the Success message |
+| `2.16-9` | `RFC7296-2.16-14` | 11 | implemented, unproven | The responder sends EAP Success on a completed method |
+| `2.16-10` | `RFC7296-2.16-15` | 11 | implemented, unproven | The responder sends EAP Failure on a refused one |
+| `2.24-1` | `RFC7296-2.24-1` | none | XFRM complies | Proven on the XFRM backend: no config path reaches an ECN knob. VPP deferred, see below |
+| `2.24-2` | `RFC7296-2.24-2` | none | XFRM complies | Same |
+| `3.1-13` | `RFC7296-3.1-13` | 12 | already fixed | The Appendix A note claiming `sendDPD` hardcodes `Flags: wire.FlagInitiator` was STALE. It calls `initiatorFlag(sa)`. A tagged pair now stops that regressing unnoticed |
+| `3.5-1` | `RFC7296-3.5-5` | 4 | **LIVE DEFECT** | `encodeIKEID` returned `[]byte(id)` unexamined. A terminator octet is now refused in both directions: at commit for `local-id` and `remote-id`, and on receive for a peer's asserted ID_FQDN or ID_RFC822_ADDR |
+
+### `RFC7296-1.4-1`: the gap is CLEARED, not reclassified
+
+The pre-existing `{gap}` said the response "carries no reverse-direction Delete payload
+naming the paired SA". That behavior now exists, so the annotation was removed because it
+became false. Its classification was NOT lowered, which `ai/rules/rfc-compliance.md`
+reserves to Thomas.
+
+### AC-18's grep was vacuous and is corrected
+
+The criterion searched `{gap}` while every annotation on disk carries a reason after a
+colon (`{gap: ...}`). The pattern had a closing brace where the file has a colon, so
+**AC-18 passed by finding zero of something it could not see**. It now reads
+`grep -nE "\{(gap|not-applicable|single-polarity|partial)[},:]"`, which matches both the
+bare and the reasoned form.
+
+Re-run against the corrected pattern, it found one survivor: `{single-polarity: positive}`
+on `RFC7296-3.3-1`. That row is now closed too. Its annotation reasoned that ze's config
+type cannot express an AEAD and non-AEAD mix, so nothing on the SEND side could be
+rejected. Correct about the sender, and silent about the RECEIVER: a peer chooses what it
+offers, and `espProposalMatches` refuses an AEAD proposal carrying a real integrity
+transform. The annotation was REMOVED because the row gained its negative polarity, which
+raises proof. Nothing was reclassified downward.
+
+**`grep -nE "\{(gap|not-applicable|single-polarity|partial)[},:]" rfc/short/rfc7296.md`
+now returns nothing at all.** AC-18 is satisfied against a pattern that can fail.
+
+### The two ECN rows need no owner ruling
+
+OR-F's evidence is already recorded in this spec. XFRM, the default and the path that
+ships, COMPLIES: `netlink.XfrmState` carries no general flags field, so `XFRM_STATE_NOECN`
+is unreachable, and `SAParams` exposes no ECN knob a config leaf could drive. VPP cannot
+program a security association at all (`plan/spec-fixit-vpp-ipsec-inoperable.md`), so
+there is no VPP Child SA whose ECN behavior could be asserted. Both rows landed proven
+against XFRM, and one deferral row per id is recorded in
+`plan/deferrals/rfcgate-1b-rfc7296-pilot.md` with that spec as Destination.
+
+### One more defect fixed in the same pass: `espProposalMatches`
+
+Not an Appendix A row. `espProposalMatches` (`engine/responder.go`) collapsed repeated
+transforms: `gotEnc`, `gotInteg` and `gotKeyLen` were overwritten per transform, so a key
+length from one ENCR transform was compared beside the id of another and ze COULD match a
+suite the peer never offered. Every transform of a type is now read as an alternative,
+with the id and its key length paired per transform. The comparison itself is unchanged:
+an exact key length is still required, and a proposal offering none of ze's algorithms is
+still refused. RFC 7296 Section 3.3 selects one transform of each type independently, so
+this needs no cross product and no `maxIKECombinations`-style bound.
+
+### Two pre-existing defects fixed because this work reached them
+
+- `cleanupChild` removed only the live Child SA, so a session that ended while a
+  make-before-break `supersededChild` was still installed leaked that XFRM state. It now
+  removes both.
+- `SKKeys.Clear` on an IKE rekey left the retired SA's DH private value, nonces and EAP
+  MSK in place. `forgetKeys` replaces it at that site too.
+
 ## Required Reading
 
 ### Architecture Docs
@@ -414,7 +495,7 @@ the 214 rows is proven in both polarities and the sign-off validates.
 | AC-15 | A CREATE_CHILD_SA or IKE_AUTH request whose traffic selectors exceed the configured policy | The responder narrows them to the configured policy, or responds TS_UNACCEPTABLE when the narrowed result is empty. A rekey never yields selectors narrower than the original or wider than the scope in use |
 | AC-16 | `rfc/enrolled.txt` and `docs/features/rfc-status.md` at closure | The rfc7296 descriptor and the rfc-status row describe the real position after this spec, with a source anchor to a producing `file:line`. Neither still advertises "2 gap" as the residual, and neither describes a compliance level the tagged tests do not prove |
 | AC-17 | `rfc/short/rfc7296.md` Section Index at closure | §1.3.2 reads "Rekeying IKE SAs" and §1.3.3 reads "Rekeying Child SAs", matching `rfc/full/rfc7296.txt:847` and `:882`. `RFC7296-1.3.3-1` keeps its id and its `(§1.3.3)` citation, and the discrepancy is recorded in Known Limitations |
-| AC-18 | The whole diff, grepped for annotations | `grep -n "{gap}\|{not-applicable}\|{single-polarity}" rfc/short/rfc7296.md` returns nothing for any of the 214 new rows. The three pre-existing annotations on `RFC7296-3.3-1`, `RFC7296-2.9-1` and `RFC7296-1.4-1` are re-derived: each is either cleared by the work that implements its obligation, or carries Thomas's fresh answer |
+| AC-18 | The whole diff, grepped for annotations | `grep -nE "\{(gap|not-applicable|single-polarity|partial)[},:]" rfc/short/rfc7296.md` returns nothing for any of the 214 new rows. The three pre-existing annotations on `RFC7296-3.3-1`, `RFC7296-2.9-1` and `RFC7296-1.4-1` are re-derived: each is either cleared by the work that implements its obligation, or carries Thomas's fresh answer |
 
 ### Provenance: the four ACs carried from `plan/spec-rfcgate-1-extraction.md`
 
@@ -757,7 +838,7 @@ risk, and each is its own landing (see Landing Strategy).
 |-------|------------------------------|
 | Completeness | Every one of the 214 rows has a tagged pair at `file:line`, and every one of the 108 has an implementation at `file:line` |
 | Feature completeness | Every user story has a working path: no story ends at a codec with no production consumer, which is exactly the `wire.PayloadCP` failure this spec fixes |
-| **No annotation smuggled in (umbrella R-9)** | `grep -n "{gap}\|{not-applicable}\|{single-polarity}\|partial" rfc/short/rfc7296.md` over the diff. The gate CANNOT catch this: a `{gap}` is a legal annotation. This row is the only defence, and OR-1 makes any hit a blocker unless Thomas's answer is recorded in Deviations with its date and the requirement id |
+| **No annotation smuggled in (umbrella R-9)** | `grep -nE "\{(gap|not-applicable|single-polarity|partial)[},:]" rfc/short/rfc7296.md` over the diff. The gate CANNOT catch this: a `{gap}` is a legal annotation. This row is the only defence, and OR-1 makes any hit a blocker unless Thomas's answer is recorded in Deviations with its date and the requirement id |
 | **Pre-existing annotations re-derived** | The three annotations at HEAD (`RFC7296-3.3-1` `:462`, `RFC7296-2.9-1` `:467`, `RFC7296-1.4-1` `:473`) are VOID as authority (`ai/rules/rfc-compliance.md:53`). Each is either cleared by the work that implements it (WP-7 clears `2.9-1`; WP-2 clears `1.4-1`) or re-raised with Thomas |
 | **Id integrity** | No existing id renumbered, reused or retired. `RFC7296-1.3.3-1` keeps its id AND its `(§1.3.3)` citation, because `parse_checklist_line` validates that they agree |
 | **Tagged-test integrity** | No existing tagged test's behaviour changed. The `rfc-tagged-test` hook blocks it and `// test-relax:` does not satisfy that gate; only the user can authorise it |
@@ -772,7 +853,7 @@ risk, and each is its own landing (see Landing Strategy).
 | Deliverable | Verification method |
 |-------------|---------------------|
 | 237 rows in the summary | `grep -c "^- \[ \] \[RFC7296-" rfc/short/rfc7296.md` returns 237 |
-| Zero annotations across the 214 | `grep -n "{gap}\|{not-applicable}\|{single-polarity}" rfc/short/rfc7296.md` returns nothing not covered by a recorded Thomas answer |
+| Zero annotations across the 214 | `grep -nE "\{(gap|not-applicable|single-polarity|partial)[},:]" rfc/short/rfc7296.md` returns nothing not covered by a recorded Thomas answer |
 | Both polarities on every gated row | `make ze-rfc-check` exits 0 |
 | 428 tagged tests for the new rows | `grep -rc "RFC requirement: RFC7296" internal/` is at least 459 (31 existing + 428) |
 | The sign-off validates | `make ze-rfc-check` names no `rfc/extraction/rfc7296.json` error; `make ze-rfc-extraction-status` shows rfc7296 signed (the target always emits JSON; spelling it `--json` makes GNU make exit 2 with `unrecognized option` before any recipe runs, corrected 2026-07-29) |

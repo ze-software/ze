@@ -555,3 +555,46 @@ func (sa *SA) responderNonce() []byte {
 	}
 	return sa.LocalNonce
 }
+
+// forgetKeys erases every secret this IKE SA holds, and every input from which those
+// secrets could be derived again.
+//
+// RFC 7296 Section 2.12 MUST: "Achieving perfect forward secrecy requires that when a
+// connection is closed, each endpoint MUST forget not only the keys used by the
+// connection but also any information that could be used to recompute those keys."
+//
+// The second clause is the wider one, and it decides what this erases beyond SKKeys:
+//
+//	SK_d        recomputes a rekeyed SA's whole key set (Section 2.18), so it is the
+//	            load-bearing member of SKKeys rather than one of seven.
+//	LocalDH     holds the private exponent. With the peer's public value it recomputes
+//	            the shared secret g^ir, and SKEYSEED with it. This is the secret that
+//	            makes the rest of the input useless on its own.
+//	EAPMSK      generates the AUTH payloads of the EAP exchange (Section 2.16).
+//	the nonces  SKEYSEED = prf(Ni | Nr, g^ir) (Section 2.14), so Ni and Nr complete
+//	            that input.
+//
+// The three secrets are OVERWRITTEN. The two nonces are only DROPPED, and the
+// difference is deliberate. Ni and Nr travel in cleartext in IKE_SA_INIT, so they are
+// public and overwriting them buys no secrecy. Their buffers are also borrowed: a nonce
+// is taken from a decoded payload or handed in by the caller that generated it, and
+// this SA is not their only reader. Zeroing one corrupts whoever else holds it, which
+// is a live defect rather than a hardening step. Releasing the reference is what
+// "forget" means for a value that was never secret.
+//
+// Safe on a partly built SA and on a nil SA: every field is optional and a nil one is
+// skipped. Called once per SA, on the path that closes it.
+func (sa *SA) forgetKeys() {
+	if sa == nil {
+		return
+	}
+	if sa.SKKeys != nil {
+		sa.SKKeys.Clear()
+	}
+	if sa.LocalDH != nil {
+		sa.LocalDH.Clear()
+	}
+	clear(sa.EAPMSK[:])
+	sa.LocalNonce = nil
+	sa.RemoteNonce = nil
+}

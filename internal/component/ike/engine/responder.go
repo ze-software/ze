@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"slices"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/crypto"
@@ -684,38 +685,63 @@ func logKeyLengthUpgrade(log *slog.Logger, peer string, chosen crypto.IKEProposa
 // operator gets exactly the cipher configured. Closing it means plumbing the accepted key
 // length through ESP proposal selection and Child SA key derivation, which is the
 // dataplane keying path. It is not a comparison change.
+// ALTERNATIVES, Section 3.3. One proposal CAN carry several transforms of the same type,
+// and that is the mandated encoding for a choice: Section 3.3.5 requires two encryption
+// key lengths to be offered as two separate ENCR transforms. Every transform of a type is
+// therefore read as an alternative the peer would accept.
+//
+// Reading only the LAST of each type, which this did before, was wrong twice over. It
+// refused a proposal it should have accepted, because a peer offering AES-GCM-128 and
+// then AES-CBC-256 was judged on the second alone. Worse, the key length and the
+// algorithm id were carried in separate variables that each survived into the next
+// transform, so a key length taken from one ENCR transform was compared beside the id of
+// another. Ze could match, and then key, a combination the peer never offered. The pair
+// now moves together, one entry per transform.
+//
+// The two types are selected INDEPENDENTLY, so this needs no cross product and no bound
+// on one. Section 3.3 has the responder "select a single transform of each type", so an
+// offer is acceptable exactly when each type carries at least one alternative ze accepts.
+// The scan is linear in the transform count rather than multiplicative in it, which is
+// why appendIKECombinations needs maxIKECombinations and this does not.
 func espProposalMatches(p wire.Proposal, encID, keyLen, integID uint16, aead bool) bool {
-	var gotEnc, gotKeyLen, gotInteg uint16
-	hasEnc, hasInteg := false, false
+	// The id and its key length are read raw and kept together, one entry per ENCR
+	// transform. Pairing them in the element is what stops a length from one transform
+	// reaching the comparison of another.
+	type espEnc struct{ id, keyLen uint16 }
+	var (
+		encs   []espEnc
+		integs []uint16
+	)
 	for _, t := range p.Transforms {
 		if !crypto.TransformTypeUnderstoodESP(crypto.TransformType(t.Type)) {
 			return false
 		}
 		switch t.Type {
 		case wire.TransformTypeENCR:
-			hasEnc = true
-			gotEnc = t.ID
+			e := espEnc{id: t.ID}
 			for _, a := range t.Attrs {
 				if a.Type == wire.AttrTypeKeyLength {
-					gotKeyLen = a.Value
+					e.keyLen = a.Value
 				}
 			}
+			encs = append(encs, e)
 		case wire.TransformTypeINTG:
-			hasInteg = true
-			gotInteg = t.ID
+			integs = append(integs, t.ID)
 		case wire.TransformTypeDH, wire.TransformTypeESN:
 			// Both are types ESP uses, and neither takes part in the ENCR and INTG
 			// comparison. A pseudorandom function transform never reaches here, because
 			// ESP does not use that type.
 		}
 	}
-	if !hasEnc || gotEnc != encID || gotKeyLen != keyLen {
+	if !slices.Contains(encs, espEnc{id: encID, keyLen: keyLen}) {
 		return false
 	}
 	if aead {
-		return !hasInteg || gotInteg == 0
+		// RFC 7296 Section 3.3.2: an AEAD proposal carries no integrity transform, and
+		// an explicit NONE says the same thing. Either is accepted, exactly as before.
+		return len(integs) == 0 || slices.Contains(integs, 0)
 	}
-	return hasInteg && gotInteg == integID
+	return slices.Contains(integs, integID)
 }
 
 // buildAuthResponse negotiates and installs the first Child SA and builds the

@@ -47,6 +47,31 @@ func ParseRemoteIDType(s string) (uint8, bool) {
 	return t, ok
 }
 
+// IDTerminator reports the first terminator octet in an IKE identity string, and
+// whether the string holds one at all.
+//
+// RFC 7296 Section 3.5 MUST NOT, for ID_FQDN and repeated for ID_RFC822_ADDR: "The
+// string MUST NOT contain any terminators (e.g., NULL, CR, etc.)."
+//
+// The section names two examples and closes with "etc.", so the set is read as every C0
+// control octet (0x00 to 0x1F) plus DEL (0x7F). That covers NULL and CR, and it costs a
+// legitimate value nothing: a domain name is letters, digits, hyphen and dot, and a mail
+// address adds no control character either. Reading "etc." narrowly, as NULL and CR
+// alone, would let LF through, and LF terminates a string in as many parsers as CR does
+// (ai/rules/fail-closed-guards.md).
+//
+// The octets are examined one at a time rather than as runes. A terminator inside a
+// multi-octet UTF-8 sequence is not reachable, because every continuation octet has its
+// high bit set, so a byte walk cannot report a false position.
+func IDTerminator(value string) (byte, bool) {
+	for i := range len(value) {
+		if c := value[i]; c < 0x20 || c == 0x7f {
+			return c, true
+		}
+	}
+	return 0, false
+}
+
 // sortStrings is an insertion sort over the handful of type names. It avoids pulling the
 // sort package into a package whose only need is a stable error message.
 func sortStrings(s []string) {

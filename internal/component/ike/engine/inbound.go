@@ -5,7 +5,6 @@
 package engine
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -304,8 +303,13 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 			old := p.oldChild
 			ps.setChildSA(newChild)
 			// Make-before-break: new SA is installed; delete the old now (§2.8).
+			// The Delete records the pair as awaiting a response, so a Delete the peer
+			// sends for the same pair in the meantime is read as RFC 7296 Section
+			// 1.4.1's crossing case rather than answered with a duplicate.
+			ps.recordOwnDelete(old)
 			ps.sendDeleteESP(sa, tr, old.InboundSPI, log)
 			removeChildSA(old, dp, log)
+			ps.markOwnDeleteRemoved(old)
 			ps.pendingRekey = nil
 			log.Info("child-sa: rekeyed via CREATE_CHILD_SA", "peer", ps.peerName,
 				"old-in", old.InboundSPI, "new-in", newChild.InboundSPI)
@@ -468,34 +472,19 @@ func hasKEPayload(inner []wire.PayloadEntry) bool {
 	return false
 }
 
-// sendDeleteIKE sends an INFORMATIONAL Delete for the IKE SA (best-effort). RFC
-// 7296 §1.4, §3.11: an IKE Delete carries no SPIs.
-func (ps *PeerSession) sendDeleteIKE(sa *SA, tr *transport.UDPTransport, log *slog.Logger) {
-	if tr == nil {
-		return
-	}
-	// RFC 7296 §2.3: one self-initiated request at a time. A Delete is best-effort
-	// and a teardown must never wait for a window, so a held window drops it. The
-	// peer then learns of the loss through its own dead-peer detection.
-	if !sa.reserveRequestWindow() {
-		log.Debug("ike: IKE delete dropped, a request is outstanding", "peer", ps.peerName)
-		return
-	}
-	del := &wire.PayloadDelete{ProtocolID: wire.ProtocolIKE}
-	msg, err := buildEncryptedMessageEx(sa, []wire.PayloadEntry{{Payload: del}}, sa.NextMsgID, wire.ExchangeInformational, initiatorFlag(sa))
-	if err != nil {
-		log.Debug("ike: IKE delete build failed", "peer", ps.peerName, "error", err)
-		sa.releaseRequestWindow()
-		return
-	}
-	sa.advanceMsgID()
-	sendRaw(sa, tr, msg, log)
-}
-
 // handleInformationalOwned processes INFORMATIONAL requests/responses on an
 // established SA: DPD liveness and Delete. A request is answered (RFC 7296 §1.4).
+//
+// RFC 7296 Section 1.4.1: "Normally, the response in the INFORMATIONAL exchange will
+// contain Delete payloads for the paired SAs going in the other direction." Each pair
+// this node closes therefore names its own INBOUND SPI in the response, which is the
+// half the peer still holds. Two cases carry no Delete payload at all. An IKE SA
+// Delete, because the same section makes that response empty. And the crossing case,
+// where the same section forbids one.
 func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner []wire.PayloadEntry, isResponse bool, tr *transport.UDPTransport, dp dataplane.Dataplane, log *slog.Logger) ownedOutcome {
 	var out ownedOutcome
+	var paired []uint32
+	ikeDeleted := false
 	for i := range inner {
 		del, ok := inner[i].Payload.(*wire.PayloadDelete)
 		if !ok {
@@ -509,14 +498,29 @@ func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner
 			log.Info("ike: peer deleted old IKE SA after rekey, swapping to new SA", "peer", ps.peerName)
 			continue
 		}
-		ps.handleDeletePayload(sa, del, dp, log)
+		if del.ProtocolID == wire.ProtocolIKE {
+			ikeDeleted = true
+		}
+		closed, downed := ps.handleDeletePayload(sa, del, dp, log)
+		paired = append(paired, closed...)
+		if downed {
+			out.reestablish = true
+		}
 	}
 	if isResponse {
+		// RFC 7296 Section 1.4.1 puts the second half of the crossing case here:
+		// a node that issued a Delete request deletes
+		// "the incoming SAs while processing the response".
+		ps.finishOwnDeletes(dp, log)
 		return out
 	}
 	// RFC 7296 §1.4: every INFORMATIONAL request (DPD probe or Delete) is answered.
 	// The response is still built under the current (old) SA keys.
-	resp, err := buildEncryptedMessageEx(sa, nil, msg.Header.MessageID, wire.ExchangeInformational, initiatorFlag(sa)|wire.FlagResponse)
+	var respPayloads []wire.PayloadEntry
+	if len(paired) > 0 && !ikeDeleted {
+		respPayloads = []wire.PayloadEntry{{Payload: espDeletePayload(paired)}}
+	}
+	resp, err := buildEncryptedMessageEx(sa, respPayloads, msg.Header.MessageID, wire.ExchangeInformational, initiatorFlag(sa)|wire.FlagResponse)
 	if err != nil {
 		log.Debug("ike: informational response build failed", "peer", ps.peerName, "error", err)
 		return out
@@ -524,48 +528,6 @@ func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner
 	cacheResponse(sa, msg.Header.MessageID, resp)
 	sendRaw(sa, tr, resp, log)
 	return out
-}
-
-// handleDeletePayload removes the superseded Child SA when the peer confirms a
-// rekey with a Delete, or marks the IKE SA dead on an IKE Delete. RFC 7296 §1.4.
-func (ps *PeerSession) handleDeletePayload(sa *SA, del *wire.PayloadDelete, dp dataplane.Dataplane, log *slog.Logger) {
-	switch del.ProtocolID {
-	case wire.ProtocolIKE:
-		log.Info("ike: peer deleted IKE SA", "peer", ps.peerName)
-		sa.State = StateDead
-	case wire.ProtocolESP:
-		if ps.supersededChild != nil {
-			removeChildSA(ps.supersededChild, dp, log)
-			ps.supersededChild = nil
-		}
-	}
-}
-
-// sendDeleteESP sends an INFORMATIONAL Delete for an ESP SPI (best-effort, no
-// awaited response). RFC 7296 §1.4, §2.8: the rekey initiator deletes the old SA.
-func (ps *PeerSession) sendDeleteESP(sa *SA, tr *transport.UDPTransport, spi uint32, log *slog.Logger) {
-	if tr == nil {
-		return
-	}
-	// RFC 7296 §2.3: one self-initiated request at a time. The make-before-break
-	// Delete runs right after the rekey response freed the window, so it usually
-	// takes it at once. A held window drops the Delete, because it is best-effort
-	// and the peer removes the old Child SA on its own lifetime.
-	if !sa.reserveRequestWindow() {
-		log.Debug("ike: ESP delete dropped, a request is outstanding", "peer", ps.peerName)
-		return
-	}
-	spiBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(spiBytes, spi)
-	del := &wire.PayloadDelete{ProtocolID: wire.ProtocolESP, SPISize: 4, NumSPIs: 1, SPIs: spiBytes}
-	msg, err := buildEncryptedMessageEx(sa, []wire.PayloadEntry{{Payload: del}}, sa.NextMsgID, wire.ExchangeInformational, initiatorFlag(sa))
-	if err != nil {
-		log.Debug("ike: delete build failed", "peer", ps.peerName, "error", err)
-		sa.releaseRequestWindow()
-		return
-	}
-	sa.advanceMsgID()
-	sendRaw(sa, tr, msg, log)
 }
 
 // hasRekeySANotify reports whether the payload chain contains a REKEY_SA notify.

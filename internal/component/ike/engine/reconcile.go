@@ -92,6 +92,20 @@ type PeerSession struct {
 	pendingRekey    *pendingRekey
 	supersededChild *ChildSA
 
+	// deleteRequested holds every Child SA pair this node has asked the peer to close
+	// and whose INFORMATIONAL response has not arrived.
+	//
+	// RFC 7296 Section 1.4.1's crossing case turns on this fact alone: "If a node
+	// receives a delete request for SAs for which it has already issued a delete
+	// request, it MUST delete the outgoing SAs while processing the request and the
+	// incoming SAs while processing the response." The same paragraph then forbids a
+	// Delete payload in that response. Without the record there is nothing to
+	// distinguish the crossing case from a first Delete, and this node would answer a
+	// pair it is already closing with a duplicate Delete.
+	//
+	// Owned by the maintainSA loop (no lock), like pendingRekey and supersededChild.
+	deleteRequested []pendingDelete
+
 	// childRekeyHoldUntil and ikeRekeyHoldUntil are the instants before which the
 	// matching rekey is not retried. RFC 7296 Section 2.25 forbids an immediate retry
 	// after a TEMPORARY_FAILURE notify. It requires the recipient to wait for the peer
@@ -191,9 +205,9 @@ func (ps *PeerSession) signalSupersede(log *slog.Logger) {
 // that re-initiates before Deleting the old SA cannot leak keys (Finding 4). Owned
 // by the maintainSA loop; no lock.
 func (ps *PeerSession) setPendingIKESwap(newSA *SA) {
-	if ps.pendingIKESwap != nil && ps.pendingIKESwap.SKKeys != nil {
-		ps.pendingIKESwap.SKKeys.Clear()
-	}
+	// RFC 7296 Section 2.12: the discarded SA is closed here, so it forgets the keys
+	// AND the DH private value, nonces and EAP key that could recompute them.
+	ps.pendingIKESwap.forgetKeys()
 	ps.pendingIKESwap = newSA
 }
 

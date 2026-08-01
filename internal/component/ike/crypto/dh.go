@@ -23,6 +23,14 @@ var (
 	// length is an invalid public key, so a caller that tests for the general case
 	// still matches this one.
 	ErrPublicKeyLength = fmt.Errorf("%w: length does not match the group modulus", ErrInvalidPublicKey)
+	// ErrClearedExchange reports a shared-secret computation attempted after the
+	// exchange forgot its private value.
+	//
+	// RFC 7296 Section 2.12 requires a closed connection to forget the information that
+	// could recompute its keys, and SA.forgetKeys clears exactly this. A caller reaching
+	// SharedSecret afterwards would exponentiate with no exponent, so the answer is an
+	// error rather than a value neither side shares.
+	ErrClearedExchange = errors.New("diffie-hellman exchange has been cleared")
 )
 
 type DHExchange struct {
@@ -193,6 +201,14 @@ func NewDHExchange(groupID DHGroupID) (*DHExchange, error) {
 }
 
 func (ex *DHExchange) SharedSecret(remotePublic []byte) ([]byte, error) {
+	// Fail closed on an exchange whose private value is gone (ai/rules/fail-closed-guards.md).
+	// Clear sets privateBig to nil, and the MODP path below exponentiates with it
+	// directly, so without this guard a call after a close is a nil dereference rather
+	// than a refusal. The EC path would return a wrong answer instead of panicking,
+	// which is worse: it would key an SA with a secret the peer does not hold.
+	if !ex.HasPrivate() {
+		return nil, ErrClearedExchange
+	}
 	switch ex.GroupID {
 	case DH_MODP_2048:
 		// RFC 7296 Section 3.4: a MODP public value has the length of the prime
@@ -240,6 +256,19 @@ func padBigInt(n *big.Int, size int) []byte {
 	padded := make([]byte, size)
 	copy(padded[size-len(b):], b)
 	return padded
+}
+
+// HasPrivate reports whether this exchange still holds its private value.
+//
+// RFC 7296 Section 2.12 requires a closed connection to forget "any information that
+// could be used to recompute those keys", and the private exponent is that information:
+// with the peer's public value it recomputes g^ir, and SKEYSEED with it. The private
+// fields are unexported, so this is how a caller outside the package confirms Clear ran.
+func (ex *DHExchange) HasPrivate() bool {
+	if ex == nil {
+		return false
+	}
+	return ex.privateBig != nil || ex.privateEC != nil
 }
 
 func (ex *DHExchange) Clear() {

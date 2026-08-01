@@ -282,6 +282,37 @@ func remoteIDMatches(want string, p *wire.PayloadID) bool {
 	return false
 }
 
+// refuseIDTerminators refuses a peer whose asserted ID_FQDN or ID_RFC822_ADDR carries a
+// terminator octet.
+//
+// RFC 7296 Section 3.5 MUST NOT: "The ID_FQDN and ID_RFC822_ADDR strings MUST NOT
+// contain any terminators (e.g., NULL, CR, etc.)." Only those two types are text the
+// section constrains. ID_KEY_ID is an opaque octet string the same section puts no
+// character rule on, and the address and DER types are not text at all, so none of them
+// is examined here.
+//
+// The refusal matters beyond conformance. The value is compared with remote-id and with
+// a certificate's own names, and an embedded NUL is the classic way to make two strings
+// compare equal in one layer and unequal in another. Refusing the octet at the boundary
+// keeps every later comparison reading the same bytes.
+func refuseIDTerminators(peerName string, p *wire.PayloadID) error {
+	if p == nil {
+		return nil
+	}
+	if p.IDType != wire.IDTypeFQDN && p.IDType != wire.IDTypeRFC822Addr {
+		return nil
+	}
+	c, found := ipsec.IDTerminator(string(p.IDData))
+	if !found {
+		return nil
+	}
+	return fmt.Errorf(
+		"ike auth: peer %q asserted %s containing the terminator octet %#02x, and RFC 7296 "+
+			"Section 3.5 forbids a terminator in that string. Configure the peer to send an "+
+			"identity with no control character",
+		peerName, idTypeName(p.IDType), c)
+}
+
 // checkRemoteIdentity refuses a peer whose asserted identity is not the one remote-id
 // names. It is the policy half of the remote-id contract, and it runs for every
 // authentication mode.
@@ -290,6 +321,14 @@ func remoteIDMatches(want string, p *wire.PayloadID) bool {
 // nothing to compare. getRemoteCert states the consequence in the log for the
 // certificate case, where it matters.
 func checkRemoteIdentity(sa *SA) error {
+	// The terminator refusal runs BEFORE the empty-remote-id return below. RFC 7296
+	// Section 3.5's MUST NOT is a property of the wire value, not of what this node
+	// configured, so a peer that breaks it is refused whether or not remote-id names an
+	// expectation. Placing it after the return would leave every peer with no
+	// configured remote-id unchecked, which is the common configuration.
+	if err := refuseIDTerminators(sa.PeerName, sa.RemoteIDPayload); err != nil {
+		return err
+	}
 	want := sa.PeerCfg.Auth.RemoteID
 	if want == "" {
 		return nil

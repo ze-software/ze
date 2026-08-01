@@ -42,6 +42,19 @@ func (ps *PeerSession) runEstablished(
 	ps.ownedSA.Store(sa)
 	defer ps.ownedSA.Store(nil)
 
+	// RFC 7296 Section 2.12 MUST: an endpoint closing a connection forgets the keys and
+	// everything that could recompute them. This function's return IS that close, for
+	// every reason maintainSA can end (operator clear, peer Delete, DPD timeout,
+	// lifetime, Message ID exhaustion, supersede), so one erase here covers them all.
+	//
+	// It reads ownedSA rather than the argument, because an IKE SA rekey swaps the loop
+	// onto a replacement and stores it there. Erasing the argument would leave the SA
+	// that actually finished the session holding its keys. The retired SA of that swap
+	// is erased at the swap itself.
+	//
+	// Registered AFTER the store above, so it runs BEFORE it: defers unwind last-first.
+	defer func() { ps.ownedSA.Load().forgetKeys() }()
+
 	ifID := resolveIfID(peer)
 
 	var child *ChildSA
@@ -203,7 +216,10 @@ func (ps *PeerSession) maintainSA(
 				ps.setSA(sa)
 				table.Insert(sa)
 				table.Remove(oldSA.InitiatorSPI, oldSA.ResponderSPI)
-				oldSA.SKKeys.Clear()
+				// RFC 7296 Section 2.12: the retired SA is closed here, so it forgets
+				// its keys AND the DH private value, nonces and EAP key that could
+				// recompute them. Clearing SKKeys alone left SK_d's own inputs behind.
+				oldSA.forgetKeys()
 				ikeLT = newLifetimeState(ikeGroup.Lifetime)
 				ps.incRekeyCount()
 			}
@@ -524,6 +540,10 @@ func (ps *PeerSession) reapStalePending(now time.Time, table *SATable, dp datapl
 	if table != nil {
 		table.Remove(pending.InitiatorSPI, pending.ResponderSPI)
 	}
+	// RFC 7296 Section 2.12: a half-open SA that reached IKE_SA_INIT already holds a
+	// shared secret and the nonces behind it, so an abandoned handshake forgets them
+	// exactly as a closed connection does.
+	pending.forgetKeys()
 	ps.setPendingSA(nil)
 	if pc := ps.getPendingChild(); pc != nil {
 		removeChildSA(pc, dp, log)
@@ -542,6 +562,8 @@ func (ps *PeerSession) cleanupPendingSA(table *SATable, dp dataplane.Dataplane, 
 			table.Remove(pending.InitiatorSPI, pending.ResponderSPI)
 		}
 		emitSADown(bus, pending, log)
+		// RFC 7296 Section 2.12, as in reapStalePending above.
+		pending.forgetKeys()
 		ps.setPendingSA(nil)
 	}
 	if pc := ps.getPendingChild(); pc != nil {
@@ -551,6 +573,17 @@ func (ps *PeerSession) cleanupPendingSA(table *SATable, dp dataplane.Dataplane, 
 }
 
 func (ps *PeerSession) cleanupChild(dp dataplane.Dataplane, bus ze.EventBus, log *slog.Logger) {
+	// The session is going away, so no INFORMATIONAL response will ever complete an
+	// outstanding Delete. The records are dropped BEFORE the removals below, so nothing
+	// names a pair these two calls have already freed.
+	ps.abandonOwnDeletes()
+	// A rekey this session responded to leaves the retired pair installed until the
+	// peer's Delete arrives (make-before-break). A session that ends first would leave
+	// that XFRM state behind, because the removal below reaches only the live pair.
+	if old := ps.supersededChild; old != nil {
+		ps.supersededChild = nil
+		removeChildSA(old, dp, log)
+	}
 	child := ps.getChildSA()
 	if child != nil {
 		removeChildSA(child, dp, log)

@@ -475,20 +475,41 @@ func removeChildSA(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
 	if dp == nil || child == nil {
 		return
 	}
+	removeChildSAOutgoing(child, dp, log)
+	removeChildSAIncoming(child, dp, log)
+	child.Clear()
+	log.Info("child-sa: removed", "in-spi", child.InboundSPI, "out-spi", child.OutboundSPI)
+}
+
+// removeChildSAOutgoing removes the half of a Child SA pair this node SENDS on.
+//
+// RFC 7296 Section 1.4.1 needs the two halves separable: in the crossing case a node
+// deletes "the outgoing SAs while processing the request and the incoming SAs while
+// processing the response". Callers that close a whole pair use removeChildSA above.
+func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
+	if dp == nil || child == nil {
+		return
+	}
 	if err := dp.RemovePolicy(child.TSLocal, child.TSRemote, dataplane.SADirOut); err != nil {
 		log.Debug("child-sa: remove outbound policy", "error", err)
-	}
-	if err := dp.RemovePolicy(child.TSRemote, child.TSLocal, dataplane.SADirIn); err != nil {
-		log.Debug("child-sa: remove inbound policy", "error", err)
 	}
 	if err := dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP); err != nil {
 		log.Debug("child-sa: remove outbound SA", "error", err)
 	}
+}
+
+// removeChildSAIncoming removes the half of a Child SA pair this node RECEIVES on.
+// The companion of removeChildSAOutgoing above.
+func removeChildSAIncoming(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
+	if dp == nil || child == nil {
+		return
+	}
+	if err := dp.RemovePolicy(child.TSRemote, child.TSLocal, dataplane.SADirIn); err != nil {
+		log.Debug("child-sa: remove inbound policy", "error", err)
+	}
 	if err := dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP); err != nil {
 		log.Debug("child-sa: remove inbound SA", "error", err)
 	}
-	child.Clear()
-	log.Info("child-sa: removed", "in-spi", child.InboundSPI, "out-spi", child.OutboundSPI)
 }
 
 // selectorProto returns the IP protocol the negotiated selector restricts the policy to,

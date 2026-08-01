@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 303 design docs, 3165 files
+Total: 303 design docs, 3170 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -957,6 +957,7 @@ Total: 303 design docs, 3165 files
 | `internal/component/bgp/reactor/filter_delta_test.go` | policy filter wire-level dirty tracking tests |
 | `internal/component/bgp/reactor/filter_format.go` | policy filter chain |
 | `internal/component/bgp/reactor/forward_build.go` | progressive build for egress attribute modification |
+| `internal/component/bgp/reactor/forward_modify_failure.go` | progressive build for egress attribute modification |
 | `internal/component/bgp/reactor/forward_pool.go` | per-peer forward worker pool |
 | `internal/component/bgp/reactor/forward_pool_barrier.go` | forward pool barrier for deterministic flush |
 | `internal/component/bgp/reactor/listener.go` | TCP listener management |
@@ -3243,10 +3244,13 @@ Total: 303 design docs, 3165 files
 |------|-------|
 | `internal/component/ike/dataplane/dataplane.go` | dataplane abstraction for SA/SP installation |
 | `internal/component/ike/dataplane/noop.go` | dataplane backend registry |
+| `internal/component/ike/dataplane/rfc7296_ecn_linux_test.go` | XFRM netlink backend |
+| `internal/component/ike/dataplane/rfc7296_ecn_test.go` | XFRM netlink backend |
 | `internal/component/ike/dataplane/vpp.go` | VPP dataplane backend |
 | `internal/component/ike/dataplane/xfrm_linux.go` | XFRM netlink backend |
 | `internal/component/ike/dataplane/xfrm_other.go` | non-Linux dataplane stub |
 | `internal/component/ike/engine/child.go` | Child SA creation and teardown |
+| `internal/component/ike/engine/delete.go` | Child SA teardown over INFORMATIONAL |
 | `internal/component/ike/engine/dpd.go` | Dead Peer Detection |
 | `internal/component/ike/engine/established.go` | established SA lifecycle |
 | `internal/component/ike/engine/inbound.go` | inbound message handling for established SAs |
@@ -3268,6 +3272,7 @@ Total: 303 design docs, 3165 files
 | `internal/component/ike/eap/pool_release_test.go` | Virtual IP pool for road warrior clients |
 | `internal/component/ike/eap/pool_test.go` | Virtual IP pool tests |
 | `internal/component/ike/eap/rfc3748_test.go` | EAP framework (RFC 3748) |
+| `internal/component/ike/eap/rfc7296_eap_result_test.go` | EAP framework tests |
 | `internal/component/ike/engine/eap_auth.go` | AUTH payload from EAP MSK |
 | `internal/component/ike/engine/eap_auth_test.go` | AUTH from MSK test |
 | `internal/component/ike/engine/udpencap.go` | UDP encapsulation readiness |

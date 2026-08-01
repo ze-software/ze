@@ -266,6 +266,9 @@ func (ps *PeerSession) runResponder(
 		case StateDead:
 			// Handshake failed before establishment: reset for a fresh attempt.
 			table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
+			// RFC 7296 Section 2.12: the failed SA is closed, so it forgets whatever
+			// key material the partial handshake produced.
+			sa.forgetKeys()
 			ps.setSA(nil)
 			ps.responderBusy.Store(false)
 		case StateIdle, StateSAInitSent, StateSAInitReceived, StateAuthSent, StateAuthReceived, StateEAPInProgress:
@@ -334,6 +337,9 @@ func (ps *PeerSession) reapStaleHandshake(sa *SA, table *SATable, log *slog.Logg
 	log.Warn("ike: responder handshake timed out, tearing down",
 		"peer", ps.peerName, "state", sa.State.String())
 	table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
+	// RFC 7296 Section 2.12: this SA is closed here. A handshake that reached
+	// IKE_SA_INIT holds the shared secret and the nonces that recompute SKEYSEED.
+	sa.forgetKeys()
 	ps.setSA(nil)
 	ps.responderBusy.Store(false)
 	return true

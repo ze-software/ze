@@ -87,6 +87,28 @@ func distinguishedName(value string) bool {
 func (c *IPsecConfig) ValidateIdentities() error {
 	for name := range c.Peers {
 		auth := c.Peers[name].Auth
+		// RFC 7296 Section 3.5 MUST NOT: "The ID_FQDN and ID_RFC822_ADDR strings MUST
+		// NOT contain any terminators (e.g., NULL, CR, etc.)."
+		//
+		// Both leaves are checked, and the refusal lands at COMMIT rather than at
+		// encode time. encodeIKEID would put local-id on the wire verbatim, and a
+		// silent repair there would send an identity the operator never wrote
+		// (ai/rules/exact-or-reject.md). remote-id is checked for the same reason from
+		// the other direction: a conformant peer can never assert a value holding a
+		// terminator, so such a remote-id matches nothing and the tunnel would fail
+		// authentication with no stated cause.
+		for _, id := range []struct{ leaf, value string }{
+			{"local-id", auth.LocalID},
+			{"remote-id", auth.RemoteID},
+		} {
+			if c, found := IDTerminator(id.value); found {
+				return fmt.Errorf(
+					"ipsec peer %q: %s %q contains the terminator octet %#02x, and RFC 7296 "+
+						"Section 3.5 forbids a terminator in an ID_FQDN or ID_RFC822_ADDR "+
+						"string. Remove the control character",
+					name, id.leaf, id.value, c)
+			}
+		}
 		if distinguishedName(auth.LocalID) {
 			return fmt.Errorf(
 				"ipsec peer %q: local-id %q is a distinguished name, and ze sends the identity "+
