@@ -173,7 +173,7 @@ artifact type. Check them whenever your work touches the described concern.
 | How much you write | `ai/rules/detail-budget.md` | Any report, rule, doc, commit body, or learned summary. Per-artifact budgets |
 | Listing/enumerating things | `ai/rules/derive-not-hardcode.md` | Help text, usage strings, error messages, any output that enumerates items |
 | Goroutine lifecycle | `ai/rules/goroutine-lifecycle.md` | Any `go func()`, any `OnStarted` callback, any worker pattern |
-| File size | `ai/rules/file-modularity.md` | Modified file exceeds 600 lines |
+| File size | `ai/rules/file-modularity.md` | Modified file exceeds 1000 lines |
 | Pipe operators | `ai/rules/pipe-completeness.md` | Any command producing output |
 | Registered names | `ai/rules/plugin-design.md` "Renaming" section | Changing any plugin/subsystem/dispatch/log name |
 | Same-process-only calls | `ai/rules/plugin-process-boundary.md` | Any plugin calling another `internal/component/*` package's exported function directly, not through DirectBridge/DispatchCommand |

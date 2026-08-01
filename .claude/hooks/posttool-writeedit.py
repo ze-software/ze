@@ -177,10 +177,10 @@ def c_file_size(ctx):
         return None
     n = txt.count("\n")
     base = os.path.basename(ctx["fp"])
+    # 1000 is the ONLY threshold (ai/rules/file-modularity.md, Thomas 2026-08-01).
+    # A 600-line tier used to warn here; it fired on cohesive single-concern files.
     if n > 1000:
         return (1, f"{RED}{BOLD}⚠️  File too large: {base} ({n} lines > 1000){RESET}")
-    if n > 600:
-        return (1, f"{YELLOW}⚠️  File growing: {base} ({n} lines > 600){RESET}")
     return None
 
 

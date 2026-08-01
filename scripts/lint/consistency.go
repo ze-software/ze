@@ -9,7 +9,7 @@
 //   - plugin.Response uses StatusDone/StatusError constants (not string literals)
 //   - Non-exempt .go files have // Design: comments
 //   - Cross-reference bidirectionality (Detail↔Overview, Related↔Related)
-//   - File size limits (warn >600, error >1000)
+//   - File size limit (error >1000)
 //   - Plugin structure completeness (dispatch_test.go, schema/, doc.go)
 //   - Stale package references in docs and scripts
 //   - Comma split materialization uses internal/core/stringsx.SplitCount
@@ -295,11 +295,11 @@ func checkFileSizes(root string) {
 		if isTestFile(path) {
 			return
 		}
+		// 1000 is the ONLY threshold (ai/rules/file-modularity.md, Thomas 2026-08-01).
+		// A 600-line WARN used to sit below this. It fired on cohesive single-concern files.
 		lines := countLines(path)
 		if lines > 1000 {
 			report(sevError, "file-size", path, 0, fmt.Sprintf("%d lines (max 1000)", lines))
-		} else if lines > 600 {
-			report(sevWarn, "file-size", path, 0, fmt.Sprintf("%d lines (review for splitting)", lines))
 		}
 	})
 }

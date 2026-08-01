@@ -321,7 +321,7 @@ Read the project's .claude/rules/ directory to understand all rules. Then check 
 8. **config-design.md**: Fail on unknown keys, no version numbers
 9. **design-doc-references.md**: // Design: comment present in every .go file
 10. **related-refs.md**: // Detail: / // Overview: / // Related: cross-references are bidirectional
-11. **file-modularity.md**: Files under 600 lines, single concern per file
+11. **file-modularity.md**: Files under 1000 lines, single concern per file
 12. **rfc-compliance.md**: If the diff touches protocol code (wire, message, capability, FSM, NLRI, attributes), read the relevant `rfc/short/` summaries and verify: (a) every MUST/MUST NOT is enforced, (b) every MUST enforcement has a `// RFC NNNN Section X.Y: "quoted requirement"` comment, (c) no SHOULD is ignored without justification. A MUST violation is critical severity.
 13. **Altitude check**: Is each change at the right depth? A special case layered on shared infrastructure is a sign the underlying mechanism should be generalized instead. Prefer deepening the shared abstraction over adding per-caller workarounds. Flag bandaid fixes with the deeper alternative named.
 

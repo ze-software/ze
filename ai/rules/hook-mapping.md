@@ -150,7 +150,7 @@ wiring-at-commit, doc-drift) used to sit here but gated on the literal
 | auto-lint | `posttool-writeedit.py` | `go-standards.md` | `.go` Write/Edit | `gofmt`/`goimports -w`, then **one** `golangci-lint --new-from-rev=HEAD` pass (flags only issues this edit introduced). BLOCKING on lint failure. |
 | auto-py-format | `posttool-writeedit.py` | (code style) | `.py` Write/Edit | `ruff format` + `ruff check`. Non-blocking. |
 | validate-spec | `validate-spec.sh` | `planning.md` | `plan/spec-*.md` | Validates required sections/format. Exit 2 blocks a structurally invalid spec; both `→` and `->` wiring rows accepted. |
-| file-size | `posttool-writeedit.py` | `file-modularity.md` | `.go` | Warns >600 lines, strong >1000. Advisory. |
+| file-size | `posttool-writeedit.py` | `file-modularity.md` | `.go` | Warns >1000 lines. Advisory. |
 | warn-deferral | `posttool-writeedit.py` | `deferral-tracking.md` | `.md` | Warns on deferral language in doc edits. Advisory. |
 | require-rfc-reference | `posttool-writeedit.py` | `design-doc-references.md` | `.go` | Suggests `// RFC:` header. Advisory. |
 | require-test-docs | `posttool-writeedit.py` | `tdd.md` | `_test.go` | Warns about missing `VALIDATES:`/`PREVENTS:`. Advisory. |

@@ -249,13 +249,15 @@ WE_CASES = [
     ),
 ]
 
-_BIG600 = "package x\n" + "\n".join(f"var v{i} = {i}" for i in range(700))
+# 700 lines is UNDER the only file-size threshold (1000) -- see ai/rules/file-modularity.md.
+# It stays in the corpus to pin that the removed 600-line tier does not come back.
+_BIG700 = "package x\n" + "\n".join(f"var v{i} = {i}" for i in range(700))
 _BIG1100 = "package x\n" + "\n".join(f"var v{i} = {i}" for i in range(1200))
 
 # --- Write|Edit PostToolUse corpus: (label, relpath, on-disk content, payload content or None) ---
 POST_CASES = [
     ("small go", "internal/a/small.go", "package a\nfunc F() {}\n", None),
-    ("big >600", "internal/a/big.go", _BIG600, None),
+    ("big under 1000", "internal/a/big.go", _BIG700, None),
     ("big >1000", "internal/a/huge.go", _BIG1100, None),
     (
         "test no docs",
@@ -644,7 +646,7 @@ WEAKEN_GOLDEN = {
 }
 POST_GOLDEN = {
     "Edit|big >1000": 1,
-    "Edit|big >600": 1,
+    "Edit|big under 1000": 0,
     "Edit|md clean": 0,
     "Edit|md deferral": 1,
     "Edit|numeric no test": 0,
@@ -655,7 +657,7 @@ POST_GOLDEN = {
     "Edit|test no docs": 0,
     "Edit|vague names": 0,
     "Write|big >1000": 1,
-    "Write|big >600": 1,
+    "Write|big under 1000": 0,
     "Write|md clean": 0,
     "Write|md deferral": 1,
     "Write|numeric no test": 0,

@@ -209,7 +209,7 @@ After all tests pass, complete IN ORDER:
       Run `ze env registered` (or grep for `MustRegister`) to confirm.
 [ ] 3. Dead code check — search unused functions/types, ASK before removing
 [ ] 3. File modularity check — for each modified .go file:
-      Line count: >600 → review concerns, >1000 → split (rules/file-modularity.md)
+      Line count: >1000 → review concerns, split only when the separation is right (rules/file-modularity.md)
       // Design: topic annotation still matches file's actual concern?
       If split: copy to new files, adjust annotation per new concern
       // Related: still accurate? Add/update for new couplings

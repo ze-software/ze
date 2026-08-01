@@ -1533,16 +1533,16 @@ the gate ONCE in `feature-gates.txt`; derive the rest.
 
 ## File Modularity
 `ai/rules/file-modularity.md`
-**When:** when a `.go` file grows past ~600 lines, or starts holding more than one concern — **Severity:** advisory
+**When:** when a `.go` file grows past 1000 lines, or starts holding more than one concern — **Severity:** advisory
 
 ## Directives
 ## One Concern Per File
 Each `.go` source file contains exactly one concern — a cohesive group of types and functions serving a single responsibility.
 | Lines | Action |
 |-------|--------|
-| < 600 | Fine if single concern |
-| 600–1000 | Multiple concerns? Split if yes |
-| > 1000 | Almost certainly needs splitting |
+| < 1000 | Fine |
+| > 1000 | Check for a second concern. Split only when the separation is right |
+**1000 is the only threshold** (Thomas, 2026-08-01). A 600-line tier existed before. It fired on cohesive single-concern files. It is gone from this rule, from the post-edit hook, and from `scripts/lint/consistency.go`.
 ## Splitting
 - **Tool:** `go build -o bin/go_extract ./scripts/dev/go_extract.go && bin/go_extract <source.go> <dest.go> <symbol1> [symbol2 ...]`
 Moves named declarations (with doc comments) to dest, runs `goimports` on both.
@@ -2028,7 +2028,7 @@ The five commit-time gates (spec-audit, deferral-in-diff, deferral-unassigned, w
 | auto-lint | `posttool-writeedit.py` | `go-standards.md` | `.go` Write/Edit | `gofmt`/`goimports -w`, then **one** `golangci-lint --new-from-rev=HEAD` pass (flags only issues this edit introduced). BLOCKING on lint failure. |
 | auto-py-format | `posttool-writeedit.py` | (code style) | `.py` Write/Edit | `ruff format` + `ruff check`. Non-blocking. |
 | validate-spec | `validate-spec.sh` | `planning.md` | `plan/spec-*.md` | Validates required sections/format. Exit 2 blocks a structurally invalid spec; both `→` and `->` wiring rows accepted. |
-| file-size | `posttool-writeedit.py` | `file-modularity.md` | `.go` | Warns >600 lines, strong >1000. Advisory. |
+| file-size | `posttool-writeedit.py` | `file-modularity.md` | `.go` | Warns >1000 lines. Advisory. |
 | warn-deferral | `posttool-writeedit.py` | `deferral-tracking.md` | `.md` | Warns on deferral language in doc edits. Advisory. |
 | require-rfc-reference | `posttool-writeedit.py` | `design-doc-references.md` | `.go` | Suggests `// RFC:` header. Advisory. |
 | require-test-docs | `posttool-writeedit.py` | `tdd.md` | `_test.go` | Warns about missing `VALIDATES:`/`PREVENTS:`. Advisory. |

@@ -46,7 +46,7 @@ Total: 97 rules
 | Exact Or Reject | writing a backend or translator that applies operator config to a device, kernel, or wire format | blocking | `ai/rules/exact-or-reject.md` |
 | Fail-Closed Guards | writing or reviewing a guard: an auth check, validator, constraint, ratchet, or lookup that gates behavior | blocking | `ai/rules/fail-closed-guards.md` |
 | Feature-Gate Registration (compile-out-able features) | adding or changing a compile-out-able feature gated by a `//go:build ze_<feature>` tag | advisory | `ai/rules/feature-gate-registration.md` |
-| File Modularity | when a `.go` file grows past ~600 lines, or starts holding more than one concern | advisory | `ai/rules/file-modularity.md` |
+| File Modularity | when a `.go` file grows past 1000 lines, or starts holding more than one concern | advisory | `ai/rules/file-modularity.md` |
 | Fix, Don't Record. Say It Short. | when a test fails, a gate goes red, or you are about to write a problem down instead of fixing it | blocking | `ai/rules/fix-dont-record.md` |
 | Reproducing Load-Dependent (Flaky-in-Full-Verify) Failures | when a functional-test failure appears only in a full `make ze-verify` run and will not reproduce in isolation | advisory | `ai/rules/flaky-under-load.md` |
 | Friction Reporting | During research, implementation, review, or verification, if you encounter a recurring problem pattern, repeated surprise, stale guidance, tooling friction, or wasted effort, report it immediately... | advisory | `ai/rules/friction-reporting.md` |

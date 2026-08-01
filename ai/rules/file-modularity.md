@@ -1,6 +1,6 @@
 # File Modularity
 
-**When:** when a `.go` file grows past ~600 lines, or starts holding more than one concern
+**When:** when a `.go` file grows past 1000 lines, or starts holding more than one concern
 **Severity:** advisory
 
 ## Directives
@@ -11,21 +11,22 @@ Rationale: `ai/rationale/file-modularity.md`
 
 Each `.go` source file contains exactly one concern — a cohesive group of types and functions serving a single responsibility.
 
-The line thresholds exist for **context economy**: any task touching a file
-should be able to load that file's whole concern without dragging unrelated
-code into context. The corollary (per Thomas): a split is only worth doing
-when the separation is RIGHT — a forced mechanical split that scatters one
-concern across files is worse than one large cohesive file. The post-edit
-size warning is deliberately non-blocking for this reason; treat it as a
-prompt to check cohesion, not an order to cut.
+The line threshold exists for **context economy**. Any task that touches a
+file must be able to load that file's whole concern, and no unrelated code.
+The corollary (per Thomas): a split is only worth doing when the separation
+is RIGHT. A forced mechanical split that scatters one concern across files
+is worse than one large cohesive file. The post-edit size warning is
+deliberately non-blocking for this reason. Read it as a prompt to check
+cohesion, not as an order to cut.
 
 | Lines | Action |
 |-------|--------|
-| < 600 | Fine if single concern |
-| 600–1000 | Multiple concerns? Split if yes |
-| > 1000 | Almost certainly needs splitting |
+| < 1000 | Fine |
+| > 1000 | Check for a second concern. Split only when the separation is right |
 
-Before creating a file: "one concern?" Before adding to one: "belongs to this file's concern?" Past 600 lines: check for multiple concerns.
+**1000 is the only threshold** (Thomas, 2026-08-01). A 600-line tier existed before. It fired on cohesive single-concern files. It is gone from this rule, from the post-edit hook, and from `scripts/lint/consistency.go`.
+
+Before creating a file: "one concern?" Before adding to one: "belongs to this file's concern?" Past 1000 lines: check for multiple concerns.
 
 ## Splitting
 
