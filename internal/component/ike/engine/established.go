@@ -246,6 +246,7 @@ func (ps *PeerSession) maintainSA(
 				return errTimeout
 			}
 
+			ps.serviceRequestRetransmit(sa, dpd, tr, now, log)
 			ps.serviceRequestWindow(sa, dpd, now, log)
 
 			// RFC 7296 Section 2.4: the peer has failed only once REPEATED attempts
@@ -395,6 +396,29 @@ func (ps *PeerSession) startIKERekey(sa *SA, ikeGroup ipsec.IKEGroup, tr *transp
 	sendRaw(sa, tr, msg, log)
 	ps.pendingRekey = pending
 	log.Info("ike-sa: rekey initiated", "peer", ps.peerName, "msgid", pending.messageID)
+}
+
+// serviceRequestRetransmit repeats the request that holds the window, when that request
+// kept a copy of itself. It runs BEFORE serviceRequestWindow, so a repeat is made while
+// the window still stands.
+//
+// RFC 7296 Section 2.1: a retransmission carries the Message ID of the request it
+// repeats. A repeat therefore spends no further id.
+//
+// Only a request with no retransmission machine of its own arms the slot. Today that is
+// the INVALID_MESSAGE_ID notify. The rekey and the DPD probe keep their own copies, and
+// the guard below excludes both, so neither is repeated twice.
+func (ps *PeerSession) serviceRequestRetransmit(sa *SA, dpd *dpdState, tr *transport.UDPTransport, now time.Time, log *slog.Logger) {
+	if ps.pendingRekey != nil || dpd.awaitingReply() {
+		return
+	}
+	if !sa.shouldRetransmitRequest(now) {
+		return
+	}
+	sendRaw(sa, tr, sa.requestMsg, log)
+	sa.noteRequestRetransmit(now)
+	log.Debug("ike: repeated the outstanding request", "peer", ps.peerName,
+		"msgid", sa.requestMsgID, "attempt", sa.requestAttempts)
 }
 
 // serviceRequestWindow frees a request window that no other timer can free. A rekey

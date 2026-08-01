@@ -348,10 +348,104 @@ Child SAs define traffic selectors and the ESP proposal. Ze programs XFRM polici
 | Feature | Detail |
 |---|---|
 | ESP proposals | AES-GCM-16 128/256 and AES-CBC with HMAC-SHA-256/384/512 |
-| Traffic selectors | IPv4 and IPv6 CIDR prefixes |
+| Traffic selectors | IPv4 and IPv6 CIDR prefixes, an optional IP protocol, and an optional single port. See Traffic selectors and narrowing below |
+| Encapsulation | Tunnel mode by default; `mode transport` negotiates transport mode per RFC 7296 Section 1.3.1 |
 | Connection | `connection-type initiate` starts the exchange; `connection-type respond` waits for the peer |
 | Replay protection | Anti-replay window, default 32 |
 | Lifetime | Time-based and byte-based rekeying thresholds |
+
+## Traffic selectors and narrowing
+
+A peer's `traffic-selector` list states which traffic its Child SAs carry. It is also the
+policy RFC 7296 Section 2.9 narrows a peer's proposal against.
+
+```
+vpn { ipsec { site-to-site { peer branch-1 {
+    traffic-selector 1 {
+        local  { prefix 10.1.0.0/16; }
+        remote { prefix 10.2.0.0/16; }
+    }
+    traffic-selector 2 {
+        protocol 6
+        local  { prefix 10.3.0.0/24; port 179; }
+        remote { prefix 10.4.0.0/24; }
+    }
+} } } }
+```
+
+<!-- source: internal/component/ike/ipsec/yang/ze-ipsec-conf.yang -- traffic-selector list -->
+
+When the list is absent the peer accepts whatever the remote endpoint proposes. That is the
+behavior of every configuration written before the list existed, so adding the list is what
+restricts a peer, never omitting it.
+
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, the empty-policy branch -->
+
+As responder, Ze narrows the initiator's proposed TSi and TSr to a subset the list allows,
+and leads the answer with the initiator's first choices. A proposal it cannot narrow to a
+non-empty subset draws a `TS_UNACCEPTABLE` notification. As initiator, Ze proposes the list
+in order, because RFC 7296 reads the order as the preference order.
+
+<!-- source: internal/component/ike/engine/ts_narrow.go -- narrowSelectors, narrowChildSelectors -->
+
+The selectors Ze puts on the wire are the selectors it programs. A proposal it cannot
+program exactly is narrowed FURTHER, never rounded outward: an address range that is not a
+prefix becomes the largest prefix inside it, and a port range that is neither all ports nor
+one port becomes its first port. A rekey is never narrowed below the scope in use.
+
+<!-- source: internal/component/ike/engine/ts_narrow.go -- programmableSelector, largestPrefixIn, floorWithinProposal -->
+
+| Port value | Meaning | RFC 7296 Section 3.13.1 encoding |
+|---|---|---|
+| `any` (the default) | every port | start 0, end 65535 |
+| `1`..`65535` | one port | start N, end N |
+
+A port other than `any` needs `protocol` to name a protocol that defines ports, such as 6
+for TCP or 17 for UDP. Section 3.13.1 requires the port fields to be 0 and 65535 whenever
+the protocol is 0, so the combination is refused at commit rather than widened silently.
+Opaque ports are refused for the same reason: no dataplane backend can express an exact
+match on port 0, so accepting one would install an any-port policy.
+
+<!-- source: internal/component/ike/ipsec/traffic_selector.go -- checkPortProgrammable, PortSelector.Wire -->
+
+## Transport mode
+
+`mode transport` asks the peer for transport mode with the `USE_TRANSPORT_MODE`
+notification of RFC 7296 Section 1.3.1. Tunnel mode is the default, and it is the RFC's own
+default.
+
+```
+vpn { ipsec { site-to-site { peer host-1 {
+    mode transport
+    transport-required true
+    traffic-selector 1 {
+        local  { prefix 10.0.0.3/32; }
+        remote { prefix 10.0.0.4/32; }
+    }
+} } } }
+```
+
+<!-- source: internal/component/ike/ipsec/yang/ze-ipsec-conf.yang -- mode, transport-required -->
+
+Transport mode constrains the selectors. RFC 7296 Section 2.23.1 requires exactly one IP
+address in TSi and in TSr, so every prefix must be a single host, and a `vti` binding is
+refused because an XFRM interface carries tunnel encapsulation. Several selectors are still
+allowed when they share that one address, for example to negotiate several ports.
+
+<!-- source: internal/component/ike/engine/transport_mode.go -- transportSelectorPairs -->
+
+A peer that declines the request establishes the Child SA in tunnel mode. Set
+`transport-required true` when that downgrade is unacceptable: Ze then deletes the SA
+instead, which is what Section 1.3.1 asks of an initiator. It defaults to false, so a peer
+without transport mode keeps a working tunnel.
+
+<!-- source: internal/component/ike/engine/transport_mode.go -- recordInitiatorTransportMode -->
+
+The VPP dataplane backend does not implement transport mode. It refuses a transport-mode
+install with a clear error rather than programming a tunnel-mode entry and reporting
+success.
+
+<!-- source: internal/component/ike/dataplane/vpp.go -- vppUnsupportedSelector -->
 
 ## PKI certificate store
 

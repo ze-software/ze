@@ -375,6 +375,143 @@ module ze-ipsec-conf {
                         description "Remote endpoint address or DNS hostname.";
                     }
 
+                    leaf mode {
+                        type enumeration {
+                            enum tunnel {
+                                description "Encapsulate the whole packet (RFC 4301 tunnel mode).";
+                            }
+                            enum transport {
+                                description "Protect the payload and keep the outer IP header
+                                    (RFC 4301 transport mode). Ze proposes it with the
+                                    USE_TRANSPORT_MODE notification of RFC 7296 Section 1.3.1.";
+                            }
+                        }
+                        default tunnel;
+                        description
+                            "Encapsulation mode for this peer's Child SAs.
+
+                             RFC 7296 Section 1.3.1 states the default itself: 'Except when
+                             using this option to negotiate transport mode, all Child SAs will
+                             use tunnel mode.' Ze asks for transport mode by sending
+                             USE_TRANSPORT_MODE with the Child SA request, and the peer can
+                             decline. A declined request establishes a tunnel-mode Child SA
+                             unless transport-required is set.
+
+                             Transport mode constrains the traffic selectors. RFC 7296 Section
+                             2.23.1 requires exactly one IP address in TSi and in TSr, so every
+                             traffic-selector prefix under this peer must be a single host, and
+                             a vti binding is refused because an XFRM interface carries tunnel
+                             encapsulation.";
+                    }
+
+                    leaf transport-required {
+                        type boolean;
+                        default false;
+                        description
+                            "Whether a peer that declines transport mode is unacceptable.
+
+                             RFC 7296 Section 1.3.1: 'If the responder declines the request, the
+                             Child SA will be established in tunnel mode. If this is unacceptable
+                             to the initiator, the initiator MUST delete the SA.' Only the
+                             operator knows whether it is unacceptable, so this leaf carries that
+                             decision. When it is true and the response omits USE_TRANSPORT_MODE,
+                             Ze deletes the SA rather than run a tunnel-mode Child SA the
+                             operator did not ask for. When it is false the SA stays up in
+                             tunnel mode, which is the safe default.
+
+                             It applies only when mode is transport.";
+                    }
+
+                    list traffic-selector {
+                        key "number";
+                        description
+                            "The traffic this peer's Child SAs carry, and the policy RFC 7296
+                             Section 2.9 narrows a peer's proposal against.
+
+                             When no entry is present the peer accepts whatever the remote
+                             endpoint proposes, which is the behavior of every configuration
+                             written before this list existed. Adding an entry restricts the
+                             peer: a proposal Ze cannot narrow to a non-empty subset of these
+                             entries is answered with TS_UNACCEPTABLE.
+
+                             RFC 7296 Section 2.9 permits several selectors, so this is a list.";
+
+                        leaf number {
+                            type string {
+                                length "1..16";
+                                pattern '[0-9]+';
+                            }
+                            description "Selector identifier. Order is the order of proposal.";
+                        }
+
+                        container local {
+                            description "The local side of the selector pair (TSi when Ze
+                                initiates, TSr when Ze responds).";
+
+                            leaf prefix {
+                                type zt:ip-prefix;
+                                mandatory true;
+                                description "Local traffic the Child SA carries.";
+                            }
+
+                            leaf port {
+                                type union {
+                                    type uint16 { range "1..65535"; }
+                                    type enumeration {
+                                        enum any {
+                                            description "Every port. RFC 7296 Section 3.13.1
+                                                encodes it as start 0, end 65535.";
+                                        }
+                                    }
+                                }
+                                default any;
+                                description
+                                    "Local port of the selector.
+
+                                     RFC 7296 Section 3.13.1 requires the port fields to be 0 and
+                                     65535 whenever the protocol is 0 or defines no port, so a
+                                     value other than any needs the protocol leaf to name a
+                                     protocol that has ports.";
+                            }
+                        }
+
+                        container remote {
+                            description "The remote side of the selector pair (TSr when Ze
+                                initiates, TSi when Ze responds).";
+
+                            leaf prefix {
+                                type zt:ip-prefix;
+                                mandatory true;
+                                description "Remote traffic the Child SA carries.";
+                            }
+
+                            leaf port {
+                                type union {
+                                    type uint16 { range "1..65535"; }
+                                    type enumeration {
+                                        enum any {
+                                            description "Every port. RFC 7296 Section 3.13.1
+                                                encodes it as start 0, end 65535.";
+                                        }
+                                    }
+                                }
+                                default any;
+                                description
+                                    "Remote port of the selector. It follows the same rule as the
+                                     local port: a value other than any needs the protocol leaf.";
+                            }
+                        }
+
+                        leaf protocol {
+                            type uint8;
+                            default 0;
+                            description
+                                "IP protocol number the selector matches, such as 6 for TCP and
+                                 17 for UDP. Zero matches every protocol, which is RFC 7296
+                                 Section 3.13.1's 'protocol 0'.";
+                        }
+                    }
+
                     container authentication {
                         description "Peer authentication settings.";
 

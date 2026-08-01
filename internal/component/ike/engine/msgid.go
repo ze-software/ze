@@ -153,6 +153,68 @@ func (sa *SA) reserveRequestWindow() bool {
 // build failed, or when it abandons its own exchange.
 func (sa *SA) releaseRequestWindow() {
 	sa.requestOutstanding = false
+	sa.clearRequestRetransmit()
+}
+
+// armRequestRetransmit stores the datagram of the request that holds the window, so
+// the owner loop can repeat it under its own Message ID (RFC 7296 Section 2.1: "the
+// retransmission is identical to the original request", which includes its id).
+//
+// The caller MUST already hold the window. A request that spends a Message ID and
+// stores nothing cannot be repeated. A lost one then leaves NextMsgID past the id the
+// peer still expects. With a window of one, every later request is out of window for
+// the peer, and the SA stalls until the liveness budget ends it.
+//
+// A caller that runs its own retransmission does not arm this slot. The rekey and the
+// DPD probe each keep their own copy, and each repeats it on its own clock.
+func (sa *SA) armRequestRetransmit(msg []byte) {
+	if !sa.requestOutstanding {
+		return
+	}
+	sa.requestMsg = msg
+	sa.requestAttempts = 0
+	sa.requestLastSent = sa.requestSentAt
+}
+
+// clearRequestRetransmit drops the stored datagram. Every path that frees the window
+// runs through it, so no abandoned request leaves bytes behind for a later one to
+// repeat.
+func (sa *SA) clearRequestRetransmit() {
+	sa.requestMsg = nil
+	sa.requestAttempts = 0
+	sa.requestLastSent = time.Time{}
+}
+
+// maxRequestRetransmits bounds how often the window's stored request is repeated.
+//
+// RFC 7296 Section 2.1 repeats a request until it draws a reply or the SA is deemed
+// failed. This slot carries a request that is not itself worth failing the SA over,
+// so the repeats stop and requestWindowStale then frees the window. Three attempts
+// under retransmitBackoff complete well inside requestWindowTimeout, so the window is
+// never freed underneath an attempt still to come.
+const maxRequestRetransmits = 3
+
+// shouldRetransmitRequest reports whether the stored request has waited past its
+// current backoff and has repeats left.
+//
+// A window with no stored datagram reads false. That is the rekey, the DPD probe, and
+// the Delete: the first two repeat themselves, and the third is deliberately never
+// resent (requestWindowTimeout, above).
+func (sa *SA) shouldRetransmitRequest(now time.Time) bool {
+	if !sa.requestOutstanding || len(sa.requestMsg) == 0 {
+		return false
+	}
+	if sa.requestAttempts >= maxRequestRetransmits {
+		return false
+	}
+	return !now.Before(sa.requestLastSent.Add(retransmitBackoff(sa.requestAttempts + 1)))
+}
+
+// noteRequestRetransmit records that the stored request went out again, which
+// lengthens the wait before the next attempt.
+func (sa *SA) noteRequestRetransmit(now time.Time) {
+	sa.requestAttempts++
+	sa.requestLastSent = now
 }
 
 // answerAuthenticatedResponse frees the window when msgID is the id of the
@@ -174,6 +236,7 @@ func (sa *SA) answerAuthenticatedResponse(msgID uint32) {
 		return
 	}
 	sa.requestOutstanding = false
+	sa.clearRequestRetransmit()
 }
 
 // retireRequest frees the window when msgID is the id of the outstanding request and
@@ -192,6 +255,7 @@ func (sa *SA) retireRequest(msgID uint32) {
 		return
 	}
 	sa.requestOutstanding = false
+	sa.clearRequestRetransmit()
 }
 
 // requestWindowStale reports whether the outstanding request has waited past

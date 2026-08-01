@@ -1,0 +1,51 @@
+# Test: a traffic-selector port with no protocol is refused at config validate.
+# Validates: RFC 7296 Section 3.13.1 MUST -- "For protocols for which port is
+# undefined (including protocol 0), or if all ports are allowed, this field MUST
+# be zero" (and the End Port MUST be 65535). A specific port under protocol 0
+# could not be encoded conformantly, so the config is refused rather than being
+# widened to all ports behind the operator's back.
+# Spec: plan/spec-rfcgate-1b-rfc7296-pilot.md, WP-7.
+stdin=config:terminator=EOF_CONF
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				traffic-selector 1 {
+					local {
+						prefix 10.1.0.0/16
+						port 443
+					}
+					remote {
+						prefix 10.2.0.0/16
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=output:contains=needs a protocol

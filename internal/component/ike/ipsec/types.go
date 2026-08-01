@@ -475,6 +475,31 @@ type SiteToSitePeer struct {
 	Auth           AuthConfig
 	VTIBind        string // VTI interface name
 	IfID           uint32 // XFRM if_id for SA binding (must match the XFRM interface)
+
+	// TrafficSelectors is the operator policy RFC 7296 Section 2.9 narrows a peer's
+	// proposed TSi/TSr against. An EMPTY slice means "allow everything", which
+	// preserves the behavior of every config written before this field existed: such a
+	// peer accepts whatever the initiator proposes. It is the load-bearing default,
+	// because narrowing an unconfigured peer to the empty set would answer every
+	// existing deployment with TS_UNACCEPTABLE.
+	TrafficSelectors []TrafficSelectorPolicy
+
+	// Mode is the Child SA encapsulation mode this peer asks for: dataplane.ModeTunnel
+	// or dataplane.ModeTransport. RFC 7296 Section 1.3.1: "Except when using this option
+	// to negotiate transport mode, all Child SAs will use tunnel mode", so tunnel is the
+	// default and it is the RFC's own default rather than a Ze preference.
+	Mode uint8
+
+	// TransportRequired records that tunnel mode is unacceptable to this peer.
+	//
+	// RFC 7296 Section 1.3.1: "If the responder declines the request, the Child SA will
+	// be established in tunnel mode. If this is unacceptable to the initiator, the
+	// initiator MUST delete the SA." Only the operator knows whether it is unacceptable,
+	// so the MUST is conditional on this leaf. It fails SAFE rather than closed on
+	// purpose: the default false keeps a declined request as a working tunnel-mode SA,
+	// and setting it true is the operator stating that a silent downgrade to tunnel mode
+	// is worse than no tunnel at all.
+	TransportRequired bool
 }
 
 // EAPUser is a remote-access EAP user entry.

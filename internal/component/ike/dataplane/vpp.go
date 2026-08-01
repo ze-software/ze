@@ -33,7 +33,44 @@ func newVPPBackend() (Dataplane, error) {
 	return &vppBackend{conn: conn, ch: ch}, nil
 }
 
+// vppUnsupportedSelector refuses a policy this backend would install WRONGLY.
+//
+// It fails closed on two counts, and both were silent before it existed.
+//
+// TRANSPORT MODE. The SPD entry below is built with tunnel semantics and this backend
+// never reads p.Mode, so a transport-mode request installed a tunnel-shaped entry and
+// reported success. That is the same silent-wrong-mode failure the netlink guard was
+// written to stop (kernelXFRMMode, dataplane.go), reproduced in the other backend. It is
+// reachable independently of IKE: internal/plugins/ospf/ipsec_install.go asks for
+// ModeTransport today.
+//
+// PORT SELECTORS. The SPD entry carries no port range, so a port-restricted policy would
+// install as any-port and protect more traffic than was negotiated.
+//
+// Refusing is the minimum ai/rules/exact-or-reject.md allows. Implementing transport mode
+// here means the GoVPP SAD tunnel flag plus the matching SPD entry, and it is the better
+// answer whenever someone can test it against a real VPP.
+func vppUnsupportedSelector(p SPParams) error {
+	if p.Mode != ModeTunnel {
+		return fmt.Errorf(
+			"%w: vpp: policy mode %d is not implemented by this backend, which builds tunnel-mode SPD entries only; installing it would program tunnel mode and report success",
+			ErrNotSupported, p.Mode)
+	}
+	if !p.SrcPort.IsAny() || !p.DstPort.IsAny() {
+		return fmt.Errorf(
+			"%w: vpp: port-restricted policy selectors are not implemented by this backend, and installing one would match every port; use a traffic selector with port any",
+			ErrNotSupported)
+	}
+	return nil
+}
+
 func (b *vppBackend) InstallSA(p SAParams) error {
+	if p.Mode != ModeTunnel {
+		return fmt.Errorf(
+			"%w: vpp: SA mode %d is not implemented by this backend, which builds tunnel-mode SA entries only; installing it would program tunnel mode and report success",
+			ErrNotSupported, p.Mode)
+	}
+
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
@@ -88,6 +125,10 @@ func (b *vppBackend) RemoveSA(spi uint32, _ net.IP, _ uint8) error {
 }
 
 func (b *vppBackend) InstallPolicy(p SPParams) error {
+	if err := vppUnsupportedSelector(p); err != nil {
+		return err
+	}
+
 	b.mu.Lock()
 	defer b.mu.Unlock()
 

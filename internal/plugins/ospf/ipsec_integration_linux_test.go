@@ -69,8 +69,18 @@ func TestXFRMInstallAHSA(t *testing.T) {
 	if found.Crypt != nil {
 		t.Error("AH SA must not carry an encryption transform (RFC 4302)")
 	}
-	if int(found.Mode) != int(dataplane.ModeTransport) {
-		t.Errorf("AH SA mode = %d, want transport", found.Mode)
+	// The kernel reports XFRM_MODE_TRANSPORT as 0. dataplane.ModeTransport is 1, because
+	// Ze's constants are 1-based so an unset Mode field is never a valid mode
+	// (dataplane.go). Comparing the two directly asserted 0 == 1 and could never pass for
+	// a correctly installed transport SA.
+	//
+	// This is the two-vocabulary hazard kernelXFRMMode's own comment records, reproduced
+	// in a test: the conversion exists precisely because the numbering differs, so the
+	// read-back must be compared against the KERNEL number.
+	const kernelTransportMode = 0 // XFRM_MODE_TRANSPORT, uapi/linux/xfrm.h
+	if int(found.Mode) != kernelTransportMode {
+		t.Errorf("AH SA reached the kernel as mode %d, want XFRM_MODE_TRANSPORT (%d)",
+			found.Mode, kernelTransportMode)
 	}
 }
 

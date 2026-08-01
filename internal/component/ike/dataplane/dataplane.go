@@ -205,6 +205,31 @@ type SAParams struct {
 	UDPEncapDPort uint16
 }
 
+// PortMatch is the port half of a policy selector, as the kernel expresses it: a value
+// plus a mask.
+//
+// A zero Mask matches EVERY port and ignores Port, which is the historical behavior and
+// the byte-identical default for a caller that sets neither field. A Mask of 0xffff
+// matches exactly Port.
+//
+// The two-field shape is the kernel's, not a Ze invention: XfrmSelector carries Sport,
+// SportMask, Dport and DportMask. A caller that needs an inclusive port RANGE cannot
+// express it here, and must narrow to a single port before installing (RFC 7296 Section
+// 2.9 permits narrowing, and rounding outward to "any port" would widen the policy).
+type PortMatch struct {
+	Port uint16
+	Mask uint16
+}
+
+// AnyPortMatch matches every port. It is the zero value, named so a caller can say so.
+func AnyPortMatch() PortMatch { return PortMatch{} }
+
+// ExactPortMatch matches one port.
+func ExactPortMatch(port uint16) PortMatch { return PortMatch{Port: port, Mask: 0xffff} }
+
+// IsAny reports whether this match constrains nothing.
+func (p PortMatch) IsAny() bool { return p.Mask == 0 }
+
 // SPParams describes a Security Policy to install in the kernel or VPP.
 type SPParams struct {
 	Src   *net.IPNet
@@ -214,6 +239,17 @@ type SPParams struct {
 	Mode  uint8 // ModeTransport = 1, ModeTunnel = 2
 	IfID  uint32
 	ReqID uint32
+
+	// SrcPort and DstPort narrow the policy selector to a port. The zero value of each
+	// matches every port, so a caller that never sets them installs the same policy it
+	// installed before these fields existed.
+	//
+	// RFC 7296 Section 3.13.1 negotiates a port RANGE, and this pair carries only ANY or
+	// one exact port, so the IKE engine narrows the negotiated range to a form that fits
+	// before it reaches here (engine/ts_narrow.go). A backend that cannot honor a
+	// non-any value MUST reject the install rather than widen it.
+	SrcPort PortMatch
+	DstPort PortMatch
 	// UpperProto is the upper-layer protocol selector for the policy (0 = any,
 	// the historical IKE default; 89 restricts the policy to OSPF traffic per
 	// RFC 4552 §5/§6). It threads onto the XfrmPolicy selector, not the template.

@@ -1,4 +1,5 @@
 // Design: plan/learned/740-ipsec-7-ikev2-engine.md -- IKE_SA_INIT initiator logic
+// Related: ts_narrow.go -- traffic-selector policy, narrowing, and port encoding
 // RFC: rfc/short/rfc7296.md -- IKE_SA_INIT exchange (Section 1.2)
 package engine
 
@@ -443,7 +444,10 @@ func buildChildSAPayloads(sa *SA) (uint32, *wire.PayloadSA, *wire.PayloadTS, *wi
 		return 0, nil, nil, nil, err
 	}
 	saPayload := &wire.PayloadSA{Proposals: buildWireESPProposals(sa.ESPGroup, espSPI)}
-	tsi, tsr := anyChildTSPayloads(sa)
+	// A REQUEST proposes the operator's configured selectors, so a responder that
+	// narrows has something of ours to narrow. An unconfigured peer still proposes the
+	// wildcard (proposeChildTSPayloads).
+	tsi, tsr := proposeChildTSPayloads(sa)
 	return espSPI, saPayload, tsi, tsr, nil
 }
 
@@ -470,7 +474,18 @@ func buildChildSAResponsePayloads(sa *SA) (uint32, *wire.PayloadSA, *wire.Payloa
 	}
 	accepted := espProposalToWire(sa.ESPGroup.Proposals[0], espSPI, sa.ChildProposalNum)
 	saPayload := &wire.PayloadSA{Proposals: []wire.Proposal{accepted}}
-	tsi, tsr := anyChildTSPayloads(sa)
+
+	// RFC 7296 Section 2.9: a RESPONSE carries the NARROWED selectors, which are a
+	// subset of the initiator's proposal. narrowChildSelectors put that subset on the SA.
+	//
+	// This call used to be anyChildTSPayloads(sa), which answered every exchange with
+	// 0.0.0.0-255.255.255.255, all ports, all protocols. That is a strict SUPERSET of any
+	// non-wildcard proposal, so the responder was not merely failing to narrow: it was
+	// widening, which rfc/full/rfc7296.txt:2393-2395 forbids.
+	tsi, tsr := pairsToWire(sa.NegotiatedPairs)
+	if tsi == nil || tsr == nil {
+		return 0, nil, nil, nil, errTSUnacceptable
+	}
 	return espSPI, saPayload, tsi, tsr, nil
 }
 
@@ -533,29 +548,10 @@ func espProposalToWire(p ipsec.ESPProposal, spi uint32, number uint8) wire.Propo
 	}
 }
 
-// tsToIPNet converts the first traffic selector from a wire TS payload to *net.IPNet.
-// Returns nil if the range is not CIDR-aligned.
-func tsToIPNet(selectors []wire.TrafficSelector) *net.IPNet {
-	if len(selectors) == 0 {
-		return nil
-	}
-	ts := selectors[0]
-	if len(ts.StartAddress) == 0 || len(ts.StartAddress) != len(ts.EndAddress) {
-		return nil
-	}
-	mask := make(net.IPMask, len(ts.StartAddress))
-	for i := range mask {
-		mask[i] = ^(ts.StartAddress[i] ^ ts.EndAddress[i])
-	}
-	ones, bits := mask.Size()
-	if ones == 0 && bits == 0 {
-		return nil
-	}
-	ip := make(net.IP, len(ts.StartAddress))
-	copy(ip, ts.StartAddress)
-	masked := ip.Mask(mask)
-	if !masked.Equal(ip) {
-		return nil
-	}
-	return &net.IPNet{IP: ip, Mask: mask}
-}
+// tsToIPNet was deleted with WP-7. It read selectors[0] only and discarded the port and
+// the protocol, and it returned nil for any range that was not CIDR-aligned -- which made
+// createFirstChildSA fall back to a /32 of the tunnel endpoint, silently substituting a
+// policy the peer never proposed. wireToSelectors (ts_narrow.go) replaces it: it converts
+// EVERY selector, keeps the port and the protocol, and narrows a non-prefix range INWARD
+// to the largest prefix it contains rather than discarding it
+// (ai/rules/no-layering.md: delete X before implementing Y).

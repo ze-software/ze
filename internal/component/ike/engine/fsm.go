@@ -670,6 +670,8 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 	var childOffer *wire.PayloadSA
 	var certPayloads []*wire.PayloadCERT
 	var setWindowSize *wire.PayloadNotify
+	var respTSi, respTSr *wire.PayloadTS
+	transportAccepted := false
 	for _, pe := range innerPayloads {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadNotify:
@@ -677,6 +679,12 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 				log.Warn("ike: remote sent AUTHENTICATION_FAILED", "peer", sa.PeerName)
 				sa.State = StateDead
 				return
+			}
+			// RFC 7296 Section 1.3.1 MUST: a responder that accepts a transport-mode
+			// request answers with USE_TRANSPORT_MODE. Its ABSENCE is the decline, and
+			// recordInitiatorTransportMode below decides what a decline costs.
+			if p.NotifyMsgType == wire.NotifyUseTransportMode {
+				transportAccepted = true
 			}
 			// RFC 7296 Section 2.3: the peer states how many outstanding requests it
 			// keeps. IKE_AUTH is the read point, because "The window size is always one
@@ -706,9 +714,9 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 		case *wire.PayloadTS:
 			switch p.TSPayloadType {
 			case wire.PayloadTypeTSi:
-				sa.NegotiatedTSi = tsToIPNet(p.TrafficSelectors)
+				respTSi = p
 			case wire.PayloadTypeTSr:
-				sa.NegotiatedTSr = tsToIPNet(p.TrafficSelectors)
+				respTSr = p
 			}
 		}
 	}
@@ -731,6 +739,14 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 	}
 	if err := verifyRemoteAuth(sa, authPayload); err != nil {
 		log.Warn("ike: remote AUTH verification failed", "peer", sa.PeerName, "error", err)
+		sa.State = StateDead
+		return
+	}
+
+	// The mode and the selectors the responder answered with are adopted HERE, after
+	// verifyRemoteAuth, so an unauthenticated message can neither tear this SA down nor
+	// choose the traffic it protects (transport_mode.go).
+	if !adoptAuthResponseNegotiation(sa, transportAccepted, respTSi, respTSr, log) {
 		sa.State = StateDead
 		return
 	}

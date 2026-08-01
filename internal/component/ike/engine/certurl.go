@@ -49,6 +49,26 @@ const (
 	// certURLMaxInFlight caps concurrent fetches process-wide. Without it, N half-open
 	// SAs are N outbound connections, which is a reflection amplifier.
 	certURLMaxInFlight = 8
+
+	// certURLMaxHeaderBytes caps the RESPONSE HEADER. It is a separate budget from
+	// certURLMaxBytes, which caps only the body, and Go's default for it is 10 MiB.
+	// Without this the body cap bounds nothing that matters: an attacker-operated
+	// server answers with megabytes of header fields, and certURLMaxInFlight
+	// multiplies whatever one response costs. 8 KiB is far above any real answer to a
+	// GET for a certificate.
+	certURLMaxHeaderBytes = 8 << 10
+
+	// certURLCacheMaxEntries and certURLCacheMaxBytes bound the cache below.
+	//
+	// The key is a hash the PEER chose, so an unauthenticated peer decides how many
+	// distinct entries exist. Each IKE_AUTH can name several, and each is up to
+	// certURLMaxBytes. An unbounded cache is therefore a heap-growth primitive driven
+	// by repeated handshakes that never authenticate.
+	//
+	// 64 entries at the 64 KiB body cap is exactly the 4 MiB byte bound. The two meet
+	// for maximum-size objects. The entry bound binds first for ordinary ones.
+	certURLCacheMaxEntries = 64
+	certURLCacheMaxBytes   = 4 << 20
 )
 
 var (
@@ -72,7 +92,62 @@ var certURLInFlight = make(chan struct{}, certURLMaxInFlight)
 // An entry is stored only AFTER the hash comparison below passed, so every entry's bytes
 // hash to its own key. A cache HIT therefore returns bytes that satisfy the peer's hash by
 // construction. That is why the hit CAN return before any of the network controls run.
-var certURLCache sync.Map // string(hash) -> []byte DER
+//
+// It is BOUNDED, in entries and in bytes, and it evicts in insertion order. A peer that
+// has not authenticated chooses the key, so an unbounded map lets repeated handshakes
+// grow the heap without limit. Eviction costs a later peer one refetch, and the fetch is
+// bounded in every other dimension already.
+//
+// A sync.Map cannot carry this: it reports no size, so nothing can decide when to evict.
+type certURLStore struct {
+	mu    sync.Mutex
+	items map[string][]byte
+	order []string // insertion order, oldest first
+	bytes int
+}
+
+var certURLCache = certURLStore{items: make(map[string][]byte)}
+
+// Load returns the cached DER for a hash key.
+//
+// Load and Store keep the names of the sync.Map methods this type replaced. The call
+// sites that read the cache therefore did not change with it.
+func (c *certURLStore) Load(key string) ([]byte, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	der, ok := c.items[key]
+	return der, ok
+}
+
+// Store records der under key and evicts the oldest entries until both bounds hold.
+//
+// An object larger than the whole byte budget is never stored. Storing it would evict
+// every other entry and then sit alone, which is a cache one peer can flush at will.
+// certURLMaxBytes already bounds a body well below the budget, so this refuses only a
+// value a future edit of that cap would let through (ai/rules/fail-closed-guards.md).
+func (c *certURLStore) Store(key string, der []byte) {
+	if len(der) > certURLCacheMaxBytes {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if old, ok := c.items[key]; ok {
+		// The key is the SHA-1 of the value, so a repeat carries identical bytes and
+		// the entry keeps its original position. Only the accounting is restated.
+		c.bytes += len(der) - len(old)
+		c.items[key] = der
+		return
+	}
+	c.items[key] = der
+	c.order = append(c.order, key)
+	c.bytes += len(der)
+	for len(c.order) > certURLCacheMaxEntries || c.bytes > certURLCacheMaxBytes {
+		oldest := c.order[0]
+		c.order = c.order[1:]
+		c.bytes -= len(c.items[oldest])
+		delete(c.items, oldest)
+	}
+}
 
 // resetCertURLCache drops every cached object.
 //
@@ -84,10 +159,11 @@ var certURLCache sync.Map // string(hash) -> []byte DER
 // earlier test stored can silently answer a test that asserts the hash comparison. That
 // test then passes and proves nothing.
 func resetCertURLCache() {
-	certURLCache.Range(func(key, _ any) bool {
-		certURLCache.Delete(key)
-		return true
-	})
+	certURLCache.mu.Lock()
+	defer certURLCache.mu.Unlock()
+	certURLCache.items = make(map[string][]byte)
+	certURLCache.order = nil
+	certURLCache.bytes = 0
 }
 
 // splitHashAndURL splits a Hash and URL payload into the 20-octet SHA-1 and the URL text
@@ -97,6 +173,25 @@ func splitHashAndURL(data []byte) (hash []byte, rawURL string, err error) {
 		return nil, "", errCertURLShortData
 	}
 	return data[:wire.CertHashURLHashLen], string(data[wire.CertHashURLHashLen:]), nil
+}
+
+// certURLDeniedPrefixes are the address classes netip's own predicates do not name.
+//
+// netip.Addr.IsPrivate covers RFC 1918 and fc00::/7 and NOTHING else. Every class below
+// would otherwise be reachable. Each is space that is live INSIDE a network, and none is
+// a legitimate place to fetch a certificate from. That is the shape this file refuses.
+var certURLDeniedPrefixes = []netip.Prefix{
+	// RFC 6598 shared address space. Ze runs on a BNG, where this is the SUBSCRIBER
+	// range. Without this row an unauthenticated peer names a subscriber's address, and
+	// drives a request at it from the router's position.
+	netip.MustParsePrefix("100.64.0.0/10"),
+	// RFC 6890 IETF protocol assignments, which carries the DS-Lite AFTR address
+	// (192.0.0.1) and the NAT64 well-known addresses among others.
+	netip.MustParsePrefix("192.0.0.0/24"),
+	// RFC 2544 benchmarking, routinely wired to live test equipment.
+	netip.MustParsePrefix("198.18.0.0/15"),
+	// RFC 1112 reserved. IsMulticast stops at 239.255.255.255 and leaves this open.
+	netip.MustParsePrefix("240.0.0.0/4"),
 }
 
 // certURLDenied reports whether an address is one the fetcher must never connect to.
@@ -109,6 +204,9 @@ func splitHashAndURL(data []byte) (hash []byte, rawURL string, err error) {
 // a pre-resolved answer. A name that resolves differently on a second lookup therefore
 // cannot walk past it (DNS rebinding).
 func certURLDenied(addr netip.Addr) bool {
+	// Unmap folds the IPv4-mapped form of RFC 4291 (::ffff:0:0/96) down to its IPv4
+	// address, so every IPv4 rule below judges ::ffff:10.0.0.1 exactly as 10.0.0.1.
+	// The IPv4-COMPATIBLE form is a different encoding and is handled separately.
 	addr = addr.Unmap()
 	switch {
 	case !addr.IsValid(),
@@ -126,11 +224,49 @@ func certURLDenied(addr netip.Addr) bool {
 	if addr.Is4() && addr == netip.AddrFrom4([4]byte{169, 254, 169, 254}) {
 		return true
 	}
-	// IPv4-compatible and IPv6 unique-local space.
+	// IPv6 unique-local space, fc00::/7. IsPrivate already names it. It is restated for
+	// the same reason the metadata address above is.
 	if addr.Is6() && addr.As16()[0]&0xfe == 0xfc {
 		return true
 	}
+	// The IPv4-compatible IPv6 form of RFC 4291, ::a.b.c.d. Unmap does NOT fold it,
+	// because it is not the mapped form. ::10.0.0.1 therefore reaches here as a plain
+	// IPv6 address that matches no rule above.
+	//
+	// RFC 4291 Section 2.5.5.1 deprecated the encoding. A peer that sends one names an
+	// IPv4 destination by the one spelling that walks past an IPv4 deny list. The
+	// embedded address is judged instead.
+	if compat, ok := ipv4Compatible(addr); ok {
+		return certURLDenied(compat)
+	}
+	for _, p := range certURLDeniedPrefixes {
+		if p.Contains(addr) {
+			return true
+		}
+	}
 	return false
+}
+
+// ipv4Compatible reports the IPv4 address embedded in an IPv4-compatible IPv6 address
+// (RFC 4291 Section 2.5.5.1: ::a.b.c.d, the deprecated form).
+//
+// :: and ::1 are excluded: IsUnspecified and IsLoopback already name them, and reading
+// them as 0.0.0.0 and 0.0.0.1 would describe them as something they are not.
+func ipv4Compatible(addr netip.Addr) (netip.Addr, bool) {
+	if !addr.Is6() || addr.Is4In6() {
+		return netip.Addr{}, false
+	}
+	b := addr.As16()
+	for _, octet := range b[:12] {
+		if octet != 0 {
+			return netip.Addr{}, false
+		}
+	}
+	v4 := netip.AddrFrom4([4]byte{b[12], b[13], b[14], b[15]})
+	if !v4.IsValid() || v4.IsUnspecified() || v4 == netip.AddrFrom4([4]byte{0, 0, 0, 1}) {
+		return netip.Addr{}, false
+	}
+	return v4, true
 }
 
 // certURLClient builds the bounded HTTP client. Every control is set here so a reader can
@@ -168,6 +304,10 @@ func certURLClient(allow []netip.Prefix) *http.Client {
 			DisableKeepAlives:     true,
 			MaxIdleConns:          1,
 			ResponseHeaderTimeout: certURLTimeout,
+			// Go's default here is 10 MiB, which is 160 times the body cap and is
+			// what actually bounds a hostile response until it is set. Header bytes
+			// are read before certURLMaxBytes governs anything.
+			MaxResponseHeaderBytes: certURLMaxHeaderBytes,
 		},
 		// Zero redirects. A redirect is the standard scheme-and-host laundering step.
 		// The hash pins the CONTENT rather than the location, so a redirect gains
@@ -200,10 +340,8 @@ func fetchHashAndURL(ctx context.Context, data []byte, allow []netip.Prefix) ([]
 		return nil, err
 	}
 
-	if cached, ok := certURLCache.Load(string(hash)); ok {
-		if der, isDER := cached.([]byte); isDER {
-			return der, nil
-		}
+	if der, ok := certURLCache.Load(string(hash)); ok {
+		return der, nil
 	}
 
 	// The scheme is checked before any name resolution or connection, so a file: or

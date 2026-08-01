@@ -108,12 +108,16 @@ func opaqueText(data []byte) string {
 // assertedIdentity renders the identity a peer asserted, and reports whether ze can
 // compare it with a configured remote-id.
 //
-// Ze compares five of the seven types RFC 7296 Section 3.5 assigns: ID_IPV4_ADDR,
-// ID_IPV6_ADDR, ID_FQDN, ID_RFC822_ADDR, and ID_KEY_ID. Those are the four every
-// implementation MUST accept, plus the address type an IPv6-capable implementation MUST
-// accept. ID_DER_ASN1_DN and ID_DER_ASN1_GN are binary X.500 structures, and comparing
-// one against configured text needs a canonical form that no rule in RFC 7296 states.
-// Ze does not guess at one. The text is always filled so a refusal can print it.
+// Ze compares six of the seven types RFC 7296 Section 3.5 assigns: ID_IPV4_ADDR,
+// ID_IPV6_ADDR, ID_FQDN, ID_RFC822_ADDR, ID_KEY_ID, and ID_DER_ASN1_DN. The first four
+// are the ones every implementation MUST accept, then the address type an IPv6-capable
+// implementation MUST accept, then the distinguished name.
+//
+// ID_DER_ASN1_DN is compared through an RFC 4514 rendering assertedDN produces. That
+// is the form OpenSSL and strongSwan print, and therefore the form an operator writes.
+// ID_DER_ASN1_GN remains uncomparable: it is a binary X.500 GeneralName with no
+// conventional text form, and RFC 7296 states no rule for one. Ze does not guess at it.
+// The text is always filled so a refusal can print it.
 func assertedIdentity(p *wire.PayloadID) (text string, comparable bool) {
 	if p == nil {
 		return "none", false
@@ -224,9 +228,15 @@ func classMismatchHint(want string, p *wire.PayloadID) string {
 	var b textbuf.Buffer
 	b.Str(" The two texts agree and the types do not. The peer asserted ")
 	b.Str(idTypeName(p.IDType)).Str(", and remote-id holds ")
-	if configuredClass(want) == classAddress {
+	// One arm per class. With two arms for three classes, a DN-valued remote-id that
+	// refused an asserted ID_FQDN was told ID_FQDN is what it accepts. That is the one
+	// sentence an operator cannot act on.
+	switch configuredClass(want) {
+	case classAddress:
 		b.Str("an address, which accepts ID_IPV4_ADDR and ID_IPV6_ADDR alone.")
-	} else {
+	case classDN:
+		b.Str("a distinguished name, which accepts ID_DER_ASN1_DN alone.")
+	case classText:
 		b.Str("text, which accepts ID_FQDN, ID_RFC822_ADDR, and ID_KEY_ID alone.")
 	}
 	return b.String()

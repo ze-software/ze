@@ -1,0 +1,52 @@
+# Test: a transport-mode peer whose traffic selector is wider than one address
+# is refused at config validate.
+# Validates: RFC 7296 Section 2.23.1 MUST -- "For transport mode, it MUST use
+# exactly one IP address in the TSi and TSr payloads."
+# Spec: plan/spec-rfcgate-1b-rfc7296-pilot.md, WP-7.
+#
+# ai/rules/exact-or-reject.md: a selector Ze cannot deliver exactly fails at
+# verify, rather than being narrowed silently once a peer is already talking.
+stdin=config:terminator=EOF_CONF
+vpn {
+	ipsec {
+		esp-group esp-default {
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer peer-1 {
+				ike-group ike-default
+				esp-group esp-default
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode transport
+				traffic-selector 1 {
+					local {
+						prefix 10.1.0.0/16
+					}
+					remote {
+						prefix 10.0.0.2/32
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=output:contains=exactly one IP address

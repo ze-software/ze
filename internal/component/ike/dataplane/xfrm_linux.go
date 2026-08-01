@@ -156,12 +156,22 @@ func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
 	if err != nil {
 		return nil, err
 	}
+	srcPort, err := xfrmSelectorPort("source", p.SrcPort)
+	if err != nil {
+		return nil, err
+	}
+	dstPort, err := xfrmSelectorPort("destination", p.DstPort)
+	if err != nil {
+		return nil, err
+	}
 	return &netlink.XfrmPolicy{
 		Src:     p.Src,
 		Dst:     p.Dst,
 		Dir:     netlink.Dir(p.Dir - 1),
 		Proto:   netlink.Proto(p.UpperProto), // upper-layer selector (0 = any, 89 = OSPF)
-		Ifindex: p.IfIndex,                   // RFC 4552 §6 interface-based selector (0 = node-wide)
+		SrcPort: srcPort,
+		DstPort: dstPort,
+		Ifindex: p.IfIndex, // RFC 4552 §6 interface-based selector (0 = node-wide)
 		Tmpls: []netlink.XfrmPolicyTmpl{{
 			// Src/Dst are the outer tunnel-header addresses, not the selector above.
 			// They stay nil in transport mode, where the kernel leaves them unused.
@@ -173,6 +183,38 @@ func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
 		}},
 		Ifid: int(p.IfID),
 	}, nil
+}
+
+// xfrmSelectorPort converts a PortMatch to the port number netlink writes into the XFRM
+// selector, and REFUSES a match the selector cannot express.
+//
+// The kernel selector is a port plus a mask, but selFromPolicy derives the mask from the
+// port: it sets a full mask only when the port is non-zero
+// (vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go, selFromPolicy). So exactly
+// two matches are expressible through this API:
+//
+//	any port      -> port 0, mask 0.
+//	one port N>=1 -> port N, mask 0xffff.
+//
+// A match asking for "exactly port 0" cannot be built: writing 0 yields mask 0, which
+// matches EVERY port. That is the OPAQUE port form of RFC 7296 Section 3.13.1, and
+// installing it as any-port would protect more traffic than was negotiated. So it is
+// refused here rather than widened (ai/rules/exact-or-reject.md).
+func xfrmSelectorPort(side string, p PortMatch) (int, error) {
+	if p.IsAny() {
+		return 0, nil
+	}
+	if p.Mask != 0xffff {
+		return 0, fmt.Errorf(
+			"xfrm: %s port mask %#04x is not expressible: the kernel selector this backend builds carries either no port constraint or one exact port, so the mask must be 0 or 0xffff",
+			side, p.Mask)
+	}
+	if p.Port == 0 {
+		return 0, fmt.Errorf(
+			"xfrm: %s port selector asks for exactly port 0, which this backend cannot express: netlink derives the port mask from the port value, so port 0 always matches every port; RFC 7296 Section 3.13.1 OPAQUE ports have no XFRM encoding",
+			side)
+	}
+	return int(p.Port), nil
 }
 
 func (b *xfrmBackend) ListSAs(ifID uint32) ([]SAInfo, error) {

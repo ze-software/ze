@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 302 design docs, 3154 files
+Total: 303 design docs, 3163 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2247,6 +2247,12 @@ Total: 302 design docs, 3154 files
 - `internal/core/rib/locrib/change.go` -- Change.Forward handle for zero-copy forwarding
 - `internal/core/rib/locrib/manager.go` -- InsertForward threads a ForwardHandle to Change subscribers
 
+## `plan/handover/03-design-wp7.md`
+
+- `internal/component/ike/engine/transport_mode.go` -- USE_TRANSPORT_MODE negotiation
+- `internal/component/ike/engine/ts_narrow.go` -- RFC 7296 Section 2.9 traffic-selector narrowing
+- `internal/component/ike/ipsec/traffic_selector.go` -- operator traffic-selector policy for IKEv2 narrowing
+
 ## `plan/learned/1005-cp-survival-2-copp-port179.md`
 
 | File | Topic |
@@ -2552,6 +2558,7 @@ Total: 302 design docs, 3154 files
 
 - `internal/component/ike/engine/msgid.go` -- RFC 7296 §2.3 message-ID handling
 - `internal/component/ike/engine/notify_invalid_msgid.go` -- RFC 7296 Section 2.3 message-ID handling
+- `internal/component/ike/engine/notify_invalid_msgid_retransmit_test.go` -- RFC 7296 Section 2.3 message-ID handling
 
 ## `plan/learned/1070-forked-route-install.md`
 
@@ -3199,7 +3206,9 @@ Total: 302 design docs, 3154 files
 | `internal/component/ike/crypto/transform.go` | IKEv2 transform type registry |
 | `internal/component/ike/engine/cert_payload.go` | IKEv2 certificate payload handling |
 | `internal/component/ike/engine/certbundle.go` | IKEv2 certificate payload handling |
+| `internal/component/ike/engine/certbundle_elements_test.go` | IKEv2 certificate payload handling |
 | `internal/component/ike/engine/certurl.go` | IKEv2 certificate payload handling |
+| `internal/component/ike/engine/certurl_bounds_test.go` | IKEv2 certificate payload handling |
 
 ## `plan/learned/740-ipsec-7-ikev2-engine.md`
 
@@ -3210,6 +3219,7 @@ Total: 302 design docs, 3154 files
 | `internal/component/ike/engine/cookie.go` | responder COOKIE challenge |
 | `internal/component/ike/engine/doctor.go` | IKE engine readiness checks |
 | `internal/component/ike/engine/doctor_certurl.go` | IKE engine readiness checks |
+| `internal/component/ike/engine/doctor_cookie.go` | responder COOKIE challenge |
 | `internal/component/ike/engine/events.go` | IKE SA lifecycle events |
 | `internal/component/ike/engine/fsm.go` | IKE SA finite state machine |
 | `internal/component/ike/engine/initiator.go` | IKE_SA_INIT initiator logic |
@@ -3217,6 +3227,7 @@ Total: 302 design docs, 3154 files
 | `internal/component/ike/engine/reconcile.go` | config reconciliation |
 | `internal/component/ike/engine/register.go` | IKE engine component registration |
 | `internal/component/ike/engine/remote_id.go` | remote identity policy |
+| `internal/component/ike/engine/remote_id_hint_test.go` | remote identity policy |
 | `internal/component/ike/engine/sa.go` | IKE SA state |
 | `internal/component/ike/engine/sa_init_retry.go` | IKE_SA_INIT retry on COOKIE and INVALID_KE_PAYLOAD |
 | `internal/component/ike/engine/table.go` | IKE SA table |
@@ -3250,6 +3261,7 @@ Total: 302 design docs, 3154 files
 | `internal/component/ike/eap/mschapv2.go` | MS-CHAPv2 crypto primitives |
 | `internal/component/ike/eap/mschapv2_test.go` | MS-CHAPv2 crypto tests |
 | `internal/component/ike/eap/pool.go` | Virtual IP pool for road warrior clients |
+| `internal/component/ike/eap/pool_release_test.go` | Virtual IP pool for road warrior clients |
 | `internal/component/ike/eap/pool_test.go` | Virtual IP pool tests |
 | `internal/component/ike/eap/rfc3748_test.go` | EAP framework (RFC 3748) |
 | `internal/component/ike/engine/eap_auth.go` | AUTH payload from EAP MSK |

@@ -13,6 +13,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/secret"
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
 )
 
 var (
@@ -446,7 +447,25 @@ func parseSiteToSitePeer(name string, t *config.Tree) (SiteToSitePeer, error) {
 	peer := SiteToSitePeer{
 		Name:           name,
 		ConnectionType: ConnectionInitiate,
+		Mode:           dataplane.ModeTunnel,
 	}
+
+	if v, ok := t.Get("mode"); ok {
+		mode, valid := ParseChildMode(v)
+		if !valid {
+			return peer, fmt.Errorf("ipsec peer %q mode: unsupported value %q (valid: tunnel, transport)", name, v)
+		}
+		peer.Mode = mode
+	}
+	if v, ok := t.Get("transport-required"); ok {
+		peer.TransportRequired = v == "true"
+	}
+
+	selectors, err := parseTrafficSelectors(name, t)
+	if err != nil {
+		return peer, err
+	}
+	peer.TrafficSelectors = selectors
 
 	if v, ok := t.Get("ike-group"); ok {
 		peer.IKEGroup = v

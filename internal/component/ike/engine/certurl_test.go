@@ -57,7 +57,7 @@ func curlLoopbackAllow() []netip.Prefix {
 }
 
 func curlReset() {
-	certURLCache.Range(func(k, _ any) bool { certURLCache.Delete(k); return true })
+	resetCertURLCache()
 }
 
 // VALIDATES: the http scheme is supported for hash-and-URL lookup, and the fetched bytes
@@ -326,17 +326,40 @@ func TestHashURLLookupRefusesEverythingOutsideTheBound(t *testing.T) {
 // admits a public one, so the deny list is a filter rather than a blanket refusal.
 // PREVENTS: a narrowing of one clause silently opening a class. The metadata address is
 // asserted separately from link-local for exactly that reason.
+// rfc-test-change-approved: 2026-08-01 owner standing approval for
+// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. Rows are ADDED to the deny
+// set and to the reachable set. Nothing is removed or relaxed.
 func TestCertURLDeniedCoversEveryPrivateClass(t *testing.T) {
 	for _, s := range []string{
 		"127.0.0.1", "::1", "10.1.2.3", "192.168.0.5", "172.20.0.1",
 		"169.254.169.254", "169.254.1.1", "0.0.0.0", "224.0.0.1",
 		"fc00::1", "fd12:3456::1", "fe80::1", "ff02::1",
+		// RFC 6598 shared address space. netip.Addr.IsPrivate does not name it. On a BNG
+		// it is the subscriber range, and the highest-value target of this deny list on
+		// ze's own target platform.
+		"100.64.0.1", "100.64.0.0", "100.127.255.255",
+		// RFC 6890 IETF protocol assignments, and RFC 2544 benchmarking.
+		"192.0.0.1", "192.0.0.170", "198.18.0.1", "198.19.255.255",
+		// RFC 1112 reserved: IsMulticast stops at 239.255.255.255.
+		"240.0.0.1", "255.255.255.254",
+		// The IPv4-mapped form of RFC 4291. Unmap folds it, so the IPv4 rules apply.
+		"::ffff:10.0.0.1", "::ffff:100.64.0.1", "::ffff:169.254.169.254",
+		// The IPv4-COMPATIBLE form of RFC 4291, which Unmap does NOT fold. Without the
+		// embedded-address reading these walk past every IPv4 rule as plain IPv6.
+		"::10.0.0.1", "::100.64.0.1", "::169.254.169.254", "::192.168.0.5",
 	} {
 		if !certURLDenied(netip.MustParseAddr(s)) {
 			t.Errorf("certURLDenied(%s) = false; it must be refused", s)
 		}
 	}
-	for _, s := range []string{"93.184.216.34", "8.8.8.8", "2606:2800:220:1::1"} {
+	for _, s := range []string{
+		"93.184.216.34", "8.8.8.8", "2606:2800:220:1::1",
+		// The boundaries just outside each added class, so the prefixes cannot be
+		// widened without this test noticing.
+		"100.63.255.255", "100.128.0.0", "192.0.1.1", "198.17.255.255", "198.20.0.0",
+		// The mapped form of a PUBLIC address still reaches the network.
+		"::ffff:93.184.216.34",
+	} {
 		if certURLDenied(netip.MustParseAddr(s)) {
 			t.Errorf("certURLDenied(%s) = true; a public address must be reachable", s)
 		}

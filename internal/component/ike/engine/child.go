@@ -1,4 +1,5 @@
 // Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- Child SA creation and teardown
+// Detail: ts_narrow.go -- traffic-selector narrowing, policy, and port encoding
 // RFC: rfc/short/rfc7296.md -- Child SA keying material (Section 2.17), Traffic Selectors (Section 2.9)
 
 package engine
@@ -48,10 +49,15 @@ func isXFRMUnsupported(err error) bool {
 }
 
 const (
-	protoESP     = 50
-	modeTunnel   = 2
-	defaultReqID = 1
-	replayWindow = 32
+	protoESP = 50
+	// modeTunnel and modeTransport alias the dataplane vocabulary rather than repeating
+	// its numbers. Two enumerations for one concept is the hazard kernelXFRMMode's own
+	// comment records (dataplane.go): a mode that reached the kernel one number off was
+	// accepted silently and protected the traffic in the wrong mode.
+	modeTunnel    = dataplane.ModeTunnel
+	modeTransport = dataplane.ModeTransport
+	defaultReqID  = 1
+	replayWindow  = 32
 )
 
 // ChildSA holds the state for one ESP Child SA pair (inbound + outbound).
@@ -67,6 +73,24 @@ type ChildSA struct {
 	ESPGroup    ipsec.ESPGroup
 	ReqID       uint32
 	NATDetected bool
+
+	// Selectors is the negotiated selector set in TSi/TSr orientation, carrying the
+	// port and protocol of each entry as well as its prefix.
+	//
+	// It is the SCOPE CURRENTLY IN USE that RFC 7296 Section 2.9.2 forbids a rekey from
+	// narrowing below, so respondChildRekey passes it as the narrowing floor. TSLocal
+	// and TSRemote above hold only the first pair's prefixes, which cannot express the
+	// scope of a multi-selector or port-restricted SA.
+	Selectors []tsPair
+
+	// Mode is the encapsulation mode this Child SA was installed with:
+	// dataplane.ModeTunnel or dataplane.ModeTransport.
+	//
+	// RFC 7296 Section 1.3.1 makes tunnel the default and transport the negotiated
+	// exception, so a Child SA built without a decision carries tunnel. It is read at
+	// every SA and policy install, and a transport-mode install carries NO tunnel
+	// endpoints (dataplane.tunnelEndpoints refuses them).
+	Mode uint8
 
 	// UDPEncap records that this Child SA's ESP is wrapped in UDP on port 4500.
 	//
@@ -200,6 +224,14 @@ func createFirstChildSA(
 		tsRemote = negRemote
 	}
 
+	// RFC 7296 Section 1.3.1: "Except when using this option to negotiate transport
+	// mode, all Child SAs will use tunnel mode." The mode is therefore tunnel unless
+	// USE_TRANSPORT_MODE was both requested and echoed (sa.UseTransportMode).
+	mode := modeTunnel
+	if sa.UseTransportMode {
+		mode = modeTransport
+	}
+
 	child := &ChildSA{
 		InboundSPI:       inSPI,
 		OutboundSPI:      outSPI,
@@ -208,6 +240,8 @@ func createFirstChildSA(
 		IfID:             ifID,
 		TSLocal:          tsLocal,
 		TSRemote:         tsRemote,
+		Selectors:        sa.NegotiatedPairs,
+		Mode:             mode,
 		Keys:             keys,
 		ESPGroup:         espGroup,
 		ReqID:            defaultReqID,
@@ -253,6 +287,15 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	encAlgo := prop.Encryption.String()
 	authAlgo := prop.Hash.String()
 
+	// A Child SA built before the mode field existed, or by a test that fills the struct
+	// literally, carries the zero value. Zero is not a mode in the dataplane vocabulary
+	// (its constants are 1-based so an unset field is invalid), so it resolves to tunnel
+	// here rather than reaching kernelXFRMMode and failing the install.
+	mode := child.Mode
+	if mode == 0 {
+		mode = modeTunnel
+	}
+
 	// RFC 7296 Section 2.17: the SA carrying data the exchange initiator sends is
 	// keyed with the EncryptKeyI/IntegKeyI half; the responder's send SA uses the R
 	// half. When we are the exchange initiator our SEND (outbound) SA uses the I
@@ -273,7 +316,7 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		Dst:       child.LocalAddr,
 		IfID:      child.IfID,
 		Proto:     protoESP,
-		Mode:      modeTunnel,
+		Mode:      mode,
 		ReqID:     child.ReqID,
 		ReplayWin: replayWindow,
 		EncAlgo:   encAlgo,
@@ -320,7 +363,7 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		Dst:       child.RemoteAddr,
 		IfID:      child.IfID,
 		Proto:     protoESP,
-		Mode:      modeTunnel,
+		Mode:      mode,
 		ReqID:     child.ReqID,
 		ReplayWin: replayWindow,
 		EncAlgo:   encAlgo,
@@ -346,16 +389,31 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	// policy matches. TunnelSrc/TunnelDst are the tunnel endpoints, the outer IP
 	// header addresses. The kernel resolves a policy to a state through the
 	// endpoints, so each policy names the same pair as the SA it must resolve to.
+	//
+	// A TRANSPORT-mode policy carries NEITHER endpoint. RFC 4301 Section 4.4.1.2 leaves
+	// a transport-mode template's addresses unused, and dataplane.tunnelEndpoints
+	// REJECTS a non-tunnel policy that carries any, so supplying them here would fail the
+	// install outright rather than be ignored.
+	inTunnelSrc, inTunnelDst := child.RemoteAddr, child.LocalAddr
+	outTunnelSrc, outTunnelDst := child.LocalAddr, child.RemoteAddr
+	if mode == modeTransport {
+		inTunnelSrc, inTunnelDst = nil, nil
+		outTunnelSrc, outTunnelDst = nil, nil
+	}
+
 	if err := dp.InstallPolicy(dataplane.SPParams{
-		Src:       child.TSRemote,
-		Dst:       child.TSLocal,
-		Dir:       dataplane.SADirIn,
-		Proto:     protoESP,
-		Mode:      modeTunnel,
-		IfID:      child.IfID,
-		ReqID:     child.ReqID,
-		TunnelSrc: child.RemoteAddr,
-		TunnelDst: child.LocalAddr,
+		Src:        child.TSRemote,
+		Dst:        child.TSLocal,
+		Dir:        dataplane.SADirIn,
+		Proto:      protoESP,
+		Mode:       mode,
+		IfID:       child.IfID,
+		ReqID:      child.ReqID,
+		UpperProto: selectorProto(child),
+		SrcPort:    selectorPort(child, false),
+		DstPort:    selectorPort(child, true),
+		TunnelSrc:  inTunnelSrc,
+		TunnelDst:  inTunnelDst,
 	}); err != nil {
 		_ = dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP)
 		_ = dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP)
@@ -363,15 +421,18 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	}
 
 	if err := dp.InstallPolicy(dataplane.SPParams{
-		Src:       child.TSLocal,
-		Dst:       child.TSRemote,
-		Dir:       dataplane.SADirOut,
-		Proto:     protoESP,
-		Mode:      modeTunnel,
-		IfID:      child.IfID,
-		ReqID:     child.ReqID,
-		TunnelSrc: child.LocalAddr,
-		TunnelDst: child.RemoteAddr,
+		Src:        child.TSLocal,
+		Dst:        child.TSRemote,
+		Dir:        dataplane.SADirOut,
+		Proto:      protoESP,
+		Mode:       mode,
+		IfID:       child.IfID,
+		ReqID:      child.ReqID,
+		UpperProto: selectorProto(child),
+		SrcPort:    selectorPort(child, true),
+		DstPort:    selectorPort(child, false),
+		TunnelSrc:  outTunnelSrc,
+		TunnelDst:  outTunnelDst,
 	}); err != nil {
 		_ = dp.RemovePolicy(child.TSRemote, child.TSLocal, dataplane.SADirIn)
 		_ = dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP)
@@ -424,24 +485,57 @@ func removeChildSA(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
 	log.Info("child-sa: removed", "in-spi", child.InboundSPI, "out-spi", child.OutboundSPI)
 }
 
-// narrowTS computes the intersection of two IP networks.
-// RFC 7296 Section 2.9: responder may narrow but never widen.
-func narrowTS(proposed, allowed *net.IPNet) *net.IPNet {
-	if proposed == nil || allowed == nil {
-		return nil
+// selectorProto returns the IP protocol the negotiated selector restricts the policy to,
+// or 0 for every protocol.
+//
+// Only the FIRST negotiated pair is read, because SPParams carries one selector and the
+// policy install is one pair. A multi-selector answer whose entries disagree on protocol
+// would need one policy per entry, which the current install shape does not express;
+// narrowSelectors leads with the initiator's first choice, so the first pair is the one
+// the peer asked for (RFC 7296 Section 2.9).
+func selectorProto(child *ChildSA) uint8 {
+	if len(child.Selectors) == 0 {
+		return 0
 	}
-	if allowed.Contains(proposed.IP) && maskLen(proposed.Mask) >= maskLen(allowed.Mask) {
-		return proposed
-	}
-	if proposed.Contains(allowed.IP) && maskLen(allowed.Mask) >= maskLen(proposed.Mask) {
-		return allowed
-	}
-	return nil
+	return child.Selectors[0].I.Proto
 }
 
-func maskLen(m net.IPMask) int {
-	ones, _ := m.Size()
-	return ones
+// selectorPort maps a negotiated port form to the kernel's port-plus-mask selector.
+//
+// local selects which half of the pair to read: the LOCAL side of the Child SA when
+// true, the remote side when false. The caller supplies it per direction, because an
+// outbound policy's source is the local side while an inbound policy's source is the
+// remote one.
+//
+// RFC 7296 Section 3.13.1 gives three port forms and each maps to exactly one selector:
+//
+//	ANY (0..65535)   -> no constraint. Mask 0, which is what every policy carried before
+//	                    ports existed, so an unconfigured peer programs the same bytes.
+//	single port N    -> Port N, Mask 0xffff.
+//	OPAQUE (65535/0) -> Port 0, Mask 0xffff. An opaque port is one that is NOT VISIBLE in
+//	                    the packet, and a packet with no visible transport port presents
+//	                    port 0 to the selector. It is deliberately NOT mapped to Mask 0:
+//	                    Section 3.13.1 records that ANY includes OPAQUE, so answering an
+//	                    OPAQUE negotiation with an any-port policy would program more
+//	                    traffic than was negotiated.
+func selectorPort(child *ChildSA, local bool) dataplane.PortMatch {
+	if len(child.Selectors) == 0 {
+		return dataplane.AnyPortMatch()
+	}
+	pair := child.Selectors[0]
+	// Selectors are in TSi/TSr orientation. TSi is this side when we are the initiator.
+	side := pair.R
+	if local == child.LocalIsInitiator {
+		side = pair.I
+	}
+	switch side.Port.Form {
+	case ipsec.PortSingle:
+		return dataplane.ExactPortMatch(side.Port.Port)
+	case ipsec.PortOpaque:
+		return dataplane.ExactPortMatch(0)
+	default:
+		return dataplane.AnyPortMatch()
+	}
 }
 
 func ipToFullNet(ip net.IP) *net.IPNet {

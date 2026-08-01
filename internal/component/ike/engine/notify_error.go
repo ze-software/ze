@@ -194,6 +194,13 @@ func notifyForRefusal(err error) uint16 {
 	if errors.Is(err, errMalformedRequest) {
 		return wire.NotifyInvalidSyntax
 	}
+	// RFC 7296 Section 2.9: "If the responder's policy does not allow it to accept any
+	// part of the proposed Traffic Selectors, it responds with a TS_UNACCEPTABLE Notify
+	// message." That is a NAMED answer rather than the generic one, so it is mapped
+	// before the fallback below.
+	if errors.Is(err, errTSUnacceptable) {
+		return wire.NotifyTSUnacceptable
+	}
 	return wire.NotifyNoProposalChosen
 }
 

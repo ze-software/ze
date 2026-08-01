@@ -507,6 +507,19 @@ var builtinCodes = []CodeMeta{
 		Examples: []string{"ze doctor --json", "ze explain doctor-ipsec-cert-url-denied"},
 	},
 	{
+		Code:  "doctor-ipsec-cookie-threshold",
+		Title: "IPsec cookie-threshold can never be reached",
+		Description: "cookie-threshold is higher than the number of peers configured to accept an " +
+			"inbound initiation. The responder challenges an IKE_SA_INIT once its count of " +
+			"half-open handshakes meets the threshold, and each responding peer holds at most " +
+			"one half-open slot, so the count cannot climb above the number of those peers. The " +
+			"threshold is therefore never met, no initiation is ever challenged, and the COOKIE " +
+			"defense RFC 7296 Section 2.6 offers against state and CPU exhaustion from forged " +
+			"source addresses is off. Lower cookie-threshold to the responding-peer count or " +
+			"below, or leave it at the default of 0 to challenge every inbound initiation.",
+		Examples: []string{"ze doctor --json", "ze explain doctor-ipsec-cookie-threshold"},
+	},
+	{
 		Code:        "doctor-bgp-listen",
 		Title:       "BGP listener unavailable",
 		Description: "A configured BGP local address and port could not be bound before daemon startup.",

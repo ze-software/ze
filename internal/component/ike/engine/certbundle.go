@@ -30,9 +30,13 @@ const (
 )
 
 // certBundleMaxElements bounds a bundle parsed from the network. The chain limit an
-// operator configures bounds what ze then USES. This constant bounds what ze walks
+// operator configures bounds what ze then USES. This constant bounds what ze WALKS
 // before that limit applies. As a result, a fetched bundle holding a million empty
 // elements cannot spend the handshake's time budget.
+//
+// It counts every element of the CertificateOrCRL SEQUENCE, both alternatives. A CRL
+// element costs the same unmarshal as a certificate element. But it adds no certificate,
+// so a count of certificates does not see it.
 const certBundleMaxElements = 64
 
 var (
@@ -94,8 +98,13 @@ func decodeCertBundle(der []byte) ([][]byte, error) {
 
 	var certs [][]byte
 	body := outer.Bytes
-	for len(body) > 0 {
-		if len(certs) >= certBundleMaxElements {
+	// The cap counts ELEMENTS walked, not certificates kept. The CRL arm below keeps
+	// nothing, so a count of certificates left a CRL-only bundle unbounded. A million
+	// empty crl [1] elements passed the test on every iteration, and the loop
+	// unmarshalled all of them. That is the time budget this bound exists to protect
+	// (ai/rules/fail-closed-guards.md).
+	for elements := 0; len(body) > 0; elements++ {
+		if elements >= certBundleMaxElements {
 			return nil, fmt.Errorf("%w: more than %d", errCertBundleTooMany, certBundleMaxElements)
 		}
 		var element asn1.RawValue

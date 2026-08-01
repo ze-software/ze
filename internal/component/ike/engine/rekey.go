@@ -1,4 +1,5 @@
 // Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- Child SA and IKE SA rekeying
+// Related: ts_narrow.go -- the narrowing floor of RFC 7296 Section 2.9.2
 // RFC: rfc/short/rfc7296.md -- Rekeying (Section 2.8), collision (Section 2.8.1)
 
 package engine
@@ -81,13 +82,51 @@ func espSPIFromSA(p *wire.PayloadSA) (uint32, error) {
 	return 0, fmt.Errorf("child rekey: no ESP SPI in SA payload")
 }
 
-// anyChildTSPayloads builds wildcard TSi/TSr payloads matching buildChildSAPayloads.
+// anyChildTSPayloads builds wildcard TSi/TSr payloads.
+//
+// It is the proposal an UNCONFIGURED peer makes: with no traffic-selector list the
+// operator has stated no policy, so Ze asks for everything and lets the responder narrow.
+// It is no longer used to build a RESPONSE, where answering with a wildcard widened the
+// initiator's proposal (RFC 7296 Section 2.9).
 func anyChildTSPayloads(sa *SA) (*wire.PayloadTS, *wire.PayloadTS) {
 	remoteIP := net.ParseIP(sa.PeerCfg.RemoteAddress)
 	isV6 := remoteIP != nil && remoteIP.To4() == nil
 	tsAny := anyTrafficSelector(isV6)
 	return &wire.PayloadTS{TSPayloadType: wire.PayloadTypeTSi, TrafficSelectors: []wire.TrafficSelector{tsAny}},
 		&wire.PayloadTS{TSPayloadType: wire.PayloadTypeTSr, TrafficSelectors: []wire.TrafficSelector{tsAny}}
+}
+
+// proposeChildTSPayloads builds the TSi/TSr of a Child SA REQUEST.
+//
+// A peer with a configured traffic-selector list proposes exactly that list, so the
+// operator's policy reaches the wire. A peer with no list proposes the wildcard, which
+// is what every configuration written before the list existed did.
+//
+// RFC 7296 Section 2.9 puts the initiator's preference in the ORDER of the list, so the
+// first configured selector is the first choice a conforming responder must honor.
+func proposeChildTSPayloads(sa *SA) (*wire.PayloadTS, *wire.PayloadTS) {
+	pairs := policyPairs(sa.PeerCfg, true)
+
+	// RFC 7296 Section 2.23.1 constrains a transport-mode proposal to the IKE SA's own
+	// address pair, so the rewrite happens BEFORE the wildcard fallback below. A
+	// transport-mode peer never falls back to the wildcard: the wildcard carries a range,
+	// and the MUST asks for exactly one address.
+	if wantsTransportMode(sa) {
+		pinned := transportSelectorPairs(sa, pairs)
+		if tsi, tsr := pairsToWire(pinned); tsi != nil && tsr != nil {
+			return tsi, tsr
+		}
+		return anyChildTSPayloads(sa)
+	}
+
+	if len(pairs) == 0 {
+		return anyChildTSPayloads(sa)
+	}
+	tsi, tsr := pairsToWire(pairs)
+	if tsi == nil || tsr == nil {
+		return anyChildTSPayloads(sa)
+	}
+	return tsi, tsr
 }
 
 // initiateChildRekey builds the SK-encrypted CREATE_CHILD_SA request to replace
@@ -205,6 +244,7 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	var ni []byte
 	var peerSPI uint32
 	var offer *wire.PayloadSA
+	var reqTSi, reqTSr *wire.PayloadTS
 	for _, pe := range inner {
 		switch p := pe.Payload.(type) {
 		case *wire.PayloadNonce:
@@ -213,6 +253,13 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 			offer = p
 			if s, err := espSPIFromSA(p); err == nil {
 				peerSPI = s
+			}
+		case *wire.PayloadTS:
+			switch p.TSPayloadType {
+			case wire.PayloadTypeTSi:
+				reqTSi = p
+			case wire.PayloadTypeTSr:
+				reqTSr = p
 			}
 		}
 	}
@@ -230,6 +277,17 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	accepted, ok := matchOfferedESPProposal(offer, old.ESPGroup.Proposals[0])
 	if !ok || accepted.Number == 0 {
 		return nil, nil, fmt.Errorf("child rekey request: %w", crypto.ErrNoProposalChosen)
+	}
+
+	// RFC 7296 Section 2.9.2 MUST NOT: "The responder MUST NOT narrow down the Traffic
+	// Selectors narrower than the scope currently in use." The SA being replaced is the
+	// scope in use, so it is passed as the narrowing FLOOR. Without it, a policy that
+	// narrowed since the original SA came up would silently shrink a working tunnel at
+	// its next rekey.
+	if reqTSi != nil && reqTSr != nil {
+		if err := narrowChildSelectors(sa, reqTSi, reqTSr, old.Selectors); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	nr, err := GenerateNonce(nonceLen)
@@ -255,7 +313,14 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 		return nil, nil, err
 	}
 
-	tsi, tsr := anyChildTSPayloads(sa)
+	// RFC 7296 Section 2.9: the rekey RESPONSE carries the narrowed selectors, the same
+	// subset the replacement Child SA was installed with. It used to carry a wildcard,
+	// which satisfied Section 2.9.2's two MUST NOTs only vacuously, by answering with the
+	// widest possible set.
+	tsi, tsr := pairsToWire(sa.NegotiatedPairs)
+	if tsi == nil || tsr == nil {
+		tsi, tsr = anyChildTSPayloads(sa)
+	}
 	inner2 := []wire.PayloadEntry{
 		{Payload: &wire.PayloadSA{Proposals: []wire.Proposal{espProposalToWire(prop, inSPI, accepted.Number)}}},
 		{Payload: &wire.PayloadNonce{NonceData: nr}},
@@ -294,7 +359,20 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 		// child that does not inherit it installs a state with no template. The kernel
 		// then refuses the encapsulated ESP the peer keeps sending, and a NAT-traversing
 		// tunnel carries nothing from its first Child SA rekey onward.
-		UDPEncap:         old.UDPEncap,
+		UDPEncap: old.UDPEncap,
+		// Selectors and Mode are inherited for the same reason as UDPEncap above:
+		// createFirstChildSA is their only other writer.
+		//
+		// Selectors is the SCOPE CURRENTLY IN USE that RFC 7296 Section 2.9.2 forbids the
+		// NEXT rekey from narrowing below. A replacement that dropped it would give that
+		// rekey no floor, so the second rekey of a tunnel could shrink it.
+		//
+		// Mode decides the encapsulation of every state and policy the replacement
+		// installs. A replacement that dropped it would fall back to tunnel, so a
+		// transport-mode tunnel would silently become a tunnel-mode one at its first
+		// rekey -- the wrong-mode-without-an-error failure this package removes.
+		Selectors:        old.Selectors,
+		Mode:             old.Mode,
 		LocalIsInitiator: localIsInitiator,
 	}
 }

@@ -172,8 +172,15 @@ func buildAuthRequest(sa *SA) ([]byte, error) {
 		return nil, fmt.Errorf("ike auth: child SA payloads: %w", err)
 	}
 	sa.ChildInboundSPI = espSPI
+	innerPayloads = append(innerPayloads, wire.PayloadEntry{Payload: saPayload})
+	// RFC 7296 Section 1.3.1: the USE_TRANSPORT_MODE notification goes in a request that
+	// also carries the SA payload requesting a Child SA. Ze sends it only when the
+	// operator configured transport mode for this peer, so a tunnel-mode peer's request
+	// is byte-identical to what it was before transport mode existed.
+	if wantsTransportMode(sa) {
+		innerPayloads = append(innerPayloads, wire.PayloadEntry{Payload: transportModeNotify()})
+	}
 	innerPayloads = append(innerPayloads,
-		wire.PayloadEntry{Payload: saPayload},
 		wire.PayloadEntry{Payload: tsi},
 		wire.PayloadEntry{Payload: tsr},
 	)

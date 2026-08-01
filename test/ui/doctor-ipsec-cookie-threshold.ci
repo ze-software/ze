@@ -1,0 +1,50 @@
+# Test: ze doctor --json reports a cookie-threshold the responder can never reach
+# VALIDATES: the ike plugin's cookie-threshold check is reachable from the USER
+# entry point -- registration, phase filtering, platform filtering and the
+# diagnostic code all have to line up for this to emit anything.
+# PREVENTS: the silent failure the check exists for. cookieRequired challenges an
+# initiation once the half-open count meets the threshold, and that count cannot
+# exceed the number of responding peers, so a threshold above that number leaves
+# the RFC 7296 Section 2.6 defense off while the config commits cleanly.
+# Required by ai/rules/doctor-checks.md ("Test Requirement": unit AND
+# functional), mirroring test/ui/doctor-ipsec-iface.ci.
+
+tmpfs=ipsec-cookie-threshold.conf:terminator=EOF_CONF
+vpn {
+    ipsec {
+        interface lo
+        cookie-threshold 25
+        ike-group IKE-1 {
+            proposal 1 {
+                encryption aes256gcm
+                hash sha256
+                dh-group 14
+            }
+        }
+        esp-group ESP-1 {
+            proposal 1 {
+                encryption aes256gcm
+            }
+        }
+        site-to-site {
+            peer branch {
+                connection-type respond
+                remote-address 203.0.113.7
+                ike-group IKE-1
+                esp-group ESP-1
+                authentication {
+                    mode pre-shared-secret
+                    pre-shared-secret correct-horse-battery-staple
+                }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json ipsec-cookie-threshold.conf
+expect=stdout:contains=doctor-ipsec-cookie-threshold
+# Both numbers must reach the operator: the value they set and the ceiling it
+# cannot pass. Without them the message says nothing they can act on.
+expect=stdout:contains=cookie-threshold is 25
+expect=stdout:contains=at most 1

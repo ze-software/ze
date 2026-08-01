@@ -115,6 +115,20 @@ func (ps *PeerSession) sendInvalidMessageID(sa *SA, badID uint32, tr *transport.
 		return
 	}
 	sa.advanceMsgID()
+	// The datagram is kept BEFORE it goes out. advanceMsgID has already spent the id it
+	// carries, and RFC 7296 Section 2.1 repeats a request under its own Message ID. This
+	// emitter has no retransmission machine of its own, unlike the rekey and the DPD
+	// probe.
+	//
+	// Without the copy, a lost notify leaves NextMsgID one past the id the peer still
+	// expects. Every later request on this SA then falls outside the peer's window of
+	// one, and the SA stalls until the liveness budget ends it.
+	//
+	// The repeats are bounded by maxRequestRetransmits, and only the owner loop makes
+	// them. A peer replaying a captured request therefore cannot turn this courtesy into
+	// an amplifier. The rate limit above bounds how often a notify is RAISED, and the
+	// request window holds it to one outstanding at a time.
+	sa.armRequestRetransmit(msg)
 	sendRaw(sa, tr, msg, log)
 	countErrorNotifySent(wire.NotifyInvalidMessageID, true)
 	log.Debug("ike: informed the peer of an out-of-window Message ID",

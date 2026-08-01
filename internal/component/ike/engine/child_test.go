@@ -363,28 +363,15 @@ func TestChildSAReplayRequiresIntegrity(t *testing.T) {
 	}
 }
 
-func TestNarrowTS(t *testing.T) {
-	wide := &net.IPNet{IP: net.ParseIP("10.0.0.0").To4(), Mask: net.CIDRMask(8, 32)}
-	narrow := &net.IPNet{IP: net.ParseIP("10.1.0.0").To4(), Mask: net.CIDRMask(16, 32)}
-
-	// RFC requirement: RFC4301-4.4.2-1 positive -- inbound SAD/SPD selectors come from the
-	// negotiated (narrowed) traffic selector: narrowTS returns the /16 intersection that a
-	// Child SA install then writes into the inbound policy (RFC 7296 S2.9 narrowing).
-	result := narrowTS(narrow, wide)
-	if result == nil {
-		t.Fatal("narrowTS returned nil for subset")
-	}
-	ones, _ := result.Mask.Size()
-	if ones != 16 {
-		t.Errorf("narrowTS prefix = /%d, want /16", ones)
-	}
-
-	disjoint := &net.IPNet{IP: net.ParseIP("192.168.0.0").To4(), Mask: net.CIDRMask(16, 32)}
-	result = narrowTS(disjoint, wide)
-	if result != nil {
-		t.Error("narrowTS should return nil for disjoint networks")
-	}
-}
+// test-relax: TestNarrowTS tested narrowTS, a function with NO non-test caller, which
+// this change deletes (ai/rules/no-layering.md: delete X before implementing Y). Its
+// RFC4301-4.4.2-1 tag claimed the narrowed result reached a Child SA install; no
+// production path ever called it, so the tag proved nothing. The obligation is re-bound
+// in the SAME change to TestNarrowedSelectorsReachTheInstalledPolicy (ts_narrow_test.go),
+// which drives the narrowing engine the responder calls and then asserts the installed
+// inbound policy carries its result. Coverage moves onto a live path rather than dropping.
+// rfc-test-change-approved: 2026-07-31 owner standing approval for
+// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
 
 // TestChildSAInboundPolicyUsesNegotiatedTS asserts the inbound SPD/SAD entry is populated
 // with the Child SA's negotiated traffic selectors, not the raw tunnel endpoints.

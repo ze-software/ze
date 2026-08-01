@@ -179,15 +179,7 @@ func (p *Pool) allocateV6() (net.IP, error) {
 		}
 		if !p.alloc6[hostID] {
 			p.alloc6[hostID] = true
-			ip6 := make(net.IP, 16)
-			copy(ip6, p.base6.To16())
-			// OR the host identifier into the host bits. A plain PutUint64
-			// overwrites octets 8 through 15. For a prefix longer than /64 some
-			// of those octets are prefix, and the lease then falls outside the
-			// configured range.
-			low := binary.BigEndian.Uint64(ip6[8:])
-			binary.BigEndian.PutUint64(ip6[8:], low|(hostID&p.host6))
-			return ip6, nil
+			return p.addressForHost(hostID), nil
 		}
 	}
 	return nil, ErrPoolExhausted
@@ -202,17 +194,44 @@ func (p *Pool) releaseV4Locked(ip4 net.IP) error {
 	return nil
 }
 
+// addressForHost builds the address this pool leases for a host identifier. It is the
+// ONE place the identifier-to-address mapping is written, so allocation and release
+// cannot disagree about it.
+//
+// The identifier is ORed into the host bits. A plain PutUint64 would overwrite octets
+// 8 through 15. For a prefix longer than /64 some of those octets are prefix, and the
+// lease would then fall outside the configured range.
+func (p *Pool) addressForHost(hostID uint64) net.IP {
+	ip6 := make(net.IP, 16)
+	copy(ip6, p.base6.To16())
+	low := binary.BigEndian.Uint64(ip6[8:])
+	binary.BigEndian.PutUint64(ip6[8:], low|(hostID&p.host6))
+	return ip6
+}
+
 func (p *Pool) releaseV6Locked(ip6 net.IP) error {
 	full := ip6.To16()
 	if full == nil || p.net6 == nil {
 		return ErrNotAllocated
 	}
-	// The host-bit mask maps many addresses onto one identifier. An address from
-	// outside the pool can therefore free the lease of a different client.
-	if !p.net6.Contains(full) {
+	// The address must be one this pool WOULD HAVE LEASED, and prefix membership is
+	// not that test.
+	//
+	// host6 is ^uint64(0) for any prefix shorter than /64. The identifier read below
+	// therefore sees only the low 64 bits, and every bit between the prefix and bit 64
+	// is discarded.
+	//
+	// In a /48 the addresses 2001:db8::1 and 2001:db8:0:1::1 yield the SAME identifier,
+	// and net.IPNet.Contains admits both. Releasing the second freed the first client's
+	// lease. The pool then handed that address to a second client while the first still
+	// held it.
+	//
+	// The rebuild below closes that. Every bit outside the identifier must match what
+	// allocation would have produced, so exactly one address maps to each lease.
+	hostID := binary.BigEndian.Uint64(full[8:]) & p.host6
+	if !full.Equal(p.addressForHost(hostID)) {
 		return ErrNotAllocated
 	}
-	hostID := binary.BigEndian.Uint64(full[8:]) & p.host6
 	if !p.alloc6[hostID] {
 		return ErrNotAllocated
 	}

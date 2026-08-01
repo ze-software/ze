@@ -1,0 +1,142 @@
+# Functional test: the traffic-selector and transport-mode config surface.
+# Spec: plan/spec-rfcgate-1b-rfc7296-pilot.md, WP-7 (RFC 7296 Sections 2.9, 2.23.1).
+#
+# Verifies that an operator can reach the new surface through the daemon: a peer
+# with a traffic-selector list and a transport-mode peer both load, and the
+# selectors reach the running engine (show vpn ipsec status reports the peers).
+#
+# The rejection half lives beside it in ipsec-traffic-selector-reject.ci, because
+# a refused config never starts a daemon and so cannot answer a command.
+#
+# RFC 7296 Section 2.9 makes this list the responder's policy. Before it existed
+# the responder answered every IKE_AUTH with a full wildcard while installing the
+# initiator's own selectors, so the wire and the dataplane disagreed.
+
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external engine-steps {
+		run "ze-test engine-steps ./engine-steps.json"
+		encoder json
+	}
+}
+
+# A bgp block routes the config through the main loader; without it a minimal
+# environment-only parser owns plugin{} blocks
+# (internal/component/hub/config.go parsePluginBlock).
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 100; } }
+			}
+		}
+	}
+}
+
+vpn {
+	ipsec {
+		esp-group esp-default {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		ike-group ike-default {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			# A tunnel-mode peer restricted to two subnets, the second of them
+			# to one TCP port. RFC 7296 Section 2.9 narrows a peer's proposal
+			# against exactly this list, and the order is the preference order.
+			peer peer-narrow {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 10.0.0.1
+				remote-address 10.0.0.2
+				mode tunnel
+				traffic-selector 1 {
+					local {
+						prefix 10.1.0.0/16
+					}
+					remote {
+						prefix 10.2.0.0/16
+					}
+				}
+				traffic-selector 2 {
+					protocol 6
+					local {
+						prefix 10.3.0.0/24
+						port 179
+					}
+					remote {
+						prefix 10.4.0.0/24
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-1234
+				}
+			}
+			# A transport-mode peer. RFC 7296 Section 2.23.1 requires exactly
+			# one IP address in TSi and TSr, so both prefixes are single hosts,
+			# and transport-required makes a declined request delete the SA
+			# (Section 1.3.1) rather than silently run in tunnel mode.
+			peer peer-transport {
+				ike-group ike-default
+				esp-group esp-default
+				connection-type initiate
+				local-address 10.0.0.3
+				remote-address 10.0.0.4
+				mode transport
+				transport-required true
+				traffic-selector 1 {
+					local {
+						prefix 10.0.0.3/32
+					}
+					remote {
+						prefix 10.0.0.4/32
+					}
+				}
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret test-key-5678
+				}
+			}
+		}
+	}
+}
+EOF_CONFIG
+
+cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=30s
+
+command=show vpn ipsec status
+expect=output:contains=engine-running:timeout=5
+expect=output:contains=configured-peers:timeout=1
+expect=exit:code=0
+expect=stderr:contains=engine-steps: all steps passed
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+# A selector Ze cannot program exactly must never be accepted and approximated.
+reject=stderr:pattern=traffic-selector

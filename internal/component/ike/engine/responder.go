@@ -1,4 +1,5 @@
 // Design: plan/learned/1072-ipsec-14-responder.md -- IKE responder handshake (mirror of the initiator)
+// Related: ts_narrow.go -- RFC 7296 Section 2.9 narrowing of the initiator's traffic selectors
 // RFC: rfc/short/rfc7296.md -- IKE_SA_INIT / IKE_AUTH responder (Sections 1.2, 2.4, 2.15)
 
 package engine
@@ -496,6 +497,14 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 			if p.NotifyMsgType == wire.NotifySetWindowSize {
 				setWindowSize = p
 			}
+			// RFC 7296 Section 1.3.1: "The USE_TRANSPORT_MODE notification MAY be
+			// included in a request message that also includes an SA payload requesting
+			// a Child SA. It requests that the Child SA use transport mode rather than
+			// tunnel mode for the SA created." Recording the ASK is separate from
+			// deciding it; decideResponderTransportMode below makes the decision.
+			if p.NotifyMsgType == wire.NotifyUseTransportMode {
+				sa.PeerRequestedTransport = true
+			}
 		case *wire.PayloadSA:
 			remoteSAi2 = p
 		case *wire.PayloadTS:
@@ -519,6 +528,11 @@ func (ps *PeerSession) handleAuthRequest(sa *SA, msg *wire.Message, rawMsg []byt
 		sa.State = StateDead
 		return
 	}
+
+	// RFC 7296 Section 1.3.1: decide the Child SA mode BEFORE the selectors are narrowed,
+	// because transport mode constrains them to a single address (Section 2.23.1). Both
+	// the direct and the EAP path below read the decision.
+	decideResponderTransportMode(sa)
 
 	// RFC 7296 Section 2.16: no AUTH payload signals the initiator wants EAP.
 	if authPayload == nil {
@@ -710,13 +724,17 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 		return nil, nil, errors.New("ike auth: no initiator ESP SPI (missing SAi2)")
 	}
 
-	// Record the initiator's proposed selectors so the installed Child SA and the
-	// echoed TS agree (createFirstChildSA maps TSi/TSr to local/remote by role).
-	if tsi != nil {
-		sa.NegotiatedTSi = tsToIPNet(tsi.TrafficSelectors)
-	}
-	if tsr != nil {
-		sa.NegotiatedTSr = tsToIPNet(tsr.TrafficSelectors)
+	// RFC 7296 Section 2.9: narrow the initiator's proposal to a subset the operator's
+	// policy allows, and record the RESULT. The echoed TS payloads and the installed
+	// Child SA both read that one result, so the wire and the dataplane cannot disagree.
+	//
+	// Before this call the responder recorded the proposal verbatim for the dataplane
+	// while answering with a full wildcard from anyChildTSPayloads, so a peer proposing
+	// anything narrower than 0.0.0.0/0 was told one thing and given another.
+	if tsi != nil && tsr != nil {
+		if err := narrowChildSelectors(sa, tsi, tsr, nil); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	// Select exactly one ESP proposal (narrows sa.ESPGroup); no-op on the EAP final
@@ -770,6 +788,15 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 	inner = append(inner,
 		wire.PayloadEntry{Payload: authPayload},
 		wire.PayloadEntry{Payload: saPayload},
+	)
+	// RFC 7296 Section 1.3.1 MUST: "If the request is accepted, the response MUST also
+	// include a notification of type USE_TRANSPORT_MODE." It is absent when the request
+	// was declined, and the peer then reads a tunnel-mode Child SA, which is the outcome
+	// the same paragraph names for a decline.
+	if sa.UseTransportMode {
+		inner = append(inner, wire.PayloadEntry{Payload: transportModeNotify()})
+	}
+	inner = append(inner,
 		wire.PayloadEntry{Payload: respTSi},
 		wire.PayloadEntry{Payload: respTSr},
 	)

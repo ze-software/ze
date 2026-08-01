@@ -169,6 +169,20 @@ func init() {
 		Description: "IKEv2 engine for native IPsec VPN",
 		ConfigRoots: []string{"vpn", "pki"},
 		RunEngine:   runEngine,
+		// The SAME chain the runtime OnConfigVerify below runs, reached OFFLINE by
+		// ze config validate and by the web and hub commit paths
+		// (config.VerifyPluginConfig, internal/component/config/plugin_verify.go).
+		//
+		// Without this field the registry skips the plugin outright, so every IPsec
+		// semantic refusal -- an undefined ike-group, an unresolvable certificate, an
+		// EAP-TLS peer with no trust anchor, a traffic selector no backend can program --
+		// was invisible to ze config validate and only surfaced at commit. An operator's
+		// pre-commit check passed a config the daemon then refused.
+		//
+		// validateIPsecSections satisfies the InProcessConfigVerifier contract: it is
+		// side-effect free, and it resolves certificate names against the CANDIDATE pki
+		// section rather than the live store (config.go).
+		InProcessConfigVerifier: validateIPsecSections,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},
@@ -206,6 +220,17 @@ func init() {
 			Platforms:    []string{"any"},
 			Codes:        []string{"doctor-ipsec-cert-url", "doctor-ipsec-cert-url-denied"},
 			Check:        checkIPsecCertURL,
+		}, {
+			// RFC 7296 Section 2.6's COOKIE challenge is gated on a count whose
+			// ceiling is the number of responding peers. A threshold above that
+			// ceiling is never met, so the defense is off and nothing says so.
+			Name:         "ipsec-cookie-threshold",
+			Phase:        rpc.DoctorPhasePostConfig,
+			Order:        733,
+			Dependencies: []string{"config-loaded"},
+			Platforms:    []string{"any"},
+			Codes:        []string{"doctor-ipsec-cookie-threshold"},
+			Check:        checkIPsecCookieThreshold,
 		}},
 	}
 	reg.CLIHandler = func(_ []string) int { return 1 }

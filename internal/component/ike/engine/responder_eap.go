@@ -1,4 +1,5 @@
 // Design: plan/learned/1072-ipsec-14-responder.md -- IKE responder EAP authenticator
+// Related: ts_narrow.go -- the narrowing this path shares with buildAuthResponse
 // RFC: rfc/short/rfc7296.md -- EAP in IKE_AUTH (Section 2.16)
 
 package engine
@@ -119,11 +120,17 @@ func (ps *PeerSession) startResponderEAP(sa *SA, msgID uint32, remoteSAi2 *wire.
 			sa.ChildOutboundSPI = outSPI
 		}
 	}
-	if tsi != nil {
-		sa.NegotiatedTSi = tsToIPNet(tsi.TrafficSelectors)
-	}
-	if tsr != nil {
-		sa.NegotiatedTSr = tsToIPNet(tsr.TrafficSelectors)
+	// RFC 7296 Section 2.9: the EAP path is the SECOND responder producer of traffic
+	// selectors, and it stashes them here for the final IKE_AUTH that carries SAr2. It
+	// narrows through the same entry point as buildAuthResponse, so an EAP peer gets the
+	// same policy a PSK or X.509 peer gets. Skipping it here would leave EAP answering
+	// with the old wildcard while the direct path narrowed.
+	if tsi != nil && tsr != nil {
+		if err := narrowChildSelectors(sa, tsi, tsr, nil); err != nil {
+			log.Warn("ike: no acceptable traffic selector from initiator", "peer", sa.PeerName, "error", err)
+			sa.State = StateDead
+			return
+		}
 	}
 
 	// Negotiate the ESP proposal now (narrows sa.ESPGroup); the final IKE_AUTH after

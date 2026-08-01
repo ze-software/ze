@@ -133,6 +133,27 @@ type SA struct {
 	requestMsgID       uint32
 	requestSentAt      time.Time
 
+	// requestMsg is the datagram of the request holding the window above, kept so the
+	// owner loop can repeat it under its OWN Message ID (RFC 7296 Section 2.1).
+	//
+	// A request that spends a Message ID and keeps no copy of itself cannot be repeated.
+	// If that datagram is lost, NextMsgID has moved and the peer still expects the id it
+	// never saw. Every later request then falls outside the peer's window of one, and the
+	// SA stalls until the liveness budget tears it down.
+	//
+	// The rekey and the DPD probe keep their own copies (pendingRekey.sentMsg,
+	// dpdState.probeMsg) and never arm this slot. It serves the requests that have no
+	// machine of their own, which today is the INVALID_MESSAGE_ID notify. A Delete
+	// deliberately arms nothing: it ends the SA, so a lost one desynchronizes a
+	// counter no later request reads.
+	//
+	// requestAttempts counts the repeats already made and requestLastSent is when the
+	// last one went out. Together they drive the same backoff every other retransmit
+	// in this package uses.
+	requestMsg      []byte
+	requestAttempts int
+	requestLastSent time.Time
+
 	// Retransmission
 	LastSentMsg     []byte
 	RetransmitTime  time.Time
@@ -265,6 +286,29 @@ type SA struct {
 	ChildOutboundSPI uint32     // responder's ESP SPI from AUTH response SA
 	NegotiatedTSi    *net.IPNet // narrowed initiator TS from AUTH response
 	NegotiatedTSr    *net.IPNet // narrowed responder TS from AUTH response
+
+	// NegotiatedPairs is the full narrowed selector set, in TSi/TSr orientation.
+	//
+	// NegotiatedTSi/TSr above carry only the FIRST pair's prefixes, because the Child SA
+	// and the dataplane policy have historically been single-selector. This slice keeps
+	// the whole answer, including the port and protocol of each selector, so the payload
+	// Ze puts on the wire and the policy Ze programs come from ONE source. RFC 7296
+	// Section 2.9 permits several selectors, so a single prefix pair cannot represent
+	// every conformant answer.
+	NegotiatedPairs []tsPair
+
+	// UseTransportMode records that this SA's Child SAs run in transport mode.
+	//
+	// RFC 7296 Section 1.3.1: transport mode is negotiated with the USE_TRANSPORT_MODE
+	// notification, and "Except when using this option to negotiate transport mode, all
+	// Child SAs will use tunnel mode." The field is false until the notification is both
+	// sent and echoed, so an unanswered request leaves tunnel mode, which is the RFC's
+	// own outcome for a declined request.
+	UseTransportMode bool
+
+	// PeerRequestedTransport records that the peer asked for transport mode on this
+	// exchange. The responder reads it to decide whether to echo USE_TRANSPORT_MODE.
+	PeerRequestedTransport bool
 }
 
 // GenerateSPI generates a random 8-byte SPI value using crypto/rand.
