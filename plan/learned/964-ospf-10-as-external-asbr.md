@@ -32,3 +32,7 @@ Completed `plan/spec-ospf-10-as-external-asbr.md`: ASBR Type 5 AS-External-LSA o
 - `test/ospf/ospf-redist-bgp.ci` - config surface: redistribute + default-information validate; self-import is a no-op; 24-bit metric boundary rejected.
 - `go test -race ./internal/plugins/ospf/...` clean (the installOriginated lock fix).
 - FRR `ospfd` redistribution/external interop is owned by spec-ospf-13 (Linux/QEMU); scenario inputs contributed here.
+
+## Files
+
+None recorded.

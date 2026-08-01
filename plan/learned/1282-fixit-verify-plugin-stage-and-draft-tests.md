@@ -37,3 +37,7 @@ Two of the nine reproduced deterministically in isolation. Six only under
 - **A guard that returns early must still report.** The `await=stderr` fence's timeout path skipped output collection, so the report showed "expected 0 / received 0" and nothing the daemon had said -- a daemon that died in startup looked identical to one that was merely slow. Fixing the report is what exposed the build-tag drift, after two hours of reading the wrong code.
 - **Verify what a red actually belongs to before attributing it.** `test/web/commit-flow.wb` failed the full gate; a clean worktree at HEAD without any of these changes failed it identically. Two other plugin tests (`flowspec`, and this session's `eor`) surfaced only in the full run and were NOT in the reported CI failure set.
 - **Suite discovery is a non-recursive glob** (`record_parse.go` `Discover`). That is what makes a subdirectory free to use as an incubator, and `TestDiscoverIgnoresSubdirectories` pins it so a future recursive rewrite fails there rather than through a stranger's red verify.
+
+## Files
+
+None recorded.

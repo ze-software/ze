@@ -31,3 +31,7 @@ Added: MatchTCPFlags format test, 6 functional .ci tests, `ze-test policy` runne
 - **Audit before implementing.** This spec's entire implementation was done before the audit session began. The audit step prevented reimplementing existing code.
 - **Firewall table registry pattern.** `firewall.RegisterTables("policy-routes", tables)` + `firewall.ApplyAll()` is the right way for a non-firewall plugin to contribute nftables tables. The registry merges all owners' tables so no Apply call deletes another owner's tables.
 - **Reserved ranges prevent collisions.** VRF tables (1000-1999) and policy routing auto-tables (2000-2999) have non-overlapping ranges by construction, and user-specified tables are validated to exclude both.
+
+## Files
+
+None recorded.

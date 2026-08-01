@@ -63,3 +63,7 @@ real encoding bug.
   fixture, not the code. Fixture corrected (user-authorized); encode suite 53/53.
 - `internal/analyze/inject.go:64` goconst lint (`3215ece93`) -- still open,
   unrelated to BGP.
+
+## Files
+
+None recorded.

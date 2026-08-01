@@ -53,5 +53,5 @@ that discovers all `ze:listener`-marked list nodes dynamically at startup.
 - `internal/component/config/yang_schema.go` -- `hasListenerExtension()`
 - `internal/component/config/listener.go` -- `DiscoverListenerServices`, `CollectListeners`
 - `internal/component/config/listener_test.go` -- 3 new tests, 8 updated
-- `cmd/ze/config/cmd_validate.go` -- caller passes schema
+- `internal/component/config/cli/cmd_validate.go` -- caller passes schema
 - `internal/component/bgp/config/loader_create.go` -- caller passes schema

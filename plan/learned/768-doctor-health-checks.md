@@ -62,5 +62,5 @@ health registry extensions (AC-20/21).
 - `internal/component/bgp/reactor/session_prefix.go` -- route count anomaly
 - `internal/plugins/fib/kernel/fibkernel.go` -- FIB sync failure/orphan/lag
 - `internal/component/plugin/process/manager.go` -- plugin crash/down
-- `cmd/ze/doctor/doctor.go` -- clock skew check
-- `cmd/ze/doctor/checks_linux.go` -- VPP version check
+- `internal/component/doctor/doctor.go` -- clock skew check
+- `internal/component/doctor/checks_linux.go` -- VPP version check

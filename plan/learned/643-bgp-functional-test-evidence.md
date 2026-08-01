@@ -64,14 +64,14 @@ The job was to make the evidence honest, not to make every blocked path pass.
 ## Files
 
 - `internal/component/bgp/config/loader_test.go`
-- `etc/ze/bgp/parse-community.conf`
-- `etc/ze/bgp/parse-dual-neighbor.conf`
-- `etc/ze/bgp/parse-md5.conf`
-- `etc/ze/bgp/parse-multiple-process.conf`
-- `etc/ze/bgp/parse-process.conf`
-- `etc/ze/bgp/parse-simple-v4.conf`
-- `etc/ze/bgp/parse-simple-v6.conf`
-- `etc/ze/bgp/parse-ttl.conf`
+- `test/exabgp-compat/native/parse-community.conf`
+- `test/exabgp-compat/native/parse-dual-neighbor.conf`
+- `test/exabgp-compat/native/parse-md5.conf`
+- `test/exabgp-compat/native/parse-multiple-process.conf`
+- `test/exabgp-compat/native/parse-process.conf`
+- `test/exabgp-compat/native/parse-simple-v4.conf`
+- `test/exabgp-compat/native/parse-simple-v6.conf`
+- `test/exabgp-compat/native/parse-ttl.conf`
 - `test/plugin/community-strip.ci`
 - `test/plugin/role-otc-egress-filter.ci`
 - `test/plugin/bgp-rs-fastpath-ebgp-shared.ci`

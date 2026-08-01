@@ -98,7 +98,7 @@ Built on the closed mpls-3 engine (PATH/RESV/ERO/RRO/admission/make-before-break
   in Go, not relied on from YANG.
 
 ## Files
-- `internal/component/rsvpte/frr.go` (new: FAST_REROUTE/SESSION_ATTRIBUTE codecs,
+- `internal/plugins/rsvpte/frr.go` (new: FAST_REROUTE/SESSION_ATTRIBUTE codecs,
   protectionRequest, selectBypass, tryLocalRepair, reoptimizeOnNotify,
   rroProtectionFlags, bypassKey, updateFRRGauges), `frr_test.go` (new)
 - `engine.go` (PLR arming in handlePathTransit; local-repair branch + Notify in
@@ -112,7 +112,7 @@ Built on the closed mpls-3 engine (PATH/RESV/ERO/RRO/admission/make-before-break
   `cmd_show.go` (show rsvp-te fast-reroute proxy), `yang/ze-rsvp-te-conf.yang`
 - `internal/plugins/fib/kernel/mplsentry_linux.go` (RouteReplace fix),
   `mplsentry_integration_linux_test.go` (live-kernel 2-label swap-then-replace)
-- `rfc/short/rfc4090.md` (new), `internal/component/rsvpte/interop_test.go`
+- `rfc/short/rfc4090.md` (new), `internal/plugins/rsvpte/interop_test.go`
   (4-node FRR local-repair), `test/rsvpte/rsvpte-frr.ci` (new),
   `internal/test/cli/register.go` (suite description)
 - Docs: `docs/guide/rsvp-te.md`, `docs/guide/configuration.md`,

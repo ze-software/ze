@@ -71,3 +71,7 @@ with a client-side view registry the Model discovers, mirroring the daemon-side
 Links: `ai/patterns/registration.md` (init + registry + longest-prefix) ·
 `ai/rules/plugin-self-containment.md` ("Registration over hardcoding (the CLI client too)") ·
 mirror `internal/component/plugin/server/handler.go` (`RegisterMonitorProvider`/`matchesPrefix`).
+
+## Files
+
+None recorded.

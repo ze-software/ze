@@ -94,4 +94,6 @@ Same as `// Design:`: `*_test.go`, `*_gen.go`, `register.go`, `embed.go`, `doc.g
 
 ## Reference
 
-Learned: `plan/learned/363-file-modularity.md`.
+Learned: 363, retired on 2026-08-01 and not carried into
+`plan/learned/DESIGN-HISTORY.md`, which records subsystem design and not agent
+workflow. The header of that file gives the git-recovery route.

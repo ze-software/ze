@@ -41,3 +41,7 @@ Five parallel source investigations revealed that the report inflated the cost o
 - `RouteEntry.Clone` does not copy `AttrFingerprint` or `AttrLen`. Must fix before using Clone for parse-once sharing.
 - Dynamic peers mutate `PeerSettings.PeerAS` after OPEN. Any cached facts including `isIBGP`/`isEBGP` must refresh after `resolveDynamicPeerSettings`.
 - `replace_all` edits need exact string match. When test files use different variable names (`rawContent`, `hexContent`, `textContent`, `jsonContent`) each variant needs its own pass.
+
+## Files
+
+None recorded.

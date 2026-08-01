@@ -68,4 +68,4 @@ and deferred unification.
 - `internal/component/config/setparser.go` -- `walkAndMarkInactive` calls `SetInactive(true)`
 - `internal/component/config/prune.go` -- `.IsInactive()` replaces `isInactiveTree`
 - `internal/component/cli/editor_commands.go` -- `DeactivatePath`/`ActivatePath` use `SetInactive`/`IsInactive`
-- `cmd/ze/config/cmd_deactivate.go` -- positional-list check uses `HasStructuralChildren()`
+- `internal/component/config/cli/cmd_deactivate.go` -- positional-list check uses `HasStructuralChildren()`

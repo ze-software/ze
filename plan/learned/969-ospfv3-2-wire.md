@@ -76,3 +76,7 @@ codec.
 - Next OSPFv3 target (umbrella): `spec-ospfv3-3-ipv6-transport.md` (raw IPv6
   proto-89 sockets, multicast membership, link-local source, receive loop) --
   Linux-specific, needs QEMU integration tests.
+
+## Files
+
+None recorded.

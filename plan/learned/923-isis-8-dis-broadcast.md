@@ -63,17 +63,17 @@ integration, not a from-scratch build, despite the task brief saying "from scrat
   Follow-up: isis-13.
 
 ## Files
-- `internal/component/isis/circuit/dis.go` (+test): election state machine, damping,
+- `internal/plugins/isis/circuit/dis.go` (+test): election state machine, damping,
   circuit API (RunElection/LocalIsDIS/DISLevels/MembersSnapshot/candidates).
-- `internal/component/isis/lsdb/pseudonode.go` (+test): OriginatePseudonode/PurgePseudonode.
-- `internal/component/isis/dis_wiring.go` (+test): engine election trigger, pseudonode
+- `internal/plugins/isis/lsdb/pseudonode.go` (+test): OriginatePseudonode/PurgePseudonode.
+- `internal/plugins/isis/dis_wiring.go` (+test): engine election trigger, pseudonode
   originate/purge, elected-pseudonode record, LAN CSNP cadence, re-election tick.
 - Modified (additive): `adjacency/adjacency.go` (+Priority), `adjacency/fsm.go`
   (+HelloInput.Priority, store in ReceiveHello), `circuit/runtime.go` (extract LAN
   priority), `circuit/circuit.go` (per-level DISState), `circuits.go` (election on
   transition + clearCircuitDIS on down), `server.go` (DIS state, metrics, startDISLoop),
   `lsdb_wiring.go` (own-LSP star encoding).
-- `internal/component/isis/packet/pseudonode_ci_test.go`: pins `test/isis/isis-dis.ci`.
+- `internal/plugins/isis/packet/pseudonode_ci_test.go`: pins `test/isis/isis-dis.ci`.
 - `test/isis/isis-dis.ci`: pseudo-node LSP wire decode.
 - Docs: `docs/architecture/wire/isis.md` (DIS/pseudo-node section),
   `docs/plugin-development/metrics.md` (2 metric rows), `docs/guide/isis.md` (created).

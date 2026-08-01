@@ -66,6 +66,16 @@ implementation proved that design impossible for the reject case and it was repl
 - **When adding an early-teardown wait, guard BOTH daemon-ready waits.** The foreground and
   background `waitReady(daemon.ready)` sites (`runner_exec.go`) are twins; skipping only one
   leaves a latent 5s stall on the other path (found in review).
+- **Mutation-verify this fence by inverting the producer's guard, never by swapping
+  plugins.** The line the test awaits is emitted behind `if !p.IsInternal()`
+  (`pkg/plugin/sdk/sdk.go:148`, called at `internal/plugins/as112/register.go:223`).
+  Inverting that condition is the authoritative mutation: it removes the refusal the
+  fence exists to observe. Substituting a different plugin changes the fixture instead
+  of the producer, so the test can stay green while proving nothing.
+- **An await needle must be plugin-SPECIFIC and colon-free.** The bare phrase
+  "refusing to start as an external plugin process" is shared by as112, traffic-usage
+  and flow-export, so it matches the wrong daemon. The `.ci` key-value splitter also
+  truncates a needle at the first `:`.
 
 ## Files
 

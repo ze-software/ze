@@ -28,7 +28,7 @@ Developers debugging plugin issues had no way to manually interact with the engi
 
 ## Files
 
-- `cmd/ze/bgp/cmd_plugin.go` -- rewritten: Q&A, persistent SSH session, SDK handshake, interactive mode
+- `internal/component/bgp/cli/cmd_plugin.go` -- rewritten: Q&A, persistent SSH session, SDK handshake, interactive mode
 - `cmd/ze/internal/ssh/client/client.go` -- added `OpenProtocolSession` for bidirectional SSH
 - `internal/component/ssh/ssh.go` -- added `PluginProtocolFunc` and detection in `execMiddleware`
 - `internal/component/plugin/server/adhoc.go` -- new: `HandleAdHocPluginSession`

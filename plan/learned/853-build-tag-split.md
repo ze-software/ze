@@ -36,9 +36,9 @@ Ze used a single negative build tag (`ze_stripped`) to produce two binary varian
 - Deleted: `internal/component/cmd/update/doc_stripped.go`, `internal/component/cmd/update/yang/register_stripped.go`
 - Renamed: `backend_ze_stripped.go` -> `backend_ze_minimal.go`, `backend_ze_stripped_test.go` -> `backend_ze_minimal_test.go`, `firmware_stripped_test.go` -> `firmware_minimal_test.go`, `register_stripped_test.go` -> `register_minimal_test.go`
 - Modified: `cmd/ze/setup_features_stripped_test.go` (removed build tag)
-- Modified: `internal/component/config/system/backend_ze.go`, `selfupdate.go`, `selfupdate_test.go`, `backend_test.go` (changed `!ze_stripped` to `ze_distro`)
-- Modified: `internal/component/config/system/backend_ze_minimal.go` (changed `ze_stripped` to `!ze_distro`, updated messages)
-- Modified: `internal/component/config/system/backend_ze_minimal_test.go` (changed tag + assertions)
+- Modified: `internal/component/config/system/backend_ze_distro.go`, `selfupdate.go`, `selfupdate_test.go`, `backend_test.go` (changed `!ze_stripped` to `ze_distro`)
+- Modified: `internal/component/config/system/backend_ze_appliance.go` (changed `ze_stripped` to `!ze_distro`, updated messages)
+- Modified: `internal/component/config/system/backend_ze_appliance_test.go` (changed tag + assertions)
 - Modified: `internal/component/cmd/update/firmware_minimal_test.go`, `schema/register_minimal_test.go` (changed tags + assertions)
 - Modified: `internal/appliance/cmd_build_test.go` (updated gokrazy config assertion)
 - Modified: `Makefile` (added bin/ze-appliance, bin/ze-setup targets; bin/ze uses ze_distro; bin/ze-stripped uses no tags)

@@ -60,3 +60,7 @@ kill-switch. Separate security domain (no `ddosevent`, distinct firewall owner k
   the OSPF sessions'; verify MY additions accepted and leave theirs. Allocate learned numbers
   via `commit_helper.py learned-next` (the .counter races across sessions).
 - `strings +` concatenation for a term name trips no-sprintf-alloc -> use `textbuf.Buffer`.
+
+## Files
+
+None recorded.

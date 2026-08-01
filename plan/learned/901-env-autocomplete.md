@@ -58,3 +58,7 @@ held all the metadata needed. Config-mode YANG completion under
   match the pre-migration hardcoded list. Some previously hidden commands
   (like `doctor`, `connect`) now appear in shell completion. This is
   intentional: they are registered user-facing commands.
+
+## Files
+
+None recorded.

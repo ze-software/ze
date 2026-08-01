@@ -28,16 +28,16 @@ After spec-doctor-coverage filled the first set of missing doctor checks, this s
 
 ## Files
 
-- `cmd/ze/doctor/doctor.go` -- schema-driven listener collection, HTTP probes, writable destinations, update-check/archive checks
-- `cmd/ze/doctor/checks_linux.go` -- NTP clock privilege (CAP_SYS_TIME), VPP DPDK sysfs/VFIO checks
-- `cmd/ze/doctor/checks_other.go` -- stubs for Linux-only checks
-- `cmd/ze/doctor/doctor_test.go` -- tests for all new checks, dependency inventory test
-- `cmd/ze/doctor/register.go` -- doctor provider registration
+- `internal/component/doctor/doctor.go` -- schema-driven listener collection, HTTP probes, writable destinations, update-check/archive checks
+- `internal/component/doctor/checks_linux.go` -- NTP clock privilege (CAP_SYS_TIME), VPP DPDK sysfs/VFIO checks
+- `internal/component/doctor/checks_other.go` -- stubs for Linux-only checks
+- `internal/component/doctor/doctor_test.go` -- tests for all new checks, dependency inventory test
+- `internal/component/doctor/register.go` -- doctor provider registration
 - `internal/core/diagnostic/codes.go` -- 5 new diagnostic codes
 - `internal/core/diagnostic/doctor_provider.go` -- provider pattern for show doctor
 - `internal/component/config/listener.go` -- RegisterListenerDefault, CollectListenersWithDefaults
 - `internal/component/config/listener_defaults.go` -- builtin listener defaults
-- `internal/component/cmd/show/doctor.go` -- show doctor RPC handler
+- `internal/component/doctor/cmd/show.go` -- show doctor RPC handler
 - `internal/component/cmd/show/doctor_test.go` -- show doctor tests
 - `internal/component/cmd/show/show.go` -- ze-show:doctor RPC registration
 - `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- show doctor YANG entry

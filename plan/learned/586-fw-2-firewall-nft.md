@@ -28,11 +28,11 @@ The plugin follows the same backend pattern as ifacenetlink: register in init(),
 
 ## Files
 
-- `internal/plugins/firewallnft/firewallnft.go` -- Package doc
-- `internal/plugins/firewallnft/register.go` -- RegisterBackend("nft")
-- `internal/plugins/firewallnft/backend_linux.go` -- Apply, ListTables, GetCounters
-- `internal/plugins/firewallnft/backend_other.go` -- Non-Linux stub
-- `internal/plugins/firewallnft/lower_linux.go` -- Abstract type to nftables expression lowering
+- `internal/plugins/firewall/nft/firewallnft.go` -- Package doc
+- `internal/plugins/firewall/nft/register.go` -- RegisterBackend("nft")
+- `internal/plugins/firewall/nft/backend_linux.go` -- Apply, ListTables, GetCounters
+- `internal/plugins/firewall/nft/backend_other.go` -- Non-Linux stub
+- `internal/plugins/firewall/nft/lower_linux.go` -- Abstract type to nftables expression lowering
 - `go.mod`, `go.sum` -- google/nftables v0.3.0 added
 - `vendor/github.com/google/nftables/` -- Vendored
 - `internal/component/plugin/all/all.go` -- Updated by make generate

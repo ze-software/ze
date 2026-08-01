@@ -44,3 +44,7 @@ Originally one unresolvable next-hop failed the WHOLE static section: per-route 
 - 35 unit tests passing (config parsing, diff, BFD integration, registration, CLI formatting)
 - 4 functional tests (boot-apply, reload-add, reload-remove, show)
 - 6 documentation files updated (features, configuration, command-reference, command-catalogue, plugins, comparison)
+
+## Files
+
+None recorded.

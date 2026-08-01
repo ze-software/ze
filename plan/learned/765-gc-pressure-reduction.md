@@ -90,3 +90,7 @@ When stack arrays escape, use:
 - All existing tests pass unchanged (except test struct literals updated for NextHopAddrs)
 - `go vet ./...` clean
 - Review found zero BLOCKERs after fixes
+
+## Files
+
+None recorded.

@@ -101,3 +101,7 @@ the comments are already written.
   than one implementation site, coverage of the obligation is not coverage of the
   sites. See [[1010-verify-producer-before-claiming]] -- same disease, one level
   up: there the claim skipped the producer, here the *gate* does.
+
+## Files
+
+None recorded.

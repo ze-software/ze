@@ -88,3 +88,7 @@ recorded in the spec's Review Gate: ~58 findings, including 6 that were defects 
 a previous round's fixes, and one blocker in the clean-room pass. The numbers on
 the page were independently recomputed and all checked out; the failures were in
 the prose around them, which is why the review effort went where it did.
+
+## Files
+
+None recorded.

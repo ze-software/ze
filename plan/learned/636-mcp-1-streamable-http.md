@@ -67,8 +67,8 @@ several protocol edge cases. All resolved in the same landing:
 - `plan/spec-mcp-1-streamable-http.md` — Phase 1 child spec (this landing)
 
 **Modified:**
-- `cmd/ze/hub/mcp.go` — `zemcp.Handler(...)` → `zemcp.NewStreamable(zemcp.StreamableConfig{...})`
-- `cmd/ze-test/mcp.go` — client now speaks Streamable HTTP: `/mcp` endpoint, `Mcp-Session-Id` tracking, `MCP-Protocol-Version` header
+- `cmd/ze/hub/service_mcp.go` — `zemcp.Handler(...)` → `zemcp.NewStreamable(zemcp.StreamableConfig{...})`
+- `internal/test/cli/cmd_mcp.go` — client now speaks Streamable HTTP: `/mcp` endpoint, `Mcp-Session-Id` tracking, `MCP-Protocol-Version` header
 - `internal/component/mcp/handler.go` — `// Design:` / `// Related:` annotations updated; legacy behaviour preserved pending Phase 4
 
 **Deferred** (see `plan/deferrals.md`): legacy `Handler` removal → Phase 4; standalone GET-SSE `.ci` + POST-upgrade `.ci` → Phase 3; registry GC shutdown wiring → Phase 2.

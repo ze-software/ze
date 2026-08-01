@@ -20,3 +20,7 @@ Key choices:
 ## Gotchas
 - The `ZE_GROUP_REST` variable uses `go list` with `grep -v` exclusions, so adding a new named group requires adding the exclusion to `rest`.
 - `mk/` files cannot define `GO_TEST` or other shared variables; those stay in the root Makefile.
+
+## Files
+
+None recorded.

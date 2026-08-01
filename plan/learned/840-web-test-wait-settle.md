@@ -56,3 +56,7 @@ in the suite. The goal was to cut that without making the suite flaky.
   9 failures in one run and 1 in the next.
 - The init script must be registered before the daemon's first navigation; it
   rides on `agentEnv()`, which is used by the `open` that starts the daemon.
+
+## Files
+
+None recorded.

@@ -85,3 +85,7 @@ component usually fails with a wrong value, not an absent one.
   from the registry the test reads would be tautological; a golden snapshot file
   (`plugin/all/testdata/*.snapshot`) is the shape that catches silent removal.
   Left as a note in the test.
+
+## Files
+
+None recorded.

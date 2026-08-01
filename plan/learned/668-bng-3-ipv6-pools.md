@@ -29,3 +29,7 @@ IPv6 prefix delegation for BNG PPP sessions, in 4 phases:
 - AC-12: DHCPv6 Information-Request (DNS-only, no PD)
 - Functional tests: require full L2TP stack (`test/l2tp/ipv6-pd-*.ci`)
 - Documentation updates: features.md, configuration.md, plugins.md
+
+## Files
+
+None recorded.

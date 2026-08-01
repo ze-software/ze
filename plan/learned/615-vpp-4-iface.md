@@ -95,13 +95,13 @@ vendoring to concrete follow-up specs.
 
 ## Files
 
-- `internal/plugins/ifacevpp/ifacevpp.go` -- lazy ensureChannel
+- `internal/plugins/iface/vpp/ifacevpp.go` -- lazy ensureChannel
   refactor, Close releases monitor + channel.
-- `internal/plugins/ifacevpp/naming.go` -- cross-ref updates.
-- `internal/plugins/ifacevpp/query.go` *(new)* -- ListInterfaces,
+- `internal/plugins/iface/vpp/naming.go` -- cross-ref updates.
+- `internal/plugins/iface/vpp/query.go` *(new)* -- ListInterfaces,
   GetInterface, Get/SetMACAddress, populateNameMap, detailsToInfo,
   trimCString, dumpAllRaw.
-- `internal/plugins/ifacevpp/monitor.go` *(new)* -- StartMonitor,
+- `internal/plugins/iface/vpp/monitor.go` *(new)* -- StartMonitor,
   StopMonitor, SwInterfaceEvent -> iface-namespace dispatch loop.
 - `internal/plugins/ifacevpp/query_test.go` *(new)* -- mock-channel
   tests for all new query-path methods.

@@ -13,7 +13,8 @@ opaque body and opaque LSAs never become SPF vertices (RFC 5250 §3).
 
 ## Decisions
 
-- Modelled the carrier as a process-global registration API (`RegisterOpaqueConsumer(opaqueType, scope, onOriginate, onReceive)`) populated at consumer `init()`, discovered by the engine at startup, over a per-engine registry, because opaque types are owned globally (RFC 5250 §9) and consumers stay self-contained.
+- Modelled the carrier as a process-global registration API (`registerOpaqueConsumer(opaqueType, scope, onOriginate, onReceive)`, `opaque_registry.go`) populated at consumer `init()`, discovered by the engine at startup, over a per-engine registry, because opaque types are owned globally (RFC 5250 §9) and consumers stay self-contained. The function is UNEXPORTED on purpose: every consumer lives in the same package, so an exported name would invite an out-of-package registration the carrier is not designed for.
+- The Link State ID split is a codec-layer pair, `OpaqueType()` / `OpaqueID()` on `LSA` (`packet/lsa_opaque.go`), not a field on the types leaf.
 - Origination is a pull model: `OnOriginate(router) []OpaqueOrigination` returns the full desired set each self-LSA pass; an unchanged return floods nothing (idempotent), reusing `OriginateSelf`/`OriginateLinkSelf` sequencing rather than a new origination path.
 - Reused the three existing LSDB stores by scope: Type 9 -> link store (broaden `isLinkLSAType`), Type 10 -> per-area store, Type 11 -> a NEW AS-wide opaque store parallel to `asExternal`. No new LSDB key type; the Opaque Type/ID split lives at the codec layer, not the types leaf.
 - The O-bit is a DD-only signal (not part of the Hello E/N match), so adjacency with non-opaque peers is unaffected (RFC 5250 §3.1).

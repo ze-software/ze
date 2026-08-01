@@ -1,6 +1,6 @@
 # 406 -- LLGR State Machine
 
-## Objective
+## Context
 
 Extend the GR state machine to support the LLGR period: GR-to-LLGR transition on restart-time expiry, per-family LLST timers, session re-establishment during LLGR, and skip-GR path (restart-time=0 with LLST>0).
 

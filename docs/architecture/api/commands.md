@@ -484,7 +484,11 @@ request peer <sel> flush           # Wait for forward pool to drain (barrier)
 
 ### Cache Commands (Ze)
 
-> **Implementation spec:** `plan/learned/148-api-command-restructure-step-8.md`
+> **Design history:** summary 148 was retired on 2026-08-01 and was not carried
+> into `plan/learned/DESIGN-HISTORY.md`. That file's header gives the
+> git-recovery route. What survives of the cache pattern is in its "BGP engine:
+> wire encoding and RIB" > Load-bearing invariants: cache `Ack` and `Retain`
+> are independent refcount axes, and engine cache ack is cumulative.
 
 ```
 request cache forward <id> <sel>    # Forward cached UPDATE to peers

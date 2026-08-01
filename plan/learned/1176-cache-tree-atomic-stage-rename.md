@@ -44,3 +44,7 @@ cache and scratch live.
 Concurrent same-key populate now converges to one complete tree (last rename
 wins; content-identical for a content-addressed key), and the loser fails
 loudly + recovers on a retry HIT rather than corrupting the cache.
+
+## Files
+
+None recorded.

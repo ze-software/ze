@@ -63,3 +63,7 @@ compatibility before promising an interop test.
 - The runtime kernel is shared by the gokrazy appliance and the QEMU evidence
   tests; protocol kernel options (PPP/PPPoL2TP/PPPoE) belong in it as `=y`.
 - See [[705-cpe-1-pppoe-client]] for the client implementation this exercises.
+
+## Files
+
+None recorded.

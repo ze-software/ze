@@ -1,6 +1,6 @@
 # 447 — FSM Transitions
 
-## Objective
+## Context
 
 Achieve exhaustive test coverage of all 90+ BGP FSM (state × event) combinations per RFC 4271 Section 8.2.2, and fix RFC compliance bugs where unexpected events were silently ignored instead of transitioning to Idle.
 

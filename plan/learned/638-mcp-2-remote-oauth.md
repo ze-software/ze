@@ -164,9 +164,9 @@ reach is required. Phase 2 delivers:
   table + 4 extraction tests
 - `internal/component/config/environment.go` -- 7 new `ze.mcp.*` env var
   registrations
-- `cmd/ze/config/cmd_validate.go` -- `ze config validate` calls
+- `internal/component/config/cli/cmd_validate.go` -- `ze config validate` calls
   MCPListenConfig.Validate
-- `cmd/ze/hub/mcp.go` -- MCPServerHandle bundles server + handler;
+- `cmd/ze/hub/service_mcp.go` -- MCPServerHandle bundles server + handler;
   Shutdown drains both; mcpConfigToStreamable helper
 - `cmd/ze/hub/main.go` -- MCP extraction wires the full StreamableConfig
   through mcpConfigToStreamable

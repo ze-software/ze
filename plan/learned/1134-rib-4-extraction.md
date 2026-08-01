@@ -20,3 +20,7 @@ Added `bgpPeers` as a cached reference to the BGP inner map for zero-cost hot-pa
 
 ## Future work
 - `newInboundSource` does not dedup peer addresses across protocol slots. When BMP lands, a peer address in multiple protocols would appear twice in show output. Needs a `seen` map.
+
+## Files
+
+None recorded.

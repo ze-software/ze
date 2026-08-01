@@ -75,3 +75,7 @@ surfaces checks, and drives end-to-end interop.
   `ospf-*-frr` interop scenarios (FRROSPF helper, `ospfd=yes`).
 - Review gate: independent adversarial review (concurrency + SSE + XSS + doctor) -- 0
   BLOCKER, 0 ISSUE, 3 documented NOTES.
+
+## Files
+
+None recorded.

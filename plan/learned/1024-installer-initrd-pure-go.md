@@ -94,3 +94,7 @@ slirp (pin scenarios; spec assumption A-3 is unvalidated); (2) the `mon:stdio`
 keystroke path in the rescue driver (QEMU-version-sensitive); (3) `mtools`
 `mformat -F` flags + `vdb` device ordering (Ventoy); (4) arm64 grub `arm64-efi`
 availability + arm64 installer kernel (ISO).
+
+## Files
+
+None recorded.

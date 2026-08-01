@@ -26,7 +26,7 @@ Spec listener-7 was created to track three migration features deferred from spec
 - `internal/component/config/migration/migrate.go` -- transformation registration (13 total, 3 phases)
 - `internal/exabgp/migration/env.go` -- ExaBGP INI env parser, validator, Ze config mapper
 - `internal/exabgp/topics/topics.go` -- ExaBGP topic-to-Ze subsystem mapping (12 entries)
-- `cmd/ze/exabgp/main.go` -- `--env` flag and `cmdMigrateEnv()` handler
+- `internal/plugins/exabgp/main.go` -- `--env` flag and `cmdMigrateEnv()` handler
 - `test/parse/cli-config-migrate-log-booleans.ci` -- AC-1/AC-2 functional test
-- `test/parse/cli-config-migrate-listener-to-list.ci` -- AC-3 functional test
+- `test/parse/cli-config-migrate-listener-to-list.ci.disabled` -- AC-3 functional test
 - `test/parse/cli-exabgp-migrate-env.ci` -- AC-4/AC-5/AC-6 functional test

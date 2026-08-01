@@ -129,9 +129,9 @@ shape, not the former's runtime-only validation.
 - `internal/component/iface/config_test.go` -- 14 unit tests
 - `internal/component/iface/migrate_linux_test.go` -- mock backend updated
 - `internal/component/config/yang_schema.go` -- choice/case flattening
-- `internal/plugins/ifacenetlink/tunnel_linux.go` -- new, CreateTunnel switch + 5 builders
-- `internal/plugins/ifacenetlink/tunnel_linux_test.go` -- new, 8 integration tests
-- `internal/plugins/ifacenetlink/backend_linux.go`, `backend_other.go` -- updated to satisfy interface
+- `internal/plugins/iface/netlink/tunnel_linux.go` -- new, CreateTunnel switch + 5 builders
+- `internal/plugins/iface/netlink/tunnel_linux_test.go` -- new, 8 integration tests
+- `internal/plugins/iface/netlink/backend_linux.go`, `backend_other.go` -- updated to satisfy interface
 - `rfc/short/rfc{2003,2473,2784,2890,4213}.md` -- RFC summaries
 - `test/parse/iface-tunnel-invalid-{ipip-key,no-encap,both-locals}.ci` -- 3 parser-rejection tests
 - `test/reload/test-tx-iface-tunnel-{create,remove,modify-key}.ci` -- 3 SIGHUP wiring tests

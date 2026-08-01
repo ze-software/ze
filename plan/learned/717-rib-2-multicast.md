@@ -39,3 +39,7 @@ best-path selection runs per-family. The only real gap was the LPM query interfa
 - **Pre-commit hook spec audit.** The hook requires filled audit tables and a
   learned summary before allowing a commit with a selected spec. This is the right
   gate but requires discipline to fill these sections before attempting the commit.
+
+## Files
+
+None recorded.

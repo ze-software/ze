@@ -35,3 +35,7 @@ decision.
 - Regeneration checks for this class of change are `make ze-rules-index-check`
   and `make ze-ai-check`; full `ze-verify` is not required for markdown-only
   agent-rule updates.
+
+## Files
+
+None recorded.

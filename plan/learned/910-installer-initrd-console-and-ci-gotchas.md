@@ -62,3 +62,7 @@ generated `boot.ipxe` (`internal/plugins/imageserver/handler.go`).
 - `printf` was used by `init` but absent from the Makefile's explicit applet list,
   violating the documented defense-in-depth invariant. `test-applets.sh` now guards
   the whole list.
+
+## Files
+
+None recorded.

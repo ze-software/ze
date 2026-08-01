@@ -59,3 +59,7 @@ step-15 pointer.
   from ALL registered plugins, so a run can silently fold in another session's
   registrations. Scope commits to explicit `--file` lists and diff-check every
   shared generated file (`all.go`, `*.snapshot`) before staging.
+
+## Files
+
+None recorded.

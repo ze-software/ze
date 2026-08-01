@@ -25,7 +25,7 @@ Three hardcoded patterns in the RIB and attribute packages coupled core code to 
 
 ## Files
 
-- `internal/component/bgp/attribute/community.go` -- community name registry
+- `internal/core/bgp/attribute/community.go` -- community name registry
 - `internal/component/bgp/plugins/rib/rib_commands.go` -- command registry + dispatch + composable community commands
 - `internal/component/bgp/plugins/rib/storage/routeentry.go` -- StaleLevel uint8, StaleLevelFresh, DepreferenceThreshold
 - `internal/component/bgp/plugins/rib/bestpath.go` -- threshold-based stale comparison in ComparePair

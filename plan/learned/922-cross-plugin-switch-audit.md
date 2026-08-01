@@ -71,10 +71,10 @@ genuinely diverges cannot be hoisted without inventing a fake abstraction. Only
   `internal/plugins/fib/{kernel/fibkernel,vpp/fibvpp,vpp/srv6,p4/fibp4}.go`
 - `internal/component/firewall/protocol.go` (`ProtocolNumber`);
   `internal/plugins/firewall/{nft/lower_linux,vpp/classify_linux,vpp/nat_linux}.go`
-- `internal/component/bgp/capability/capability.go` (`AddPathMode.Label()`);
+- `internal/core/bgp/capability/capability.go` (`AddPathMode.Label()`);
   `internal/component/bgp/format/decode.go`; `internal/component/bgp/plugins/rs/server.go`
 - `internal/component/bgp/plugins/rib/rib_nlri.go` (`formatFamily`)
 - `internal/component/host/inventory.go` (`ValidPlatformName`);
   `internal/component/doctor/registry.go`; `internal/core/diagnostic/doctor_registry.go`
-- `internal/plugins/sysrib/sysrib_protocoltype_test.go` (R-B5 test; production landed via 919-921 MPLS series)
+- `internal/component/sysrib/sysrib_protocoltype_test.go` (R-B5 test; production landed via 919-921 MPLS series)
 - `scripts/dev/validate.py` + `validate_test.py` (typed-enum-wired-via-constants gate fix)

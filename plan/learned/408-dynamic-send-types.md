@@ -1,6 +1,6 @@
 # 408 -- Dynamic Send Types
 
-## Objective
+## Context
 
 Make send type validation dynamic (plugin-registered) instead of hardcoded in the engine. Remove `SendEnhancedRefresh bool` from ProcessBinding, replacing it with `SendCustom map[string]bool`. Add auto-load for plugins providing send types.
 

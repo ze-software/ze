@@ -29,11 +29,11 @@ IPv4 default routes via DHCP already respected the `route-priority` config leaf,
 
 ## Files
 
-- `internal/plugins/ifacenetlink/monitor_linux.go` -- NeighSubscribe, NTF_ROUTER tracking
+- `internal/plugins/iface/netlink/monitor_linux.go` -- NeighSubscribe, NTF_ROUTER tracking
 - `internal/component/iface/register.go` -- router tracking, failover, sysctl management
 - `internal/component/plugin/events.go` -- EventInterfaceRouterDiscovered/Lost
 - `internal/component/iface/backend.go` -- ListRoutes on Backend interface
 - `internal/component/iface/dispatch.go` -- RouterEventPayload type
 - `internal/component/iface/iface.go` -- IPv6 route helpers
-- `internal/plugins/ifacenetlink/manage_linux.go` -- ListRoutes netlink implementation
+- `internal/plugins/iface/netlink/manage_linux.go` -- ListRoutes netlink implementation
 - `test/parse/ipv6-route-priority.ci` -- functional test

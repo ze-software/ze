@@ -27,9 +27,9 @@ Gokrazy appliances lack tcpdump and other packet capture tools. Network-level de
 
 ## Files
 
-- `internal/component/cmd/show/capture_interface.go` -- portable types, arg parser, text formatter
-- `internal/component/cmd/show/capture_interface_linux.go` -- AF_PACKET handler, BPF compilation
-- `internal/component/cmd/show/capture_interface_other.go` -- platform stub
+- `internal/plugins/diag/cmd/capture_interface.go` -- portable types, arg parser, text formatter
+- `internal/plugins/diag/cmd/capture_interface_linux.go` -- AF_PACKET handler, BPF compilation
+- `internal/plugins/diag/cmd/capture_interface_other.go` -- platform stub
 - `internal/component/cmd/show/capture_interface_test.go` -- portable unit tests
 - `internal/component/cmd/show/capture_interface_linux_test.go` -- BPF filter tests
 - `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- YANG tree update

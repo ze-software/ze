@@ -57,4 +57,4 @@ neighbor link-local next-hops through the LSDB.
 - `internal/plugins/ospf/afstrategy_v6.go`, `instance.go` -- Network-referenced prefix install wiring
 - `internal/plugins/ospf/show_database.go` + lsdb snapshot -- Link-LSA rendering
 - Tests: `lsdb_linkscope_test.go`, `origination_v6_link_test.go`, `afstrategy_v6_test.go`,
-  `show_database_test.go`, `internal/plugins/ospfv3/packet/lsa_link_test.go`
+  `show_database_test.go`, `internal/plugins/ospf/v3/packet/lsa_link_test.go`

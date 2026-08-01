@@ -23,3 +23,7 @@ spec-install-3: new imageserver plugin at `internal/plugins/imageserver/` servin
 - `TestImageServerRegistered` is not a separate test file. Registration is already verified by `TestAvailablePlugins` in `cmd/ze/main_test.go`. Adding a redundant test would duplicate coverage.
 - The zefs host/port (`127.0.0.1`/`2222`) must match what `loadZefsUsers()` reads in `cmd/ze/hub/main_servers.go`. These are constants in the imageserver package matching `ze init` defaults.
 - `http.ServeFile` redirects `GET /install/database.zefs/` (trailing slash) to the directory, which would 404. The mux pattern `/install/database.zefs` (no trailing slash) avoids this.
+
+## Files
+
+None recorded.

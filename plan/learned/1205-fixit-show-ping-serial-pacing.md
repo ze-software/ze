@@ -85,3 +85,7 @@ A black-holed `count 100 timeout 30s` that used to take ~50 minutes
   `ze-ping-cmd.yang` interval leaf, and the `command-reference.md` update are N/A.
 - Fork resolved to in-flight seq-keyed map with paced sends (not send-all-then-collect)
   to bound socket burst at `count 100 size 65507` (R-3).
+
+## Files
+
+None recorded.

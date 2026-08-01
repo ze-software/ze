@@ -53,3 +53,7 @@ to out-of-tree state.
 
 Unifying `vendor/` + `gokrazy/modcache/` onto one committed GOMODCACHE is its own spec
 (plan/spec-unify-dep-stores.md), gated on a version-alignment audit.
+
+## Files
+
+None recorded.

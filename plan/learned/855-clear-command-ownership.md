@@ -24,3 +24,7 @@ The self-containment gate (`TestClearOwnerRemovalLeavesNoResidue`) checks both t
 ## Applicability
 
 The same template applies to the remaining central verb packages: `del`, `set`, and owner-specific `show` subtrees still living centrally. Each move should add the self-containment gate token on the same commit.
+
+## Files
+
+None recorded.

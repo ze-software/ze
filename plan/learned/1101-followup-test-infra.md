@@ -77,3 +77,7 @@ user approval; AC-2/AC-3 execution legs env-blocked with recorded runbooks.
 - The `.ci` two-peer LLGR reproduction ALSO needs a forwarding mechanism
   (`rs`/`redistribute`) in the config; `gr` + `bgp-rib` alone never re-forwards a
   source's route to other peers (the WIP timed out with zero deliveries).
+
+## Files
+
+None recorded.

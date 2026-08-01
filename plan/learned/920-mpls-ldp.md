@@ -45,6 +45,6 @@ Remaining feature gap: AC-9 dynamic interface reload.
   never defined; the real form is top-level `ldp { ... interfaces <name> }`.
 
 ## Files
-- `internal/component/ldp/discovery_manager.go` (+test), `register.go`, `doctor.go` (+test), `cmd_show.go` (+test), `config_test.go`
+- `internal/plugins/ldp/discovery_manager.go` (+test), `register.go`, `doctor.go` (+test), `cmd_show.go` (+test), `config_test.go`
 - `internal/core/diagnostic/codes.go` (`doctor-ldp-port-unavailable`)
 - `internal/test/cli/register.go` (`ze-test ldp`); `test/ldp/{ldp-session,ldp-convergence,ldp-reload}.ci`

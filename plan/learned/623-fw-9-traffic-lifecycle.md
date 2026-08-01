@@ -116,7 +116,7 @@ spec could land before fw-7 introduces a second traffic backend.
 - `internal/component/traffic/default_linux.go`, `default_other.go` (new)
 - `internal/component/traffic/backend.go` (+ `DefaultBackendName()`)
 - `internal/component/plugin/all/all.go` (blank import)
-- `cmd/ze/config/cmd_validate.go` (traffic-control row)
+- `internal/component/config/cli/cmd_validate.go` (traffic-control row)
 - `cmd/ze/config/default_backend_traffic_linux.go`, `_other.go`, `_test.go` (new)
 - `cmd/ze/main_test.go`, `internal/component/plugin/all/all_test.go`
   (expected-name lists updated)

@@ -50,8 +50,9 @@ Four verified defects in scope:
    (`ze.EventBus`, the RPC delivery pipeline, `pluginserver.Hub`, `hub.Orchestrator`,
    `cmd/ze/hub`, plus the separate Operational Report Bus). `docs/architecture/core-design.md`
    section 1 still shows a standalone "Bus (notification pub/sub)" component
-   (`core-design.md:28,72`) that `plan/learned/DESIGN-HISTORY.md:542` records as absorbed into
-   the plugin server ("`ze.EventBus` is now backed by `Server.Emit`").
+   (`core-design.md:28,72`) that `plan/learned/DESIGN-HISTORY.md` records as absorbed into
+   the plugin server ("Plugin system: architecture" -> "Abandoned approaches", the standalone
+   Bus entry: "`ze.EventBus` is now backed by `Server.Emit`").
 
 Goal: (1) one documented backpressure policy on both directions with a drop/overflow metric,
 no silent loss; (2) decouple `Emit` latency from slow consumers by draining the batch off the

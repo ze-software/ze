@@ -74,13 +74,13 @@ built the integration layer that connects them to the `flowexport.Exporter`.
 
 ## Files
 
-- `internal/component/flowexport/flowtypes.go` -- FlowSample, ConntrackFlow, FlowSampleEncoder, FlowRecordEncoder
-- `internal/component/flowexport/encoder_registry.go` -- flow factory registration + lookup
-- `internal/component/flowexport/enrichbgp.go` (+ `_test.go`) -- BestChange subscription -> radix tree rebuild
-- `internal/component/flowexport/sampling_worker.go` -- tc sample setup + psample read loop -> ExportFlowSample
-- `internal/component/flowexport/conntrack_worker.go` -- periodic dump + delta -> ExportFlows
-- `internal/component/flowexport/exporter.go` -- collectorState flow encoders, enricher, ExportFlowSample/ExportFlows, AddStopper, Stop ordering
-- `internal/component/flowexport/config.go` -- Sampling/Conntrack/Enrichment parse + validate
-- `internal/component/flowexport/register.go` -- ConfigureEventBus, startFlowSubsystems, wireEncoders flow encoders
-- `internal/component/flowexport/{sflow,netflow9,ipfix}/flow_adapter.go` + `register.go` -- flow encoder adapters + factory registration
-- `internal/component/flowexport/yang/ze-flowexport-conf.yang` -- sampling/conntrack/enrichment containers
+- `internal/plugins/flowexport/flowtypes.go` -- FlowSample, ConntrackFlow, FlowSampleEncoder, FlowRecordEncoder
+- `internal/plugins/flowexport/encoder_registry.go` -- flow factory registration + lookup
+- `internal/plugins/flowexport/enrichbgp.go` (+ `_test.go`) -- BestChange subscription -> radix tree rebuild
+- `internal/plugins/flowexport/sampling_worker.go` -- tc sample setup + psample read loop -> ExportFlowSample
+- `internal/plugins/flowexport/conntrack_worker.go` -- periodic dump + delta -> ExportFlows
+- `internal/plugins/flowexport/exporter.go` -- collectorState flow encoders, enricher, ExportFlowSample/ExportFlows, AddStopper, Stop ordering
+- `internal/plugins/flowexport/config.go` -- Sampling/Conntrack/Enrichment parse + validate
+- `internal/plugins/flowexport/register.go` -- ConfigureEventBus, startFlowSubsystems, wireEncoders flow encoders
+- `internal/plugins/flowexport/{sflow,netflow9,ipfix}/flow_adapter.go` + `register.go` -- flow encoder adapters + factory registration
+- `internal/plugins/flowexport/yang/ze-flowexport-conf.yang` -- sampling/conntrack/enrichment containers

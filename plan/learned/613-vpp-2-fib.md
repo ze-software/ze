@@ -52,9 +52,9 @@ mirrors fib-kernel and fib-p4 structurally but targets VPP's IPRouteAddDel API.
 ## Files
 
 - `internal/plugins/fibvpp/backend_test.go` -- new: 15 tests via mock GoVPP channel
-- `internal/plugins/fibvpp/fibvpp.go` -- comment clarifying batch config intent
-- `internal/plugins/fibvpp/backend.go` -- unchanged (read for audit)
-- `internal/plugins/fibvpp/register.go` -- unchanged (read for audit)
-- `internal/plugins/fibvpp/stats.go` -- unchanged (read for audit)
+- `internal/plugins/fib/vpp/fibvpp.go` -- comment clarifying batch config intent
+- `internal/plugins/fib/vpp/backend.go` -- unchanged (read for audit)
+- `internal/plugins/fib/vpp/register.go` -- unchanged (read for audit)
+- `internal/plugins/fib/vpp/stats.go` -- unchanged (read for audit)
 - `plan/spec-vpp-2-fib.md` -- filled audit, verification, implementation summary
 - `plan/deferrals.md` -- 6 vpp-7 deferral rows added

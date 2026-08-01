@@ -27,7 +27,7 @@ The `ze env` command showed only 5 of ~50 `ze.bgp.*` options individually -- the
 
 - `internal/component/config/environment.go` -- 48 individual ze.bgp.* registrations
 - `internal/core/slogutil/slogutil.go` -- subsystem auto-registration, description map, Subsystems() export
-- `cmd/ze/environ/main.go` -- sorted output, subsystem list with descriptions
+- `internal/plugins/env/env.go` -- sorted output, subsystem list with descriptions
 - `internal/component/config/environment_extract.go` -- added chaos section
 - 7 files renamed subsystem loggers (loader.go, filter.go, loop.go, filter_community.go, process.go, server.go, startup_coordinator.go, client.go)
 - 6 doc files updated (logging.md, environment.md, operations.md, command-reference.md, debugging-tools.md, plugin-testing.md)

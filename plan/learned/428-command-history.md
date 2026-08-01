@@ -31,8 +31,8 @@ Both `ze config edit` and `ze cli` maintained per-mode command history in memory
 - `internal/component/cli/history_test.go` -- 18 unit tests
 - `internal/component/cli/model.go` -- SetHistory, save on Enter
 - `internal/component/cli/model_test.go` -- 2 integration tests (edit + command mode)
-- `cmd/ze/config/cmd_edit.go` -- Wire history from blob storage
-- `cmd/ze/cli/main.go` -- Wire history from zefs
+- `internal/component/config/cli/cmd_edit.go` -- Wire history from blob storage
+- `internal/component/cli/client/main.go` -- Wire history from zefs
 - `internal/component/cli/testing/runner.go` -- option=history:store, option=mode, restart=
 - `internal/component/cli/testing/parser.go` -- StepRestart type
 - `internal/component/cli/testing/headless.go` -- NewHeadlessCommandModel

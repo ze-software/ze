@@ -79,3 +79,7 @@ Spec: `plan/spec-fixit-fuzz-target-discovery.md`. Fix ENUMERATION, not coverage
   10 ISIS/OSPF added.
 - NOT run: the bounded `make ze-fuzz-test` mutation pass (72 x 10s) and R-1
   triage -- deferred to CI/drain per the parked-task constraint (no large suites).
+
+## Files
+
+None recorded.

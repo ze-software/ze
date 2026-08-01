@@ -53,3 +53,7 @@ When a bug class is "caught by a check that exists but didn't run," the fix is a
 stage is decorative. And a verify that is allowed to stay red across sessions is
 not a safety net -- it is camouflage for the next regression. Related:
 [[1012-root-layout-reorg]].
+
+## Files
+
+None recorded.

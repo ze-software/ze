@@ -27,11 +27,11 @@ ze-chaos was a separate binary (`cmd/ze-chaos/`, 10 source files, 48MB) for chao
 
 - `cmd/ze/ze_chaos_main.go` -- minimal main for ze-chaos builds
 - `cmd/ze/ze_chaos_run.go` -- adapted from main.go (run -> zeChaosRun)
-- `cmd/ze/ze_chaos_orchestrator.go`, `ze_chaos_orchestrator_run.go`, `ze_chaos_scheduler.go`, `ze_chaos_subcommand.go`, `ze_chaos_conflict.go`, `ze_chaos_fork.go` -- direct copies with build tag
+- `internal/chaos/orchestrator/types.go`, `ze_chaos_orchestrator_run.go`, `ze_chaos_scheduler.go`, `ze_chaos_subcommand.go`, `ze_chaos_conflict.go`, `ze_chaos_fork.go` -- direct copies with build tag
 - `cmd/ze/ze_chaos_main_test.go`, `ze_chaos_orchestrator_test.go`, `ze_chaos_conflict_test.go` -- migrated tests
 - 16 existing cmd/ze files -- build tags updated from `!ze_test` to `!ze_test && !ze_chaos`
 - `internal/test/runner/runner.go` -- ExtraBinary struct, build-tag support
-- `cmd/ze/ze_test_bgp.go` -- SetExtraBinaries updated
+- `internal/test/cli/cmd_bgp.go` -- SetExtraBinaries updated
 - `scripts/checks/command_ownership.go` -- hasZeTestBuildTag updated
 - `Makefile` -- ze-chaos targets updated
 - `cmd/ze-chaos/` -- deleted (10 files)

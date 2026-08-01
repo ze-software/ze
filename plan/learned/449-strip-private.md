@@ -1,6 +1,6 @@
 # 449 — strip-private
 
-## Objective
+## Context
 
 Implement JunOS-style `strip-private` for config display: YANG-driven `ze:sensitive` extension marks leaves whose values are masked in CLI output using `$9$` reversible encoding by default, or replaced with `/* SECRET-DATA */` via `--strip-private`.
 
@@ -34,6 +34,6 @@ Implement JunOS-style `strip-private` for config display: YANG-driven `ze:sensit
 - `internal/component/config/schema.go` — `Sensitive`, `DisplayMode`, `SensitiveKeys()`
 - `internal/component/config/yang_schema.go` — `hasSensitiveExtension()`
 - `internal/component/config/parser.go` — $9$ decode on sensitive leaves
-- `cmd/ze/config/cmd_dump.go` — `--strip-private` flag, masking in text + JSON
+- `internal/component/config/cli/cmd_dump.go` — `--strip-private` flag, masking in text + JSON
 - `test/ui/cli-config-dump-{sensitive,strip-private,json-sensitive}.ci`
 - `test/parse/config-secret-roundtrip.ci`

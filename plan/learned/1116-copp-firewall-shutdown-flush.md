@@ -121,3 +121,7 @@ copp/firewall-flush regression:
   full-kernel host via `make ze-netns-test`; there is no per-test "needs full
   kernel" skip annotation (only `skip-os` and `needs-linux`), so netns_qemu.py
   just omits them from the host-safe subset.
+
+## Files
+
+None recorded.

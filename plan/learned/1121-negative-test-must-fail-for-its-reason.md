@@ -111,3 +111,7 @@ Two generalisations worth carrying:
   referenced profiles missing. Both read as reasonable locally and both mean
   allow-all. Treat any `if nothing matched { admin }` as a finding, not a
   default.
+
+## Files
+
+None recorded.

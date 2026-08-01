@@ -33,9 +33,9 @@ ze-test was a separate binary (`cmd/ze-test/`, 28 source files, 47MB) with its o
 - `cmd/ze/main.go` + 6 source files + 10 test files -- added `!ze_test` build tag
 - `cmd/ze/ze_test_main.go` -- minimal main for ze-test builds
 - `cmd/ze/ze_test_helpers.go` -- shared findBaseDir, error vars
-- `cmd/ze/ze_test_ci_runner.go` -- adapted CI runner
+- `internal/test/cli/ci_runner.go` -- adapted CI runner
 - `cmd/ze/ze_test_register.go` -- centralized subcommand registration
-- `cmd/ze/ze_test_bgp.go` through `ze_test_web.go` -- 25 migrated subcommands
+- `internal/test/cli/cmd_bgp.go` through `ze_test_web.go` -- 25 migrated subcommands
 - `cmd/ze/ze_test_*_test.go` -- 4 migrated test files
 - `Makefile` -- updated build targets
 - `cmd/ze-test/` -- deleted (32 files)

@@ -1,6 +1,6 @@
 # 458 -- Peer Groups
 
-## Objective
+## Context
 
 Replace ExaBGP-style template/inherit config model with Junos-style peer-groups, giving peers 3-level inheritance (bgp globals, group defaults, peer overrides) and optional human-readable names usable as CLI selectors.
 

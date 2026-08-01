@@ -63,4 +63,4 @@ probes) and had no notion of "this red is deterministic and structural."
 - `internal/plugins/{ospf,isis}/spf_wiring.go` (import path), `.../spf/install.go` (comments)
 - `scripts/dev/commit_helper.py` (`STRUCTURAL_GATES`, `structural_gate_reds`, `create` gate)
 - `scripts/dev/commit_helper_test.go` (`TestCommitHelperStructuralGateNotBypassable`)
-- `ai/rules/git-safety.md`, `plan/known-failures.md`
+- `ai/rules/git-safety.md`, `plan/known-failures/RESOLVED.md`

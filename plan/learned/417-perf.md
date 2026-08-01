@@ -34,7 +34,7 @@ Operators comparing BGP implementations (Ze, GoBGP, FRR, BIRD) lacked a standard
 ## Files
 
 - `cmd/ze-perf/main.go`, `run.go`, `report.go`, `track.go` -- CLI binary
-- `cmd/ze-perf/main_test.go` -- CLI exit code and help tests
+- `internal/perf/cli/cmd_test.go` -- CLI exit code and help tests
 - `internal/perf/benchmark.go` -- RunBenchmark orchestrator
 - `internal/perf/sender.go`, `receiver.go`, `session.go` -- BGP peer simulation
 - `internal/perf/routes.go` -- deterministic route generation

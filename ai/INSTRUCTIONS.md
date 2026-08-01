@@ -299,13 +299,30 @@ means "no rule applies".
 | Understand architecture or how Ze diverges from standard Go | `docs/architecture/core-design.md`, `ai/rules/ze-divergences.md` |
 | Check past decisions or known traps | `ai/LEARNED-INDEX.md` -> `plan/learned/`, `plan/learned/RECURRING-PATTERNS.md`, `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md` |
 
-## Every Rule's Directives (loaded below)
+## Every Rule's Trigger (loaded below)
 
-The condensed directive core of **every** rule under `ai/rules/` is imported
-here, so this session already holds them -- you do not need to open each rule
-to know its directives. The `INDEX.md` dispatch above still applies: open a
-rule's **full** file for nuance, examples, and rationale before acting on its
-topic. The digest is generated (`make ze-rules-condensed`) from the canonical
-rule format (`ai/rules/rule-format.md`); never edit it by hand.
+Two generated files load here. Never edit either one by hand.
 
-@ai/rules/CONDENSED.md
+`ai/rules/TRIGGERS.md` names **every** rule under `ai/rules/`, one line each,
+carrying the rule's path, its severity, and the situation that makes it apply.
+It is a routing index. It does not carry the rules.
+
+**When a trigger matches the work in hand, READ that rule's file at
+`ai/rules/<name>.md` before you act on its topic.** The trigger line is all this
+session holds about that rule. Its directives are one Read away, and they are
+not loaded until you open them. A rule you never read is a rule you never
+followed.
+
+`ai/rules/CORE.md` carries the full directives of the always-on rules. Those
+apply before the shape of a task is known, so they sit behind no trigger. The
+index marks them `always-on`, and such a rule needs no read.
+
+`ai/rules/CONDENSED.md` still holds every rule's directives in one file, and it
+is NOT loaded. Open it when several triggers match at once.
+
+All three come from one parse by `make ze-rules-condensed`, in the canonical
+rule format (`ai/rules/rule-format.md`). The "Before You..." dispatch above
+still applies, and so does `ai/rules/INDEX.md`.
+
+@ai/rules/TRIGGERS.md
+@ai/rules/CORE.md

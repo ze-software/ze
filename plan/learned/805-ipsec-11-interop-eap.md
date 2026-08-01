@@ -53,3 +53,7 @@ validated against strongSwan in Docker interop lab.
   EAP willingness. The existing `buildAuthRequest` always included AUTH, requiring a
   conditional path.
 - Message ID must increment across EAP round-trips within the same IKE_AUTH exchange.
+
+## Files
+
+None recorded.

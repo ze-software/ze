@@ -51,6 +51,6 @@ meant duplicating the logic in both paths.
 - `internal/component/command/valuehints.go` -- WireValueHints, FamilyValueHints, LevelValueHints
 - `internal/component/plugin/registry/registry.go` -- RegisterBuiltinFamilies, FamilyMap includes builtins
 - `internal/component/bgp/message/family.go` -- registers builtin families at init
-- `cmd/ze/completion/words.go` -- replaced manual walk with TreeCompleter delegation
-- `cmd/ze/cli/main.go` -- wireValueHints, familyValueHints, levelValueHints
+- `internal/plugins/completion/words.go` -- replaced manual walk with TreeCompleter delegation
+- `internal/component/cli/client/main.go` -- wireValueHints, familyValueHints, levelValueHints
 - `test/ui/completion-words-values.ci` -- functional test

@@ -1,6 +1,6 @@
 # 448 — Handler Reorg: BGP Commands into Self-Contained Plugin Folders
 
-## Objective
+## Context
 
 Move 28 BGP command handler RPCs from the monolithic `internal/component/bgp/handler/` into three self-contained plugin folders under `bgp/plugins/`, each with its own YANG schema, tests, and helpers. Deleting a folder must not break anything.
 
@@ -29,4 +29,4 @@ Move 28 BGP command handler RPCs from the monolithic `internal/component/bgp/han
 
 - Created: `bgp/plugins/bgp-cmd-peer/` (14 files), `bgp-cmd-ops/` (15 files), `bgp-cmd-update/` (13 files)
 - Deleted: `bgp/handler/` (16 files)
-- Modified: `reactor/reactor.go`, `cmd/ze/cli/main.go` (blank imports), `plugin/server/*.go` (stale refs), `bgp-rib/protocol_test.go` (count), `cli/main_test.go`, `run/main_test.go` (remove rib expectations)
+- Modified: `reactor/reactor.go`, `internal/component/cli/client/main.go` (blank imports), `plugin/server/*.go` (stale refs), `bgp-rib/protocol_test.go` (count), `cli/main_test.go`, `run/main_test.go` (remove rib expectations)

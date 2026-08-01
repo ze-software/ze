@@ -32,8 +32,8 @@ The kernel FIB backend had a richRouteBackend interface supporting route type (b
 - `internal/plugins/fib/vpp/backend.go` -- vppRichRoute, richRouteAddDel, routeTypeToVPP, mock recording types
 - `internal/plugins/fib/vpp/fibvpp.go` -- hasRichFields dispatch, installedRoute tracking, delVPPRoute stored-tableID lookup
 - `internal/plugins/fib/vpp/fibvpp_test.go` -- 7 new tests (route type, metric, table, stored-tableID delete, update)
-- `internal/plugins/sysrib/sysrib.go` -- showNHTable(), showECMPGroups()
-- `internal/plugins/sysrib/register.go` -- show rib/nexthop-table/ecmp-groups commands
+- `internal/component/sysrib/sysrib.go` -- showNHTable(), showECMPGroups()
+- `internal/component/sysrib/register.go` -- show rib/nexthop-table/ecmp-groups commands
 - `test/plugin/fib-recursive.ci` -- functional test for recursive NH and all three show commands
 - `docs/architecture/core-design.md` -- NH resolution layer and rich route backend docs
 - `docs/comparison.md` -- recursive NH, IGP cost rows; ECMP Partial->Yes

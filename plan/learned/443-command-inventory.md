@@ -27,6 +27,6 @@ Ze had no way to list all registered commands programmatically. The command tree
 
 ## Files
 
-- `scripts/command_inventory.go` -- command inventory tool (new)
+- `scripts/inventory/commands.go` -- command inventory tool (new)
 - `internal/component/plugin/server/handler.go` -- `StreamingPrefixes()` accessor (new)
 - `Makefile` -- `ze-command-list` and `ze-command-list-json` targets (new)

@@ -128,15 +128,31 @@ still missing, go back: this skill does not implement.
    Running the commit script finishes the work. There is no step 7. The script is the
    final action. Everything below MUST be in that single script.
 
-   a. Reserve the number and create the file: `python3 scripts/dev/commit_helper.py learned-next <spec-stem>` allocates NNN (max(existing `plan/learned/NNNN-*.md` prefixes) + 1) and creates `plan/learned/NNN-<spec-stem>.md` immediately, so concurrent sessions in one tree cannot collide. Write the learned summary into that file following `plan/learned/METHODOLOGY.md`.
-      Use the extraction recipe: Context from Task + Current Behavior, Decisions from Key Design Decisions + annotations, Consequences from Design Insights + Limitations, Gotchas from Deviations + Mistake Log.
+   a. **Ask whether there is a lesson, THEN allocate.** A learned summary records
+      what the code cannot tell a future reader. It is not an artifact of closing a
+      spec, so a spec that produced no such knowledge writes no file at all: no
+      number is allocated, nothing is created, and commit A carries the reason
+      instead (`plan/learned/METHODOLOGY.md`, "When No Summary Is Written").
+      Answer this first, from the finished work: does this spec leave a decision
+      with a rejected alternative, a constraint discovered, or a trap that would
+      catch the next session? A "Gotchas: None." with nothing above it is the
+      answer being no.
+      - **Yes, there is a lesson:** `python3 scripts/dev/commit_helper.py learned-next <spec-stem>` allocates NNN (max(existing `plan/learned/NNNN-*.md` prefixes) + 1) and creates `plan/learned/NNN-<spec-stem>.md` immediately, so concurrent sessions in one tree cannot collide. Write the summary into that file following `plan/learned/METHODOLOGY.md`.
+        Use the extraction recipe: Context from Task + Current Behavior, Decisions from Key Design Decisions + annotations, Consequences from Design Insights + Limitations, Gotchas from Deviations + Mistake Log.
+      - **No, there is none:** create nothing. Do not run `learned-next` -- it
+        allocates and writes on the spot, so calling it to "see the number" leaves
+        an empty summary behind. Carry the reason on commit A instead (step 6e).
+      The commit helper asks the same question of the diff and will refuse commit A
+      if the change adds content and neither a summary nor a reason is present, so
+      an honest "no" costs one flag and a dishonest one is caught.
    b. Update `ai/LEARNED-INDEX.md` if the summary contains a structural decision (not just task completion).
    c. Release this session's spec claim: `scripts/dev/spec-session.sh release`. This also frees a slot against the WIP cap (`scripts/dev/spec-session.sh wip`).
    d. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
    e. Prepare ONE commit script with `scripts/dev/commit_helper.py` that produces TWO commits:
-      - **Commit A (implementation + spec):** run `scripts/dev/commit_helper.py create --replace` with `--file` for every implementation file (code, tests, docs, schema), `plan/learned/NNN-<spec-stem>.md`, `ai/LEARNED-INDEX.md` if updated, and `plan/<spec-name>` to preserve all implementation edits in git history.
+      - **Commit A (implementation + spec):** run `scripts/dev/commit_helper.py create --replace` with `--file` for every implementation file (code, tests, docs, schema), `plan/learned/NNN-<spec-stem>.md` when step 6a wrote one, `ai/LEARNED-INDEX.md` if updated, and `plan/<spec-name>` to preserve all implementation edits in git history.
       - **Commit B (spec closure):** run `scripts/dev/commit_helper.py create --append --remove plan/<spec-name>` with the spec closure commit message.
-      - Use `--lesson-required` for Commit A. Use `--lesson-not-needed "spec closure only; lesson is in Commit A"` for Commit B.
+      - **Lesson flags follow step 6a's answer, and commit A never passes `--lesson-required`.** That flag is the operator demanding a summary; passing it on every closure is what made the summary unconditional. When a summary was written, `--file` on it is the whole story. When none was, pass `--lesson-not-needed "<why this spec taught nothing reusable>"` and say what the work was, not that a spec closed.
+      - Commit B removes a spec and adds nothing, so the helper asks it for nothing. Pass `--lesson-not-needed "spec closure only; lesson is in Commit A"` only when commit A actually carried a summary.
       - The helper owns the session ID, message files, executable script, ignored-path rejection, `git commit -F`, and learned-summary checks.
    f. Run the generated script yourself (`bash tmp/commit-<SESSION>.sh`), then report the resulting commit SHA(s), the script path, message files, commit subjects, and included files. This is the end.
 

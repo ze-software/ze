@@ -657,7 +657,8 @@ ze-regen: generate ze-rules-condensed ze-ai-instructions ze-ai-sync ze-doc-index
 #   fuzz-targets.py   -> mk/test-fuzz-targets.mk             -> ze-fuzz-targets-check
 #   code_to_docs.py   -> ai/CODE-TO-DOCS.md                  -> ze-doc-check-stale
 #   rules_index.py    -> ai/rules/INDEX.md                   -> ze-rules-index-check
-#   rules_condensed.py-> ai/rules/CONDENSED.md               -> ze-rules-condensed-check
+#   rules_condensed.py-> ai/rules/CONDENSED.md, TRIGGERS.md,
+#                        ai/rules/CORE.md                    -> ze-rules-condensed-check
 #   arch_map.py       -> arch lists in ai/INSTRUCTIONS.md    -> ze-arch-map-check
 #   package_map.py    -> ai/PACKAGE-MAP.md                   \
 #   docs_to_code.py   -> ai/DOCS-TO-CODE.md                   > ze-discovery-index-check

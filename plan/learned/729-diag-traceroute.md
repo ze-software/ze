@@ -26,15 +26,15 @@ Gokrazy appliances have no `traceroute` binary. Ze already had a `ze traceroute`
 
 ## Files
 
-- `internal/component/cmd/show/traceroute.go` (created)
-- `internal/component/cmd/show/traceroute_test.go` (created)
+- `internal/component/traceroute/cmd/traceroute.go` (created)
+- `internal/component/traceroute/cmd/traceroute_test.go` (created)
 - `internal/component/cmd/show/show.go` (modified: RPC registration, argTimeout constant)
-- `internal/component/cmd/show/ping.go` (modified: use argTimeout, add Related comments)
-- `internal/component/cmd/show/tcp_check.go` (modified: use argTimeout)
+- `internal/component/ping/cmd/ping.go` (modified: use argTimeout, add Related comments)
+- `internal/plugins/diag/cmd/tcp_check.go` (modified: use argTimeout)
 - `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` (modified: traceroute container)
-- `cmd/ze/diag/diag.go` (modified: removed tracerouteSpec and RunTraceroute)
-- `cmd/ze/diag/register.go` (modified: removed traceroute registration)
-- `cmd/ze/diag/diag_test.go` (modified: removed RunTraceroute test)
+- `internal/plugins/diag/diag.go` (modified: removed tracerouteSpec and RunTraceroute)
+- `internal/plugins/diag/register.go` (modified: removed traceroute registration)
+- `internal/plugins/diag/diag_test.go` (modified: removed RunTraceroute test)
 - `cmd/ze/main.go` (modified: updated comments)
 - `ai/patterns/cli-command.md` (modified: updated diag register.go description)
 - `test/plugin/show-traceroute.ci` (created)

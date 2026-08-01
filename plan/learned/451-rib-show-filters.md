@@ -1,6 +1,6 @@
 # 451 — rib-show-filters
 
-## Objective
+## Context
 
 Add community and AS-path regex filters to `rib show in` and `rib show best` commands, enabling VyOS-style route filtering: `rib show in community 65000:100` and `rib show in regexp "64501 64502"`.
 

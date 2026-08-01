@@ -36,6 +36,6 @@ ZeFS blob keys (`meta/ssh/username`, `meta/history/{user}/{mode}`, `file/active/
 - `pkg/zefs/registry.go` -- KeyEntry, MustRegister, Entries, AllEntries, IsRegistered
 - `pkg/zefs/keys.go` -- 13 key registrations
 - `pkg/zefs/registry_test.go` -- 17 tests
-- `cmd/ze/data/main.go` -- `ze data registered` subcommand
-- `cmd/ze/environ/main.go` -- `ze env registered` subcommand, bare `ze env` now shows usage
+- `internal/component/config/storage/cli/main.go` -- `ze data registered` subcommand
+- `internal/plugins/env/env.go` -- `ze env registered` subcommand, bare `ze env` now shows usage
 - 11 consumer files migrated from hardcoded strings to registry references

@@ -26,3 +26,7 @@ Key design choices:
 - FlowSpec Type 4 (Port = src OR dst) requires two nftables terms per rule, since nftables AND-s matches within a term. The bridge splits them automatically.
 - Term ordering in chains must be deterministic (sorted by name hash) since nftables evaluates rules sequentially and overlapping rules from different peers would otherwise have unpredictable priority across restarts.
 - `buildTable` iterates Go maps (non-deterministic) so explicit sorting is mandatory before building the chain term list.
+
+## Files
+
+None recorded.

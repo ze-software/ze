@@ -57,14 +57,14 @@ for all Ze components.
 
 ## Files
 
-- `internal/component/dns/cache.go` -- O(1) LRU cache with TTL, struct keys, container/list
-- `internal/component/dns/cache_test.go` -- 11 cache tests (including concurrent, overwrite, TTL=0)
-- `internal/component/dns/resolver.go` -- miekg/dns client with cache integration
-- `internal/component/dns/resolver_test.go` -- 19 resolver tests (A/AAAA/TXT/PTR/CNAME/MX/NS/SRV)
+- `internal/component/resolve/dns/cache.go` -- O(1) LRU cache with TTL, struct keys, container/list
+- `internal/component/resolve/dns/cache_test.go` -- 11 cache tests (including concurrent, overwrite, TTL=0)
+- `internal/component/resolve/dns/resolver.go` -- miekg/dns client with cache integration
+- `internal/component/resolve/dns/resolver_test.go` -- 19 resolver tests (A/AAAA/TXT/PTR/CNAME/MX/NS/SRV)
 - `internal/component/dns/yang/ze-dns-conf.yang` -- YANG config schema
 - `internal/component/dns/yang/embed.go` -- embedded YANG file
 - `internal/component/dns/yang/register.go` -- YANG module registration
 - `internal/component/dns/yang/schema_test.go` -- 2 schema validation tests
 - `internal/component/config/yang_schema.go` -- added DNS module loading
 - `internal/component/plugin/all/all.go` -- regenerated with DNS schema import
-- `test/parse/dns-config.ci` -- functional test for config parsing
+- `test/parse/system-dns-tuning.ci` -- functional test for config parsing

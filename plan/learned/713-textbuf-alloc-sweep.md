@@ -50,3 +50,7 @@ eliminated all `strconv.Itoa` + concat patterns and enhanced the `textbuf` libra
 295 `fmt.Sprintf` remain, all using `%v`, `%T`, `%q`, `%x`, `%X`, or width-padded
 formats that require the `fmt` reflection machinery. No further reduction possible
 without removing functionality.
+
+## Files
+
+None recorded.

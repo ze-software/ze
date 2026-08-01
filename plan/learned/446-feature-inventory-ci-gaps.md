@@ -1,6 +1,6 @@
 # 446 — Feature Inventory and .ci Coverage Gaps
 
-## Objective
+## Context
 
 Create a comprehensive feature inventory cross-referenced against .ci functional test coverage to identify gaps, and promote `ze status` to a top-level command.
 
@@ -25,7 +25,7 @@ Create a comprehensive feature inventory cross-referenced against .ci functional
 ## Files
 
 - `docs/features.md` — comprehensive feature inventory
-- `docs/ci-test-coverage.md` — gap analysis with priority tiers
+- `docs/contributing/ci-test-coverage.md` — gap analysis with priority tiers
 - `cmd/ze/main.go` — added `status` top-level dispatch
-- `cmd/ze/signal/main.go` — moved status to `RunStatus()`, removed from `Run()`
-- `cmd/ze/completion/bash.go`, `zsh.go` — updated command lists
+- `internal/plugins/signal/main.go` — moved status to `RunStatus()`, removed from `Run()`
+- `internal/plugins/completion/bash.go`, `zsh.go` — updated command lists

@@ -37,6 +37,9 @@ import re
 import sys
 from pathlib import Path
 
+# Generated aggregates are not rules. Recognised by SHAPE (an all-caps stem, the
+# repo's convention for INDEX.md / CONDENSED.md / TRIGGERS.md / CORE.md) as well
+# as by name, so a new artifact is never linted as a malformed rule.
 SKIP = {"INDEX.md", "CONDENSED.md"}
 SEVERITIES = {"blocking", "advisory"}
 
@@ -299,7 +302,7 @@ def main():
     failures = {}
     n = 0
     for md in sorted(rules_dir.glob("*.md")):
-        if md.name in SKIP:
+        if md.name in SKIP or md.stem.isupper():
             continue
         n += 1
         problems = check_rule(md)

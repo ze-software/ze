@@ -25,3 +25,7 @@ Plugin declarations lived under a single YANG list named `external`. Whether a p
 - **Validator registration test is fragile.** `TestCheckAllValidatorsRegistered_AllPresent` hardcodes every `ze:validate` name. Adding a new `ze:validate` to any YANG file requires updating that test.
 - **Map iteration order.** `GetList("internal")` returns a Go map; plugin slice order is non-deterministic. Downstream code (plugin server startup) is resilient to this, but slice-position assertions in tests would flake.
 - **`internal` list has only `name` + `use`.** No `encoder`, `respawn`, or `timeout` leaves. Converting existing `external { use X; encoder json }` to `internal` means dropping the `encoder` line (internal plugins don't use wire encoding).
+
+## Files
+
+None recorded.

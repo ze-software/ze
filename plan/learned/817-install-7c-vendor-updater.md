@@ -30,11 +30,11 @@ spec-install-7c: replace raw HTTP PUT push with vendored gokrazy updater library
 | nil body instead of http.NoBody | gocritic httpNoBody lint | Replaced nil with http.NoBody on 4 POST/GET requests |
 | for loop in Supports instead of slices.Contains | modernize lint | Used slices.Contains |
 
-## Files Created
+## Files
 
 - `cmd/ze/install/appliance/updater/updater.go` (~270L): vendored gokrazy updater library
 
 ## Files Modified
 
-- `cmd/ze/install/appliance/cmd_push.go`: replaced doPush with doPushUpdater using updater API; added authTransport, pushOpts, --testboot/--no-reboot flags
-- `cmd/ze/install/appliance/cmd_push_test.go`: rewrote mock server to speak updater protocol; added TestPushTestboot, TestPushNoReboot, TestPushHashVerification, TestAuthTransport
+- `internal/appliance/cmd_push.go`: replaced doPush with doPushUpdater using updater API; added authTransport, pushOpts, --testboot/--no-reboot flags
+- `internal/appliance/cmd_push_test.go`: rewrote mock server to speak updater protocol; added TestPushTestboot, TestPushNoReboot, TestPushHashVerification, TestAuthTransport

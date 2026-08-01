@@ -59,3 +59,7 @@ computes neutral FACTS; detection plugins apply JUDGMENT + own RESPONSE.**
   header; test-first is enforced (write `_test.go` before impl); test files need
   `VALIDATES:/PREVENTS:` headers; `goconst`/`intrange`/`unparam` fire on the first write.
   Pair each test with its impl file so the package compiles between steps.
+
+## Files
+
+None recorded.

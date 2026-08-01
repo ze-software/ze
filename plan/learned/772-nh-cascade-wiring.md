@@ -25,8 +25,8 @@ The nhResolver already provided Track/Untrack/Dependents for dependency tracking
 
 ## Files
 
-- `internal/plugins/sysrib/sysrib.go` -- Track/Untrack, cascade worker, async OnChange, resolvedNH, cascadeRecompute, ecmpCollectResolved, processLocRIBChange
-- `internal/plugins/sysrib/nhresolver.go` -- CoveredNHs, familyForPrefix
-- `internal/plugins/sysrib/sysrib_test.go` -- TestNHCascadeWithdraw, TestNHCascadeCostChange, TestECMPMemberFail, TestNHCascadeRestore
-- `internal/plugins/sysrib/nhresolver_test.go` -- TestNHResolver_CoveredNHs
+- `internal/component/sysrib/sysrib.go` -- Track/Untrack, cascade worker, async OnChange, resolvedNH, cascadeRecompute, ecmpCollectResolved, processLocRIBChange
+- `internal/component/sysrib/nhresolver.go` -- CoveredNHs, familyForPrefix
+- `internal/component/sysrib/sysrib_test.go` -- TestNHCascadeWithdraw, TestNHCascadeCostChange, TestECMPMemberFail, TestNHCascadeRestore
+- `internal/component/sysrib/nhresolver_test.go` -- TestNHResolver_CoveredNHs
 - `internal/core/rib/locrib/manager.go` -- LPM race fix

@@ -1,6 +1,6 @@
 # 411 -- Peer Selector ASN + Dynamic Completion
 
-## Objective
+## Context
 
 Add ASN-based peer selection (`as<N>` format) to CLI commands and dynamic peer selector tab-completion for `ze show`/`ze run`.
 
@@ -31,6 +31,6 @@ Add ASN-based peer selection (`as<N>` format) to CLI commands and dynamic peer s
 - `internal/component/plugin/server/command.go` -- `looksLikeASNSelector()`, wired into `Dispatch()`
 - `internal/component/bgp/reactor/reactor_api.go` -- ASN branch in `getMatchingPeersLocked()`
 - `internal/component/bgp/plugins/cmd/peer/peer.go` -- ASN branch in `filterPeersBySelector()`
-- `cmd/ze/completion/peers.go` -- `ze completion peers` subcommand
-- `cmd/ze/completion/bash.go`, `zsh.go`, `fish.go`, `nushell.go` -- shell script peer selector integration
+- `internal/plugins/completion/peers.go` -- `ze completion peers` subcommand
+- `internal/plugins/completion/bash.go`, `zsh.go`, `fish.go`, `nushell.go` -- shell script peer selector integration
 - `test/plugin/peer-selector-asn.ci` -- functional test

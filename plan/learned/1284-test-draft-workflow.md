@@ -90,3 +90,7 @@ test, where every concurrent verify in the tree would have picked it up.
 - `ai/rules/testing.md` -- the blocking directive
 - `test/draft/README.md` -- the contract, including the gate table
 - `docs/functional-tests.md` -- "Writing a Test: Draft First"
+
+## Files
+
+None recorded.

@@ -48,3 +48,7 @@ fixed it. See `feedback_sleep_hides_races`.
 Scope note: `exabgp/bridge` sleep conversions were left uncommitted because
 `bridge_test.go` was simultaneously edited by concurrent SR-Policy work and
 could not be cleanly separated with `git add` (whole-file staging).
+
+## Files
+
+None recorded.

@@ -61,3 +61,7 @@ machine-readable help JSON, and bundled skills served by the binary.
   moving them to a different file. When relocating tests, create the new file first,
   then leave the original in place (duplicated tests are caught by the compiler if
   they share a package).
+
+## Files
+
+None recorded.

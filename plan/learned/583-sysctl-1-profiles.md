@@ -59,11 +59,11 @@ with named declarations.
 - `internal/core/sysctl/conflicts.go` -- ConflictRule, CheckConflicts
 - `internal/core/sysctl/profile_test.go` -- 14 profile/conflict tests
 - `internal/core/sysctl/known_linux.go` -- log_martians per-interface template
-- `internal/plugins/sysctl/sysctl.go` -- setDefault same-value, clearProfileDefaults, checkProfileConflicts, profile CLI
-- `internal/plugins/sysctl/register.go` -- profile parsing, event handlers, daemon commands
-- `internal/plugins/sysctl/yang/ze-sysctl-conf.yang` -- profile list in sysctl container
+- `internal/component/sysctl/sysctl.go` -- setDefault same-value, clearProfileDefaults, checkProfileConflicts, profile CLI
+- `internal/component/sysctl/register.go` -- profile parsing, event handlers, daemon commands
+- `internal/component/sysctl/yang/ze-sysctl-conf.yang` -- profile list in sysctl container
 - `internal/component/iface/config.go` -- SysctlProfiles field, applySysctlProfiles
 - `internal/component/iface/yang/ze-iface-conf.yang` -- sysctl-profile leaf-list
 - `internal/component/cli/model_commands.go` -- commit force, commitSaveAndReload
 - `internal/component/cli/model_load.go` -- cmdCommitConfirmed force parameter
-- `cmd/ze/sysctl/main.go` -- list-profiles, describe-profile offline CLI
+- `internal/component/sysctl/cli/main.go` -- list-profiles, describe-profile offline CLI

@@ -71,3 +71,7 @@ test proves nothing about that component.
   ./cmd/ze-installer/`: clean. `make ze-lint-changed`: 0 issues.
 - End-to-end proof (box boots prod seed, external SSH on `0.0.0.0:21982`)
   requires a hardware redeploy on `ze-installer`; not claimed until observed.
+
+## Files
+
+None recorded.

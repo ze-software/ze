@@ -28,13 +28,13 @@
 
 ## Files
 
-- `cmd/ze/service/main.go` -- root dispatch, runtime abstraction, real OS operations
-- `cmd/ze/service/cmd_install.go` -- install flags, prerequisites, user/group creation, chown, systemctl enable/start
-- `cmd/ze/service/cmd_uninstall.go` -- stop, disable, remove, daemon-reload
+- `internal/plugins/systemd/main.go` -- root dispatch, runtime abstraction, real OS operations
+- `internal/plugins/systemd/cmd_install.go` -- install flags, prerequisites, user/group creation, chown, systemctl enable/start
+- `internal/plugins/systemd/cmd_uninstall.go` -- stop, disable, remove, daemon-reload
 - `cmd/ze/service/cmd_status.go` -- systemctl status wrapper
-- `cmd/ze/service/unit.go` -- systemd unit generation
-- `cmd/ze/service/main.go` -- platform gating via `runtime.GOOS`
+- `internal/plugins/systemd/unit.go` -- systemd unit generation
+- `internal/plugins/systemd/main.go` -- platform gating via `runtime.GOOS`
 - `cmd/ze/service/register.go` -- command registry metadata
 - `cmd/ze/main.go` -- top-level dispatch wiring
-- `cmd/ze/service/unit_test.go`, `cmd/ze/service/service_test.go` -- AC-linked unit tests
+- `internal/plugins/systemd/unit_test.go`, `internal/plugins/systemd/service_test.go` -- AC-linked unit tests
 - `test/ui/service-unit-gen.ci` -- functional dry-run coverage

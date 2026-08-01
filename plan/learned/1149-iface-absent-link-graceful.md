@@ -28,3 +28,7 @@ learned `1106`, real xl2tpd/pppd session 5/5 on the QEMU gokrazy appliance).
   an L2TP re-run that had already landed green in the receiving spec — a stale
   assumption is a closure smell; check the deferral destination's status before
   leaving one open.
+
+## Files
+
+None recorded.

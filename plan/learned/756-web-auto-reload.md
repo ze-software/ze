@@ -21,3 +21,7 @@ Key choices:
 ## Gotchas
 - The commit hook runs synchronously in the HTTP handler. A slow reload blocks the response. Acceptable because reload is fast (<100ms) and the alternative (async with no feedback) is worse.
 - `ike/engine` import was added to `main.go` in the same commit (unrelated side-by-side registration fix).
+
+## Files
+
+None recorded.

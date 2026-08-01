@@ -47,3 +47,7 @@ stored in a shared Bundle type deduped by BundlePool.
 - Cascade release: pool owns inner refs, releases them atomically when outer refcount
   hits zero. Mutex released before inner releases to prevent lock ordering issues.
 - RWMutex for read-heavy pool access (Get is the hot path, Intern/Release are write paths).
+
+## Files
+
+None recorded.

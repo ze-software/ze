@@ -39,7 +39,7 @@ Ze's live traffic data (per-interface rates, per-IP talker stats, per-port break
 
 - `internal/core/portname/portname.go`, `portname_test.go`, `services_table.go` (generated)
 - `internal/component/trafficstat/service.go`, `service_test.go`, `window.go`, `window_test.go`, `register.go`
-- `internal/component/trafficstat/cmd/traffic.go`, `cmd/render.go`, `cmd/yang/ze-traffic-stat-cmd.yang`
+- `internal/component/trafficstat/cmd/traffic.go`, `cmd/render.go`, `internal/component/trafficstat/cmd/yang/ze-traffic-stat-cmd.yang`
 - `internal/plugins/ddos/detect/detector.go`, `register.go`, `detector_test.go`
 - `internal/component/cli/contract/contract.go`, `model_monitor.go`, `model_keys.go`, `model_render.go`
 - `internal/component/plugin/server/handler.go`

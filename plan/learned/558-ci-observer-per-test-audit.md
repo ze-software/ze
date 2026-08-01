@@ -172,7 +172,7 @@ a clean starting point.
 - `internal/component/bgp/plugins/filter_community/filter_community.go`
   -- added `community ingress applied` info log in `ingressFilter`
   (3ece1c6d).
-- `plan/known-failures.md` -- deleted the "Observer-exit
+- `plan/known-failures/RESOLVED.md` -- deleted the "Observer-exit
   antipattern in plugin .ci tests" section and the
   "community-priority (logging_mismatch flake)" entry; added
   "Egress-filter tests need forwarding-plugin redesign" redesign note

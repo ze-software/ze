@@ -25,11 +25,11 @@ Gokrazy appliances lack `ip monitor` for observing kernel route, link, and addre
 
 ## Files
 
-- `internal/component/cmd/show/register_netlink_monitor.go` (created)
-- `internal/component/cmd/show/netlink_monitor_linux.go` (created)
-- `internal/component/cmd/show/netlink_monitor_other.go` (created)
-- `internal/component/cmd/show/netlink_monitor_test.go` (created)
-- `internal/component/cmd/show/netlink_monitor_linux_test.go` (created)
+- `internal/component/iface/cmd/monitor_netlink.go` (created)
+- `internal/component/iface/cmd/monitor_netlink_linux.go` (created)
+- `internal/component/iface/cmd/monitor_netlink_other.go` (created)
+- `internal/component/iface/cmd/monitor_netlink_test.go` (created)
+- `internal/component/iface/cmd/monitor_netlink_linux_test.go` (created)
 - `internal/component/bgp/plugins/cmd/monitor/yang/ze-monitor-cmd.yang` (modified)
 - `test/plugin/monitor-system-netlink.ci` (created)
 - `docs/architecture/api/commands.md` (modified)

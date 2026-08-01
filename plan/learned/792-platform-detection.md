@@ -19,3 +19,7 @@ Ze runs on gokrazy appliances, systemd hosts, containers, and plain Linux, but h
 - Doctor checks can now be platform-conditional (gokrazy /perm writability, container read-only root)
 - The `sectionDetectors` map auto-exposes `show host platform` and `ze host show platform` with no additional wiring
 - Future platform-specific behavior (config path selection, crash dir, resolv.conf path) can key off `PlatformInfo.Type` instead of ad-hoc file probes
+
+## Files
+
+None recorded.

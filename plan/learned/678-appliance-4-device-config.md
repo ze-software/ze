@@ -38,7 +38,7 @@ Final spec in the 4-part appliance series. Specs 1-3 covered build, backup, and 
 - HealthRevert wiring to reactor via PeerLifecycleObserver (blocked on real SSH config-push integration)
 - Functional .ci tests for boot with/without pushed config (gokrazy environment needed)
 
-## Files Created
+## Files
 
 - `cmd/ze/pushed_config.go` (70L): Pushed config loading, validation, active hash
 - `cmd/ze/pushed_config_test.go` (175L): 6 tests for boot scenarios

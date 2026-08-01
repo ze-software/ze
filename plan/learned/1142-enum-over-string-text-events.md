@@ -27,3 +27,7 @@ When a JSON field carries a fixed set of values but also needs to handle unknown
 4. All internal dispatch uses the typed field, never string comparison.
 
 This avoids the all-or-nothing choice between "change the JSON type" (breaks unknown values) and "keep everything as strings" (no type safety). `Event.Type` (string, any value) plus `Event.TypeKind` (EventKind, BGP values only) is the pattern.
+
+## Files
+
+None recorded.

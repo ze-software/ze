@@ -39,7 +39,7 @@ The `bgp monitor` command was a redirect to `event monitor` after the streaming 
 - `internal/component/cli/model_render.go` -- dashboard View() short-circuit
 - `internal/component/bgp/plugins/cmd/monitor/monitor.go` -- removed `bgp monitor` streaming redirect
 - `internal/component/ssh/session.go` -- DashboardFactory wiring in SSH sessions
-- `cmd/ze/cli/main.go` -- DashboardFactory wiring in local CLI
+- `internal/component/cli/client/main.go` -- DashboardFactory wiring in local CLI
 - `docs/architecture/api/commands.md` -- verb taxonomy documentation, monitor bgp entry
 - `docs/features.md` -- live peer dashboard feature
 - `test/plugin/bgp-monitor-dashboard.ci` -- functional test

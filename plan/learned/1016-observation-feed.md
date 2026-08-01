@@ -47,3 +47,7 @@ lost their tick-driven behavior. This was a latent defect.
   under `collectSubsMu` to avoid data races. Initially missed; fixed during review.
 - The `publishLocked` call in trafficusage runs under `m.mu`, so `Feed.Publish`
   must be non-blocking (it is by design). Same for `ExportFlows` under `e.mu`.
+
+## Files
+
+None recorded.

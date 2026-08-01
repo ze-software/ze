@@ -40,7 +40,7 @@ Real observations from the deep review that sit outside the pol-4 dry-run change
 
 | File | Role |
 |------|------|
-| `internal/component/cmd/show/show_policy_test_cmd.go` | Handler: argument parsing, hex validation, reactor dispatch |
+| `internal/component/bgp/plugins/cmd/policy/handler.go` | Handler: argument parsing, hex validation, reactor dispatch |
 | `internal/component/cmd/show/show_policy_test_cmd_test.go` | Unit tests: parsing, bad hex rejection |
 | `internal/component/bgp/reactor/policy_dryrun.go` | Reactor: TracePolicyFilterChain, PolicyDryRun method, helpers |
 | `internal/component/bgp/reactor/policy_dryrun_test.go` | Unit tests: trace chain, filter override, changed attrs |

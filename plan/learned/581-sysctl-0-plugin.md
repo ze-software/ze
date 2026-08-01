@@ -57,8 +57,8 @@ Backend interface.
 - `internal/core/sysctl/known.go`, `known_test.go` -- known keys registry
 - `internal/plugins/sysctl/` -- plugin: sysctl.go, backend*.go, register.go, known_*.go, schema/
 - `internal/component/plugin/events.go` -- NamespaceSysctl + 9 event types
-- `internal/plugins/fibkernel/fibkernel.go` -- emitForwardingDefaults
-- `internal/plugins/fibkernel/register.go` -- sysctl dependency
+- `internal/plugins/fib/kernel/fibkernel.go` -- emitForwardingDefaults
+- `internal/plugins/fib/kernel/register.go` -- sysctl dependency
 - `internal/component/iface/config.go` -- applySysctl rewritten to EventBus
 - `internal/component/iface/backend.go` -- 10 sysctl methods removed
 - `internal/component/iface/register.go` -- sysctl dependency

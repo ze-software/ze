@@ -1,6 +1,6 @@
 # 412 -- RPKI Test Isolation
 
-## Objective
+## Context
 
 Fix intermittent rpki-decorator functional test failures (tests 132-135) when run as part of the full plugin suite.
 

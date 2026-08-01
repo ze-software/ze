@@ -48,3 +48,7 @@ When adding a new RPC:
 3. Add `fromProto*` in `grpc/convert.go`
 4. Add `fromREST*` in `rest/convert.go`
 5. Handler becomes: validate input, convert, call engine, convert response
+
+## Files
+
+None recorded.

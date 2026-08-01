@@ -68,6 +68,6 @@ RESV refresh, AC-6 link-failure handling, AC-9 ERO/RRO display.
   out of reach, for lack of any open-source RSVP-TE peer.
 
 ## Files
-- `internal/component/rsvpte/engine.go` (sendResv, handleLinkDown, RRO recording), `register.go` (parser fix, refreshPaths, link-down subscription, show ERO/RRO), `build.go` (RRO encode, ErrValueNoRouteAvailable), `rro.go` (+test), `doctor*.go` (+tests), `cmd_show.go` (+test), `config_test.go`, `refresh_rro_test.go`, `linkdown_test.go`, `interop_test.go` (ze-to-ze interop: setup/transit/patherr/teardown/refresh/admission/reroute), `register_test.go` (tunnel reconcile + concurrent-with-signaling race); `reroute.go` (`teardownLSP`); register.go `reconcileTunnels`/`tunnelKey` + OnConfigApply reload reconciliation
+- `internal/plugins/rsvpte/engine.go` (sendResv, handleLinkDown, RRO recording), `register.go` (parser fix, refreshPaths, link-down subscription, show ERO/RRO), `build.go` (RRO encode, ErrValueNoRouteAvailable), `rro.go` (+test), `doctor*.go` (+tests), `cmd_show.go` (+test), `config_test.go`, `refresh_rro_test.go`, `linkdown_test.go`, `interop_test.go` (ze-to-ze interop: setup/transit/patherr/teardown/refresh/admission/reroute), `register_test.go` (tunnel reconcile + concurrent-with-signaling race); `reroute.go` (`teardownLSP`); register.go `reconcileTunnels`/`tunnelKey` + OnConfigApply reload reconciliation
 - `internal/core/diagnostic/codes.go` (`doctor-rsvpte-rawsock-unavailable`)
 - `internal/test/cli/register.go` (`ze-test rsvpte`); `test/rsvpte/*.ci`

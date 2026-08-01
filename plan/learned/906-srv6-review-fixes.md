@@ -54,3 +54,7 @@ Pattern: computed state (resolvedNH) should only be persisted after all gates
 - `internal/component/bgp/plugins/rib/pool/srv6sid.go`
 - `internal/component/bgp/plugins/rib/rib_bestchange.go`
 - `internal/plugins/sysrib/sysrib.go`
+
+## Files
+
+None recorded.

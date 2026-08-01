@@ -55,8 +55,8 @@ annotation, every YANG node deactivatable by default.
 - `internal/component/cli/editor.go` -- new `WalkPathWithSchema`, `LookupSchemaNode` (terminal-leaf), `ResolveLeafListValue` (extracted from Model)
 - `internal/component/cli/editor_commands.go` -- new `DeactivateLeaf` / `ActivateLeaf` wrappers around `Tree.SetLeafInactive`/`ClearLeafInactive`
 - `internal/component/cli/model_commands.go` -- TUI `cmdDeactivate` / `cmdActivate` route leaf paths to the new Editor methods; positional-list constraint message refined; `resolveLeafListValue` simplified to delegate to `Editor.ResolveLeafListValue`
-- `cmd/ze/config/cmd_deactivate.go` -- new file, one-shot CLI verbs sharing the same `runDeactivateLike` flow; AC-8 idempotency via `errAlreadyInState` sentinel; AC-12 positional-list reject
-- `cmd/ze/config/main.go`, `cmd/ze/config/register.go` -- register the new verbs in `storageHandlers` and the help / `Subs` listings
+- `internal/component/config/cli/cmd_deactivate.go` -- new file, one-shot CLI verbs sharing the same `runDeactivateLike` flow; AC-8 idempotency via `errAlreadyInState` sentinel; AC-12 positional-list reject
+- `internal/component/config/cli/main.go`, `internal/component/config/cli/register.go` -- register the new verbs in `storageHandlers` and the help / `Subs` listings
 - `docs/architecture/config/syntax.md` -- new "Inactive prefix" section formalizes the previously-undocumented grammar; set-format `inactive <path>` line documented
 - `docs/guide/config-deactivate.md` -- new user guide
 - `docs/features.md` -- new entry for the feature

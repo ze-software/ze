@@ -29,5 +29,5 @@ Ze had 14 static `usage()` functions hardcoding command lists across `cmd/ze/*/m
 ## Files
 
 - `internal/component/command/node.go` -- removed `rpc.Help` assignment from `BuildTree()`
-- `cmd/ze/cli/main.go` -- removed `Help:` from RPCInfo literals, removed dead `yangDescription()` function
+- `internal/component/cli/client/main.go` -- removed `Help:` from RPCInfo literals, removed dead `yangDescription()` function
 - `test/parse/cli-validate-config.ci` -- new functional test for `ze validate config <file>` verb dispatch

@@ -49,12 +49,12 @@ records without a running daemon.
 
 ## Files
 
-- `cmd/ze/resolve/main.go` -- dispatch + help
-- `cmd/ze/resolve/cmd_dns.go` -- DNS handler with `--server`
-- `cmd/ze/resolve/cmd_cymru.go` -- Cymru handler with `--dns-server`
-- `cmd/ze/resolve/cmd_peeringdb.go` -- PeeringDB handler with `--url`
-- `cmd/ze/resolve/cmd_irr.go` -- IRR handler with `--server`
-- `cmd/ze/resolve/resolve_test.go` -- 13 end-to-end tests with fake servers
+- `internal/component/resolve/cli/main.go` -- dispatch + help
+- `internal/component/resolve/cli/cmd_dns.go` -- DNS handler with `--server`
+- `internal/component/resolve/cli/cmd_cymru.go` -- Cymru handler with `--dns-server`
+- `internal/component/resolve/cli/cmd_peeringdb.go` -- PeeringDB handler with `--url`
+- `internal/component/resolve/cli/cmd_irr.go` -- IRR handler with `--server`
+- `internal/component/resolve/cli/resolve_test.go` -- 13 end-to-end tests with fake servers
 - `cmd/ze-test/cymru.go` -- fake Cymru DNS server
 - `cmd/ze-test/irr.go` -- fake IRR whois server
 - `cmd/ze-test/peeringdb.go` -- extended with `irr_as_set` field

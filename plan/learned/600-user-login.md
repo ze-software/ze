@@ -98,7 +98,7 @@ could type a clear password and have the daemon hash it on commit.
 ## Files
 
 - New: `internal/component/config/password_hash.go` + `password_hash_test.go`
-- New: `cmd/ze/passwd/main.go` + `main_test.go`
+- New: `internal/plugins/passwd/main.go` + `main_test.go`
 - New: `test/parse/{user-plaintext-password,user-bcrypt-password,user-plaintext-warning,passwd-helper}.ci`
 - New: `test/plugin/ssh-user-login-yang.ci`
 - New: `docs/guide/authentication.md`

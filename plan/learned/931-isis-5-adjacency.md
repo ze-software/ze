@@ -103,32 +103,32 @@ circuit/...` ok; the two-engine in-memory `TestISISAdjacencyUp` passes under
 -race; `golangci-lint run` on both packages exits 0.
 
 ## Files
-- `internal/component/isis/adjacency/adjacency.go`: State + Adjacency record
+- `internal/plugins/isis/adjacency/adjacency.go`: State + Adjacency record
   (SystemID/SNPA/Level/Areas/IPv4/IPv6/HoldExpiry/Priority + reported-state).
-- `internal/component/isis/adjacency/fsm.go` (+test): `ReceiveHello` (own-ID and
+- `internal/plugins/isis/adjacency/fsm.go` (+test): `ReceiveHello` (own-ID and
   too-many-areas guards, L1 area match, LAN/P2P bidirectionality, TLV 132/232
   next-hop store), `Expire`/`Down` hold-timer transitions, `classify`.
-- `internal/component/isis/adjacency/table.go` (+test): per-(SystemID,level)
+- `internal/plugins/isis/adjacency/table.go` (+test): per-(SystemID,level)
   keying, single-writer `Update`, grace-period reap, lock-free `(*Adjacency).
   Snapshot()` and `Table.Snapshot()`, `UpCount`, MaxNeighbors cap.
-- `internal/component/isis/circuit/circuit.go`: circuit struct, Sender/EventSink
+- `internal/plugins/isis/circuit/circuit.go`: circuit struct, Sender/EventSink
   interfaces.
-- `internal/component/isis/circuit/hello.go` (+test): LAN (0x0f/0x10) and P2P
+- `internal/plugins/isis/circuit/hello.go` (+test): LAN (0x0f/0x10) and P2P
   (0x11) IIH build with TLV 1/6/129/132/240, `padHello` (TLV 8 to MTU + PDU
   Length rewrite), `HoldTime` (interval*mult clamped).
-- `internal/component/isis/circuit/runtime.go` (+test): RX decode -> `HelloInput`
+- `internal/plugins/isis/circuit/runtime.go` (+test): RX decode -> `HelloInput`
   -> FSM, `SendHello`, `Sweep`, `Teardown`, `fireEvents` (outside the table lock).
-- `internal/component/isis/server.go` + `circuits.go`: IIH handler registration
+- `internal/plugins/isis/server.go` + `circuits.go`: IIH handler registration
   with the isis-4 dispatcher, ifindex->circuit routing (`handleIIH` passes
   `RawFrame.SrcMAC`), per-circuit Hello+sweep goroutine, metrics, merged
   `show isis neighbor` snapshot.
-- `internal/component/isis/events.go`: `SessionUp`/`SessionDown` typed handles +
+- `internal/plugins/isis/events.go`: `SessionUp`/`SessionDown` typed handles +
   `eventSink` adapter.
-- `internal/component/isis/transport/transport.go` (additive): `RawFrame.SrcMAC`,
+- `internal/plugins/isis/transport/transport.go` (additive): `RawFrame.SrcMAC`,
   `CircuitInfo`, `CircuitNameByIfIndex`.
-- `internal/component/isis/adjacency_up_test.go`: two-engine in-memory wiring
+- `internal/plugins/isis/adjacency_up_test.go`: two-engine in-memory wiring
   test (`TestISISAdjacencyUp`).
-- `internal/component/isis/adjacency_integration_linux_test.go`: QEMU veth
+- `internal/plugins/isis/adjacency_integration_linux_test.go`: QEMU veth
   integration test (pending Linux execution).
 - `test/isis/isis-adjacency.ci`: config-surface functional test.
 - `test/interop/scenarios/isis-p2p-frr/`: FRR P2P interop scenario (pending Linux;

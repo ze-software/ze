@@ -32,3 +32,7 @@ Also: added `validity` parameter to `GenerateWebCertWithNames`, added `KeySSHAut
 - QEMU launch (requires qemu binary)
 - Functional `.ci` tests
 - Specs: appliance-2-remote, appliance-3-recovery, appliance-4-device-config
+
+## Files
+
+None recorded.

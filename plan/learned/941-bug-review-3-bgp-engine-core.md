@@ -28,3 +28,7 @@ BGP core review must compare path semantics, not just inspect individual functio
 
 - Child report includes receive, build, forward, refresh/reload, RFC, and allocation matrices.
 - Follow-up specs include unit tests for malformed capabilities, malformed ROUTE-REFRESH, context-mismatch split, startup cleanup, and next-hop allocation.
+
+## Files
+
+None recorded.

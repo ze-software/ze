@@ -32,11 +32,11 @@ Update: future ownership placement is superseded by [838](838-doctor-check-owner
 
 ## Files
 
-- `cmd/ze/doctor/registry.go`
-- `cmd/ze/doctor/check_plugins.go`
-- `cmd/ze/doctor/doctor.go`
-- `cmd/ze/doctor/registry_test.go`
-- `cmd/ze/doctor/doctor_test.go`
+- `internal/component/doctor/registry.go`
+- `internal/component/doctor/check_plugins.go`
+- `internal/component/doctor/doctor.go`
+- `internal/component/doctor/registry_test.go`
+- `internal/component/doctor/doctor_test.go`
 - `ai/rules/doctor-checks.md`
 - `ai/patterns/registration.md`
 - `ai/CODE-TO-DOCS.md`

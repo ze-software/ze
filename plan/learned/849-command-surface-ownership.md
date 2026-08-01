@@ -36,11 +36,11 @@ Ze's command surface (CLI roots, daemon RPCs, YANG schemas, doctor checks) was c
 - `internal/core/diagnostic/doctor_registry.go` -- exported doctor check registry API
 - `internal/component/plugin/doctor/` -- pilot owner doctor check (plugin-binaries)
 - `internal/component/traffic/cmd/` -- show traffic handler (owner: traffic)
-- `internal/component/traffic/yang/ze-traffic-cmd.yang` -- traffic command schema
+- `internal/plugins/traffic-cmd/yang/ze-traffic-cmd.yang` -- traffic command schema
 - `internal/component/ike/yang/ze-ipsec-cmd.yang` -- added monitor vpn ipsec
 - `internal/component/cmd/monitor/yang/` -- central monitor root (event + system-netlink only)
 - `internal/component/cmd/show/yang/self_containment_test.go` -- banned token guards
 - `internal/component/cmd/monitor/yang/self_containment_test.go` -- monitor banned tokens
 - `scripts/checks/checks_test.go` -- migration assertions + generic-stay fixture
 - `scripts/codegen/plugin_imports.go` -- rpcDirs for traffic/cmd
-- `cmd/ze/doctor/registry.go` -- runner bridge for exported + local registries
+- `internal/component/doctor/registry.go` -- runner bridge for exported + local registries

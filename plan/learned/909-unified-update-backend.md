@@ -54,3 +54,7 @@ explaining that updates are externally managed.
   diagnostics, consistent with NTP, DNS, and archive destination checks.
 - Build-tag conditional compilation: same `ze_distro` / `!ze_distro` split used by
   selfupdate.go itself.
+
+## Files
+
+None recorded.

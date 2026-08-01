@@ -61,3 +61,7 @@ selection and the FIB.
   a direct reference, use a package-level atomic registration in the shared
   `rpc` package. The producer registers at startup, consumers read at call
   time. Thread-safe, no import cycles, no interface changes.
+
+## Files
+
+None recorded.

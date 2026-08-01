@@ -73,3 +73,7 @@ moved and nothing else did.
   instance of the same defect, and the sweep this came out of
 - `internal/core/bgp/attribute/origin.go` -- OrderAttributes, and why MP_UNREACH
   stays first, out of type-code order
+
+## Files
+
+None recorded.

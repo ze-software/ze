@@ -35,7 +35,7 @@ BGP peers could be created via web UI or config file without essential fields (r
 - `internal/component/bgp/yang/ze-bgp-conf.yang` -- `ze:required`/`ze:suggest` on peer lists
 - `internal/component/bgp/config/resolve.go` -- `CheckRequiredFields`, `hasNestedValue`
 - `internal/component/bgp/config/peers.go` -- wiring into `PeersFromConfigTree`
-- `cmd/ze/config/cmd_validate.go` -- wiring into `ze config validate`
+- `internal/component/config/cli/cmd_validate.go` -- wiring into `ze config validate`
 - `internal/component/cli/validator.go` -- generic required loop in `validatePeer`
 - `internal/component/web/handler_config.go` -- form inheritance resolution, POST enforcement
 - `internal/component/web/fragment.go` -- `collectRequiredFields`, `collectSuggestFields`

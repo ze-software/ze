@@ -53,3 +53,7 @@ zero handler change.
   until that session's tree clears. Pre-existing/other-session functional reds
   (`nexthop` #278, `ddos-flowspec-announce` #154) are NOT this change — they fail
   with `wait_for_ack` reverted.
+
+## Files
+
+None recorded.

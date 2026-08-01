@@ -77,7 +77,7 @@ closure session (AC-4 functional `.ci`, AC-7 real-peer interop).
   `test/l2tp-interop/scenarios/03-ze-lac-xl2tpd-lns/{run.py,ze.conf,xl2tpd.conf,options.xl2tpd,README.md}`.
 - Modified (this session): `test/l2tp-interop/run.py` (self-contained-scenario
   delegation), `docs/guide/l2tp.md`, `docs/features/rfc-status.md`,
-  `docs/labs/l2tp-interop.md`, `plan/known-failures.md`, `ai/PACKAGE-MAP.md`,
+  `docs/labs/l2tp-interop.md`, `plan/known-failures/RESOLVED.md`, `ai/PACKAGE-MAP.md`,
   `ai/DOCS-TO-CODE.md`, `plan/spec-followup-l2tp-call.md`.
 - Prior phases (committed b68e7e9c9…c44fe82d5): `tunnel_initiator.go`,
   `session_initiator.go`, `reactor_dial.go`, `outgoing_call.go`,

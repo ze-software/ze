@@ -24,7 +24,7 @@ Ze's ExaBGP compatibility test data (`test/exabgp-compat/encoding/`) had diverge
 
 ## Files
 
-- `internal/component/bgp/attribute/json.go` -- RegisterJSONFormatter registry
+- `internal/core/bgp/attribute/json.go` -- RegisterJSONFormatter registry
 - `internal/component/bgp/plugins/filter_community/json.go` -- community JSON formatters
 - `internal/exabgp/bridge/bridge_event.go` -- router-id in bridge JSON
 - `test/exabgp-compat/encoding/*.ci` -- all 29 files with `:json:` lines updated

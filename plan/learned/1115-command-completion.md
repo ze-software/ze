@@ -55,3 +55,7 @@ Producers (all read/verified first-hand at implementation):
   it.)
 - Landed alongside a concurrent netlink/firewall session's uncommitted files in
   the shared working tree — the commit staged only the command-completion files.
+
+## Files
+
+None recorded.

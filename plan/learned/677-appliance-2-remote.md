@@ -35,7 +35,7 @@ The bastion manages a fleet of gokrazy devices. After building images (spec 1) a
 | Initial error message used "unreachable" for all failures | 401 auth errors confusingly labeled "unreachable" | Introduced protocolError type to differentiate |
 | goconst lint triggered by "amd64" reaching 3 occurrences | Blocked lint pass | Extracted archAMD64/archARM64 constants (pre-existing issue) |
 
-## Files Created
+## Files
 
 - `cmd/ze/appliance/cmd_push.go` (250L): OTA push via gokrazy HTTPS update API
 - `cmd/ze/appliance/cmd_push_test.go` (350L): Push tests with TLS mock server

@@ -53,3 +53,7 @@ and a Live Log SSE feed that was never wired (F11).
   marshaling) before writing the web-side parser.
 - When adding SSE event types, check if an existing persistent connection
   can be reused before creating a new EventSource.
+
+## Files
+
+None recorded.

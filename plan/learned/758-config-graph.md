@@ -21,3 +21,7 @@ Key choices:
 ## Gotchas
 - Listener nodes extract addresses from the same schema annotation used by `ValidateListenerConflicts`, not from config values directly. If the schema annotation is missing, the listener won't appear in the graph.
 - Plugin config roots are discovered via the global `registry.All()` iterator. Plugins that register after graph construction (theoretically possible but not currently done) would be missing.
+
+## Files
+
+None recorded.

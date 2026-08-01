@@ -26,3 +26,7 @@ Implemented `plan/spec-ospf-8-spf-rib.md`: intra-area OSPFv2 SPF, route table, L
 - `TestSysRIBReplaysLocRIBECMPMembership` covers startup replay of a pre-existing Loc-RIB ECMP PathGroup.
 - `TestSysRIBOSPFLocRIBAdminDistanceArbitration` covers OSPF/static selection through Loc-RIB and sysrib.
 - `TestOSPFTopologyRetainsDownActiveArea` and `TestOSPFOriginateDownActiveInterfaceKeepsEmptyArea` cover carrier-down area retention, link suppression, and stale Network-LSA flush while retaining passive/loopback stubs.
+
+## Files
+
+None recorded.

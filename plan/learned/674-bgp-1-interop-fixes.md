@@ -31,7 +31,7 @@ After expanding the interop matrix (learned 433), 7 of 11 new scenarios failed. 
 - `internal/component/bgp/reactor/reactor_api_batch.go` (AS_PATH fix)
 - `internal/component/bgp/reactor/reactor.go` (static registry fallback)
 - `internal/component/bgp/reactor/session_negotiate.go` (OPEN parameter encoding)
-- `internal/component/bgp/attribute/mpnlri.go` (VPN next-hop encoding)
+- `internal/core/bgp/attribute/mpnlri.go` (VPN next-hop encoding)
 - `test/interop/scenarios/22-32/` (check.py and announce script fixes)
 - `test/interop/scenarios/25-ipv6-ebgp-bird/bird.conf` (multihop)
 - `test/interop/scenarios/29-vpn-gobgp/gobgp.toml` (afi-safi name)

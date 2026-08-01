@@ -24,5 +24,5 @@ The chaos testing tool (ze-chaos) had extensive unit tests for its components (s
 
 ## Files
 
-- `cmd/ze-chaos/main_test.go` (created: 15 unit tests for config-only, port allocation, input validation)
+- `cmd/ze/ze_chaos_main_test.go` (created: 15 unit tests for config-only, port allocation, input validation)
 - `plan/spec-chaos-4-bgp-integration.md` (updated: audit, checklists, status)

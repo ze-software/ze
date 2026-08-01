@@ -61,3 +61,7 @@ that opened once per 5s.
   5s on the ticker before its first read), so the test captures the regression.
 - Related recover-boundary work (`plan/spec-improve-5-panic-boundaries`) owns adding a
   per-message `recover` around the decode in this loop; deliberately not duplicated here.
+
+## Files
+
+None recorded.

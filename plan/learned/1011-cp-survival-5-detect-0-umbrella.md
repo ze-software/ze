@@ -32,10 +32,10 @@ Ze had no automatic attack detection. The cp-survival umbrella (spec-0) provided
 
 ### New packages
 - `internal/core/ddosevent/` (event.go, event_test.go) -- shared event contract
-- `internal/plugins/ddosdetect/` (baseline, state, detector, config, register, yang) -- detector plugin
-- `internal/plugins/ddoslocal/` (match, responder, config, register, yang) -- local nft responder
-- `internal/plugins/ddosflowspec/` (probe, match, responder, config, register, yang) -- FlowSpec/RTBH responder
-- `internal/plugins/ddosobserve/` (store, config, register, yang) -- incident store
+- `internal/plugins/ddos/detect/` (baseline, state, detector, config, register, yang) -- detector plugin
+- `internal/plugins/ddos/local/` (match, responder, config, register, yang) -- local nft responder
+- `internal/plugins/ddos/flowspec/` (probe, match, responder, config, register, yang) -- FlowSpec/RTBH responder
+- `internal/plugins/ddos/observe/` (store, config, register, yang) -- incident store
 
 ### Modified files
 - `internal/component/vpp/vpp.go` -- IfaceStatsReader interface, GetActiveStatsProvider/setActiveStatsProvider

@@ -53,7 +53,7 @@ same port.
 - Assumed existing multi-peer tests worked. They passed but the second peer
   was never connected to.
 
-## Files Changed
+## Files
 
 - `internal/test/runner/runner_exec.go` -- `peerOutput` struct, per-process tracking
 - `internal/test/runner/loopback_linux.go` -- no-op (new)

@@ -58,3 +58,7 @@ asked for test runs to build a uniquely-named binary so development can continue
   passed alone but failed under full-run load (a `flaky-under-load` timing race). Compare the same
   test in both modes at low parallelism before concluding a binary-relocation change caused a
   behavioral failure.
+
+## Files
+
+None recorded.

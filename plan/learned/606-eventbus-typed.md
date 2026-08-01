@@ -104,20 +104,20 @@ in-process path needed.
   payload + lazy marshal + `payloadToJSON` + `tryDecodeTypedPayload`
 - `internal/component/plugin/server/engine_event.go` — `EngineEventHandler`
   is `func(any)`; `Emit`/`Subscribe` pass payload through
-- `internal/component/bgp/plugins/rib/events/events.go` — declares
+- `internal/core/bgp/ribevents/ribevents.go` — declares
   `BestChange = events.Register[*BestChangeBatch]` and `ReplayRequest =
   events.RegisterSignal`
 - `internal/component/bgp/plugins/rib/rib_bestchange.go` — emits via
   `ribevents.BestChange.Emit`; types aliased to events package
-- `internal/plugins/sysrib/events/events.go` — declares
+- `internal/component/sysrib/events/events.go` — declares
   `BestChange = events.Register[*BestChangeBatch]` and `ReplayRequest`
-- `internal/plugins/sysrib/sysrib.go` — subscribes via
+- `internal/component/sysrib/sysrib.go` — subscribes via
   `ribevents.BestChange.Subscribe(eb, func(*BestChangeBatch))`; emits
   via `sysribevents.BestChange.Emit`
-- `internal/plugins/fibkernel/fibkernel.go`,
-  `internal/plugins/fibvpp/fibvpp.go`,
-  `internal/plugins/fibp4/fibp4.go` — typed FIB consumers
-- `internal/component/iface/register.go`, `internal/plugins/sysctl/register.go`,
+- `internal/plugins/fib/kernel/fibkernel.go`,
+  `internal/plugins/fib/vpp/fibvpp.go`,
+  `internal/plugins/fib/p4/fibp4.go` — typed FIB consumers
+- `internal/component/iface/register.go`, `internal/component/sysctl/register.go`,
   `internal/plugins/ntp/ntp.go`, `internal/component/bgp/reactor/reactor_iface.go`,
   `internal/component/iface/migrate_linux.go` — wrapped in `events.AsString`
 - 8 test stub files — updated to `func(any)` signature plus

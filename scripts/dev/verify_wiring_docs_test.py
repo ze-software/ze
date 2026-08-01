@@ -21,9 +21,12 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(__file__))
 from verify_wiring_docs import (
+    MAKE_TARGETS,
+    TARGET_ORDER,
     check_ci_sleep_ratchet,
     check_known_failure_load_excuses,
     parse_sleep_baseline,
+    selected_targets,
 )
 
 
@@ -199,6 +202,49 @@ class KnownFailureLoadExcuseTest(unittest.TestCase):
         rc, out = self._run(root, ["docs/perf.md"])
         self.assertEqual(rc, 0, out)
         self.assertEqual(out, "")
+
+
+class LearnedStalenessRoutingTest(unittest.TestCase):
+    """Changed-file routing for the learned-summary staleness gate.
+
+    Wiring row: a changed plan/learned/**.md must select ze-learned-staleness,
+    so `make ze-verify-changed` runs the gate exactly when a summary's cited
+    paths or NNN citations could have gone dangling.
+    """
+
+    def _root(self) -> Path:
+        d = tempfile.mkdtemp(prefix="learned-routing-")
+        self.addCleanup(lambda: __import__("shutil").rmtree(d, ignore_errors=True))
+        return Path(d)
+
+    def test_learned_change_selects_staleness_target(self):
+        root = self._root()
+        self.assertIn(
+            "ze-learned-staleness",
+            selected_targets(root, ["plan/learned/0999-example.md"]),
+        )
+
+    def test_checker_and_baseline_select_the_target(self):
+        root = self._root()
+        for path in (
+            "scripts/dev/learned_staleness.py",
+            "plan/.learned-staleness-baseline",
+        ):
+            with self.subTest(path=path):
+                self.assertIn("ze-learned-staleness", selected_targets(root, [path]))
+
+    def test_unrelated_change_does_not_select_it(self):
+        root = self._root()
+        self.assertNotIn(
+            "ze-learned-staleness",
+            selected_targets(root, ["docs/guide/monitoring.md"]),
+        )
+
+    def test_target_is_runnable_and_ordered(self):
+        # A target in MAKE_TARGETS but absent from TARGET_ORDER is selected and
+        # then dropped by the ordering filter, which fails open silently.
+        self.assertIn("ze-learned-staleness", MAKE_TARGETS)
+        self.assertIn("ze-learned-staleness", TARGET_ORDER)
 
 
 if __name__ == "__main__":

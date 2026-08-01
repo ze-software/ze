@@ -35,9 +35,9 @@ PXE bare-metal installation required operators to manually clone iPXE from GitHu
 - `internal/plugins/dhcpserver/yang/ze-dhcp-server-conf.yang` -- boot-script-url leaf
 - `internal/plugins/imageserver/handler.go` -- serveBootIPXE, latestImage, serverAddr field
 - `internal/plugins/imageserver/register.go` -- pass bindIP to newMux
-- `cmd/ze/provision/main.go` -- --kernel, --initrd flags, staging, boot-script-url config
-- `cmd/ze/provision/staging.go` -- stageArtifacts, validateStaging, copyFileIfRegular (new)
-- `cmd/ze/provision/staging_test.go` -- 5 staging tests (new)
+- `internal/plugins/provision/main.go` -- --kernel, --initrd flags, staging, boot-script-url config
+- `internal/plugins/provision/staging.go` -- stageArtifacts, validateStaging, copyFileIfRegular (new)
+- `internal/plugins/provision/staging_test.go` -- 5 staging tests (new)
 - `tools/ipxe-binaries/` -- stock iPXE binaries + README (new)
 - `test/install/pxe-chainload.ci` -- functional test (new)
 - `docs/guide/ze-install.md` -- PXE workflow rewrite

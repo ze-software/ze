@@ -337,4 +337,4 @@ Arguments are split by whitespace. The `--decode` flag is always appended last.
 
 - `docs/architecture/api/process-protocol.md` - Engine-plugin protocol
 - `docs/architecture/debugging/plugin-testing.md` - Testing plugins
-- `plan/learned/198-plugin-invocation.md` - Implementation spec
+- `plan/learned/DESIGN-HISTORY.md`, "Plugin system: architecture" - invocation-mode design history (retired summary 198), including the internal-plugin 5-stage startup deadlock its Load-bearing invariants record

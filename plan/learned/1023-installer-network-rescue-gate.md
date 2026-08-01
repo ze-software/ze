@@ -54,3 +54,7 @@ Closed by owner decision accepting that deferral, not because the field test
 passed. If the pure-Go install is later validated on the multi-homed lab target
 (or in QEMU via `plan/learned/1024-installer-initrd-pure-go.md` AC-2), that is the real proof
 this rescue behaviour works end-to-end.
+
+## Files
+
+None recorded.

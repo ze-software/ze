@@ -103,10 +103,10 @@ one `string(scratch)` allocation at each named IPC / cache boundary.
 
 ## Files
 
-- `internal/component/bgp/attribute/text_append.go` (new, 11 attribute +
+- `internal/core/bgp/attribute/text_append.go` (new, 11 attribute +
   3 element AppendText methods + `appendCommunityText` + `appendClusterID`)
-- `internal/component/bgp/attribute/text_append_test.go` (new, unit + reuse)
-- `internal/component/bgp/attribute/text_append_bench_test.go` (new, 0 allocs/op)
+- `internal/core/bgp/attribute/text_append_test.go` (new, unit + reuse)
+- `internal/core/bgp/attribute/text_append_bench_test.go` (new, 0 allocs/op)
 - `internal/component/bgp/format/text.go` (rewritten: AppendOpen,
   AppendNotification, AppendKeepalive, AppendRouteRefresh, AppendEOR,
   AppendCongestion, AppendStateChange, `appendJSONString`,
@@ -132,5 +132,5 @@ one `string(scratch)` allocation at each named IPC / cache boundary.
   `attribute.FormatASPath`)
 - `internal/component/bgp/format/text_test.go` (6 test callers migrated
   via sed)
-- `internal/component/bgp/attribute/text.go` (legacy Format* helpers
+- `internal/core/bgp/attribute/text.go` (legacy Format* helpers
   deleted; Related cross-ref to `text_append.go` added)

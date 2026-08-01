@@ -44,3 +44,7 @@ Total: 29 new files, 41 unit tests, 3 functional test scripts (Linux-only).
 - Subsystem.Reload: currently a no-op; config changes require daemon restart
 - TR-101 vendor tag parsing (only first Vendor-Specific tag captured; sub-option parse is follow-up)
 - PADO delay, VLAN auto-discovery, MAC filter (deferred to future specs)
+
+## Files
+
+None recorded.

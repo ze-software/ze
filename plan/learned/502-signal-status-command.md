@@ -26,9 +26,9 @@ The documentation claimed SIGUSR1 dumps status, and the YANG schema had a `daemo
 
 ## Files
 
-- `cmd/ze/signal/main.go` -- registry-based dispatch, added status command, fixed exec strings
-- `cmd/ze/signal/main_test.go` -- registry, exec mapping, defensive copy tests
-- `cmd/ze/completion/{bash,fish,zsh,nushell}.go` -- added restart + status to all shells, fixed nushell extern params
-- `cmd/ze/completion/main_test.go` -- signal subcommand verification
+- `internal/plugins/signal/main.go` -- registry-based dispatch, added status command, fixed exec strings
+- `internal/plugins/signal/main_test.go` -- registry, exec mapping, defensive copy tests
+- `internal/plugins/completion/{bash,fish,zsh,nushell}.go` -- added restart + status to all shells, fixed nushell extern params
+- `internal/plugins/completion/main_test.go` -- signal subcommand verification
 - `internal/component/bgp/reactor/reactor.go` -- wired OnStatus callback
 - `docs/guide/operations.md`, `docs/guide/command-reference.md`, `docs/features/cli-commands.md`, `docs/architecture/behavior/signals.md` -- added status command, fixed signal table

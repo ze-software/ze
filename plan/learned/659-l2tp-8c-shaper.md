@@ -34,3 +34,7 @@ updating rates via CoA-triggered events.
   keeps them decoupled from the core session lifecycle.
 - `atomic.Pointer` for hot-reloadable config is the standard ze pattern
   for plugins that need config without blocking the data path.
+
+## Files
+
+None recorded.

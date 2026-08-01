@@ -33,5 +33,5 @@ The in-process chaos runner (`ze-chaos --in-process`) could only test steady-sta
 - `internal/chaos/peer/simulator.go` -- Added Dialer field to SimulatorConfig
 - `internal/chaos/peer/simulator_actions.go` -- Modified storm/collision to use pluggable dialer
 - `internal/chaos/peer/simulator_actions_test.go` -- New test: SimulatorDialerField
-- `cmd/ze-chaos/main.go` -- Wire chaos/route flags to RunConfig in --in-process branch
+- `cmd/ze/ze_chaos_run.go` -- Wire chaos/route flags to RunConfig in --in-process branch
 - `docs/guide/chaos-testing.md` -- Added in-process chaos example

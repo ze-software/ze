@@ -161,9 +161,9 @@ summary.
 - `internal/component/bgp/plugins/rs/worker_test.go` -- paired-gate
   backpressure test pattern
 - `internal/chaos/web/sse_test.go` -- `waitForClient` subscribe-wait helper
-- `internal/plugins/bfd/engine/engine.go`,
+- `internal/component/bfd/engine/engine.go`,
   `engine_test.go:TestLoopStopFlushesPinnedPersister` -- cleanup-drains-work
-- `internal/plugins/bfd/transport/udp_linux.go` -- SO_REUSEPORT env-var gate
+- `internal/component/bfd/transport/udp_linux.go` -- SO_REUSEPORT env-var gate
 - `internal/component/plugin/process/process.go:classifyStderrLine`,
   `stderr_relay_test.go` -- panic/fatal ERROR classification
 - `internal/component/cli/completer.go:findModuleEntry`,

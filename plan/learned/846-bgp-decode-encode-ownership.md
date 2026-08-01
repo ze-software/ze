@@ -79,8 +79,8 @@ Same self-containment question, out of scope here.
 
 ## Files
 
-- `cmd/ze/bgp/yang/{ze-bgp-tools-cmd.yang,embed.go,register.go,schema_test.go}`,
-  `cmd/ze/bgp/register.go`
+- `internal/component/bgp/cli/yang/{ze-bgp-tools-cmd.yang,embed.go,register.go,schema_test.go}`,
+  `internal/component/bgp/cli/register.go`
 - `internal/component/cmd/show/yang/{ze-cli-show-cmd.yang,self_containment_test.go}`
 - `test/parse/cli-show-bgp-tools-help.ci`
 - `ai/rules/plugin-self-containment.md`, `docs/contributing/documentation-testing.md`

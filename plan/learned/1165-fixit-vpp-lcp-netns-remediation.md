@@ -119,3 +119,7 @@ must be verified at that system's producer like any other claim. This one was ve
 Go comment instead, and the comment was its author's belief. `ze doctor`'s remediation is
 not documentation: it is executed by operators, so it earns the same producer-verification
 bar as code.
+
+## Files
+
+None recorded.

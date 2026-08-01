@@ -1,6 +1,6 @@
 # 462 -- YANG Analysis Tool
 
-## Objective
+## Context
 
 Build `ze yang` CLI tool to automate prefix collision detection and command documentation across the YANG config tree and operational command tree. Runs after every schema change to find naming problems before users hit them.
 
@@ -29,11 +29,11 @@ Build `ze yang` CLI tool to automate prefix collision detection and command docu
 
 ## Files
 
-- `cmd/ze/yang/prefix.go` -- prefix collision algorithm
-- `cmd/ze/yang/tree.go` -- unified analysis tree builder + RPC doc extraction
-- `cmd/ze/yang/format.go` -- text and JSON formatters
-- `cmd/ze/yang/doc.go` -- per-command documentation
-- `cmd/ze/yang/main.go` -- CLI dispatch
+- `internal/component/config/yang/cli/prefix.go` -- prefix collision algorithm
+- `internal/component/config/yang/cli/tree.go` -- unified analysis tree builder + RPC doc extraction
+- `internal/component/config/yang/cli/format.go` -- text and JSON formatters
+- `internal/component/config/yang/cli/doc.go` -- per-command documentation
+- `internal/component/config/yang/cli/main.go` -- CLI dispatch
 - `cmd/ze/main.go` -- added `yang` dispatch case
 - `test/ui/cli-yang-*.ci` -- 3 functional tests
 - `plan/spec-yang-analysis.md` -- this tool's spec

@@ -117,3 +117,7 @@ plus the QEMU veth integration tests (`*_integration_linux_test.go`, wired into
 WRITTEN but their EXECUTION is pending a Linux/QEMU host (raw AF_PACKET + FRR
 isisd cannot run on the darwin development host). Interop validation is therefore
 pending Linux execution; the implementation itself is complete.
+
+## Files
+
+None recorded.

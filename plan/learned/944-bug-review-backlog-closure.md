@@ -80,3 +80,7 @@ firewall-irr / bgp-capa / rsvp-te additions, and BGP functional fixtures
 (e.g. `bgp parse 45`, plugin 56, bmp 73-75) tripping the mandatory
 prefix-maximum validation in `internal/component/bgp/reactor/config.go`
 (unchanged vs HEAD) and firewall-irr YANG description-mismatch warnings.
+
+## Files
+
+None recorded.

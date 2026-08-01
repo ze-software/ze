@@ -27,3 +27,7 @@
 - Did not create a new conflict detection system (existing one has 12 tests).
 - Did not add env vars for --ze-pprof (debugging flag, rarely used) or --port/--listen-base (range semantics, not single endpoints).
 - Did not set a Default for ze.mcp.listen until YANG was fixed first -- the Default must be YANG-sourced, not a lie about a Go constant.
+
+## Files
+
+None recorded.

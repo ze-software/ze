@@ -58,3 +58,7 @@ budget with concurrency, not by hand-tuning each `.ci` cap (which rots and is
 whack-a-mole). Per-test `timeout=` values bypass the runner's adaptive
 `SuggestedTimeout`, so they are exactly the ones that need the headroom multiplier.
 Related: [[1013-verify-gate-hardening]].
+
+## Files
+
+None recorded.

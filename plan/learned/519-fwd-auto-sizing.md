@@ -92,3 +92,7 @@ a two-tier model: per-peer pools + single shared overflow MixedBufMux.
 - Spec audit tables were empty (template placeholders) despite status being
   "complete". Filled with line-number evidence for all 14 ACs, 20 tests,
   9 requirements, 8 files.
+
+## Files
+
+None recorded.

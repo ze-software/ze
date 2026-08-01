@@ -82,3 +82,7 @@ and belong to the session-file slice.
 Not committed. Drain recipe: `tmp/drain-fixit-bgp-session-fsm-lifecycle.md`.
 Learned number 1202 chosen from a contended range; run
 `python3 scripts/dev/learned_numbers.py --fix` at drain to renumber if it collided.
+
+## Files
+
+None recorded.

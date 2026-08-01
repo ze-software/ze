@@ -33,6 +33,6 @@ The appliance work introduced a local bootstrap account, generated install artif
 
 - Auth loading and surface wiring: `cmd/ze/hub/main_servers.go`, `cmd/ze/hub/main.go`, `cmd/ze/hub/api.go`
 - Web/API enforcement: `internal/component/web/cli.go`, `internal/component/api/rest/server.go`, `internal/component/api/grpc/server.go`, `internal/component/api/types.go`
-- Local-admin key writers: `cmd/ze/init/main.go`, `cmd/ze/install/appliance/cmd_assemble.go`, `internal/plugins/imageserver/handler.go`, `pkg/zefs/keys.go`
+- Local-admin key writers: `internal/plugins/init/main.go`, `internal/appliance/cmd_assemble.go`, `internal/plugins/imageserver/handler.go`, `pkg/zefs/keys.go`
 - Validation and install hardening: `internal/plugins/imageserver/config.go`, `tools/installer-initrd/init`, `scripts/evidence/effective-install-qemu.py`
 - Regression coverage and docs: `cmd/ze/hub/zefs_users_test.go`, `internal/component/web/cli_test.go`, `test/plugin/rbac-web-config-deny.ci`, `test/parse/image-server-invalid-bcrypt.ci`, `docs/guide/authentication.md`, `docs/guide/ze-install.md`

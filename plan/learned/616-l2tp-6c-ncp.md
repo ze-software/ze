@@ -100,20 +100,20 @@ inject the subscriber route into the redistribute path in Phase 7.
 
 ## Files
 
-- `internal/component/ppp/ncp.go` -- NCP coordinator, per-family FSM driver, backend programming
-- `internal/component/ppp/ipcp.go` -- IPCP option codec (handoff-written, lint-unused symbols pruned)
-- `internal/component/ppp/ipv6cp.go` -- IPv6CP option codec (handoff-written, lint-unused symbols pruned)
-- `internal/component/ppp/ip_events.go` -- IPEvent sealed sum, AddressFamily, ipResponseMsg
-- `internal/component/ppp/events.go` -- EventSessionIPAssigned added
-- `internal/component/ppp/session.go` -- NCP state fields, ipRespCh, ipEventsOut, Disable*CP, IPTimeout
-- `internal/component/ppp/session_run.go` -- runNCPPhase invoked in afterLCPOpen; handleFrame dispatches by proto; teardownNCPResources on exit
-- `internal/component/ppp/manager.go` -- IPEventsOut accessor, IPResponse method, ErrIPResponsePending
-- `internal/component/ppp/start_session.go` -- DisableIPCP, DisableIPv6CP, IPTimeout fields
-- `internal/component/ppp/ncp_test.go` -- 13 integration tests (FSM + wiring + net.Pipe)
-- `internal/component/ppp/ncp_helpers_test.go` -- test fixtures, scripted parallel peer
-- `internal/component/ppp/ipcp_test.go` -- 6 codec + wiring tests
-- `internal/component/ppp/ipv6cp_test.go` -- 6 codec + wiring tests
+- `internal/component/l2tp/ppp/ncp.go` -- NCP coordinator, per-family FSM driver, backend programming
+- `internal/component/l2tp/ppp/ipcp.go` -- IPCP option codec (handoff-written, lint-unused symbols pruned)
+- `internal/component/l2tp/ppp/ipv6cp.go` -- IPv6CP option codec (handoff-written, lint-unused symbols pruned)
+- `internal/component/l2tp/ppp/ip_events.go` -- IPEvent sealed sum, AddressFamily, ipResponseMsg
+- `internal/component/l2tp/ppp/events.go` -- EventSessionIPAssigned added
+- `internal/component/l2tp/ppp/session.go` -- NCP state fields, ipRespCh, ipEventsOut, Disable*CP, IPTimeout
+- `internal/component/l2tp/ppp/session_run.go` -- runNCPPhase invoked in afterLCPOpen; handleFrame dispatches by proto; teardownNCPResources on exit
+- `internal/component/l2tp/ppp/manager.go` -- IPEventsOut accessor, IPResponse method, ErrIPResponsePending
+- `internal/component/l2tp/ppp/start_session.go` -- DisableIPCP, DisableIPv6CP, IPTimeout fields
+- `internal/component/l2tp/ppp/ncp_test.go` -- 13 integration tests (FSM + wiring + net.Pipe)
+- `internal/component/l2tp/ppp/ncp_helpers_test.go` -- test fixtures, scripted parallel peer
+- `internal/component/l2tp/ppp/ipcp_test.go` -- 6 codec + wiring tests
+- `internal/component/l2tp/ppp/ipv6cp_test.go` -- 6 codec + wiring tests
 - `internal/component/l2tp/config.go` -- 3 env var registrations (ze.l2tp.ncp.*)
 - `internal/component/l2tp/reactor.go` -- env vars plumbed through StartSession
 - `rfc/short/rfc1877.md` -- new RFC summary
-- `internal/component/ppp/ppp_fsm.go` -- renamed from lcp_fsm.go in the checkpoint commit; doc updated
+- `internal/component/l2tp/ppp/ppp_fsm.go` -- renamed from lcp_fsm.go in the checkpoint commit; doc updated

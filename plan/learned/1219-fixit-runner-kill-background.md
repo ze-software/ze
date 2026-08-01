@@ -72,3 +72,7 @@ Two additive grammar pieces + one executor intercept:
   job that produced this — they kill live servers). Behavior is proven by scoped
   unit tests (kill/reap/prune/fail-closed + full `parseAndAdd` pipeline); the green
   `ze-test runner` run is left to CI / the drain pass.
+
+## Files
+
+None recorded.

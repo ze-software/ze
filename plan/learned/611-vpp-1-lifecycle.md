@@ -62,6 +62,6 @@ running VPP instance with a healthy GoVPP connection.
 - `internal/component/vpp/dpdk.go` + `dpdk_linux.go` -- DPDK NIC binding
 - `internal/component/vpp/conn.go` -- GoVPP connection management
 - `internal/component/vpp/register.go` -- Plugin registration
-- `internal/component/vpp/events/events.go` -- VPP EventBus namespace
+- `internal/core/vpp/events/events.go` -- VPP EventBus namespace
 - `internal/component/vpp/yang/ze-vpp-conf.yang` -- YANG module
 - `test/vpp/001-boot.ci` -- Functional test (external mode + stub handshake)

@@ -111,3 +111,7 @@ on receipt (`sa.InitialContact`, `handleAuthRequest`).
 - A re-negotiation Prometheus counter would be a useful R-1 DoS signal (repeated inits)
   but is a new observable surface; deferred (learned 745's rekey_total gauge caveat).
 - `close-action` (none/start/restart) is parsed but unconsumed in the engine; adjacent.
+
+## Files
+
+None recorded.

@@ -31,6 +31,6 @@ Config backups were handled entirely in the editor: `createBackup` built filesys
 - `internal/component/config/storage/blob.go` -- blob implementations of `WriteVersion`/`ListVersions`, guard `WriteVersion`
 - `internal/component/cli/editor.go` -- simplified `createBackup`/`ListBackups`, added `ReadBackupContent`/`HasDraft`
 - `internal/component/cli/model_commands_show.go` -- `resolveRollbackBaseline` reads through Storage
-- `cmd/ze/config/cmd_history.go` -- draft line in history output
+- `internal/component/config/cli/cmd_history.go` -- draft line in history output
 - `pkg/zefs/keys.go` -- `KeyFileVersion`
 - `docs/architecture/zefs-format.md` -- removed "(future)" from version key docs

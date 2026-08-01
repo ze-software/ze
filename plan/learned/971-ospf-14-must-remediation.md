@@ -76,3 +76,7 @@ code -- every edit target was v3-safe (guarded by `ospfv3/types/imports_test.go`
 - Sweep: `go vet` ospf+zefs clean; `go test ./internal/plugins/ospf/... ./pkg/zefs/` green;
   `make ze-lint-changed` 0 issues (26 packages); OSPFv3 compiles + tests pass.
 - Open item: AC-14 no-summary auto-default interop variant (Linux-CI/QEMU, not yet added).
+
+## Files
+
+None recorded.

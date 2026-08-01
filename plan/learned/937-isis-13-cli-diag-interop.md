@@ -109,18 +109,18 @@ execution pending Linux/QEMU". The Linux-only raw-socket doctor firing path
 - Web PASS: `TestISIS{NeighborsJSON,DatabaseJSON,NeighborsHTML,NoDispatch,SSEEmitsAndCloses}`.
 
 ## Files
-- `internal/component/isis/cmd_show.go` (+test): ten `ze-show:isis-*` /
+- `internal/plugins/isis/cmd_show.go` (+test): ten `ze-show:isis-*` /
   `ze-clear:isis-*` proxy RPCs; `forwardToISIS` rejects extra args, nil-dispatcher.
-- `internal/component/isis/show.go` (+test): hostname/interface/spf-log snapshots,
+- `internal/plugins/isis/show.go` (+test): hostname/interface/spf-log snapshots,
   clearAdjacencies/clearCounters, hostname sanitizer.
-- `internal/component/isis/register.go`: `OnExecuteCommand` switch (the engine-side
+- `internal/plugins/isis/register.go`: `OnExecuteCommand` switch (the engine-side
   authority for all ten commands) + `registerISISDoctor()` + diagnostic-code reg.
-- `internal/component/isis/doctor.go` (+test): config-sanity check (net-missing,
+- `internal/plugins/isis/doctor.go` (+test): config-sanity check (net-missing,
   system-id-mismatch), no-op when IS-IS absent (R-4).
-- `internal/component/isis/codes.go`: the two config-sanity code metadata (owned
+- `internal/plugins/isis/codes.go`: the two config-sanity code metadata (owned
   here, not in core), with a guard comment added to core `diagnostic/codes.go`.
-- `internal/component/isis/metrics_test.go`: canonical `ze_isis_*` set assertion.
-- `internal/component/isis/yang/ze-isis-cmd.yang` (+cmd_schema_test.go): owner
+- `internal/plugins/isis/metrics_test.go`: canonical `ze_isis_*` set assertion.
+- `internal/plugins/isis/yang/ze-isis-cmd.yang` (+cmd_schema_test.go): owner
   command tree, separate show/clear roots.
 - `internal/component/cmd/show/yang/self_containment_test.go`,
   `internal/component/cmd/clear/yang/self_containment_test.go`: central-guard tokens.

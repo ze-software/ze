@@ -83,14 +83,14 @@ extraction + install + redistribution.
 
 ## Files
 Created:
-- `internal/component/isis/lsdb/origination_ipv6.go` (+`origination_ipv6_test.go`):
+- `internal/plugins/isis/lsdb/origination_ipv6.go` (+`origination_ipv6_test.go`):
   `NonLinkLocalV6Prefixes`/`NonLinkLocalV6Addrs` RFC 5308 scope filters.
-- `internal/component/isis/spf/ipv6.go` (+`ipv6_test.go`): `MaxV6PathMetric`,
+- `internal/plugins/isis/spf/ipv6.go` (+`ipv6_test.go`): `MaxV6PathMetric`,
   `NextHopResolverV6`, `BuildRoutesV6`, `resolveHopsV6`.
-- `internal/component/isis/redistribute/ipv6.go` (+`ipv6_test.go`): IPv6
+- `internal/plugins/isis/redistribute/ipv6.go` (+`ipv6_test.go`): IPv6
   inject/withdraw (TLV 236, external bit), `ConnectedPrefixInfosV6`, `OnSPFChangeV6`,
   `emitDeltaFamily`.
-- `internal/component/isis/circuit/hello_ipv6_test.go`: IIH TLV 232 link-local scope.
+- `internal/plugins/isis/circuit/hello_ipv6_test.go`: IIH TLV 232 link-local scope.
 - `test/isis/isis-ipv6.ci`: dual-stack config + `show isis route ipv6` wiring.
 
 Modified (additive):

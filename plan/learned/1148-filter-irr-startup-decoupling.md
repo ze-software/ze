@@ -1,6 +1,6 @@
 # 1148 — filter-irr: decouple startup from IRR resolution
 
-## Objective
+## Context
 Fix a flaky filter-irr functional test (#161) where an UPDATE arriving before the
 first IRR resolution was rejected `no-prefix-list` instead of `modify` — WITHOUT
 coupling ze startup to IRR-server reachability.

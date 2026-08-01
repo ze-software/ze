@@ -49,8 +49,8 @@ The same problem exists for all components: BGP, interface, DNS. Nothing should 
 - `internal/component/plugin/process/manager.go` -- `RemoveProcess` method
 - `internal/component/bgp/reactor/reactor.go` -- `ConfiguredPaths` pass-through
 - `internal/component/bgp/config/loader_create.go` -- populate `ConfiguredPaths`
-- `internal/plugins/fibkernel/register.go` -- `ConfigRoots: ["fib.kernel"]`, `Dependencies: ["sysrib"]`
-- `internal/plugins/fibp4/register.go` -- `ConfigRoots: ["fib.p4"]`, `Dependencies: ["sysrib"]`
-- `internal/plugins/fibkernel/yang/ze-fib-conf.yang` -- restructured: `fib { admin-distance { } kernel { } }`
-- `internal/plugins/fibp4/yang/ze-fib-p4-conf.yang` -- augments `fib` with `p4 { }`
+- `internal/plugins/fib/kernel/register.go` -- `ConfigRoots: ["fib.kernel"]`, `Dependencies: ["sysrib"]`
+- `internal/plugins/fib/p4/register.go` -- `ConfigRoots: ["fib.p4"]`, `Dependencies: ["sysrib"]`
+- `internal/plugins/fib/kernel/yang/ze-fib-conf.yang` -- restructured: `fib { admin-distance { } kernel { } }`
+- `internal/plugins/fib/p4/yang/ze-fib-p4-conf.yang` -- augments `fib` with `p4 { }`
 - `internal/plugins/sysrib/yang/ze-sysrib-conf.yang` -- emptied (internal, no user-facing containers)

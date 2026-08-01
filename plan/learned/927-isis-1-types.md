@@ -121,22 +121,22 @@ code is implemented; only that on-wire validation step remains, and it requires 
 Linux host.
 
 ## Files
-- `internal/component/isis/types/systemid.go` (+test): SystemID 6-byte identifier.
-- `internal/component/isis/types/sourceid.go` (+test): SystemID + pseudonode ID.
-- `internal/component/isis/types/lspid.go` (+test): SourceID + LSP number,
+- `internal/plugins/isis/types/systemid.go` (+test): SystemID 6-byte identifier.
+- `internal/plugins/isis/types/sourceid.go` (+test): SystemID + pseudonode ID.
+- `internal/plugins/isis/types/lspid.go` (+test): SourceID + LSP number,
   big-endian total order for CSNP/PSNP range bounding.
-- `internal/component/isis/types/net.go` (+test): NET (8..20) and AreaID (1..13),
+- `internal/plugins/isis/types/net.go` (+test): NET (8..20) and AreaID (1..13),
   positional split, byte-lexicographic ordering, NET dotted-hex convention.
-- `internal/component/isis/types/metric.go` (+test): Metric (24-bit, TLV 22) and
+- `internal/plugins/isis/types/metric.go` (+test): Metric (24-bit, TLV 22) and
   PrefixMetric (32-bit, TLV 135/236) as two distinct widths.
-- `internal/component/isis/types/sequence.go` (+test): SequenceNumber, reserved-0,
+- `internal/plugins/isis/types/sequence.go` (+test): SequenceNumber, reserved-0,
   wrap-aware Next/NextChecked.
-- `internal/component/isis/types/lifetime.go` (+test): RemainingLifetime (IsPurge)
+- `internal/plugins/isis/types/lifetime.go` (+test): RemainingLifetime (IsPurge)
   and HoldingTime, 16-bit seconds.
-- `internal/component/isis/types/format.go` (+test): shared zero-alloc dotted-hex
+- `internal/plugins/isis/types/format.go` (+test): shared zero-alloc dotted-hex
   append/parse helpers and the package error set.
-- `internal/component/isis/types/accessors_test.go`: Equal/Bytes accessor coverage
+- `internal/plugins/isis/types/accessors_test.go`: Equal/Bytes accessor coverage
   (added beyond plan).
-- `internal/component/isis/types/parse_test.go`: malformed-input rejection across
+- `internal/plugins/isis/types/parse_test.go`: malformed-input rejection across
   all Parse*/FromBytes constructors.
-- `internal/component/isis/types/doc.go`: leaf-package constraint statement.
+- `internal/plugins/isis/types/doc.go`: leaf-package constraint statement.

@@ -34,6 +34,7 @@ TARGET_ORDER = (
     "ze-doc-check-stale",
     "ze-discovery-index-check",
     "ze-digest-check",
+    "ze-learned-staleness",
     "ze-inventory-json",
     "ze-command-list-json",
     "ze-plugin-imports-check",
@@ -48,6 +49,7 @@ MAKE_TARGETS = {
     "ze-doc-check-stale",
     "ze-discovery-index-check",
     "ze-digest-check",
+    "ze-learned-staleness",
     "ze-inventory-json",
     "ze-command-list-json",
     "ze-plugin-imports-check",
@@ -604,6 +606,8 @@ def selected_targets(root: Path, changed: Iterable[str]) -> list[str]:
             selected.add("ze-fuzz-targets-check")
         if is_plan_source(path):
             selected.add("ze-spec-citation-check")
+        if is_learned_source(path):
+            selected.add("ze-learned-staleness")
     return [target for target in TARGET_ORDER if target in selected]
 
 
@@ -621,6 +625,23 @@ def is_plan_source(path: str) -> bool:
     if not path.endswith(".md"):
         return False
     return path.startswith("plan/spec-") or path.startswith("plan/learned/")
+
+
+def is_learned_source(path: str) -> bool:
+    """Changed files that must re-run the learned-summary staleness gate: any
+    plan/learned/*.md (its `## Files` paths and `plan/learned/NNN` citations are
+    what the gate reads), the checker itself, or the shrink-only baseline.
+
+    Adding a summary adds references that can be dead on arrival; retiring one
+    removes a number its siblings may still cite. Both land here, so the gate
+    fires exactly when a reference could have gone dangling. A deleted path is
+    still in the changed set, which is the case that matters most."""
+    if path in {
+        "scripts/dev/learned_staleness.py",
+        "plan/.learned-staleness-baseline",
+    }:
+        return True
+    return path.endswith(".md") and path.startswith("plan/learned/")
 
 
 def is_fuzz_source(root: Path, path: str) -> bool:

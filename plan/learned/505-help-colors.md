@@ -32,7 +32,7 @@ Ze had 40+ files with inline `fmt.Fprintf(os.Stderr, ...)` help text. Each subco
 ## Files
 
 - `cmd/ze/internal/helpfmt/helpfmt.go` -- Page, HelpSection, HelpEntry types, role-based rendering
-- `cmd/ze/internal/helpfmt/helpfmt_test.go` -- 9 unit tests
+- `internal/core/helpfmt/helpfmt_test.go` -- 9 unit tests
 - `internal/component/command/help.go` -- added HelpEntries() for YANG tree integration
 - 36 files under `cmd/ze/` -- migrated from inline fmt.Fprintf to helpfmt.Page
 - `test/parse/help-bgp.ci`, `test/parse/help-no-color.ci` -- functional tests

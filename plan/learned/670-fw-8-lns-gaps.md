@@ -29,3 +29,7 @@ Added: 5 format tests in `show_test.go`, 3 functional `.ci` tests (012-icmp-type
 
 - **Audit before implementing.** Discovering that all four gaps were already coded saved reimplementation. The audit step is the most valuable part of `/ze-implement` for specs that were designed months ago.
 - **Config key follows nft naming, not VyOS naming.** Operators migrating from VyOS see nft-native names in both config and `nft list ruleset` output, reducing the cognitive mapping.
+
+## Files
+
+None recorded.

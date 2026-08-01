@@ -31,8 +31,8 @@ Operators need prefix maximum values for every BGP peer but determining correct 
 
 ## Files
 
-- `internal/component/bgp/peeringdb/client.go` -- PeeringDB HTTP client
-- `internal/component/bgp/peeringdb/client_test.go` -- 12 unit tests
+- `internal/component/resolve/peeringdb/client.go` -- PeeringDB HTTP client
+- `internal/component/resolve/peeringdb/client_test.go` -- 12 unit tests
 - `cmd/ze-test/peeringdb.go` -- fake PeeringDB server (deterministic: ipv4=ASN, ipv6=ASN/5)
 - `internal/component/bgp/plugins/cmd/peer/prefix_update.go` -- update command handler
 - `internal/component/bgp/reactor/session_prefix.go` -- IsPrefixDataStale, prefix_ratio metric, staleness metric

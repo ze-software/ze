@@ -59,3 +59,7 @@ next to gitignored runtime state. They are parser fixtures, consumed only by
   adding the `decimal-2` typedef (`decimal64`, 2 fraction digits) to
   `ze-types.yang`. The cycle had masked this; once `bgp/config` compiled it
   surfaced in `TestParseAllConfigFiles` / `TestExtractAuthzConfig`.
+
+## Files
+
+None recorded.

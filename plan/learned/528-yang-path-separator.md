@@ -48,7 +48,7 @@ unify on `/` everywhere, aligning with the YANG extension convention already est
 - Plugin server: `hub.go`, `schema.go`, `reload.go`, `server.go`, `startup_autoload.go`, `node_with.go`
 - Web/CLI: `web/cli.go`, `cli/validator.go`, `cli/testing/expect.go`, `web/fragment.go`
 - SDK: `pkg/plugin/plugin.go`
-- Commands: `cmd/ze/schema/main.go`, `cmd/ze/config/cmd_migrate.go`
-- BGP plugins: `cmd/peer/peer.go`, `cmd/update/update_text.go`
+- Commands: `internal/component/config/schema/cli/main.go`, `internal/component/config/cli/cmd_migrate.go`
+- BGP plugins: `internal/component/bgp/plugins/cmd/peer/peer.go`, `internal/component/bgp/plugins/cmd/update/update_text.go`
 - Test runner: `internal/test/runner/json.go`
 - 22 `.et` editor test files, 16 `_test.go` files

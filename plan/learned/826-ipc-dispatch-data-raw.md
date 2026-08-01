@@ -32,7 +32,7 @@ The plugin-to-engine `dispatch-command` RPC carried its payload in `DispatchComm
 - `pkg/plugin/rpc/bridge.go` -- DispatchCommandHandler returns `*DispatchCommandOutput`
 - `internal/component/plugin/server/dispatch.go` -- responseToDispatchOutput, dispatchCommand
 - `pkg/plugin/sdk/sdk_engine.go` -- DispatchCommand returns `json.RawMessage`
-- `cmd/ze/bgp/cmd_plugin.go` -- print adaptation
+- `internal/component/bgp/cli/cmd_plugin.go` -- print adaptation
 - `internal/component/bgp/plugins/rr/rr.go` -- dispatchCommand, parseReplayResponse
 - `internal/component/bgp/plugins/rs/server.go` -- dispatchCommand, dispatchCommandHook
 - `internal/component/bgp/plugins/rs/server_handlers.go` -- parseReplayResponse

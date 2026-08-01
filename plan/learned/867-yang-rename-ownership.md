@@ -31,3 +31,7 @@ All YANG files lived in `schema/` directories. The name "schema" was misleading:
 - **Glob depth in scripts**: `git ls-files -- 'internal/*/schema/'` misses deeper nesting. Use `git ls-files --deleted` or `find` instead.
 - **Variable name drift**: hand-written embed.go used custom capitalization (ZeVppConfYANG) that diverges from codegen convention (ZeVPPConfYANG). Adding acronyms to yang_glue.go resolves this but must be done before consumers are updated.
 - **Blank imports in cmd/ packages**: when cmd YANG moves to a plugin, any blank import of the old yang/ package in the component's cmd/ code must update to the new plugin path.
+
+## Files
+
+None recorded.

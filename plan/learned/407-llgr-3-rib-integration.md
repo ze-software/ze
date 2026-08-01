@@ -1,6 +1,6 @@
 # 407 -- LLGR RIB Integration
 
-## Objective
+## Context
 
 Implement RIB-side LLGR support: LLGR_STALE community attachment, NO_LLGR route deletion, stale-level depreference in best-path selection, and generic RIB commands for community manipulation.
 

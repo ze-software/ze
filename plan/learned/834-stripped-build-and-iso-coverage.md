@@ -26,9 +26,9 @@ The appliance installer work added a second Ze product shape (the minimal/stripp
 - `internal/component/config/system/selfupdate_shared.go`
 - `internal/component/config/system/selfupdate_validate.go`
 - `internal/component/config/system/selfupdate.go`
-- `internal/component/config/system/backend_ze_minimal.go`
-- `cmd/ze/install/appliance/cmd_iso.go`
-- `test/install/appliance-iso-default-paths.ci`
-- `test/install/appliance-iso-arm64.ci`
+- `internal/component/config/system/backend_ze_appliance.go`
+- `internal/appliance/cmd_iso.go`
+- `test/appliance/appliance-iso-default-paths.ci`
+- `test/appliance/appliance-iso-arm64.ci`
 - `test/ui/ze-stripped-surface.ci`
 - `mk/test-functional.mk`

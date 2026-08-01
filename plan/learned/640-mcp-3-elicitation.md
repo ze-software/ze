@@ -141,7 +141,7 @@ branch), and keep the door open for Phase 4's task-augmented
   `sseReplySink`, `replySink` interface
 - `internal/component/mcp/{elicit,reply_sink,streamable}_test.go` --
   unit coverage for every AC
-- `cmd/ze-test/mcp.go` -- `--elicit` flag, SSE reader,
+- `internal/test/cli/cmd_mcp.go` -- `--elicit` flag, SSE reader,
   `elicit-{accept,decline,cancel}` stdin directives
 - `test/plugin/elicitation-{accept,decline,no-capability}.ci` --
   functional scenarios

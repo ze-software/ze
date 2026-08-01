@@ -38,4 +38,4 @@ in the config editor.
 - `internal/component/iface/yang/ze-iface-conf.yang` -- unique, ze:required, ze:validate, os-name
 - `internal/component/config/validators.go` -- MACAddressValidator with CompleteFn
 - `internal/component/config/validators_register.go` -- mac-address registration
-- `cmd/ze/init/main.go` -- interface discovery during init, generateInterfaceConfig
+- `internal/plugins/init/main.go` -- interface discovery during init, generateInterfaceConfig

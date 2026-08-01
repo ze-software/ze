@@ -29,6 +29,6 @@ Ze runs on gokrazy appliances where stderr goes nowhere. When a goroutine panics
 ## Files
 
 - `internal/core/crashlog/` (new package: crashlog.go, stderr.go, persist.go, list.go, dup2_unix.go, dup2_unsupported.go)
-- `internal/component/cmd/show/crashes.go` (new: show crashes RPC handlers)
+- `internal/plugins/crashes/cmd/show.go` (new: show crashes RPC handlers)
 - `cmd/ze/main.go` (modified: crashlog.Init() wiring)
 - `docs/guide/operations.md`, `docs/guide/command-reference.md`, `docs/features.md`, `docs/comparison.md`

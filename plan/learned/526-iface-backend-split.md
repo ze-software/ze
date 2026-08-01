@@ -39,8 +39,8 @@ The iface component was a monolith: YANG schema, types, validation, and all OS o
 - `internal/component/iface/dispatch.go` -- package-level functions delegating to backend
 - `internal/component/iface/register.go` -- OnConfigure/OnConfigVerify/OnConfigApply, error propagation
 - `internal/component/iface/default_linux.go` / `default_other.go` -- per-OS backend default
-- `internal/plugins/ifacenetlink/` -- netlink backend (10 source files + 4 test files)
-- `internal/plugins/ifacedhcp/` -- DHCP plugin (5 source files, zero netlink dependency)
+- `internal/plugins/iface/netlink/` -- netlink backend (10 source files + 4 test files)
+- `internal/plugins/iface/dhcp/` -- DHCP plugin (5 source files, zero netlink dependency)
 - `internal/component/cli/model_commands.go` -- `errors` command shows reload errors, `tryReload` helper
 - `internal/component/iface/yang/ze-iface-conf.yang` -- `backend` leaf
 - `docs/features/interfaces.md`, `docs/guide/plugins.md`, `docs/architecture/core-design.md` -- updated

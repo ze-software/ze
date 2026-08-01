@@ -37,13 +37,13 @@ pointer for the active target. Added `ze remote` CLI (add, list, remove, default
 
 | File | Change |
 |------|--------|
-| `cmd/ze/remote/main.go` | New: add, list, remove, default subcommands |
-| `cmd/ze/remote/main_test.go` | New: unit tests |
+| `internal/plugins/connect/main.go` | New: add, list, remove, default subcommands |
+| `internal/plugins/connect/main_test.go` | New: unit tests |
 | `cmd/ze/internal/ssh/client/client.go` | Rewrite: per-service credential resolution |
-| `cmd/ze/internal/ssh/client/client_test.go` | Updated: per-service key paths |
-| `cmd/ze/init/main.go` | Updated: writes per-service keys + default pointer |
-| `cmd/ze/init/main_test.go` | Updated: per-service assertions |
-| `cmd/ze/cli/main.go` | Updated: --remote flag |
+| `internal/core/ssh/client/client_test.go` | Updated: per-service key paths |
+| `internal/plugins/init/main.go` | Updated: writes per-service keys + default pointer |
+| `internal/plugins/init/main_test.go` | Updated: per-service assertions |
+| `internal/component/cli/client/main.go` | Updated: --remote flag |
 | `cmd/ze/main.go` | Updated: wired `ze remote` subcommand |
 | `pkg/zefs/keys.go` | Updated: parameterized key patterns |
 

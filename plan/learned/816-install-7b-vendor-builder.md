@@ -24,3 +24,7 @@ spec-install-7b: replace `bin/gok` shell-out with vendored gokrazy builder call.
 
 - `strconv.FormatInt` is blocked by `block-sprintf-new.sh` hook even in cold CLI code; use `strconv.AppendInt` to a nil slice instead
 - Prealloc linter requires capacity hint when building slice with known size + append
+
+## Files
+
+None recorded.

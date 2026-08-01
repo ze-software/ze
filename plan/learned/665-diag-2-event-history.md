@@ -56,5 +56,5 @@
 - `internal/component/bgp/plugins/cmd/peer/peer.go` (handlePeerHistory)
 - `internal/component/l2tp/{fsm_history.go,tunnel.go,session.go,session_fsm.go}`
 - `internal/component/l2tp/{snapshot.go,subsystem_snapshot.go,service_locator.go}`
-- `internal/component/cmd/l2tp/l2tp.go` (handleTunnelHistory, handleSessionHistory)
+- `internal/component/l2tp/cmd/l2tp.go` (handleTunnelHistory, handleSessionHistory)
 - YANG: `ze-cli-show-cmd.yang`, `ze-l2tp-cmd.yang`

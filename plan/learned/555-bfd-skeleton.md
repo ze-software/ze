@@ -165,7 +165,7 @@ written as part of the skeleton per the project's established pattern.
 - `internal/plugins/bfd/transport/` — `UDP`, `Loopback`, shared interface
 - `internal/plugins/bfd/engine/` — `Loop`, express-loop goroutine, `handle`
 - `internal/plugins/bfd/api/` — `Service`, `SessionRequest`, `StateChange`
-- `internal/plugins/bfd/yang/ze-bfd-conf.yang` — profiles, pinned sessions
+- `internal/component/bfd/yang/ze-bfd-conf.yang` — profiles, pinned sessions
 - `rfc/short/rfc5880.md`, `rfc5881.md`, `rfc5882.md`, `rfc5883.md` — summaries
 - `rfc/full/rfc5880.txt` .. `rfc5883.txt` — IETF source
 - `docs/architecture/bfd.md` — internal design doc with "Next session: start here"

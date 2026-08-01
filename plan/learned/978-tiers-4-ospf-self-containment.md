@@ -68,7 +68,7 @@ path-based: any `.go` file outside a dir's own subtree importing into it counts 
 
 ## Files
 
-- `internal/plugins/ospf/v3/{types,packet,transport}/` (moved from `internal/plugins/ospfv3/`)
+- `internal/plugins/ospf/v3/{types,packet,transport}/` (moved from `internal/plugins/ospf/v3/`)
 - `internal/plugins/ospf/v3/{packet,types}/imports_test.go` (guards rewritten for the nested layout)
 - `internal/plugins/ospf/*_v6*.go`, `nssa.go`, `register.go`, `transport_iface.go` (import-path rewrites)
 - `internal/component/plugin/all/all.go` (regenerated)

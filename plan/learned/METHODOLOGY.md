@@ -18,7 +18,7 @@ How to extract a summary from a completed spec into `plan/learned/NNN-<name>.md`
 - Reference architecture doc when the decision is documented there: "(see encoding-context.md)"
 - Decisions must include "over" clauses when alternatives existed: "chose X over Y because Z"
 - Gotchas section is the most valuable -- never skip even if empty ("None.")
-- Mechanical refactors with no design decisions: Context can be 1-2 sentences, Decisions/Consequences say "Mechanical refactor, no design decisions."
+- All five sections carry content. A section with nothing to say is not filled with a phrase that says so; it is the signal that no summary belongs here (see below)
 
 ### Section Quality Checks
 
@@ -29,6 +29,44 @@ How to extract a summary from a completed spec into `plan/learned/NNN-<name>.md`
 | Consequences | "If someone touches this area next, what do they need to know that the code alone won't tell them?" |
 | Gotchas | "Would a future session hit the same trap without this warning?" |
 | All | "If I deleted this entry, would a future session miss something that code alone cannot tell them?" |
+
+## When No Summary Is Written
+
+A summary is a record of a lesson, not an artifact of closing a spec. Work that
+produced no knowledge writes no file: no number is allocated, and
+`plan/learned/` does not grow.
+
+Measured on the corpus that made this rule: 229 of 1,285 summaries carried no
+gotcha, and 77 stated in words that they carried no lesson. Every one of them
+cost a number, an index row, and a future reader's attention.
+
+Write nothing when all of these hold:
+
+| Condition | Test |
+|-----------|------|
+| The change only relocated content | Moves, file renames, reformatting, and a rename applied everywhere. The words are the same words, in a different place |
+| No alternative was rejected | Nothing to put in Decisions with an "over" clause |
+| Nothing surprised, failed, or trapped | Gotchas would read "None." with nothing above it |
+| Nothing constrains the next session | Consequences would restate what the diff already shows |
+
+Write a summary when any one of these holds, even if the diff is small:
+
+- A decision was made and something else was rejected.
+- A constraint was discovered that the code does not state.
+- Something failed in a way the next session would repeat.
+- An interface, a gate, or a default changed, and the reason is not in the code.
+
+The judgement is yours, and it is asked before the number is allocated
+(`/ze-close` step 6a). The commit helper asks the same question of the diff and
+refuses commit A when the change adds content and neither a summary nor an
+explicit reason is present (`scripts/dev/commit_helper.py` `lesson_worthy`). It
+reads what changed, so it cannot tell filler from knowledge: a session that
+writes one hollow gotcha to satisfy it has satisfied nothing.
+
+This governs records of COMPLETED WORK. It says nothing about records of
+DEFECTS. A `plan/known-failures/` shard and a `plan/deferrals/` row are
+governed by `ai/rules/no-parking.md` and `ai/rules/fix-dont-record.md`, and
+nothing here permits deleting one.
 
 ## What Counts as Knowledge
 

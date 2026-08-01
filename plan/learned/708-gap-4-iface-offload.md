@@ -60,7 +60,7 @@ covering ethernet, dummy, veth, and bridge.
   trigger an OOM via the subsequent GSTRINGS allocation (count * 32 bytes).
   Capped at 4096.
 
-## Files changed
+## Files
 
 - `internal/component/iface/yang/ze-iface-conf.yang` -- offload container in interface-l2
 - `internal/component/iface/config.go` -- offloadConfig struct, parseOffloadConfig, applyConfig wiring

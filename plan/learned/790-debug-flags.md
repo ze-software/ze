@@ -49,9 +49,9 @@ CLI commands to toggle and a three-tier resolution system.
 - `pkg/zefs/keys.go` -- `KeyDebugAll`, `KeyDebugSubsystem` registrations
 - `internal/core/slogutil/debug.go` -- `ResolveDebugStates`, `ApplyDebugFlags`, `RestoreLevel`, `ValidateSubsystem`, `SubsystemsMatching`
 - `internal/core/slogutil/debug_test.go` -- 9 unit tests for resolution logic
-- `cmd/ze/debug/register.go` -- CLI command registration
-- `cmd/ze/debug/debug.go` -- `Run`, `cmdEnable`, `cmdDisable`, `cmdShow`
-- `cmd/ze/debug/debug_test.go` -- 9 unit tests for CLI commands
+- `internal/plugins/debug/register.go` -- CLI command registration
+- `internal/plugins/debug/debug.go` -- `Run`, `cmdEnable`, `cmdDisable`, `cmdShow`
+- `internal/plugins/debug/debug_test.go` -- 9 unit tests for CLI commands
 - `internal/component/config/storage/storage.go` -- `BlobStoreFrom()` accessor
 - `cmd/ze/hub/main.go` -- `ApplyDebugFlags` call in Phase 1a of startup
 - `cmd/ze/main.go` -- `zedebug` import + dispatch case

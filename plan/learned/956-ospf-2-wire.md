@@ -43,3 +43,7 @@ coverage.
 - Fuzz and review found two durable bug classes for OSPF parsers: untrusted count
   allocation and raw passthrough accidentally disabled by setting a typed body.
   New OSPFv3 codecs should test both from the start.
+
+## Files
+
+None recorded.

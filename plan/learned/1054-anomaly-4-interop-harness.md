@@ -59,3 +59,7 @@ injects synthetic traffic, gets a real incident, and arms the responder.
   against the in-flight anomaly YANG restructure. Flagged to the user; not fixed here.
 - Config restructure (2026-07-02): anomaly config is nested `anomaly { detect {} shape {} }`; show
   commands are `show anomaly detect` / `show anomaly shape` (wire methods `ze-show:anomaly*` unchanged).
+
+## Files
+
+None recorded.

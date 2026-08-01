@@ -57,7 +57,7 @@ listeners. This meant operator-visible downtime for a port change.
 - `internal/component/api/rest/server.go` -- RESTServer.Reconfigure (loopback enforced)
 - `internal/component/api/grpc/server.go` -- GRPCServer.Reconfigure (grpc.ErrServerStopped filter)
 - `internal/component/ssh/ssh.go` -- SSH Server.Reconfigure (wish library Serve pattern)
-- `cmd/ze/hub/mcp.go` -- MCPServerHandle.Reconfigure, Addresses
+- `cmd/ze/hub/service_mcp.go` -- MCPServerHandle.Reconfigure, Addresses
 - `cmd/ze/hub/listener_migrate.go` -- ListenerMigrator (all services), detectConflicts
 - `cmd/ze/hub/listener_migrate_test.go` -- 4 conflict detection tests
 - `cmd/ze/hub/main_reload.go` -- doReload calls ReloadListeners

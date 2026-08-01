@@ -140,7 +140,7 @@ patterns. `bin/ze-test vpp 006-iface-create` -> 1/1 PASS in 5.0s.
 - `/ze-review` formal run is deferred to the user (interactive slash
   command, not agent-invokable).
 
-## Files Touched
+## Files
 
 - `internal/component/iface/backend.go` -- `ErrBackendNotReady` sentinel.
 - `internal/component/iface/config.go` -- `reconcileOnReady`,
@@ -151,9 +151,9 @@ patterns. `bin/ze-test vpp 006-iface-create` -> 1/1 PASS in 5.0s.
 - `internal/component/iface/register.go` -- `activeCfg` atomic
   promotion; `vppReadyOnce`; two subscriptions appended to
   `unsubscribers`.
-- `internal/plugins/ifacevpp/ifacevpp.go` -- `ensureChannel` checks
+- `internal/plugins/iface/vpp/ifacevpp.go` -- `ensureChannel` checks
   `connector.IsConnected()`; non-caching sentinel branch.
 - `internal/plugins/ifacevpp/ifacevpp_test.go` -- 3 tests.
-- `internal/plugins/ifacevpp/query.go` -- minor edit (error-wrap
+- `internal/plugins/iface/vpp/query.go` -- minor edit (error-wrap
   alignment with the new sentinel).
 - `test/vpp/006-iface-create.ci` -- two reject patterns.

@@ -116,3 +116,7 @@ only requires the row to be non-"Supported", it cannot count.
   holes". RFC 9552 §5.1 shows the IETF using §5.4's own escape clause for BGP-LS
   ("MUST be preserved and propagated"); RFC 7432 never did for EVPN, so retaining
   is a genuine divergence rather than conformance by another route.
+
+## Files
+
+None recorded.

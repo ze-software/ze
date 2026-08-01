@@ -37,6 +37,6 @@ Listener endpoints across Ze services used inconsistent patterns: web/LG/MCP use
 - `internal/component/config/yang/modules/ze-extensions.yang` -- ze:listener extension
 - 8 component YANG schemas normalized to list server pattern
 - `internal/component/config/environment.go` -- centralized registrations, LogEnv reduced to 3 fields
-- `cmd/ze/config/cmd_validate.go` -- conflict check wired into validation
+- `internal/component/config/cli/cmd_validate.go` -- conflict check wired into validation
 - 50+ test files updated for new YANG patterns
 - 17 doc files updated for new syntax

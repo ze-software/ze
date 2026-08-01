@@ -49,3 +49,7 @@ The requirement came from VyOS-style `system { update-check { url ... } }` confi
   (start at config load, restart on reload, stop on shutdown).
 - Report bus integration: same `report.RaiseWarning`/`ClearWarning` with source/code/subject
   triple used by BGP and config subsystems.
+
+## Files
+
+None recorded.

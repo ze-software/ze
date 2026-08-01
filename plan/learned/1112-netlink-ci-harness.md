@@ -71,3 +71,7 @@ pre-existing, non-harness test brittleness that only the first real Linux run re
 - **nushell `cd` persists across Bash tool calls** and drifts later relative paths -- use
   absolute paths, never `cd a && b`. The per-session hook `sid` also drifts (getppid),
   so `.source-read-<sid>` / `session-state-<sid>.md` may need symlinking to the fallback.
+
+## Files
+
+None recorded.

@@ -27,3 +27,7 @@ Promoted `ze.rs.chan.size` env var to a YANG config leaf at
 Initial implementation used `ze.rs.worker-queue-size` which violates the
 `config-naming.md` hierarchy rule (env var path must mirror YANG tree path).
 Corrected to `ze.bgp.route-server.worker-queue-size` during review.
+
+## Files
+
+None recorded.

@@ -80,3 +80,7 @@ Despite RECURRING + ZERO TOLERANCE in mistake log, Claude continued saying "pre-
 - goimports cascades remain a tooling limitation -- documented but not solvable
 - Import cycles require the arch-0 restructuring to fully resolve
 - UI/web specs should use behavior ACs, not layout ACs
+
+## Files
+
+None recorded.

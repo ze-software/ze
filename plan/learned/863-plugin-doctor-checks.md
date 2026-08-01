@@ -34,3 +34,7 @@ declare at registration, invoke via callback.
   without extending the core diagnostic struct first
 - Offline `ze explain` cannot know plugin diagnostic codes (they are runtime-declared);
   AC-10 was scoped to runtime code validation only
+
+## Files
+
+None recorded.

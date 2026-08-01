@@ -157,10 +157,10 @@ correctness and tooling gaps surfaced in review. Three threads:
   vpls}/encode.go` -- Get/defer Put migration
 - `internal/component/bgp/reactor/peer_initial_sync.go` -- Get/Put
   migration (5 non-loop `defer`, 3 in-loop explicit Put)
-- `cmd/ze/bgp/encode.go` -- Get/Put migration
+- `internal/component/bgp/cli/encode.go` -- Get/Put migration
 - `internal/component/bgp/reactor/forward_build.go` -- `// pool-fallback`
   annotations on legitimate sync.Pool fallback copies
-- `internal/component/bgp/nlri/{base,inet,rd}.go` -- annotations +
+- `internal/core/bgp/nlri/{base,inet,rd}.go` -- annotations +
   pre-sized `buildData` rewrite
 - `.claude/hooks/block-encoding-alloc.sh` -- tightened existing globs,
   widened scope to `update_split`, `reactor/forward_build`, `bgp/nlri/

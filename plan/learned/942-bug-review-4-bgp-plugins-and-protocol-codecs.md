@@ -26,3 +26,7 @@ For BGP plugins, registration completeness is behavior. A codec can be correct b
 ## Verification
 
 - Child report includes assigned package ledger, NLRI family-chain matrix, command/RPC wiring matrix, accepted findings, plausible findings, rejected candidates, and cleared classes.
+
+## Files
+
+None recorded.

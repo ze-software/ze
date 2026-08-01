@@ -61,6 +61,6 @@ counters) independent of the stats segment.
 - `internal/component/vpp/telemetry.go` -- Stats poller + metric registration
 - `internal/component/vpp/telemetry_test.go` -- 8 unit tests
 - `internal/component/vpp/stats_conn.go` -- Stats socket connection helper
-- `internal/plugins/fibvpp/stats.go` -- FIB route count metrics
+- `internal/plugins/fib/vpp/stats.go` -- FIB route count metrics
 - `internal/plugins/fibvpp/stats_test.go` -- FIB stats tests
 - `internal/component/vpp/yang/ze-vpp-conf.yang` -- poll-interval leaf

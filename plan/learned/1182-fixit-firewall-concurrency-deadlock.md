@@ -88,3 +88,7 @@ D-3 ddos-local atomic status snapshot (`plugins/ddos/local`), D-4 anomaly-shape
   no goroutine dump was captured. This change fixes the concurrent-apply corruption on its
   own merits (which Scope admits as IN); the observed stall's keystone fact (which command
   was dispatched) stays open for the plugin-side agents' `.ci` reproduction.
+
+## Files
+
+None recorded.

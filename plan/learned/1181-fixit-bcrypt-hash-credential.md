@@ -69,3 +69,7 @@ redact SSH exec credential logs.
   raised as a follow-up). Redaction is scoped to password-family + bcrypt tokens (not
   `secret`/`community`/`-key`) to avoid false-positive redaction of BGP communities / host-key
   file paths in the operational log.
+
+## Files
+
+None recorded.

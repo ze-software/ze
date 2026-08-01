@@ -70,3 +70,7 @@ dropped from `project-knowledge.md` and both `.claude/memory/` files.
 wired gate was proven via its composition: AC-1 unit tests show both stages are
 in the CI stage list; `check_doc_links.py` and `doc_drift.go` each exit 1 on
 injected breakage and 0 when clean (witnessed live).
+
+## Files
+
+None recorded.

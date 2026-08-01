@@ -32,19 +32,19 @@ Ze had a flat config archive model: `archive { location X; }` with a single list
 - `internal/component/config/system/system_test.go` -- updated default assertion
 - `internal/component/config/archive/archive.go` -- added EventEmitter to NewNotifier
 - `internal/component/config/archive/archive_test.go` -- updated NewNotifier calls, added event emission test
-- `cmd/ze/config/cmd_archive.go` -- rewritten to use SSH RPC
-- `cmd/ze/config/cmd_archive_test.go` -- rewritten for RPC-based CLI
-- `cmd/ze/config/cmd_edit.go` -- updated NewNotifier call (nil eventFn)
-- `cmd/ze/config/main.go` -- updated usage text
-- `cmd/ze/cli/main.go` -- added archive cmd import
+- `internal/component/config/cli/cmd_archive.go` -- rewritten to use SSH RPC
+- `internal/component/config/cli/cmd_archive_test.go` -- rewritten for RPC-based CLI
+- `internal/component/config/cli/cmd_edit.go` -- updated NewNotifier call (nil eventFn)
+- `internal/component/config/cli/main.go` -- updated usage text
+- `internal/component/cli/client/main.go` -- added archive cmd import
 - `internal/component/plugin/all/all.go` -- added archive schema import
 - `plan/spec-config-2-archive.md` -- added review checklists, updated status
 
 ### Created
 - `internal/component/config/archive/scheduler.go` -- time-based trigger scheduler
 - `internal/component/config/archive/scheduler_test.go` -- scheduler tests
-- `internal/component/cmd/archive/archive.go` -- RPC handler for config archive trigger
-- `internal/component/cmd/archive/yang/ze-config-archive-api.yang` -- RPC definition
+- `internal/component/config/archive/cmd/archive.go` -- RPC handler for config archive trigger
+- `internal/component/config/archive/yang/ze-config-archive-api.yang` -- RPC definition
 - `internal/component/cmd/archive/yang/ze-config-archive-cmd.yang` -- CLI command tree
-- `internal/component/cmd/archive/yang/embed.go` -- YANG embedding
-- `internal/component/cmd/archive/yang/register.go` -- YANG module registration
+- `internal/component/config/archive/yang/embed.go` -- YANG embedding
+- `internal/component/config/archive/yang/register.go` -- YANG module registration

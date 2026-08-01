@@ -78,3 +78,7 @@ are withdrawn. So the modify path is correct; a RIB-level functional assertion
 is unstable with the current ze-peer lifecycle. `filter-irr.ci` therefore
 asserts the modify *decision* via stderr (matching `prefix-filter-modify-partial.ci`)
 and covers the accept/reject partition with unit tests `TestPartitionUpdate*`.
+
+## Files
+
+None recorded.

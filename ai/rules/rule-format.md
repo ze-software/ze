@@ -6,9 +6,11 @@
 
 ## Directives
 
-Every `ai/rules/*.md` rule (except the generated `INDEX.md` and `CONDENSED.md`)
-MUST open with a title and a machine-readable metadata block, so tooling can
-parse triggers and severity without guessing.
+Every `ai/rules/*.md` rule MUST open with a title and a machine-readable
+metadata block, so tooling can parse triggers and severity without guessing. An
+ALL-CAPS stem is a generated artifact, never a rule: `INDEX.md`, `TRIGGERS.md`,
+`CORE.md`, `CONDENSED.md`. The generators skip it by that shape, so a new
+artifact needs no code change.
 
 Required structure, in this exact order:
 
@@ -62,7 +64,11 @@ addition to that file.
   (one blank line allowed). No prose, table, or heading may sit between the
   title and the block.
 - Put imperative content under `## Directives` (or the rule's own directive
-  sections). This is what `CONDENSED.md` loads into every session.
+  sections). This is what the digest artifacts carry.
+- **One generator, `scripts/dev/rules_condensed.py`, emits three artifacts from one parse. Two are loaded into every session. The third is read on demand.** `TRIGGERS.md` carries one routing line per rule for all 97, so no rule is ever invisible. `CORE.md` carries the directives of the always-on rules only. `CONDENSED.md` carries every rule's directives and is NOT imported. Open it when several triggers match at once.
+- **Your `**When:**` line is now the ONLY thing that reaches a session about your rule, unless the rule is in the core.** Write it as the situation a reader matches against the task in hand. A trigger that names no distinctive term routes nothing, and the rule is read only by someone who already went looking for it.
+- **Core membership is derived, never listed.** Four conditions make a rule always-on: the ladder in `ai/rules/rule-precedence.md` names it on rung 1 or 2, it IS that ladder, it has no routable trigger, or no past task description in `plan/` would surface it. `make ze-rules-router-report` prints that last set. To make a rule always-on, put it on the ladder.
+- **`make ze-rules-payload` measures what a session loads.** The budget is 40,000 tokens.
 - Put the "why" under `## Rationale` and code under `## Examples`. The digest
   DROPS these sections, fenced code blocks, and `Rationale:`/`See:` pointer
   lines. Anything an agent must obey to comply belongs in a directive section,
@@ -71,9 +77,9 @@ addition to that file.
 - **Keep each bullet on ONE physical line when its full text must reach the digest.** A wrapped bullet's continuation lines do not match the list-item pattern (`scripts/dev/rules_condensed.py:52`), so they are treated as prose and are dropped or truncated by the paragraph rule above. A long single line is correct here; do not wrap it for looks.
 - After editing a rule, READ your section in the regenerated `CONDENSED.md` before committing. A directive that lost half its sentence is not visible from the rule file alone.
 - `make ze-rules-lint` enforces the block; `make ze-rules-condensed` regenerates
-  the digest. Both run in `make ze-doc-test`. A rule that fails the lint cannot
-  land.
-- **Commit the regenerated `CONDENSED.md` in the SAME commit as the rule edit.**
+  all three artifacts. Both run in `make ze-doc-test`. A rule that fails the lint
+  cannot land.
+- **Commit all three regenerated artifacts in the SAME commit as the rule edit.**
   The freshness gate (`ze-rules-condensed-check`, inside the blocking
   `ze-regen-check-readonly`) regenerates from the WORKING TREE and compares
   against the working tree's digest, so it is green locally while HEAD is
@@ -89,12 +95,24 @@ addition to that file.
 
 ## Rationale
 
-`CONDENSED.md` is imported into every agent session (`@ai/rules/CONDENSED.md`
-in `ai/INSTRUCTIONS.md`), so a fresh session sees every rule's directives
-without opening 89 files. That only works if a tool can mechanically separate a
-rule's directives from its explanation; before this format, directives and
-rationale were interleaved and no extraction was reliable. The `**When:**`
-trigger also lets `INDEX.md` be derived instead of hand-written.
+`CONDENSED.md` was imported into every agent session, so a fresh session saw
+every rule's directives without opening 97 files. That only works if a tool can
+mechanically separate a rule's directives from its explanation. Before this
+format, directives and rationale were interleaved and no extraction was
+reliable.
+
+Eager loading cost about 99,600 tokens on every turn. Every session and every
+subagent paid it, whether or not any of it applied. A session editing one
+markdown file paid what a session rewriting the BGP wire encoder paid. No single
+rule exceeded 6.4% of that, and the top 20 were only 55%. Trimming files
+therefore cannot fix it.
+
+`TRIGGERS.md` plus `CORE.md` replace the import. They measure about 21,100
+tokens, an 80% reduction. The safety property is awareness, not inclusion. Every
+rule keeps a line in `TRIGGERS.md`, so a rule whose body is not loaded is still
+named in every session and is one Read away. That is why the `**When:**` trigger
+is now load-bearing. It already let `INDEX.md` be derived instead of
+hand-written.
 
 ## Examples
 

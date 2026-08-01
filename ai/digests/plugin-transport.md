@@ -37,7 +37,7 @@ The bidirectional message layer between the ze engine and its plugins. Every plu
 ## Invariants & gotchas
 - **Registration is `init()`-time.** Each internal plugin's `register.go` `init()` calls `registry.Register`; `all/all.go` blank-imports it. Command/family/capability conflicts are detected at registration (`registration.go:177`) and abort startup.
 - **Two transports, one dispatch switch.** External = JSON-RPC over socket (`engineMux`/`PluginConn`); internal = `DirectBridge`. The plugin requests `Transport="bridge"` in the Stage-5 ready RPC (`sdk/sdk.go:363`) and the engine switches `PluginConn` to it (`startup.go:783`). Nil bridge ⇒ socket fallback everywhere.
-- **Startup always runs on sockets.** Only the runtime hot path uses the bridge; the 5-stage handshake stays on the pipe (cold path, per `plan/learned/294`).
+- **Startup always runs on sockets.** Only the runtime hot path uses the bridge; the 5-stage handshake stays on the pipe (cold path, per retired summary 294; see `plan/learned/DESIGN-HISTORY.md`, "Plugin system: architecture").
 - **Wire-before-ready race fix.** `wireBridgeDispatch` MUST run before the engine sends the Stage-5 ready OK, because the SDK calls `SetReady()` immediately after (`startup.go:726` comment; else the SDK takes the bridge path before the engine handler exists).
 - **Bridge readiness is atomic.** Every typed setter stores a `hasX atomic.Bool` to publish a happens-before edge; `DispatchRPC`/`DeliverEvents` error out when not ready.
 - **Bridge-mode plugins skip the mux read loop.** `handleSingleProcessCommandsRPC` checks `conn.HasBridge()` and blocks on `ctx.Done()` (`server/dispatch.go:47`); reading the mux would return `ErrMuxConnClosed` and wrongly trigger `cleanupProcess`/daemon shutdown during startup.
@@ -53,4 +53,4 @@ The bidirectional message layer between the ze engine and its plugins. Every plu
 - `docs/architecture/core-design.md`, namespaced EventBus and subsystem/bridge model
 - `docs/architecture/api/process-protocol.md`, 5-stage startup, callback dispatch, direct transport
 - `ai/rules/plugin-design.md`, cross-boundary value types, plugin placement
-- `plan/learned/294-inprocess-direct-transport.md`, DirectBridge rationale and gotchas
+- `plan/learned/DESIGN-HISTORY.md`, "Plugin system: architecture", DirectBridge rationale and gotchas (294, retired): Evolution for the transport chain, Abandoned approaches for the socket-tuning attempt that preceded it, Load-bearing invariants for the wire-before-ready ordering

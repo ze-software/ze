@@ -1,6 +1,6 @@
 # 403 -- RPKI Config Wiring
 
-## Objective
+## Context
 
 Wire the bgp-rpki plugin into the config pipeline (OnConfigure + WantsConfig) and prove end-to-end functionality with exhaustive functional tests and a mock RTR server.
 

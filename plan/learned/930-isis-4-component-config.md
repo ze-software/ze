@@ -106,17 +106,17 @@ already coexist in the same package tree).
   `isis-config` (test 3) passes in isolation (`ze-test isis 3`, exit 0).
 
 ## Files
-- `internal/component/isis/register.go`: `init()` registration, `runISISEngine`
+- `internal/plugins/isis/register.go`: `init()` registration, `runISISEngine`
   SDK lifecycle, central-validator CompleteFn registration, diagnostic-code +
   doctor registration, NET/system-id completions.
-- `internal/component/isis/config.go`: typed `Config`/`InterfaceConfig`/
+- `internal/plugins/isis/config.go`: typed `Config`/`InterfaceConfig`/
   `KeyChainConfig` structs, `parseISISConfig`, default application, `validateConfig`,
   the config-tree coercers, system-id derivation.
-- `internal/component/isis/events.go`: `Namespace` + `EventSessionUp/Down/LSPChange`
+- `internal/plugins/isis/events.go`: `Namespace` + `EventSessionUp/Down/LSPChange`
   + typed handles + `eventSink`.
-- `internal/component/isis/server.go`: the 5-bit PDU-type `dispatcher`, the
+- `internal/plugins/isis/server.go`: the 5-bit PDU-type `dispatcher`, the
   `engine` (open/reconcile/shutdown circuits, journal diff).
-- `internal/component/isis/yang/ze-isis-conf.yang`: top-level `isis` container with
+- `internal/plugins/isis/yang/ze-isis-conf.yang`: top-level `isis` container with
   `ze:config-root`, every leaf maximally validated; `register.go` / `embed.go` are
   generated glue (`make generate`).
 - `internal/component/config/validators_register.go` (+`validators_isis_test.go`):

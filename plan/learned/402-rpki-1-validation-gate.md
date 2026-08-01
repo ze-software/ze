@@ -1,6 +1,6 @@
 # 402 -- RPKI Validation Gate
 
-## Objective
+## Context
 
 Extend bgp-adj-rib-in with a "pending" route state and accept/reject commands, so a validation plugin can gate route installation without coupling the RIB to any specific validator.
 

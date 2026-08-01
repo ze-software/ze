@@ -75,9 +75,9 @@ archive.go. Changing a struct's size can cascade through unrelated callers.
 | `internal/component/config/system/system.go` | ConntrackConfig field + extractConntrack call |
 | `internal/component/config/system/yang/ze-system-conf.yang` | Conntrack container with enums and ranges |
 | `internal/core/sysctl/managed.go` | Managed key registry for dual-setting prevention |
-| `internal/plugins/sysctl/register.go` | CheckManaged in both setting and profile verifiers |
-| `internal/plugins/sysctl/sysctl_test.go` | Dual-setting prevention test |
-| `internal/component/cmd/show/conntrack.go` | show system conntrack handler |
+| `internal/component/sysctl/register.go` | CheckManaged in both setting and profile verifiers |
+| `internal/component/sysctl/sysctl_test.go` | Dual-setting prevention test |
+| `internal/component/firewall/cmd_show_conntrack.go` | show system conntrack handler |
 | `internal/component/cmd/show/show.go` | RPC registration |
 | `internal/component/telemetry/collector/conntrack_linux.go` | configured-max gauge |
 | `cmd/ze/hub/main.go` | Startup + reload wiring, managed key registration |

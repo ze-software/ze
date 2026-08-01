@@ -23,6 +23,6 @@ Ze has two ECMP mechanisms: (1) bgp-rib multipath, which selects equal-cost sibl
 
 ## Files
 
-- `internal/plugins/sysrib/sysrib.go` -- added ecmp-paths to showRIB()
+- `internal/component/sysrib/sysrib.go` -- added ecmp-paths to showRIB()
 - `test/plugin/fib-ecmp.ci` -- functional test (AC-1, AC-2, AC-3)
 - `test/interop/scenarios/34-ecmp-frr/` -- interop test (AC-4): ze.conf, frr.conf, gobgp.toml, announce.py, check.py

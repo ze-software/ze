@@ -60,3 +60,7 @@ registry being dynamic does not mean the build-time wiring is: audit both halves
   `docs/architecture/cli/plugin-modes.md` (BGP plugin CLI modes), not the construction
   registry. Repointed to `ai/rules/feature-gate-registration.md` (anchors to `ai/rules/`
   are an accepted convention, e.g. `bufpool.go`).
+
+## Files
+
+None recorded.

@@ -43,3 +43,7 @@ was lost (`isis-config`, `isis-redist-arbitration` failed on Linux too, not a
 platform issue). Fixed by awaiting non-daemon foreground `ze` with isolated output
 buffers (`internal/test/runner/runner_exec_util.go` `isQuickExitZeCommand`). Marking
 the tests "linux only" would have masked a real, platform-independent bug.
+
+## Files
+
+None recorded.

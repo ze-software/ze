@@ -1,6 +1,6 @@
 # 464 -- Role OTC (RFC 9234 Phase 2)
 
-## Objective
+## Context
 
 Implement RFC 9234 OTC (Only to Customer) attribute processing: ingress stamping/rejection and egress filtering via a generic peer filter chain in the reactor.
 
@@ -42,6 +42,6 @@ Implement RFC 9234 OTC (Only to Customer) attribute processing: ingress stamping
 - `internal/component/bgp/reactor/reactor_notify.go` -- ingress filter call site + safeIngressFilter
 - `internal/component/bgp/reactor/reactor_api_forward.go` -- egress filter call site + safeEgressFilter
 - `internal/component/plugin/registry/registry.go` -- PeerFilterInfo, filter types
-- `internal/component/bgp/attribute/attribute.go` -- RegisterName()
+- `internal/core/bgp/attribute/attribute.go` -- RegisterName()
 - `internal/component/bgp/plugins/aigp/` -- new stub plugin
 - `test/interop/scenarios/20-role-frr/`, `21-role-gobgp/` -- interop tests

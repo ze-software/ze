@@ -30,3 +30,7 @@ This was the right call because:
 
 - The `PendingChange` type exists in both `config` and `contract` packages with identical field names but separate types. The adapter layer casts between them. If either type diverges, the cast silently loses data.
 - `MetaTree.RenameListEntry` was added to support subtree rebase during rename. It should not be used for general-purpose meta manipulation outside the rename path.
+
+## Files
+
+None recorded.

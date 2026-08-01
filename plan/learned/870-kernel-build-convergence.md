@@ -41,9 +41,9 @@ The runtime gokrazy kernel and the installer kernel had diverged into two build 
 - `tools/installer-kernel/Makefile`
 - `tools/installer-kernel/README.md`
 - `tools/installer-kernel/hardware.config`
-- `tools/installer-kernel/Dockerfile`
+- `tools/kernel-builder/Dockerfile`
 - `tools/installer-kernel/build.sh`
-- `tools/installer-kernel/qemu-build.py`
+- `tools/kernel-builder/qemu-build.py`
 - `docs/guide/appliance.md`
 - `docs/guide/ze-install.md`
 - `test/install/appliance-kernel-auto-docker.ci`

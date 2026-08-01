@@ -69,3 +69,7 @@ shared event contract, detector, or responder). Report-only: it emits incidents;
   with leave-one-out `rarity`, and exclude +Inf members from the ratio cohort. Regression:
   `TestBuildCohortsExcludesInfiniteRatio`, and `TestCohortRarity` asserts leave-one-out > self-included.
   Cohort rarity is also SPARSE in practice (few same-/24 sources active at once) -- a slice-one limit.
+
+## Files
+
+None recorded.

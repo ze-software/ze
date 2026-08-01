@@ -35,3 +35,7 @@ IP address pool plugin (`l2tppool`) with bitmap-backed allocation.
   fragmentation, no allocation on the hot path beyond the bitmap scan.
 - EventBus subscription for resource cleanup (pool release) keeps the pool
   decoupled from the L2TP session lifecycle code.
+
+## Files
+
+None recorded.

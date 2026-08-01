@@ -25,3 +25,7 @@ Ze needed PATHS-LIMIT capability support (draft-abraitis-idr-addpath-paths-limit
 - The write hook blocks `_, _ = h.Write(...)` for hash writes; extracted `hashSeparator()` helper to isolate the pattern.
 - Config tests must use `map[string]any` trees matching the new YANG structure, not the old format.
 - ExaBGP migration must handle both capability-level add-path (direction) and neighbor-level add-path (per-family with optional limit) as separate sources combined into the unified output.
+
+## Files
+
+None recorded.

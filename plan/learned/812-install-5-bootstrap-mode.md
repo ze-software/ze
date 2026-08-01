@@ -40,3 +40,7 @@ every ethernet NIC, starts SSH. Operator SSHes in and configures the device.
 - The functional test validates the generated config syntax through
   `ze config validate -`, not through actual DHCP/SSH startup (that requires
   netlink backend and real network interfaces).
+
+## Files
+
+None recorded.

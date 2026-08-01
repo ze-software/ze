@@ -25,3 +25,7 @@ Tests: `TestKernelSRv6Encap` (`fibkernel_test.go:707`), `TestSRv6SteerAdd`/
   create srv6.go" — stale at closure: both the kernel SEG6 path and `srv6.go` already
   existed and were tested. Re-audit the input→FIB chain before trusting a spec's
   "current behavior" section written months earlier.
+
+## Files
+
+None recorded.

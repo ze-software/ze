@@ -240,7 +240,7 @@ back to. The real flow: SSH login -> `aaa.Bundle.Authenticator` -> profiles -> s
 ## See also
 - `docs/guide/authentication.md` - user-facing guide: bootstrap vs. YANG users, public keys, password hashing rules
 - `docs/guide/authorization.md` - RBAC profile syntax, prefix/regex matching, fail-closed semantics
-- `plan/learned/390-rbac.md` - original RBAC design history
+- `plan/learned/DESIGN-HISTORY.md`, "Plugin system: architecture" - original RBAC design history (390, retired); the fail-open chokepoint invariant is in that section's Load-bearing invariants
 - `plan/learned/601-tacacs.md` - TACACS+ integration history
 - `plan/learned/780-rbac-audit.md` - RBAC/audit hardening history
 - `plan/learned/831-appliance-auth-hardening.md` - appliance bootstrap hardening this digest traces

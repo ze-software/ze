@@ -29,7 +29,10 @@
 | **Cache Control** | API retains cache entries for replay, releases when done |
 | **Fail-fast** | GR/RR configured without capable API = refuse to start |
 
-**Full spec:** `plan/learned/172-api-capability-contract.md`
+**Design history:** `plan/learned/DESIGN-HISTORY.md`, "Plugin system: architecture"
+(retired summary 172). Its Evolution subsection carries the capability-declaration
+chain and the RFC-scoped config-key rule; its Load-bearing invariants carry the
+`PluginFailed()`/`proc.Stop()` obligation on every startup error path.
 
 ---
 

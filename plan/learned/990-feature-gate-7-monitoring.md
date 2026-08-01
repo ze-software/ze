@@ -96,7 +96,7 @@ working when the exporter is gated out.
   `cmd/ze/hub/build_tag_telemetry_{present,absent}_test.go`;
   `internal/core/metrics/registry_test.go` (dummy/collection proof);
   `internal/component/plugin/all/all_ze_telemetry.go` (generated)
-- Moved: `internal/component/telemetry/yang` -> `internal/component/telemetry/exporter/yang`;
+- Moved: `internal/component/telemetry/exporter/yang` -> `internal/component/telemetry/exporter/yang`;
   exporter `Server`+config+extraction out of `internal/core/metrics/server.go` (deleted)
   into `telemetry/exporter/server.go`
 - Modified: `cmd/ze/hub/{main_system.go,main.go}` (standalone seam + Close),

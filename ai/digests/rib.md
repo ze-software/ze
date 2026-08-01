@@ -115,6 +115,6 @@ Received UPDATE → best-path change (all `file:line` in `internal/component/bgp
 - `docs/architecture/route-selection.md`, Phase 1 validation (RFC 7606 rejection reasons) + Phase 2 best-path
 - `docs/architecture/rib-transition.md`, why RIB/best-path live in plugins, not the engine
 - `docs/architecture/route-types.md`, `docs/architecture/plugin/rib-storage-design.md`, storage/dedup design reference
-- `plan/learned/173-plugin-rib-pool-storage.md`, `176-per-attribute-deduplication.md`, `639-rib-unified.md`, pool storage + ADD-PATH-in-value-layer
-- `plan/learned/374-rib-05-best-path.md`, `607-rib-bart-bestprev.md`, `618-rib-bestpath-pack.md`, best-path + packed bestPrev record
+- `plan/learned/639-rib-unified.md`, ADD-PATH-in-value-layer; `plan/learned/DESIGN-HISTORY.md`, "BGP engine: wire encoding and RIB" > Evolution, pool storage and the store-small-NLRI-inline split (173, 176, retired)
+- `plan/learned/607-rib-bart-bestprev.md`, `plan/learned/618-rib-bestpath-pack.md`, packed bestPrev record; `plan/learned/DESIGN-HISTORY.md`, "BGP engine: wire encoding and RIB", best-path in the plugin and the unsigned-32-bit tiebreak (374, retired)
 - `plan/learned/783-rib-peer-lock-split.md`, peerMu vs shard lock split; `784-rib-rs-fastpath.md`, `637-rs-fastpath-4-forward-handle.md`, Loc-RIB ForwardHandle zero-copy

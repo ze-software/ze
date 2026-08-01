@@ -65,8 +65,13 @@ You are a subagent under ai/rules/spec-delegation.md. Your contract:
   report is a claim the main thread will verify, not evidence on its own.
 - You have NO LSP tool and you CANNOT ask the user. If the task genuinely needs
   either, say so in your report and stop rather than guessing.
-- ai/rules/CONDENSED.md holds the directive core of every rule; ai/rules/INDEX.md
-  routes to the full text. Read the full rule before acting on its topic.
+- Rules are ROUTED, not preloaded. ai/rules/TRIGGERS.md names every rule in one
+  line each, with its severity and the situation that makes it apply. When a
+  trigger matches your task, READ ai/rules/<name>.md before acting on its topic.
+  That read is the only way you get the rule: the trigger line is all you hold.
+  ai/rules/CORE.md is already loaded in full and needs no read. When several
+  triggers match at once, ai/rules/CONDENSED.md holds every rule's directives in
+  one file.
 - Never claim done with work remaining (ai/rules/no-partial-completion.md), and
   never park a blocker or weaken a test to reach green (ai/rules/no-parking.md).
 EOF

@@ -25,8 +25,8 @@ Ze needed CLI commands for firewall and traffic control visibility: `ze firewall
 
 ## Files
 
-- `cmd/ze/firewall/main.go` -- CLI entry point: show, counters
-- `cmd/ze/tc/main.go` -- CLI entry point: show interface
+- `internal/component/firewall/cli/main.go` -- CLI entry point: show, counters
+- `internal/component/traffic/cli/main.go` -- CLI entry point: show interface
 - `cmd/ze/main.go` -- Dispatch cases for firewall and traffic-control
 - `internal/component/firewall/cmd/show.go` -- Table/chain/term/counter formatting
 - `internal/component/firewall/cmd/show_test.go` -- 10 tests

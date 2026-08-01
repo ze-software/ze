@@ -78,3 +78,7 @@ survivors without re-scoping them into new features.
   (which adds assertions) rather than extracting a helper.
 - gosec G304 on `os.ReadFile(certPath)` needs `//nolint:gosec // cert path from
   parsed operator config`, matching `checks_tls.go`.
+
+## Files
+
+None recorded.

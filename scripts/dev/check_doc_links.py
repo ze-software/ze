@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check that path references in the instruction corpus resolve.
 
-Two checks:
+Four checks:
   1. Markdown corpus: backtick path references and markdown links in the
      normative agent-instruction files (ai/, .claude/rules/, plan/ meta docs)
      must point at files/dirs that exist. Historical records (plan/learned
@@ -9,6 +9,13 @@ Two checks:
      tree as it was at the time.
   2. Go sources: the target of every `// Design:` comment must exist
      (`(none ...)` placeholders are allowed).
+  3. Pointer budget: an entry in the curated `ai/LEARNED-INDEX.md` says what
+     its target answers and stops, under 120 characters after the link
+     (`ai/rules/detail-budget.md`).
+  4. Dead names: a backticked `*.sh` filename or `c_*`/`check_*` function name
+     in the hook-describing documents must name something in the tree. Check 1
+     cannot see these: a bare `foo.sh` carries no `/`, so `candidate_paths`
+     drops it, and a function name is not a path at all.
 
 A line containing `doc-links: ignore` is skipped (use for deliberate
 references to removed paths, e.g. negative examples).
@@ -25,6 +32,7 @@ Exit codes: 0 = all resolve, 1 = broken references found.
 """
 
 import argparse
+import ast
 import glob as globmod
 import os
 import re
@@ -95,8 +103,13 @@ MD_GLOBS = [
     "plan/TEMPLATE-CLOSURE.md",
     "plan/learned/RECURRING-PATTERNS.md",
     "plan/learned/HOOK-FRICTION.md",
-    # DESIGN-HISTORY.md is deliberately absent: it is a historical
-    # narrative and references paths as they were at the time.
+    # DESIGN-HISTORY.md was exempt until 2026-08-01, on the reasoning that a
+    # historical narrative may name paths as they were. That exemption is why
+    # its rot went unseen for three months: it is a document agents READ to
+    # find code, so a path it names must resolve today. A genuinely retired
+    # path is marked `doc-links: ignore` on its own line, which states the
+    # intent the blanket exemption only implied.
+    "plan/learned/DESIGN-HISTORY.md",
 ]
 # Generated indexes are validated by their own --check generators.
 MD_EXCLUDE = {"ai/CODE-TO-DOCS.md"}
@@ -109,6 +122,49 @@ SYMBOL_COLON = re.compile(r":[A-Za-z_][\w.]*$")
 SYMBOL_DOT = re.compile(r"\.[A-Z]\w*$")
 LEARNED_NUMBER = re.compile(r"^plan/learned/(\d+)$")
 DESIGN = re.compile(r"^// Design:\s*(.+)$")
+
+# --- Check 3: pointer budget (ai/rules/detail-budget.md) --------------------
+POINTER_BUDGET = 120
+INDEX_FILE = "ai/LEARNED-INDEX.md"
+# `- [760](plan/learned/760-name.md) -- description`: the budget governs the
+# description, so the measured span starts after the link's closing paren.
+INDEX_ENTRY = re.compile(r"^\s*[-*]\s*\[[^\]]*\]\([^)]*\)(.*)$")
+INDEX_SEPARATOR = re.compile(r"^\s*(?:--|—|-)\s*")
+# BLOCKING since the trim landed (spec-knowledge-2-meta-docs, step 4). It ran
+# report-only for one commit while 211 entries were over budget; the gate now
+# holds that line, so a new entry must point rather than summarise.
+INDEX_BUDGET_BLOCKING = True
+
+# --- Check 4: dead hook and check names -------------------------------------
+NAME_LINT_FILES = (
+    "plan/learned/HOOK-FRICTION.md",
+    "plan/learned/RECURRING-PATTERNS.md",
+    "ai/rules/hook-mapping.md",
+)
+# Every check these documents describe is a top-level def in one of these.
+# Resolution reads `def` names, NEVER the `CHECKS` registry tuples: the guard
+# behind `rfc-tagged-test` is `_rfc_tagged_change_err`, called from
+# `c_test_weakening`, and appears in no tuple.
+NAME_LINT_SOURCES = (
+    ".claude/hooks/pretool-writeedit.py",
+    ".claude/hooks/pretool-bash.py",
+    ".claude/hooks/pretool-agent-skill.py",
+    ".claude/hooks/posttool-writeedit.py",
+    "scripts/dev/verify_wiring_docs.py",
+)
+SH_TOKEN = re.compile(r"([A-Za-z0-9][\w.-]*\.sh)\b")
+CHECK_TOKEN = re.compile(r"\b((?:c_|check_)[a-z0-9_]+)\b")
+HEADING = re.compile(r"^(#+)\s")
+RETIRED_HEADING = re.compile(r"^#+\s*Retired\b", re.IGNORECASE)
+# A cell that STARTS with the marker. A substring match anywhere in the row
+# would let the word "retired" inside a prose cell excuse a live dead name.
+RETIRED_CELL = re.compile(r"^(?:retired\b|fixed\b.*\bat the source\b)", re.IGNORECASE)
+# ... and only in a cell entitled to say it: the row's own first cell, or the
+# column its table's header calls Status. Anchoring alone was not enough. A
+# prose cell reading "Retired elsewhere, but this is live" starts with the
+# marker too, and excused every dead name in its row.
+STATUS_HEADING = re.compile(r"^status\b", re.IGNORECASE)
+TABLE_SEPARATOR = re.compile(r"^:?-{2,}:?$")
 
 
 def expand_braces(token: str) -> list[str]:
@@ -249,6 +305,195 @@ def check_design_refs(verbose: bool) -> list[tuple[str, str]]:
     return errors
 
 
+def index_entry_length(line: str) -> int | None:
+    """Characters after the link in an index entry, or None if not an entry."""
+    m = INDEX_ENTRY.match(line)
+    if not m:
+        return None
+    return len(INDEX_SEPARATOR.sub("", m.group(1).strip()).strip())
+
+
+def check_index_budget(
+    path: str = INDEX_FILE, limit: int = POINTER_BUDGET
+) -> list[str]:
+    """Report curated-index entries longer than the pointer budget."""
+    if not os.path.exists(path):
+        # A tree that does not carry the curated index is not the Ze corpus
+        # (the fixtures in check_doc_links_test.py are such trees). Presence in
+        # the real tree is asserted by test_real_corpus_is_present_and_clean,
+        # so deleting the index reds the suite rather than silencing the check.
+        return []
+    try:
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+    except OSError as err:
+        # Fail closed: an index that exists but cannot be read is a fault.
+        return [f"{path}: cannot read curated index: {err}"]
+    findings = []
+    for lineno, line in enumerate(text.splitlines(), 1):
+        if "doc-links: ignore" in line:
+            continue
+        size = index_entry_length(line)
+        if size is not None and size > limit:
+            findings.append(
+                f"{path}:{lineno}: index entry runs {size} characters after "
+                f"the link, budget {limit} -- say what the target answers, "
+                f"then stop; the detail belongs in the summary it links"
+            )
+    return findings
+
+
+def python_check_sources() -> list[str]:
+    """Tracked Python under scripts/ and .claude/hooks/ -- where checks live."""
+    out = subprocess.run(
+        ["git", "ls-files", "scripts", ".claude/hooks"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    return [f for f in out if f.endswith(".py")]
+
+
+def known_names() -> tuple[set[str], set[str], list[str]]:
+    """(script basenames, top-level def names, errors) the lint resolves against.
+
+    Names resolve against every top-level `def`, never against the `CHECKS`
+    registry tuples: a check can be reached through a helper that no tuple
+    names. Sources are PARSED, never imported -- a doc check must not execute
+    hook code.
+    """
+    errors: list[str] = []
+    tracked = subprocess.run(
+        ["git", "ls-files"], capture_output=True, text=True, check=True
+    ).stdout.splitlines()
+    scripts = {os.path.basename(f) for f in tracked if f.endswith((".sh", ".py"))}
+
+    defs: set[str] = set()
+    sources = python_check_sources()
+    for required in NAME_LINT_SOURCES:
+        if required not in sources:
+            # Fail closed: losing a source silently turns its live checks dead.
+            errors.append(
+                f"{required}: dead-name lint source is missing from the tree "
+                f"-- restore it or update NAME_LINT_SOURCES in {__file__}"
+            )
+    for src in sources:
+        try:
+            with open(src, encoding="utf-8") as fh:
+                tree = ast.parse(fh.read(), filename=src)
+        except (OSError, SyntaxError) as err:
+            errors.append(
+                f"{src}: cannot parse for check names: {err} -- every name it "
+                f"defines would read as dead until this parses"
+            )
+            continue
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                defs.add(node.name)
+    return scripts, defs, errors
+
+
+def _row_cells(line: str) -> list[str]:
+    """A table row's cells, indexed so a header and its rows line up.
+
+    Split on `|` and keep the empty edges, because index alignment between the
+    header row and the body rows is the whole point: drop the leading empty on
+    one and the Status column moves.
+    """
+    return [c.strip().strip("*_ ") for c in line.lstrip().split("|")]
+
+
+def retired_lines(text: str) -> set[int]:
+    """Line numbers excused from the dead-name lint.
+
+    Two escapes, both narrow: a line under a `## Retired` heading (until the
+    next heading at the same or a higher level), and a table row that says
+    `Retired` or `Fixed ... at the source` IN A CELL ENTITLED TO SAY IT -- the
+    row's first cell, or the column its header calls Status.
+
+    Which cell it is matters. The two shapes in the corpus put the marker in
+    different places: `| Hook | Appearances | Status | Entry |` carries it in the
+    Status column, and `| Retired name | Live check | Dispatcher |` carries it in
+    the first. Accepting it anywhere in the row covered both, and also let a
+    description cell excuse the dead names beside it.
+    """
+    excused: set[int] = set()
+    retired_depth = None
+    lines = text.splitlines()
+    status_col: int | None = None
+    for lineno, line in enumerate(lines, 1):
+        head = HEADING.match(line)
+        if head:
+            depth = len(head.group(1))
+            if RETIRED_HEADING.match(line):
+                retired_depth = depth
+            elif retired_depth is not None and depth <= retired_depth:
+                retired_depth = None
+        if retired_depth is not None:
+            excused.add(lineno)
+            continue
+        if not line.lstrip().startswith("|"):
+            status_col = None  # the table ended; its header no longer applies
+            continue
+        cells = _row_cells(line)
+        following = lines[lineno] if lineno < len(lines) else ""
+        if following.lstrip().startswith("|") and all(
+            TABLE_SEPARATOR.match(c) for c in _row_cells(following) if c
+        ):
+            # This row is a header: the next line is its `|---|---|` separator.
+            status_col = next(
+                (i for i, c in enumerate(cells) if STATUS_HEADING.match(c)), None
+            )
+        entitled = {1} | ({status_col} if status_col is not None else set())
+        if any(
+            RETIRED_CELL.match(cells[i])
+            for i in entitled
+            if i < len(cells) and cells[i]
+        ):
+            excused.add(lineno)
+    return excused
+
+
+def check_hook_names(
+    files: tuple[str, ...] = NAME_LINT_FILES, verbose: bool = False
+) -> list[str]:
+    """Report `*.sh` and `c_*`/`check_*` names that name nothing in the tree."""
+    present = [f for f in files if os.path.exists(f)]
+    if not present:
+        # Not the Ze corpus: nothing to lint, so no sources are needed either.
+        # Presence in the real tree is asserted by
+        # test_real_corpus_is_present_and_clean.
+        return []
+    scripts, defs, findings = known_names()
+    for md in present:
+        try:
+            with open(md, encoding="utf-8") as fh:
+                text = fh.read()
+        except OSError as err:
+            # Fail closed: an unreadable document is reported, never skipped.
+            findings.append(f"{md}: cannot read for the dead-name lint: {err}")
+            continue
+        excused = retired_lines(text)
+        for lineno, line in enumerate(text.splitlines(), 1):
+            if "doc-links: ignore" in line:
+                continue
+            for span in BACKTICK.findall(line):
+                dead = [t for t in SH_TOKEN.findall(span) if t not in scripts]
+                dead += [t for t in CHECK_TOKEN.findall(span) if t not in defs]
+                for token in dead:
+                    if lineno in excused:
+                        if verbose:
+                            print(f"retired {md}:{lineno}: {token}")
+                        continue
+                    findings.append(
+                        f"{md}:{lineno}: dead name reference: {token} -- names "
+                        f"no tracked script and no check function under "
+                        f"scripts/ or .claude/hooks/; correct it to the live "
+                        f"name, or move the entry under '## Retired'"
+                    )
+    return findings
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--md-only", action="store_true")
@@ -271,6 +516,21 @@ def main() -> int:
     if not args.md_only:
         broken += check_design_refs(args.verbose)
     errors = drop_generated(broken)
+
+    if not args.design_only:
+        errors += check_hook_names(verbose=args.verbose)
+        over_budget = check_index_budget()
+        if INDEX_BUDGET_BLOCKING:
+            errors += over_budget
+        elif over_budget:
+            for finding in over_budget:
+                print(finding)
+            print(
+                f"{len(over_budget)} index entr(ies) over the "
+                f"{POINTER_BUDGET}-character pointer budget "
+                f"(report-only; see ai/rules/detail-budget.md)",
+                file=sys.stderr,
+            )
 
     for err in errors:
         print(err)

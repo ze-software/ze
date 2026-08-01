@@ -35,7 +35,7 @@ OSPFv3 started as a separate-plugin design, but the user chose one `ospf` engine
 - `internal/plugins/ospf/codec*.go`, `encoder_v6.go`, `afstrategy_v6*.go`
 - `internal/plugins/ospf/origination_v6*.go`, `internal/plugins/ospf/nssa.go`, `internal/plugins/ospf/redistribute/consumer.go`
 - `internal/plugins/ospf/lsdb/*.go`, `internal/plugins/ospf/neighbor/*.go`, `internal/plugins/ospf/types/lstype.go`
-- `internal/plugins/ospfv3/{types,packet,transport}/`
+- `internal/plugins/ospf/v3/{types,packet,transport}/`
 - `internal/component/bgp/redistribute/`, `internal/component/bgp/plugins/rib/rib_bestchange.go`, `internal/component/config/redistribute/route.go`
 - `test/interop/scenarios/ospf-v6-*`, `test/interop/interop.py`, `test/interop/Dockerfile.ze`, `test/interop/daemons`
 - `docs/guide/ospf.md`, `docs/guide/configuration.md`, `docs/features.md`, `docs/architecture/wire/ospfv3.md`, `docs/architecture/core-design.md`

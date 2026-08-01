@@ -124,22 +124,22 @@ The scenario FILES exist and are wired, but were NOT executed this session:
   covered on darwin by `test/isis/isis-show.ci`.
 
 ## Files
-- `internal/component/isis/lsdb/lsdb.go`: the two-level store, Receive/Insert/
+- `internal/plugins/isis/lsdb/lsdb.go`: the two-level store, Receive/Insert/
   Lookup/Delete, freshness compare dispatch, SRM/SSN flag API, LSPIDs/LSPEntries,
   Snapshot, metric registration + size gauges. Single RWMutex (single writer).
-- `internal/component/isis/lsdb/entry.go`: the per-LSP Entry (raw + metadata +
+- `internal/plugins/isis/lsdb/entry.go`: the per-LSP Entry (raw + metadata +
   purge/received-purge markers + SRM/SSN maps), lazy `Decode()`, `compareFreshness`.
-- `internal/component/isis/lsdb/origination.go`: NodeInfo/AdjacencyInfo/PrefixInfo/
+- `internal/plugins/isis/lsdb/origination.go`: NodeInfo/AdjacencyInfo/PrefixInfo/
   LevelState inputs, the Originator (sequence/suspend state + signer), full
   regeneration, fragment packer, wraparound, stale-fragment purge.
-- `internal/component/isis/lsdb/aging.go`: Tick (1s decrement), zero-age purge
+- `internal/plugins/isis/lsdb/aging.go`: Tick (1s decrement), zero-age purge
   with grace, received-purge one-shot re-flood, garbage collection, markPurged.
-- `internal/component/isis/lsdb/origination_ipv6.go`: TLV 232/236 entry encoders
+- `internal/plugins/isis/lsdb/origination_ipv6.go`: TLV 232/236 entry encoders
   (consumed by isis-12; the origination path already packs them).
 - `internal/component/isis/lsdb/{lsdb_test,entry-via-lsdb_test,origination_test,
   aging_test,boundary_test,metrics_test}.go`: 14 spec-named unit tests + boundary
   + metrics + purge-strip + received-purge-reflood tests, all passing under -race.
-- `internal/component/isis/lsdb_wiring.go` (+lsdb_wiring_test.go): engine glue
+- `internal/plugins/isis/lsdb_wiring.go` (+lsdb_wiring_test.go): engine glue
   (origination trigger, aging loop, refresh, SRM arming, snapshot, metrics).
 - Docs: `docs/architecture/wire/isis.md` (LSP origination contents, aging/purge,
   fragmentation, overload), `docs/plugin-development/metrics.md` (5 LSDB rows),

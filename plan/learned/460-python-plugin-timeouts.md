@@ -1,6 +1,6 @@
 # 460 -- Python Plugin Timeouts
 
-## Objective
+## Context
 
 Fix flaky `check.ci` (test Q) which timed out waiting for an UPDATE event from ze-peer under parallel test load.
 

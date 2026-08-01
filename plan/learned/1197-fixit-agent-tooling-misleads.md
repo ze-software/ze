@@ -85,3 +85,7 @@ enforces less than before), each paired with a must-not-fire test.
 - `scripts/dev/commit_helper_test.py`: `TestDiscoveryIndexProblems` (unrelated
   dirty index PASSES, fed-but-omitted stale index REFUSES) and
   `TestStructuralGateRemediation` (AC-5 refusal names the true refresher).
+
+## Files
+
+None recorded.

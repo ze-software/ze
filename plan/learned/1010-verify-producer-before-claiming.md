@@ -83,3 +83,7 @@ Hook-dispatcher parity green (`python3 scripts/dev/hook-parity-check.py`:
 blocks, a producer `.go` read allows, a docs read does not, a stale marker
 blocks. `make ze-ai-check` reports generated agent files in sync. `ze-verify`
 does not apply (no `.go`/build/codegen changes).
+
+## Files
+
+None recorded.

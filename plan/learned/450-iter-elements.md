@@ -1,6 +1,6 @@
 # 450 — Generic Element Iterator
 
-## Objective
+## Context
 
 Create a generic zero-allocation element iterator at `internal/iter/` for walking variable-length records in byte slices, and adopt it consistently across chunking/splitting code and inline attribute TLV walks.
 

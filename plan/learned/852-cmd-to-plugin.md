@@ -30,3 +30,7 @@ The appliance command migration (learned 850) established the precedent. This sp
 - **codegen auto-discovery:** any `register.go` under `internal/plugins/` without `codegen:skip` gets added to `plugin/all`. CLI commands that import `cli/client` or `plugin/all` (even transitively) will create import cycles.
 - **Embedded files:** the `skills` plugin embeds `data/*.md` files. These must be copied along with the .go files.
 - **Test files with cross-package imports:** test files (e.g., `connect/main_test.go`) that imported the old package path (`cmd/ze/connect`) caused duplicate command registration panics. Update these imports to the new path.
+
+## Files
+
+None recorded.

@@ -45,3 +45,7 @@ output is not validated at any boundary, so it must use `appendJSONString`.
 - The `parsePeersFromTree` fallback in `reactor_api.go` (used in tests
   only) does not call `validatePeerName`. Production path goes through
   `reloadFunc` which uses the full config pipeline.
+
+## Files
+
+None recorded.

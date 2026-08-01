@@ -75,3 +75,7 @@ already import it freely.
   the deterministic unit tests; a privileged run is the remaining evidence.
 - `doPingCtx` (`show ping`) shares the serial structure but has no interval and
   a bounded worst case — deliberately out of scope (separate spec).
+
+## Files
+
+None recorded.

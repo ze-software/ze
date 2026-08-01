@@ -1370,5 +1370,235 @@ class TestSTEGate(unittest.TestCase):
             self.assertIn("UNCHECKED", buf.getvalue())
 
 
+class TestLessonIsContentDriven(unittest.TestCase):
+    """The automatic learned-summary demand reads WHAT changed, not WHICH
+    directory changed. A commit that only relocates content in a lesson-scoped
+    path teaches nothing and is accepted without a summary; one that adds content
+    is refused until a summary or an explicit reason arrives
+    (plan/spec-knowledge-1-corpus.md AC-1, AC-2).
+    """
+
+    def _repo(self, tmp: str) -> Path:
+        root = Path(tmp)
+        _git(root, "init")
+        _git(root, "config", "user.email", "t@e.st")
+        _git(root, "config", "user.name", "t")
+        # Fixture-only, matching every sibling commit test here: a global
+        # commit.gpgsign=true would make `git commit` exit 128 with no tty.
+        _git(root, "config", "commit.gpgsign", "false")
+        (root / "scripts" / "dev").mkdir(parents=True)
+        (root / "ai" / "rules").mkdir(parents=True)
+        (root / "scripts" / "dev" / "a.py").write_text(
+            "def widen(value):\n    return value * 2\n"
+        )
+        (root / "ai" / "rules" / "x.md").write_text("# X\n\nThe gate refuses.\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "seed")
+        return root
+
+    def _comment(self, root: Path, paths: tuple[str, ...]) -> str:
+        return ch.lesson_comment(
+            paths, (), False, None, ch.lesson_change_lines(root, paths, ())
+        )
+
+    # VALIDATES: AC-1 -- a closure whose work produced no reusable lesson is
+    # accepted with no plan/learned/NNN-*.md staged.
+    # PREVENTS: the path-prefix demand returning, which made a summary an
+    # unconditional artifact of touching scripts/dev/ and produced 229 summaries
+    # with no gotcha.
+    def test_lesson_optional_without_content(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            # A pure move: the function leaves a.py and arrives in b.py intact.
+            # The fixture used to re-indent the body during the move and still
+            # expect "mechanical". It no longer may: in Python the indent IS the
+            # block, so a moved-and-re-indented body is a relocation plus an
+            # edit. test_reindent_is_not_mechanical pins the other half.
+            (root / "scripts" / "dev" / "a.py").write_text("")
+            (root / "scripts" / "dev" / "b.py").write_text(
+                "def widen(value):\n    return value * 2\n"
+            )
+            comment = self._comment(root, ("scripts/dev/a.py", "scripts/dev/b.py"))
+            self.assertIn("not needed", comment)
+            self.assertIn("move or a reformat", comment)
+
+    # VALIDATES: AC-2 -- a closure whose work produced a lesson is still refused
+    # without one, and the refusal names the content that earned the demand.
+    # PREVENTS: the content test degrading into "never ask", which would make the
+    # summary corpus stop growing for the wrong reason.
+    def test_lesson_demanded_with_content(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "ai" / "rules" / "x.md").write_text(
+                "# X\n\nThe gate refuses.\n\nIt now also refuses an empty set.\n"
+            )
+            with self.assertRaises(ch.UsageError) as caught:
+                self._comment(root, ("ai/rules/x.md",))
+            message = str(caught.exception)
+            self.assertIn("adds content", message)
+            self.assertIn("refuses an empty set", message)  # the evidence line
+            self.assertIn("--lesson-not-needed", message)  # the next step
+            # The stated escape actually works.
+            self.assertIn(
+                "not needed",
+                ch.lesson_comment(
+                    ("ai/rules/x.md",),
+                    (),
+                    False,
+                    "restates an existing gate for readers",
+                    ch.lesson_change_lines(root, ("ai/rules/x.md",), ()),
+                ),
+            )
+
+    # Boundary for MIN_SUBSTITUTION_SITES (2): one swapped token is an edit and is
+    # demanded; the same swap repeated is a mechanical substitution and is not.
+    def test_substitution_boundary_is_two_sites(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            path = root / "scripts" / "dev" / "a.py"
+            path.write_text("def widen(value):\n    return value * 3\n")
+            with self.assertRaises(ch.UsageError):
+                self._comment(root, ("scripts/dev/a.py",))
+            path.write_text("def widen(amount):\n    return amount * 2\n")
+            self.assertIn("substitution", self._comment(root, ("scripts/dev/a.py",)))
+
+    # The two-commit closure survives a spec with no lesson: commit B removes the
+    # spec and adds nothing, so it is never asked for a summary it cannot have
+    # (ai/rules/planning.md "Spec Closure").
+    def test_spec_closure_commit_needs_no_lesson(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "plan").mkdir()
+            (root / "plan" / "spec-x.md").write_text("# Spec\n")
+            _git(root, "add", "-A")
+            _git(root, "commit", "-q", "-m", "spec")
+            removed = ("plan/spec-x.md",)
+            self.assertEqual(ch.lesson_change_lines(root, (), removed), ())
+            self.assertIn(
+                "not required",
+                ch.lesson_comment(
+                    (), removed, False, None, ch.lesson_change_lines(root, (), removed)
+                ),
+            )
+
+    def _kind(self, before: str, after: str) -> str | None:
+        """`_mechanical_kind` for a one-file edit from `before` to `after`."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            path = root / "scripts" / "dev" / "a.py"
+            path.write_text(before)
+            _git(root, "add", "-A")
+            _git(root, "commit", "-q", "-m", "before")
+            path.write_text(after)
+            changes = ch.lesson_change_lines(root, ("scripts/dev/a.py",), ())
+            return ch._mechanical_kind(changes)
+
+    # VALIDATES: reordering tokens within a line is not mechanical, so the
+    # learned-summary demand is not skipped for it.
+    # PREVENTS: the multiset comparison returning. It compared WHICH words the
+    # diff added against which it removed, so every one of these read as "a move
+    # or a reformat" and the demand was silently waived. The first case is a
+    # logic inversion, and it is the exact edit that would disable the staleness
+    # ratchet shipped alongside this gate.
+    def test_reordering_within_a_line_is_not_mechanical(self):
+        for name, before, after in (
+            (
+                "comparison inverted",
+                "def gate(count, baseline):\n    if count > baseline:\n        fail()\n",
+                "def gate(count, baseline):\n    if baseline > count:\n        fail()\n",
+            ),
+            (
+                "arguments swapped",
+                "def go(src, dst):\n    move(src, dst)\n",
+                "def go(src, dst):\n    move(dst, src)\n",
+            ),
+            (
+                "guard order swapped",
+                "def use(p):\n    if exists(p) and safe(p):\n        read(p)\n",
+                "def use(p):\n    if safe(p) and exists(p):\n        read(p)\n",
+            ),
+        ):
+            with self.subTest(name):
+                self.assertIsNone(
+                    self._kind(before, after),
+                    f"{name}: same words, different meaning -- not mechanical",
+                )
+
+    # VALIDATES: swapping two whole LINES is not mechanical. Every word survives
+    # and every indent survives, so only the ORDER of the changed lines carries
+    # the change.
+    # PREVENTS: `_mechanical_kind` comparing the two sequences order-free.
+    # Replacing its `shapes_added == shapes_removed` with a sorted() comparison
+    # left every other case in this file green while waiving the demand for a
+    # reordering -- the docstring claimed an ordered SEQUENCE and nothing held it
+    # to that. Acquiring the lock after the work it guards is that shape.
+    #
+    # The fixture keeps `log(...)` between the two swapped statements on purpose:
+    # git minimises an ADJACENT swap to one removed line and one added line, so
+    # the swap never reaches this function to be judged.
+    def test_swapping_whole_lines_is_not_mechanical(self):
+        self.assertIsNone(
+            self._kind(
+                "def run(lock):\n    lock.acquire()\n    log('start')\n    do_work()\n",
+                "def run(lock):\n    do_work()\n    log('start')\n    lock.acquire()\n",
+            ),
+            "the lock is now taken after the work it guards -- not a relocation",
+        )
+
+    # VALIDATES: a re-indent is not mechanical either.
+    # PREVENTS: the docstring's old claim that re-indenting "changes no words"
+    # being treated as a claim that it changes no MEANING. Dedenting this return
+    # out of the loop makes the function return after one item, and scripts/dev/
+    # is inside LESSON_WORTHY_PREFIXES.
+    def test_reindent_is_not_mechanical(self):
+        self.assertIsNone(
+            self._kind(
+                "def total(items):\n"
+                "    n = 0\n"
+                "    for i in items:\n"
+                "        n += i\n"
+                "        return n\n",
+                "def total(items):\n"
+                "    n = 0\n"
+                "    for i in items:\n"
+                "        n += i\n"
+                "    return n\n",
+            ),
+            "dedenting a return out of a loop body changes what it returns",
+        )
+
+    # The demand's evidence must name the line that CHANGED. Pointing at a
+    # removed line to explain a reordering sends the reader to the wrong end of
+    # the diff (ai/rules/error-messages.md: the value, not just the operation).
+    def test_reordering_evidence_names_the_added_line(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            path = root / "scripts" / "dev" / "a.py"
+            path.write_text("def go(src, dst):\n    move(src, dst)\n")
+            _git(root, "add", "-A")
+            _git(root, "commit", "-q", "-m", "before")
+            path.write_text("def go(src, dst):\n    move(dst, src)\n")
+            with self.assertRaises(ch.UsageError) as caught:
+                self._comment(root, ("scripts/dev/a.py",))
+            message = str(caught.exception)
+            self.assertIn("move(dst, src)", message)
+            self.assertIn("reordered", message)
+
+    # --lesson-required is the operator saying so. Content never overrides it.
+    def test_lesson_required_still_raises_on_mechanical_change(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = self._repo(tmp)
+            (root / "scripts" / "dev" / "a.py").write_text("")
+            (root / "scripts" / "dev" / "b.py").write_text(
+                "def widen(value):\n    return value * 2\n"
+            )
+            paths = ("scripts/dev/a.py", "scripts/dev/b.py")
+            with self.assertRaises(ch.UsageError) as caught:
+                ch.lesson_comment(
+                    paths, (), True, None, ch.lesson_change_lines(root, paths, ())
+                )
+            self.assertIn("--lesson-required", str(caught.exception))
+
+
 if __name__ == "__main__":
     unittest.main()

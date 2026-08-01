@@ -132,26 +132,26 @@ remaining validation, gated on a Linux/QEMU host (the FRR scenarios are owned/dr
 by the isis-13 interop harness).
 
 ## Files
-- `internal/component/isis/lsdb/flooding.go` (+`flooding_test.go`,
+- `internal/plugins/isis/lsdb/flooding.go` (+`flooding_test.go`,
   `flooding_metrics_test.go`): the `Flooder` (receive-side freshness->flag mapping
   `ReceiveLSP`/`handleOlderLSP`/`armSRMExcept`; periodic SRM-draining `FloodTick`;
   the 8 owned metrics behind an atomic pointer).
-- `internal/component/isis/lsdb/snp.go` (+`snp_test.go`): CSNP/PSNP build
+- `internal/plugins/isis/lsdb/snp.go` (+`snp_test.go`): CSNP/PSNP build
   (`buildCSNPs` whole-range + multi-PDU split, `buildPSNP` from SSN-acks +
   pending-requests), receive (`ReceiveCSNP` gap detection, `ReceivePSNP`
   ack-clears-SRM / request-sets-SRM), the bounded per-circuit pending-request set,
   the P2P `InitialCSNP`, and `compareSNPEntry`.
-- `internal/component/isis/flooding_wiring.go` (+`flooding_wiring_test.go`): engine
+- `internal/plugins/isis/flooding_wiring.go` (+`flooding_wiring_test.go`): engine
   glue -- constructs the Flooder, installs the LSP/CSNP/PSNP dispatcher handlers,
   runs the flood/PSNP/P2P-CSNP timers, fires the P2P initial CSNP on adjacency Up.
-- `internal/component/isis/packet/flood_ci_test.go`: pins `test/isis/isis-flooding.ci`.
+- `internal/plugins/isis/packet/flood_ci_test.go`: pins `test/isis/isis-flooding.ci`.
 - `test/isis/isis-flooding.ci`: CSNP/PSNP wire-format decode (offline).
 - `test/interop/scenarios/isis-p2p-frr/`, `.../isis-lan-dis-frr/`: FRR interop
   scenarios (written; Linux/QEMU-pending).
-- Modified (additive): `internal/component/isis/lsdb/lsdb.go`
-  (`LSPIDs`/`LSPEntries`/`noteSRMTransmit`), `internal/component/isis/server.go`
-  (flooder field + init/handlers/loops + metrics/SystemID), `internal/component/isis/circuits.go`
-  (P2P-up initial-CSNP hook), `internal/component/isis/packet/tlv_core.go`
+- Modified (additive): `internal/plugins/isis/lsdb/lsdb.go`
+  (`LSPIDs`/`LSPEntries`/`noteSRMTransmit`), `internal/plugins/isis/server.go`
+  (flooder field + init/handlers/loops + metrics/SystemID), `internal/plugins/isis/circuits.go`
+  (P2P-up initial-CSNP hook), `internal/plugins/isis/packet/tlv_core.go`
   (`LSPEntriesTLV.EncodedLen()` + `WriteLSPEntriesTLV`).
 - Docs: `docs/architecture/wire/isis.md` (Reliable flooding + SNP section),
   `docs/plugin-development/metrics.md` (8 metric rows),

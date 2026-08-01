@@ -129,7 +129,7 @@ commits across this session and parallel sessions.
   acquireModBuf shared helper
 - `internal/component/bgp/plugins/bmp/sender.go` -- per-session scratch
   + scratchFor lazy init
-- `internal/plugins/bfd/auth/sha1.go` -- BFD Verify scratch (parallel
+- `internal/component/bfd/auth/sha1.go` -- BFD Verify scratch (parallel
   session, commit `791766fc`)
 - `internal/component/l2tp/reliable.go` -- L2TP reliable retransmit
   buffers (parallel session, commit `b39b8eb4`)

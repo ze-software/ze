@@ -106,30 +106,30 @@ any of this commit's files.
 
 ## Files
 
-- `internal/plugins/bfd/packet/echo.go` (new) -- `Echo` struct,
+- `internal/component/bfd/packet/echo.go` (new) -- `Echo` struct,
   `WriteEcho`, `ParseEcho`, `ZEEC` magic, `EchoLen`.
-- `internal/plugins/bfd/packet/echo_test.go` (new) -- round-trip,
+- `internal/component/bfd/packet/echo_test.go` (new) -- round-trip,
   short buffer, bad magic.
-- `internal/plugins/bfd/session/session.go` -- `Vars` grew
+- `internal/component/bfd/session/session.go` -- `Vars` grew
   `DesiredMinEchoTxInterval`, `RequiredMinEchoRxInterval`,
   `RemoteMinEchoRxInterval`; `Init` seeds them from the
   request.
-- `internal/plugins/bfd/session/fsm.go` -- `Receive` captures
+- `internal/component/bfd/session/fsm.go` -- `Receive` captures
   peer's advertised echo rx; `Build` populates
   `RequiredMinEchoRxInterval` in outgoing Control packets.
-- `internal/plugins/bfd/session/timers.go` -- `EchoEnabled` and
+- `internal/component/bfd/session/timers.go` -- `EchoEnabled` and
   `EchoInterval` accessors.
-- `internal/plugins/bfd/api/events.go` -- `SessionRequest.DesiredMinEchoTxInterval`.
-- `internal/plugins/bfd/config.go` -- `echoConfig`,
+- `internal/component/bfd/api/events.go` -- `SessionRequest.DesiredMinEchoTxInterval`.
+- `internal/component/bfd/config.go` -- `echoConfig`,
   `parseEchoConfig`, `pluginConfig.validate`,
   `toSessionRequest` plumbing.
-- `internal/plugins/bfd/yang/ze-bfd-conf.yang` -- `echo {
+- `internal/component/bfd/yang/ze-bfd-conf.yang` -- `echo {
   desired-min-echo-tx-us }` presence container inside `list
   profile`.
-- `internal/plugins/bfd/metrics.go` -- `echoTxPackets` /
+- `internal/component/bfd/metrics.go` -- `echoTxPackets` /
   `echoRxPackets` CounterVecs; `metricsHook.OnEchoTx` /
   `OnEchoRx`.
-- `internal/plugins/bfd/engine/engine.go` -- `MetricsHook`
+- `internal/component/bfd/engine/engine.go` -- `MetricsHook`
   interface grows `OnEchoTx` / `OnEchoRx` methods.
 - `test/plugin/bfd-echo-config.ci` (new).
 - `test/plugin/bfd-echo-multi-hop-reject.ci` (new).

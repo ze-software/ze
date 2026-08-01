@@ -131,21 +131,21 @@ deployments that stay IPv4-only keep the old single-socket path.
 
 ## Files
 
-- `internal/plugins/bfd/transport/dual.go` (new) -- Dual wrapper,
+- `internal/component/bfd/transport/dual.go` (new) -- Dual wrapper,
   Wrap helper, Start/Stop/Send/RX methods.
-- `internal/plugins/bfd/transport/udp.go` -- Start branches on
+- `internal/component/bfd/transport/udp.go` -- Start branches on
   `isV6`; Bind address string formatting branches.
-- `internal/plugins/bfd/transport/udp_linux.go` --
+- `internal/component/bfd/transport/udp_linux.go` --
   `applySocketOptionsV6` (IPV6_RECVHOPLIMIT + UNICAST_HOPS +
   SO_BINDTODEVICE); `parseReceivedTTL` accepts IPV6_HOPLIMIT.
-- `internal/plugins/bfd/transport/udp_other.go` --
+- `internal/component/bfd/transport/udp_other.go` --
   `applySocketOptionsV6` stub for non-Linux builds.
-- `internal/plugins/bfd/bfd.go` -- `newTransport` dispatches to
+- `internal/component/bfd/bfd.go` -- `newTransport` dispatches to
   Dual or bare UDP; `newUDPTransport6` alongside the existing
   v4 helper; `applyPinned` publishes cfg early; loopFor logs
   `ipv6` field.
-- `internal/plugins/bfd/config.go` -- `bindV6` field and parse.
-- `internal/plugins/bfd/yang/ze-bfd-conf.yang` -- top-level
+- `internal/component/bfd/config.go` -- `bindV6` field and parse.
+- `internal/component/bfd/yang/ze-bfd-conf.yang` -- top-level
   `bind-v6` leaf.
 - `test/plugin/bfd-ipv6-dual-bind.ci` (new) -- v6 pinned session
   lifecycle test.

@@ -58,3 +58,7 @@ centralized dispatch that should use the registration pattern.
 
 - **EVPN label bottom-of-stack:** Ze encodes `000001` (S=1), ExaBGP
   encodes `000000` (S=0). Ze is correct per RFC 3032 + RFC 7432.
+
+## Files
+
+None recorded.

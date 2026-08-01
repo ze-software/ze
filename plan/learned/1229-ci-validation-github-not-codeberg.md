@@ -43,3 +43,7 @@ but do NOT commit another session's untracked feature files.
 Also: the test-deletion hook (`.claude/hooks/pretool-bash.py` `check_test_deletion`)
 hard-blocks any agent `rm` of a `*_test.go` path (exit 2, no override); the USER must
 run the deletion.
+
+## Files
+
+None recorded.

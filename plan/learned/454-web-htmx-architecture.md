@@ -65,4 +65,4 @@ The web interface had been built across six specs (web-1 through web-6) but the 
 - `internal/component/config/yang_schema.go` -- populate Description/Enums during YANG conversion
 - `cmd/ze/hub/main.go` -- startWebServer with full route wiring, RunWebOnly, signal handling
 - `cmd/ze/main.go` -- --web flag on ze start
-- `cmd/ze/init/main.go` -- piped input + /dev/tty confirmation
+- `internal/plugins/init/main.go` -- piped input + /dev/tty confirmation

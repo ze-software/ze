@@ -55,12 +55,12 @@ This was the first step toward replacing gokrazy's built-in DHCP with ze's own.
 - `internal/component/iface/backend.go` -- AddRoute, RemoveRoute
 - `internal/component/iface/dispatch.go` -- dispatch functions
 - `internal/component/iface/iface.go` -- DHCPPayload extended
-- `internal/plugins/ifacedhcp/dhcp_linux.go` -- DHCPConfig, updated constructor
-- `internal/plugins/ifacedhcp/dhcp_v4_linux.go` -- route/DNS/NTP/hostname/client-id
-- `internal/plugins/ifacedhcp/dhcp_v6_linux.go` -- DNS writing
-- `internal/plugins/ifacedhcp/resolv_linux.go` -- resolv.conf writer (new)
-- `internal/plugins/ifacedhcp/register.go` -- factory bridge
-- `internal/plugins/ifacenetlink/manage_linux.go` -- AddRoute/RemoveRoute
+- `internal/plugins/iface/dhcp/dhcp_linux.go` -- DHCPConfig, updated constructor
+- `internal/plugins/iface/dhcp/dhcp_v4_linux.go` -- route/DNS/NTP/hostname/client-id
+- `internal/plugins/iface/dhcp/dhcp_v6_linux.go` -- DNS writing
+- `internal/plugins/iface/dhcp/resolv_linux.go` -- resolv.conf writer (new)
+- `internal/plugins/iface/dhcp/register.go` -- factory bridge
+- `internal/plugins/iface/netlink/manage_linux.go` -- AddRoute/RemoveRoute
 - `test/parse/dhcp-config-enabled.ci` -- functional test (new)
 - `test/parse/dhcp-config-disabled.ci` -- functional test (new)
 - `test/parse/dhcp-static-coexist.ci` -- functional test (new)

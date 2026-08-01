@@ -55,7 +55,7 @@ the clock is trustworthy), and configurable resolv.conf path (gokrazy uses
 - `internal/component/iface/yang/ze-iface-conf.yang` -- resolv-conf-path leaf
 - `internal/component/iface/config.go` -- ResolvConfPath field, parsing, validation
 - `internal/component/iface/register.go` -- factory signature, threading
-- `internal/plugins/ifacedhcp/ifacedhcp.go` -- ResolvConfPath in DHCPConfig
-- `internal/plugins/ifacedhcp/resolv_linux.go` -- removed constant and wrapper
-- `internal/plugins/ifacedhcp/dhcp_v4_linux.go` -- configurable path
-- `internal/plugins/ifacedhcp/dhcp_v6_linux.go` -- configurable path
+- `internal/plugins/iface/dhcp/ifacedhcp.go` -- ResolvConfPath in DHCPConfig
+- `internal/plugins/iface/dhcp/resolv_linux.go` -- removed constant and wrapper
+- `internal/plugins/iface/dhcp/dhcp_v4_linux.go` -- configurable path
+- `internal/plugins/iface/dhcp/dhcp_v6_linux.go` -- configurable path

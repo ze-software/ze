@@ -469,7 +469,7 @@ I/O entirely. It supports multiple communication patterns. Before designing any
 new core-to-plugin communication, read DirectBridge and check whether it already
 covers your use case.
 
-Design history: `plan/learned/294-inprocess-direct-transport.md`
+Design history: `plan/learned/DESIGN-HISTORY.md`, "Plugin system: architecture" (retired summary 294)
 
 | Pattern | Mechanism | Use when |
 |---------|-----------|----------|

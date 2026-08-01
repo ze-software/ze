@@ -46,3 +46,7 @@ server health.
 - Replay cache keyed on (source, code, id, authenticator) is the correct
   RFC 5176 dedup strategy. Reuse for any future UDP request/response
   protocol handling.
+
+## Files
+
+None recorded.

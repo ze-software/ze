@@ -77,3 +77,7 @@ passing test.
   `.claude/hooks/lib/session-id.sh` and `.claude/hooks/pretool-writeedit.py` now walk
   the process tree for `--session-id`. A moving session id silently breaks every
   marker-file gate (LSP, session-state).
+
+## Files
+
+None recorded.

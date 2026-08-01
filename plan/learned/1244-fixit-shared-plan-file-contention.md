@@ -67,4 +67,4 @@ commits, cheapest-and-most-proven first.
 
 - Phase 1: `scripts/dev/commit_helper.py` (counter-free `learned_next` + retry, dropped gate), `learned_numbers.py` (dropped invariant 3), `rebase_learned.py`, `mk/inventory.mk`/`Makefile` (dropped `ze-learned-counter`), 4 skills + `METHODOLOGY.md`, deleted `plan/learned/.counter`.
 - Phase 2: `plan/deferrals.md` -> `plan/deferrals/` (68 shards); `commit_helper.py` (both deferral gates), `hook-fixture-check.py`, `session-end-deferrals.sh`, `posttool-writeedit.py`; deferral-tracking/planning/git-safety prose.
-- Phase 3: `plan/known-failures.md` -> `plan/known-failures/` (6 live shards + RESOLVED.md + README.md); `testing_health.py` `collect_known_failures` + test; `commit_helper.py` text; git-safety + rule prose.
+- Phase 3: `plan/known-failures/RESOLVED.md` -> `plan/known-failures/` (6 live shards + RESOLVED.md + README.md); `testing_health.py` `collect_known_failures` + test; `commit_helper.py` text; git-safety + rule prose.

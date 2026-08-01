@@ -81,3 +81,7 @@ metric. Sign-on-send and verify-before-routing for all five packet types.
 - `TestOSPFAuthKeyStore` / `TestOSPFAuthStoreSignVerify` / `TestOSPFAuthRotation` / `TestOSPFAuthExtendedSequence` / `TestOSPFAuthReplay` (`auth_keystore_test.go`) - inherit, AuType mismatch, rotation overlap, AuType 3 selection, replay reject.
 - `TestEngineSignPacketCrypto` / `TestEngineSignPacketSimple` / `TestEngineSignPacketNoAuth` (`auth_wiring_test.go`) - the TX sign hook round-trips through verify.
 - `test/ospf/ospf-auth.ci` - config surface (key chain, extended-sequence, inherit, algorithm enum rejection). FRR `ospfd` MD5/HMAC-SHA interop is owned by spec-ospf-13.
+
+## Files
+
+None recorded.

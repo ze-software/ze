@@ -21,3 +21,7 @@ Key choices:
 ## Gotchas
 - `ArchivePrefix` uses `time.Date(2000, 1, 1, ...)` and `time.Date(2000, 1, 2, ...)` as the two reference times. If a custom filename format does not include any time token, the prefix equals the full filename, and pruning would keep exactly N copies of the same filename (which is correct but might surprise operators expecting rotation).
 - Path traversal check in `ToFile` catches malicious `{host}` values (e.g., `../../etc/cron.d/evil`), but the pruning function does not re-validate. Safe because `PruneFileArchives` only deletes files already in the target directory.
+
+## Files
+
+None recorded.

@@ -29,3 +29,7 @@ externally observable behavior.
 - **Do not add parser code to make one bad-looking test pass.** When the inline-form test failed, the first fix was parser normalization framed as a workaround; the user challenged it as "working around a structural issue." It turned out to be a real feature, but the lesson stands: a failing test that uses an unfamiliar form is a prompt to find the canonical syntax (`test/parse/*.ci` + serializer output + docs), not to teach the parser to accept whatever the test wrote.
 - Changing `GetSlice`/`GetMultiValues`/`ToMap` semantics touches every leaf-list consumer; the compiler cannot catch behavioral drift. Route structure-needing consumers (serialize, diff, doctor, `extractFilterChain`) to `GetMultiValuesState`; leave everyone else on the active-only accessors.
 - Full-removal of an in-band convention balloons past the config package: the reactor `[]string` filter chain was the real blast radius (peersettings, reactor_dynamic, reactor_api, filter_ordered, peer, forward_facts, initial_sync + their tests), not the 7 sniff sites the spec listed.
+
+## Files
+
+None recorded.

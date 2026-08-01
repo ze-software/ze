@@ -141,4 +141,4 @@ Traffic + SDK signal helper:
 Docs + bookkeeping:
 - `docs/architecture/core-design.md` — traffic backend table + ctx/vppOps paragraph.
 - `docs/functional-tests.md` — new "Backend Apply-Path Unit Tests" section.
-- `plan/known-failures.md` — pre-existing Coordinator compile error logged.
+- `plan/known-failures/RESOLVED.md` — pre-existing Coordinator compile error logged.

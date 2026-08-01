@@ -24,3 +24,7 @@ Ze config set-format used a two-line model for deactivation: `set <path> <value>
 - `parseNop` is a two-step operation: `walkAndSet` followed by `markNopInactive`. The inactive marking must be a separate walk because `walkAndSet` returns void (it doesn't expose which node it terminated at).
 - For ValueOrArrayNode with deactivated members, `splitInactiveMembers` remains the internal mechanism (the `inactive:` prefix in the multiValues slice). Only the serialized output changes from `inactive` lines to `nop` lines.
 - The meta serializer needed `writeMetaLeafLineCmd` (accepting a `cmd` parameter) to avoid duplicating `writeMetaLeafLine`. The `leafLineWriter` callback type retains the old signature for shared helpers (freeform, flex, inline-list) that can't be deactivated.
+
+## Files
+
+None recorded.

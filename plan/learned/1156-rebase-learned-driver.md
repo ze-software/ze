@@ -63,3 +63,7 @@ lie without breaking when the wording changes.
 - Keep the mechanical driver (get through the rebase) separate from the
   semantic fixer (`ze-learned-numbers-fix`, renumber + reference rewrite). One
   tool per concern; see `1155`.
+
+## Files
+
+None recorded.

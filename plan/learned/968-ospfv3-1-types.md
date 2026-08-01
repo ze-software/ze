@@ -50,3 +50,7 @@ length/options, and metrics. Pure value code; no runtime dependencies.
 - `go test -race` clean; `make ze-lint-changed` 0; `go vet` 0; `make ze-tier-check` 0.
 - Next OSPFv3 target (umbrella): `spec-ospfv3-2-wire.md` (packet + LSA codec), which imports
   these types.
+
+## Files
+
+None recorded.

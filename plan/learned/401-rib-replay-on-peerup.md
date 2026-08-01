@@ -1,6 +1,6 @@
 # 401 -- rib-replay-on-peerup
 
-## Objective
+## Context
 
 Auto-replay all known adj-rib-in routes to a peer when it reaches Established state, so new or reconnecting peers receive routes without waiting for fresh UPDATEs from other peers.
 

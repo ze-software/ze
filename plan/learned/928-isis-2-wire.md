@@ -99,18 +99,18 @@ vector tests, the fuzz targets, and the offline `test/isis-wire/` decode functio
 tests.
 
 ## Files
-- `internal/component/isis/packet/header.go` -- common 8-octet header codec + 9 PDU type
+- `internal/plugins/isis/packet/header.go` -- common 8-octet header codec + 9 PDU type
   constants (pinned); `pdu.go` -- top-level `DecodePDU` dispatch.
-- `internal/component/isis/packet/hello.go` (LAN L1/L2 IIH, P2P IIH), `lsp.go` (LSP +
+- `internal/plugins/isis/packet/hello.go` (LAN L1/L2 IIH, P2P IIH), `lsp.go` (LSP +
   checksum backfill), `csnp.go`, `psnp.go` -- the 9 PDU bodies.
-- `internal/component/isis/packet/checksum.go` -- Fletcher two-step `Checksum` +
+- `internal/plugins/isis/packet/checksum.go` -- Fletcher two-step `Checksum` +
   `VerifyChecksum`.
-- `internal/component/isis/packet/tlv.go` (iterator + framing + TLV constants),
+- `internal/plugins/isis/packet/tlv.go` (iterator + framing + TLV constants),
   `tlv_core.go` (1/8/9/22+subs/129/137/240), `tlv_neighbours.go` (6 encode+decode, 2
   decode-only), `tlv_ipv4.go` (132/135), `tlv_ipv6.go` (232/236), `tlv_auth.go` (10
   structural), `tlv_opaque.go` (unknown-TLV verbatim retention).
-- `internal/component/isis/packet/json.go` (PDU JSON view), `doc.go` (package contract).
-- `internal/component/isis/cli/{register,run,decode}.go` -- offline `ze isis-decode` verb.
+- `internal/plugins/isis/packet/json.go` (PDU JSON view), `doc.go` (package contract).
+- `internal/plugins/isis/cli/{register,run,decode}.go` -- offline `ze isis-decode` verb.
 - `internal/test/cli/register.go` -- registers the `isis-wire` CI root.
 - `test/isis-wire/isis-pdu-1.ci` (decode of a captured LAN L1 IIH),
   `test/isis-wire/isis-truncated.ci` (error path).

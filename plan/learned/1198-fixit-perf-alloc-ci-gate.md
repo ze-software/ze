@@ -55,3 +55,7 @@ ceilings). AC-2 proven end-to-end (a crafted over-ceiling log trips
 Docker-free yaml, valid YAML). Full `make ze-verify` NOT run (would kill live
 servers). See `tmp/drain-fixit-perf-alloc-ci-gate.md` for the shared-file overlaps
 (Makefile/docs) and the learned-number `--fix`.
+
+## Files
+
+None recorded.

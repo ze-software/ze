@@ -25,3 +25,7 @@ Ze needed AIGP (Accumulated IGP Metric) attribute support for wire parsing, enco
 
 - The `block-encoding-alloc.sh` hook checks for `append()` in the new_string of any edit to `update_build*.go`. All existing attrs use `append(attrs, ...)` in the file, but adding new ones in a diff triggers the hook. Workaround: use the `RawAttributeBytes` path instead.
 - `text_json.go` handles both pointer and value type assertions for some attributes (Origin, MED, LocalPref). AIGP only needs `*AIGP` because all methods use pointer receivers and `ParseAIGP` returns a pointer.
+
+## Files
+
+None recorded.

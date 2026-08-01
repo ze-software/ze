@@ -495,7 +495,8 @@ peer.sendUpdateWithSplit(update, maxSize, family)
 > **Wire-Level Split (Implemented)**
 >
 > Forward path uses `SplitUpdate()` for oversized UPDATEs when forwarding
-> to non-Extended Message peers. See `plan/learned/078-wireupdate-split.md`.
+> to non-Extended Message peers. See `plan/learned/DESIGN-HISTORY.md`, "BGP
+> engine: wire encoding and RIB" (retired summary 078).
 
 **Files involved:**
 - `internal/component/bgp/message/update_split.go` - `SplitUpdate()`, `SplitUpdateWithAddPath()`
@@ -528,10 +529,20 @@ peer.sendUpdateWithSplit(update, maxSize, family)
 
 ## Related Specs
 
-- `plan/learned/057-spec-attributes-wire.md` - Lazy-parsed wire attribute storage (forward path)
-- `plan/learned/059-spec-pool-handle-migration.md` - Pool handle integration (completed)
-- `plan/learned/343-wireupdate-buffer-lifecycle.md` - Buffer pool get/return lifecycle (completed)
-- `plan/learned/078-wireupdate-split.md` - Wire-level UPDATE splitting (completed)
+Summaries 057, 059, 078 and 343 were retired on 2026-08-01. Their surviving
+knowledge is in `plan/learned/DESIGN-HISTORY.md`, "BGP engine: wire encoding
+and RIB".
+
+- DESIGN-HISTORY > Load-bearing invariants - lazy-parsed wire attribute
+  storage on the forward path: `AttributesWire` does not own its `packed
+  []byte` (057)
+- DESIGN-HISTORY > Abandoned approaches - pool handle integration was designed
+  and abandoned, not shipped (059)
+- DESIGN-HISTORY > Evolution and Load-bearing invariants - buffer pool
+  get/return lifecycle, keyed on `cap(buf)` (343)
+- DESIGN-HISTORY > Evolution and Load-bearing invariants - wire-level UPDATE
+  splitting, its "accept invalid, emit valid" posture and its progress guard
+  (078)
 
 ---
 

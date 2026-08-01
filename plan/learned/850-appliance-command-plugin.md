@@ -29,7 +29,7 @@ The appliance command surface lived in `cmd/ze/install/appliance/`, nested under
 
 ## Files
 
-- Created: `internal/appliance/` (41 .go files + `updater/` subpackage, moved from `cmd/ze/install/appliance/`)
+- Created: `internal/appliance/` (41 .go files + `updater/` subpackage, moved from `internal/appliance/`)
 - Created: `internal/appliance/register.go` (root handler registration)
 - Created: `internal/appliance/register_test.go`
 - Created: `cmd/ze/setup_features_appliance.go` (blank import, `ze_appliance`; was `cmd/ze/appliance_import.go`)
@@ -42,4 +42,4 @@ The appliance command surface lived in `cmd/ze/install/appliance/`, nested under
 - Modified: `scripts/evidence/effective-install-iso-qemu.py`, `effective-install-qemu.py` (command paths)
 - Modified: `docs/guide/appliance.md`, `docs/guide/ze-install.md` (command paths)
 - Modified: `docs/functional-tests.md`, `tools/installer-kernel/README.md`, `ai/INDEX.md`
-- Modified: `gokrazy/tools/cmd/ze-gok/main.go` (comment)
+- Modified: `cmd/ze-gok/main.go` (comment)

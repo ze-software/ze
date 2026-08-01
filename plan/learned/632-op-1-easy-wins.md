@@ -146,10 +146,10 @@ static list.
 
 **Created:**
 - `cmd/ze/internal/cmdregistry/registry.go` (new leaf package; all three registries)
-- `cmd/ze/diag/diag.go` (ping, traceroute, wireguard keypair)
-- `cmd/ze/diag/diag_test.go`
-- `cmd/ze/diag/register.go`
-- `cmd/ze/bgp/register.go`, `cli/register.go`, `completion/register.go`, `config/register.go`, `data/register.go`, `environ/register.go`, `exabgp/register.go`, `firewall/register.go`, `iface/register.go`, `init/register.go`, `l2tp/register.go`, `passwd/register.go`, `plugin/register.go`, `resolve/register.go`, `schema/register.go`, `signal/register.go`, `sysctl/register.go`, `tacacs/register.go`, `tc/register.go`, `yang/register.go` (19 subcommand `register.go` files)
+- `internal/plugins/diag/diag.go` (ping, traceroute, wireguard keypair)
+- `internal/plugins/diag/diag_test.go`
+- `internal/plugins/diag/register.go`
+- `internal/component/bgp/cli/register.go`, `cli/register.go`, `completion/register.go`, `config/register.go`, `data/register.go`, `environ/register.go`, `exabgp/register.go`, `firewall/register.go`, `iface/register.go`, `init/register.go`, `l2tp/register.go`, `passwd/register.go`, `plugin/register.go`, `resolve/register.go`, `schema/register.go`, `signal/register.go`, `sysctl/register.go`, `tacacs/register.go`, `tc/register.go`, `yang/register.go` (19 subcommand `register.go` files)
 - `internal/component/cmd/show/system.go` (show system memory/cpu/date handlers)
 - `internal/component/cmd/show/system_test.go`
 - `docs/guide/command-catalogue.md` (cross-vendor tracking doc + naming convention)

@@ -50,7 +50,7 @@ full builds and install-time TLS bootstrap behavior.
 - Do not leave aliases in `internal/component/web` for moved cert helpers. Any
   always-on caller of those aliases pins web back into stripped binaries.
 
-## Files changed
+## Files
 
 - `feature-gates.txt`
 - `ai/rules/feature-gate-registration.md`

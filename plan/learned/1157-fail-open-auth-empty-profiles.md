@@ -71,3 +71,7 @@ handed a count that is never 0. None of them log. Each looks correct locally.
 - Mirror the *shape* of a sibling fix, not its letter: RADIUS deliberately did
   NOT copy tacacs's `min-elements 1`, because `default-profile` is optional by
   design and the constraint would have declared it mandatory.
+
+## Files
+
+None recorded.

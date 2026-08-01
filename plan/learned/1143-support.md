@@ -44,11 +44,11 @@ MikroTik, FRR, OpenWrt) to identify best-in-class patterns before designing.
 
 ## Files
 
-- `cmd/ze/support/register.go` -- command registration
-- `cmd/ze/support/support.go` -- Run(), collect(), archive creation, module collectors
-- `cmd/ze/support/modules.go` -- module registry, filtering, listing
-- `cmd/ze/support/sanitize.go` -- config tree sanitization
-- `cmd/ze/support/disk_unix.go` -- disk usage collection (Unix)
-- `cmd/ze/support/support_test.go` -- 12 unit tests
-- `cmd/ze/support/sanitize_test.go` -- 5 sanitization tests
+- `internal/plugins/support/register.go` -- command registration
+- `internal/component/support/support.go` -- Run(), collect(), archive creation, module collectors
+- `internal/component/support/modules.go` -- module registry, filtering, listing
+- `internal/component/support/sanitize.go` -- config tree sanitization
+- `internal/component/support/disk_unix.go` -- disk usage collection (Unix)
+- `internal/component/support/support_test.go` -- 12 unit tests
+- `internal/component/support/sanitize_test.go` -- 5 sanitization tests
 - `cmd/ze/main.go` -- blank import for registration

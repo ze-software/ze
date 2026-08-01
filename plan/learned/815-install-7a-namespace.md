@@ -22,3 +22,7 @@ spec-install-7a: move `cmd/ze/appliance/` under `cmd/ze/install/appliance/` to u
 
 - The auto-linter hook runs golangci-lint; if another agent is also running lint concurrently, the hook reports "parallel golangci-lint is running". This is benign and does not indicate a code problem.
 - Blank imports of the appliance package from `main.go` are not needed since `install/main.go` imports it directly.
+
+## Files
+
+None recorded.

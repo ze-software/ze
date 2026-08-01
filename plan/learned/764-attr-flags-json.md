@@ -23,3 +23,7 @@ Added RFC 4271 attribute flags (optional, transitive, partial) to Ze native JSON
 When the same data needs two JSON shapes (ExaBGP flat vs Ze wrapped), parameterize the shared formatter rather than forking it. The `includeFlags bool` approach keeps one code path for attribute serialization. The wrapper helpers (`attrKeyOpen`, `attrFlagsClose`) isolate the structural difference to two small functions.
 
 For map-based output paths (RIB show), use a wrapper constructor (`attrWithFlags`) that returns the enriched map. For buffer-based paths (format package), use open/close helpers that conditionally emit the wrapper syntax.
+
+## Files
+
+None recorded.

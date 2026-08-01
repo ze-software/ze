@@ -119,3 +119,7 @@ the index (`bgp plugin -v 441`), because Go's `flag.Parse` (`cmd_bgp.go:541`
 `fs.Parse(args[1:])`) stops at the first positional. The `ze-qemu-debug` help
 example `... 79 -v` in `mk/test-integration.mk` is stale and errors with
 `test "-v" not found`.
+
+## Files
+
+None recorded.

@@ -29,7 +29,7 @@ The RIB storage layer had two performance problems: (1) per-route heap allocatio
 
 ## Files
 
-- `internal/component/bgp/plugins/rib/storage/nlrikey.go` -- NLRIKey, NLRIToPrefix, PrefixToNLRI
+- `internal/core/rib/store/nlrikey.go` -- NLRIKey, NLRIToPrefix, PrefixToNLRI
 - `internal/component/bgp/plugins/rib/storage/familyrib.go` -- BART trie + map dual-mode storage
 - `internal/component/bgp/plugins/rib/storage/routeentry.go` -- value-type NewRouteEntry
 - `internal/component/bgp/plugins/rib/storage/attrparse.go` -- value-type ParseAttributes

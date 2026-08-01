@@ -40,5 +40,5 @@ Ze had RFC 4724 Graceful Restart but no Long-Lived Graceful Restart (RFC 9494). 
 - `internal/component/bgp/plugins/rib/rib_commands.go` -- attach-community, delete-with-community, mark-stale [level]
 - `internal/component/bgp/plugins/rib/storage/routeentry.go` -- StaleLevel, DepreferenceThreshold
 - `internal/component/bgp/plugins/rib/bestpath.go` -- Step 0 stale-level depreference
-- `internal/component/bgp/attribute/community.go` -- CommunityLLGRStale, CommunityNoLLGR
+- `internal/core/bgp/attribute/community.go` -- CommunityLLGRStale, CommunityNoLLGR
 - `internal/component/bgp/route.go` -- StaleLevel field on Route

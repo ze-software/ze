@@ -120,3 +120,7 @@ roughly 6000 LOC of new Go code and one Python stub.
 - Multi-label stack (stacked LSPs) in fibvpp MPLS dispatch
 - L3VPN (per-VRF FIB tables) extending the MPLS label chain
 - `ze config validate` for YANG enum/range constraints (pre-existing gap)
+
+## Files
+
+None recorded.

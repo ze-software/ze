@@ -25,3 +25,7 @@ Completed `plan/spec-ospf-9-inter-area-abr.md`: ABR detection, Type 3 (network) 
 - `TestOSPFABRBackboneOnlyAcceptance` - trap #8 loop-freedom: a cheaper non-backbone summary is ignored at an ABR.
 - `TestOSPFSummaryLSIDCollision` - body<->LS-ID binding after host-bit/increment disambiguation.
 - FRR `ospfd` multi-area interop, metric scrape, central `ze-show` RPC, and tab-completion remain owned by spec-ospf-13.
+
+## Files
+
+None recorded.

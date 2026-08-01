@@ -13,9 +13,13 @@ a workaround that another session already documented.
 hook's regex so the false positive disappears. Until that happens,
 the catalog saves rediscovery cost.
 
-Companion: `RECURRING-PATTERNS.md` names `auto_linter.sh` and
-`block-silent-ignore.sh` as the two highest-frequency traps — together
-they account for over 50 appearances in the corpus.
+Companion: `RECURRING-PATTERNS.md` names `c_silent_ignore` as the
+highest-frequency trap, with over 30 appearances in the corpus.
+
+Every per-check shell hook was consolidated into a Python dispatcher. The check
+survives under a new name, so an entry below names the live function and its
+dispatcher. The old `.sh` filename is kept only in the Retired section, where
+it is the historical record of a false positive that is gone.
 
 ---
 
@@ -26,29 +30,54 @@ they account for over 50 appearances in the corpus.
 | `auto_linter.sh` (goimports post-hook) | 25+ | Retired 2026-04-19 | [Retired](#retired) |
 | `block-silent-ignore.sh` | 30+ | Retired 2026-04-19 | [Retired](#retired) |
 | `check-existing-patterns.sh` | 15+ | Retired 2026-04-19 | [Retired](#retired) |
-| `require-related-refs.sh` | 7 | Active | [require-related-refs.sh](#require-related-refssh) |
-| `block-test-deletion.sh` | 7 | Active | [block-test-deletion.sh](#block-test-deletionsh) |
+| `c_require_related_refs` | 7 | Active | [c_require_related_refs](#c_require_related_refs) |
+| `c_test_weakening` | 7 | Active | [c_test_weakening](#c_test_weakening) |
 | `block-legacy-log.sh` | 4 | Retired 2026-04-19 | [Retired](#retired) |
-| `block-ignored-errors.sh` | 4 | Active | [block-ignored-errors.sh](#block-ignored-errorssh) |
-| `block-temp-debug.sh` | 3 | Active | [block-temp-debug.sh](#block-temp-debugsh-now-c_temp_debug-in-pretool-writeeditpy) |
-| `block-root-build.sh` | 3 | Active | [block-root-build.sh](#block-root-buildsh) |
-| `block-pipe-tail.sh` | 2 | Active | [block-pipe-tail.sh](#block-pipe-tailsh) |
-| `block-init-register.sh` | 2 | Active | [block-init-register.sh](#block-init-registersh) |
-| `block-encoding-alloc.sh` | 2 | Active | [block-encoding-alloc.sh](#block-encoding-allocsh) |
+| `c_ignored_errors` | 4 | Active | [c_ignored_errors](#c_ignored_errors) |
+| `c_temp_debug` | 3 | Active | [c_temp_debug](#c_temp_debug) |
+| `check_root_build` | 3 | Active | [check_root_build](#check_root_build) |
+| `check_pipe_tail` | 2 | Active | [check_pipe_tail](#check_pipe_tail) |
+| `c_init_register` | 2 | Active | [c_init_register](#c_init_register) |
+| `c_encoding_alloc` | 2 | Active | [c_encoding_alloc](#c_encoding_alloc) |
 | `block-system-tmp.sh` | 1 | Retired earlier | [Retired](#retired) |
-| `block-panic-error.sh` | 1 | Active | [block-panic-error.sh](#block-panic-errorsh) |
+| `c_panic` | 1 | Active | [c_panic](#c_panic) |
 | `block-layering.sh` | 1 | Retired 2026-04-19 | [Retired](#retired) |
 | `pretool-writeedit.py` `c_design_without_lsp` | 1 (2026-07-16) | Fixed 2026-07-16 at the source | [c_design_without_lsp](#pretool-writeeditpy--c_design_without_lsp) |
 | `validate-spec.sh` argv false-green | 3 (2026-07-16) | Fixed 2026-07-16 at the source | [F1](#f1-validate-specsh-false-greened-when-invoked-via-argv) |
 | `validate-spec.sh` Current Behavior citation regex | 1 (2026-07-16) | Active | [F2](#f2-validate-specsh-rejects-the-citation-form-the-rules-mandate) |
 | `validate-spec.sh` RFC-existence check dead (regex typo) | 1 (2026-07-22) | Active | [F11](#f11-validate-specsh-rfc-existence-check-is-dead-code-regex-typo) |
 | `spec-closure-check.py` slice-scoped learned false-positive | 1 (2026-07-22) | Active | [F12](#f12-spec-closure-checkpy-high-confidence-signal-misfires-on-slice-scoped-learned-summaries) |
-| `pretool-writeedit.py` `c_rfc_tagged_test` traps its own author | 1 (2026-07-31) | Active | [F20](#f20-c_rfc_tagged_test-traps-its-own-author-on-a-draft-that-has-never-compiled) |
+| `pretool-writeedit.py` `_rfc_tagged_change_err` traps its own author | 1 (2026-07-31) | Active | [F20](#f20-_rfc_tagged_change_err-traps-its-own-author-on-a-draft-that-has-never-compiled) |
 | `commit_helper.py create` leaks a `ze` daemon and stalls | 6+ (2026-07-26) | Active | [F15](#f15-commit_helperpy-create-leaks-a-ze-daemon-and-stalls-forever) |
 | `GOCACHE` relocation is make-scoped (disk exhaustion) | 1 (2026-07-26) | Active | [F16](#f16-gocache-relocation-is-make-scoped-so-the-recommended-workflow-bypasses-it) |
 | `pretool-writeedit.py` `c_throwaway_tests` | 1 (2026-07-16) | Active | [F5](#f5-c_throwaway_tests-blocks-legitimate-scriptsdev-test-filenames) |
 | `session-end-summary.sh` clobbers hand-written digests | 1 (2026-07-22) | Active | [F9](#f9-session-end-summarysh-destroys-the-digests-post-compactionmd-asks-for) |
 | `stress-repro.py` broken argv / crash-only detection | 1 (2026-07-22) | Fixed 2026-07-22 at the source | [F10](#f10-stress-repropy-was-broken-for-every-sub-suite-and-said-so-as-reproduced) |
+
+### Renamed checks
+
+An entry that a learned summary or an older session cites by its shell filename
+is listed here with the live check that replaced it. The check still runs. Only
+the name is gone.
+
+| Retired name | Live check | Dispatcher |
+|--------------|------------|------------|
+| Retired: `require-related-refs.sh` | `c_require_related_refs` | `.claude/hooks/pretool-writeedit.py` |
+| Retired: `block-test-deletion.sh` | `c_test_weakening` | `.claude/hooks/pretool-writeedit.py` |
+| Retired: `block-ignored-errors.sh` | `c_ignored_errors` | `.claude/hooks/pretool-writeedit.py` |
+| Retired: `block-temp-debug.sh` | `c_temp_debug` | `.claude/hooks/pretool-writeedit.py` |
+| Retired: `block-root-build.sh` | `check_root_build` | `.claude/hooks/pretool-bash.py` |
+| Retired: `block-pipe-tail.sh` | `check_pipe_tail` | `.claude/hooks/pretool-bash.py` |
+| Retired: `block-init-register.sh` | `c_init_register` | `.claude/hooks/pretool-writeedit.py` |
+| Retired: `block-encoding-alloc.sh` | `c_encoding_alloc` | `.claude/hooks/pretool-writeedit.py` |
+| Retired: `block-panic-error.sh` | `c_panic` | `.claude/hooks/pretool-writeedit.py` |
+| Retired: `auto_linter.sh` | `c_auto_lint` | `.claude/hooks/posttool-writeedit.py` |
+| Retired: `block-silent-ignore.sh` | `c_silent_ignore` | `.claude/hooks/pretool-writeedit.py` |
+| Retired: `check-existing-patterns.sh` | `c_check_existing_patterns` | `.claude/hooks/pretool-writeedit.py` |
+| Retired: `block-legacy-log.sh` | `c_legacy_log` | `.claude/hooks/pretool-writeedit.py` |
+| Retired: `block-layering.sh` | `c_layering` | `.claude/hooks/pretool-writeedit.py` |
+| Retired: `block-system-tmp.sh` | `c_system_tmp_we`, `check_system_tmp` | `.claude/hooks/pretool-writeedit.py`, `.claude/hooks/pretool-bash.py` |
+| Retired: `block-format-alloc.sh` | `c_format_alloc` | `.claude/hooks/pretool-writeedit.py` |
 
 Non-hook tooling friction filed the same day (the LSP gate, the commit gate's
 advice, `commit_helper.py --body`, and rule/gate vocabulary drift) is in the same
@@ -799,7 +828,7 @@ section to be filled before claiming high confidence.
 
 ---
 
-## `require-related-refs.sh`
+## `c_require_related_refs`
 
 **Trigger.** `Edit` or `Write` on a `.go` file whose post-edit content
 still contains a `// Related:` / `// Detail:` / `// Overview:` comment
@@ -825,9 +854,7 @@ forward-ref block still fires by design.
 
 ---
 
-## `block-test-deletion.sh`
-
-**Now `c_test_weakening` in `.claude/hooks/pretool-writeedit.py`.**
+## `c_test_weakening`
 
 **Trigger.** `Edit`, `Write` or `MultiEdit` on a test file whose
 non-comment non-empty line count decreases (plus the assertion-removal,
@@ -871,7 +898,7 @@ test that had been silently red on every run since it was written.
 
 ---
 
-## `block-ignored-errors.sh`
+## `c_ignored_errors`
 
 **Trigger.** Regex matching `_\s*=\s*\w+\.Close\(\)` or
 `_,\s*_\s*=\s*\w+\.\w+\(...\)`.
@@ -889,7 +916,7 @@ test that had been silently red on every run since it was written.
 
 ---
 
-## `block-temp-debug.sh` (now `c_temp_debug` in `pretool-writeedit.py`)
+## `c_temp_debug`
 
 **Trigger.** A debug-MARKER print (`DEBUG`/`TRACE`/`>>>`/`<<<`/`***`/`XXX`/
 `FIXME`), a bare `println(...)`, or a short bare `fmt.Println("...")`, in a
@@ -928,7 +955,7 @@ session; `make ze-hook-test` 131/131 golden + 33/33 fixtures still green after).
 
 ---
 
-## `block-root-build.sh`
+## `check_root_build`
 
 **Trigger.** `go build` without an `-o` flag from the repository root.
 
@@ -943,7 +970,7 @@ session; `make ze-hook-test` 131/131 golden + 33/33 fixtures still green after).
 
 ---
 
-## `block-pipe-tail.sh`
+## `check_pipe_tail`
 
 **Trigger.** A `Bash` command containing `| tail` or `| head` applied
 to output of `make`, `go`, `golangci-lint`, or `bin/ze-*`.
@@ -966,7 +993,7 @@ build.
 
 ---
 
-## `block-init-register.sh`
+## `c_init_register`
 
 **Trigger.** An `init()` function body containing the substring
 `Register`.
@@ -998,7 +1025,7 @@ func registerFamilyOnce() bool {
 
 ---
 
-## `block-encoding-alloc.sh`
+## `c_encoding_alloc`
 
 **Trigger.** `append(` or `make([]byte,` in files matching
 `update_build*`, `message/pack*`, `reactor_wire*`.
@@ -1025,7 +1052,7 @@ that the hook flags:
 
 ---
 
-## `block-panic-error.sh`
+## `c_panic`
 
 **Trigger.** A `panic(` call in a new or modified `.go` file outside
 `_test.go`.
@@ -1189,8 +1216,8 @@ layer, which is a claim about Ze's own code, not about a cited external
 document. An exemption for a line that is evidently a quotation would keep the
 catch and drop this class of false positive. Skip a line whose match sits inside
 double quotes, or a comment line that contains `MUST`, `SHOULD`, `MAY`, or a
-`://` URL. The same shape already fixed `block-legacy-log.sh` (anchor to the
-Go construct rather than the substring) and the retired `block-layering.sh`
+`://` URL. The same shape already fixed `c_legacy_log` (anchor to the
+Go construct rather than the substring) and the `c_layering`
 `for.?compatibility` pattern, so there is precedent for both the problem and the
 remedy.
 
@@ -1378,10 +1405,11 @@ case to land in `scripts/dev/ste_check_test.py` in the same change.
 
 ---
 
-### F20: `c_rfc_tagged_test` traps its own author on a draft that has never compiled
+### F20: `_rfc_tagged_change_err` traps its own author on a draft that has never compiled
 
-**Hook.** `c_rfc_tagged_test` in `.claude/hooks/pretool-writeedit.py`, through
-`_rfc_tagged_change_err` and `_enclosing_tagged_scope`.
+**Hook.** The `rfc-tagged-test` guard, which is `_rfc_tagged_change_err` in
+`.claude/hooks/pretool-writeedit.py`, called from `c_test_weakening` and
+reading scope through `_enclosing_tagged_scope`.
 
 **Seen.** 2026-07-31, WP-1 of `plan/spec-rfcgate-1b-rfc7296-pilot.md`.
 
@@ -1501,7 +1529,7 @@ the hook blocks the recovery step of a documented procedure.
    under `tmp/session/`, so a human decision can reach the hook rather than only
    the model.
 
-## Filed 2026-08-01 (bgp-update-withdraw-order): `c_rfc_tagged_test` blocks ADDING a test to a file whose tags you just wrote
+## Filed 2026-08-01 (bgp-update-withdraw-order): `_rfc_tagged_change_err` blocks ADDING a test to a file whose tags you just wrote
 
 **What happened.** I created `rib_rfc4271_mixed_update_test.go` with two tagged
 tests, then appended two more covering the sibling code paths. The append needed

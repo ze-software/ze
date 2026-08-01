@@ -23,3 +23,7 @@ spec-install-6: minimal Linux initrd for PXE-based bare-metal provisioning. The 
 - `blockdev --rereadpt` is needed after writing the disk image. The kernel may not detect new partitions from a full-disk write without it.
 - `reboot -f` may not work in all initrd environments. Fallback to `echo b > /proc/sysrq-trigger` covers the edge case.
 - The init script must mount proc, sys, and devtmpfs before accessing /proc/cmdline or /sys/block or /dev.
+
+## Files
+
+None recorded.

@@ -117,7 +117,7 @@ string-returning peer helpers fmt-1 was going to displace).
 
 ## Files
 
-- `internal/component/bgp/nlri/nlri.go` (JSONWriter -> JSONAppender interface)
+- `internal/core/bgp/nlri/nlri.go` (JSONWriter -> JSONAppender interface)
 - `internal/component/bgp/format/text_update.go` (rewritten: AppendMessage,
   AppendSentMessage, appendFullFromResult, appendRawFromResult,
   appendParsedFromResult, appendFromFilterResult, appendEmptyUpdate,
@@ -152,5 +152,5 @@ string-returning peer helpers fmt-1 was going to displace).
 - `internal/component/bgp/plugins/nlri/ls/json_test.go` (migrated
   AppendJSON(&sb) -> AppendJSON(buf) callers)
 - `plan/deferrals.md` (spec-fmt-1-text-update entry closed: open -> done)
-- `plan/known-failures.md` (logged 2 pre-existing vpp parse failures +
+- `plan/known-failures/RESOLVED.md` (logged 2 pre-existing vpp parse failures +
   iface backend pre-existing failure; both unrelated to fmt-1)

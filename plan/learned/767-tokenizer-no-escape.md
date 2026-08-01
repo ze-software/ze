@@ -35,3 +35,7 @@ there is nothing to escape.
 - Removing escape support means there is no way to embed a literal `"`
   inside a quoted value. This is acceptable: Ze command values (peer
   names, descriptions, paths) have no use case for embedded quotes.
+
+## Files
+
+None recorded.

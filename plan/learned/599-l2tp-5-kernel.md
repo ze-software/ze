@@ -100,7 +100,7 @@ through pppN.
 - `internal/component/l2tp/kernel_other.go` -- non-Linux stubs
 - `internal/component/l2tp/kernel_event.go` -- event types
 - `internal/component/l2tp/reactor.go` -- kernel event collection, handleKernelError, SetKernelWorker, tie-breaker teardown propagation
-- `internal/component/l2tp/reactor_kernel_test.go` -- reactor kernel-event wiring (6 tests)
+- `internal/component/l2tp/reactor_kernel_linux_test.go` -- reactor kernel-event wiring (6 tests)
 - `internal/component/l2tp/subsystem.go` -- probeKernelModulesFn, worker construction, Stop ordering
 - `internal/component/l2tp/subsystem_test.go` -- probe-override in Start tests
 - `internal/component/l2tp/listener.go` -- SocketFD()

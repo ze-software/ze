@@ -123,18 +123,18 @@ unit-proven here (the Apad/zero pre-image, type bytes, TLV-first, LSP 3-field
 zeroing, checksum-after-sign).
 
 ## Files
-- `internal/component/isis/packet/auth_types.go` (+`auth_types_test.go`):
+- `internal/plugins/isis/packet/auth_types.go` (+`auth_types_test.go`):
   algorithm enum, typed errors, authTypeFor/digestLen/newHash/keyIDOctets,
   Apad fill, placeholderValue, pduClass/classOf.
-- `internal/component/isis/packet/auth_sign.go` (+`auth_sign_test.go`): SignPDU,
+- `internal/plugins/isis/packet/auth_sign.go` (+`auth_sign_test.go`): SignPDU,
   reencodeWithAuthFirst, the *AuthLayout locators, computeDigest,
   finalizeLSPChecksum, StripPurgeBody.
-- `internal/component/isis/packet/auth_verify.go` (+`auth_verify_test.go`):
+- `internal/plugins/isis/packet/auth_verify.go` (+`auth_verify_test.go`):
   VerifyPDU, verifyKey, authLayoutForReceived, pduTLVs (the bulk of the
   per-algorithm/per-PDU-class/boundary tests live in auth_verify_test.go).
-- `internal/component/isis/auth_keystore.go` (+`auth_keystore_test.go`): the key
+- `internal/plugins/isis/auth_keystore.go` (+`auth_keystore_test.go`): the key
   store, lifetimes, per-PDU-class chain resolution, `$9$` decode.
-- `internal/component/isis/auth_wiring.go` (+`auth_wiring_test.go`): engine glue
+- `internal/plugins/isis/auth_wiring.go` (+`auth_wiring_test.go`): engine glue
   -- setKeyStore, installCircuitSigner, signLevelPDU/signHelloPDU, verifyFrame.
 - Modified: `server.go` (dispatcher verify hook + setVerify; authFailures
   CounterVec register), `circuits.go` (installCircuitSigner on buildCircuit),

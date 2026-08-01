@@ -23,3 +23,7 @@ Key choices:
 - `checks_linux.go` reads `/proc/modules` line-by-line; module names are the first whitespace-delimited field, not always the full `lsmod` format.
 - Port probing uses `net.DialTimeout` with a short timeout; firewalled ports show as errors even if the service would bind fine. This is intentional (better to warn than miss a conflict).
 - The `resolve` package extraction changed `cmd/ze/main.go` imports, which touches the critical startup path.
+
+## Files
+
+None recorded.

@@ -35,7 +35,7 @@ request/response and adding DirectBridge to the anti-pattern table.
 |----------|------|----------|
 | New plugin | `ai/patterns/plugin.md` | Wrong structure, missing YANG, wrong callback |
 | Cross-plugin comm (broadcast) | `pkg/ze/eventbus.go` + `internal/core/events/typed.go` + one consumer (e.g. fibkernel) | EventBus is for async pub/sub notifications, not request/response |
-| Cross-plugin comm (request/response) | `pkg/plugin/rpc/bridge.go` (DirectBridge) + `plan/learned/294-inprocess-direct-transport.md` | DirectBridge for sync typed calls from core to internal plugins. Do not reinvent this. |
+| Cross-plugin comm (request/response) | `pkg/plugin/rpc/bridge.go` (DirectBridge) + `plan/learned/DESIGN-HISTORY.md` "Plugin system: architecture" (294, retired) | DirectBridge for sync typed calls from core to internal plugins. Do not reinvent this. |
 | Shared registry | `internal/core/family/` (read the code) | Registry inside a plugin instead of core |
 | Config option | `ai/patterns/config-option.md` + `ai/rules/config-design.md` + `ai/rules/config-surface.md` + `ai/rules/config-naming.md` | Missing env var, wrong YANG shape, env-only when should be config, wrong leaf name |
 | CLI command | `ai/patterns/cli-command.md` | Wrong dispatch structure |

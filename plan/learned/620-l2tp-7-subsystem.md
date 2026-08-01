@@ -129,9 +129,9 @@ spec-l2tp-9 / spec-l2tp-10 so this spec stayed focused.
   plus modifications to `subsystem.go`, `reactor.go`, `session.go`,
   `tunnel.go`, `session_fsm.go`, `config.go`
 - `internal/component/l2tp/yang/ze-l2tp-api.yang` — 12 RPC defs
-- `internal/component/cmd/l2tp/` — new package (`l2tp.go`, `schema/`)
+- `internal/component/l2tp/cmd/` — new package (`l2tp.go`, `schema/`)
 - `internal/component/plugin/all/all.go` — blank imports
-- `cmd/ze/l2tp/show.go` — offline forwarder
+- `internal/component/l2tp/cli/show.go` — offline forwarder
 - `test/plugin/show-l2tp-empty.ci` — wiring test
 - `docs/guide/l2tp.md` — operator guide
 - `plan/spec-l2tp-7b-ci-coverage.md`, `plan/spec-l2tp-7c-rib-inject.md`

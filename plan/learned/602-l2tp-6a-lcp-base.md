@@ -40,7 +40,7 @@ New:
 - `internal/component/ppp/{doc,manager,session,session_run,start_session,events,auth_hook}.go`
 - `internal/component/ppp/{frame,frame_linux,frame_other,lcp,lcp_fsm,lcp_options,echo,proxy,ops,mtu_linux,mtu_other}.go`
 - `internal/component/ppp/*_test.go` (12 test files, including `helpers_test.go` and `export_test.go`)
-- `internal/component/l2tp/reactor_ppp_test.go`
+- `internal/component/l2tp/reactor_ppp_linux_test.go`
 
 Modified:
 - `internal/component/l2tp/kernel_event.go` -- proxy LCP fields on kernelSetupEvent; new kernelSetupSucceeded
@@ -50,6 +50,6 @@ Modified:
 - `internal/component/l2tp/subsystem.go` -- ppp.NewProductionDriver wiring; reverse-order Stop
 - `internal/component/l2tp/session_fsm.go` -- nolint + doc on teardownSession's resultCode
 - `internal/component/l2tp/kernel_linux_test.go` -- newTestWorkerWithSuccess helper; TestKernelWorkerEmitsSucceeded; TestKernelWorkerSucceededCoexistsWithNilChannel
-- `internal/component/l2tp/reactor_kernel_test.go` -- all newKernelWorker / SetKernelWorker callsites updated for 3-channel shape
-- `internal/component/ppp/manager.go` -- NewProductionDriver helper
-- `internal/component/ppp/session_run.go` -- RFC 1661 §5.7 comment at sendCodeReject, RFC 2661 §18 comment at proxy short-circuit
+- `internal/component/l2tp/reactor_kernel_linux_test.go` -- all newKernelWorker / SetKernelWorker callsites updated for 3-channel shape
+- `internal/component/l2tp/ppp/manager.go` -- NewProductionDriver helper
+- `internal/component/l2tp/ppp/session_run.go` -- RFC 1661 §5.7 comment at sendCodeReject, RFC 2661 §18 comment at proxy short-circuit

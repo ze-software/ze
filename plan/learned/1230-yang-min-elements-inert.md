@@ -50,3 +50,7 @@ looks like proof but exercises a different, already-shipped path.
 R-5 boundary: this fix touches ONLY `ze config validate`; the daemon load path still
 runs no YANG cardinality validation, so a saved config that violates a bound still
 boots. Closing that is a separate spec.
+
+## Files
+
+None recorded.

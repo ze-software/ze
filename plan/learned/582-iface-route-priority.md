@@ -46,9 +46,9 @@ with deprioritization relative to that base (configured + 1024).
 - `internal/component/iface/config.go` -- RoutePriority field + parsing
 - `internal/component/iface/config_test.go` -- 5 unit tests (2 parse, 3 link failover)
 - `internal/component/iface/register.go` -- dhcpParams, dhcpEntry, factory, failover
-- `internal/plugins/ifacedhcp/ifacedhcp.go` -- DHCPConfig.RouteMetric
-- `internal/plugins/ifacedhcp/dhcp_v4_linux.go` -- AddRoute/RemoveRoute with metric
-- `internal/plugins/ifacedhcp/register.go` -- factory parameter
+- `internal/plugins/iface/dhcp/ifacedhcp.go` -- DHCPConfig.RouteMetric
+- `internal/plugins/iface/dhcp/dhcp_v4_linux.go` -- AddRoute/RemoveRoute with metric
+- `internal/plugins/iface/dhcp/register.go` -- factory parameter
 - `test/parse/route-priority.ci` -- functional test
 - `docs/features/interfaces.md` -- capability table
 - `docs/guide/configuration.md` -- Route Priority section

@@ -102,3 +102,7 @@ BIRD converges at 44ms (2.3M r/s). Ze at 71ms (1.4M r/s). The remaining 1.61x ga
 is likely in: wire parsing (BIRD parses in-place in a single pass), memory allocation
 model (BIRD uses slab allocators with no GC), and TCP write batching (BIRD coalesces
 at the socket layer). These are architectural differences, not optimization targets.
+
+## Files
+
+None recorded.

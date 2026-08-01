@@ -94,3 +94,7 @@ worked:
   (`reassertDataplaneSysctls`) so it self-heals.
 - **`all.rp_filter=0` is host-global** and is not restored on SIGKILL. Same as
   keepalived; document it, do not try to make cleanup crash-safe.
+
+## Files
+
+None recorded.

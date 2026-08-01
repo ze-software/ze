@@ -39,3 +39,7 @@ series with full label set, cleaned up asynchronously on teardown.
 
 - Snapshot-based polling (reactor.Snapshot() + iface.GetStats) decouples
   metrics collection from session lifecycle events. Simple, no races.
+
+## Files
+
+None recorded.

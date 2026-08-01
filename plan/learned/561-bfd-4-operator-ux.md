@@ -141,59 +141,59 @@ can alert on the same data.
 
 ## Files
 
-- `internal/plugins/bfd/api/snapshot.go` (new) -- `SessionState`,
+- `internal/component/bfd/api/snapshot.go` (new) -- `SessionState`,
   `TransitionRecord`, `ProfileState`, `StateLabel`/`DiagLabel`.
-- `internal/plugins/bfd/api/service.go` -- `Service` grew
+- `internal/component/bfd/api/service.go` -- `Service` grew
   `Snapshot`/`SessionDetail`/`Profiles`.
-- `internal/plugins/bfd/api/events.go` -- `SessionRequest.Profile`
+- `internal/component/bfd/api/events.go` -- `SessionRequest.Profile`
   field plumbed from the config parser.
-- `internal/plugins/bfd/api/registry_test.go` -- fake Service gained
+- `internal/component/bfd/api/registry_test.go` -- fake Service gained
   the new methods.
-- `internal/plugins/bfd/engine/engine.go` -- `sessionEntry` expanded
+- `internal/component/bfd/engine/engine.go` -- `sessionEntry` expanded
   with `profile`, `createdAt`, `txPackets`, `rxPackets`, `transitions`,
   `lastState`; new `MetricsHook` interface; `Loop.SetMetricsHook`.
-- `internal/plugins/bfd/engine/loop.go` -- `handleInbound` /
+- `internal/component/bfd/engine/loop.go` -- `handleInbound` /
   `sendLocked` bump per-session packet counters and fire `OnTxPacket`/
   `OnRxPacket` via the hook.
-- `internal/plugins/bfd/engine/snapshot.go` (new) -- `Loop.Snapshot`,
+- `internal/component/bfd/engine/snapshot.go` (new) -- `Loop.Snapshot`,
   `Loop.SessionDetail`, `sessionEntry.snapshot`.
-- `internal/plugins/bfd/engine/snapshot_test.go` (new) -- empty,
+- `internal/component/bfd/engine/snapshot_test.go` (new) -- empty,
   two-session, concurrent, session-detail tests.
-- `internal/plugins/bfd/session/session.go` -- new `LocalDiag` and
+- `internal/component/bfd/session/session.go` -- new `LocalDiag` and
   `RemoteMinRxInterval` accessors.
-- `internal/plugins/bfd/bfd.go` -- `pluginService` grew
+- `internal/component/bfd/bfd.go` -- `pluginService` grew
   `Snapshot`/`SessionDetail`/`Profiles`; `loopFor` calls
   `attachMetricsHook`; `OnStarted` rebinds metrics via
   `registry.GetMetricsRegistry()`.
-- `internal/plugins/bfd/config.go` -- `toSessionRequest` plumbs
+- `internal/component/bfd/config.go` -- `toSessionRequest` plumbs
   `Profile` to the request.
-- `internal/plugins/bfd/metrics.go` (new) -- `bfdMetrics`,
+- `internal/component/bfd/metrics.go` (new) -- `bfdMetrics`,
   `bindMetricsRegistry`, `metricsHook`, `refreshSessionsGauge`,
   `attachMetricsHook`.
-- `internal/plugins/bfd/metrics_test.go` (new) -- registry bind,
+- `internal/component/bfd/metrics_test.go` (new) -- registry bind,
   counter, gauge tests.
-- `internal/plugins/bfd/register.go` -- `ConfigureMetrics` callback
+- `internal/component/bfd/register.go` -- `ConfigureMetrics` callback
   added to `registry.Registration`.
-- `internal/plugins/bfd/yang/ze-bfd-api.yang` (new) -- `show-sessions`,
+- `internal/component/bfd/yang/ze-bfd-api.yang` (new) -- `show-sessions`,
   `show-session`, `show-profile` RPC definitions.
-- `internal/plugins/bfd/yang/embed.go` -- embeds the new yang module.
-- `internal/plugins/bfd/yang/register.go` -- registers the new module.
-- `internal/component/cmd/bfd/bfd.go` (new) -- RPC handlers that call
+- `internal/component/bfd/yang/embed.go` -- embeds the new yang module.
+- `internal/component/bfd/yang/register.go` -- registers the new module.
+- `internal/component/bfd/cmd/bfd.go` (new) -- RPC handlers that call
   `api.GetService()` directly; `init` registers three RPCs with
   `pluginserver.RegisterRPCs`.
-- `internal/component/cmd/bfd/bfd_test.go` (new) -- handler tests with
+- `internal/component/bfd/cmd/bfd_test.go` (new) -- handler tests with
   a stub Service.
-- `internal/component/cmd/bfd/yang/ze-bfd-cmd.yang` (new) -- augments
+- `internal/component/bfd/yang/ze-bfd-cmd.yang` (new) -- augments
   `clishowcmd:show` with `bfd { sessions, session, profile }`.
-- `internal/component/cmd/bfd/yang/embed.go` (new) -- embed stub.
-- `internal/component/cmd/bfd/yang/register.go` (new) -- module
+- `internal/component/bfd/yang/embed.go` (new) -- embed stub.
+- `internal/component/bfd/yang/register.go` (new) -- module
   registration.
 - `internal/component/bgp/reactor/peer_bfd_test.go` -- fake
   BFDService gained the new methods.
 - `internal/component/plugin/all/all.go` -- blank imports for the new
   cmd/bfd and cmd/bfd/schema packages.
-- `cmd/ze/cli/main.go`, `cmd/ze/yang/tree.go` -- blank import for
-  `internal/component/cmd/bfd`.
+- `internal/component/cli/client/main.go`, `internal/component/config/yang/cli/tree.go` -- blank import for
+  `internal/component/bfd/cmd`.
 - `test/plugin/bfd-show-sessions.ci` (new).
 - `test/plugin/bfd-show-session.ci` (new).
 - `test/plugin/bfd-show-profile.ci` (new).

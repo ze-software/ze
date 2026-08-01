@@ -33,9 +33,9 @@ Network engineers using `ze cli` or `ze config edit` lose all screen content whe
 - `internal/component/hub/yang/ze-hub-conf.yang` -- transcript leaf under cli container
 - `internal/component/config/apply_env.go` -- cli.transcript -> ze.cli.transcript plumbing entry
 - `internal/component/config/apply_env_test.go` -- TestTranscriptEnvPlumbing
-- `cmd/ze/cli/transcript.go` -- openTranscriptFile helper
-- `cmd/ze/cli/main.go` -- wired in runInteractiveSession, runInteractiveWithDispatch, one-shot -c mode
-- `cmd/ze/config/transcript.go` -- openTranscriptFile helper
-- `cmd/ze/config/cmd_edit.go` -- wireSSHCommandExecutor updated with transcript support
+- `internal/component/cli/client/transcript.go` -- openTranscriptFile helper
+- `internal/component/cli/client/main.go` -- wired in runInteractiveSession, runInteractiveWithDispatch, one-shot -c mode
+- `internal/component/config/cli/transcript.go` -- openTranscriptFile helper
+- `internal/component/config/cli/cmd_edit.go` -- wireSSHCommandExecutor updated with transcript support
 - `docs/features.md` -- CLI Session Transcript feature entry
 - `docs/guide/configuration.md` -- transcript config documentation

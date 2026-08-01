@@ -1,6 +1,6 @@
 # 461 -- RPKI Event Decoration
 
-## Objective
+## Context
 
 Enable plugins to receive BGP UPDATE events enriched with RPKI validation state, without adding complexity to the engine or blocking UPDATE delivery.
 

@@ -18,3 +18,7 @@ Key choices:
 
 ## Gotchas
 - The `RouteResult` struct lives in `internal/component/plugin/types.go`, not in the bgp package, because the extraction happens in `plugin/server/dispatch.go`.
+
+## Files
+
+None recorded.

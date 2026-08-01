@@ -27,3 +27,7 @@ The final backlog pass is an evidence reducer. Its job is to merge duplicate roo
 ## Verification
 
 - Final report audit tests passed manually: all child reports loaded, dedupe has root cause, every accepted finding has a fix spec, rejected candidates have proof, inventory coverage is zero-missing, and fix specs include regression plans.
+
+## Files
+
+None recorded.

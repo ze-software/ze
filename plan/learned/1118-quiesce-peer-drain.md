@@ -64,3 +64,7 @@ build is broken by an unrelated in-flight file.
   if it doesn't, the barrier was never doing anything.
 - `ze_api.py` is a deployed test script, not compiled into `ze`; swap it and re-run
   with the SAME `bin/ze` to isolate a harness-side change from an engine change.
+
+## Files
+
+None recorded.

@@ -40,5 +40,5 @@ See [[818-flow-export-1-counter-export]] and [[819-flow-export-2-flow-records]].
 
 See [[818-flow-export-1-counter-export]] and [[819-flow-export-2-flow-records]]
 for the per-spec file lists. The component root is
-`internal/component/flowexport/` with protocol subpackages sflow, netflow9, ipfix
+`internal/plugins/flowexport-cmd/` with protocol subpackages sflow, netflow9, ipfix
 and spec-2 subpackages sampling, conntrack, enrich.

@@ -120,3 +120,7 @@ one line above escaped the one check written to stop that.
   rejected: it would assert an audit that never happened.
 - The ratchet's baseline is HEAD, so coverage degraded and committed anyway
   becomes the new baseline. It slows decay; it does not reverse it.
+
+## Files
+
+None recorded.

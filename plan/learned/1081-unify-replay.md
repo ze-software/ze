@@ -50,7 +50,7 @@ merging the three per-subsystem handlers.
   `rib.RunRIBPlugin` was the lone exported one, so unexporting it was a consistency fix, not churn.
 
 ## Files
-- Created: `internal/core/replay/replay.go` (+`replay_test.go`), `internal/component/bgp/plugins/rib/events/events_test.go`.
+- Created: `internal/core/replay/replay.go` (+`replay_test.go`), `internal/core/bgp/ribevents/ribevents_test.go`.
 - Replay vocabulary: `internal/core/redistevents/events.go` (alias + IsReplay delegate), `internal/core/events/typed.go` (doc + removed dead `IsSignal`).
 - Broadcast hops: `rib/events/events.go`, `sysrib/events/events.go` (token marker + Marshal/Unmarshal), `rib.go`, `rib_bestchange.go`, `sysrib.go`, `fib/{kernel,vpp,p4}`.
 - Tests: `rib_bestchange_test.go`, `sysrib_test.go`, `redistevents/replay_test.go`.

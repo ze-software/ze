@@ -92,3 +92,7 @@ interface so the kernel-bound ze BGP listener can run on a VPP-owned NIC.
 - **VPP wireguard needs an underlay src the spec model lacks.** `WireguardInterface.SrcIP`
   is left unspecified (VPP FIB-selects); iface `WireguardSpec` carries no underlay
   source. Fine for the common case; a dedicated source leaf is a future extension.
+
+## Files
+
+None recorded.

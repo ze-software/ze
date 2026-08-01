@@ -211,48 +211,48 @@ ballooned the diff.
 
 ## Files
 
-- `internal/plugins/bfd/session/session.go` -- new `MinTTL()` and
+- `internal/component/bfd/session/session.go` -- new `MinTTL()` and
   `DetectMult()` getters on `Machine`, `// Detail:` back-references to
   fsm.go / timers.go.
-- `internal/plugins/bfd/session/timers.go` -- new
+- `internal/component/bfd/session/timers.go` -- new
   `AdvanceTxWithJitter(now, reduction)` paired with the existing
   `AdvanceTx(now)`.
-- `internal/plugins/bfd/engine/engine.go` -- new
+- `internal/component/bfd/engine/engine.go` -- new
   `JitterMaxFraction` / `JitterMinFractionDetectMultOne` constants and
   `applyJitter` helper using `math/rand/v2.Float64()` under a
   `//nolint:gosec` rationale.
-- `internal/plugins/bfd/engine/loop.go` -- new `passesTTLGate` helper
+- `internal/component/bfd/engine/loop.go` -- new `passesTTLGate` helper
   with RFC 5881 §5 / RFC 5883 §5 comments; `handleInbound` consults it
   after session lookup; `tick` uses `AdvanceTxWithJitter` with a
   per-call jitter reduction from `applyJitter`.
-- `internal/plugins/bfd/engine/ttl_test.go` -- NEW. Table-driven unit
+- `internal/component/bfd/engine/ttl_test.go` -- NEW. Table-driven unit
   tests for the gate across single-hop, multi-hop, and unknown-mode
   cases.
-- `internal/plugins/bfd/engine/jitter_test.go` -- NEW. 10 000-draw
+- `internal/component/bfd/engine/jitter_test.go` -- NEW. 10 000-draw
   bounds check per detect-multiplier band plus 20 000-draw uniformity
   check against the theoretical midpoint within 2%.
-- `internal/plugins/bfd/transport/udp.go` -- rewritten `Start()` to
+- `internal/component/bfd/transport/udp.go` -- rewritten `Start()` to
   use `net.ListenConfig.ListenPacket` with a Control callback;
   `readLoop` replaced with `ReadMsgUDPAddrPort` + oob parsing; new
   `Device` field; pre-allocated `oobBacking` slice.
-- `internal/plugins/bfd/transport/udp_linux.go` -- NEW. `applySocketOptions`
+- `internal/component/bfd/transport/udp_linux.go` -- NEW. `applySocketOptions`
   sets `IP_RECVTTL`, `IP_TTL=255`, and optionally `SO_BINDTODEVICE`;
   `parseReceivedTTL` parses `IP_TTL` cmsgs via
   `unix.ParseSocketControlMessage` + `binary.NativeEndian`.
-- `internal/plugins/bfd/transport/udp_other.go` -- NEW. Non-Linux
+- `internal/component/bfd/transport/udp_other.go` -- NEW. Non-Linux
   stub that rejects any device binding and returns zero on TTL
   extraction.
-- `internal/plugins/bfd/transport/udp_ttl_linux_test.go` -- NEW.
+- `internal/component/bfd/transport/udp_ttl_linux_test.go` -- NEW.
   Round-trip test proves outgoing TTL=255 is observable via readback
   and `Inbound.TTL` is non-zero via IP_RECVTTL extraction.
-- `internal/plugins/bfd/transport/udp_device_linux_test.go` -- NEW.
+- `internal/component/bfd/transport/udp_device_linux_test.go` -- NEW.
   SO_BINDTODEVICE tests for loopback, non-existent device (error
   wrapping), and empty device (skips bind-to-device path).
-- `internal/plugins/bfd/config.go` -- `parseSingleHopSession` and
+- `internal/component/bfd/config.go` -- `parseSingleHopSession` and
   `parseMultiHopSession` fall back to the listKey when `fields["peer"]`
   is empty; `defaultVRFName` constant replaces the scattered
   `"default"` literal.
-- `internal/plugins/bfd/bfd.go` -- `loopFor(key, device)` takes the
+- `internal/component/bfd/bfd.go` -- `loopFor(key, device)` takes the
   device name; non-default VRF no longer errors; new
   `resolveLoopDevices` derives per-loop device from pinned sessions;
   `newUDPTransport(mode, vrf, device)` signature change.

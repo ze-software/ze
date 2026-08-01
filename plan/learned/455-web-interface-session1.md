@@ -45,6 +45,6 @@ Key files modified/created:
 - `internal/component/web/assets/cli.js` -- command history, theme toggle, flyout, delegated actions
 - `internal/component/web/assets/style.css` -- Finder columns, tristate, light mode, tooltips
 - `internal/component/web/testing/` -- .wb parser, runner, expectations
-- `cmd/ze-test/web.go` -- ze-test web CLI
+- `internal/test/cli/cmd_web.go` -- ze-test web CLI
 - `test/web/*.wb` -- browser test files
 - `cmd/ze/main.go` -- removed ze web, added --insecure-web to ze start

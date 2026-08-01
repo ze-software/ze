@@ -33,6 +33,6 @@ ZeFS had no mechanism to detect or recover from store corruption. The netcapstri
 - `pkg/zefs/check.go` -- Check(), Repair(), CheckReport, RepairReport
 - `pkg/zefs/pwrite_unix.go` -- pwriteRegions for in-place writes
 - `pkg/zefs/pwrite_other.go` -- fallback stub for non-unix
-- `cmd/ze/data/cmd_integrity.go` -- check, repair, encode CLI commands
-- `cmd/ze/doctor/doctor.go` -- store integrity check
+- `internal/component/config/storage/cli/cmd_integrity.go` -- check, repair, encode CLI commands
+- `internal/component/doctor/doctor.go` -- store integrity check
 - `docs/architecture/zefs-format.md` -- format documentation updated

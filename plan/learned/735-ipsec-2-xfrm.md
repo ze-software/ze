@@ -70,8 +70,8 @@ mode but not modifiable or present in config.
 - `internal/component/iface/dispatch.go` -- +GetXFRMInfo dispatch wrapper
 - `internal/component/iface/emit.go` -- +emitXFRMBlock, +emitXFRMSet for ze init / scan --config
 - `internal/component/iface/iface.go` -- +XFRM field on DiscoveredInterface
-- `cmd/ze/iface/show.go` -- +showXFRMDetail for `ze interface show <xfrm-name>`
-- `cmd/ze/iface/scan.go` -- "xfrm" added to managed filter
+- `internal/component/iface/cli/show.go` -- +showXFRMDetail for `ze interface show <xfrm-name>`
+- `internal/component/iface/cli/scan.go` -- "xfrm" added to managed filter
 - `internal/component/iface/config_test.go` -- 8 XFRM tests
 - `internal/component/iface/discover_test.go` -- 2 XFRM tests
 - `internal/component/iface/emit_test.go` -- 4 XFRM emit tests

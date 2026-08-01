@@ -45,3 +45,7 @@ without any diagnostic being emitted.
   `checks_other.go`, unit tests in `checks_linux_test.go`, QEMU integration
   test with `//go:build integration && linux`, and a `.ci` functional test
   with `option=skip-os` for non-Linux.
+
+## Files
+
+None recorded.

@@ -1,6 +1,6 @@
 # 456 -- ZeFS Integration
 
-## Objective
+## Context
 
 Integrate the zefs blob store as a multi-config database behind a storage abstraction, replacing direct filesystem I/O throughout ze's configuration system while preserving all existing behavior.
 
@@ -38,9 +38,9 @@ Integrate the zefs blob store as a multi-config database behind a storage abstra
 - `internal/component/config/storage/blob.go` -- blobStorage wrapping zefs, migration logic
 - `internal/component/config/storage/storage_test.go` -- 21 tests for both backends
 - `cmd/ze/main.go` -- resolveStorage(), -f flag, storage dispatch
-- `cmd/ze/config/main.go` -- storageHandlers/subcommandHandlers split, RunWithStorage
-- `cmd/ze/config/cmd_edit.go` -- doSelectConfig (AC-6/AC-7), defaultConfigName, blob-aware flow
-- `cmd/ze/config/cmd_edit_test.go` -- 6 selection tests + default name test
+- `internal/component/config/cli/main.go` -- storageHandlers/subcommandHandlers split, RunWithStorage
+- `internal/component/config/cli/cmd_edit.go` -- doSelectConfig (AC-6/AC-7), defaultConfigName, blob-aware flow
+- `internal/component/config/cli/cmd_edit_test.go` -- 6 selection tests + default name test
 - `internal/component/cli/editor.go` -- NewEditorWithStorage, storage field
 - `internal/component/cli/editor_draft.go` -- draft ops through storage
 - `internal/component/bgp/config/loader.go` -- LoadReactorFile(store, path)
@@ -48,6 +48,6 @@ Integrate the zefs blob store as a multi-config database behind a storage abstra
 - `internal/core/pidfile/pidfile.go` -- storage-aware PID
 - `internal/test/runner/runner.go` -- build to bin/ instead of temp dir
 - `internal/test/runner/runner_exec.go` -- fixed EnvVars propagation to orchestrated commands
-- `cmd/ze-test/bgp.go` -- buildZe() to bin/ze, removed temp cleanup
+- `internal/test/cli/cmd_bgp.go` -- buildZe() to bin/ze, removed temp cleanup
 - `test/ui/cli-zefs-blob-storage.ci` -- functional test: blob storage wiring
 - `test/ui/cli-zefs-filesystem-override.ci` -- functional test: filesystem override wiring

@@ -50,3 +50,7 @@ replaced ad-hoc ordering with a transaction operation graph.
 Predecessor design history: 537-config-tx-protocol.md (transaction protocol),
 535-config-tx-consumers.md (how plugins participate), 779-transactional-config-commit.md
 (cross-surface commit), 758-config-graph.md (config dependency graph).
+
+## Files
+
+None recorded.

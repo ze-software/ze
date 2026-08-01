@@ -38,3 +38,7 @@ rings track echo RTT quality over time in 100-second buckets.
   return on session down. Zero GC pressure on the hot path.
 - Login-keyed (not session-keyed) continuity for quality data survives
   reconnects, which is the common BNG failure mode.
+
+## Files
+
+None recorded.

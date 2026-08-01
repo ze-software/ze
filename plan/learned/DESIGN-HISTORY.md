@@ -1,10 +1,19 @@
 # Design History
 
-A chronological-by-subsystem map of how ze's code got to its current shape,
-extracted from the 638 learned summaries in this directory. Read this
-document first when the question is "why is X structured this way?" — it
-points at the specific learned summaries that hold the full record, so
-you need to read one file instead of 638.
+A chronological-by-subsystem map of how ze's code got to its current shape.
+Read this document first when the question is "why is X structured this way?".
+
+The document covers the whole history, and it holds that history in two
+different ways. Summaries 001 to 400 were retired on 2026-08-01, and their
+surviving knowledge was merged into the sections below. For that era this
+document IS the record, not an index to one. For the 888 summaries numbered
+401 and above, each section links the files that hold the full detail.
+
+A bare three-digit number at or below 400, such as (059), names a retired
+summary. That file is no longer in this directory and nothing here depends on
+it. To read the original, `git log --diff-filter=D --name-only --
+'plan/learned/059-*'` names the commit that deleted it, and `git show
+<sha>^:<path>` prints the file.
 
 See also: `METHODOLOGY.md` (how individual summaries are written),
 `../../ai/LEARNED-INDEX.md` (curated index by topic).
@@ -13,19 +22,17 @@ See also: `METHODOLOGY.md` (how individual summaries are written),
 
 Each subsystem section has four fixed parts:
 
-1. **Current shape** — one paragraph describing what exists today.
-2. **Evolution** — the phases that produced the current shape, each
-   pointing at one or more `plan/learned/NNN-*.md` entries.
-3. **Abandoned approaches** — designs that were tried and removed.
-   Important: if you are about to propose one of these, read the
-   learned summary first to understand why it did not work.
-4. **Load-bearing invariants** — facts about the code that are easy
-   to break by accident. Each invariant names the code site that
-   enforces it and the summary that records the reasoning.
+1. **Current shape**: one paragraph describing what exists today.
+2. **Evolution**: the phases that produced the current shape.
+3. **Abandoned approaches**: designs that were tried and removed. Read the
+   entry before you propose one of them a second time.
+4. **Load-bearing invariants**: facts about the code that are easy to break
+   by accident. Each invariant names the code site that enforces it and the
+   reason it exists.
 
-When a section points at a numbered summary, read the summary for
-the rejected alternatives and the gotchas. This document is the
-index; the summaries are the authority.
+A linked number (401 and above) points at a summary that holds more detail
+than the entry here. An unlinked number (400 and below) does not, because the
+entry beside it is the record.
 
 ---
 
@@ -57,78 +64,132 @@ engine; the engine has no Loc-RIB table.
 
 ### Evolution
 
-- **[001](001-initial-implentation.md)** Foundation plan. Zero-copy
+- **001** Foundation plan. Zero-copy
   forwarding via shared encoding context; goroutine-per-peer replaces
   ExaBGP's Python async reactor; per-attribute pools with mutex-based
   typed stores (later replaced by pool handles).
-- **[003](003-pool-completion.md), [059](059-spec-pool-handle-migration.md),
-  [124](124-unified-handle-nlri.md), [174](174-pool-restore-delete-pool.md),
-  [176](176-per-attribute-deduplication.md), [332](332-pool-simplify.md)**
+- **003, 124, 174, 176, 332**
   Pool evolution. Single-pool → per-attribute-type pools (22 codes) →
   unified handle layout (bufferBit | poolIdx | flags | slot) → flags
   removed (slot widened to 26 bits) → double-buffer compaction scheduler
-  wired into RIB plugin lifecycle.
-- **[073](073-spec-buffer-writer.md), [075](075-nlri-writeto-zero-alloc.md),
-  [092](092-pack-to-writeto-migration.md), [102](102-buffer-first-migration.md),
-  [103](103-writeto-error-return.md), [114](114-pack-removal.md),
-  [115](115-pack-removal.md), [116](116-wirewriter-unification.md)** Wire
+  wired into RIB plugin lifecycle. 059 is NOT part of this chain; it was
+  designed and abandoned, and it is recorded under Abandoned approaches.
+- **173** Plugin RIB NLRI storage splits by family on size. IPv4 unicast
+  prefixes are 1 to 5 wire bytes, smaller than a 4-byte pool handle plus
+  index, so they are stored directly. IPv6, VPN and EVPN are large enough
+  for pool dedup to pay.
+- **011** API commits always carry a name. Anonymous commits were rejected
+  so one client can hold several concurrent batches. Grouping is decided by
+  `rib { group-updates }`, never by the commit command: commit controls
+  WHEN, RIB config controls HOW.
+- **014** Two-level grouping (non-AS_PATH attributes, then AS_PATH) was
+  chosen over folding AS_PATH into one key, so every route in an
+  AttributeGroup shares a single `[]Attribute` slice while carrying
+  different AS_PATHs.
+- **086** IPVPN is deliberately excluded from the `PrefixNLRI` embedding
+  that INET and LabeledUnicast share. Its wire order is family, rd, labels,
+  prefix, pathID, so embedding would change the wire format.
+- **343** Session reads use two fixed pools (4K, 64K) rather than one mixed
+  pool. 4K is correct before negotiation because RFC 4271 caps OPEN at 4096;
+  64K activates only once Extended Message is negotiated.
+- **062** Size limiting exists because `sendInitialRoutes` silently skipped
+  oversized UPDATEs, losing routes with no error and no log. Two mechanisms
+  remain, and neither replaces the other: proactive limiting in the builder,
+  reactive splitting for received UPDATEs.
+- **078** Splitter posture is "accept invalid, emit valid". A caller may send
+  several MP_REACH for different AFI/SAFIs, which is technically invalid, and
+  the splitter normalises to at most one MP_REACH plus one MP_UNREACH per
+  UPDATE. It is left unoptimised because it runs only past the size limit.
+- **090** In the update grammar one `add` or `del` carries exactly one
+  FlowSpec rule, unlike prefix families. FlowSpec components combine with AND
+  to define a single rule, so batching disconnected rules has no meaning.
+- **081** `rd` and `label` are per-NLRI parameters inside the `nlri` section,
+  never global attributes, because an RD belongs to individual prefixes.
+  AS_PATH is set-only: `add` and `del` would compromise path integrity.
+- **116** The `EncodingCaps` and `SessionCaps` split follows one rule: a
+  capability is EncodingCaps if and only if it changes the bytes on the wire.
+  `ExtendedMessage` moved on that basis, and `EncodingContext` gained
+  `MaxMessageSize()`.
+- **253** The `message` package stays free of NLRI-plugin imports because
+  family params accept a pre-built `NLRI []byte` rather than typed values.
+  SAFI constants stayed in core `nlri` for the same reason: `ParseFamily()`
+  needs them.
+- **400** For the BGP-LS attribute details the RFCs leave ambiguous, GoBGP's
+  `pkg/packet/bgp/bgp.go` was read as the oracle <!-- doc-links: ignore (GoBGP's own tree, not a ze path) -->: 3-byte range padding, V/L
+  flag length control, sub-TLV nesting in SR Capabilities.
+- **392, 394, 278** Forward congestion. The bounded forward-overflow pool is
+  a channel-based token semaphore, chosen over a pre-allocated backing array
+  to leave the value-copy item flow unchanged, and it is SOFT-bounded:
+  exhausted tokens fall back to unbounded growth. Hard bounding comes only
+  from read-throttle and teardown reducing inflow. Read throttle clamps sleep
+  to keepalive/6, over /3 or /2, so a throttled source still delivers one
+  message inside the hold time, and it uses four fill-level bands rather than
+  a linear ramp so a low-ratio source is throttled only at critical fill.
+  Backpressure on the forward path is deliberately IMPLICIT: a blocking
+  `fwdPool.Dispatch` blocks the ForwardUpdate RPC, which blocks the RS
+  worker, which fills its channel, which pauses the source peer. That
+  blocking chain IS the signal path.
+- **073, 075,
+  092, 102,
+  103, 114,
+  115, 116** Wire
   encoding migration. `Pack() []byte` allocated; replaced by
   `WriteTo(buf []byte, off int) int` with `CheckedWriteTo` variants for
   overflow detection. Session holds `writeBuf []byte` sized 4K pre-OPEN,
   resized to 65535 after Extended Message negotiation.
-- **[076](076-spec-wire-update.md), [078](078-wireupdate-split.md),
-  [079](079-spec-wireupdate-error-returns.md),
-  [204](204-update-shared-parsing.md)** WireUpdate design. Raw wire
+- **076, 078,
+  079,
+  204** WireUpdate design. Raw wire
   bytes held, attributes lazy-parsed via AttributesWire. `UpdateSections`
   stores offsets (integers), not data slices.
-- **[034](034-spec-addpath-encoding.md),
-  [037](037-spec-asn4-packcontext.md),
-  [038](038-spec-encoding-context-design.md),
-  [039](039-spec-encoding-context-impl.md),
-  [063](063-spec-afi-safi-map-refactor.md),
-  [112](112-negotiated-composite-refactor.md),
-  [113](113-encoding-context-consolidation.md)** Encoding context unification.
+- **034,
+  037,
+  038,
+  039,
+  063,
+  112,
+  113** Encoding context unification.
   Three Family types (nlri, capability, context) collapsed to one;
   `PackContext` → `WireContext` → `EncodingContext`. Per-peer recv/send
   contexts because ADD-PATH is the only asymmetric capability. Hash
   collision-resistant FNV-64a for registry dedup. `ContextID uint16`
   vs. pointer saves 6 MB at 1M routes.
-- **[014](014-two-level-grouping.md),
-  [030](030-spec-peer-encoding-extraction.md),
-  [032](032-spec-update-builder.md),
-  [061](061-spec-route-grouping.md),
-  [062](062-spec-update-size-limiting.md),
-  [097](097-api-bounds-safety.md)** UpdateBuilder. Routes grouped by
+- **014,
+  030,
+  032,
+  061,
+  062,
+  097** UpdateBuilder. Routes grouped by
   non-AS_PATH attributes then by AS_PATH; MP_REACH NEXT_HOP lives in
   the attribute, not the base attribute section. Size limits enforced
   at the RIB-to-send boundary via `BuildGroupedUnicastWithLimit`
   (multi-route, splits) and `*WithMaxSize` (single route, errors).
-- **[093](093-writeto-bounds-safety.md),
-  [220](220-writeto-remaining-allocs.md),
-  [377](377-chunknlri-zero-copy.md),
+- **093,
+  220,
+  377,
   [450](450-iter-elements.md)** Split-function zero-copy. `SplitMPNLRI`
   returns subslices of the original buffer. `ChunkMPNLRI` subsumed into
   `iter.Elements`.
-- **[070](070-addpath-simplification.md),
-  [071](071-nlri-wire-tests.md),
-  [084](084-spec-multi-label-support.md),
-  [086](086-spec-nlri-struct-embedding.md)** NLRI refactoring.
+- **070,
+  071,
+  084,
+  086** NLRI refactoring.
   `Len()` and `WriteTo()` return payload only; caller prepends path-id
   via `WriteNLRI` helper. `hasPath bool` on NLRI struct removed.
   `Bytes()` (identity/RIB keys) and `Pack()` (wire) are different
   concerns.
-- **[173](173-plugin-rib-pool-storage.md),
-  [253](253-nlri-plugin-extraction.md),
-  [296](296-rib-02-adj-rib-in.md),
-  [297](297-rib-03-rr-replay.md),
-  [301](301-rib-04-plugin-dependencies.md),
-  [303](303-seqmap.md),
-  [304](304-seqmap-2-cache-contention.md),
-  [317](317-refcounted-cache.md),
-  [340](340-addpath-rib.md),
-  [374](374-rib-05-best-path.md),
-  [384](384-rib-pipeline-commands.md),
-  [387](387-rib-06-pipe-filters.md),
+- **173,
+  253,
+  296,
+  297,
+  301,
+  303,
+  304,
+  317,
+  340,
+  374,
+  384,
+  387,
   [534](534-rib-alloc.md),
   [607](607-rib-bart-bestprev.md),
   [618](618-rib-bestpath-pack.md)** RIB plugin arc. RIB commands
@@ -140,19 +201,19 @@ engine; the engine has no Loc-RIB table.
   pipeline iterator model. Storage backend: map (default) and BART
   (exact-match trie) for best-path store. `bestPrevStore` interner
   collapses per-route state to `uint16` indices.
-- **[254](254-rfc7606-enforcement.md)** RFC 7606. Severity ordering via
+- **254** RFC 7606. Severity ordering via
   iota: None / AttributeDiscard / TreatAsWithdraw / SessionReset.
   Numeric comparison gives strength ordering. attribute-discard and
   zero-copy are incompatible — motivated `draft-mangin-idr-attr-discard-00`.
-- **[275](275-spec-forward-pool.md),
-  [276](276-rpc-multiplexing.md),
-  [277](277-rr-ebgp-forward.md),
-  [278](278-rr-flow-control.md),
-  [289](289-rr-per-family-forward.md),
-  [292](292-persistent-conn-reader.md),
-  [316](316-buffered-writes.md),
-  [392](392-forward-congestion-phase1.md),
-  [394](394-forward-congestion-phase3.md),
+- **275,
+  276,
+  277,
+  278,
+  289,
+  292,
+  316,
+  392,
+  394,
   [424](424-forward-backpressure.md),
   [445](445-forward-congestion-phase4-5.md),
   [457](457-forward-congestion-phase2.md),
@@ -162,8 +223,8 @@ engine; the engine has no Loc-RIB table.
   congestion response (bounded overflow, Prometheus metrics, read
   throttle, teardown), fire-and-forget `ForwardUpdatesDirect` typed
   path for internal plugins.
-- **[239](239-rfc9234-role.md),
-  [280](280-capability-mode.md),
+- **239,
+  280,
   [408](408-dynamic-send-types.md),
   [442](442-filter-community.md),
   [464](464-role-otc.md),
@@ -202,24 +263,124 @@ engine; the engine has no Loc-RIB table.
 - **`BuildGroupedUnicast` for RIB routes** (171) — conversion cancelled;
   RIB routes have existing wire bytes (zero-copy forwarding), only
   locally-originated routes use `UpdateBuilder`.
-- **Struct-based RIB routes** (321) — `StructuredEvent` wrapper was an
-  identity wrapper pattern; rejected. Engine delivers `*RawMessage`
-  directly via DirectBridge; plugin walks wire bytes with existing
-  iterators.
+- **Direct-wire in-process delivery, first attempt: an eager
+  `StructuredEvent`** (321, 322): it pre-computed the filter result,
+  including the NLRIs, at delivery time. Rejected for violating lazy-first:
+  the consumer may need none of it.
+- **Direct-wire in-process delivery, second attempt: an `UpdateHandle`
+  wrapper** (321, 322): a struct holding the raw message plus accessor
+  methods. Rejected as an identity wrapper. These are two distinct failures
+  with two distinct causes, and the third attempt succeeded by passing the
+  raw message and using the existing wire iterators, which was also the
+  simplest. Engine delivers `*RawMessage` directly via DirectBridge; the
+  plugin walks wire bytes with existing iterators.
+- **Pool handle migration for `Route`** (059): moving `Route` from
+  `[]byte` to a single pooled handle, interning into a reusable connection
+  buffer in RIB mode and allocating per read in API mode, was designed and
+  then ABANDONED. Heavy dedup belongs in an API-level route reflector, not
+  in the edge speaker. Do not read 059 as a shipped step in the pool chain.
+- **The accumulator model in the `update text` parser** (306): `set`,
+  `add` and `del` verbs with mid-stream modification, removed for flat
+  keyword-value parsing. Attributes must precede every `nlri`, an attribute
+  after the first `nlri` is rejected, and a leftover `set` returns a
+  migration hint rather than being ignored.
+- **`AddPathReceive map[string]bool` on the per-message struct** (100):
+  proposed so plugins could see ADD-PATH state. Rejected:
+  `AttributesWire.SourceContext()` already reaches the `EncodingContext`,
+  which already holds per-family ADD-PATH.
+- **`io.Writer` as the wire-encoding interface** (073): rejected for
+  `[]byte` plus offset: an extra interface dispatch per call, and no
+  alignment with the pooled-buffer pattern. `Pack()` was kept alongside
+  `WriteTo` during the migration as an additive step.
+- **`WriteTo(buf, off) int` for NLRI splitting** (377): rejected.
+  `WriteTo` is the encoding contract, and splitting operates on data already
+  in a wire buffer, where returning subslices is simpler and faster. This is
+  the standing exception to the buffer-first instinct.
+- **Emitting path attributes in non-RFC order to match ExaBGP fixtures**
+  (042): added to the UPDATE builder, then reverted. ExaBGP emitted type 25
+  before 14, the fixtures were wrong, and the fixtures were rewritten instead
+  of the encoder.
 
 ### Load-bearing invariants
 
 | Invariant | Site | Why (first occurrence) |
 |-----------|------|------------------------|
-| A peer has two `EncodingContext`s, never one | `peer.go` (`recvCtx`, `sendCtx`) | ADD-PATH is the only asymmetric capability; single context would conflate recv/send semantics. ([038](038-spec-encoding-context-design.md)) |
-| `ContextID` is `uint16`, not a pointer | `internal/bgp/context/` | Saves ~6 MB at 1M routes, single-integer zero-copy comparison. ([038](038-spec-encoding-context-design.md), [039](039-spec-encoding-context-impl.md)) |
-| `Bytes()` (identity/RIB key) and `Pack()`/`WriteTo()` (wire) are separate | NLRI types | Wire excludes path-id (caller prepends); RIB keys include path-id for uniqueness. Confusing them corrupted EVPN ADD-PATH once. ([070](070-addpath-simplification.md), [071](071-nlri-wire-tests.md)) |
-| attribute-discard and zero-copy are incompatible | `rfc7606.go` | Stripping bytes from wire encoding breaks zero-copy forwarding. Solution is a new path attribute, not in-place stripping. ([254](254-rfc7606-enforcement.md)) |
-| NLRI overrun → session reset, not treat-as-withdraw | `rfc7606.go` | The NLRI is not parseable, individual prefix withdrawal is impossible. ([254](254-rfc7606-enforcement.md)) |
-| MP_REACH + MP_UNREACH can carry up to 3 distinct families per UPDATE | RFC 4760 | Per-family wire splitting not done in engine `ForwardUpdate`. ([289](289-rr-per-family-forward.md)) |
-| Hold time 0 disables throttling entirely | `ReadThrottle.ThrottleSleep` | RFC 4271 §4.4: hold-time 0 means no timers, no safe sleep budget. ([394](394-forward-congestion-phase3.md)) |
-| Best-path lives in bgp-rib plugin, on-demand | `internal/component/bgp/plugins/bgp-rib/` | Real-time deferred until export policy exists; engine has no Loc-RIB. ([374](374-rib-05-best-path.md)) |
-| Per-source-peer worker pool serializes FIFO | bgp-rr `forwardWorker` | Cache ack protocol requires FIFO message-id order; unbounded goroutines caused ~98% route loss. ([269](269-rr-serial-forward.md)) |
+| A peer has two `EncodingContext`s, never one | `peer.go` (`recvCtx`, `sendCtx`) | ADD-PATH is the only asymmetric capability; single context would conflate recv/send semantics. (038) |
+| `ContextID` is `uint16`, not a pointer | `internal/core/bgp/context/` | Saves ~6 MB at 1M routes, single-integer zero-copy comparison. (038, 039) |
+| `Bytes()` (identity/RIB key) and `Pack()`/`WriteTo()` (wire) are separate | NLRI types | Wire excludes path-id (caller prepends); RIB keys include path-id for uniqueness. Confusing them corrupted EVPN ADD-PATH once. (070, 071) |
+| attribute-discard and zero-copy are incompatible | `rfc7606.go` | Stripping bytes from wire encoding breaks zero-copy forwarding. Solution is a new path attribute, not in-place stripping. (254) |
+| NLRI overrun → session reset, not treat-as-withdraw | `rfc7606.go` | The NLRI is not parseable, individual prefix withdrawal is impossible. (254) |
+| MP_REACH + MP_UNREACH can carry up to 3 distinct families per UPDATE | RFC 4760 | Per-family wire splitting not done in engine `ForwardUpdate`. (289) |
+| Hold time 0 disables throttling entirely | `ReadThrottle.ThrottleSleep` | RFC 4271 §4.4: hold-time 0 means no timers, no safe sleep budget. (394) |
+| Best-path lives in bgp-rib plugin, on-demand | `internal/component/bgp/plugins/rib/` | Real-time deferred until export policy exists; engine has no Loc-RIB. (374) |
+| Per-source-peer worker pool serializes FIFO | bgp-rr `forwardWorker` | Cache ack protocol requires FIFO message-id order; unbounded goroutines caused ~98% route loss. (269) |
+| Engine cache ack is CUMULATIVE: acking id N implicitly acks 1..N-1 | recent-update cache ack | The mechanism behind the ~98% route loss at 522K routes. With concurrent forwarders a later id arriving first evicts earlier entries, so a forwarder must preserve FIFO id order, not merely deliver every id. (269) |
+| The route-grouping key must include ORIGINATOR_ID and CLUSTER_LIST | `routeGroupKey` in the UPDATE build path | Omitting them silently merges routes carrying different reflector attributes. `RawAttributes` is deliberately excluded: custom attributes are rare and near-unique. (030) |
+| Forwarding compares `updateSize` against the destination peer maximum BEFORE zero-copy | reactor forward path | A 65535-byte UPDATE from an Extended Message peer cannot go verbatim to a 4096-byte peer, so the size check precedes the context-ID comparison. (060) |
+| The attribute pool buffer is append-only for writes | attrpool, `freeSlots` | Slot reuse recycles indices but never reclaims byte gaps, so compaction is the only mechanism that returns buffer memory. Slot reuse without a running scheduler grows forever. (332) |
+| AS-PATH rewrite byte shift can be positive, zero, OR negative | `RewriteASPath` in wireu | ASN4-to-ASN2 transcoding can shrink ASNs by more than the prepend adds, so a caller assuming the patched wire is never shorter is wrong. (277) |
+| Each cached wire variant needs its own lazily-parsed UPDATE struct | eBGP/iBGP branch of forward | One shared struct hands eBGP peers the iBGP bytes. The eBGP patched wire keeps the source ContextID because only AS-PATH content changed, so zero-copy still applies. (277) |
+| Forward-pool workers are fire-and-forget for TCP write errors | forward pool worker | A TCP failure independently drives an FSM transition, so propagating a send error reports the same failure twice. (275) |
+| Cache `Ack` and `Retain` are independent refcount axes | recent-update cache, `totalConsumers = pendingConsumers + retainCount` | This is why `defer Ack` firing before async workers finish is correct, rather than premature eviction. (275) |
+| The route-server worker sends to its channel BLOCKING, with a stop-channel escape only | RS worker dispatch | Every cached UPDATE must be forwarded or released under the cache-consumer protocol, so a non-blocking drop leaks cache entries. (289) |
+| Barrier sentinel items must skip the overflow-pool token acquire | overflow dispatch, sentinel is a nil peer | Barriers carry no route data, so taking tokens spends the congestion budget exactly when it matters. (392) |
+| BGP Identifier and peer-address tiebreaks compare as 32-bit unsigned, never as strings | best-path comparison in the RIB plugin | "9.0.0.1" sorts above "10.0.0.1" lexicographically while 9 is less than 10 numerically. (374) |
+| Deriving NLRI wire hex from a parsed prefix works only for simple families | `prefixToWireHex` in adj-rib-in | For VPN and EVPN it emits bare IPv4 bytes and drops RD and labels. Complex families must use the raw NLRI blob. (296) |
+| The adj-rib-in pipeline source buffers per peer rather than yielding one at a time | inbound source stage | The per-peer RIB iterator holds a read lock for the whole callback, so a lazy pull would hold that lock for the life of the query. (384) |
+| An NLRI's display form and its map-key form differ and must stay different | `nlri/inet.go` `String()` vs `Key()` | `String()` emits `prefix <cidr>` for the text protocol and drops path-id; `Key()` returns bare CIDR. Unifying them changes every RIB map key. (302) |
+| Source IDs are never reused; a deactivated source keeps its slot | `internal/core/source/registry.go` | Recycling makes historical records resolve to the wrong peer. The banded self-describing layout is why bands cannot be reallocated for density. (080) |
+| AS_CONFED_SEQUENCE is 3 and AS_CONFED_SET is 4 (RFC 5065) | `attribute/aspath.go` | Ze shipped them swapped and the wire tests encoded the swapped values, so the tests agreed with the bug. Fixing the constant required fixing the fixtures. (027) |
+| The two text scanners are deliberately NOT unified | `textparse/scanner.go` `TextScanner` (raw, no quotes) vs the quoted-input splitter | Quoting semantics are incompatible, so sharing goes through `textparse/keywords.go`. Merging the tokenizers is the tempting wrong move. (306) |
+| RFC 4271 4.1's 4096-byte maximum message length is deliberately NOT enforced | message header validation | RFC 8654 extended messages allow 65535. An RFC pass reading only RFC 4271 scores this as a missing check and "fixes" it, breaking extended-message peers. (005) |
+| CommitManager is per-peer, not global | CommitManager | Routing decisions are per-peer, and a global manager merges batches that must stay separate. Active commits roll back when the peer disconnects. (013) |
+| Sending EOR after an API commit is a deliberate extension beyond RFC 4724 | commit `eor` path | `end` flushes routes; `eor` flushes then sends EOR per affected family. RFC 4724 defines EOR for GR initial sync only. This was reviewed and accepted as a batch-completion signal, so an RFC pass must not "correct" it. (013) |
+| AS_PATH lives in `route.asPath`, never in `route.attributes` | route grouping | AS_PATH is rewritten per hop while other attributes pass through. The first implementation searched `group.Attributes`, never found it, and gave every route in the group one empty AS_PATH. (014) |
+| RFC 7606 validation cannot be decided from UPDATE bytes alone | `ValidateUpdateRFC7606` | It needs `isIBGP` (LOCAL_PREF, ORIGINATOR_ID and CLUSTER_LIST are attribute-discard on EBGP and treat-as-withdraw on IBGP) and `asn4` (AGGREGATOR is 6 bytes with 2-byte ASNs, 8 with 4-byte). Both were added after the fact. (016) |
+| Two UPDATE split paths exist and must never serve each other's traffic | `sendUpdateWithSplit` (build, API routes) vs `SplitWireUpdate` (forward, received) | Build owns peer-specific encoding, forward owns zero-copy bytes. Splitting lives in the reactor because only it holds ADD-PATH, ASN4 and max-size context. (082) |
+| BGP-LS is the only family a split cannot rescue | MP-NLRI split | Its 2-byte NLRI length lets one NLRI exceed 4096, so split returns an error rather than truncating. Every other family's per-NLRI size derives from its own length byte. (093) |
+| `SplitUpdateWithAddPath` takes one `addPath bool` for the whole UPDATE | wire split | When MP_REACH and MP_UNREACH have different ADD-PATH settings, the CALLER must split by family first, or path-ids mis-encode silently. (093) |
+| The encoding-context hash includes direction | context registry hashing | Without it a peer's recv and send contexts collapse to one ID, and the two directions become indistinguishable for zero-copy. (112) |
+| `PeerIdentity`, `EncodingCaps` and `SessionCaps` are immutable after session creation | capability sub-components | `Negotiated` and both contexts share them by pointer, so mutating one rewrites both directions. (112) |
+| `WireWriter` lives in the `context` package, not in `wire` | package placement | `wire -> context -> nlri -> wire` is an import cycle. The surprising location is the fix. (113, 116) |
+| Buffers handed back to callers are exempt from buffer-first | UPDATE builder output fields | They must outlive `resetScratch()`. "Finishing the migration" by pooling the outputs produces use-after-free while every test still passes. (220) |
+| A multi-route builder reading shared attributes from `routes[0]` requires the caller's grouping key to cover every shared attribute | `mvpnRouteGroupKey` | MVPN grouped on next-hop alone, so two customers' routes with the same next-hop but different Route Targets shared one UPDATE and the second RT was overwritten. That is a VPN isolation failure. (053) |
+| `AttributesWire` does NOT own its `packed []byte` | `attribute/wire.go` | Returning the message buffer to the pool while an `AttributesWire` still references it is undefined behavior. Accepted for zero-copy and enforced by convention only. (057) |
+| ADD-PATH state is per-AFI/SAFI and asymmetric, never a global bool | `SplitWireUpdate(..., srcCtx)`, `EncodingContext.AddPathFor(family)` | Three sites regressed on this: the splitter's `addPath bool`, a proposed per-message field, and a hardcoded `addPath=false` in the RIB plugin that corrupted stored routes. (078, 100, 340) |
+| When source and target contexts disagree on ADD-PATH, NLRI bytes are rewritten, never passed through | `WireNLRI.Pack` | Target has ADD-PATH and source lacks a path id: prepend NOPATH, 4 zero bytes. The reverse case strips 4 bytes. (034, 087) |
+| FlowSpec and BGP-LS NLRI never carry a path id, even when ADD-PATH is negotiated | `supportsAddPath(n)` guard in `WriteNLRI` | The original prepended a path id for every type when addPath was true, producing unparseable FlowSpec and BGP-LS. (114) |
+| An NLRI exists in two shapes and `WriteTo` must serve both | NLRI `WriteTo` | Constructed-from-components writes fields; parsed-from-wire has empty components and populated cached bytes. Writing only the component path emits nothing for a parsed NLRI. (075) |
+| `RDNLRIBase.buildData()` is called from `Bytes()` only, never from `WriteTo()` | `nlri/base.go` | It allocates via `append()`, so routing `WriteTo` through it breaks the zero-alloc contract. The lazy `Bytes()` cache was also a data race until `sync.Once`. (086) |
+| Attribute lookup is a linear scan over `attrIndex`, not a map, deliberately | `attribute/wire.go` | At around 15 attributes an O(n) scan matches a map, and the slice preserves wire order, which a map loses. Converting to a map looks like an optimisation and destroys ordering. (111) |
+| The RFC 7606 Partial flag (0x20) is NOT preserved for pooled optional-transitive attributes; flags are reconstructed as 0xC0 | per-attribute pools, `RouteEntry.ToWireBytes()` | A deliberate lossy choice, invisible until someone reasons about partial-flag propagation. (176) |
+| On implicit withdraw, save pool slot values BEFORE `Release()` | `RouteEntry.Release` call sites | Release invalidates the handle, so reading after it is use-after-free. (176) |
+| `returnReadBuffer` selects the pool by `cap(buf)`, never `len(buf)` | session read-buffer return | cap is fixed at allocation while len varies per read, so keying on len returns 64K buffers to the 4K pool. (343) |
+| Read-buffer ownership is exclusive: the session or the recent-message cache, never both | session `process()` `kept`, cache `Take()` | The receive callback fires BEFORE `cache.Add()`, so a full cache cannot reject an already-released buffer. `Take()` removes the entry, so two callers cannot both claim one. (343) |
+| The UPDATE splitter needs a progress guard | `SplitWireUpdate` `madeProgress` | When the base attributes alone exceed the limit, the slow path loops forever. The guard has no visible purpose until the pathological input arrives, so it reads as removable. (078) |
+| FlowSpec NLRI length switches to its 2-byte form at 240, not at 256 | FlowSpec encode and decode | The 2-byte form is `0xF0 \| high_bits` then the low bits, not a big-endian uint16. Easy to misread straight from the RFC. (091, 078) |
+| FlowSpec `String()` is parser-compatible only if numeric components omit the `&` AND-prefix and protocol omits any operator prefix | FlowSpec `String()` | The parser infers AND from position, so emitting `&<=65535` makes it drop the value silently. (122) |
+| FlowSpec JSON must preserve nested arrays (OR-of-AND) and must not key components by type in a map | FlowSpec JSON encode | Flattening changes the rule's meaning, and map assignment drops all but the last same-type component. Input must be minified, with space-delimited protocol. (192) |
+| NLRI `String()` is display output, not a round-trip format | all NLRI `String()` | Reconstruction needs the full command wrapper. Optional fields are emitted only when non-zero. (119) |
+| Route Distinguisher string output carries its type prefix | `RouteDistinguisher.String()` | `0:65000:100`, `1:192.0.2.1:100`, `2:65000:1`. Type 0 and Type 2 are otherwise indistinguishable in text. (118) |
+| Family-specific attribute keywords must be handled BEFORE the shared common-attribute parser | route and attribute text parsing | The common parser consumes greedily and reports consumed>0, so a family case placed after it is unreachable. MUP's `extended-community` handler was dead for this reason. (105) |
+| MP_REACH_NLRI (14) and MP_UNREACH_NLRI (15) cannot be filter members and are rejected in config | attribute filter validation | They carry the NLRI, so filtering them removes routes rather than the attribute. (056) |
+| `ContextID` 0 is not a registered context | `APIContextID` | Any operation with no peer session must pre-register a named context, defaulting to ASN4=true. `NewWireUpdate(body, 0)` fails, and API wire bytes are never re-encoded between contexts. (087, 241) |
+| A `nil` entry in the `[256]` attribute-parser dispatch table is intentional | `knownAttrParsers` | PMSI, TunnelEncap, AIGP, BGPLS and PrefixSID are known codes with no parser, and they fall through to `OpaqueAttribute`. Reading nil as a bug leads to "fixing" it. (352) |
+| The update-text parser's `snapshot()` must deep copy every slice | attribute accumulator | A shallow copy lets a later section mutate an earlier snapshot. (081) |
+| BGP-LS TLV 1251 (SRv6 BGP Peer Node SID) is 12 bytes | `attr_srv6.go` | The SID comes from NLRI descriptor TLV 518, not from the attribute. An initial 16-byte SID made it 28. RFC 9514 5.1 and GoBGP both say 12. (400) |
+| BGP-LS node-descriptor TLV 256 container unwrapping must be iterative, never recursive | node descriptor parsing | The recursive form let around 16K nested containers overflow the goroutine stack, on attacker-supplied wire data. (400) |
+| BGP-LS TLV 518 has two roles and both paths must handle it | NLRI parser and `NodeDescriptor` | It is an SRv6 SID NLRI descriptor (type 6) and a node-descriptor sub-TLV inside TLV 256/257. Handling only the NLRI path loses the SID silently. (400) |
+| The RFC 7606 error action must be decided BEFORE callback dispatch, and `fsm.EventUpdateMsg` must fire even for treat-as-withdraw | `reactor/session_read.go` | RFC 4271 8.2.2 requires the FSM event for every UPDATE, and deciding after dispatch means a malformed UPDATE already reached the plugins. (254) |
+| The UPDATE grouping key is attribute-hash plus family, and deliberately EXCLUDES PATH-ID | `attribute.Attributes.Hash` | Routes with different path-ids but identical attributes may legally share one UPDATE. Different families may never: IPv4 rides the body, IPv6 rides MP_REACH. (061) |
+| Next-hop "self" resolves at the peer, never at the parser, and a session has exactly ONE local address | `reactor/peer.go` `resolveNextHop` | Only the peer knows the negotiated capabilities. An explicitly configured next-hop bypasses validation deliberately, as an operator override. (083) |
+| Message IDs are allocated globally across ALL message types, but only UPDATEs enter the recent cache | `reactor/recent_cache.go` | Cache ids are therefore sparse, so a cumulative-ack loop probing consecutive integers wastes work. This is why `seqmap.Since()` is a range query. (304) |
+| A cache entry must be inserted BEFORE the event is dispatched | `recent_cache.go` `Add` | Any window produces "plugin holds an id the cache has no entry for", which was the original route-loss bug. (317) |
+| The cache tolerates apparent disorder | `recent_cache.go` | Consumer counts may go NEGATIVE between dispatch and `Activate(id,N)`, and out-of-order acks are silent no-ops, because a fast plugin can Decrement before Activate. Clamping at zero looks like hardening and breaks real workloads. (317) |
+| `RawMessage.IsAsyncSafe()` is false for RECEIVED UPDATEs | `bgp/types/rawmessage.go` | Their bytes point into a reusable TCP read buffer, so copy before any async hand-off. (321) |
+| `sendUpdateWithSplit` takes the caller's computed `addPath` and must not recompute it | `reactor/peer_send.go` | Recomputing reads sendCtx a second time, which is a TOCTOU against the build step. (382) |
+| Anything derived from a Go map must be sorted before use | `EncodingContext.Hash()` over the AddPath and ExtendedNextHop maps; `Families()` via `FamilyLess()` | Map order is unspecified, so an unsorted hash makes registry dedup non-deterministic, and unsorted families make EOR order irreproducible. (039, 063) |
+| A route parser that falls through on an unrecognised keyword, SAFI, or AFI/prefix mismatch emits malformed wire with no error | `parseSAFI` and the per-family keyword sets | It produced IPv6 bytes under AFI=1 and MUP routes encoded as unicast, with nothing logged. Reject by whitelist, never skip. (017, 046, 047) |
+| Zero-copy forwarding requires the original wire bytes to survive from receive time | attribute storage on the receive path | If the RIB ever normalises attributes on ingress, zero-copy breaks even when the two ContextIDs match, and the ContextID comparison still says it is safe. (038) |
+| Deferring the RIB insert until after the forward is safe only because `PeerDown()` drains the worker queue before `ClearPeer` | bgp-rr server | Reordering that drain reintroduces withdrawals for routes not yet in the RIB. (284) |
 
 ---
 
@@ -238,63 +399,68 @@ strict enforcement in the `bgp-role` plugin.
 
 ### Evolution
 
-- **[015](015-fsm-active-design.md)** FSM/Reactor split intentional: FSM
+- **015** FSM/Reactor split intentional: FSM
   = pure transitions + timers; Reactor = orchestration + I/O. Follows
   ExaBGP pattern. Reactor bloat was in `peer.go` encoding logic, not
   FSM design — addressed separately.
-- **[023](023-spec-collision-detection.md)** RFC 4271 §6.8 collision
+- **023** RFC 4271 §6.8 collision
   detection: detection at peer/reactor level; two-phase (reject if
   Established, else wait for remote BGP ID in OPEN). OpenSent collision
   NOT handled — only OpenConfirm (the MUST case).
-- **[049](049-spec-listener-per-local-address.md)** Per-peer listeners:
+- **049** Per-peer listeners:
   listeners keyed by `netip.Addr`; `LocalAddress` mandatory.
   Self-referential peers and link-local IPv6 rejected.
-- **[233](233-mandatory-local-address.md)** `local-address` mandatory,
+- **233** `local-address` mandatory,
   validated in Go (`reactor/config.go`), because YANG `mandatory true`
   only checks presence, not format.
-- **[067](067-spec-peer-lifecycle-callbacks.md)** `PeerLifecycleObserver`
+- **067** `PeerLifecycleObserver`
   interface; observers registered via `AddPeerObserver`. `OnPeerEstablished`
   fires BEFORE `sendInitialRoutes()` so plugins see Established before
   routes arrive.
-- **[142](142-api-sync.md)** `plugin session ready` mandatory: Ze waits
+- **142** `plugin session ready` mandatory: Ze waits
   for all processes to signal ready before starting peer connections
   (5s timeout, then proceeds with warning). Same mechanism per-session
   on reconnect.
-- **[244](244-reactor-interface-split.md),
-  [247](247-plugin-restructure.md),
-  [248](248-plugin-bgp-format-extraction.md),
-  [250](250-move-require-bgp-reactor.md),
-  [251](251-commit-manager-injection.md),
-  [252](252-remove-type-aliases.md),
-  [351](351-reactor-lifecycle-split.md)** ReactorInterface split.
+- **244,
+  247,
+  248,
+  250,
+  251,
+  252,
+  351** ReactorInterface split.
   68-method monolith → `ReactorLifecycle` + `BGPReactor` → 5 focused
   sub-interfaces (ReactorIntrospector, ReactorPeerController,
   ReactorConfigurator, ReactorStartupCoordinator, ReactorCacheCoordinator).
   Adapter pattern: `ReactorLifecycle` is implemented by unexported
   `reactorAPIAdapter`, not `*Reactor` directly.
-- **[272](272-session-read-pipeline.md),
-  [279](279-session-write-mutex.md),
-  [290](290-buffered-tcp-read.md),
-  [316](316-buffered-writes.md),
-  [376](376-backpressure.md),
-  [382](382-sendctx-race.md)** Session I/O pipeline. Close-on-cancel for
+- **272,
+  279,
+  290,
+  316,
+  376,
+  382** Session I/O pipeline. Close-on-cancel for
   read interruption. `writeMu` added after missing synchronization was
   blamed on "externally synchronized" comments that no caller honored.
   `bufio.Reader` 64K (matches Extended Message). Forward pool batch
   drain. Atomic pointer for `sendCtx` (concurrent readers from plugin
   dispatch without RLock because `peer_initial_sync.go` already holds
   `p.mu.Lock`).
-- **[288](288-ze-sim-abstractions.md),
-  [264](264-bgp-chaos-inprocess.md),
-  [265](265-bgp-chaos-selftest.md)** Clock/Dialer/ListenerFactory
+- **288,
+  264,
+  265** Clock/Dialer/ListenerFactory
   injection. `sim.Clock`, `sim.Dialer`, `sim.ListenerFactory` interfaces.
   VirtualClock for in-process chaos. ChaosClock for `--chaos-seed`
   self-test mode. Grep audit test forbids direct `time.*` and `net.*`
   in reactor/FSM.
-- **[365](365-panic-recovery.md)** Per-peer panic recovery. `safeRunOnce`
+- **365** Per-peer panic recovery. `safeRunOnce`
   wraps peer lifecycle; panic becomes error, feeds backoff loop.
   Delivery goroutine recovery exits loop (session tears down anyway).
   4K stack capture via `runtime.Stack`.
+- **280** Capability `require` and `refuse` are enforced AFTER negotiation,
+  not during the OPEN exchange. Both OPENs are exchanged and negotiated,
+  then the requirements are checked and an Unsupported Capability
+  NOTIFICATION is sent. The check must be called from BOTH `processOpen()`
+  and `handleOpen()`.
 
 ### Abandoned approaches
 
@@ -305,17 +471,31 @@ strict enforcement in the `bgp-role` plugin.
   protocol.
 - **Field names `Encoder` and `Serial`** on `CommandContext` (229) —
   dead fields, never read; removed.
+- **Changing the `asn4` YANG leaf from boolean to string** (280):
+  proposed so the leaf could carry `require` and `refuse`. Reverted: it
+  broke serializer round-trip and two tests. The `TypeBool` validator was
+  extended instead.
 
 ### Load-bearing invariants
 
 | Invariant | Site | Why (first occurrence) |
 |-----------|------|------------------------|
-| `local-address` is mandatory for every peer | `reactor/config.go` | Explicit choice per peer; `auto` is allowed for OS-selected binding but must be explicit. ([049](049-spec-listener-per-local-address.md), [233](233-mandatory-local-address.md)) |
-| Peer lookup on incoming connection is by remote IP, not listener address | `reactor/listener.go` | Listener address is used only for RFC-compliance validation. ([049](049-spec-listener-per-local-address.md)) |
-| Keepalive timer fires via `time.AfterFunc` in independent goroutine | `session.go` | Writes through `sendKeepalive` → `writeMessage`; this is the least obvious concurrent caller. `writeMu` required. ([279](279-session-write-mutex.md)) |
+| `local-address` is mandatory for every peer | `reactor/config.go` | Explicit choice per peer; `auto` is allowed for OS-selected binding but must be explicit. (049, 233) |
+| Peer lookup on incoming connection is by remote IP, not listener address | `reactor/listener.go` | Listener address is used only for RFC-compliance validation. (049) |
+| Keepalive timer fires via `time.AfterFunc` in independent goroutine | `session.go` | Writes through `sendKeepalive` → `writeMessage`; this is the least obvious concurrent caller. `writeMu` required. (279) |
 | `connectionEstablished()` sends an OPEN | session setup | Tests that set up TCP sessions directly must use raw field assignment. ([415](415-prefix-data.md)) |
-| Reactor code must use `sim.Clock` interface, not `time.*` | `reactor/*.go` | Chaos and virtual-time tests bypass `time.Now()` silently — audit test forbids direct calls. ([288](288-ze-sim-abstractions.md)) |
-| Collision detection happens at OpenConfirm, not OpenSent | `peer.go collision check` | OpenSent collision is a MAY, never implemented. OpenConfirm is the MUST case. ([023](023-spec-collision-detection.md)) |
+| Reactor code must use `sim.Clock` interface, not `time.*` | `reactor/*.go` | Chaos and virtual-time tests bypass `time.Now()` silently — audit test forbids direct calls. (288) |
+| Collision detection happens at OpenConfirm, not OpenSent | `peer.go collision check` | OpenSent collision is a MAY, never implemented. OpenConfirm is the MUST case. (023) |
+| UPDATE delivery uses a bounded channel plus a goroutine PER PEER, never one reactor-wide | per-peer delivery channel on `Peer` | A shared channel reintroduces a cross-peer deadlock: A reads an UPDATE and delivers it to the route server, which forwards to B, whose TCP write blocks because B's receive buffer is full, because B's read goroutine is blocked on the shared channel forwarding back to A. (272) |
+| Read interruption uses close-on-cancel, not read deadlines | session and listener read loops | `SetReadDeadline` is a NO-OP on `net.Pipe` and on mock connections, so a deadline-based cancel silently never fires in exactly the tests meant to prove it. (272) |
+| The peer-observer slice is copied under a read lock, then iterated with NO lock held | reactor peer-observer notification | An observer commonly calls back into the reactor, so iterating under the lock deadlocks. This is safe only because the slice is read-only after registration. (067) |
+| `time.Since(t)` calls `time.Now()` internally, so it defeats clock injection while looking clock-free | reactor elapsed-time code; use `clock.Now().Sub(t)` | It silently broke the chaos virtual clock, and an audit that greps for `time.Now()` does not catch `time.Since`. (341) |
+| A config flag that enables a capability must also CONSTRUCT the capability object | config loader capability assembly | route-refresh was configured and both sides reported it supported, but the marker capabilities never reached the OPEN, so negotiation "succeeded" and BoRR/EoRR were never sent. Only a functional test exposed it. (107) |
+| A `refuse`d capability must be checked against the peer's RAW advertised OPEN codes, never against the negotiated set | `Negotiated.peerCodes`, `CheckRefusedCodes` | Negotiation is an intersection, so a refused capability never appears in the result and the check silently never fires. (280) |
+| `require` overrides `ignore-mismatch`; the stricter of the two wins | negotiation-time `CheckRequired` vs UPDATE-time ignore-mismatch (`internal/component/bgp/reactor/config.go`, session validation) | They are two independent mechanisms acting at different points in the session lifecycle, so wiring ignore-mismatch into the negotiation path would silently defeat `require`. (007) |
+| Pause and resume thresholds must be a WIDE hysteresis band | RS `worker.go` high/low-water | 75%/25% oscillated. The shipped read-pause uses 100%/10%, and the wide band is the design. (278, 376) |
+| While reads are paused the hold timer is the safety valve, KEEPALIVE continues, and the cancel goroutine must call `Resume()` before closing | `session_flow.go` `waitForResume` | RFC 4271 6.5 bounds a pause. Without Resume-on-cancel the gate blocks shutdown, and `waitForResume` must re-check `closeReason` because a closed `resumeCh` means resume OR shutdown. (376) |
+| Session lock order is `s.mu` then `s.writeMu`, and `closeConn` must take `writeMu` for its final Flush inside the `s.mu` section | `reactor/session.go` | Flushing under `s.mu` alone races every concurrent `Send*`. (316) |
 
 ---
 
@@ -334,16 +514,16 @@ subtree at Stage 2; they parse the JSON themselves.
 
 ### Evolution
 
-- **[008](008-config-migration-system.md),
-  [009](009-neighbor-to-peer-rename.md),
-  [041](041-spec-format-based-migration.md)** Config migration. Three-
+- **008,
+  009,
+  041** Config migration. Three-
   version chain (v1 ExaBGP main → v2 Ze intermediate → v3 `peer` +
   `template.match`). Heuristic detection (no version field). Named
   semantic transformations over numbered versions.
-- **[065](065-spec-remove-version-numbers.md)** Version numbers
+- **065** Version numbers
   removed from code (API versions, config fields, migration comments).
   Design for machine-transformable migration.
-- **[050](050-spec-environment-config-block.md),
+- **050,
   [476](476-env-registry-consistency.md),
   [506](506-listener-6-compound-env.md),
   [628](628-env-cleanup.md)** `environment { }` block. Priority:
@@ -351,44 +531,44 @@ subtree at Stage 2; they parse the JSON themselves.
   fail at startup). Env vars registered via `env.MustRegister` silently
   overwrite duplicates; known two-site drift (`environment.go` +
   consumer) tracked in memory.
-- **[166](166-yang-only-schema.md),
-  [167](167-yang-schema-refactor.md),
-  [180](180-native-update-syntax.md),
-  [181](181-remove-exabgp-announce.md),
-  [281](281-remove-ze-syntax.md)** YANG as sole schema. `ze:syntax`
+- **166,
+  167,
+  180,
+  181,
+  281** YANG as sole schema. `ze:syntax`
   extensions removed — standard YANG `leaf-list` / presence container
   / list handle what `ze:syntax` used to annotate. Freeform parsing
   eliminated. `LegacyBGPSchema()` retained only for ExaBGP migration.
-- **[151](151-hub-yang-modules.md),
-  [334](334-yang-reorganisation.md),
+- **151,
+  334,
   [488](488-lg-looking-glass.md),
   [556](556-bfd-1-wiring.md),
   [577](577-gokrazy-2-ntp.md)** YANG reorganisation. Each module lives
   with the package that owns it; `init()` registers via
   `yang.RegisterModule`; `yang_schema.go` hard-codes the module list
   (TWO registrations required — known duplication).
-- **[293](293-yang-validation.md),
-  [356](356-editor-modes.md),
+- **293,
+  356,
   [410](410-validate-completion.md),
   [551](551-filter-non-cidr-families.md)** YANG `ze:validate` extension.
-  Registry in `internal/yang/`; validators in other packages register
+  Registry in `internal/component/config/yang/`; validators in other packages register
   via explicit `RegisterValidators()`. `CompleteFn` provides autocompletion
   in the editor. Runtime-determined sets (plugin families) use
   `ze:validate`; compile-time sets use YANG native constraints.
-- **[212](212-inline-config-reader.md),
-  [213](213-config-yang-validation.md),
-  [214](214-pluggable-config-frontend.md),
-  [345](345-hub-phase2-config-reader.md),
-  [346](346-hub-phase3-yang-integration.md)** Config reader. Standalone
+- **212,
+  213,
+  214,
+  345,
+  346** Config reader. Standalone
   binary → inline library. Tokenizer produces `map[string]any` directly
   (JSON roundtrip removed). `ValidateContainer` (flat, per-block) and
   `ValidateTree` (recursive, at load time).
-- **[175](175-config-editor-validation.md),
-  [232](232-editor-tree-canonical.md),
-  [349](349-load-command-redesign.md),
-  [369](369-editor-4-workflow-tests.md),
-  [370](370-editor-5-reload-probe.md),
-  [391](391-concurrent-config.md),
+- **175,
+  232,
+  349,
+  369,
+  370,
+  391,
   [427](427-per-user-drafts.md),
   [428](428-command-history.md)** Editor. Text surgery (findFullContextPath,
   setValueInConfig) deleted. `Tree` is canonical; `WorkingContent()` =
@@ -396,14 +576,14 @@ subtree at Stage 2; they parse the JSON themselves.
   replace shared draft. Session identity is `user@origin:unix-ts`.
   Live conflict (same path, two sessions) and stale conflict (committed
   value changed since last set) detected explicitly.
-- **[222](222-config-reload-1-rpc.md) through
-  [234](234-reload-peer-add-remove.md),
-  [342](342-reload-test-framework.md)** Config reload. Two-phase
+- **222 through
+  234,
+  342** Config reload. Two-phase
   verify+apply coordinator. Plugins register `WantsConfigRoots`; engine
   sends `config-verify` → all plugins OK → `config-apply`. Any verify
   failure aborts. SIGHUP wired through coordinator; editor triggers
   reload via RPC (not signal).
-- **[380](380-config-archive.md)** Config archive. VyOS-inspired fan-out:
+- **380** Config archive. VyOS-inspired fan-out:
   all locations attempted, errors collected per-location, non-fatal to
   commit. `file://` and `http(s)://` protocols.
 - **[426](426-blob-namespaces.md),
@@ -435,20 +615,82 @@ subtree at Stage 2; they parse the JSON themselves.
 - **Config push from hub to plugins** (160) — pull model: hub notifies,
   plugins query `query config live|edit path`.
 - **`SetParser.ValidateValue`** (214) — YANG is the sole validator.
+- **A version field in the config file** (008): rejected for migration,
+  because the field itself would then need migrating. Version detection is
+  structure-based instead. Rejecting the field is what made "no version
+  numbers in config" survivable as a project-wide rule.
+- **ExaBGP's separate `env` INI file** (050): rejected for the
+  `environment { }` block, so one file holds all config. This is why env
+  vars are a config surface rather than a deployment surface.
+- **Generating a Go schema from YANG at build time** (166): rejected for
+  YANG extensions read at load time. Extensions live in the model file and
+  need no build step. This is why `ze:` extensions exist instead of codegen.
+- **Queuing concurrent reloads** (223): rejected for `TryLock` rejection.
+  A queue turns rapid config changes into a reload storm.
+- **Junos-style ordered failover for the config archive** (380): rejected
+  for VyOS-style fan-out: every location is attempted, errors are collected
+  per location, and none fails the commit.
+- **`/command` and `/edit` slash-prefixed mode switches** (356, 385):
+  chosen on IRC and Slack convention, then removed for bare `run` and
+  `edit`, with cross-mode completions.
+- **`ze:command` as a boolean marker** (395): it became an extension
+  carrying the WireMethod as its argument, because a marker forces a naming
+  convention between the tree node and the handler. The command tree was
+  also planned as three monolithic YANG files before being split per plugin.
+- **libyang** (151): goyang was chosen instead: pure Go, no cgo, and it
+  covers the type and range validation actually needed. The schema was
+  deliberately kept pragmatic rather than OpenConfig-compatible.
 
 ### Load-bearing invariants
 
 | Invariant | Site | Why (first occurrence) |
 |-----------|------|------------------------|
-| YANG is the single source of schema truth | `internal/component/config/yang/` | `BGPSchema()` removed; `LegacyBGPSchema()` only for ExaBGP migration. ([166](166-yang-only-schema.md)) |
-| Every YANG `environment/<name>` leaf needs `ze.<name>.<leaf>` registered via `env.MustRegister` | plugin `init()` | Env vars are part of the config interface, not follow-up work. ([050](050-spec-environment-config-block.md), CLAUDE.md rule) |
+| YANG is the single source of schema truth | `internal/component/config/yang/` | `BGPSchema()` removed; `LegacyBGPSchema()` only for ExaBGP migration. (166) |
+| Every YANG `environment/<name>` leaf needs `ze.<name>.<leaf>` registered via `env.MustRegister` | plugin `init()` | Env vars are part of the config interface, not follow-up work. (050, CLAUDE.md rule) |
 | Every new top-level config block requires TWO registrations | `init()` + `yang_schema.go:YANGSchemaWithPlugins()` | `yang.RegisterModule()` makes module available to loader; explicit call in `yang_schema.go` builds the schema. Parser does not discover. ([488](488-lg-looking-glass.md), [556](556-bfd-1-wiring.md), [577](577-gokrazy-2-ntp.md)) |
 | `ApplyConfigDiff` in production re-reads disk via `reloadFn` | `reactor/config.go` | Verify and apply must see the same on-disk state at their respective times. ([466](466-set-with.md), [535](535-config-tx-consumers.md)) |
 | `GetConfigTree` returns live map reference, not a copy | `reactor/config.go` | Mutating outside locks races. ([466](466-set-with.md)) |
-| `ze config validate` does NOT invoke plugin `OnConfigVerify` | `cmd/ze/config/cmd_validate.go` | Parser + YANG type check only; plugin-side validation runs only in running daemon. ([413](413-prefix-limit.md), [557](557-iface-tunnel.md), [621](621-backend-feature-gate.md), [627](627-fw-7-traffic-vpp.md)) |
-| Plugin config tree delivered wrapped as `{"bgp":{...}}` | `server/reload.go` | Plugins must unwrap before accessing their subtree. ([185](185-config-json-delivery.md), [538](538-report-bus.md)) |
+| `ze config validate` does NOT invoke plugin `OnConfigVerify` | `internal/component/config/cli/cmd_validate.go` | Parser + YANG type check only; plugin-side validation runs only in running daemon. ([413](413-prefix-limit.md), [557](557-iface-tunnel.md), [621](621-backend-feature-gate.md), [627](627-fw-7-traffic-vpp.md)) |
+| Plugin config tree delivered wrapped as `{"bgp":{...}}` | `server/reload.go` | Plugins must unwrap before accessing their subtree. (185, [538](538-report-bus.md)) |
 | YANG list = JSON map keyed by list key | type conversion | `list server { key "name"; }` → `"server": {"default": {...}}`, not `[{"name":"default",...}]`. ([574](574-bgp-4-bmp.md)) |
-| Config values survive JSON roundtrip as strings | type conversion | `"enabled": "true"` not `"enabled": true`; `strconv.ParseUint` needed for numeric. ([213](213-config-yang-validation.md), [556](556-bfd-1-wiring.md), [574](574-bgp-4-bmp.md)) |
+| Config values survive JSON roundtrip as strings | type conversion | `"enabled": "true"` not `"enabled": true`; `strconv.ParseUint` needed for numeric. (213, [556](556-bfd-1-wiring.md), [574](574-bgp-4-bmp.md)) |
+| `ze:validate` on a YANG typedef does NOT reach the leaves that reference the typedef; the extension must be repeated on every leaf | leaves using `zt:address-family` | goyang resolves the typedef's type and pattern, but not its custom extensions. 293 asserted the opposite, citing RFC 7950 7.3.4, and 356's empirical finding governs. A leaf that looks validated by its typedef is unvalidated. (356 over 293) |
+| Template `match` blocks apply in CONFIG-FILE ORDER, not by specificity | template match application, and the v2-to-v3 migration | An explicit choice to give operators order control, which is why migration must preserve insertion order. Precedence is template.match, then template.group, then the peer block. `inherit` is rejected inside `template`, and `match` is valid only inside `template`. (008, 009) |
+| GR `restart-time` has an upper bound of 4095, not 65535 | GR YANG typedef, RFC 4724 capability encoding | The field is 12 bits inside the two-byte capability value, so a YANG `uint16` range accepts unencodable values. (163) |
+| Read YANG through the resolved entry tree, never the raw module | `yang.Loader.GetEntry()` after `Resolve()` | A raw `yang.Container` or `yang.Module` has `Mandatory` and other resolved fields unset, so validation built on it silently passes everything. (166, 167) |
+| The parser keeps Go schema node types even though YANG owns validation | config parser node kinds | YANG describes WHAT is valid, not HOW syntax is parsed, and syntax-handling modes have no YANG equivalent. This is why full parser replacement stayed blocked. (167) |
+| The Bubble Tea model is a value type, so a closure capturing it loses every mutation | editor model | Two structural answers: commands return a result that the `Update()` handler applies, and long-lived state lives behind a shared `*Editor` pointer, with the dirty flag as an `atomic.Bool`. Mutating the model inside a closure looks correct and does nothing. (175, 366) |
+| `_default` is the sentinel key for a singleton (unnamed) block | config reader, tokens to map | Code walking the tree without knowing the sentinel treats singletons as a list keyed "_default". (212) |
+| `json.Unmarshal` produces `float64` for every number, regardless of the YANG integer type | YANG validator numeric path | A validator switching on `int64` or `uint32` without a `float64` branch rejects every numeric config value. (213) |
+| Validation of a dynamically-registered set checks FORMAT only, never membership | address-family validation | Families are registered by plugins at runtime, so a static enumeration is wrong by construction. (215) |
+| Removing a config root must send an explicit empty object `{}`, never skip the send | reload coordinator delivery | A plugin that receives nothing cannot distinguish "no change" from "deleted". The first implementation skipped the send, and plugins silently kept stale config. (223) |
+| `commit-confirm` and `abort` change committed config and must trigger a reload, exactly like `commit` | editor commit path | Wiring only `commit` leaves the editor and the daemon out of sync. Found in review, not in the spec. (224) |
+| A registered plugin whose connection is nil at verify time is an error, not a skip, and liveness is re-checked before apply | reload verify and apply | Skipping a dead plugin produced a green verify over a plugin that never saw the config. (227) |
+| Apply errors are aggregated and returned, and the config tree is still updated | reload apply | The reactor has already applied, so the stored tree must reflect the new state even when a plugin failed. (227) |
+| A dedicated `HasConfigLoader()` predicate gates the SIGHUP coordinator path | reload entry point | The interface field it would otherwise test is always non-nil in production, so testing the interface alone made every production SIGHUP take the wrong path. (230) |
+| Reload re-parses peers through the FULL config pipeline, never the partial tree parser | peer reload | The partial parser populates 6 of 16 peer fields, so comparison reported every peer as changed on every reload. The partial parser is test-only. (230) |
+| Startup fails if any `ze:validate` reference has no registered validator | validator registry integrity check | Otherwise that leaf is simply unvalidated, which is the silent-pass failure the extension exists to prevent. (293) |
+| The editor validator suppresses "mandatory field missing" while editing, except for `peer-as` | editor validation | A config under edit is always incomplete, so unfiltered checks make the editor permanently red. (293) |
+| Config watch channels are capacity 1, drop-oldest and send-newest, collected under the lock and sent outside it | config manager watch | A blocking send stalls the publisher, and sending under the lock deadlocks when a consumer calls back. Only the latest config matters. (326) |
+| Use YANG `augment` to extend a container, never a second definition | environment container split across modules | A redefinition REPLACES the container while augment extends it. The two look interchangeable and are not. (334) |
+| goyang `Parse()` is order-independent; only `Resolve()` needs every module | YANG loader | This is what makes `init()`-time registration work. Two corollaries: a module registered by `init()` must never also be loaded manually, which is a duplicate-module error, and an augment target must be in the embedded bootstrap set. (334) |
+| A list KEY leaf is a schema child of the list, and must never be offered as a completion or accepted as settable | editor completer and set-path validation | The key is already consumed by the path. Schema navigation skips keys silently, so token-level validation must enforce them. (356, 367) |
+| A missing list key is detected by testing whether the next token is itself a schema child of the list entry | set-path token validation | If it is, the user omitted the key. Schema-only navigation accepts the shorter path, which is correct for lookup and wrong for a config path. (367) |
+| `config false` is inherited by descendants (RFC 7950 7.21.1), so the check must walk every ancestor | set-path rejection | Testing only the target leaf lets a write into a whole read-only subtree. (367) |
+| Deleting a nonexistent leaf or list entry is a silent no-op, and list deletion still marks the editor dirty | tree delete | Neither path checks existence, so a no-op delete leaves a dirty editor with nothing to commit. (369) |
+| A `file://` archive location must be an absolute URL | archive location parsing | `url.Parse("file://./path")` puts "." in Host and "/path" in Path, so a relative form parses into a target nobody intended. (380) |
+| Archive locations are read once from the editor's ORIGINAL content at startup, not from the working draft | editor archive wiring | Adding an `archive { }` block mid-session has no effect until restart. (380) |
+| `edit` is disambiguated by arity, not by prefix | editor enter handling | Bare `edit` is a mode switch and `edit <path>` is a config command. A command tree containing `edit` routes to YANG completions unexpectedly. (385) |
+| In the set+meta disk format the `^` prefix carries the PREVIOUS value, which is what enables stale-conflict detection | config line metadata | A line without metadata parses identically, so hand-written configs keep working, and dropping prefixes on rewrite silently disables stale detection. (391) |
+| Format detection scans EVERY line, not the first | `DetectFormat()` | Metadata prefixes can appear after plain `set` lines, so a first-line test loses authorship and previous-value data. (391) |
+| Session IDs are `user@origin:unix-ts`, so two sessions in the same second collide | edit session creation | Tests must vary origin, and adoption matching must use `UserAtOrigin()+":"` because `username+"@"` matched "thomasmore@" for user "thomas". (391) |
+| The generic config package holds zero BGP imports | package boundary | The dependency runs one way, from the generic loader into `bgp/config`. Editor, yang, migration and env stay under generic config because they couple through config types, not through BGP. (361) |
+| The YANG validator is deliberately permissive on unrecognised types, and leafrefs are not validated offline | YANG validator | Unknown types pass for forward compatibility, and leafref validation needs runtime state. Both are deliberate fail-open holes, not bugs to close blindly. (346) |
+| A `bufio.Scanner` buffer must be MaxMessageSize+1, not MaxMessageSize | IPC framing scanner | The bound is exclusive, so a message of exactly the maximum length is truncated silently. (208) |
+| Next-hop sits OUTSIDE the nlri section on input and INSIDE it on output | `update` grammar | A deliberate asymmetry: input optimises for typing, where one `nhop` accumulates until changed, and output optimises for determinism, where it is explicit per family. Making them symmetric breaks one of the two properties. (089) |
+| Cross-field peer validation runs AFTER template, match and inherit merging, never against the raw parse tree | `validateProcessCapabilities()` | A rule such as "route-refresh requires a process binding with `send { update; }`" is only decidable on the fully resolved peer config. (108) |
+| The `add`, `del` or `eor` keyword in an NLRI block is mandatory, not optional sugar | config parser NLRI extraction | It is the structural boundary between family metadata (rd, label) and payload. Making it mandatory removed the last NLRI ambiguity, at the cost of 40 or more encode fixtures. (281) |
+| The reactor must not import config; the allowed direction is config into reactor | `SetReloadFunc` and `ReloadFunc` | Reload is injected as a callback purely to avoid the import cycle, and it returns a full `*PeerSettings` so the existing conversion is reused. (342) |
 
 ---
 
@@ -466,71 +708,106 @@ binary or path), **Internal** (same binary, goroutine +
 `net.Pipe()` pair), **Direct** (synchronous in-process call via
 DirectBridge zero-copy transport). All use the same 5-stage startup
 protocol over Socket A (plugin → engine) and Socket B (engine →
-plugin), with auto-detected JSON or text framing (first byte).
+plugin). There is ONE wire format, newline-framed
+`#<id> <verb> [<json>]\n` (`pkg/plugin/rpc/conn.go`). There is no
+first-byte format auto-detection and no second text protocol: both were
+built and then deleted (see Abandoned approaches).
 
 ### Evolution
 
-- **[001](001-initial-implentation.md)** Original plugin protocol:
+- **001** Original plugin protocol:
   JSON events down, text commands up, stdin/stdout.
-- **[069](069-spec-api-command-serial.md),
-  [168](168-api-command-serial.md)** Serial correlation. `#N` numeric
+- **069,
+  168** Serial correlation. `#N` numeric
   prefix (plugin → engine), `#abc` alpha prefix (engine → plugin),
   `@serial` response echo. Empty serial (`""`) for unsolicited events.
-- **[142](142-api-sync.md),
-  [152](152-hub-phase1-schema-infrastructure.md),
-  [172](172-api-capability-contract.md),
-  [305](305-plugin-startup-ordering.md)** 5-stage startup protocol.
+- **142,
+  152,
+  172,
+  305** 5-stage startup protocol.
   Stage 1 declarations (capabilities, families, schema, commands),
   Stage 2 config delivery, Stage 3 capabilities, Stage 4 registry,
   Stage 5 ready. Tier-ordered per Kahn topological sort; dependencies
   resolved pre-startup.
-- **[184](184-plugin-yang-discovery.md),
-  [198](198-plugin-invocation.md),
-  [210](210-yang-ipc-plugin.md),
-  [264](264-bgp-chaos-inprocess.md),
-  [294](294-inprocess-direct-transport.md),
+- **184,
+  198,
+  210,
+  264,
+  294,
   [459](459-plugin-tcp-transport.md)** Plugin invocation modes.
   `ze.X` prefix = internal (goroutine + `io.Pipe` or `net.Pipe`),
   path/cmd = fork. Same protocol both. DirectBridge skips JSON +
   socket I/O for internal plugins (415× faster UPDATE delivery).
   TLS plugin hub server (fleet-config use case).
-- **[209](209-yang-ipc-dispatch.md),
-  [215](215-yang-ipc-cleanup.md),
-  [395](395-yang-command-tree.md)** YANG-driven dispatch. Text
+- **209,
+  215,
+  395** YANG-driven dispatch. Text
   `RegisterBuiltin()` replaced by YANG RPC metadata extraction.
   `ze:command "wire-method"` YANG extension binds tree nodes to
   handlers. `"bgp "` prefix removed from all commands.
-- **[218](218-plugin-auto-registration.md),
-  [247](247-plugin-restructure.md),
-  [248](248-plugin-bgp-format-extraction.md),
-  [253](253-nlri-plugin-extraction.md),
-  [282](282-capa-plugins.md),
-  [283](283-softver-plugin.md),
-  [329](329-watchdog-plugin.md),
-  [375](375-handler-split.md)** Plugin extraction. Watchdog, Hostname,
+- **218,
+  247,
+  248,
+  253,
+  282,
+  283,
+  329,
+  375** Plugin extraction. Watchdog, Hostname,
   FlowSpec, EVPN, VPN, BGP-LS, RouteRefresh, SoftwareVersion, GR, role
   all moved out of engine. `internal/component/bgp/plugins/bgp-*`
   convention. NLRI plugins use `bgp-nlri-*` prefix (9 plugins, 4 tiers).
-- **[291](291-batched-ipc-delivery.md),
-  [292](292-persistent-conn-reader.md),
-  [298](298-event-delivery-batching.md),
-  [299](299-text-event-format.md),
-  [321](321-alloc-4-structured-delivery.md),
-  [322](322-alloc-0-umbrella.md),
+- **291,
+  292,
+  298,
+  299,
+  321,
+  322,
   [422](422-structured-delivery.md),
   [606](606-eventbus-typed.md)** Event delivery performance.
   JSON-RPC `deliver-batch` replaces per-event writes. Persistent reader
   goroutine replaces 5 per-RPC goroutines. Text format opt-in per
   plugin. DirectBridge delivers `*RawMessage` directly; plugin reads
   wire bytes via existing `NLRIIterator`. `ze.EventBus` interface typed.
-- **[315](315-utp-3-handshake.md),
-  [318](318-utp-0-umbrella.md),
-  [397](397-unified-rpc-framing.md)** Unified text protocol.
-  Auto-detect JSON vs text from first byte. Single framing
-  (`#<id> <verb> [<json>]\n`) replaces dual protocol. Heredoc
-  `<<EOF` for multiline content.
-- **[323](323-arch-1-interfaces.md) through
-  [328](328-arch-6-eliminate-hooks.md),
+- **315, 318, 397** Unified framing. A single newline-framed format,
+  `#<id> <verb> [<json>]\n`, replaced the dual protocol. The intermediate
+  design, a separate text protocol with first-byte auto-detection, was
+  built, shipped, and then deleted whole. It is recorded under Abandoned
+  approaches. Heredoc `<<EOF` carries multiline content.
+- **165** The hub/subsystem split chose process-per-subsystem over
+  in-process services, for crash isolation, language freedom, per-process
+  resource limits and independent debugging. The same design set all
+  plugins as equal peers, with no built-in versus third-party distinction,
+  and routed config subtrees by longest-prefix match on handler paths.
+- **301** Plugin dependency declarations exist because of one specific
+  silent-degradation bug: with bgp-adj-rib-in absent, the route server set
+  a permanent `replayDisabled` flag and late-connecting peers silently
+  missed routes. Fail-loud at stage 1 replaced the flag, which was removed.
+- **329** A plugin that announces routes sends `update text` commands, not
+  internal wire builders, which keeps plugins polyglot and keeps wire
+  encoding out of them. `nhop set self` resolves the per-peer next hop, so
+  no plugin needs next-hop logic.
+- **170** Event routing moved from config-driven (`process { receive {
+  update; } }`) to API-driven `subscribe` commands, so a plugin declares at
+  runtime what it needs. The migration ran both paths in parallel with
+  deduplication rather than cutting over.
+- **239** OPEN validation moved from engine-side `handleOpen()` to a
+  `validate-open` RPC sent synchronously on Socket B, failing fast on the
+  first rejection. `Strict` was dropped from the capability declaration
+  because the plugin owns enforcement.
+- **172** Capability config keys are RFC-scoped or draft-scoped
+  (`rfc4724:restart-time`, `draft-walton-bgp-hostname:hostname`) so two
+  implementations cannot collide. Each capability self-describes through a
+  `ConfigProvider`, so adding one needs no reactor change.
+- **188** Plugin auto-loading resolves by FAMILY claim, never by plugin
+  name, in two phases: configured plugins first, then a scan for unclaimed
+  families. Explicit always wins. The engine also infers Multiprotocol
+  capabilities from the declared families.
+- **040** Process API config separates WHAT a process receives from HOW it
+  is formatted, because conflating them was a real bug: `if pc.Encoder ==
+  "text" { pc.ReceiveUpdate = true }` meant JSON-encoder processes received
+  nothing.
+- **323 through
+  328,
   [419](419-arch-7-subsystem-wiring.md) through
   [425](425-arch-0-system-boundaries.md),
   [531](531-config-inline-container.md),
@@ -542,7 +819,7 @@ plugin), with auto-detected JSON or text framing (first byte).
   `bgp/server/`. Bus absorbed into the stream system during config-tx
   protocol work; `ze.EventBus` is now backed by `Server.Emit` and
   `Server.Subscribe`.
-- **[301](301-rib-04-plugin-dependencies.md)** Plugin dependencies
+- **301** Plugin dependencies
   declared in registration. Two-layer validation: Go registry for
   pre-startup auto-loading of internal plugins; protocol Stage 1 for
   runtime validation of all plugins. Fail-loud on missing dependency.
@@ -551,7 +828,7 @@ plugin), with auto-detected JSON or text framing (first byte).
   requires the family to be registered; tests call
   `family.RegisterTestFamilies()`. Single atomic state; old dual
   (mutable + snapshot cache) collapsed.
-- **[390](390-rbac.md),
+- **390,
   [452](452-ssh-server.md),
   [484](484-unified-cli.md),
   [601](601-tacacs.md),
@@ -577,25 +854,119 @@ plugin), with auto-detected JSON or text framing (first byte).
   in-process library.
 - **`sync.Once` in `OnceValue` callbacks that may error** (079) —
   second call returns cached `(nil, nil)`; must use explicit state.
-- **Bus (standalone `internal/bus/`)** (324, 425) — absorbed into
+- **Bus (standalone `internal/bus/`)** (324, 425) <!-- doc-links: ignore (the package this row records as removed) --> — absorbed into
   the stream system during config-tx protocol work. The stream
   system already provided in-process pub/sub with schema validation,
   DirectBridge zero-copy for internal plugins, and TLS delivery
   for external plugins; the bus was the weaker of the two. `ze.EventBus`
   remains as the public interface, backed by `Server.Emit` and
   `Server.Subscribe`.
+- **A second, text-mode plugin protocol** (315, 318, 397): designed,
+  built and SHIPPED, with a text handshake, `TextConn` and `TextMuxConn`,
+  heredoc JSON config, and first-byte format auto-detection. Then deleted
+  entirely: about 2500 lines across 9 files, once the single
+  `#<id> <verb> [<json>]\n` framing replaced both protocols. None of those
+  types exists in the tree today. Do not read auto-detection as live.
+- **Keeping Graceful Restart inside the RIB plugin** (128): rejected. GR
+  is capability injection, not route storage. Embedding GR in the reactor
+  had been tried before that and rejected as a boundary violation (353).
+- **A hand-maintained AFI/SAFI-to-family-name map inside the GR plugin**
+  (350): it drifted from the registry, spelling SAFI 4 "mpls" where the
+  registry says "mpls-label". That silently broke End-of-RIB matching for
+  MPLS-labeled families, and the map was missing five SAFIs. Replaced by
+  the family type's own `String()` method.
+- **Two pre-tier startup designs** (305): one `runPluginPhase` call per
+  tier, where each call overwrites the single `procManager` field and loses
+  schema and cleanup visibility for earlier tiers; and a DAG-aware
+  coordinator, which was over-engineering for a graph with one dependency
+  edge.
+- **Replacing BGPHooks without meeting its constraint** (248): BGPHooks
+  was a struct of callbacks, deliberately not an interface so that no
+  single implementor was forced. It existed to break the import cycle
+  between generic plugin infrastructure and BGP. Any replacement must still
+  satisfy that constraint.
+- **A `family <afi/safi>` prefix on text events** (302): rejected for
+  `nlri <family> add/del`, because event grammar and command grammar must
+  share a shape. Two NLRI forms remain on purpose: comma-grouped as the
+  primary, and keyword-boundary for multi-token NLRIs such as EVPN Type 5,
+  which is 12 tokens.
+- **Newline as the IPC terminator** (208): rejected at the time for NUL,
+  because BGP payloads and JSON strings can contain newlines. The later
+  unified framing returned to newline, so anyone proposing newline should
+  know the original objection and why it was outgrown: every payload is
+  compact `json.Marshal` output.
+- **Deduplicating the bgpls, evpn and vpn NLRI decode loops** (231):
+  rejected. The three differ in validation, decode, marshaling and family
+  declarations, so a shared helper costs more than the duplication. Those
+  sites keep `//nolint:dupl` on purpose.
+- **Bus-based event delivery** (328): the spec's required replacement for
+  BGPHooks, abandoned mid-implementation: the Bus would have had to solve
+  per-subscriber format negotiation. The typed EventDispatcher makes direct
+  calls instead, for a net 490 fewer lines.
+- **Re-export shims letting a core package expose types a plugin now owns**
+  (193): `nlri/evpn.go` re-exported EVPN types and created a latent
+  `nlri -> evpn -> nlri` cycle, live the moment the plugin imported `nlri`.
+  Family plugins own their types.
+- **Socket-level tuning for IPC throughput** (294): tried first and
+  rejected on measurement. `bufio.Writer` on TCP and 16MB SO_SNDBUF and
+  SO_RCVBUF gave no gain, because profiling put the cost in plugin IPC at
+  around 27% syscall and 36% goroutine scheduling. That measurement is what
+  motivated DirectBridge.
+- **SCM_RIGHTS listen-socket handoff** (379): the engine passing a bound
+  listener fd to a plugin was fully built, with `SendFD` and `ReceiveFD`,
+  Python SDK support and functional tests, and it no longer exists. It was
+  fragile by construction: the fd had to arrive between Stage 1 and Stage 2,
+  because once a FrameReader starts on Socket B it eats the framing byte and
+  the ancillary fd data is lost with NO error. `unix.CloseOnExec(fd)` after
+  `ParseUnixRights()` was mandatory, since macOS has no `MSG_CMSG_CLOEXEC`.
+- **Splitting `internal/component/plugin/` into 8 sub-packages** (331):
+  not achievable. `ServerConfig.RPCProviders` anchors a connected type graph
+  (`Handler` to `CommandContext` to `*Server`) that forces handler, startup,
+  reload and schema together. Settled at three: `ipc/`, `process/`,
+  `server/`.
 
 ### Load-bearing invariants
 
 | Invariant | Site | Why (first occurrence) |
 |-----------|------|------------------------|
-| Internal plugin full 5-stage startup can deadlock | `DirectBridge` startup | Engine blocks waiting for plugin `ready`; plugin blocks waiting for engine config. Decode-only path skips stages. ([198](198-plugin-invocation.md), [264](264-bgp-chaos-inprocess.md)) |
-| `net.Pipe()` writes block until reader is ready | test helpers | Zero-buffering. Tests must start readers before writes OR wrap writes in goroutines. ([210](210-yang-ipc-plugin.md), [264](264-bgp-chaos-inprocess.md), [459](459-plugin-tcp-transport.md)) |
+| Internal plugin full 5-stage startup can deadlock | `DirectBridge` startup | Engine blocks waiting for plugin `ready`; plugin blocks waiting for engine config. Decode-only path skips stages. (198, 264) |
+| `net.Pipe()` writes block until reader is ready | test helpers | Zero-buffering. Tests must start readers before writes OR wrap writes in goroutines. (210, 264, [459](459-plugin-tcp-transport.md)) |
 | Plugin subprocess stderr consumed by `relayStderrFrom()` | `process.go` | Never reaches test runner's `expect=stderr:contains=`. ([451](451-rib-show-filters.md)) |
-| Strict role (RFC 9234) enforcement stays in plugin | `bgp-role` plugin | Engine is policy-free. ([239](239-rfc9234-role.md)) |
-| Plugin declares what it handles; engine never enumerates | registry API | Families, events, send types all dynamic. ([187](187-family-plugin-infrastructure.md), [188](188-flowspec-plugin.md), [404](404-rpki-decorator.md), [408](408-dynamic-send-types.md)) |
-| Registry lookup is by name (exact, case-sensitive post-normalisation) | `registry.go` | Case normalized at write time, not read time. ([187](187-family-plugin-infrastructure.md), [412](412-rpki-test-isolation.md)) |
-| Auto-linter strips imports between Edits | `auto_linter.sh` hook | `goimports` runs after every Edit/Write; import + first usage must be in same Edit call. ([288](288-ze-sim-abstractions.md), [422](422-structured-delivery.md), many others) |
+| Strict role (RFC 9234) enforcement stays in plugin | `bgp-role` plugin | Engine is policy-free. (239) |
+| Plugin declares what it handles; engine never enumerates | registry API | Families, events, send types all dynamic. (187, 188, [404](404-rpki-decorator.md), [408](408-dynamic-send-types.md)) |
+| Registry lookup is by name (exact, case-sensitive post-normalisation) | `registry.go` | Case normalized at write time, not read time. (187, [412](412-rpki-test-isolation.md)) |
+| Auto-linter strips imports between Edits | `auto_linter.sh` hook | `goimports` runs after every Edit/Write; import + first usage must be in same Edit call. (288, [422](422-structured-delivery.md), many others) |
+| Plugin startup needs TWO socket pairs, not one | socketpair creation, `pkg/plugin/rpc` | One socket per direction prevents deadlock. On a single socket both sides can block waiting for the other's response while each holds an unread request. (210) |
+| The capability seam is decode-versus-negotiate, not capability-by-capability | `bgp-gr`, `bgp-route-refresh` and `bgp-hostname` versus engine `capability/` | The engine keeps wire parsing and negotiation, and only the CLI and display decode path moves to a plugin. Moving negotiation into a plugin breaks engine=protocol, plugin=policy. (282) |
+| A capability-decoding plugin must declare BOTH the decoder function and the capability codes | `registry.Registration` | With only one of the two the plugin registers and is never invoked. It is silent: no error, no log, and the capability renders undecoded. (282) |
+| Stopping an internal plugin must close its stdin, not just cancel the context | `process.go` `Stop()` | Context cancellation does not unblock a goroutine already blocked in a pipe `Read()`. (184) |
+| No NLRI sub-field token may collide with a top-level event keyword | `textparse/keywords.go` and the rs, rr and persist parsers | The parser finds an NLRI's end by scanning to the next top-level keyword. This holds across all 17 NLRI types by verification, not by construction, and a colliding sub-field word silently truncates parsing. (302) |
+| A pre-formatted event cache must key on format AND encoding | event delivery pre-format cache | Keying on format alone hands one plugin another plugin's encoding, silently. (299) |
+| The default event format is FormatParsed, and was once FormatHex | `process.go` `Process.Format()` | A missing switch case made FormatHex fall through to FormatParsed. Fixing the fall-through turned every default-format plugin to raw hex. When fixing a switch fall-through, first find who relied on the broken path. (299) |
+| The route server deliberately ignores BoRR and EoRR (RFC 7313) subtypes | `bgp/plugins/rs` dispatch matches only `refresh` | A forward-all route server has no refresh cycle to bound, so this is a decision, not an oversight. (263) |
+| Every YANG RPC must have a matching registered handler, enforced mechanically | `TestRPCRegistrationTable` | YANG is the authoritative API definition, so a mismatch fails the test rather than surfacing at runtime as an unknown command. (209) |
+| Argument-completion requests carry their own short timeout, separate from the command timeout | plugin command dispatch | A user abandons tab-completion long before a 30s command timeout, so reusing that timeout makes completion look broken on any slow plugin. (169) |
+| Only a TCP failure retains routes for Graceful Restart | peer-down reason: `tcp-failure`, `notification`, `hold-timer`, `teardown` | A NOTIFICATION shutdown is intentional, so retaining routes would keep withdrawn state alive after a deliberate teardown. (353) |
+| Peer state events are delivered sequentially in REVERSE dependency-tier order | event dispatch fan-out | bgp-gr must see peer-down and mark routes stale before bgp-rib acts. Related: OPEN arrives before state-up, because the FSM processes OPEN in OpenConfirm and then transitions. (350) |
+| The RPC connection's persistent reader starts lazily via `sync.Once`, not in the constructor | `pkg/plugin/rpc` conn and mux | MuxConn wraps a Conn and takes the reader over, so a reader started at construction races the mux. Two goroutines reading one buffered scanner is a live data race. (292) |
+| A write-deadline timeout surfaces as a `net.Error` i/o timeout, NOT as `context.DeadlineExceeded` | deadline writes in `pkg/plugin/rpc` | Callers checking the context error need an explicit translation. Deadline writes default to 30s when the context carries none, because startup RPCs use server-scoped contexts. (292) |
+| The dispatcher resolves builtin, then subsystem, then plugin | command dispatcher | This is why unifying duplicate command sets means DELETING the engine builtin and letting the command fall through to the plugin, rather than registering in both places. (245) |
+| Route replay goroutines carry a generation counter and converge, rather than taking a snapshot | RS replay | A rapid reconnect otherwise leaves a stale replay goroutine writing into the new session, and a plain snapshot races live delivery. Replay is full pass, then delta loop, then End-of-RIB. (371) |
+| A reusable per-worker batch buffer is safe only while the worker is long-lived and serial; a restarted worker must begin with a nil buffer | forward-pool worker | Workers exit on idle timeout and restart, so a buffer parked on shared state hands the restarted worker stale items. (319) |
+| Commands that mutate a peer declare `RequiresSelector`, enforced in the dispatcher before the handler | command dispatch | Enforcing inside each handler means one forgotten handler accepts a selectorless mutation across all peers. Wildcard `*` counts as explicit. (368) |
+| A subscription delivers FUTURE events only | subscription manager | A plugin subscribing after peers are established sees nothing about existing state, and must query and reconcile. There is no replay-on-subscribe. (170) |
+| Responses may arrive out of order, and the presence of a serial decides whether a response is sent at all | serial parsing in the plugin process layer | A command with no `#N` prefix gets no response ever, so a program waiting for one hangs. `Response.Serial` is typed string even for numeric serials, to avoid JSON type ambiguity. (069) |
+| A plugin's YANG needs one augment path per template scope it must reach | plugin `yang/` augments; GR needed four | Miss the peer-group or the global variant and config written there is unreachable, with no schema error. (201) |
+| The plugin shutdown signal is written synchronously, bypassing the async write queue | `SendShutdown` | The queue may not drain before context cancellation, and the message is then silently lost, so plugins sit until their own timeout. Teardown took 17s instead of 6s. (051) |
+| Plugins write logs to stderr only | plugin logging | stdout carries the protocol, so one stray stdout write corrupts framing rather than erroring. (129) |
+| A capability that only affects OPEN negotiation belongs in a plugin, not in an engine option | llnh plugin | The engine advertises and records; the plugin acts. Engine-level is right only when the capability changes UPDATE parsing or the FSM. Set by owner directive, reversing the spec mid-implementation. (216) |
+| The startup-stage barrier uses one absolute deadline from stage start | `context.WithDeadline(stageStart+timeout)` | `WithTimeout` is relative to the caller, so plugins arriving at different moments get skewed deadlines and the barrier can fire early. (235) |
+| Every error path in the plugin server must call `PluginFailed()` and `proc.Stop()` | plugin server error returns | The startup coordinator is a barrier, so one path returning without signalling leaves it waiting forever, with no error and no coordinator-level timeout. (172) |
+| The engine must wire the bridge's `DispatchRPC` BEFORE sending the Stage-5 OK | `wireBridgeDispatch` call site | The SDK calls `SetReady()` at the end of Stage 5, so wiring after the loop leaves a window where a ready plugin dispatches into a nil bridge. (294) |
+| RPC multiplexing works only if BOTH sides dispatch concurrently | `pkg/plugin/rpc/mux.go` plus per-request dispatch | A multiplexing client against a sequential server just moves the queue into the socket buffer. The symptom is unchanged: silent route drops under load from one heavy peer. (276) |
+| The plugin wire format is newline-framed, and that is safe ONLY because every payload is compact `json.Marshal` output | `pkg/plugin/rpc/conn.go` | Compact JSON has no unescaped newline, so pretty-printed JSON silently corrupts framing. Newline was chosen over NUL so `cat`, `grep` and `tail -f` work on a live stream. (397) |
+| Command authorization is fail-OPEN by construction and needs ONE chokepoint covering EVERY dispatch path | `plugin/server/command.go`, where `d.authorizer == nil` allows all | The first implementation checked only when a builtin matched, so subsystem and plugin dispatch bypassed RBAC entirely. Unknown commands are treated as writes. The same guard shape now appears in the gRPC and REST servers. (390) |
+| Replay on reconnect must be selective, never bulk | bgp-watchdog `AnnounceInitial` versus `AnnouncePool` | Announcing the whole pool re-announces routes the operator explicitly withdrew. Pool state flips while the peer is down, so the selective set is the correct one at reconnect. (360) |
 
 ---
 
@@ -615,25 +986,25 @@ tests. Prometheus metrics at `/metrics`.
 
 ### Evolution
 
-- **[004](004-edit-command.md),
-  [175](175-config-editor-validation.md),
-  [205](205-editor-testing-framework.md),
-  [232](232-editor-tree-canonical.md),
-  [339](339-config-completion-cli.md),
-  [349](349-load-command-redesign.md),
-  [356](356-editor-modes.md),
-  [366](366-editor-1-exit-discard.md) through
-  [370](370-editor-5-reload-probe.md)** Editor. Bubble Tea TUI with
+- **004,
+  175,
+  205,
+  232,
+  339,
+  349,
+  356,
+  366 through
+  370** Editor. Bubble Tea TUI with
   schema-driven completion. `.et` file-based headless test framework.
   Dual-mode (edit/command). Daemon socket probe at startup enables
   reload-on-commit.
-- **[072](072-cli-run-merge.md),
-  [199](199-cli-restructure.md),
-  [372](372-show-routes.md),
-  [373](373-shell-completion.md),
-  [381](381-shell-completion.md),
-  [383](383-command-package-extraction.md),
-  [395](395-yang-command-tree.md),
+- **072,
+  199,
+  372,
+  373,
+  381,
+  383,
+  395,
   [440](440-bgp-dashboard.md),
   [446](446-feature-inventory-ci-gaps.md),
   [496](496-cli-dispatch.md),
@@ -643,18 +1014,18 @@ tests. Prometheus metrics at `/metrics`.
   `BuildCommandTree` from YANG. Shared `cmdutil` package. Pipe
   operators (`| json`, `| table`, `| text`, `| yaml`, `| count`)
   executed server-side where possible.
-- **[388](388-cli-metrics.md),
-  [389](389-cli-log.md),
-  [396](396-bgp-monitor.md),
+- **388,
+  389,
+  396,
   [502](502-signal-status-command.md)** CLI commands for metrics/log/
   monitor/signal. `bgp metrics show/list`, `bgp log show/set`,
   `bgp monitor` streaming, `ze status`.
-- **[266](266-chaos-web-foundation.md) through
-  [268](268-chaos-web-route-matrix.md),
-  [307](307-chaos-syncing-state.md) through
-  [314](314-chaos-ux-0-umbrella.md),
-  [357](357-chaos-web-dashboard.md),
-  [358](358-chaos-web-controls.md)** Chaos web dashboard. HTMX + SSE.
+- **266 through
+  268,
+  307 through
+  314,
+  357,
+  358** Chaos web dashboard. HTMX + SSE.
   ~40-peer active set with adaptive TTL decay. 200 ms SSE debounce.
   Peer grid (alternative to table), donut chart, event toasts, chaos
   pulse, peer filter, convergence trend, chaos rate, trigger buttons.
@@ -674,7 +1045,7 @@ tests. Prometheus metrics at `/metrics`.
   binary. Cross-implementation (Ze, GoBGP, FRR, BIRD, rustbgpd).
   NDJSON history, stddev-aware regression detection, Docker-orchestrated
   runs.
-- **[386](386-prometheus-metrics.md),
+- **386,
   [453](453-prometheus-deep.md),
   [482](482-prometheus-plugin-health.md),
   [542](542-plugin-metrics.md),
@@ -697,6 +1068,18 @@ tests. Prometheus metrics at `/metrics`.
   extension is single source of truth.
 - **`bgp` prefix on all commands** (395) — removed. User types
   `peer list`, not `bgp peer list`.
+- **Continuous SSE push for the peer-to-peer route flow matrix** (268):
+  rejected. At 200 peers the matrix is 200x200, so every tick pushes 40K
+  cell updates. It refreshes on tab activation via an HTMX GET instead, and
+  cell detail is a separate endpoint.
+- **Per-client view modes over SSE** (153): rejected for the chaos
+  dashboard. The broker broadcasts identical HTML to every client, so
+  per-client mode needs significant broker changes. The grid refreshes by
+  HTMX polling and shows ALL peers, which avoids active-set promotion logic.
+- **Bubble Tea for the chaos live dashboard** (259): rejected in favour of
+  raw ANSI escapes. Bubble Tea takes over stdin and targets interactive
+  TUIs, while this dashboard is passive during a run. The rest of the CLI
+  still uses Bubble Tea, so the divergence is deliberate.
 
 ### Load-bearing invariants
 
@@ -705,8 +1088,23 @@ tests. Prometheus metrics at `/metrics`.
 | `EventSource` (SSE) does not support custom headers | `web/htmx.js` | Drives session-cookie auth over Basic Auth. ([468](468-web-1-foundation.md)) |
 | HTMX SSE extension inserts via `innerHTML` | web handlers | Requires pre-rendering through `html/template` for XSS safety. ([473](473-web-6-live-updates.md)) |
 | HTMX filter expressions in `hx-trigger` use eval internally | CSP config | Requires `unsafe-eval`; replace with plain JS event listener to keep CSP strict. ([454](454-web-htmx-architecture.md)) |
-| Pipe operators default table when no format specified | `ProcessPipesDefaultTable` | `| json`, `| table`, `| text`, `| yaml` are format; `| count` is transform. Multiple formatters are an error. ([383](383-command-package-extraction.md)) |
-| `ze config validate` invokes YANG type check only | `cmd/ze/config/cmd_validate.go` | Plugin `OnConfigVerify` runs only when daemon loads or reloads — parser tests cannot verify plugin-specific rules. ([413](413-prefix-limit.md), others) |
+| Pipe operators default table when no format specified | `ProcessPipesDefaultTable` | `| json`, `| table`, `| text`, `| yaml` are format; `| count` is transform. Multiple formatters are an error. (383) |
+| `ze config validate` invokes YANG type check only | `internal/component/config/cli/cmd_validate.go` | Plugin `OnConfigVerify` runs only when daemon loads or reloads — parser tests cannot verify plugin-specific rules. ([413](413-prefix-limit.md), others) |
+| Bubble Tea owns stdin once the TUI starts, so the editor cannot read piped terminal input normally | editor `load`, paste-mode state | Any multi-line terminal input needs a paste-collecting state with an explicit terminator (Ctrl-D). Pre-TUI stdin detection does not work. (349) |
+| Fish single-quotes have NO escape mechanism, so `\'` is literal | `plugins/completion/fish.go` | A `complete -a '...'` containing a regex such as `[^"]*` breaks, leaving `[^` as an unquoted glob, so regexes must live in a named helper. Also, `commandline -opc` at `[-1]` returns the PARTIAL token being typed. (381) |
+| Nushell's module system collides with extern command names | `plugins/completion/nushell.go` | `ze.nu` loaded with `use ze.nu` creates module `ze`, which forbids `export extern "ze"`, and `use foo.nu *` does not export externs. Only `source` with a plain `extern` works. (381) |
+| The shared completion data source emits `word<TAB>desc` pairs, parsed on the tab by all four shells | `plugins/completion/words.go` | A tab in any YANG Help string silently corrupts completion everywhere. This is safe only because Help is human prose and command names come from `strings.Fields()`. (381) |
+| A unit test importing a command package directly proves nothing about registration in the shipped binary | the blank-import site for each command package | Dispatch unit tests pass while every functional test fails with "unknown command". Hit twice in a row: 388 for metrics, 389 for log. (388) |
+| `dispatch-command` turns any Go error from a handler into a JSON-RPC error rather than a result | dispatch-command RPC path | A business-logic failure must be a `StatusError` Response with a NIL Go error, so dispatch takes the success path. The `nilerr` linter then forces the error-returning call into a helper that returns a Response. (388) |
+| The SSH streaming path does not pass through normal dispatch, so it does not inherit dispatch authorization | SSH streaming executor into `Dispatcher.IsAuthorized` | The executor must hand the username to the streaming handler. Without that explicit check the streaming path fails open. (396) |
+| Monitor event delivery is lossy by design | monitor `enqueue()`, `plugin/server/monitor.go` | A slow CLI monitor must never block the engine event path, so enqueue uses select with default, counts drops atomically, and piggybacks the warning on the next event. Do not make it blocking. (396) |
+| `SubscriptionManager` is per-Server and keyed by `*Process`, and CLI monitors have no `*process.Process` | `plugin/server/monitor.go` | This is why a second, apparently duplicate `MonitorManager` exists, keyed on client ID. It is not redundant and must not be merged. (396) |
+| `ProcessEvent()` writes chaos-dashboard state under a write lock and sets dirty flags ONLY, never doing I/O | `internal/chaos/web/state.go` | HTTP handlers and the SSE goroutine take read locks, and a background goroutine reads the flags every 200ms. I/O inside `ProcessEvent` blocks the event loop and deadlocks against HTTP. This is why the SSE debounce exists. (266) |
+| A manual chaos trigger from the web UI emits a standard `EventChaosExecuted` through the normal pipeline | `internal/chaos/web/control.go` | ze-chaos is seed-deterministic and its NDJSON log must stay replayable. Non-chaos control actions (pause, resume, rate) are logged as a separate informational record. Control commands share the event `select`, so there is no priority inversion and no extra mutex. (358) |
+| Go forbids a field `Reactor` and a method `Reactor()` on the same struct | any field-to-accessor migration | The package cannot compile in an intermediate state, so the swap is atomic across every construction site. It cost 111 test construction sites across 8 files: count the sites before starting. (229) |
+| The SSE partial renderer and the initial page renderer must produce structurally identical markup | chaos `renderStats()` and `writeLayout()` | Two code paths render the same fragment, so updating one leaves the page correct until the first SSE swap. The failure appears seconds after load. (154) |
+| New peer-status values are appended, never inserted | chaos `PeerStatus` iota | Inserting shifts existing values and breaks integer comparisons and stored state. Every transition must decrement the state it leaves and increment the one it enters, or counters go negative. (307) |
+| The default table formatter is APPENDED at the end of the pipe pipeline, never prepended | `ProcessPipesDefaultTable` | Prepending makes `\| count` count table lines instead of data items. `HasFormatOp` must exclude `count` for the same reason. (383) |
 
 ---
 
@@ -729,11 +1127,11 @@ tests. Prometheus metrics at `/metrics`.
   variants. V4 and V6 transports (IPv6 uses `IPV6_RECVHOPLIMIT`). MD5/SHA1
   authentication. Echo mode. FRR interop scenarios in `test/interop/`.
   BGP client that brings BFD up alongside BGP peer.
-- **L2TP + PPP** (`internal/component/l2tp`, `internal/component/ppp`):
+- **L2TP + PPP** (`internal/component/l2tp`, `internal/component/l2tp/ppp`):
   RFC 2661 wire, reliable delivery with `seqBefore` unsigned-distance
   comparison, tunnel + session FSM, kernel PPPoL2TP sockets via ioctl,
   LCP/PAP/CHAP/MSCHAPv2 + IPCP/IPv6CP NCPs.
-- **VPP backend** (`internal/plugins/fibvpp`, `internal/component/vpp`):
+- **VPP backend** (`internal/plugins/fib/vpp`, `internal/component/vpp`):
   GoVPP binapi, AsyncConnect, stats socket for telemetry, PCI
   bind/unbind, classify/policer/QoS for traffic control.
 - **Firewall** (`internal/component/firewall`): backend-split (nft on
@@ -856,37 +1254,37 @@ for benchmarks.
 
 ### Evolution
 
-- **[026](026-spec-self-check-rewrite.md),
-  [043](043-spec-functional-test-diagnostics.md),
-  [044](044-spec-selfcheck-count.md),
-  [045](045-spec-functional-decoding-parsing.md),
-  [131](131-ci-format-cleanup.md),
-  [132](132-spec-test-cmd-consolidation.md),
-  [135](135-tmpfs-format.md),
-  [206](206-unify-test-tools.md),
-  [339](339-config-completion-cli.md)** `.ci` format evolution.
+- **026,
+  043,
+  044,
+  045,
+  131,
+  132,
+  135,
+  206,
+  339** `.ci` format evolution.
   ExaBGP-inspired runner rewritten in Go. `stdin=`, `tmpfs=`,
   `cmd=background/foreground` for self-contained tests. Test IDs
   alphanumeric (0-9, A-Z, a-z) stable across runs. `ze-test bgp
   parse/ui/encode/decode/plugin`.
-- **[205](205-editor-testing-framework.md),
+- **205,
   [428](428-command-history.md)** `.et` framework. Key sequences
   + expected viewport/completions. Extended with `option=session:user=X`,
   `expect=file:path=X:contains=Y`, `restart=` for multi-session and
   persistence tests.
-- **[255](255-bgp-chaos-session.md) through
-  [265](265-bgp-chaos-selftest.md)** `ze-chaos` tool.
+- **255 through
+  265** `ze-chaos` tool.
   Seed-deterministic. Multi-peer scenarios, chaos events (flap, timer
   expiry, malformed message), validation model, NDJSON event log,
   property-based testing with shrinking, in-process mode with
   VirtualClock.
-- **[274](274-spec-test-diagnostics.md)** `.ci` diagnostics. Field-
+- **274** `.ci` diagnostics. Field-
   level JSON diff, named suite failures, parse test reproduction
   commands, full hex in debug commands.
-- **[338](338-codebase-review-test-coverage.md),
-  [354](354-nlri-test-coverage.md),
-  [355](355-test-coverage.md),
-  [393](393-ci-gaps.md),
+- **338,
+  354,
+  355,
+  393,
   [446](446-feature-inventory-ci-gaps.md),
   [550](550-ci-observer-exit-code-fix.md),
   [558](558-ci-observer-per-test-audit.md)** Test coverage audits.
@@ -896,6 +1294,14 @@ for benchmarks.
 - **[608](608-concurrent-test-patterns.md)** Concurrent-test flake
   patterns. Locked-write/unlocked-read, subscribe-before-broadcast,
   gate-handler, barrier FIFO, cleanup-drains-work.
+- **217** Fix the test harness before the code under test. The ExaBGP suite
+  was predicted to reach 33/37 after harness repair and reached 20/37: the
+  harness had masked 13 real wire-encoding gaps, so every prior read of that
+  suite's signal was wrong.
+- **261** A black-box chaos tool can only assert on what it sends and
+  receives. Five of ten planned RFC properties were unimplementable from
+  outside, because they need internal transitions. This is why in-process
+  mode with a virtual clock exists.
 
 ### Abandoned approaches
 
@@ -912,19 +1318,63 @@ for benchmarks.
 - **`go test ./...` from module root when `tmp/*.go` exists** (557,
   610, 619) — scratch files break unit-test phase. Research subagents
   must use `.txt` or build-tagged directories.
+- **Wire tests written as "old implementation versus new implementation"**
+  (030): abandoned. Both sides were broken for reflector attributes, so
+  the test passed while proving nothing. Replaced with expected-bytes
+  assertions taken from the implementation known to be correct.
+- **A test fixture whose SHAPE the implementer invented** (396): flat
+  JSON, while production ze-bgp nests under `"bgp":{}`. The tests were
+  self-consistent, green, and proved nothing, and only independent deep
+  review caught it. Fixture shape must be captured from real output.
+- **A functional-test daemon with different reload wiring from production**
+  (225): SIGHUP tests then exercised only direct-reload and never the
+  two-phase coordinator. A test daemon that diverges from production wiring
+  produces green tests over an untested path.
+- **`net.Pipe()` as the transport for a BGP session** (264): it cannot
+  carry one: both peers write OPEN simultaneously and the unbuffered pipe
+  deadlocks. Mock BGP connections use TCP loopback pairs. The symptom when
+  this is missed is that the first integration test hangs forever.
+- **Timer-non-firing and backward-clock faults in ChaosClock** (265):
+  deliberately excluded. Both cause permanent FSM stalls and break
+  everything, rather than exposing a resilience bug. Only jitter (0.8 to
+  1.2x) and sleep extension are injected.
+- **A ring buffer for the chaos event log** (364): rejected for an
+  unbounded buffer. Dropping route events corrupts convergence counts, so a
+  lost event becomes a false validation failure.
 
 ### Load-bearing invariants
 
 | Invariant | Site | Why (first occurrence) |
 |-----------|------|------------------------|
-| `cmd=api` lines in `.ci` files are documentation metadata, not execution directives | `internal/test/runner/` | The route must come from the plugin. ([362](362-flaky-watchdog-test.md), [414](414-forward-barrier.md), [483](483-exabgp-bridge-muxconn.md)) |
+| `cmd=api` lines in `.ci` files are documentation metadata, not execution directives | `internal/test/runner/` | The route must come from the plugin. (362, [414](414-forward-barrier.md), [483](483-exabgp-bridge-muxconn.md)) |
 | `expect=stderr:contains=` only fires inside `ExpectExitCode != nil` branch | `runner_exec.go` | Without `expect=exit:code=`, runner falls through to peer-wait path. ([623](623-fw-9-traffic-lifecycle.md)) |
 | Plugin subprocess stderr is consumed by `relayStderrFrom()` | `process.go` | Never reaches test runner's stderr match. ([451](451-rib-show-filters.md)) |
 | Background `.ci` processes do NOT get `ZE_READY_FILE` | `runner_exec.go:705-717` | Only foreground path writes daemon.pid + daemon.ready. ([623](623-fw-9-traffic-lifecycle.md)) |
 | `parse/` test runner only extracts `stdin=config` and runs `ze validate` | `internal/test/runner/` | `cmd=foreground`, `tmpfs=`, `expect=stdout:contains=` are silently skipped. ([449](449-strip-private.md)) |
-| Python test library (`test/scripts/ze_api.py`) must track Go protocol | Python SDK | Changing engine RPC without updating Python hangs 129+ tests. ([291](291-batched-ipc-delivery.md), [397](397-unified-rpc-framing.md), [497](497-check-ci-slowness.md)) |
-| Stored test state (registry, `sync.Once`) must Snapshot/Restore | `t.Cleanup` | `Reset` empties all globally registered decoders; fresh registry breaks tests. ([240](240-plugin-engine-decode.md), [533](533-bgp-boundary-cleanup.md)) |
-| `net.Pipe()` deadlocks sequential write-then-read | test setup | Zero buffering. Wrap writes in goroutines or start reader first. ([210](210-yang-ipc-plugin.md), [264](264-bgp-chaos-inprocess.md), [459](459-plugin-tcp-transport.md), [609](609-l2tp-6b-auth.md)) |
+| Python test library (`test/scripts/ze_api.py`) must track Go protocol | Python SDK | Changing engine RPC without updating Python hangs 129+ tests. (291, 397, [497](497-check-ci-slowness.md)) |
+| Stored test state (registry, `sync.Once`) must Snapshot/Restore | `t.Cleanup` | `Reset` empties all globally registered decoders; fresh registry breaks tests. (240, [533](533-bgp-boundary-cleanup.md)) |
+| `net.Pipe()` deadlocks sequential write-then-read | test setup | Zero buffering. Wrap writes in goroutines or start reader first. (210, 264, [459](459-plugin-tcp-transport.md), [609](609-l2tp-6b-auth.md)) |
+| A `.ci` using `action=sighup` must contain at least one `tmpfs=` block | functional runner sighup path | `daemon.pid` is only written when a tmpfs directory exists, so the signal can never be delivered. (234) |
+| A test for JSON-processing code must feed it a JSON string, never a hand-constructed struct | any `parseEvent`-style test | Building the struct skips the function that holds the bug. The RS event parser was wrong for every production event while its unit tests were green. (263) |
+| Registry-count assertions use exact equality, not `>=` | RPC registration table test | A `>= N` threshold passes while RPCs silently disappear. (209) |
+| In a plugin test, prove the event loop is running before calling any runtime method | two-socket test setup | Send on Socket B first, then call on Socket A. Calling straight into A races the shared reader. (210) |
+| Chaos log determinism comes from the writer, not from the event | NDJSON writer | Sequence numbers and `time-offset-ms` are assigned at the serialization boundary, and the diff tool ignores `time-offset-ms`. Relative offsets mean one seed produces one comparable log. (260) |
+| `.ci` JSON expectations match on content (NLRI plus action), never on position | runner JSON comparison | Ze sends routes lexicographically, not in config order. Peer and direction fields are excluded as environment-dependent. (121) |
+| In a `parse/` `.ci`, `expect=stderr:contains=` switches the test into NEGATIVE mode | parse test runner | A positive parse test that adds a stderr expectation inverts its own verdict. Positive tests use `expect=exit:code=` only. (380) |
+| Every `.ci` that starts an SSH listener needs its own port | SSH-based `.ci` tests | Tests run in parallel, so a shared port fails non-deterministically and reads as a flake. (391) |
+| A test package needs an explicit import file to fire `init()` registrations | `all_import_test.go` | Blank imports elsewhere do not fire in a test binary, so registry-backed tests see an empty registry. (334) |
+| Test runners send SIGTERM plus a grace period, never SIGKILL | runner teardown | SIGKILL bypasses cleanup, so the shutdown behavior under test never runs. (051) |
+| Bulk format migrations must exclude fixtures held in a foreign format, and documents quoting the old format | ExaBGP test inputs, spec "before" examples | A repo-wide replace rewrote `test/exabgp/*/input.conf` out of ExaBGP syntax, which is the one thing those files exist to hold. (135) |
+| Config-parse success and wire-encoding correctness are independent | ExaBGP compat suite | A config that parses without error routinely produced wrong bytes, so a green parse test is not evidence about the wire. (217) |
+| FakeClock and VirtualClock are not interchangeable | `internal/core/clock/` and `internal/chaos/` | FakeClock's timers are inert, for unit tests. VirtualClock keeps a min-heap firing in deadline order on `Advance()`, with same-deadline FIFO. Virtual time never virtualises TCP I/O or goroutine scheduling. (264) |
+| An injected clock must reach objects built before injection | `reactor.SetClock()` iterating `r.peers` | It originally set only the reactor-level and recentUpdates clocks, so peers created during plugin load kept the real clock and reconnect backoff ran in real time. (264) |
+| Generated test UPDATEs must carry unique prefixes | UPDATE batch helpers | Reusing one prefix makes the RIB dedup the batch to a single entry, so per-item assertions pass or fail for the wrong reason. (284) |
+| The `.ci` checker groups expectations by `(conn, seq)` | `internal/test/peer/expect.go` | Messages inside one seq group match in any order, and the groups are strictly sequential. Writing expectations without knowing this produces tests that appear order-insensitive when they are not. (362) |
+| Exact `expect=bgp:hex=` assertions are brittle by construction | test/plugin, test/encode | ze auto-includes the extended-message capability, which changes the OPEN byte count, and an iBGP session auto-adds LOCAL_PREF. Verify the actual bytes first, or assert on capability and dispatch instead. (393) |
+| A peer left at default connect plus accept fights the test peer for the same port | `.ci` configs that also start ze-peer | Disable connect explicitly rather than tuning timing. (393) |
+| A functional test must have exactly one teardown mechanism | test peer plus plugin script | When both tear down, they race. The fix was making the peer send a route after reconnect, as an in-band "job done" signal. (074) |
+| The cross-type NLRI consistency test must enumerate EVERY NLRI type | `nlri` consistency tests | EVPN was missing, and that omission is exactly where the ADD-PATH wire corruption lived. A type absent from the table is the type that breaks. (071) |
+| Adding a CLI flag means teaching the `.ci` runner to parse it | runner command-line parsing | After `ze bgp decode` changed its default output, every decode test still ran in JSON mode because the runner never parsed `--json`. A `cmd:` versus `cmd=` separator mismatch produces the same silent no-op. (190, 191) |
 
 ---
 
@@ -942,23 +1392,31 @@ Engine code: zero ExaBGP format awareness.
 
 ### Evolution
 
-- **[001](001-initial-implentation.md),
-  [008](008-config-migration-system.md),
-  [041](041-spec-format-based-migration.md),
-  [096](096-exabgp-migration-tool.md),
-  [125](125-exabgp-compat.md),
-  [219](219-exabgp-feature-parity.md)** Migration tool. Heuristic
+- **001,
+  008,
+  041,
+  096,
+  125,
+  219** Migration tool. Heuristic
   version detection. Three-version chain. Named transformations.
   Plugin bridge: handles 5-stage internally, switches to JSON
   translation after `ready`.
-- **[179](179-remove-unrequested-features.md),
-  [181](181-remove-exabgp-announce.md),
-  [183](183-remove-exabgp-syntax.md),
-  [281](281-remove-ze-syntax.md),
-  [344](344-remove-announce-route.md)** ExaBGP syntax removal from
+- **179,
+  181,
+  183,
+  281,
+  344** ExaBGP syntax removal from
   engine. `announce { }`, `static { }`, `operational { }` blocks
   deleted. `multi-session`, `operational`, `aigp` capabilities
   rejected during migration.
+- **045** BGP-LS decode output deliberately diverges from ExaBGP. Ze emits
+  arrays (`remote-router-ids`, `sr-adj`) where ExaBGP emits a single value
+  and silently loses duplicate keys for multi-instance TLVs. Ze chose the
+  lossless format.
+- **056** Ze uses plural JSON keys for community attributes
+  (`communities`, `extended-communities`, `large-communities`), which is a
+  deliberate divergence from ExaBGP's singular forms. Reverting to "match
+  ExaBGP" would be a regression.
 
 ### Abandoned approaches
 
@@ -971,9 +1429,58 @@ Engine code: zero ExaBGP format awareness.
 
 | Invariant | Site | Why (first occurrence) |
 |-----------|------|------------------------|
-| All ExaBGP-aware code lives in `internal/exabgp/` | package boundary | No imports from other packages. ([181](181-remove-exabgp-announce.md)) |
-| Complex NLRI families (FlowSpec, MVPN, MUP) are API-only, not config | config schema | Removed from config for simplicity. ([181](181-remove-exabgp-announce.md)) |
-| ExaBGP text protocol plugins bridged at the boundary | `ze exabgp plugin` | Incompatible with Ze's NUL-framed JSON-RPC. ([219](219-exabgp-feature-parity.md), [483](483-exabgp-bridge-muxconn.md)) |
+| All ExaBGP-aware code lives in `internal/exabgp/` | package boundary | No imports from other packages. (181) |
+| Complex NLRI families (FlowSpec, MVPN, MUP) are API-only, not config | config schema | Removed from config for simplicity. (181) |
+| ExaBGP text protocol plugins bridged at the boundary | `ze exabgp plugin` | Incompatible with Ze's own RPC framing. That framing was NUL-delimited when this boundary was drawn and is newline-delimited today (`pkg/plugin/rpc/conn.go`); the bridge is required either way. (219, [483](483-exabgp-bridge-muxconn.md)) |
+| SAFI detection must test for `rd` before `label` | migration SAFI detection | RFC 8277 labeled-unicast (SAFI 4) and RFC 4364 L3VPN (SAFI 128) share label syntax, so a label-first test classifies every VPN route as labeled unicast. (096) |
+| ExaBGP fixture configs under the exabgp test tree must be excluded from bulk config migration | `test/exabgp/*/input.conf` | A bulk migration rewrote them into Ze syntax twice, in 135 and again in 138, which made the migration tests pass without exercising migration. (138) |
+| The ExaBGP bridge reuses ONE scanner across the startup and JSON phases | bridge phase transition | Creating a fresh scanner at the switch drops bytes already buffered. (125) |
+| Two migration systems and two schemas exist, and they must not be merged | `config/migration` (Ze syntax evolution) versus `internal/exabgp` (ExaBGP to Ze) | ExaBGP spells its API block `api { processes [...] }` where Ze uses `process { }`, so running an ExaBGP config through the Ze schema makes the API-block migration silently never execute. (125) |
+
+---
+
+## Cross-cutting: engineering practice
+
+### Current shape
+
+Facts that belong to no single subsystem: Go traps that survive review, the
+logging construction rule, how mechanical refactors interact with the
+edit-time gates, and what does and does not cross a process boundary.
+
+### Evolution
+
+- **129** Logging gives every subsystem its own logger instance instead of
+  calling `slog.SetDefault`, so several subsystems in one process can be
+  enabled and disabled independently.
+- **288** Optional dependencies are injected by SETTER (`SetClock`,
+  `SetDialer`, `SetListenerFactory`, `SetMetricsRegistry`), not by
+  constructor parameter. The reason is mechanical: those constructors are
+  called from 34 or more test sites, and a constructor change forces every
+  call site to change for a dependency most of them do not use.
+- **001** The founding plan set a hard product boundary, BGP protocol only,
+  no FIB manipulation, matching ExaBGP, and recorded it as a boundary that
+  "has never moved". Ze today ships kernel and VPP FIB backends and a
+  sysrib, so crossing it was a later deliberate expansion.
+
+### Abandoned approaches
+
+- **Long-lived type aliases as a migration device** (197): tried and
+  regretted. An alias hides the coupling: when the original type changes
+  shape, every unmigrated consumer breaks silently. Use an alias only as a
+  within-one-commit step toward direct imports.
+
+### Load-bearing invariants
+
+| Invariant | Site | Why (first occurrence) |
+|-----------|------|------------------------|
+| Package-level state touched by plugin runner goroutines needs `sync.Once` or a mutex, never a plain bool guard | builtin command registration in the RIB plugin | "Read-only after startup, no mutex needed" was false: two overlapping startups race the guard and the map it protects. (399) |
+| A test file lives with the functions it tests, not with the types it uses | package layout after an extraction | Putting the test beside the types recreates the import cycle the extraction removed. (248) |
+| Mechanical moves and new registrations fight the edit-time gates, and the fix is edit ordering | duplicate-symbol and init/Register gates | Adding a type to its new home while the old one still exports it is refused, so delete first. A `Register` call in the same edit as an empty `init()` is refused, so split the edit. (242) |
+| Renaming a package to a short common noun collides with local variables at every call site | renames such as `peer`, `runner` | A local `peer` shadows the package import, and the failure appears as unrelated compile errors far from the rename. (133) |
+| Bulk `sed` over source and specs has two recurring traps | mechanical field removal, doc rewrites | A line-delete pattern removes the WHOLE registration when the struct literal is one line, so use field-only substitution. A bulk replacement over `.md` corrupts specs that quote the old format as before/after evidence. (133, 395) |
+| A package-level `var logger = slogutil.Logger(...)` is a bug | logger construction | Package vars run before `main()` reads config, so config log settings are silently ignored. `LazyLogger()` wraps `sync.Once` to defer construction. (182) |
+| CLI flags do not reach forked child processes | `internal/component/bgp/cli/childmode.go` | Env vars are the only reliable channel, which is why the chaos seed and rate are plumbed as `ze.bgp.chaos.seed` in addition to the flag. (265) |
+| Creating a set of interconnected new files is blocked by the related-refs hook, which reads the file on disk before applying an edit | `require-related-refs` | Cross-references to files that do not exist yet are rejected, and an Edit that WOULD fix stale refs is blocked by those stale refs. Create empty stubs first. (400) |
 
 ---
 
@@ -984,14 +1491,14 @@ Engine code: zero ExaBGP format awareness.
   summaries in order. Read the oldest first to see what was being
   rejected; read the newest first to see the current state.
 - **"Can I propose approach Y?"** — search "Abandoned approaches"
-  for Y. If Y appears, the learned summary will explain why it did
-  not work. Read it before proposing.
+  for Y. If Y appears, the entry states why it did not work. When the
+  entry carries a link, read that summary too before proposing.
 - **"Why does the code require invariant Z?"** — search "Load-bearing
   invariants" for Z. The table names the enforcement site and the
   summary that records the reasoning.
 - **Still unclear?** — fall back to `../../ai/LEARNED-INDEX.md`
   for the curated topic index, then read the specific summary.
 
-The summaries under `plan/learned/NNN-*.md` remain the authority.
-This document exists so a future session does not need to read all
-638 to understand why the code looks the way it does.
+For summaries 401 and above, the numbered file remains the authority and
+this document is the map to it. For the retired 001 to 400 band, this
+document is the authority, because those files no longer exist.

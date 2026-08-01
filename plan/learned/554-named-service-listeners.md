@@ -164,13 +164,13 @@ two `server <name> { ... }` blocks and have both bound.
 - `internal/component/config/loader_extract_test.go` -- 14 extractor tests (created)
 - `internal/component/config/listener.go` -- api-server entries in knownListenerServices
 - `internal/component/config/listener_test.go` -- 3 api-server collection tests
-- `internal/core/metrics/server.go` -- TelemetryConfig struct + multi-listener Start
-- `internal/core/metrics/server_test.go` -- 2 multi-listener tests
+- `internal/component/telemetry/exporter/server.go` -- TelemetryConfig struct + multi-listener Start
+- `internal/component/telemetry/exporter/server_test.go` -- 2 multi-listener tests
 - `internal/component/web/server.go` -- multi-listener WebServer
 - `internal/component/web/server_test.go` -- 3 new tests
 - `internal/component/lg/server.go` -- multi-listener LGServer
 - `internal/component/lg/server_test.go` -- 2 new tests
-- `cmd/ze/hub/mcp.go` -- multi-listener startMCPServer
+- `cmd/ze/hub/service_mcp.go` -- multi-listener startMCPServer
 - `cmd/ze/hub/mcp_test.go` -- 3 new tests (created)
 - `internal/component/api/rest/server.go` -- multi-listener RESTServer
 - `internal/component/api/rest/server_test.go` -- 3 new tests

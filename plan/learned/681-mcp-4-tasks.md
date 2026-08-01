@@ -86,10 +86,10 @@ integration, and `execution.taskSupport` in tool descriptors.
 | `internal/component/config/yang/command.go` | `GetTaskSupportExtension`, `PathToTaskSupport` |
 | `internal/component/config/yang/modules/ze-extensions.yang` | `ze:task-support` extension |
 | `cmd/ze/hub/main.go` | Wire `TaskSupport` through command lister |
-| `cmd/ze/hub/mcp.go` | `buildTaskSupportMap`, `parseTaskSupportLevel` |
+| `cmd/ze/hub/service_mcp.go` | `buildTaskSupportMap`, `parseTaskSupportLevel` |
 | `docs/architecture/mcp/overview.md` | Task section, capability table, roadmap |
 | `docs/architecture/api/commands.md` | `tasks/*` methods, `notifications/tasks/status` |
-| `cmd/ze-test/mcp.go` | `--tasks` flag, task directives (task-call/get/result/cancel/list/wait), `$LAST` substitution |
+| `internal/test/cli/cmd_mcp.go` | `--tasks` flag, task directives (task-call/get/result/cancel/list/wait), `$LAST` substitution |
 | `internal/component/bgp/plugins/cmd/monitor/yang/ze-monitor-cmd.yang` | `ze:task-support required` on monitor bgp/event |
 | `internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang` | `ze:task-support required` on routes, `forbidden` on clear/inject/withdraw |
 | `internal/component/cmd/subscribe/yang/ze-cli-subscribe-cmd.yang` | `ze:task-support required` on subscribe |

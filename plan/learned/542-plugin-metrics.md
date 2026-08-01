@@ -24,8 +24,8 @@ Ze's metrics infrastructure was 90% there: `ConfigureMetrics` callback existed i
 
 ## Files
 
-- `internal/plugins/fibkernel/register.go`, `fibkernel.go` -- fib-kernel metrics
-- `internal/plugins/sysrib/register.go`, `sysrib.go` -- sysrib metrics
+- `internal/plugins/fib/kernel/register.go`, `fibkernel.go` -- fib-kernel metrics
+- `internal/component/sysrib/register.go`, `sysrib.go` -- sysrib metrics
 - `internal/component/bgp/plugins/watchdog/register.go`, `watchdog.go`, `server.go` -- watchdog metrics
 - `internal/component/bgp/plugins/rpki/register.go`, `rpki.go`, `rtr_session.go` -- rpki metrics
 - `internal/component/bgp/plugins/persist/register.go`, `server.go` -- persist metrics

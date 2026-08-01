@@ -60,3 +60,7 @@ comparison (`skill_sync.sh --check`, session-start warning) because
   agents themselves polling for a compiling tree.
 - The test-deletion hook cannot distinguish moved tests from deleted ones;
   moves need the new-location copy created first.
+
+## Files
+
+None recorded.

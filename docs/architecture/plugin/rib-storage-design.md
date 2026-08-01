@@ -1,7 +1,9 @@
 # Plugin RIB Storage Design
 
 **Status:** Design Reference for API Programs
-**Location:** Derived from `plan/learned/059-spec-pool-handle-migration.md`
+**Location:** Derived from retired summary 059. That design was abandoned for the
+edge speaker and is recorded under Abandoned approaches in
+`plan/learned/DESIGN-HISTORY.md`, "BGP engine: wire encoding and RIB".
 
 This document describes the pool-based RIB storage design for API programs (plugins).
 The Ze engine does NOT implement this - it belongs in API programs like `ze plugin bgp-rs`.

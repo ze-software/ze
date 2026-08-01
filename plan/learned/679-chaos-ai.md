@@ -33,3 +33,7 @@ ze-chaos runs chaos tests against a Ze route server. This spec makes it AI-query
 | Route regression check on EventRouteReceived (counter just incremented, can never regress) | Dead code, no regression detection | Moved to EventRouteWithdrawn with HWM comparison |
 | --mcp without --web silently did nothing | User confusion | Explicit error message |
 | Port conflict validation missing new flags | Conflicting ports undetected | Added mcpAddr and zeMCPPort to both validators |
+
+## Files
+
+None recorded.

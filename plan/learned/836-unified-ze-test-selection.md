@@ -27,7 +27,7 @@ Functional test runners had different selection and progress conventions. Some s
 
 - `internal/test/runner/selection.go`
 - `internal/test/runner/display.go`
-- `cmd/ze-test/exabgp.go`
+- `internal/test/cli/cmd_exabgp.go`
 - `Makefile`
 - `mk/test-functional.mk`
 - `docs/functional-tests.md`

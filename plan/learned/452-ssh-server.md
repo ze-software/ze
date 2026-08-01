@@ -1,6 +1,6 @@
 # 452 -- SSH Server
 
-## Objective
+## Context
 
 Add an SSH server component to Ze that serves a read-only session over SSH using Charm's Wish library, with username/password authentication via bcrypt.
 
@@ -37,7 +37,7 @@ Add an SSH server component to Ze that serves a read-only session over SSH using
 ## Files
 
 - `internal/component/ssh/ssh.go` -- Server struct, Start/Stop, Wish setup
-- `internal/component/ssh/auth.go` -- CheckPassword, AuthenticateUser (bcrypt)
+- `internal/component/authz/auth.go` -- CheckPassword, AuthenticateUser (bcrypt)
 - `internal/component/ssh/session.go` -- SessionModel (per-SSH-session tea.Model)
 - `internal/component/ssh/yang/ze-ssh-conf.yang` -- YANG schema
 - `internal/component/ssh/yang/embed.go` -- embedded YANG

@@ -774,7 +774,7 @@ $ kill -TERM $(pgrep -f "ze start config.conf")
 - [Hub Architecture](hub-architecture.md) - Hub mode internal design details
 - [Process Protocol](api/process-protocol.md) - 5-stage protocol specification
 - [YANG Config Design](config/yang-config-design.md) - Schema design
-- [Config Dispatch](../../plan/learned/189-config-dispatch.md) - Mode selection by config content (completed)
+- Config Dispatch - mode selection by config content (completed). This was summary 189, retired on 2026-08-01 and not carried into [Design History](../../plan/learned/DESIGN-HISTORY.md), whose header gives the git-recovery route
 
 ---
 

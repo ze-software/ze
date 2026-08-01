@@ -27,7 +27,7 @@ ZeFS blob store used flat, unstructured keys (`ssh/username`, `etc/ze/router.con
 ## Files
 
 - `internal/component/config/storage/blob.go` — `resolveKey()`, `migrateExistingFiles()`
-- `cmd/ze/init/main.go` — `meta/ssh/*` constants, `meta/instance/name`, `meta/instance/managed`
+- `internal/plugins/init/main.go` — `meta/ssh/*` constants, `meta/instance/name`, `meta/instance/managed`
 - `cmd/ze/internal/ssh/client/client.go` — reads `meta/ssh/*` keys
 - `docs/architecture/zefs-format.md` — namespace convention documentation
 - `test/managed/init-meta-keys.ci`, `cli-reads-meta-keys.ci` — functional tests

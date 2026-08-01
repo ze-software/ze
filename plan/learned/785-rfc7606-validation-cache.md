@@ -51,3 +51,7 @@ Happy-path allocation: `ValidateUpdateRFC7606` allocates a 64B result
 struct on every call including valid UPDATEs. A singleton return for
 action=none would eliminate ~100M allocs/sec under load. Independent of
 the cache question.
+
+## Files
+
+None recorded.

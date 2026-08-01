@@ -61,3 +61,7 @@ investigate" item 1.
   load-bearing, not cosmetic.
 - gopls/golangci modernize flags `range strings.Split(...)`; use
   `strings.SplitSeq` (go.mod is >= 1.24).
+
+## Files
+
+None recorded.

@@ -24,3 +24,7 @@ Spec A replaced the shared kernel shell recipe with a Python recipe, moved profi
 - `ze-validate` flags any exported symbols in a changed Go file with no cross-package caller, even if the symbol pre-existed. Keeping appliance-only helpers unexported avoids false failures.
 - Functional fake builders must emit all symbols required by the manifest and universal floor. Otherwise Go enforcement correctly fails after the fake build writes `build/config`.
 - The Docker/QEMU fake tests should assert the absence of old `build.sh` and runtime-only flags, not only the presence of new `build.py` argv.
+
+## Files
+
+None recorded.

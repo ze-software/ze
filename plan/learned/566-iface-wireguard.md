@@ -189,18 +189,18 @@ transitive `mdlayher/genetlink` + `mdlayher/netlink` dependencies.
   GetWireguardDevice
 - `internal/component/iface/iface.go` -- DiscoveredInterface.Wireguard
   field
-- `internal/plugins/ifacenetlink/wireguard_linux.go` -- netlink.LinkAdd
+- `internal/plugins/iface/netlink/wireguard_linux.go` -- netlink.LinkAdd
   for netdev create, wgctrl.Client.ConfigureDevice for peer config,
   deviceToSpec + buildWireguardConfig + buildPeerConfig translation
 - `internal/component/config/listener.go` -- Protocol field on
   ListenerEndpoint, listenerService.protocol, collectWireguardListeners,
   protocolLabel helper, cross-protocol conflict check
-- `cmd/ze/init/main.go` -- emitWireguardBlock helper in
+- `internal/plugins/init/main.go` -- emitWireguardBlock helper in
   generateInterfaceConfig, secret.Encode for private-key and
   preshared-key
 - `test/reload/test-tx-iface-wireguard-{apply,modify,remove,invalid-*}.ci`
   -- 5 reload wiring tests
-- `internal/plugins/ifacenetlink/wireguard_linux_test.go` -- 5
+- `internal/plugins/iface/netlink/wireguard_linux_test.go` -- 5
   integration tests gated on CAP_NET_ADMIN + wireguard module
 - `internal/component/iface/wireguard_test.go` -- 9 parser unit tests
 - `internal/component/iface/config_test.go` -- 7 applyWireguards
@@ -209,7 +209,7 @@ transitive `mdlayher/genetlink` + `mdlayher/netlink` dependencies.
   structural tests
 - `internal/component/config/listener_test.go` -- 4 listener protocol
   + wireguard collector tests
-- `cmd/ze/init/config_test.go` -- 2 generateInterfaceConfig wireguard
+- `internal/component/iface/emit_test.go` -- 2 generateInterfaceConfig wireguard
   emitter tests
 - `docs/features.md`, `docs/features/interfaces.md` -- capability table,
   new "WireGuard Configuration" section

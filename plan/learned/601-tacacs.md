@@ -101,7 +101,7 @@ without disturbing recovery paths.
 - `internal/component/plugin/server/command.go` -- accountant hook in Dispatcher
 - `internal/component/ssh/ssh.go` -- SSH auth success log includes mapped profiles (proves priv-lvl -> profile wiring)
 - `cmd/ze-test/{main,tacacs_mock}.go` -- mock server (AUTHOR deny, single-connect echo, connection counter)
-- `cmd/ze/tacacs/main.go` -- `ze tacacs show` offline reachability probe (AC-13)
+- `internal/component/tacacs/cli/main.go` -- `ze tacacs show` offline reachability probe (AC-13)
 - `test/plugin/tacacs-{auth,fallback,local-only,acct,readonly,author,show,singleconnect}.ci` -- wiring tests
 - `rfc/short/rfc8907.md` -- RFC summary
 - `docs/{features,comparison}.md`, `docs/guide/{tacacs,configuration}.md`,

@@ -119,8 +119,8 @@ place to prove its wiring.
 - `internal/component/vpp/vpp.go` -- `Run`/`runOnce` external branch
 - `internal/component/vpp/{config,vpp}_test.go` -- 5 new tests
 - `test/scripts/vpp_stub.py` -- Python GoVPP-API stub
-- `cmd/ze-test/vpp.go`, `cmd/ze-test/main.go` -- runner subcommand
-- `cmd/ze-test/peer.go` -- `SendRoutes` merge fix
+- `internal/test/cli/cmd_vpp.go`, `cmd/ze-test/main.go` -- runner subcommand
+- `internal/test/cli/cmd_peer.go` -- `SendRoutes` merge fix
 - `test/vpp/001-boot.ci`, `test/vpp/002-fib-route.ci` -- first two wiring tests
 - `plan/spec-vpp-0-umbrella.md` -- child-spec row + MVP-backstop note
 - `docs/guide/vpp.md`, `docs/features.md`, `docs/functional-tests.md` -- user-facing docs

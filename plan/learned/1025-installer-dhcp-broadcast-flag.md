@@ -92,3 +92,7 @@ linux/amd64 and running it on the linux appliance builder (`TestDHCPRequestsBroa
 End-to-end on-hardware confirmation (rebuild initrd via `pxe.sh`, re-boot the
 I226 target, watch the DISCOVER draw a broadcast reply and the image download
 start) is the deploy step that follows this commit.
+
+## Files
+
+None recorded.

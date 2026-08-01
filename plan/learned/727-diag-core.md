@@ -37,21 +37,21 @@ Ze on gokrazy appliances has no external Linux tools (ss, dmesg, lsof, dig, nc, 
 - `internal/core/procfs/reader_linux.go` -- ReadFileLines
 - `internal/core/procfs/reader_other.go` -- stub
 - `internal/core/procfs/reader_test.go` -- unit tests
-- `internal/component/cmd/show/tcp_check.go` -- TCP connectivity check
+- `internal/plugins/diag/cmd/tcp_check.go` -- TCP connectivity check
 - `internal/component/cmd/show/goroutines.go` -- goroutine dump with singleflight
 - `internal/component/cmd/show/sockets_linux.go` -- socket state
 - `internal/component/cmd/show/sockets_other.go` -- stub
-- `internal/component/cmd/show/kernel_log_linux.go` -- kernel log
-- `internal/component/cmd/show/kernel_log_other.go` -- stub
+- `internal/plugins/host-cmd/cmd/show_kernel_log_linux.go` -- kernel log
+- `internal/plugins/host-cmd/cmd/show_kernel_log_other.go` -- stub
 - `internal/component/cmd/show/fd_linux.go` -- FD inspection
 - `internal/component/cmd/show/fd_other.go` -- stub
-- `internal/component/cmd/show/dns.go` -- DNS lookup and cache stats
+- `internal/component/resolve/cmd/show_dns.go` -- DNS lookup and cache stats
 - `internal/component/cmd/show/profile.go` -- runtime profiling
 - `internal/component/cmd/show/memory_map_linux.go` -- process memory map
 - `internal/component/cmd/show/memory_map_other.go` -- stub
 - `internal/component/cmd/show/goroutines_test.go` -- goroutine tests
 - `internal/component/cmd/show/tcp_check_test.go` -- tcp-check tests
-- `internal/component/cmd/show/dns_test.go` -- DNS wiring tests
+- `internal/component/resolve/cmd/show_dns_test.go` -- DNS wiring tests
 - `internal/component/cmd/show/profile_test.go` -- profile tests
 - `internal/component/resolve/dns/cache_stats_test.go` -- cache counter tests
 - `docs/guide/production-diagnostics.md` -- symptom-based guide
@@ -66,15 +66,15 @@ Ze on gokrazy appliances has no external Linux tools (ss, dmesg, lsof, dig, nc, 
 - `test/plugin/show-system-memory-map.ci` -- functional test
 
 ### Created (BFD capture ring)
-- `internal/plugins/bfd/engine/raw_capture.go` -- RawCaptureRing + Loop capture methods
+- `internal/component/bfd/engine/raw_capture.go` -- RawCaptureRing + Loop capture methods
 
 ### Modified
-- `internal/plugins/bfd/bfd.go` -- pluginService implements BFDRawCaptureProvider, wires SetBFDRawCaptureProvider at OnStarted
-- `internal/plugins/bfd/engine/engine.go` -- rawCapture atomic pointer on Loop struct
-- `internal/plugins/bfd/engine/loop.go` -- captureRx/captureTx hooks in handleInbound/sendLocked
+- `internal/component/bfd/bfd.go` -- pluginService implements BFDRawCaptureProvider, wires SetBFDRawCaptureProvider at OnStarted
+- `internal/component/bfd/engine/engine.go` -- rawCapture atomic pointer on Loop struct
+- `internal/component/bfd/engine/loop.go` -- captureRx/captureTx hooks in handleInbound/sendLocked
 - `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- 9 new containers + dns parent
 - `internal/component/cmd/show/show.go` -- added `capBFD` constant
-- `internal/component/cmd/show/capture_raw.go` -- BFD capture ring support
+- `internal/plugins/diag/cmd/capture_raw.go` -- BFD capture ring support
 - `internal/component/resolve/dns/cache.go` -- hit/miss/eviction counters + Stats()
 - `internal/component/resolve/dns/resolver.go` -- CacheStats() method
 - `cmd/ze/hub/main.go` -- root privilege check + skipRootCheck for tests

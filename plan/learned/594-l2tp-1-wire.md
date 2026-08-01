@@ -136,5 +136,5 @@ Phase 1 delivers the parse/encode primitives used by every later phase.
   - `hidden.go` (+ `hidden_test.go`, `hidden_fuzz_test.go`)
   - `roundtrip_test.go`
 - `cmd/ze/main.go` — subcommand registration.
-- `cmd/ze/l2tp/main.go`, `decode.go`, `decode_test.go`.
+- `internal/component/l2tp/cli/main.go`, `decode.go`, `decode_test.go`.
 - `test/l2tp-wire/decode-sccrq.ci`, `decode-truncated.ci`.

@@ -66,3 +66,7 @@ BGP-specific `bgp-redistribute-egress` plugin with a generic
 - When moving format/builder functions to a new package, check that error
   handling behavior is preserved. The old code logged errors; the new code
   initially swallowed them.
+
+## Files
+
+None recorded.

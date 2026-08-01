@@ -22,3 +22,7 @@ spec-install-4: provisioning server subcommand that generates ze config from CLI
 - `fmt.Sprintf` for error messages is also blocked. Use `fmt.Errorf` (allowed) or `errors.New`.
 - `exec.Command` is blocked by linter; must use `exec.CommandContext`.
 - `TestAvailablePlugins` in `cmd/ze/main_test.go` maintains a hardcoded expected plugin list. New plugins from specs 1-3 (imageserver, tftpserver) must be added to this list.
+
+## Files
+
+None recorded.

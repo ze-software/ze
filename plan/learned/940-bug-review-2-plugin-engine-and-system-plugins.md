@@ -26,3 +26,7 @@ Plugin correctness is a lifecycle property. Startup, reload, rollback, shutdown,
 ## Verification
 
 - Child report includes wiring/coverage audit table, accepted findings, plausible findings, rejected candidates, and assumptions resolved.
+
+## Files
+
+None recorded.

@@ -52,3 +52,7 @@ UPDATE through per-peer egress logic; locrib only tracks one global best.
   within noise (~148 ns/op, 32 B/op, 1 alloc/op).
 - Functional: `test/plugin/rib-forward-handle-observed.ci` drives a real BGP UPDATE
   through the daemon, asserts observer log line.
+
+## Files
+
+None recorded.

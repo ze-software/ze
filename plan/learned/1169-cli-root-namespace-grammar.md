@@ -26,3 +26,7 @@ The CLI grammar rules R1-R9 (`ai/rules/cli-grammar.md`) were enforced only over 
 
 ## Coverage boundary (scope of the deliverable)
 The feeder governs the **root** surface only. It does NOT cover the local-handler surface (`registry.MustRegisterLocalMeta`, now including `update serve`): `RegisterLocalMeta`/`RegisterLocal` (`registry.go:172-195`) validate only empty-path and nil-handler, never command-name grammar, and `validateCommandName` has no caller. So a future hyphenated *local* meta would not be flagged. This was outside this spec's root-scoped gate deliverable; extending the gate to local metas is a separate piece of work. Three further items are orthogonal to this spec and were left untouched by design: root-level flags like `ze --plugins` are an R3 (no `--flag`) question, not R9 (the Phase 6 feeder's `b>0` guard deliberately skips leading-hyphen roots); the two legitimate `format` value vocabularies (`set cli format` text|table|json|yaml|ndjson vs the editor `| format tree|config`) are unreconciled but both preserved; and `ze pipe` still takes one shell-quoted pipe expression rather than repeated operators natively.
+
+## Files
+
+None recorded.

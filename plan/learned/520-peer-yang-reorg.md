@@ -38,4 +38,4 @@ The peer configuration in `ze-bgp-conf.yang` had a flat structure with ~20 leave
 - `internal/component/bgp/config/resolve.go` -- updated merge targets
 - `internal/component/bgp/reactor/config.go` -- parsePeerFromTree with new container paths
 - `internal/exabgp/migration/migrate.go` -- updated field target paths
-- `cmd/ze/config/cmd_migrate.go` -- migration tool CLI
+- `internal/component/config/cli/cmd_migrate.go` -- migration tool CLI

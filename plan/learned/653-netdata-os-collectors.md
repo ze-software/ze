@@ -124,12 +124,12 @@ exactly (context, units, chart/dimension/family labels, sanitization rules).
   Netdata on 9273, diff scraped metric lists) is the final acceptance step
   but requires a real Linux box; not runnable in CI.
 
-## Files Touched
+## Files
 
 - `internal/component/telemetry/collector/` -- 30+ collectors + framework
-- `internal/component/telemetry/yang/ze-telemetry-conf.yang` -- `prefix`,
+- `internal/component/telemetry/exporter/yang/ze-telemetry-conf.yang` -- `prefix`,
   `interval`, per-collector list
-- `internal/core/metrics/server.go` -- `Prefix`, `Interval`, `Collectors`
+- `internal/component/telemetry/exporter/server.go` -- `Prefix`, `Interval`, `Collectors`
   fields in `TelemetryConfig`, parsing from YAML tree
 - `internal/component/bgp/config/loader_create.go` -- wiring call to
   `collector.StartOSCollectors`

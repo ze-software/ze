@@ -53,4 +53,8 @@ Before creating a file: "one concern?" Before adding to one: "belongs to this fi
 
 ## Reference
 
-Learned: `plan/learned/363-file-modularity.md`. Prior: `plan/learned/221-file-splitting.md`.
+Learned: 363 (file modularity), and 221 before it (the first splitting round).
+Both were retired on 2026-08-01. Neither was carried into
+`plan/learned/DESIGN-HISTORY.md`, which records subsystem design and not agent
+workflow. The header of that file gives the git-recovery route for a retired
+summary.

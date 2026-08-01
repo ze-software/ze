@@ -152,19 +152,19 @@ where those paths' existing output format is preserved.
 
 ## Files
 
-- `internal/component/bgp/plugins/rib/storage/store_bart.go` (new) -- generic
+- `internal/core/rib/store/store_bart.go` (new) -- generic
   `Store[T]` with BART+map dispatch under default build
-- `internal/component/bgp/plugins/rib/storage/store_map.go` (new) -- generic
+- `internal/core/rib/store/store_map.go` (new) -- generic
   `Store[T]` map-only under `-tags maprib`
-- `internal/component/bgp/plugins/rib/storage/store_test.go` (new) --
+- `internal/core/rib/store/store_test.go` (new) --
   table-driven coverage of the generic surface
-- `internal/component/bgp/plugins/rib/storage/store_bart_test.go` (new) --
+- `internal/core/rib/store/store_bart_test.go` (new) --
   trie-only malformed-input assertion gated by `!maprib`
 - `internal/component/bgp/plugins/rib/storage/familyrib_bart.go` -- rewritten
   as a thin wrapper around `*Store[RouteEntry]` + lifecycle layer
 - `internal/component/bgp/plugins/rib/storage/familyrib_map.go` -- same
   rewrite under the `maprib` tag
-- `internal/component/bgp/plugins/rib/storage/nlrikey.go` -- added
+- `internal/core/rib/store/nlrikey.go` -- added
   `PrefixToNLRIInto(pfx, buf)` for zero-alloc iteration
 - `internal/component/bgp/plugins/rib/rib_bestchange.go` -- dropped
   `bestPathRecord.Prefix`; introduced `bestPrevStore` pairing two

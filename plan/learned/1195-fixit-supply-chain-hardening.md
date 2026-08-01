@@ -47,3 +47,7 @@ their owning sessions. Scope decision recorded here and in the drain recipe
 Do not trust spec file paths for a "fresh area": verify the package exists before
 writing a test into it. And when a manual re-vendor script exists, assume the vendored
 copy may already be regressed — check the markers before writing the guard.
+
+## Files
+
+None recorded.

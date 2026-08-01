@@ -45,15 +45,15 @@ against the PKI store and interface list.
 
 ## Files
 
-- `internal/component/ipsec/types.go` -- algorithm enums, struct types, Changed()
-- `internal/component/ipsec/config.go` -- tree-walker parser
-- `internal/component/ipsec/validate.go` -- cross-reference validation
+- `internal/component/ike/ipsec/types.go` -- algorithm enums, struct types, Changed()
+- `internal/component/ike/ipsec/config.go` -- tree-walker parser
+- `internal/component/ike/ipsec/validate.go` -- cross-reference validation
 - `internal/component/ipsec/register.go` -- blank import for schema registration
-- `internal/component/ipsec/yang/ze-ipsec-conf.yang` -- YANG module
-- `internal/component/ipsec/yang/embed.go` -- go:embed
-- `internal/component/ipsec/yang/register.go` -- init() yang.RegisterModule
-- `internal/component/ipsec/types_test.go` -- enum round-trip tests
-- `internal/component/ipsec/config_test.go` -- parser and validation tests
+- `internal/component/ike/ipsec/yang/ze-ipsec-conf.yang` -- YANG module
+- `internal/component/ike/ipsec/yang/embed.go` -- go:embed
+- `internal/component/ike/ipsec/yang/register.go` -- init() yang.RegisterModule
+- `internal/component/ike/ipsec/types_test.go` -- enum round-trip tests
+- `internal/component/ike/ipsec/config_test.go` -- parser and validation tests
 - `cmd/ze/hub/main.go` -- blank import of ipsec package
 - `docs/features.md` -- IPsec data model feature row
 - `docs/guide/configuration.md` -- vpn { ipsec {} } config guide section

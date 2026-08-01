@@ -50,3 +50,7 @@ IKE_SA_INIT and IKE_AUTH exchanges, config reconciliation, and SA lifecycle even
 - The IKE engine and ipsec component both register for ConfigRoots `["vpn"]`. Both receive
   the same config section. This is by design (ipsec owns the schema, engine consumes the
   parsed config), but watch for ordering issues if ipsec grows its own OnConfigure.
+
+## Files
+
+None recorded.

@@ -111,3 +111,7 @@ all direction sites by `sa.IsInitiator`. Builds on ipsec-13 (owner loop, `PeerSe
 - In-process end-to-end tests (drive both peers' `LastSentMsg` into each other via `handleInbound`)
   are the deterministic correctness gate for a protocol role; interop against a real peer catches
   the things a self-consistent implementation cannot (here: ID-type constraints).
+
+## Files
+
+None recorded.

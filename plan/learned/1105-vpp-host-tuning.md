@@ -64,3 +64,7 @@ inventory yet.
   already exercises `//go:build linux` files on a linux host.
 - **Go 1.26 `new(expr)`** returns a pointer to a copy; the codebase uses
   `new(uint8(0))` in tests — match it for `*uint32` fields.
+
+## Files
+
+None recorded.

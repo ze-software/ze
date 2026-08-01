@@ -28,19 +28,19 @@ Ze had three independent session models (PPPoE, L2TP, PPP) with no shared subscr
 ## Files
 
 ### Created
-- `internal/component/subscriber/session.go`
-- `internal/component/subscriber/registry.go`
-- `internal/component/subscriber/handler_registry.go`
-- `internal/component/subscriber/service.go`
-- `internal/component/subscriber/metrics.go`
-- `internal/component/subscriber/register.go`
-- `internal/component/subscriber/events/events.go`
-- `internal/component/subscriber/registry_test.go`
-- `internal/component/subscriber/handler_registry_test.go`
-- `internal/component/subscriber/events/events_test.go`
+- `internal/component/l2tp/subscriber/session.go`
+- `internal/component/l2tp/subscriber/registry.go`
+- `internal/component/l2tp/subscriber/handler_registry.go`
+- `internal/component/l2tp/subscriber/service.go`
+- `internal/component/l2tp/subscriber/metrics.go`
+- `internal/component/l2tp/subscriber/register.go`
+- `internal/component/l2tp/subscriber/events/events.go`
+- `internal/component/l2tp/subscriber/registry_test.go`
+- `internal/component/l2tp/subscriber/handler_registry_test.go`
+- `internal/component/l2tp/subscriber/events/events_test.go`
 - `internal/component/l2tp/subscriber_bridge.go`
-- `internal/component/pppoe/drain.go`
-- `internal/component/cmd/subscriber/subscriber.go`
+- `internal/component/l2tp/pppoe/drain.go`
+- `internal/component/l2tp/subscriber/cmd/subscriber.go`
 - `internal/component/cmd/subscriber/yang/ze-subscriber-cmd.yang`
 - `internal/component/cmd/subscriber/yang/embed.go`
 - `internal/component/cmd/subscriber/yang/register.go`
@@ -48,6 +48,6 @@ Ze had three independent session models (PPPoE, L2TP, PPP) with no shared subscr
 ### Modified
 - `internal/component/l2tp/handler_registry.go` (delegate auth/pool to subscriber)
 - `internal/component/l2tp/subsystem.go` (wire subscriber bridge, bind metrics, publish service)
-- `internal/component/pppoe/subsystem.go` (expand event consumer, wire auth/pool drains, emit subscriber events)
+- `internal/component/l2tp/pppoe/subsystem.go` (expand event consumer, wire auth/pool drains, emit subscriber events)
 - `internal/component/l2tp/plugins/auth_radius/coa.go` (add subscriber registry lookup for CoA)
 - `internal/component/plugin/all/all.go` (regenerated)

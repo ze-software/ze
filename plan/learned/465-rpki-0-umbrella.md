@@ -1,6 +1,6 @@
 # 465 -- RPKI Umbrella Architecture
 
-## Objective
+## Context
 
 Design and implement RPKI origin validation as an optional plugin (`bgp-rpki`) that coordinates with `bgp-adj-rib-in` to gate routes pending validation. When not loaded, zero overhead.
 

@@ -1,6 +1,6 @@
 # 410 -- Validate Completion
 
-## Objective
+## Context
 
 Wire the existing `ze:validate` extension's `CompleteFn` into the CLI completer so that YANG leaves/leaf-lists annotated with `ze:validate` get tab-completion from their registered validator functions, instead of falling through to a generic `<value>` hint.
 

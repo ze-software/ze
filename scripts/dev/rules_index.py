@@ -154,8 +154,12 @@ def build(rules_dir):
     rows = []
     missing = []
     for md in sorted(rules_dir.glob("*.md")):
-        # INDEX.md and CONDENSED.md are generated aggregates, not rules.
-        if md.name in ("INDEX.md", "CONDENSED.md"):
+        # A generated aggregate is not a rule. They are recognised by SHAPE --
+        # an all-caps stem, the repo's convention for INDEX.md / CONDENSED.md /
+        # TRIGGERS.md / CORE.md -- so the next artifact needs no edit here. The
+        # two-name list this replaces made TRIGGERS.md and CORE.md land in the
+        # index as malformed rules on the day they were generated.
+        if md.stem.isupper():
             continue
         raw = md.read_text(encoding="utf-8", errors="replace").splitlines()
         title = title_of(raw, md.stem)

@@ -33,3 +33,7 @@
 - iface.GetStats returns zeros on non-Linux platforms; accounting will report zeros which is correct (no kernel pppN on non-Linux).
 
 **Verification:** `go test -race ./internal/component/l2tp/plugins/auth_radius/... -v` -- all 62 tests pass. `make ze-verify` passes (only pre-existing scripts/evidence build failure).
+
+## Files
+
+None recorded.

@@ -1,6 +1,6 @@
 # 405 -- LLGR Capability Wire + Config
 
-## Objective
+## Context
 
 Add LLGR capability (code 71) wire decode/encode per RFC 9494, YANG config for long-lived-stale-time, CLI decode, and well-known community constants (LLGR_STALE, NO_LLGR).
 
@@ -31,6 +31,6 @@ Add LLGR capability (code 71) wire decode/encode per RFC 9494, YANG config for l
 - `internal/component/bgp/plugins/gr/gr_llgr.go` -- all LLGR capability handling (decode, config, CLI)
 - `internal/component/bgp/plugins/gr/register.go` -- cap code 71, community name registration
 - `internal/component/bgp/plugins/gr/yang/ze-graceful-restart.yang` -- long-lived-stale-time leaf
-- `internal/component/bgp/attribute/community.go` -- LLGR_STALE, NO_LLGR constants
+- `internal/core/bgp/attribute/community.go` -- LLGR_STALE, NO_LLGR constants
 - `test/parse/graceful-restart-llgr.ci` -- config parsing functional test
 - `test/plugin/plugin-gr-llgr-capa.ci` -- CLI capability decode functional test

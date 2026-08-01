@@ -44,6 +44,6 @@ ze-chaos had 9 built-in chaos action types (TCPDisconnect, NotificationCease, et
 - `internal/chaos/guard/guard.go` -- 6 new cases in exhaustive switch
 - `internal/chaos/web/control.go` -- 6 new entries in chaosActionTypes, icon, label, impact
 - `internal/chaos/web/dashboard_test.go` -- updated button count 9->15
-- `cmd/ze-chaos/main.go` -- --chaos-actions flag, parseChaosActions, usage string, engine import
-- `cmd/ze-chaos/orchestrator.go` -- EnabledActions in ChaosConfig, engine import
-- `cmd/ze-chaos/scheduler.go` -- pass EnabledActions to NewScheduler, pass Params in handleManualTrigger
+- `cmd/ze/ze_chaos_run.go` -- --chaos-actions flag, parseChaosActions, usage string, engine import
+- `internal/chaos/orchestrator/types.go` -- EnabledActions in ChaosConfig, engine import
+- `internal/chaos/orchestrator/scheduler.go` -- pass EnabledActions to NewScheduler, pass Params in handleManualTrigger

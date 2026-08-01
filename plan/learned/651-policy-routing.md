@@ -36,3 +36,7 @@ Ze needed policy-based routing to replace the VyOS Surfprotect config on the Exa
 - IPv6 next-hop address would panic at `As4()` in netlink code. Added IPv6 rejection at parse time.
 - Policy and rule names were not validated, allowing special characters that would produce invalid nftables term names.
 - Kernel system tables 253-255 were not rejected, allowing `then { table 254; }` to install rules into the main table.
+
+## Files
+
+None recorded.

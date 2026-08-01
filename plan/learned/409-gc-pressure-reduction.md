@@ -1,6 +1,6 @@
 # 409 -- GC Pressure Reduction on Event Dispatch Hot Path
 
-## Objective
+## Context
 
 Reduce per-UPDATE heap allocations on the event dispatch hot path to lower GC pressure,
 targeting the three highest-frequency allocation sites in `events.go`.

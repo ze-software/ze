@@ -23,41 +23,10 @@ pattern below).
 
 ## Tooling friction
 
-### Auto-linter strips newly added imports between Edits
+### `c_silent_ignore` rejects bare `default:`
 
-**Symptom.** After an `Edit` that adds an import, the next `Edit` that
-uses the imported identifier fails to compile with
-`undefined: <identifier>`. Re-adding the import produces the same result.
-
-**Cause.** The then-hook `auto_linter.sh` ran `goimports -w` on every
-successful `Edit` and `Write`. `goimports` deletes any `import` whose
-identifier is not referenced in the current file content. Two-Edit
-sequences (Edit 1 adds import, Edit 2 adds usage) leave the file in a
-state where the import is unused between the two Edits.
-
-**Status.** Resolved 2026-04-19: the successor (`auto-lint` in
-`.claude/hooks/posttool-writeedit.py`) runs `goimports -format-only`,
-which neither adds nor removes imports. Same-edit import + usage
-remains the convention (`ai/rules/go-standards.md`).
-
-**Evidence.** Observed at least 25 times: 288, 410, 437, 440, 449, 450,
-462, 477 (twice), 482, 503, 507, 526, 544, 546, 548, 551, 553, 562, 578,
-600, 606, 609, 633, 634, 635.
-
-**Avoid it by.**
-1. Add the import AND at least one usage of its identifier in a single
-   `Edit` call, OR
-2. Use `Write` to deliver the whole file in one call.
-
-**Recover if you hit it.** Re-add the import and the usage together in
-a single `Edit`.
-
----
-
-### `block-silent-ignore.sh` rejects bare `default:`
-
-**Symptom.** A `Write` or `Edit` is rejected by hook
-`block-silent-ignore.sh`, even though the `default:` branch body
+**Symptom.** A `Write` or `Edit` is rejected by `c_silent_ignore`
+(`.claude/hooks/pretool-writeedit.py`), even though the `default:` branch body
 returns an error, logs a warning, or panics.
 
 **Cause.** The hook regex is `default:\s*$`, which matches any
@@ -78,7 +47,7 @@ suppress the hook.
 
 ---
 
-### `check-existing-patterns.sh` blocks duplicate type or function names
+### `c_check_existing_patterns` blocks duplicate type or function names
 
 **Symptom.** `Write` of a new `.go` file is rejected because the first
 exported `type` or `func` identifier already exists somewhere under
@@ -129,6 +98,11 @@ flagged by the user across sessions.
    the review if any symbol is unreachable.
 4. `before-writing-code.md` item 5: name the entry point and file:line
    before writing any feature code.
+
+**Gated by.** `make ze-verify-wiring-docs`, which runs `check_wiring` in
+`scripts/dev/verify_wiring_docs.py`. It fails when a new exported symbol under
+`internal/` or `cmd/` has no non-test caller, so this pattern is now caught
+mechanically rather than at review time.
 
 **Recover if you hit it.** Identify every unwired symbol via
 `grep -rn 'Symbol' internal/ cmd/ --include="*.go" | grep -v _test.go`.
@@ -562,6 +536,11 @@ record the uncovered remainder as an explicit, tracked backlog in the
 spec or handoff -- never leave it implicit. A grep- or registry-driven
 audit that enumerates every applicable site beats per-file judgement.
 See `ai/rules/testing.md` "Back-Fill New Test Types".
+
+**Gated by.** `make ze-test-sensitivity-check`, partly. Its tag-orphan ratchet
+catches a `_test.go` whose build tag no `go test` supplies, so a new test type
+that nothing runs fails. It cannot tell whether an applicable site was skipped,
+so the back-fill sweep above is still yours to run.
 
 **Recover if you hit it.** Run the new test type's selector across the
 whole applicable set, triage the gaps, and file the remainder as

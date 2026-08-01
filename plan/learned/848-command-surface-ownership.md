@@ -96,7 +96,7 @@ closure.
 - `cmd/ze/main.go`, `cmd/ze/help_ai.go`, `cmd/ze/help_command.go`
 - `internal/core/{helpfmt,suggest,ssh/client}/` + `cmd/ze/internal/{helpfmt,suggest,ssh/client}/` shims
 - `internal/component/{iface,firewall,tacacs,resolve,l2tp,traffic,plugin,bgp,config}/cli/`,
-  `internal/plugins/sysctl/cli/`, `internal/core/env/cli/`,
+  `internal/plugins/sysctl/cli/`, `internal/plugins/env/`,
   `internal/component/config/{yang,schema,storage}/cli/`, `internal/component/cli/client/`
 - `scripts/checks/command_ownership.go`, `scripts/checks/checks_test.go`, `mk/inventory.mk`,
   `scripts/dev/verify_wiring_docs.py`, `scripts/docvalid/commands.go`

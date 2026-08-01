@@ -17,6 +17,7 @@ import sys
 import tempfile
 import textwrap
 import time
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -301,13 +302,150 @@ def message_text(subject: str, body: list[str]) -> str:
     return "\n".join(parts) + "\n"
 
 
-def lesson_worthy(paths: tuple[str, ...]) -> bool:
-    for path in paths:
-        if path in LESSON_WORTHY_FILES:
-            return True
-        if path.startswith(LESSON_WORTHY_PREFIXES):
-            return True
-    return False
+# A repeated one-for-one token swap is a mechanical substitution (a rename applied
+# everywhere). A SINGLE swapped token is an edit -- a changed threshold, a flipped
+# default, a different function called -- and an edit can carry a lesson. Two is
+# where the helper stops guessing and starts asking.
+MIN_SUBSTITUTION_SITES = 2
+
+
+def _lesson_scope(paths: tuple[str, ...]) -> tuple[str, ...]:
+    """The commit's paths whose change could plausibly carry a reusable lesson."""
+    return tuple(
+        path
+        for path in paths
+        if path in LESSON_WORTHY_FILES or path.startswith(LESSON_WORTHY_PREFIXES)
+    )
+
+
+# Words and single punctuation marks, never whitespace runs. Splitting on
+# whitespace alone would bury a renamed identifier inside `widen(value):`, and the
+# rename is exactly the mechanical case this has to recognize.
+LESSON_TOKEN_RE = re.compile(r"\w+|[^\w\s]")
+
+
+def _lesson_tokens(text: str) -> list[str]:
+    return LESSON_TOKEN_RE.findall(text)
+
+
+def _token_counts(changes: tuple[tuple[str, str, str], ...], sign: str) -> Counter[str]:
+    return Counter(
+        token for _, s, text in changes if s == sign for token in _lesson_tokens(text)
+    )
+
+
+def _indent(text: str) -> str:
+    return text[: len(text) - len(text.lstrip())]
+
+
+def _line_shapes(
+    changes: tuple[tuple[str, str, str], ...], sign: str
+) -> list[tuple[str, tuple[str, ...]]]:
+    """One (indent, ordered tokens) record per changed line, in diff order.
+
+    Ordered, because order is meaning. `count > baseline` and `baseline > count`
+    hold the same words and say opposite things. Indented, because indentation is
+    meaning too: dedenting a `return` out of a loop body changes no word and
+    changes what the function returns.
+
+    A line with no tokens is not a record. Blank lines and whitespace carry
+    nothing to compare, and counting them would demand a summary for a spacing
+    change.
+    """
+    shapes = []
+    for _, s, text in changes:
+        if s != sign:
+            continue
+        tokens = tuple(_lesson_tokens(text))
+        if tokens:
+            shapes.append((_indent(text), tokens))
+    return shapes
+
+
+def _mechanical_kind(changes: tuple[tuple[str, str, str], ...]) -> str | None:
+    """Name the mechanical shape of a diff, or None when it carries new content.
+
+    Compares the ordered SEQUENCE of changed lines added against those removed,
+    each line taken as its indentation plus its tokens in order. A block that
+    leaves one file and arrives unchanged in another leaves the two sequences
+    equal, which is the case this exists to recognize. Anything that changes what
+    a line SAYS -- a new token, a swapped operand, a different nesting level --
+    breaks the sequence, and that is what a learned summary exists to explain.
+
+    Order and indentation are both load-bearing, so neither is normalized away.
+    `if count > baseline:` to `if baseline > count:` is a logic inversion whose
+    words are untouched; an order-free comparison called it a reformat. The cost
+    of reading them strictly is a re-wrapped paragraph or a re-homed block being
+    asked for a summary it may not owe, which `--lesson-not-needed "<why>"`
+    clears in one flag. The cost of reading them loosely is a silent inversion.
+
+    A pure DELETION is not mechanical: removing a gate is a behavior change.
+    """
+    shapes_added = _line_shapes(changes, "+")
+    if shapes_added == _line_shapes(changes, "-"):
+        return "no new text" if not shapes_added else "a move or a reformat"
+    added, removed = _token_counts(changes, "+"), _token_counts(changes, "-")
+    new, gone = added - removed, removed - added
+    if len(new) == 1 and len(gone) == 1:
+        ((new_token, new_count),) = new.items()
+        ((old_token, old_count),) = gone.items()
+        if new_count == old_count >= MIN_SUBSTITUTION_SITES:
+            return (
+                f"a repeated {old_token} -> {new_token} substitution "
+                f"({new_count} sites)"
+            )
+    return None
+
+
+def _lesson_new_content(changes: tuple[tuple[str, str, str], ...]) -> str:
+    """One changed line this commit did not merely relocate, as evidence.
+
+    Three shapes, in the order a reader can act on them: a line carrying a word
+    that is new, a line whose words all existed but now sit in a different order
+    or at a different indent, and a removal. The middle one has to be named as
+    what it is -- pointing at a removed line to explain a reordering sends the
+    reader to the wrong end of the diff.
+    """
+    new = _token_counts(changes, "+") - _token_counts(changes, "-")
+    for path, sign, text in changes:
+        if sign == "+" and any(token in new for token in _lesson_tokens(text)):
+            return f"{path}: {textwrap.shorten(text.strip(), 96, placeholder=' ...')}"
+    removed_shapes = _line_shapes(changes, "-")
+    added_lines = [(p, t) for p, s, t in changes if s == "+" and _lesson_tokens(t)]
+    for index, (path, text) in enumerate(added_lines):
+        shape = (_indent(text), tuple(_lesson_tokens(text)))
+        if index >= len(removed_shapes) or removed_shapes[index] != shape:
+            body = textwrap.shorten(text.strip(), 80, placeholder=" ...")
+            return f"{path}: reordered or re-indented, not relocated: {body}"
+    for path, sign, text in changes:
+        if sign == "-":
+            body = textwrap.shorten(text.strip(), 88, placeholder=" ...")
+            return f"{path}: removed {body}"
+    return ""
+
+
+def lesson_worthy(
+    paths: tuple[str, ...],
+    changes: tuple[tuple[str, str, str], ...] | None = None,
+) -> bool:
+    """Does this commit warrant a learned summary?
+
+    Two questions, in order. WHICH paths changed decides whether the question is
+    worth asking: a commit touching no rule, skill, tooling script, or make
+    surface never carried a lesson. WHAT changed in those paths decides the
+    answer: relocated content teaches nothing, new content can.
+
+    `changes` is the prospective diff over the scoped paths as (path, '+'|'-',
+    text) triples. It stays optional so the path question can be asked alone.
+    With no diff the answer is True, which is the pre-content behavior: the
+    demand is the status quo, and one flag (`--lesson-not-needed`) clears it.
+    """
+    scope = _lesson_scope(paths)
+    if not scope:
+        return False
+    if changes is None:
+        return True
+    return _mechanical_kind(tuple(c for c in changes if c[0] in scope)) is None
 
 
 def learned_paths(paths: tuple[str, ...]) -> tuple[str, ...]:
@@ -346,14 +484,30 @@ def lesson_comment(
     remove_paths: tuple[str, ...],
     required: bool,
     lesson_not_needed: str | None,
+    changes: tuple[tuple[str, str, str], ...] | None = None,
 ) -> str:
+    """The `Lesson:` line for the generated script, or a refusal.
+
+    `required` is the operator saying so with `--lesson-required`, and it always
+    refuses. `changes` is the commit's own diff, which decides the AUTOMATIC
+    demand: content the commit adds warrants a summary, content it only moves
+    does not.
+    """
     paths = add_paths + remove_paths
+    scope = _lesson_scope(paths)
+    scoped = tuple(c for c in (changes or ()) if c[0] in scope)
     learned = learned_paths(add_paths)
     reason = ""
     if lesson_not_needed is not None:
         reason = lesson_not_needed.strip()
         if len(reason) < 12:
-            raise UsageError("--lesson-not-needed reason is too short")
+            raise UsageError(
+                "--lesson-not-needed reason is too short: "
+                f'"{reason}" is {len(reason)} characters, 12 is the minimum.\n'
+                "  The reason is the record of why this change teaches nothing "
+                "reusable,\n"
+                "  so it has to say something a later reader can check."
+            )
     if required and lesson_not_needed:
         raise UsageError(
             "--lesson-required cannot be combined with --lesson-not-needed"
@@ -361,15 +515,37 @@ def lesson_comment(
     if learned:
         return "Lesson: " + ", ".join(learned)
     if required:
-        raise UsageError("lesson is required; include plan/learned/NNN-name.md")
-    if lesson_worthy(paths):
+        raise UsageError(
+            "--lesson-required was passed and no learned summary is staged.\n"
+            "  expected: one plan/learned/NNN-<name>.md among the --file paths\n"
+            "  next: allocate it with `scripts/dev/commit_helper.py learned-next "
+            "<stem>`,\n"
+            "        write it per plan/learned/METHODOLOGY.md, and pass it with "
+            "--file"
+        )
+    if lesson_worthy(paths, changes):
         if not reason:
+            evidence = _lesson_new_content(scoped) or "new lines in " + ", ".join(scope)
             raise UsageError(
-                "lesson-worthy paths changed; include plan/learned/NNN-name.md or pass --lesson-not-needed with the reason"
+                "no learned summary is staged, and this commit adds content "
+                "rather than\n"
+                "  moving it, so the helper cannot tell whether a lesson was "
+                "lost.\n"
+                "  evidence: " + evidence + "\n"
+                "  expected: a plan/learned/NNN-<name>.md among the --file paths, "
+                "or an\n"
+                "            explicit statement that there is no lesson\n"
+                "  next: write the summary (plan/learned/METHODOLOGY.md), or pass\n"
+                '        --lesson-not-needed "<why this change teaches nothing '
+                'reusable>"'
             )
         return "Lesson: not needed - " + reason
     if reason:
         return "Lesson: not needed - " + reason
+    if scoped:
+        kind = _mechanical_kind(scoped)
+        if kind:
+            return "Lesson: not needed - " + kind
     return "Lesson: not required by helper heuristic"
 
 
@@ -1274,18 +1450,24 @@ def deferral_unassigned_problems(repo: Path) -> list[str]:
     return problems
 
 
-def _prospective_added_lines(
-    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
-) -> list[tuple[str, str]]:
-    """The (path, '+' line) pairs this commit would introduce (added/modified files).
+def _prospective_line_changes(
+    repo: Path,
+    add_paths: tuple[str, ...],
+    remove_paths: tuple[str, ...],
+    *extra_args: str,
+) -> list[tuple[str, str, str]]:
+    """The (path, '+'|'-', text) triples this commit would record.
 
     Computed in a THROWAWAY index (GIT_INDEX_FILE) so the real staging area is
     never touched: read HEAD's tree, apply this commit's add/remove set, then
-    diff --cached -U0 --diff-filter=AM. That is exactly what the generated
-    `git add ... ; git commit` will record, and it captures brand-new files too.
+    diff --cached -U0. That is exactly what the generated `git add ... ;
+    git commit` will record, and it captures brand-new files too.
 
-    Each returned line is paired with the repo-relative path of the file it belongs
-    to (from the diff's `+++ b/<path>` header) so a caller can path-scope the scan.
+    Header parsing is state-tracked rather than prefix-matched. `--- ` and `+++ `
+    are read as headers only between a `diff --git` line and the first content
+    line, so a REMOVED source line whose own text starts with `-- ` (which reaches
+    the diff as `--- ...`) is content, not a path header. For a deleted file the
+    `+++` side is `/dev/null`, so the path falls back to the `---` side.
     """
     (repo / "tmp").mkdir(exist_ok=True)
     fd, index = tempfile.mkstemp(prefix="ze-commit-index-", dir=str(repo / "tmp"))
@@ -1310,22 +1492,70 @@ def _prospective_added_lines(
             git("add", "--", *add_paths)
         for path in remove_paths:
             git("rm", "--cached", "-q", "--", path)
-        diff = git("diff", "--cached", "--no-color", "-U0", "--diff-filter=AM").stdout
+        diff = git("diff", "--cached", "--no-color", "-U0", *extra_args).stdout
     finally:
         try:
             os.unlink(index)
         except OSError:
             pass
-    result: list[tuple[str, str]] = []
-    current = ""
+    result: list[tuple[str, str, str]] = []
+    old = new = ""
+    in_header = False
     for line in diff.splitlines():
-        if line.startswith("+++ "):
-            hdr = line[4:]  # "b/<path>" for A/M files, "/dev/null" never here
-            current = hdr[2:] if hdr.startswith("b/") else hdr
+        if line.startswith("diff --git "):
+            old = new = ""
+            in_header = True
             continue
-        if line.startswith("+") and not line.startswith("+++") and line != "+":
-            result.append((current, line))
+        if in_header and line.startswith("--- "):
+            hdr = line[4:]  # "a/<path>", or "/dev/null" for an added file
+            old = hdr[2:] if hdr.startswith("a/") else ""
+            continue
+        if in_header and line.startswith("+++ "):
+            hdr = line[4:]  # "b/<path>", or "/dev/null" for a deleted file
+            new = hdr[2:] if hdr.startswith("b/") else ""
+            in_header = False
+            continue
+        if line.startswith("+"):
+            result.append((new or old, "+", line[1:]))
+        elif line.startswith("-"):
+            result.append((new or old, "-", line[1:]))
     return result
+
+
+def _prospective_added_lines(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> list[tuple[str, str]]:
+    """The (path, '+' line) pairs this commit would introduce (added/modified files).
+
+    Each returned line keeps its leading '+' and is paired with the repo-relative
+    path of the file it belongs to, so a caller can path-scope the scan.
+    """
+    return [
+        (path, "+" + text)
+        for path, sign, text in _prospective_line_changes(
+            repo, add_paths, remove_paths, "--diff-filter=AM"
+        )
+        if sign == "+" and text != ""
+    ]
+
+
+def lesson_change_lines(
+    repo: Path, add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+) -> tuple[tuple[str, str, str], ...]:
+    """This commit's diff over its lesson-scoped paths, for `lesson_worthy`.
+
+    Returns an empty tuple when no scoped path changed, which `lesson_worthy`
+    already answers False on by path alone. Deletions are included (no
+    --diff-filter): removing a rule or a gate is content leaving the tree.
+    """
+    scope = set(_lesson_scope(add_paths + remove_paths))
+    if not scope:
+        return ()
+    return tuple(
+        change
+        for change in _prospective_line_changes(repo, add_paths, remove_paths)
+        if change[0] in scope
+    )
 
 
 def _deferral_prose(line: str) -> str:
@@ -1503,7 +1733,10 @@ def ste_problems(repo: Path, add_paths: tuple[str, ...]) -> list[str]:
         # interpreter removes this guard from every commit, and a gate that can
         # evaporate without a word is worse than no gate. Same shape as
         # discovery_index_verdicts.
-        print(f"warning: ste gate could not run ({exc}); prose is UNCHECKED", file=sys.stderr)
+        print(
+            f"warning: ste gate could not run ({exc}); prose is UNCHECKED",
+            file=sys.stderr,
+        )
         return []
     if res.returncode == STE_HABIT_GREW:
         # Advisory: print and let the commit through. Read the findings, fix what
@@ -1894,6 +2127,7 @@ def create(args: argparse.Namespace) -> int:
         remove_paths,
         args.lesson_required,
         args.lesson_not_needed,
+        lesson_change_lines(repo, add_paths, remove_paths),
     )
     block = CommitBlock(
         tag,

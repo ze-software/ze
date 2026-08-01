@@ -1,6 +1,6 @@
 # 463 -- zefs-socket-locking
 
-## Objective
+## Context
 
 Replace three coordination mechanisms (Unix socket, flock/.lock files, PID files) with SSH as the single external interface to the daemon. The daemon is the single writer; no cross-process locking is needed.
 
@@ -29,6 +29,6 @@ Replace three coordination mechanisms (Unix socket, flock/.lock files, PID files
 
 ## Files
 
-- Created: `cmd/ze/init/main.go`, `cmd/ze/init/main_test.go`
+- Created: `internal/plugins/init/main.go`, `internal/plugins/init/main_test.go`
 - Deleted: `pkg/zefs/flock_unix.go`, `pkg/zefs/flock_other.go`, `internal/core/pidfile/pidfile.go`, `internal/core/pidfile/pidfile_test.go`
-- Modified: `pkg/zefs/store.go`, `pkg/zefs/lock.go`, `internal/component/config/storage/storage.go`, `internal/component/plugin/server/server.go`, `internal/component/ssh/ssh.go`, `internal/component/ssh/yang/ze-ssh-conf.yang`, `internal/component/bgp/config/loader.go`, `cmd/ze/config/cmd_edit.go`, `cmd/ze/signal/main.go`, `cmd/ze/hub/main.go`
+- Modified: `pkg/zefs/store.go`, `pkg/zefs/lock.go`, `internal/component/config/storage/storage.go`, `internal/component/plugin/server/server.go`, `internal/component/ssh/ssh.go`, `internal/component/ssh/yang/ze-ssh-conf.yang`, `internal/component/bgp/config/loader.go`, `internal/component/config/cli/cmd_edit.go`, `internal/plugins/signal/main.go`, `cmd/ze/hub/main.go`

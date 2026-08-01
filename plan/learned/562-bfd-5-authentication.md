@@ -163,37 +163,37 @@ cryptographic integrity" gap in the BFD plugin.
 
 ## Files
 
-- `internal/plugins/bfd/auth/signer.go` (new) -- Signer/Verifier
+- `internal/component/bfd/auth/signer.go` (new) -- Signer/Verifier
   interfaces, Settings, `NewSigner`/`NewVerifier` dispatch.
-- `internal/plugins/bfd/auth/sha1.go` (new) -- Generic
+- `internal/component/bfd/auth/sha1.go` (new) -- Generic
   `digestSigner`/`digestVerifier` + SHA1 adapters.
-- `internal/plugins/bfd/auth/md5.go` (new) -- MD5 adapters.
-- `internal/plugins/bfd/auth/meticulous.go` (new) -- `SeqState`.
-- `internal/plugins/bfd/auth/persist.go` (new) -- `SeqPersister`
+- `internal/component/bfd/auth/md5.go` (new) -- MD5 adapters.
+- `internal/component/bfd/auth/meticulous.go` (new) -- `SeqState`.
+- `internal/component/bfd/auth/persist.go` (new) -- `SeqPersister`
   coalescing writer + `newTestSeqPersister` helper.
-- `internal/plugins/bfd/auth/sha1_test.go` (new).
-- `internal/plugins/bfd/auth/persist_test.go` (new).
-- `internal/plugins/bfd/session/auth.go` (new) -- `AuthPair` +
+- `internal/component/bfd/auth/sha1_test.go` (new).
+- `internal/component/bfd/auth/persist_test.go` (new).
+- `internal/component/bfd/session/auth.go` (new) -- `AuthPair` +
   Machine plumbing.
-- `internal/plugins/bfd/session/session.go` -- `authPair` and
+- `internal/component/bfd/session/session.go` -- `authPair` and
   `rcvAuthSeq` fields on Machine; `XmitAuthSeq` on Vars.
-- `internal/plugins/bfd/session/fsm.go` -- `Build` reports
+- `internal/component/bfd/session/fsm.go` -- `Build` reports
   MandatoryLen + signer.BodyLen() when auth is installed.
-- `internal/plugins/bfd/engine/engine.go` -- `EnsureSession`
+- `internal/component/bfd/engine/engine.go` -- `EnsureSession`
   builds the AuthPair; `ReleaseSession` calls `CloseAuth`;
   `MetricsHook` grows `OnAuthFailure`.
-- `internal/plugins/bfd/engine/loop.go` -- `handleInbound`
+- `internal/component/bfd/engine/loop.go` -- `handleInbound`
   verifies before FSM, `sendLocked` signs after `WriteTo`.
-- `internal/plugins/bfd/bfd.go` -- `applyPinned` plumbs
+- `internal/component/bfd/bfd.go` -- `applyPinned` plumbs
   `cfg.persistDir` into every `req.PersistDir`.
-- `internal/plugins/bfd/config.go` -- `parseAuthConfig`,
+- `internal/component/bfd/config.go` -- `parseAuthConfig`,
   `authTypeFromEnum`, `authConfig` with Secret, persist-dir.
-- `internal/plugins/bfd/api/events.go` -- `AuthSettings`,
+- `internal/component/bfd/api/events.go` -- `AuthSettings`,
   `SessionRequest.Auth`, `SessionRequest.PersistDir`.
-- `internal/plugins/bfd/yang/ze-bfd-conf.yang` -- top-level
+- `internal/component/bfd/yang/ze-bfd-conf.yang` -- top-level
   `persist-dir` leaf, profile `auth { type key-id secret }`
   container with the four keyed enum variants.
-- `internal/plugins/bfd/metrics.go` -- `authFailures` CounterVec,
+- `internal/component/bfd/metrics.go` -- `authFailures` CounterVec,
   `metricsHook.OnAuthFailure`.
 - `test/plugin/bfd-auth-sha1.ci` (new).
 - `test/plugin/bfd-auth-mismatch.ci` (new).

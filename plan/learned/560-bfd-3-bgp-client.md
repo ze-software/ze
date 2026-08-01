@@ -215,11 +215,11 @@ wired into the FSM callback.
 
 ## Files
 
-- `internal/plugins/bfd/api/registry.go` -- NEW.
+- `internal/component/bfd/api/registry.go` -- NEW.
   `SetService`/`GetService` via `atomic.Pointer[Service]`.
-- `internal/plugins/bfd/api/registry_test.go` -- NEW.
+- `internal/component/bfd/api/registry_test.go` -- NEW.
   Set/get round-trip, nil clear, concurrent no-race.
-- `internal/plugins/bfd/bfd.go` -- new `pluginService` type
+- `internal/component/bfd/bfd.go` -- new `pluginService` type
   implementing `api.Service`; `api.SetService` publication in
   `OnStarted`; `api.SetService(nil)` in deferred shutdown.
 - `internal/component/bgp/yang/ze-bgp-conf.yang` -- new

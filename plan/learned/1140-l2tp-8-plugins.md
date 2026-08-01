@@ -36,3 +36,7 @@ l2tppool, l2tpshaper.
 
 - Drain goroutine + typed channel pattern isolates FSM from plugin I/O.
 - Panic recovery + reject-and-continue keeps sessions alive across handler bugs.
+
+## Files
+
+None recorded.

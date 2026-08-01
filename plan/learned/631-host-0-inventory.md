@@ -133,9 +133,9 @@ requirements, works on the gokrazy appliance and on dev Linux.
   cpu + memory handlers.
 - `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` — new
   `container host` with 8 sub-containers.
-- `cmd/ze/host/` — new: host.go (RunShow + JSON/text renderers),
+- `internal/plugins/host/` — new: host.go (RunShow + JSON/text renderers),
   register.go (cmdregistry root + local), host_test.go.
-- `cmd/ze/main.go` — blank import of `cmd/ze/host`.
+- `cmd/ze/main.go` — blank import of `internal/plugins/host`.
 - `test/parse/` — new: cli-host-show-cpu.ci, cli-host-show-kernel.ci,
   cli-host-show-bogus.ci.
 - `docs/guide/command-reference.md` — new `### ze host show` section.

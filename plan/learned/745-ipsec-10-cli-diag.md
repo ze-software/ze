@@ -41,11 +41,11 @@ The IPsec subsystem (ipsec-7/8/9) built an IKE engine with SA table, child SAs, 
 - `internal/component/ike/engine/metrics_test.go`
 - `internal/component/ike/crypto/transform.go` -- String() on EncryptionID, IntegrityID, DHGroupID
 - `internal/component/ike/crypto/cipher.go` -- removed integrityIDToName (uses String())
-- `internal/component/cmd/show/ipsec.go` -- show vpn ipsec sa/status/peer
-- `internal/component/cmd/show/ipsec_test.go` -- positive and negative path tests
-- `internal/component/cmd/show/ipsec_monitor.go` -- monitor vpn ipsec streaming
-- `internal/component/cmd/clear/ipsec.go` -- clear vpn ipsec sa
-- `internal/component/cmd/clear/ipsec_test.go`
+- `internal/component/ike/cmd/show_ipsec.go` -- show vpn ipsec sa/status/peer
+- `internal/component/ike/cmd/show_ipsec_test.go` -- positive and negative path tests
+- `internal/component/ike/cmd/monitor_ipsec.go` -- monitor vpn ipsec streaming
+- `internal/component/ike/cmd/ipsec.go` -- clear vpn ipsec sa
+- `internal/component/ike/cmd/ipsec_test.go`
 - `internal/component/web/page_vpn_ipsec.go` -- /show/vpn/ipsec/ table page
 - `internal/component/web/workbench_pages.go` -- vpn dispatch
 - `internal/component/cmd/show/yang/ze-cli-show-cmd.yang` -- show vpn ipsec entries

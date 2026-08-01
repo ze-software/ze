@@ -19,6 +19,16 @@ Rationale and the vendor analysis behind the choice (Cisco `ip`-rooted, Nokia
 The "no `--flag` syntax in YANG; filters are keyword grammar" rule:
 `ai/rules/cli-grammar.md` ("No Flag Syntax in YANG").
 
+## How the family filter and the row cap are typed
+
+- **Address family is validated by the YANG enum `ArgDef`, case-sensitively,
+  before the handler runs.** The handler's own `strings.ToLower` normalisation was
+  therefore dead code and was removed. A lowercase-only enum plus a pre-handler
+  check is the whole contract; a handler must not re-normalise.
+- **The row cap is a `limit N` keyword leaf**, matching the YANG `limit` `ArgDef`.
+  It is not `--limit`, for the same reason the family filter is not `--family`
+  (`ai/rules/cli-grammar.md`, "No Flag Syntax in YANG").
+
 ## Traps for the next agent
 
 - **OSPF dispatches on the literal command-path string.** `PluginCommand`,
@@ -60,3 +70,7 @@ namespace prefix: bare `show ospf <noun>` = IPv4 (OSPFv2), `show ospf ipv6
 form (FRR-aware: FRR `ospfd` `show ip ospf ...` and FRR `ospf6d` `show ipv6
 ospf6 ...` interop references are KEPT). Shipped OSPFv2 needs no change (it is
 the bare/IPv4 default).
+
+## Files
+
+None recorded.

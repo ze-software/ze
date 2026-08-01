@@ -53,7 +53,7 @@ configured BGP reactor and was not feeding best-path changes to the producer.
 - `internal/plugins/ospf/origination_v6_nssa.go` (created) -- v6 Type-7 origination, `externalScopeV6`, P-bit/FA boundary
 - `internal/plugins/ospf/origination_v6_external.go` -- Type-5/Type-7 scope decision + withdrawal keep-set
 - `internal/plugins/ospf/nssa.go` -- `translateNSSAV6` (AF-aware translation reusing v4 election)
-- `internal/plugins/ospfv3/packet/lsa_nssa.go` -- v6 NSSA-LSA body reuses ExternalLSA; `NSSAPropagate`/`OptPrefixP`
+- `internal/plugins/ospf/v3/packet/lsa_nssa.go` -- v6 NSSA-LSA body reuses ExternalLSA; `NSSAPropagate`/`OptPrefixP`
 - `internal/component/bgp/redistribute/{bgp.go,producer.go}` + `internal/component/bgp/plugins/rib/rib_bestchange.go` -- BGP source registration + best-path producer bridge
 - `internal/component/config/redistribute/route.go` -- umbrella-origin import match with loop prevention
 - `test/interop/scenarios/{ospf-v6-redist-frr,ospf-v6-nssa-redist-frr}/` -- real GoBGP-sourced route-install assertions

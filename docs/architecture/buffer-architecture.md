@@ -15,9 +15,12 @@
 | Phase 3 | ✅ Done | Direct formatting functions (iterator-based AS_PATH / communities / NLRI emission in `text.go`, `text_json.go`, `text_update.go`) |
 | Phase 4 | ✅ Done | RIB migration (Route.AttrIterator, Route.ASPathIterator) |
 | Phase 5 | ✅ Done | Deprecate parsed types (PathAttributes, RouteUpdate, UpdateInfo) |
-| Phase 6 | ✅ Done | RouteJSON, Builder done; PathAttributes removed (see `plan/learned/105-pathattributes-removal.md`) |
+| Phase 6 | ✅ Done | RouteJSON, Builder done; PathAttributes removed (retired summary 105; see `plan/learned/DESIGN-HISTORY.md`, "BGP engine: wire encoding and RIB" > Abandoned approaches) |
 
-See `plan/learned/102-buffer-first-migration.md` for detailed implementation plan.
+The buffer-first migration plan was summary 102, retired on 2026-08-01. See
+`plan/learned/DESIGN-HISTORY.md`, "BGP engine: wire encoding and RIB": Evolution
+for the `Pack()` to `WriteTo(buf, off)` arc, and Abandoned approaches for the
+Span type that was introduced and removed during it.
 
 ---
 

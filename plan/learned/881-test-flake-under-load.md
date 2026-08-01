@@ -48,3 +48,7 @@ interactive session.
   does not trigger contended classification.
 - `pgrep` may not be available on all platforms; the code returns 0 on
   failure, so contended detection is best-effort.
+
+## Files
+
+None recorded.

@@ -1,6 +1,6 @@
 # 1147 — needs-linux QEMU runner
 
-## Objective
+## Context
 Stop Linux-only `.ci` functional tests from failing natively on darwin: mark them
 and run them automatically inside the QEMU Alpine VM instead, so `make ze-verify`
 stays green and fast on the dev host while the Linux surface is still validated.

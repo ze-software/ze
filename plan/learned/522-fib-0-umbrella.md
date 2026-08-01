@@ -37,8 +37,8 @@ Ze had no route installation pipeline. The BGP RIB computed best paths only on d
 - `internal/component/bgp/plugins/rib/rib_structured.go` -- best-path change detection after insert/remove
 - `internal/component/bgp/plugins/rib/rib_bestchange.go` -- best-path tracking, replay, Bus publishing
 - `internal/plugins/sysrib/` -- System RIB plugin (sysrib.go, register.go, schema/)
-- `internal/plugins/fibkernel/` -- FIB kernel plugin (fibkernel.go, register.go, backend*.go, monitor*.go, schema/)
-- `internal/plugins/fibp4/` -- FIB P4 plugin (fibp4.go, register.go, backend.go, schema/). Noop backend until gRPC/P4Runtime added to go.mod
-- `scripts/gen-plugin-imports.go` -- scan internal/plugins/ directory
+- `internal/plugins/fib/kernel/` -- FIB kernel plugin (fibkernel.go, register.go, backend*.go, monitor*.go, schema/)
+- `internal/plugins/fib/p4/` -- FIB P4 plugin (fibp4.go, register.go, backend.go, schema/). Noop backend until gRPC/P4Runtime added to go.mod
+- `scripts/codegen/plugin_imports.go` -- scan internal/plugins/ directory
 - `docs/architecture/core-design.md`, `docs/features.md`, `docs/guide/plugins.md` -- documentation
 - `test/plugin/fib-rib-event.ci`, `test/plugin/fib-sysrib.ci` -- functional tests

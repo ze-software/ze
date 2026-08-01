@@ -45,6 +45,6 @@ source-validation, etc.) to sysctl writes at config apply time.
 - `internal/component/firewall/config.go` (ExtractGlobalOptions, globalOptionDefs)
 - `internal/component/firewall/engine.go` (emitGlobalOptionsSysctlDefaults)
 - `internal/component/firewall/config_test.go` (8 unit tests)
-- `internal/plugins/sysctl/events/events.go` (EventClearSourceDefaults)
+- `internal/component/sysctl/events/events.go` (EventClearSourceDefaults)
 - `test/plugin/firewall-global-options.ci` (functional test)
 - `docs/guide/firewall.md` (Global Options section)

@@ -38,3 +38,7 @@ Types satisfying ResponseData:
   Error field is only for StatusError responses.
 - `ExecResult` in the API package is a separate type with `Data any` (not ResponseData).
   It lives at the API boundary and is populated from JSON unmarshaling.
+
+## Files
+
+None recorded.

@@ -30,7 +30,7 @@ Ze's `ze config migrate` pipeline handled structural renames (neighbor->peer, te
 - `internal/component/config/migration/migrate.go` -- registered two new transformations
 - `internal/exabgp/migration/env.go` -- new file: ExaBGP INI parser, Ze config mapper, port validator
 - `internal/exabgp/migration/env_test.go` -- new file: 10 tests for INI parsing, mapping, validation
-- `cmd/ze/exabgp/main.go` -- added --env flag and cmdMigrateEnv handler
+- `internal/plugins/exabgp/main.go` -- added --env flag and cmdMigrateEnv handler
 - `test/parse/cli-config-migrate-log-booleans.ci` -- functional test for log boolean migration
-- `test/parse/cli-config-migrate-listener-to-list.ci` -- functional test for listener-to-list migration
+- `test/parse/cli-config-migrate-listener-to-list.ci.disabled` -- functional test for listener-to-list migration
 - `test/parse/cli-exabgp-migrate-env.ci` -- functional test for ExaBGP env file migration

@@ -30,3 +30,7 @@ Completed `plan/spec-ospf-11-stub-nssa.md`: stub / totally-stubby areas (RFC 232
 - `TestOSPFNSSATranslatorElection` / `TestOSPFNSSATranslation` / `TestOSPFNSSAPbitNotTranslated` / `TestOSPFNSSANoTranslateWhenNotElected` / `TestOSPFNSSATranslatorStability` (`nssa_test.go`) — election, translation, no-duplicate, P=0/zero-FA skip, stability grace.
 - `TestOSPFNSSAPreference` (`spf/external_nssa_test.go`) — Type 7 P=1 > Type 5 > Type 7 P=0.
 - `test/ospf/ospf-stub.ci`, `test/ospf/ospf-nssa.ci` — config surface. FRR `ospfd` stub/NSSA interop is owned by spec-ospf-13 (Linux/QEMU).
+
+## Files
+
+None recorded.

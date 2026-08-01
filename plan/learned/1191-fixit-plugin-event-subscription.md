@@ -55,3 +55,7 @@ Every AC's MECHANISM proven by scoped unit tests through the real entry points
 (registerSubscriptions / EmitEngineEvent / deliver-batch wire / SDK setters). The
 end-to-end SDK-fork `.ci` fixtures (spec Wiring/Functional rows) were NOT authored/run
 — they need a live env. See `tmp/drain-fixit-plugin-event-subscription.md`.
+
+## Files
+
+None recorded.

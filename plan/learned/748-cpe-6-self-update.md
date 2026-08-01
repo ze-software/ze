@@ -61,3 +61,7 @@ pause, update history, and manual override for operators.
   source/code/subject triple.
 - YANG-driven CLI: `update system firmware <action>` follows the action-before-identifier
   grammar rule, with YANG containers mirroring the CLI path.
+
+## Files
+
+None recorded.

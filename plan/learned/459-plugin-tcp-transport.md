@@ -1,6 +1,6 @@
 # 459 - Plugin TLS Transport
 
-## Objective
+## Context
 
 Replace Unix socketpairs with TLS-over-TCP for external plugin communication. Internal plugins (goroutine-based) keep `net.Pipe()` + DirectBridge unchanged. External plugins connect back to the engine over a single TLS connection, authenticate with a shared token, then proceed with the standard 5-stage handshake.
 

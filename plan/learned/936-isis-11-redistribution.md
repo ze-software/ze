@@ -99,20 +99,20 @@ execution.
   darwin; only their peer-observable legs await Linux execution.
 
 ## Files
-- `internal/component/isis/redistribute/events/events.go` (+test): redistevents PRODUCER
+- `internal/plugins/isis/redistribute/events/events.go` (+test): redistevents PRODUCER
   wiring -- reuses `spf.ProtocolID()`, `RegisterProducer`, typed `RouteChange` handle.
-- `internal/component/isis/redistribute/source.go` (+test): single config source `isis`
+- `internal/plugins/isis/redistribute/source.go` (+test): single config source `isis`
   (`RegisterISISSources`/`sync.Once mustRegister`), `Source.OnSPFChange` emit, connected
   helpers (`ConnectedPrefixInfos`).
-- `internal/component/isis/redistribute/consumer.go` (+test): `RedistConsumer` impl
+- `internal/plugins/isis/redistribute/consumer.go` (+test): `RedistConsumer` impl
   (`InjectRoute`/`WithdrawRoute` -> TLV 135), source-remember/recover, owned counters.
-- `internal/component/isis/redistribute/redistribute.go`: `DefaultRedistMetric` +
+- `internal/plugins/isis/redistribute/redistribute.go`: `DefaultRedistMetric` +
   `LSPInjector` seam (added).
-- `internal/component/isis/redistribute/ipv6.go` (+test): IPv6 TLV 236 twin (formally
+- `internal/plugins/isis/redistribute/ipv6.go` (+test): IPv6 TLV 236 twin (formally
   isis-12) + shared `emitDeltaFamily`.
-- `internal/component/isis/redist_wiring.go`: engine `LSPInjector` impl,
+- `internal/plugins/isis/redist_wiring.go`: engine `LSPInjector` impl,
   `refreshConnectedPrefixes` (enabled+passive enumeration), SPF OnChange -> producer.
-- `internal/component/isis/register.go` (modified): source at init, consumer
+- `internal/plugins/isis/register.go` (modified): source at init, consumer
   (`ReregisterConsumer`) + producer at OnStarted, metrics.
 - `test/isis/isis-redist-bgp.ci`, `test/isis/isis-redist-arbitration.ci`: config-surface
   functional tests.

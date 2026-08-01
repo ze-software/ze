@@ -77,3 +77,7 @@ source that already exposes it safely over adding cross-goroutine plumbing.
 - There are TWO RIB-ish plugins: `bgp-rib` (`plugins/rib`, the main RIB with
   bgpPeers + ribOut) and `bgp-adj-rib-in` (`plugins/adj_rib_in`, raw-hex replay
   storage). The summary counts come from `bgp-rib`; do not confuse the two.
+
+## Files
+
+None recorded.

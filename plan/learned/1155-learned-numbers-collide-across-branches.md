@@ -57,3 +57,7 @@ cheap rule and the safe rule coincided; only 3 external reference sites moved.
 - Generated indexes launder duplicates into something that looks fine. Two rows
   with the same number render perfectly. Uniqueness has to be asserted, not
   assumed from a generator that never complained.
+
+## Files
+
+None recorded.

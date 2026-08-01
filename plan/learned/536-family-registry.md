@@ -48,13 +48,13 @@ Family.String() and PluginForFamily showed up at 17% and 32% CPU in BGP UPDATE h
 - `internal/core/family/registry.go` (new) -- RegisterFamily, packed buffer, single atomic state, lock-free reads (Option A: writeMu writer-only mutex, atomic.Pointer[registry] holds the entire snapshot)
 - `internal/core/family/registry_test.go` (new) -- 13 unit tests + zero-alloc benchmark (3.219 ns/op)
 - `internal/core/family/testfamilies.go` (new) -- exported test helper RegisterTestFamilies
-- `internal/component/bgp/nlri/nlri.go` -- removed Family/AFI/SAFI types and registry; keeps NLRI interface, parsing, BGP-LS helpers; imports `family` for the `Family` type used in NLRI.Family() method
-- `internal/component/bgp/nlri/constants.go` -- removed plugin-specific Family vars
+- `internal/core/bgp/nlri/nlri.go` -- removed Family/AFI/SAFI types and registry; keeps NLRI interface, parsing, BGP-LS helpers; imports `family` for the `Family` type used in NLRI.Family() method
+- `internal/core/bgp/nlri/constants.go` -- removed plugin-specific Family vars
 - `internal/component/bgp/message/family.go` -- type aliases (`type AFI = family.AFI`), register builtins via mustRegisterFamily, query registry for ValidFamilyConfigNames
 - `internal/component/bgp/plugins/nlri/{flowspec,vpn,evpn,labeled,mvpn,vpls,rtc,mup,ls}/types.go` -- mustRegister calls
 - `internal/component/plugin/server/startup.go` -- `registerPluginFamilies` called after declare-registration RPC, with AFI=0/SAFI=0 fallback to LookupFamily for older plugins
 - `internal/exabgp/migration/migrate.go` -- restored `GetContainer("family")` call (bulk-rename script broke it)
-- `internal/plugins/sysrib/sysrib.go` -- restored `event.Metadata["family"]` lookups (bulk-rename script broke them)
+- `internal/component/sysrib/sysrib.go` -- restored `event.Metadata["family"]` lookups (bulk-rename script broke them)
 - `test/parse/test-family-config.ci` (new) -- functional test
 - 5 testmain_test.go files updated -- import `family` instead of `nlri`, call `family.RegisterTestFamilies`
 - ~150 files updated by bulk rename from `nlri.Family/AFI/SAFI/...` to `family.*`

@@ -59,3 +59,7 @@ var and helper scripts existed but nothing wrote the files.
   extend it rather than invent a parallel format. See the planned test-runner work
   (`plan/spec-test-runner-unify.md`, `-web-parallel`, `-trace-mode`) and
   `docs/architecture/testing/runner-architecture.md`.
+
+## Files
+
+None recorded.

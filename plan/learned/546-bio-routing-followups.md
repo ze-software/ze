@@ -231,7 +231,7 @@ see if they were already committed under a matching subject line.
 Prefer `git log --follow <file>` to a file-state diff for this kind
 of check.
 
-## Files touched (summary)
+## Files
 
 **Commit `e862dda4` (Section A, 4 files):**
 - `plan/spec-pkg-ze-bgp.md`, `plan/spec-bgp-4-bmp.md`,

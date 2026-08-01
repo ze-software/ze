@@ -56,3 +56,7 @@ documentation drift via `scripts/docvalid/doc_drift.go` and
   checklist items). The minimum required structure to satisfy the validator was:
   a `.go` reference in Current Behavior, table-format Boundaries Crossed, and
   TDD checklist items even though there are no Go tests to write.
+
+## Files
+
+None recorded.

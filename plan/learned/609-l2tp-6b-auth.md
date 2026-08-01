@@ -128,31 +128,31 @@ spec-l2tp-8-plugins (`l2tp-auth`).
 
 ## Files
 
-- `internal/component/ppp/auth.go` -- `adjustAuthOnNakOrReject`,
+- `internal/component/l2tp/ppp/auth.go` -- `adjustAuthOnNakOrReject`,
   `selectAuthFallback`, `waitCHAPLike[T]`, `waitCHAPResponse`,
   `waitMSCHAPv2Response`, `authMethodToLCPOptions`,
   `authMethodFromAuthProto`, `defaultAuthFallbackOrder`,
   `awaitAuthDecision`.
-- `internal/component/ppp/pap.go`, `chap.go`, `mschapv2.go` -- per-
+- `internal/component/l2tp/ppp/pap.go`, `chap.go`, `mschapv2.go` -- per-
   method wire codecs + `runXAuthPhase` handlers.
-- `internal/component/ppp/session.go` -- `pppSession` fields
+- `internal/component/l2tp/ppp/session.go` -- `pppSession` fields
   (`authTimeout`, `authFallbackOrder`, `reauthInterval`,
   `configuredAuthMethod`, `negotiatedAuthMethod`, `chapIdentifier`,
   `authRespCh`, `framesIn`, `sessStop`).
-- `internal/component/ppp/start_session.go` -- `AuthMethod`,
+- `internal/component/l2tp/ppp/start_session.go` -- `AuthMethod`,
   `AuthFallbackOrder`, `AuthTimeout`, `ReauthInterval`.
-- `internal/component/ppp/session_run.go` -- main select with
+- `internal/component/l2tp/ppp/session_run.go` -- main select with
   echo + reauth tickers; `runAuthPhase` dispatcher.
-- `internal/component/ppp/manager.go` -- `AuthResponse`,
+- `internal/component/l2tp/ppp/manager.go` -- `AuthResponse`,
   `AuthEventsOut`, per-session routing.
-- `internal/component/ppp/auth_events.go` -- `EventAuthRequest`,
+- `internal/component/l2tp/ppp/auth_events.go` -- `EventAuthRequest`,
   `EventAuthSuccess`, `EventAuthFailure`, `AuthMethod` enum.
-- `internal/component/ppp/auth_dispatch_test.go` (Phase 8) --
+- `internal/component/l2tp/ppp/auth_dispatch_test.go` (Phase 8) --
   Nak/Reject fallback integration tests.
-- `internal/component/ppp/auth_normal_dispatch_test.go` (Phase 9
+- `internal/component/l2tp/ppp/auth_normal_dispatch_test.go` (Phase 9
   Decision E) -- normal-path PAP/CHAP/MS-CHAPv2 dispatch tests +
   post-fallback dispatch.
-- `internal/component/ppp/chap_reauth_test.go` (Phase 9) -- AC-16
+- `internal/component/l2tp/ppp/chap_reauth_test.go` (Phase 9) -- AC-16
   silent-discard + AC-14 periodic reauth tear-down.
 - `internal/component/config/environment.go` -- env registrations for
   `ze.l2tp.auth.timeout` and `ze.l2tp.auth.reauth-interval`.

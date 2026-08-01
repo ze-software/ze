@@ -27,7 +27,7 @@ Four CLI handler families (show interface, clear interface, cache, commit) accep
 
 ## Files
 
-- `.claude/rules/cli-grammar.md` (new rule)
+- `ai/rules/cli-grammar.md` (new rule)
 - `ai/INSTRUCTIONS.md`, `ai/patterns/cli-command.md`, `ai/rules/cli-patterns.md` (enforcement chain)
 - `internal/component/cmd/show/show.go` (handleShowInterface refactor)
 - `internal/component/iface/cmd/clear.go` (handleClearInterfaceCounters refactor)

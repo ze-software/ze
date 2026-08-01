@@ -101,6 +101,6 @@ adding a `backend` leaf and a one-line call.
 - `internal/component/iface/schema_test.go` — `TestIfaceYANGBackendAnnotations`
 - `internal/component/firewall/yang/ze-firewall-conf.yang` — `leaf backend` default `nft`
 - `internal/component/traffic/yang/ze-traffic-control-conf.yang` — `leaf backend` default `tc`
-- `cmd/ze/config/cmd_validate.go` — backend-gate loop over gated components
+- `internal/component/config/cli/cmd_validate.go` — backend-gate loop over gated components
 - `test/parse/iface-vpp-rejects-bridge.ci`, `iface-vpp-rejects-tunnel.ci`, `iface-vpp-accepts-ethernet.ci`, `iface-netlink-accepts-bridge.ci`, `iface-vpp-aggregates-errors.ci`
 - `docs/features.md`, `docs/guide/configuration.md`, `docs/guide/command-reference.md`, `docs/architecture/core-design.md`

@@ -553,13 +553,21 @@ Context IDs must be registered via `Registry.Register()`:
 
 ## Related Specs
 
-- `plan/learned/039-spec-encoding-context-impl.md` - Original design (completed)
+Summaries 039, 057, 059, 063, 078 and 343 were retired on 2026-08-01. Their
+surviving knowledge is in `plan/learned/DESIGN-HISTORY.md`, "BGP engine: wire
+encoding and RIB".
+
 - `plan/spec-context-full-integration.md` - Full integration plan (active)
-- `plan/learned/063-spec-afi-safi-map-refactor.md` - NegotiatedCapabilities, Family consolidation (completed)
-- `plan/learned/057-spec-attributes-wire.md` - Lazy-parsed wire attribute storage (completed)
-- `plan/learned/059-spec-pool-handle-migration.md` - Migration to pool handles (completed)
-- `plan/learned/343-wireupdate-buffer-lifecycle.md` - Buffer pool get/return lifecycle (completed)
-- `plan/learned/078-wireupdate-split.md` - Wire-level UPDATE splitting (completed)
+- DESIGN-HISTORY > Evolution - original encoding-context design and the
+  AFI/SAFI map consolidation into `NegotiatedCapabilities` (039, 063)
+- DESIGN-HISTORY > Load-bearing invariants - `ContextID` is a `uint16` and not
+  a pointer (039); anything derived from a Go map must be sorted before it is
+  hashed (039, 063); `AttributesWire` does not own its `packed []byte` (057)
+- DESIGN-HISTORY > Evolution and Load-bearing invariants - the two fixed read
+  pools and the `cap(buf)` return rule (343); splitter posture and the progress
+  guard (078)
+- DESIGN-HISTORY > Abandoned approaches - the pool-handle migration was
+  designed and abandoned (059). It is not a shipped step in the pool chain.
 
 ---
 

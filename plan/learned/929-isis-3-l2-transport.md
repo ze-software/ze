@@ -101,22 +101,22 @@ validation pending Linux execution (`make ze-qemu-integration-test` /
 `scripts/evidence/qemu-all-tests.sh` on a Linux/QEMU host).
 
 ## Files
-- `internal/component/isis/transport/transport.go` (+`transport_test.go`): `Backend` /
+- `internal/plugins/isis/transport/transport.go` (+`transport_test.go`): `Backend` /
   `CircuitHandle` interfaces, `Transport` orchestrator (circuit registry, EventBus
   subscription + bounded queue + rescan, `SendPDU`/`SendPDUBothLevels`, `Receive`,
   `InterfaceMTU`/`CircuitInfo`/`CircuitNameByIfIndex`, `ObserveNeighborFrame`/
   `InferNeighborMTU`/`OnMTUMismatch`, `Close`).
-- `internal/component/isis/transport/frame.go` (+test): buffer-first 802.3+LLC build,
+- `internal/plugins/isis/transport/frame.go` (+test): buffer-first 802.3+LLC build,
   zero-copy parse, ethertype/SAP/length/short rejection.
-- `internal/component/isis/transport/multicast.go` (+test): `Level`, ISO MAC constants,
+- `internal/plugins/isis/transport/multicast.go` (+test): `Level`, ISO MAC constants,
   `MulticastMACForLevel`, `IsISMulticastMAC`.
-- `internal/component/isis/transport/backend_linux.go` (+test): AF_PACKET per-circuit
+- `internal/plugins/isis/transport/backend_linux.go` (+test): AF_PACKET per-circuit
   backend, `PACKET_ADD_MEMBERSHIP`, `SO_RCVTIMEO`, ioctl resolve, serialized `Send`.
-- `internal/component/isis/transport/backend_other.go` (+test): non-Linux stub.
-- `internal/component/isis/transport/doctor.go` / `doctor_linux.go` / `doctor_other.go`
+- `internal/plugins/isis/transport/backend_other.go` (+test): non-Linux stub.
+- `internal/plugins/isis/transport/doctor.go` / `doctor_linux.go` / `doctor_other.go`
   / `register.go` (+`doctor_test.go`): `doctor-isis-raw-socket` check + registration.
-- `internal/component/isis/transport/metrics.go` (+test): the four ze_isis_* series.
-- `internal/component/isis/transport/transport_integration_linux_test.go`: the QEMU
+- `internal/plugins/isis/transport/metrics.go` (+test): the four ze_isis_* series.
+- `internal/plugins/isis/transport/transport_integration_linux_test.go`: the QEMU
   veth tests (scenario written; execution pending Linux/QEMU).
 - `internal/core/diagnostic/codes.go`: `doctor-isis-raw-socket` code (title/description).
 - `scripts/evidence/qemu-all-tests.sh`: explicit transport-package add (lines 157-158).

@@ -78,3 +78,7 @@ pass under `-tags "ze_core $ZE_FEATURES"`.
 Independent reviewer verdict CLEAN. Raised ISSUE-1 (env-wiring path untested) and NIT-2
 (only "just over" aging) — both fixed in the loop with the three tests above. Artifact:
 `tmp/review/fixit-recent-cache-buffer-reclaim-<SID>.md`.
+
+## Files
+
+None recorded.

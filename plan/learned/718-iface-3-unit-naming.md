@@ -55,3 +55,7 @@ function. Pattern: `[a-zA-Z0-9_][a-zA-Z0-9_.-]*`, length caller-specified.
   with `"invalid character"` broke tests for wildcard and IP-address
   rejections, which have different error messages. Fix: use specific
   error strings per rejection reason.
+
+## Files
+
+None recorded.

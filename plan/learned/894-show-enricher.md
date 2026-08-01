@@ -31,8 +31,8 @@ Show commands returned only the data their owning handler could build. Plugin-co
 
 - `internal/core/show/show.go` -- enricher registry (Register, MustRegister, Enrich, EnrichBrief, ResetForTest)
 - `internal/core/show/show_test.go` -- 10 registry unit tests
-- `internal/component/subscriber/cmd/subscriber.go` -- added show.Enrich/EnrichBrief calls in handlers
-- `internal/component/subscriber/cmd/subscriber_test.go` -- 2 wiring tests
+- `internal/component/l2tp/subscriber/cmd/subscriber.go` -- added show.Enrich/EnrichBrief calls in handlers
+- `internal/component/l2tp/subscriber/cmd/subscriber_test.go` -- 2 wiring tests
 - `internal/plugins/cos/enricher.go` -- CoS enricher functions
 - `internal/plugins/cos/enricher_test.go` -- 4 enricher unit tests
 - `internal/plugins/cos/register.go` -- added show.MustRegister calls in init()

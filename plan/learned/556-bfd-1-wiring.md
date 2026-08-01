@@ -151,12 +151,12 @@ remains tracked in `plan/deferrals.md`.
 
 ## Files
 
-- `internal/plugins/bfd/api/service.go` -- added Shutdown / Enable to SessionHandle
-- `internal/plugins/bfd/engine/engine.go` -- added ErrUnknownSession
-- `internal/plugins/bfd/engine/loop.go` -- handle Shutdown / Enable implementations
-- `internal/plugins/bfd/register.go` -- removed warning comment, added ConfigureEngineLogger
-- `internal/plugins/bfd/bfd.go` -- replaced stub with full SDK lifecycle and runtimeState
-- `internal/plugins/bfd/config.go` -- new, walks ConfigSection.Data as map[string]any
+- `internal/component/bfd/api/service.go` -- added Shutdown / Enable to SessionHandle
+- `internal/component/bfd/engine/engine.go` -- added ErrUnknownSession
+- `internal/component/bfd/engine/loop.go` -- handle Shutdown / Enable implementations
+- `internal/component/bfd/register.go` -- removed warning comment, added ConfigureEngineLogger
+- `internal/component/bfd/bfd.go` -- replaced stub with full SDK lifecycle and runtimeState
+- `internal/component/bfd/config.go` -- new, walks ConfigSection.Data as map[string]any
 - `internal/component/config/yang_schema.go` -- loads ze-bfd-conf module (already present at spec-run time, added by iface-tunnel commit 2488c4b1)
 - `internal/component/plugin/all/all.go` -- regenerated with bfd blank imports
 - `internal/component/plugin/all/all_test.go` -- bumped expected list

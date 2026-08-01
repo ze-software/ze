@@ -69,7 +69,7 @@ cross-referenced from `ai/rules/plugin-design.md`.
 - `ai/rules/plugin-self-containment.md`, `ai/INSTRUCTIONS.md`, `ai/INDEX.md`,
   `ai/rules/plugin-design.md`
 - `internal/component/cmd/show/{show_policy.go,show_policy_test_cmd.go,ipsec.go}`,
-  `internal/component/pki/show.go`, `internal/component/cmd/l2tp/l2tp.go`
+  `internal/component/pki/show.go`, `internal/component/l2tp/cmd/l2tp.go`
 - `internal/component/bgp/plugins/cmd/rib/yang/ze-rib-cmd.yang`,
   `internal/component/cmd/show/yang/ze-cli-show-cmd.yang`,
   `internal/component/cmd/show/yang/self_containment_test.go`

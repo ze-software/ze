@@ -107,7 +107,7 @@ set to be fixed first.
 
 - routing: `internal/plugins/static/backend_linux.go` (+ `resolve_integration_linux_test.go`),
   `internal/plugins/flowexport/sampling/tc_linux.go`, `internal/plugins/flowexport/sampling_worker.go`
-- protocols: `internal/component/pppoe/resolve.go` (new), `kernel_linux.go`, `socket_other.go`;
+- protocols: `internal/component/l2tp/pppoe/resolve.go` (new), `kernel_linux.go`, `socket_other.go`;
   `internal/component/ike/engine/register.go`; `internal/plugins/ldp/register.go`, `local.go`,
   `register_test.go` (+ `resolve_integration_linux_test.go`)
 - peripheral: `internal/plugins/imageserver/register.go`,

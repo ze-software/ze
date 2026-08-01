@@ -1,6 +1,6 @@
 # 404 -- rpki-decorator
 
-## Objective
+## Context
 
 Enable plugins to register custom event types dynamically and implement the bgp-rpki-decorator plugin that merges UPDATE + RPKI validation events into a single `update-rpki` event for downstream consumers. Also implement auto-loading: `receive [ update-rpki ]` in config automatically starts the decorator and its dependencies without explicit plugin configuration.
 

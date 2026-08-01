@@ -50,3 +50,7 @@ EventDispatcher (BGP data path) and EventBus (notifications) stay separate. Stan
 - The umbrella outlived its delivery: children were implemented+committed 2026-07-04/05
   but the umbrella + children sat unclosed in `plan/` until the 2026-07-13 truth-audit.
   Put umbrella closure on the last child's checklist.
+
+## Files
+
+None recorded.

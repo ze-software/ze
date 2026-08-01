@@ -129,31 +129,31 @@ exist but were NOT executed on this darwin host. Pending scenarios:
   (owned by isis-13; scenarios written; execution pending Linux/QEMU).
 
 ## Files
-- `internal/component/isis/spf/graph.go` (+test): per-level directed graph build
+- `internal/plugins/isis/spf/graph.go` (+test): per-level directed graph build
   (System IDs + pseudo-node vertices, TLV 22 edges, pseudo-node metric 0, overload
   flag).
-- `internal/component/isis/spf/spf.go` (+test): Dijkstra (`Compute`), ECMP
+- `internal/plugins/isis/spf/spf.go` (+test): Dijkstra (`Compute`), ECMP
   predecessor merge, overload transit exclusion, 64-bit cost + MaxPathMetric clamp.
-- `internal/component/isis/spf/route.go` (+test): TLV 135 prefix attach, RFC 5308
+- `internal/plugins/isis/spf/route.go` (+test): TLV 135 prefix attach, RFC 5308
   sec 5 `preferenceRank`, per-prefix arbitration, `DiffRoutes`, `Snapshot`.
-- `internal/component/isis/spf/leak.go` (+test): RFC 2966 L1<->L2 leaking, up/down
+- `internal/plugins/isis/spf/leak.go` (+test): RFC 2966 L1<->L2 leaking, up/down
   bit, one-pass fixpoint.
-- `internal/component/isis/spf/install.go` (+test): Loc-RIB insertion
+- `internal/plugins/isis/spf/install.go` (+test): Loc-RIB insertion
   (`InsertForward`), `RegisterProtocol("isis")`/`ProtocolID()`, AdminDistance 115,
   forward-remove on loss / ECMP shrink, `ze_isis_routes_installed` gauge.
-- `internal/component/isis/spf/computer.go` (+test): debounce orchestration
+- `internal/plugins/isis/spf/computer.go` (+test): debounce orchestration
   (`Trigger`/`Run`), `ze_isis_spf_*` metrics, `SetOnLeak`.
-- `internal/component/isis/spf/ipv6.go` (+test): IPv6 next-hop/install seam (isis-12).
-- `internal/component/isis/spf/spflog.go` (+test): bounded SPF run log (isis-13).
-- `internal/component/isis/spf_wiring.go`: engine glue -- LSDB -> `spf.Source`,
+- `internal/plugins/isis/spf/ipv6.go` (+test): IPv6 next-hop/install seam (isis-12).
+- `internal/plugins/isis/spf/spflog.go` (+test): bounded SPF run log (isis-13).
+- `internal/plugins/isis/spf_wiring.go`: engine glue -- LSDB -> `spf.Source`,
   adjacency tables -> IPv4/IPv6 `NextHopResolver` (Snapshot-based, race-safe),
   `triggerSPF` debounce, `routeSnapshot`/`routeSnapshotV6`.
-- `internal/component/isis/cmd_show.go`, `register.go`: `show isis route` /
+- `internal/plugins/isis/cmd_show.go`, `register.go`: `show isis route` /
   `show isis route ipv6` RPC registration + dispatch.
 - Modified (committed ECMP path-group expansion): `internal/core/rib/locrib/change.go`
   (`Change.ECMP []netip.Addr`), `internal/core/rib/locrib/manager.go`
-  (`siblingNextHops`), `internal/plugins/sysrib/sysrib.go` (`ecmpCollect` ->
-  `BestChangeEntry.ECMPPaths`), `internal/plugins/sysrib/sysrib_ecmp_pathgroup_test.go`
+  (`siblingNextHops`), `internal/component/sysrib/sysrib.go` (`ecmpCollect` ->
+  `BestChangeEntry.ECMPPaths`), `internal/component/sysrib/sysrib_ecmp_pathgroup_test.go`
   (`TestSysribECMPPathGroup`, `TestSysribSinglePathNoECMP`).
 - `test/isis/isis-route-install.ci`: single-daemon SPF wiring + `show isis route`
   empty-with-no-adjacency.

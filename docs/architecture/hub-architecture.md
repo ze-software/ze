@@ -1063,7 +1063,7 @@ Phase 1: Hub Foundation ──────► Phase 2: Config Parsing
 
 ### Implementation
 
-- [Unified Subsystem Protocol](../../plan/learned/149-unified-subsystem-protocol.md) - Completed spec for subsystem infrastructure
+- [Design History](../../plan/learned/DESIGN-HISTORY.md), "Plugin system: architecture" - subsystem infrastructure history (retired summary 149). Its Abandoned approaches subsection records the two shapes this protocol replaced: a separate registry for internal handlers, and a central `RegisterDefaultHandlers()`
 
 ### Source Code
 

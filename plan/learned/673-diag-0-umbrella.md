@@ -69,3 +69,7 @@ Additional features added to close remaining gaps:
 - **VPP CLI socket:** `net.DialTimeout("unix", path, timeout)`, write command,
   read with `bufio.Scanner` (4MB buffer), close per invocation. Env var override
   for test injection.
+
+## Files
+
+None recorded.

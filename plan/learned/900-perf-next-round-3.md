@@ -37,7 +37,7 @@ After two prior performance campaigns (771, 859) reduced ze's convergence from 9
 - `internal/component/bgp/reactor/filter_chain.go` (child 2: filterAttrs struct, parseFilterAttrs, formatFilterAttrs)
 - `internal/component/bgp/reactor/filter_delta.go` (child 2: textDeltaToModOps, Extract* updated)
 - `internal/component/bgp/reactor/policy_dryrun.go` (child 2: computeChangedAttrs, computeWireChanges updated)
-- `internal/component/bgp/attribute/text_append.go` (child 3: Community.AppendText)
+- `internal/core/bgp/attribute/text_append.go` (child 3: Community.AppendText)
 - `internal/component/bgp/plugins/rib/rib_attr_format.go` (child 3: MarshalJSON wrappers, enrichment switch)
 - `internal/component/bgp/plugins/rib/rib_attr_format_test.go` (child 3: golden byte-identity test)
 - `internal/component/bgp/plugins/rib/rib_attr_format_bench_test.go` (child 3: enrichment benchmark)

@@ -5,7 +5,10 @@
 **PARTIALLY IMPLEMENTED** - Text mode works, wire modes (hex/b64) implemented.
 
 Legacy `announce route` / `announce attributes` commands removed.
-See `plan/learned/089-new-syntax.md` for migration details.
+The migration was summary 089, retired on 2026-08-01. `plan/learned/DESIGN-HISTORY.md`
+carries one invariant from it, under "Configuration: YANG, parser, editor, reload":
+next-hop sits outside the nlri section on input and inside it on output. For the
+rest of the migration detail, that file's header gives the git-recovery route.
 
 ---
 

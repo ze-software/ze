@@ -170,7 +170,7 @@ structural changes, not one-session work.
   component.
 - `internal/component/cmd/show/ip.go` (new) -- handleShowArp,
   handleShowIPRoute.
-- `internal/component/cmd/show/firewall.go` (new) --
+- `internal/plugins/firewall/nft/cmd_show.go` (new) --
   handleShowFirewallRuleset, handleShowFirewallGroup.
 - `internal/component/cmd/show/{ip,firewall}_test.go` (new) -- wiring
   + behaviour tests.

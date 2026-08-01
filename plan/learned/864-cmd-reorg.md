@@ -41,3 +41,7 @@ package that registers itself; cmd/ holds only wiring.
   orchestrator utilities (AllocatePort, CheckPortFree, WaitForZe) had to move with the code.
 - **sed-based file moves leave orphaned comments.** When deleting functions by line range,
   preceding comments may survive. Always check the lines above the deletion boundary.
+
+## Files
+
+None recorded.

@@ -69,3 +69,7 @@ path (ContextID match) already preserves PrefixSID unchanged.
 - **TransposLen=0 is valid.** When SID Structure Sub-Sub-TLV has TransposLen=0, it
   means no transposition (entire SID in Sub-TLV). The parser must return
   HasTranspos=false in this case, not apply zero-length transposition.
+
+## Files
+
+None recorded.

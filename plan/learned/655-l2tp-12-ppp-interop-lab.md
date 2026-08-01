@@ -41,3 +41,7 @@ RouteObserver path and withdrawn on teardown).
   to probe host kernel capabilities before starting the real lab.
 - The `wait_ze_log` / `wait_l2tp_clean` polling helpers are reusable for
   future L2TP interop scenarios (IPv6CP, CHAP-MD5, multi-session).
+
+## Files
+
+None recorded.

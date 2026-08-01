@@ -20,3 +20,7 @@ Key choices:
 ## Gotchas
 - The `docs/guide/quickstart.md` Go version reference is easy to miss during upgrades; search for `go1.` across the whole tree.
 - `scratch` has no shell, so `docker exec` debugging requires a multi-stage override or a separate debug image.
+
+## Files
+
+None recorded.

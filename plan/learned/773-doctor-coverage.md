@@ -27,10 +27,10 @@ Ze's `ze doctor` command validates system readiness before daemon startup, but o
 
 ## Files
 
-- `cmd/ze/doctor/doctor.go` -- checkPKICerts, checkDHCPInterfaces, checkTACACSServers, checkRADIUSServers, extractBGPListeners, extractBFDListeners, extractIPsecListeners, extractTFTPListeners, extractImageListeners, extractNTPListeners, dedupeListeners, probeListener
-- `cmd/ze/doctor/checks_linux.go` -- checkFirewallBackend, checkTelemetryProcfs, checkSysctlProcfs, checkConntrackProcfs, checkPolicyRouteNetlink
-- `cmd/ze/doctor/checks_other.go` -- stubs for new Linux-only checks
-- `cmd/ze/doctor/doctor_test.go` -- cross-platform unit tests
-- `cmd/ze/doctor/checks_linux_test.go` -- Linux-only unit tests
+- `internal/component/doctor/doctor.go` -- checkPKICerts, checkDHCPInterfaces, checkTACACSServers, checkRADIUSServers, extractBGPListeners, extractBFDListeners, extractIPsecListeners, extractTFTPListeners, extractImageListeners, extractNTPListeners, dedupeListeners, probeListener
+- `internal/component/doctor/checks_linux.go` -- checkFirewallBackend, checkTelemetryProcfs, checkSysctlProcfs, checkConntrackProcfs, checkPolicyRouteNetlink
+- `internal/component/doctor/checks_other.go` -- stubs for new Linux-only checks
+- `internal/component/doctor/doctor_test.go` -- cross-platform unit tests
+- `internal/component/doctor/checks_linux_test.go` -- Linux-only unit tests
 - `internal/core/diagnostic/codes.go` -- 17 new doctor-* codes
 - `test/ui/doctor-*.ci` -- 10 functional test files

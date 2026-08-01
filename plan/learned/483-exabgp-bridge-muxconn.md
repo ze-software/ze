@@ -31,8 +31,8 @@ The ExaBGP bridge translates between ExaBGP plugins (text commands, ExaBGP JSON)
 ## Files
 
 - `pkg/plugin/rpc/conn.go` -- `NewConn` signature: `net.Conn` to `io.ReadCloser`/`io.WriteCloser`
-- `cmd/ze/exabgp/main.go` -- TLS env var detection, mode branching
-- `cmd/ze/exabgp/main_sdk.go` -- SDK/TLS connect-back mode implementation
+- `internal/plugins/exabgp/main.go` -- TLS env var detection, mode branching
+- `internal/plugins/exabgp/main_sdk.go` -- SDK/TLS connect-back mode implementation
 - `internal/exabgp/bridge/bridge.go` -- MuxConn inline parsing, flush injection, `EncodeAddPathHex`
 - `internal/exabgp/bridge/bridge_muxconn.go` -- MuxConn wire format helpers, pending responses
 - `internal/exabgp/bridge/bridge_command.go` -- removed `set`/`add` from translated commands

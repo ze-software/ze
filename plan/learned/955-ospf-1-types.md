@@ -39,3 +39,7 @@ coverage rules, and metric semantics.
   back-to-back OSPF implementation, not a reason to add shims.
 - Any future OSPFv3 implementation must not share this package. OSPFv3 gets its
   own `internal/plugins/ospfv3/types` package with separate wire semantics.
+
+## Files
+
+None recorded.

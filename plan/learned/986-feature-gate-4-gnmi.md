@@ -68,3 +68,7 @@ corrected.
 under `ze_gnmi` and bare `ze_core`; generator `--check`; `dep_audit.py --check` +
 `--selftest`. `ze-stripped` (`ze_core ze_ssh`) links 0 gNMI symbols; `ze`/`ze-appliance`
 keep gNMI.
+
+## Files
+
+None recorded.

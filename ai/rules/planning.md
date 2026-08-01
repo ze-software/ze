@@ -401,8 +401,13 @@ Every row must be answered Yes/No. Every Yes must name the file and what to add.
 
 ## Writing Learned Summaries
 
-When a spec is complete, write a concise summary to `plan/learned/` using the next available number.
-Allocate the number with `scripts/dev/commit_helper.py learned-next <slug>`: it takes max(existing `plan/learned/NNNN-*.md` prefixes) + 1 and creates the file immediately, so concurrent sessions in one tree cannot collide. Include the created file in the Commit A helper command.
+**A summary is written only when the work produced a lesson. It is a record of knowledge, never an artifact of closing a spec.** Decide this BEFORE allocating a number: a spec that rejected no alternative, discovered no constraint, and hit no trap writes no file, and `plan/learned/` does not grow. 229 of 1,285 summaries carried no gotcha and 77 said in words that they carried none, because closure created the file unconditionally.
+- **Write one when any of these holds:** a decision was made and something else was rejected; a constraint was found that the code does not state; something failed in a way the next session would repeat; an interface, a gate, or a default changed and the reason is not in the code.
+- **Write none when the change only relocated content:** a move, a file rename, a reformat, or a rename applied everywhere. Same words, different place, nothing to explain (`plan/learned/METHODOLOGY.md`, "When No Summary Is Written").
+- **When there is one, allocate with `scripts/dev/commit_helper.py learned-next <slug>`:** it takes max(existing `plan/learned/NNNN-*.md` prefixes) + 1 and creates the file immediately, so concurrent sessions in one tree cannot collide. Include the created file in the Commit A helper command.
+- **When there is none, pass `--lesson-not-needed "<reason>"` on commit A and never `--lesson-required`.** Never run `learned-next` to "see the number": it allocates and writes on the spot, leaving an empty summary behind.
+- **The helper asks the same question of the diff, so an honest no costs one flag.** `lesson_worthy` (`scripts/dev/commit_helper.py`) refuses commit A when the change adds content rather than moving it and neither a summary nor a reason is staged. It reads what changed, not whether it is worth knowing, so a hollow gotcha written to satisfy it satisfies nothing.
+- **This governs records of COMPLETED WORK, and it says nothing about records of DEFECTS.** A `plan/known-failures/` shard, a `plan/deferrals/` row, and an open red are governed by `ai/rules/no-parking.md` and `ai/rules/fix-dont-record.md`, which forbid recording a defect INSTEAD of fixing it and equally forbid making one disappear. Nothing in this section, and nothing in the retirement of an old summary, is permission to prune a defect record: the two directions look alike and are opposite. A summary nobody needs is noise; a defect record nobody kept is a bug that returns.
 
 The summary is 25 to 35 lines and uses this fixed 5-section format. The budget is
 real: summaries averaged 27 lines in the first hundred and 93 in the last hundred.

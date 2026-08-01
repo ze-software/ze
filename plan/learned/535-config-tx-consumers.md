@@ -59,16 +59,16 @@ with OnConfigVerify, OnConfigApply, and OnConfigRollback callbacks using the SDK
 - `internal/component/bgp/reactor/reactor.go` -- PeerDiffCount, ReconcilePeersWithJournal public methods
 - `internal/component/bgp/plugin/register.go` -- OnConfigVerify/Apply/Rollback, WantsConfig, budgets
 - `internal/component/iface/register.go` -- journal-wrapped OnConfigApply, OnConfigRollback, WantsConfig
-- `internal/plugins/sysrib/register.go` -- journal-wrapped admin distance apply, OnConfigRollback
-- `internal/plugins/fibkernel/register.go` -- protocol compliance callbacks, WantsConfig
-- `internal/plugins/fibp4/register.go` -- protocol compliance callbacks, WantsConfig
+- `internal/component/sysrib/register.go` -- journal-wrapped admin distance apply, OnConfigRollback
+- `internal/plugins/fib/kernel/register.go` -- protocol compliance callbacks, WantsConfig
+- `internal/plugins/fib/p4/register.go` -- protocol compliance callbacks, WantsConfig
 - `internal/component/plugin/server/reload.go` -- removed direct reactor calls, BGP-last ordering
 - `docs/architecture/plugin/plugin-relationships.md` -- transaction participation rows
 - `internal/component/bgp/reactor/reactor_api_test.go` -- 5 journal tests
 - `internal/component/iface/config_test.go` -- 4 journal tests
-- `internal/plugins/sysrib/sysrib_test.go` -- 1 journal test
-- `internal/plugins/fibkernel/fibkernel_test.go` -- 1 journal test
-- `internal/plugins/fibp4/fibp4_test.go` -- 1 journal test
+- `internal/component/sysrib/sysrib_test.go` -- 1 journal test
+- `internal/plugins/fib/kernel/fibkernel_test.go` -- 1 journal test
+- `internal/plugins/fib/p4/fibp4_test.go` -- 1 journal test
 - `test/reload/test-tx-bgp-rollback.ci` -- functional test
 - `test/reload/test-tx-iface-apply.ci` -- functional test
 - `test/reload/test-tx-iface-bgp-chain.ci` -- functional test

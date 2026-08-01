@@ -79,7 +79,7 @@ modernization umbrella (spec-mcp-0-umbrella).
 | `internal/component/config/yang/modules/ze-extensions.yang` | `ze:ui-resource`, `ze:ui-permissions`, `ze:ui-csp` extensions |
 | `internal/component/bgp/plugins/cmd/peer/yang/ze-peer-cmd.yang` | Tagged `peer` container with UI extensions |
 | `cmd/ze/hub/main.go` | `uiResourceByPath` in `serverCommandLister`, `lookupUIResource` call |
-| `cmd/ze/hub/mcp.go` | `lookupUIResource` function |
+| `cmd/ze/hub/service_mcp.go` | `lookupUIResource` function |
 | `docs/architecture/mcp/overview.md` | Resources Capability section, files table, capability table, roadmap |
 | `docs/architecture/api/commands.md` | `resources/list`, `resources/read` method entries |
 | `docs/features.md` | MCP row updated with Apps |

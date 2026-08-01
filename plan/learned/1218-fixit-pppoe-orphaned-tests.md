@@ -77,3 +77,7 @@ loud ones. Deleting the stale files is the one-off cleanup; the guard is the reu
 - `TestParseOptionUnknownStillErrors` (`internal/test/runner/record_parse_test.go`) —
   AC-4: `parseOption`'s fail-closed default still errors on `option=netns`, driven
   from the `parseAndAdd` entry point.
+
+## Files
+
+None recorded.

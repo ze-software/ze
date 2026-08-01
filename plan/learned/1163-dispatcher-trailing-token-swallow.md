@@ -75,3 +75,7 @@ command tree. A predicate that sounds like a contract ("no ArgDefs means no
 args") can be an artifact of how someone wrote a YANG file. The check that
 settles it is cheap: if the new rejection never fires across a full run, the
 change is inert; if it fires, find out what it hit before shipping.
+
+## Files
+
+None recorded.

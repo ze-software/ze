@@ -26,9 +26,9 @@ Ze needed a tc backend plugin to program Linux traffic control (qdiscs, classes,
 
 ## Files
 
-- `internal/plugins/trafficnetlink/trafficnetlink.go` -- Package doc
-- `internal/plugins/trafficnetlink/register.go` -- RegisterBackend("tc")
-- `internal/plugins/trafficnetlink/backend_linux.go` -- Apply, ListQdiscs
-- `internal/plugins/trafficnetlink/backend_other.go` -- Non-Linux stub
-- `internal/plugins/trafficnetlink/translate_linux.go` -- Qdisc/class/filter translation
+- `internal/plugins/traffic/netlink/trafficnetlink.go` -- Package doc
+- `internal/plugins/traffic/netlink/register.go` -- RegisterBackend("tc")
+- `internal/plugins/traffic/netlink/backend_linux.go` -- Apply, ListQdiscs
+- `internal/plugins/traffic/netlink/backend_other.go` -- Non-Linux stub
+- `internal/plugins/traffic/netlink/translate_linux.go` -- Qdisc/class/filter translation
 - `internal/component/plugin/all/all.go` -- Updated by make generate

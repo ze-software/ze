@@ -110,3 +110,7 @@ finalizing the address-bound IPv6 checksum on transmit.
 - Next OSPFv3 target (umbrella): `spec-ospfv3-4-plugin-config.md` (plugin
   registration, YANG `ospfv3` config tree, instance lifecycle wiring the
   transport's `NewBackend`/`EnableInterface`/`Receive`/`SendPacket`).
+
+## Files
+
+None recorded.
