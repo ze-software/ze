@@ -11,6 +11,7 @@ package engine
 
 import (
 	"errors"
+	"fmt"
 	"net"
 
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
@@ -519,7 +520,19 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 	return nil
 }
 
-// recordInitiatorSelectors stores the selectors a responder answered with.
+// errTSWidened reports a responder answer that is not a subset of what Ze proposed, or not
+// a subset of Ze's own configured policy.
+//
+// RFC 7296 Section 2.9 states the one direction the answer CAN move in: "the responder is
+// allowed to narrow the choices by selecting a subset of the traffic selectors" and "If the
+// responder's policy does not allow it to accept any part of the proposed Traffic Selectors,
+// it responds with a TS_UNACCEPTABLE Notify message". There is no widening arm. An answer
+// outside the proposal is a protocol violation, and installing it would let the peer choose
+// the traffic Ze forwards.
+var errTSWidened = errors.New("ike: the responder answered with traffic selectors wider than the proposal")
+
+// recordInitiatorSelectors stores the selectors a responder answered with. It first makes
+// sure the answer widened nothing.
 //
 // RFC 7296 Section 2.9 lets the responder narrow, so the answer can be a strict subset of
 // what Ze proposed. The INITIATOR installs the answer rather than its own proposal, or
@@ -527,13 +540,39 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 // responder already did the narrowing, and narrowing an answer a second time would shrink
 // the SA below what both ends agreed.
 //
+// THE ANSWER IS NOT TRUSTED, ONLY ADOPTED. Narrowing is the responder's to do, and the
+// direction is one-way. Every answered selector must therefore sit inside a selector Ze
+// proposed.
+//
+// The initiator installed whatever came back before this test existed. A peer that answered
+// 0.0.0.0/0 to a proposal of 10.1.0.0/16 had Ze program a policy for the whole internet.
+// That is a policy bypass, and the far end drives all of it.
+//
+// THE CEILING IS THE PROPOSAL. It falls back to the configured policy only when there was
+// no proposal to speak of. sa.ProposedChildPairs is what proposeChildTSPayloads put on the
+// wire, and that is already the operator's policy in every ordinary case.
+//
+// Transport mode is why the policy is not read beside it. RFC 7296 Section 2.23.1 requires
+// "exactly one IP address in the TSi and TSr payloads". transportSelectorPairs therefore
+// replaces the operator's PREFIXES with the SA's own endpoint addresses. Those addresses
+// need not sit inside the configured prefixes. A test of the answer against the policy as
+// well refuses the responder's correct narrowing of ze's own correct proposal.
+//
+// An EMPTY proposal means the wildcard went on the wire. The operator's policy is then the
+// only ceiling left, and ze applies it. That is the fallback path for a configured policy
+// no TS payload can carry, where the wildcard is wider than the operator asked for. An
+// empty policy in turn means everything. That is the load-bearing default for every
+// configuration written before the traffic-selector list existed, and the test is skipped.
+//
 // A selector Ze cannot program exactly is still reduced to a programmable subset by
-// wireToSelectors, because a peer can answer with a range no backend can express.
-func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS) {
+// wireToSelectors, because a peer can answer with a range no backend can express. That
+// reduction only ever shrinks a selector, so it cannot turn a widening answer into a
+// permitted one.
+func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS) error {
 	iSels := wireToSelectors(tsi.TrafficSelectors)
 	rSels := wireToSelectors(tsr.TrafficSelectors)
 	if len(iSels) == 0 || len(rSels) == 0 {
-		return
+		return nil
 	}
 	pairs := make([]tsPair, 0, len(iSels))
 	for i := range iSels {
@@ -543,11 +582,67 @@ func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS) {
 		}
 	}
 	if len(pairs) == 0 {
-		return
+		return nil
+	}
+	ceiling, what := sa.ProposedChildPairs, "the proposal ze sent"
+	if len(ceiling) == 0 {
+		ceiling, what = policyPairs(sa.PeerCfg, true), "the configured policy"
+	}
+	if err := checkAnswerWithin(pairs, ceiling, what); err != nil {
+		return err
 	}
 	sa.NegotiatedPairs = pairs
 	sa.NegotiatedTSi = pairs[0].I.Net
 	sa.NegotiatedTSr = pairs[0].R.Net
+	return nil
+}
+
+// checkAnswerWithin reports the first answered pair that no pair of ceiling covers.
+//
+// An EMPTY ceiling permits everything and is not a refusal: it is the wildcard proposal and
+// the unconfigured policy, both of which mean "no constraint". Every non-empty ceiling is
+// absolute (ai/rules/fail-closed-guards.md: a pair matching nothing is refused, never
+// admitted by default).
+func checkAnswerWithin(answer, ceiling []tsPair, what string) error {
+	if len(ceiling) == 0 {
+		return nil
+	}
+	for _, a := range answer {
+		if !pairWithinAny(a, ceiling) {
+			return fmt.Errorf("%w: %v <-> %v is outside %s",
+				errTSWidened, a.I.Net, a.R.Net, what)
+		}
+	}
+	return nil
+}
+
+// pairWithinAny reports whether some ceiling pair covers BOTH halves of a.
+//
+// The SAME entry must cover the two halves. A pair whose TSi comes from one policy row, and
+// whose TSr comes from another, describes a flow that neither row permits.
+func pairWithinAny(a tsPair, ceiling []tsPair) bool {
+	for _, c := range ceiling {
+		if selectorWithin(a.I, c.I) && selectorWithin(a.R, c.R) {
+			return true
+		}
+	}
+	return false
+}
+
+// selectorWithin reports whether inner is covered by outer in all three dimensions.
+//
+// The port and protocol tests reuse the intersection helpers: an intersection that yields
+// inner unchanged is exactly the statement that outer already permitted it.
+func selectorWithin(inner, outer tsSelector) bool {
+	if !containsNet(outer.Net, inner.Net) {
+		return false
+	}
+	port, ok := intersectPort(inner.Port, outer.Port)
+	if !ok || port != inner.Port {
+		return false
+	}
+	proto, ok := intersectProto(inner.Proto, outer.Proto)
+	return ok && proto == inner.Proto
 }
 
 // keepSingleAddress drops every selector whose prefix covers more than one address.

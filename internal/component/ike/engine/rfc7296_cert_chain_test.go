@@ -187,6 +187,37 @@ func wpcFreshCache(t *testing.T) {
 	t.Helper()
 	resetCertURLCache()
 	t.Cleanup(resetCertURLCache)
+	t.Cleanup(func() { wpcAwaitIdleFetcher(t) })
+}
+
+// wpcAwaitCached blocks until the background worker has cached the object named by hash.
+//
+// It waits on the CONDITION, not on a duration (ai/rules/fix-dont-record.md). The lookup
+// is real network I/O to an httptest server. A fixed sleep makes a load-sensitive test.
+func wpcAwaitCached(t *testing.T, hash []byte) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, ok := lookupHashAndURL(hash); ok {
+			return
+		}
+		time.Sleep(2 * time.Millisecond) // poll interval; the loop returns as soon as the cache holds the object
+	}
+	t.Fatal("the background hash-and-url worker never cached the object")
+}
+
+// wpcAwaitIdleFetcher blocks until no background lookup is running. One test's worker then
+// cannot write the shared cache while the next test asserts on it.
+func wpcAwaitIdleFetcher(t *testing.T) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	for time.Now().Before(deadline) {
+		if certURLFetches.inFlight() == 0 {
+			return
+		}
+		time.Sleep(2 * time.Millisecond) // poll interval; the loop returns as soon as the pending set drains
+	}
+	t.Error("a background hash-and-url worker never finished")
 }
 
 // VALIDATES: RFC7296-3.6-1. Ze can be configured to SEND four X.509 certificates and to
@@ -521,6 +552,11 @@ func TestChuHashAndURLIsOffByDefault(t *testing.T) {
 // fetchHashAndURL and stores the fetched DER as the peer certificate.
 // RFC requirement: RFC7296-3.6-3 negative -- a scheme other than http is refused before any
 // I/O, and bytes whose SHA-1 does not match the payload are refused before any parser sees them.
+// rfc-test-change-approved: 2026-08-01 owner standing approval for
+// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. The lookup no longer runs on
+// the caller's goroutine (certurl.go, certURLFetcher), so the first call reports the object
+// as pending and the RETRANSMISSION resolves it. This test now proves both halves: that the
+// first call performs no fetch of its own, and that the object still arrives.
 func TestChuHashURLLookupUsesHTTPAndVerifiesTheHash(t *testing.T) {
 	wpcFreshCache(t)
 	chain := wpcChain(t, 0)
@@ -545,8 +581,25 @@ func TestChuHashURLLookupUsesHTTPAndVerifiesTheHash(t *testing.T) {
 	sa.PeerCfg.Auth.CertificateURL = "http://pki.example/device.der"
 	sa.PeerCfg.Auth.CertificateURLAllow = loopback
 
+	// rfc-test-change-approved: 2026-08-01 owner standing approval for
+	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	//
+	// The first delivery finds nothing cached. It starts a worker and reports the object
+	// as pending. It fetches NOTHING on this goroutine. An inline fetch here runs on the
+	// shared dispatch goroutine that serves every IKE session.
+	first := storeRemoteCerts(sa, []*wire.PayloadCERT{payload}, wpcQuietLogger())
+	if !errors.Is(first, errCertURLPending) {
+		t.Fatalf("the first delivery of an uncached hash-and-url payload returned %v, "+
+			"want errCertURLPending; a lookup that answers inline blocks every other session", first)
+	}
+	if len(sa.RemoteCertRaw) != 0 {
+		t.Error("a pending lookup wrote a peer certificate, so a later refusal cannot undo it")
+	}
+
+	// The peer retransmits (RFC 7296 Section 2.1). By then the worker has cached the object.
+	wpcAwaitCached(t, sum[:])
 	if err := storeRemoteCerts(sa, []*wire.PayloadCERT{payload}, wpcQuietLogger()); err != nil {
-		t.Fatalf("an http hash-and-url lookup failed: %v", err)
+		t.Fatalf("the retransmitted http hash-and-url lookup failed: %v", err)
 	}
 	if *hits == 0 {
 		t.Fatal("the server was never contacted, so no lookup was performed")
@@ -615,20 +668,32 @@ func TestChuHashURLLookupRefusesEverythingOutsideTheBound(t *testing.T) {
 	})
 
 	t.Run("the metadata address is refused before connect", func(t *testing.T) {
+		// rfc-test-change-approved: 2026-08-01 owner standing approval for
+		// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+		//
+		// This row and the one below asserted err != nil only. 169.254.169.254 is
+		// unroutable on a build host, and a loopback port can refuse a connection. Both
+		// rows therefore passed on a NETWORK failure. Neither said anything about the deny
+		// list. The fetch still fails with certURLDenied deleted, so a person CAN remove
+		// the guard and neither row reports it. The refusal must name itself.
+		//
 		// No allowance, so the deny list governs.
 		wpcFreshCache(t)
 		_, err := fetchHashAndURL(t.Context(),
 			wpcHashAndURL(sum[:], "http://169.254.169.254/latest/meta-data/"), nil)
-		if err == nil {
-			t.Fatal("the cloud metadata address was fetched")
+		if !errors.Is(err, errCertURLBlocked) {
+			t.Fatalf("the cloud metadata address returned %v, want errCertURLBlocked; a "+
+				"routing or timeout failure is not the destination check firing", err)
 		}
 	})
 
 	t.Run("loopback is refused without an operator allowance", func(t *testing.T) {
 		wpcFreshCache(t)
 		srv, _ := wpcServer(t, leafDER)
-		if _, err := fetchHashAndURL(t.Context(), wpcHashAndURL(sum[:], srv.URL), nil); err == nil {
-			t.Fatal("a loopback destination was fetched with no certificate-url-allow entry")
+		_, err := fetchHashAndURL(t.Context(), wpcHashAndURL(sum[:], srv.URL), nil)
+		if !errors.Is(err, errCertURLBlocked) {
+			t.Fatalf("a loopback destination with no certificate-url-allow entry returned "+
+				"%v, want errCertURLBlocked", err)
 		}
 		// The same URL WITH the allowance succeeds, so the deny list is not a blanket
 		// refusal of every destination.

@@ -98,14 +98,18 @@ func TestBfmBareESPKeptForUnfloatedSA(t *testing.T) {
 // template refuses bare ESP with XfrmInStateMismatch. A state without one refuses
 // encapsulated ESP the same way.
 //
-// Two states on one SPI do not help. The state lookup is keyed on destination, SPI,
-// protocol and family, and it is not encapsulation-aware. It returns the first match, and
-// the encapsulation check then drops the packet.
-//
-// That is measured and not inferred. TestEncapKernelBindsOneESPFormPerState
+// MEASURED. TestEncapKernelBindsOneESPFormPerState
 // (dataplane/encap_integration_linux_test.go) drives a real kernel in QEMU and records
-// the truth table. Ze therefore receives both forms across its SAs at any time. It cannot
-// accept a form CHANGE on one established SA. The negative below pins that boundary.
+// that truth table. It installs its two states on two DISTINCT SPIs.
+//
+// REASONED, and not measured: two states on ONE SPI do not help either. The state lookup
+// is keyed on destination, SPI, protocol and family, so it returns the first match and
+// the mismatch check then drops the packet. No test installs two states on one SPI.
+// plan/spec-ipsec-esp-dual-form-receive.md carries that as an assumption to validate, and
+// it owns the work of lifting the constraint.
+//
+// Ze therefore receives both forms across its SAs at any time. It cannot accept a form
+// CHANGE on one established SA. The negative below pins that boundary.
 //
 // WHAT WOULD FALSIFY THIS: a device that CAN only ever program one of the two forms. A
 // port-4500 socket without UDP_ENCAP set does the same, because the encapsulated form is
@@ -142,7 +146,8 @@ func TestBfmBothESPFormsAreReachable(t *testing.T) {
 // across Ze's SAs, and not within one of them.
 //
 // A peer that alternates forms on one SA is not handled. That is the Linux XFRM state
-// model measured by TestEncapKernelBindsOneESPFormPerState. It is not a check Ze omitted.
+// model, whose per-state half TestEncapKernelBindsOneESPFormPerState measures. It is not
+// a check Ze omitted.
 //
 // This argument does not expire when a guard arrives, because it asserts what the code
 // DOES. If the two directions ever disagreed, the SA would be programmed for two forms at

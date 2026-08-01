@@ -232,7 +232,22 @@ func TestNattUnauthenticatedPacketDoesNotMoveTheEndpoint(t *testing.T) {
 //
 // BOTH directions are asserted. A test that checked only the 4500 case passes for an
 // implementation that always answers from 4500, which breaks the row the other way.
+//
+// rfc-test-change-approved: 2026-08-01 owner standing approval for
+// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+//
+// The test used to call sendReply with a transport IT chose. That proves only that
+// sendReply sends on the socket it is handed. The CHOICE belongs to production.
+// handleResponderInbound (responder.go) takes the arrival transport from its dispatch loop
+// and passes it down. And sa.sendPath is the wrong answer beside the right one: it returns
+// the bound port-500 socket for an SA that has not floated.
+//
+// The delivery runs through handleResponderInbound now. A swap of that choice therefore
+// reddens this test. Stronger checks replace the two dropped sendReply error checks. The
+// wrong socket is proven REACHABLE from the SA. Each arrival is proven to draw exactly one
+// datagram.
 func TestNattReplyLeavesFromTheArrivalSocket(t *testing.T) {
+	log := slogutil.DiscardLogger()
 	peerTr, ikeTr, nattTr := nttNATTLink(t)
 	dst := nttPeerAddr(t, peerTr)
 
@@ -242,13 +257,53 @@ func TestNattReplyLeavesFromTheArrivalSocket(t *testing.T) {
 		t.Fatalf("both sockets bound port %d, so the assertion cannot discriminate", ikePort)
 	}
 
+	// The cached IKE_SA_INIT response a repeated request draws. Its content does not
+	// matter here. The socket it leaves from does.
 	body := make([]byte, 40)
 	body[17] = 0x20
 
-	if err := sendReply(nattTr, body, dst); err != nil {
-		t.Fatalf("sendReply on the NAT-T socket: %v", err)
+	// arrive delivers a retransmitted IKE_SA_INIT request on one of ze's two sockets and
+	// returns the source port and the bytes the peer saw. BOTH sockets are bound to the SA,
+	// so the handler has a real choice and is proven to take the arrival one.
+	arrive := func(on *transport.UDPTransport) (int, []byte) {
+		t.Helper()
+		sa := testSA()
+		sa.PeerName = "natt-arrival"
+		sa.IsInitiator = false
+		sa.State = StateSAInitReceived
+		sa.ResponderSAInitMsg = body
+		sa.bindSockets(ikeTr, nattTr)
+
+		// Anti-vacuity: the WRONG socket is reachable from this SA. sendPath answers with
+		// the bound port-500 socket while the SA has not floated. A handler that asked the
+		// SA, and not the arrival transport, answers a 4500 request from port 500.
+		if chosen, _ := sa.sendPath(on); chosen != ikeTr {
+			t.Fatalf("the fixture offers no wrong socket to take, so the assertions below "+
+				"cannot discriminate: sendPath chose %v", chosen.LocalAddr())
+		}
+
+		req := &wire.Message{Header: wire.Header{
+			InitiatorSPI: sa.InitiatorSPI,
+			ResponderSPI: sa.ResponderSPI,
+			MajorVersion: 2,
+			ExchangeType: wire.ExchangeIKESAInit,
+			Flags:        wire.FlagInitiator,
+		}}
+		ps := &PeerSession{peerName: sa.PeerName}
+		ps.handleResponderInbound(sa, req, transport.Packet{Data: make([]byte, 28), RemoteAddr: dst}, on, log)
+
+		port, data := nttSourcePortOf(t, peerTr)
+		// A second datagram would leave the next arrival reading a stale one, so the
+		// remaining assertions would judge the wrong reply.
+		select {
+		case extra := <-peerTr.Recv():
+			t.Fatalf("one request drew a second datagram, from port %d", extra.RemoteAddr.Port)
+		default:
+		}
+		return port, data
 	}
-	gotPort, gotData := nttSourcePortOf(t, peerTr)
+
+	gotPort, gotData := arrive(nattTr)
 	if gotPort != nattPort {
 		t.Errorf("a request that arrived on the NAT-T socket was answered from port %d, want %d", gotPort, nattPort)
 	}
@@ -259,10 +314,7 @@ func TestNattReplyLeavesFromTheArrivalSocket(t *testing.T) {
 		t.Errorf("the NAT-T reply does not start with the four-octet non-ESP marker")
 	}
 
-	if err := sendReply(ikeTr, body, dst); err != nil {
-		t.Fatalf("sendReply on the IKE socket: %v", err)
-	}
-	gotPort, gotData = nttSourcePortOf(t, peerTr)
+	gotPort, gotData = arrive(ikeTr)
 	if gotPort != ikePort {
 		t.Errorf("a request that arrived on the IKE socket was answered from port %d, want %d", gotPort, ikePort)
 	}

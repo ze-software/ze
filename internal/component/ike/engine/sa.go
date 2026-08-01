@@ -297,6 +297,21 @@ type SA struct {
 	// every conformant answer.
 	NegotiatedPairs []tsPair
 
+	// ProposedChildPairs is the selector set Ze put in its OWN TSi/TSr.
+	//
+	// proposeChildTSPayloads (rekey.go) records it. That function is the single producer of
+	// an initiator's Child SA proposal.
+	//
+	// RFC 7296 Section 2.9 lets a responder NARROW the proposal, and never widen it. This is
+	// therefore the ceiling for the answer (recordInitiatorSelectors, ts_narrow.go).
+	// Without it the initiator installed whatever selectors came back. A hostile or buggy
+	// responder then chose the traffic Ze forwards into the tunnel.
+	//
+	// An EMPTY slice means Ze proposed the wildcard. That is what a peer with no configured
+	// traffic-selector list does. Everything is then within the proposal, and the configured
+	// policy is the only constraint left. It is itself empty in that case.
+	ProposedChildPairs []tsPair
+
 	// UseTransportMode records that this SA's Child SAs run in transport mode.
 	//
 	// RFC 7296 Section 1.3.1: transport mode is negotiated with the USE_TRANSPORT_MODE

@@ -104,6 +104,12 @@ func anyChildTSPayloads(sa *SA) (*wire.PayloadTS, *wire.PayloadTS) {
 //
 // RFC 7296 Section 2.9 puts the initiator's preference in the ORDER of the list, so the
 // first configured selector is the first choice a conforming responder must honor.
+// It also RECORDS what it proposed on the SA.
+//
+// RFC 7296 Section 2.9 lets the responder narrow the proposal, and never widen it.
+// recordInitiatorSelectors (ts_narrow.go) checks the answer against this record. A proposal
+// that is not recorded here is a ceiling the initiator cannot enforce. The producer writes
+// the record for that reason, rather than the consumer rebuilding it.
 func proposeChildTSPayloads(sa *SA) (*wire.PayloadTS, *wire.PayloadTS) {
 	pairs := policyPairs(sa.PeerCfg, true)
 
@@ -114,18 +120,26 @@ func proposeChildTSPayloads(sa *SA) (*wire.PayloadTS, *wire.PayloadTS) {
 	if wantsTransportMode(sa) {
 		pinned := transportSelectorPairs(sa, pairs)
 		if tsi, tsr := pairsToWire(pinned); tsi != nil && tsr != nil {
+			sa.ProposedChildPairs = pinned
 			return tsi, tsr
 		}
+		sa.ProposedChildPairs = nil
 		return anyChildTSPayloads(sa)
 	}
 
 	if len(pairs) == 0 {
+		sa.ProposedChildPairs = nil
 		return anyChildTSPayloads(sa)
 	}
 	tsi, tsr := pairsToWire(pairs)
 	if tsi == nil || tsr == nil {
+		// The wildcard went on the wire, so the wildcard is what was proposed. A record of
+		// the pairs here states a ceiling the peer was never told about. The answer to a
+		// wildcard is then refused because it goes past that ceiling.
+		sa.ProposedChildPairs = nil
 		return anyChildTSPayloads(sa)
 	}
+	sa.ProposedChildPairs = pairs
 	return tsi, tsr
 }
 

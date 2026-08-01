@@ -721,6 +721,18 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 		}
 	}
 	if err := storeRemoteCerts(sa, certPayloads, log); err != nil {
+		if errors.Is(err, errCertURLPending) {
+			// The lookup runs on a worker, not on this goroutine. This one is the shared
+			// dispatch goroutine while no owner loop has adopted the handshake yet
+			// (certurl.go).
+			//
+			// The response is dropped and the SA is left ALIVE. The retransmit loop in
+			// runInitiator sends the IKE_AUTH request again, and its answer finds the
+			// object cached.
+			log.Debug("ike: hash-and-url lookup pending, dropping the AUTH response",
+				"peer", sa.PeerName)
+			return
+		}
 		log.Warn("ike: peer certificate chain refused", "peer", sa.PeerName, "error", err)
 		sa.State = StateDead
 		return

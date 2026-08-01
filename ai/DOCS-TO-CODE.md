@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 303 design docs, 3163 files
+Total: 303 design docs, 3165 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2249,9 +2249,12 @@ Total: 303 design docs, 3163 files
 
 ## `plan/handover/03-design-wp7.md`
 
-- `internal/component/ike/engine/transport_mode.go` -- USE_TRANSPORT_MODE negotiation
-- `internal/component/ike/engine/ts_narrow.go` -- RFC 7296 Section 2.9 traffic-selector narrowing
-- `internal/component/ike/ipsec/traffic_selector.go` -- operator traffic-selector policy for IKEv2 narrowing
+| File | Topic |
+|------|-------|
+| `internal/component/ike/engine/transport_mode.go` | USE_TRANSPORT_MODE negotiation |
+| `internal/component/ike/engine/ts_initiator_subset_test.go` | RFC 7296 Section 2.9 traffic-selector narrowing |
+| `internal/component/ike/engine/ts_narrow.go` | RFC 7296 Section 2.9 traffic-selector narrowing |
+| `internal/component/ike/ipsec/traffic_selector.go` | operator traffic-selector policy for IKEv2 narrowing |
 
 ## `plan/learned/1005-cp-survival-2-copp-port179.md`
 
@@ -3208,6 +3211,7 @@ Total: 303 design docs, 3163 files
 | `internal/component/ike/engine/certbundle.go` | IKEv2 certificate payload handling |
 | `internal/component/ike/engine/certbundle_elements_test.go` | IKEv2 certificate payload handling |
 | `internal/component/ike/engine/certurl.go` | IKEv2 certificate payload handling |
+| `internal/component/ike/engine/certurl_async_test.go` | IKEv2 certificate payload handling |
 | `internal/component/ike/engine/certurl_bounds_test.go` | IKEv2 certificate payload handling |
 
 ## `plan/learned/740-ipsec-7-ikev2-engine.md`

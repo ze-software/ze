@@ -125,6 +125,94 @@ func majorVersionSweep(
 	}
 }
 
+// rfc-test-change-approved: 2026-08-01 owner standing approval for
+// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+//
+// mvAcceptedVersions is NEW and removes nothing. The RFC7296-2.5-15 echo test compared a
+// literal 2 it wrote against a literal 2 the builders write. That holds for an
+// implementation that accepts only version 3 and answers 2. Ze MEASURES the supported
+// version from the inbound gate now.
+//
+// mvAcceptedVersions MEASURES which major versions ze accepts. It offers all sixteen to the
+// production inbound gate and reports which ones reach an SA.
+//
+// A test can then state that the version ze responds with is the version ze supports, and
+// state it once. Two independent constants that agree prove only that they agree. The value
+// here comes from dispatchInbound, a different producer from the builders under test.
+func mvAcceptedVersions(t *testing.T) []uint8 {
+	t.Helper()
+	log := slogutil.DiscardLogger()
+
+	tr, err := transport.NewUDPTransport("127.0.0.1:0", log)
+	if err != nil {
+		t.Fatalf("NewUDPTransport: %v", err)
+	}
+	t.Cleanup(func() { _ = tr.Close() })
+	go tr.Run()
+
+	table := NewSATable()
+	sa := testSA()
+	spi, err := GenerateSPI()
+	if err != nil {
+		t.Fatalf("GenerateSPI: %v", err)
+	}
+	sa.InitiatorSPI = spi
+	sa.PeerName = "version-measure"
+	table.Insert(sa)
+
+	ps := &PeerSession{peerName: sa.PeerName, inbound: make(chan transport.Packet, 32)}
+	ps.ownedSA.Store(sa)
+	SetActivePeersForTest(map[string]*PeerSession{sa.PeerName: ps})
+	t.Cleanup(func() { SetActivePeersForTest(nil) })
+
+	go dispatchInbound(tr, table, log)
+
+	local, ok := tr.LocalAddr().(*net.UDPAddr)
+	if !ok {
+		t.Fatal("transport LocalAddr is not *net.UDPAddr")
+	}
+	sender, err := net.DialUDP("udp4", nil, local)
+	if err != nil {
+		t.Fatalf("DialUDP: %v", err)
+	}
+	t.Cleanup(func() { _ = sender.Close() })
+
+	for major := range uint8(16) {
+		msg := wire.Message{Header: wire.Header{
+			InitiatorSPI: sa.InitiatorSPI,
+			MajorVersion: major,
+			ExchangeType: wire.ExchangeInformational,
+			Flags:        wire.FlagInitiator,
+			MessageID:    7,
+		}}
+		buf := make([]byte, 512)
+		n := msg.WriteTo(buf, 0)
+		if _, err := sender.Write(buf[:n]); err != nil {
+			t.Fatalf("write major version %d: %v", major, err)
+		}
+	}
+
+	// UDP on loopback keeps order and one dispatch loop is one goroutine, so an accepted
+	// version arrives in the order it was sent. Wait for the first, then drain.
+	var accepted []uint8
+	select {
+	case pkt := <-ps.inbound:
+		accepted = append(accepted, pkt.Data[17]>>4)
+	case <-time.After(5 * time.Second):
+		t.Fatal("ze accepted no major version at all, so nothing it answers can echo one")
+	}
+	for {
+		select {
+		case pkt := <-ps.inbound:
+			accepted = append(accepted, pkt.Data[17]>>4)
+			continue
+		case <-time.After(200 * time.Millisecond): // settle window; every datagram was queued ahead of the one already read
+		}
+		break
+	}
+	return accepted
+}
+
 // RFC requirement: RFC7296-2.5-14 positive -- ze's supported major-version set is the singleton
 // {2}. dispatchInbound (register.go) drops every datagram whose octet-17 high nibble is not 2,
 // and the sweep below proves that over all sixteen major versions. A singleton has no interior,
@@ -178,7 +266,23 @@ func TestNATTDispatchAppliesTheSameVersionGate(t *testing.T) {
 // is given into the high nibble of octet 17. An explicit 5 reaches the wire as 5. The constant
 // 2 in the builders is therefore their decision, not a limit of the encoder.
 func TestResponderEchoesTheSupportedMajorVersion(t *testing.T) {
+	// rfc-test-change-approved: 2026-08-01 owner standing approval for
+	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. Nothing is removed.
+	//
+	// Ze MEASURES the supported version from the production inbound gate now. It is no
+	// longer a second literal 2 beside the builders' own. RFC 7296 Section 2.5 makes the
+	// requirement conditional: "a message with a major version THAT IT SUPPORTS" gets
+	// "that version number" back. Two literals that agree hold equally for an
+	// implementation that accepts only version 3 and answers 2. A measured antecedent
+	// couples the two halves that the requirement couples.
 	log := slogutil.DiscardLogger()
+
+	accepted := mvAcceptedVersions(t)
+	if len(accepted) != 1 {
+		t.Fatalf("the inbound gate accepts %v; this test drives the single-version case", accepted)
+	}
+	supported := accepted[0]
+
 	iniPeer, respPeer := responderTestPeers(ipsec.AuthPreSharedSecret, "version-echo-psk")
 
 	ini, err := newInitiatorSA("ze", iniPeer, testIKEGroup(), testESPGroup())
@@ -187,11 +291,13 @@ func TestResponderEchoesTheSupportedMajorVersion(t *testing.T) {
 	}
 	req := buildSAInitRequest(ini, testIKEGroup())
 
-	// Anti-vacuity: the request ze answers really carries major version 2. Without this the
-	// echo assertion below compares 2 against a version nobody sent.
+	// Anti-vacuity: the request ze answers really carries the version ze SUPPORTS. The echo
+	// assertion below then stands on the antecedent the RFC states. It does not stand on a
+	// number this file chose.
 	reqMajor := req[17] >> 4
-	if reqMajor != 2 {
-		t.Fatalf("the IKE_SA_INIT request carries major version %d, want 2", reqMajor)
+	if reqMajor != supported {
+		t.Fatalf("the IKE_SA_INIT request carries major version %d and the inbound gate "+
+			"accepts %d; ze would answer a version it never accepts", reqMajor, supported)
 	}
 
 	resp, err := newResponderSA("ze", respPeer, testIKEGroup(), testESPGroup(), ini.InitiatorSPI)
@@ -207,15 +313,19 @@ func TestResponderEchoesTheSupportedMajorVersion(t *testing.T) {
 			got, reqMajor)
 	}
 
-	// Every later response repeats the same version number.
+	// rfc-test-change-approved: 2026-08-01 owner standing approval for
+	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	//
+	// Every later response repeats the same version number. That number is the MEASURED
+	// supported one. It is not a literal this file wrote beside the builders' own.
 	responses := 0
 	for _, m := range engineBuiltMessages(t) {
 		if !m.isResponse {
 			continue
 		}
 		responses++
-		if got := m.raw[17] >> 4; got != 2 {
-			t.Errorf("%s: major version = %d, want 2", m.name, got)
+		if got := m.raw[17] >> 4; got != supported {
+			t.Errorf("%s: major version = %d, and the inbound gate accepts %d", m.name, got, supported)
 		}
 	}
 	if responses == 0 {

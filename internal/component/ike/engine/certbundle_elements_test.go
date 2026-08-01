@@ -37,6 +37,81 @@ func bundleOf(t *testing.T, tags []int) []byte {
 	return bundle
 }
 
+// The DER identifier octets RFC 7296 Section 3.6's ASN.1 module produces, written as
+// LITERALS.
+//
+// CertificateOrCRL ::= CHOICE { cert [0] Certificate, crl [1] CertificateList } under
+// DEFINITIONS EXPLICIT TAGS. An EXPLICIT context-specific alternative is constructed, so the
+// identifier octet is (class 2 << 6) | (constructed 1 << 5) | tag: 0xA0 for cert [0] and
+// 0xA1 for crl [1]. The bundle itself is a SEQUENCE OF, identifier 0x30.
+//
+// These are written out rather than derived from certBundleTagCert and certBundleTagCRL on
+// purpose. A derived expectation makes the encoder its own oracle. A moved constant then
+// moves the expectation with it. Every assertion below stays green while ze emits bytes
+// that strongSwan and every other conforming peer reject.
+const (
+	cbeCertIdentifier = 0xA0
+	cbeCRLIdentifier  = 0xA1
+	cbeSequence       = 0x30
+)
+
+// VALIDATES: the bundle ze ENCODES carries the identifier octets RFC 7296 Section 3.6's
+// ASN.1 module requires, and the bundle ze DECODES reads those same octets. Both are pinned
+// to the literal DER bytes rather than to the constants the codec uses.
+// PREVENTS: the CHOICE tag numbers drifting silently. certbundle.go names them once and both
+// halves of the codec read that one name, so a changed constant keeps ze self-consistent and
+// makes it wrong against every peer. The literals below are the only thing in the package
+// that disagrees when that happens.
+func TestCertBundleUsesTheExplicitDERTagBytes(t *testing.T) {
+	// Encode side. asn1.Unmarshal is stdlib, so the outer SEQUENCE is opened by something
+	// other than the code under test, and its first content octet is read directly.
+	bundle, err := encodeCertBundle([][]byte{{0x30, 0x00}})
+	if err != nil {
+		t.Fatalf("encodeCertBundle: %v", err)
+	}
+	if bundle[0] != cbeSequence {
+		t.Errorf("the bundle starts with %#02x, want %#02x; CertificateBundle is a SEQUENCE OF",
+			bundle[0], cbeSequence)
+	}
+	var outer asn1.RawValue
+	if _, err := asn1.Unmarshal(bundle, &outer); err != nil {
+		t.Fatalf("the encoded bundle is not valid DER: %v", err)
+	}
+	if len(outer.Bytes) == 0 {
+		t.Fatal("the encoded bundle carries no element")
+	}
+	if outer.Bytes[0] != cbeCertIdentifier {
+		t.Errorf("a certificate element starts with %#02x, want %#02x; cert [0] under EXPLICIT "+
+			"TAGS is a constructed context-specific 0, and an IMPLICIT or renumbered reading "+
+			"produces bytes a conforming peer rejects", outer.Bytes[0], cbeCertIdentifier)
+	}
+
+	// Decode side. The bundle below is written byte by byte, so nothing about it comes from
+	// certbundle.go: SEQUENCE { [0] { SEQUENCE {} } }.
+	literal := []byte{cbeSequence, 0x04, cbeCertIdentifier, 0x02, 0x30, 0x00}
+	certs, err := decodeCertBundle(literal)
+	if err != nil {
+		t.Fatalf("a bundle carrying the literal %#02x identifier was refused: %v", cbeCertIdentifier, err)
+	}
+	if len(certs) != 1 {
+		t.Fatalf("the literal bundle decoded to %d certificates, want 1", len(certs))
+	}
+
+	// The CRL alternative is the literal 0xA1, and it contributes no certificate.
+	crl := []byte{cbeSequence, 0x04, cbeCRLIdentifier, 0x02, 0x30, 0x00}
+	if _, err := decodeCertBundle(crl); !errors.Is(err, errCertBundleEmpty) {
+		t.Errorf("a bundle of one literal %#02x element returned %v, want errCertBundleEmpty; "+
+			"crl [1] is a legal alternative that carries no certificate", cbeCRLIdentifier, err)
+	}
+
+	// An identifier outside the CHOICE is refused rather than read as a certificate.
+	unknown := []byte{cbeSequence, 0x04, 0xA2, 0x02, 0x30, 0x00}
+	if _, err := decodeCertBundle(unknown); err == nil {
+		t.Error("a bundle whose element identifier is 0xA2 was accepted, and CertificateOrCRL " +
+			"assigns only 0 and 1")
+	}
+}
+
 // VALIDATES: certBundleMaxElements bounds the elements WALKED, so a bundle made only of
 // CRL elements is refused at the same count as one made of certificates.
 // PREVENTS: the cap counting certificates kept. The CRL arm of the CHOICE keeps nothing.

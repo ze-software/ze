@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
@@ -58,6 +59,14 @@ const (
 	// GET for a certificate.
 	certURLMaxHeaderBytes = 8 << 10
 
+	// certURLMaxPending bounds the background lookups certURLFetcher can run at one time.
+	//
+	// An unauthenticated peer names the hashes. Every dropped IKE_AUTH is sent again. An
+	// unbounded pending set is therefore a goroutine-growth primitive, and handshakes that
+	// never authenticate drive it. certURLMaxInFlight refuses a fetch beyond its own budget
+	// and does not block, so a worker past this bound returns at once.
+	certURLMaxPending = certURLMaxInFlight
+
 	// certURLCacheMaxEntries and certURLCacheMaxBytes bound the cache below.
 	//
 	// The key is a hash the PEER chose, so an unauthenticated peer decides how many
@@ -79,6 +88,14 @@ var (
 	errCertURLHash      = errors.New("ike cert-url: the fetched bytes do not match the hash the peer sent")
 	errCertURLBusy      = errors.New("ike cert-url: too many certificate lookups are already in flight")
 	errCertURLShortData = errors.New("ike cert-url: the payload is shorter than the 20-octet hash it must carry")
+
+	// errCertURLPending reports that the object is not cached. A background lookup for it
+	// has started.
+	//
+	// It is NOT a refusal, and it must never kill the SA. The caller DROPS the message that
+	// named the object. RFC 7296 Section 2.1 has the peer send it again, and that message
+	// finds the object cached.
+	errCertURLPending = errors.New("ike cert-url: the lookup is in flight, so the message is dropped and the peer will retransmit")
 )
 
 // certURLInFlight is the global concurrency bound.
@@ -164,6 +181,111 @@ func resetCertURLCache() {
 	certURLCache.items = make(map[string][]byte)
 	certURLCache.order = nil
 	certURLCache.bytes = 0
+}
+
+// certURLFetcher runs hash-and-URL lookups OFF the shared IKE dispatch goroutine.
+//
+// THIS TYPE EXISTS BECAUSE THE FETCH USED TO BLOCK EVERY IKE SESSION. A half-open
+// handshake is driven INLINE on the one dispatch goroutine that serves every peer
+// (routeInbound, register.go: the owner-loop hand-off needs ps.ownedSA, and runEstablished
+// is the only writer of it, so nothing owns an SA until it is established). Resolution ran
+// on that goroutine, before verifyRemoteAuth. One unauthenticated peer therefore chose both
+// the number of lookups, up to its certificate-count, and the server that answers each of
+// them, at certURLTimeout apiece. That is every other peer's IKE stopped for as long as the
+// attacker likes.
+//
+// Deferring the fetch until after authentication is not available: verifyRemoteAuth needs
+// the certificate to verify the signature, so the object must be in hand first. The fetch
+// moves instead.
+//
+// A cache HIT costs no I/O and the handshake continues inline. A MISS starts a worker and
+// the message is dropped. The peer retransmits it (RFC 7296 Section 2.1) and the
+// retransmission finds the object cached. That is the same drop-and-retransmit hand-off
+// routeInbound already uses when an owner queue is full, and it is survivable for the same
+// reason. Nothing here advances a Message ID or caches a response, so the retransmission is
+// processed as the fresh request it is.
+//
+// Every bound stays where it was. This type performs NO network work of its own. It calls
+// fetchHashAndURL, and that function still applies every control:
+//
+//   - the size cap and the timeout;
+//   - the redirect refusal and the in-flight cap;
+//   - the destination deny list;
+//   - the hash comparison that comes before any parser.
+//
+// Only the goroutine the call runs on has changed.
+type certURLFetcher struct {
+	mu      sync.Mutex
+	pending map[string]struct{}
+}
+
+var certURLFetches = certURLFetcher{pending: make(map[string]struct{})}
+
+// start begins a background lookup for one Hash and URL payload.
+//
+// It refuses a second worker for an object a worker already holds, so a storm of repeats
+// cannot multiply goroutines. It refuses any worker at all past certURLMaxPending.
+//
+// Both refusals are silent, and each costs the peer one more repeat of its message. The
+// miss stays explicit at the caller, which returns errCertURLPending in either case
+// (ai/rules/fail-closed-guards.md).
+func (f *certURLFetcher) start(data []byte, allow []netip.Prefix, log *slog.Logger) {
+	hash, _, err := splitHashAndURL(data)
+	if err != nil {
+		return
+	}
+	key := string(hash)
+
+	f.mu.Lock()
+	if _, running := f.pending[key]; running {
+		f.mu.Unlock()
+		return
+	}
+	if len(f.pending) >= certURLMaxPending {
+		f.mu.Unlock()
+		log.Debug("ike: hash-and-url lookups are at the pending bound, not starting another")
+		return
+	}
+	f.pending[key] = struct{}{}
+	f.mu.Unlock()
+
+	// The payload is copied because it points into the transport read buffer, which is
+	// reused as soon as this message is dropped. The worker outlives that.
+	payload := make([]byte, len(data))
+	copy(payload, data)
+
+	go func() {
+		defer func() {
+			f.mu.Lock()
+			delete(f.pending, key)
+			f.mu.Unlock()
+		}()
+		// context.Background rather than a per-message context: the message that named
+		// this object is already dropped, so no caller waits on the result. The bound
+		// that matters is certURLTimeout, which fetchHashAndURL applies itself.
+		if _, err := fetchHashAndURL(context.Background(), payload, allow); err != nil {
+			log.Debug("ike: background hash-and-url lookup failed", "error", err)
+		}
+	}()
+}
+
+// inFlight reports how many background lookups are running. Only tests read it.
+func (f *certURLFetcher) inFlight() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.pending)
+}
+
+// lookupHashAndURL returns the DER for a Hash and URL payload when the content-addressed
+// cache already holds it.
+//
+// It performs NO I/O and takes no lock other than the cache's own. It is therefore the half
+// of the resolution that is safe on the shared dispatch goroutine.
+//
+// certURLStore records an entry only after its hash comparison passed, so a hit is as
+// trustworthy as a fetch.
+func lookupHashAndURL(hash []byte) ([]byte, bool) {
+	return certURLCache.Load(string(hash))
 }
 
 // splitHashAndURL splits a Hash and URL payload into the 20-octet SHA-1 and the URL text

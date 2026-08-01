@@ -23,6 +23,24 @@ func critChain(critical bool) []byte {
 	return append(out, body...)
 }
 
+// critNonceChain builds a one-payload chain that is well formed all the way down: a generic
+// header followed by a body a Nonce payload accepts.
+//
+// RFC 7296 Section 3.9 puts the Nonce Data at 16 octets or more. A chain whose body is
+// shorter is refused by its contents, and not by its structure. A control that asserts that
+// a well-formed chain parses needs a chain that is well formed at BOTH levels. Without one
+// it measures the payload rule instead of the chain rule.
+func critNonceChain() []byte {
+	body := make([]byte, 16)
+	for i := range body {
+		body[i] = byte(0xA0 + i)
+	}
+	total := uint16(GenericHeaderLen + len(body))
+	out := make([]byte, 0, int(total))
+	out = append(out, 0, 0, byte(total>>8), byte(total))
+	return append(out, body...)
+}
+
 // critMessage wraps a payload chain in a complete IKE message header whose
 // NextPayload names the first payload.
 func critMessage(firstType uint8, chain []byte) []byte {
@@ -130,7 +148,20 @@ func TestCritUnknownCriticalPayloadNamesItsType(t *testing.T) {
 // explicitly ("rather than just bad payload contents"), and Section 3.3.6 keeps such a
 // payload. Over-rejecting here would refuse messages every conforming peer sends.
 func TestCritChainReportsTruncationButNotBadContents(t *testing.T) {
-	full := critChain(false)
+	// rfc-test-change-approved: 2026-08-01 owner standing approval for
+	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	//
+	// The fixture was critChain, whose body is four octets. Read as a Nonce that is not a
+	// well-formed chain at all. RFC 7296 Section 3.9 puts a nonce at 16 octets or more, and
+	// decodePayload refuses a shorter one.
+	//
+	// The control below stopped passing over that only when its guards came off. That is the
+	// whole reason the guards were a defect. critNonceChain is the same shape with a
+	// conformant body, so the control names something that really is a well-formed chain.
+	//
+	// Both truncation arms are unaffected. They slice the chain, and ze decides ErrTruncated
+	// before it decodes any payload.
+	full := critNonceChain()
 
 	t.Run("a chain ending inside a generic header is malformed", func(t *testing.T) {
 		// Two octets is less than the four-octet generic header.
@@ -149,12 +180,21 @@ func TestCritChainReportsTruncationButNotBadContents(t *testing.T) {
 	})
 
 	t.Run("a well-formed chain parses", func(t *testing.T) {
+		// rfc-test-change-approved: 2026-08-01 owner standing approval for
+		// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+		//
+		// This is the CONTROL for the two truncation arms above, and it used to assert
+		// nothing. Both of its conditions were guarded -- one on err == nil and one on
+		// errors.Is(err, ErrTruncated) -- so a complete chain rejected with any OTHER
+		// error skipped both and the subtest passed. A control that only fires for the
+		// outcomes it is not testing cannot separate "reports truncation" from "reports
+		// everything". Both assertions are now unconditional.
 		out, err := ParsePayloadChain(full, PayloadTypeNonce)
-		if err == nil && len(out) != 1 {
-			t.Fatalf("payload count = %d, want 1", len(out))
+		if err != nil {
+			t.Fatalf("a complete chain was refused: %v", err)
 		}
-		if err != nil && errors.Is(err, ErrTruncated) {
-			t.Fatalf("a complete chain was reported as truncated: %v", err)
+		if len(out) != 1 {
+			t.Fatalf("payload count = %d, want 1", len(out))
 		}
 	})
 

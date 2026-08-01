@@ -8,7 +8,6 @@
 package engine
 
 import (
-	"context"
 	"crypto/sha1" //nolint:gosec // RFC 7296 Section 3.6 mandates SHA-1 as the hash-and-url object identifier
 	"crypto/x509"
 	"fmt"
@@ -127,6 +126,13 @@ func storeRemoteCerts(sa *SA, certs []*wire.PayloadCERT, log *slog.Logger) error
 // a fetch an unauthenticated peer names.
 func resolveCertPayloads(sa *SA, certs []*wire.PayloadCERT, log *slog.Logger) ([][]byte, error) {
 	chain := make([][]byte, 0, len(certs))
+	// pending records that a background lookup is running for at least one object.
+	//
+	// The walk CONTINUES past a miss. Every uncached object in this message then gets a
+	// worker from ONE delivery. A return at the first miss starts one worker per delivery.
+	// A chain of four needs four retransmissions in that case, and a responder's half-open
+	// timeout can expire first.
+	pending := false
 	for _, c := range certs {
 		switch c.CertEncoding {
 		case wire.CertEncodingX509Sig:
@@ -140,12 +146,27 @@ func resolveCertPayloads(sa *SA, certs []*wire.PayloadCERT, log *slog.Logger) ([
 						"this peer, or configure the peer to send its certificate inline",
 					sa.PeerName)
 			}
-			// fetchHashAndURL compares the SHA-1 the peer sent against the bytes it
-			// fetched, and it does that BEFORE any caller sees them. It parses nothing.
-			// What comes back reaches x509 by the path an inline CERT payload takes.
-			der, err := fetchHashAndURL(context.Background(), c.CertData, sa.PeerCfg.Auth.CertificateURLAllow)
+			// A malformed payload is REFUSED here rather than routed to the fetcher. It
+			// can never become cached, so treating it as a pending lookup would make the
+			// peer retransmit until the half-open reaper fires.
+			hash, _, err := splitHashAndURL(c.CertData)
 			if err != nil {
-				return nil, fmt.Errorf("ike auth: peer %q hash-and-url lookup: %w", sa.PeerName, err)
+				return nil, fmt.Errorf("ike auth: peer %q hash-and-url payload: %w", sa.PeerName, err)
+			}
+			// THE LOOKUP DOES NOT RUN ON THIS GOROUTINE. This code path is reached from a
+			// half-open handshake, which routeInbound drives inline on the ONE dispatch
+			// goroutine that serves every IKE session (register.go). A network fetch here
+			// is one unauthenticated peer stopping every other peer's IKE for as long as
+			// its chosen server stalls. certURLFetcher moves it to a worker.
+			//
+			// The cached bytes were stored only after their SHA-1 matched the hash the
+			// peer sent, and that comparison ran before any parser saw them. What comes
+			// back therefore reaches x509 by the path an inline CERT payload takes.
+			der, cached := lookupHashAndURL(hash)
+			if !cached {
+				certURLFetches.start(c.CertData, sa.PeerCfg.Auth.CertificateURLAllow, log)
+				pending = true
+				continue
 			}
 			if c.CertEncoding == wire.CertEncodingHashURL {
 				chain = append(chain, der)
@@ -166,6 +187,12 @@ func resolveCertPayloads(sa *SA, certs []*wire.PayloadCERT, log *slog.Logger) ([
 			log.Debug("ike: ignoring a certificate payload encoding ze does not implement",
 				"peer", sa.PeerName, "encoding", c.CertEncoding)
 		}
+	}
+	// A partially resolved chain is never returned. The caller drops the message and the
+	// peer sends it again in full. Half a chain has no use. It would also install a peer
+	// identity built from the certificates that the cache happened to hold.
+	if pending {
+		return nil, fmt.Errorf("ike auth: peer %q hash-and-url lookup: %w", sa.PeerName, errCertURLPending)
 	}
 	return chain, nil
 }

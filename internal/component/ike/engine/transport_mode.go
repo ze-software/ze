@@ -114,9 +114,15 @@ func adoptAuthResponseNegotiation(sa *SA, transportAccepted bool, tsi, tsr *wire
 		return false
 	}
 	// RFC 7296 Section 2.9: the responder's TS payloads carry the NARROWED selectors, and
-	// they are what this side installs, so both ends program the same traffic.
+	// they are what this side installs, so both ends program the same traffic. Narrowing is
+	// one-way, so an answer that WIDENS the proposal ends the exchange instead of being
+	// installed (ts_narrow.go).
 	if tsi != nil && tsr != nil {
-		recordInitiatorSelectors(sa, tsi, tsr)
+		if err := recordInitiatorSelectors(sa, tsi, tsr); err != nil {
+			log.Warn("ike: the responder widened the traffic selectors, deleting the SA",
+				"peer", sa.PeerName, "error", err)
+			return false
+		}
 	}
 	return true
 }

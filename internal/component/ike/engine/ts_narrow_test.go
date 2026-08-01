@@ -3,9 +3,16 @@ package engine
 // rfc-test-change-approved: 2026-07-31 owner standing approval for
 // plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. Every tag in this file is
 // NEW in this package; the edits below build it, they never relax an existing proof.
+//
+// rfc-test-change-approved: 2026-08-01 owner standing approval for
+// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. The RFC7296-2.9-2 sweep asked
+// the production predicate coveredBy whether the answer was a subset of the proposal, which
+// is the implementation grading itself. netip carries the file's own oracle, and coveredBy
+// is now pinned separately in both directions.
 
 import (
 	"net"
+	"net/netip"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -31,6 +38,32 @@ func sel(t *testing.T, cidr string) tsSelector {
 func selPort(t *testing.T, cidr string, p ipsec.PortSelector, proto uint8) tsSelector {
 	t.Helper()
 	return tsSelector{Net: mustNet(t, cidr), Port: p, Proto: proto}
+}
+
+// tsWithinAny is this file's OWN containment oracle: it reports whether inner sits inside
+// some prefix of outer.
+//
+// It is written over netip, and not over coveredBy or containsNet, on purpose. Those are
+// production predicates that the narrowing path depends on. A sweep that asks coveredBy
+// whether the answer is a subset of the proposal asks the implementation to grade itself.
+// A coveredBy that answered true for everything leaves every such sweep green while ze
+// installs selectors the peer widened.
+func tsWithinAny(t *testing.T, inner tsSelector, outer []tsSelector) bool {
+	t.Helper()
+	in, err := netip.ParsePrefix(inner.Net.String())
+	if err != nil {
+		t.Fatalf("the answered selector %v is not a prefix: %v", inner.Net, err)
+	}
+	for _, o := range outer {
+		out, err := netip.ParsePrefix(o.Net.String())
+		if err != nil {
+			t.Fatalf("the proposed selector %v is not a prefix: %v", o.Net, err)
+		}
+		if out.Bits() <= in.Bits() && out.Contains(in.Addr()) {
+			return true
+		}
+	}
+	return false
 }
 
 // wireSel builds a received selector the way a peer would send it.
@@ -85,14 +118,35 @@ func TestNarrowingIncludesFirstChoice(t *testing.T) {
 		t.Errorf("first answered pair = %v <-> %v, want the initiator's first choice 10.1.0.0/16 <-> 10.2.0.0/16",
 			got[0].I.Net, got[0].R.Net)
 	}
-	// Never wider than the proposal.
+	// rfc-test-change-approved: 2026-08-01 owner standing approval for
+	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	//
+	// Never wider than the proposal. The oracle is tsWithinAny, written in this file over
+	// netip. It is NOT the production coveredBy this sweep used to call.
+	//
+	// coveredBy is a predicate the narrowing path itself depends on. A coveredBy that
+	// answered true for everything left the sweep passing over an answer wider than the
+	// proposal. That is the one thing the sweep exists to catch.
 	for i, p := range got {
-		if !coveredBy(p.I, proposedI) {
+		if !tsWithinAny(t, p.I, proposedI) {
 			t.Errorf("answered pair %d TSi %v is not a subset of any proposed TSi", i, p.I.Net)
 		}
-		if !coveredBy(p.R, proposedR) {
+		if !tsWithinAny(t, p.R, proposedR) {
 			t.Errorf("answered pair %d TSr %v is not a subset of any proposed TSr", i, p.R.Net)
 		}
+	}
+
+	// The production predicate is pinned on its own now, in both directions. The sweep
+	// above is independent of coveredBy, so without these two rows nothing in the package
+	// reports a coveredBy that stopped discriminating. floorWithinProposal reads it to
+	// decide whether a rekey floor is still inside the peer's proposal.
+	if coveredBy(sel(t, "10.0.0.0/8"), proposedI) {
+		t.Error("coveredBy reported a /8 as covered by a proposal of /16s; every subset " +
+			"judgement written on it would accept a widened answer")
+	}
+	if !coveredBy(sel(t, "10.1.128.0/17"), proposedI) {
+		t.Error("coveredBy reported a /17 inside 10.1.0.0/16 as NOT covered; the predicate " +
+			"refuses everything and the assertion above proves nothing")
 	}
 
 	// RFC requirement: RFC7296-2.9-2 negative -- the discriminator. When the policy does
