@@ -9,10 +9,20 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlritype"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 func init() {
+	// RFC 7606 Section 5.4: EVPN is a typed address family and RFC 7432 states no
+	// deviation, so a route whose type ze does not implement must be discarded.
+	// Registered here, beside the family, so removing this plugin removes both the
+	// advertisement and the obligation.
+	if err := nlritype.Register(L2VPNEVPN, RecognizeNLRI); err != nil {
+		fmt.Fprintf(os.Stderr, "evpn: RFC 7606 Section 5.4 recognizer registration failed: %v\n", err)
+		os.Exit(1)
+	}
+
 	reg := registry.Registration{
 		Name:         "bgp-nlri-evpn",
 		Description:  "EVPN family plugin",

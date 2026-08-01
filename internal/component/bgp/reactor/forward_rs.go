@@ -444,14 +444,15 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := r.fwdPool.OutgoingPool(peerKey)
 			modified, bufIdx, modFail := buildModifiedPayload(peerWire.Payload(), &mods, r.attrModHandlers, modPool, nil)
-			r.recordModifyFailure(modFail)
+			// Counts AND says it, once per reason per second; see
+			// recordModifyFailure. The route server fans one UPDATE out to every
+			// client, so this is the rail where an unbounded line hurt most.
+			r.recordModifyFailureAddr(modFail, modifySiteRouteServer, facts.addr)
 			if modFail.failed() {
 				// Fail closed, as on the general forward rail. On the route
 				// server this is the path that strips control communities
 				// (RFC 7947), so a silent unmodified forward leaks them to
 				// every client.
-				fwdLogger().Warn("egress modification failed, suppressing route",
-					"peer", facts.addr, "reason", modFail.String())
 				continue
 			}
 			if modified != nil {

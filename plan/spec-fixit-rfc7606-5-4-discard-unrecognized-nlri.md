@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
-| Phase | - |
+| Phase | 3/3 |
 | Deferral shard | `plan/deferrals/spec-fixit-rfc7606-5-4-discard-unrecognized-nlri.md` |
 | Updated | 2026-08-01 |
 
@@ -172,8 +172,9 @@ parses a route type today.
 ### Assumptions
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|-----------|-------|----------|--------------|--------|
-| A-1 | 5.4 does not bind every typed family; at least BGP-LS overrides it. | RFC 9552 Section 5.1 invokes 5.4's escape clause explicitly. | A blanket discard is correct and simpler. | Re-read RFC 9552 Section 5.1. | unvalidated |
-| A-2 | Discarding is reachable without parsing every NLRI on the hot path. | Recognition can be a per-family registry predicate rather than a full parse. | The cost lands on the receive path and must be measured. | Design, then a receive-path benchmark. | unvalidated |
+| A-1 | 5.4 does not bind every typed family; at least BGP-LS overrides it. | RFC 9552 invokes 5.4's escape clause explicitly. | A blanket discard is correct and simpler. | Re-read RFC 9552. | **confirmed**, with the citation corrected: the override is Section 5.**2**, not 5.1. Section 5.2 names "Section 5.4 (paragraph 2) of [RFC7606]" and requires unknown Link-State NLRI types to be preserved and propagated. Section 5.1 is the TLV-level analog, about TLVs inside an NLRI. |
+| A-2 | Discarding is reachable without parsing every NLRI on the hot path. | Recognition can be a per-family registry predicate rather than a full parse. | The cost lands on the receive path and must be measured. | Design, then a receive-path benchmark. | **confirmed by construction.** The recognizer reads one byte per NLRI, and only for a family with a ruling. An UPDATE with no MP attribute never enters the check; one whose family has no ruling stops at a map read. No NLRI is parsed. |
+| A-3 | A discard at the RIB would meet the requirement. | The spec's own Data Flow proposed the RIB insert as the recognition point. | The discard has to move upstream of the forward rails. | Read the forward path's producing symbols. | **broken.** `reactorForwardRS` (`reactor/forward_rs.go`) relays the RECEIVED wire with no RIB involvement, and `buildFwdBody` appends `peerWire.Payload()` verbatim. A RIB discard would have stopped installation and left the relay intact. Recorded in the Mistake Log. |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -216,32 +217,155 @@ parses a route type today.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| (fill during design) | | AC-1, tagged `RFC requirement: RFC7606-5.4-1 positive` | |
-| (fill during design) | | AC-2, the override path | |
+| `TestRFC7606Section54DiscardsUnrecognizedEVPNType` | `reactor/session_validation_nlritype_test.go` | AC-1, tagged `RFC requirement: RFC7606-5.4-1 positive` | written; blocked on the reactor package compiling |
+| `TestRFC7606Section54PropagatesUnknownBGPLSType` | `reactor/session_validation_nlritype_test.go` | AC-2, tagged `RFC requirement: RFC7606-5.4-1 negative` | written; same block |
+| `TestRFC7606Section54DropsMPReachWhenNothingSurvives` | `reactor/session_validation_nlritype_test.go` | no empty MP_REACH is relayed | written; same block |
+| `TestRFC7606Section54LeavesConformingUpdateZeroCopy` | `reactor/session_validation_nlritype_test.go` | AC-3, the zero-copy relay survives | written; same block |
+| `TestRFC7606Section54DiscardsUnrecognizedEVPNWithdrawal` | `reactor/session_validation_nlritype_test.go` | MP_UNREACH filtered on the same terms | written; same block |
+| `TestRFC7606Section54LeavesUnruledFamilyUntouched` | `reactor/session_validation_nlritype_test.go` | R-1, an unruled family is untouched | written; same block |
+| 11 registry and `Retain` tests | `core/bgp/nlri/nlritype/nlritype_test.go` | the registry default, the carve, ADD-PATH, malformed framing | PASS |
+| `TestImplementedMatchesParseEVPN` | `plugins/nlri/evpn/rfc7606_test.go` | the recognized set cannot drift from `ParseEVPN` | PASS |
+| 4 recognizer tests | `plugins/nlri/evpn/rfc7606_test.go` | the ruling is registered and reads the wire correctly | PASS |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `rfc7606-54-discard-unrecognized-nlri` | `test/plugin/rfc7606-54-discard-unrecognized-nlri.ci` | a peer sends an unrecognized typed NLRI in a family 5.4 binds; the route is NOT relayed to any other peer | |
-| `rfc7606-54-bgpls-override-propagates` | `test/plugin/rfc7606-54-bgpls-override-propagates.ci` | a peer sends an unrecognized BGP-LS NLRI type; the route IS still relayed, per RFC 9552 Section 5.1 | |
+| `rfc7606-54-discard-unrecognized-nlri` | `test/plugin/rfc7606-54-discard-unrecognized-nlri.ci` | a peer sends an unrecognized typed NLRI in a family 5.4 binds; the route is NOT relayed to any other peer | PASS, and mutation-verified |
+| `rfc7606-54-bgpls-override-propagates` | `test/plugin/rfc7606-54-bgpls-override-propagates.ci` | a peer sends an unrecognized BGP-LS NLRI type; the route IS still relayed, per RFC 9552 Section 5.2 | PASS |
+
+**Mutation-verified (2026-08-01).** `applyTypedNLRIDiscard` was made an early
+`return wu, pathAttrs`, the daemon rebuilt, and the suite re-run:
+`rfc7606-54-discard-unrecognized-nlri` flipped to FAIL with the receiver's wire
+carrying `6304DEADBEEF`, and `rfc7606-54-bgpls-override-propagates` stayed PASS,
+which is correct because it asserts the behaviour that already existed. The
+mutation was reverted and both went green again.
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | (fill during design) | `test/interop/scenarios/` | (fill) | a real peer's view of the changed relay behaviour | |
 
+## Design (answered 2026-08-01)
+
+### 1. Per-family binding, derived from the RFC text
+
+| Family | Typed? | Does its own specification override 5.4? | Verdict |
+|--------|--------|------------------------------------------|---------|
+| `l2vpn/evpn` | yes, `[route-type:1][length:1][body]` (RFC 7432 Section 7.1) | **No.** RFC 7432 defines the framing and an "EVPN Route Types" IANA registry (Section 16) and states no deviation from RFC 7606. | **5.4 BINDS.** Discard a route whose type Ze does not implement (types 1..5 are implemented: RFC 7432 types 1-4, RFC 9136 type 5). |
+| `bgp-ls/bgp-ls`, `bgp-ls/bgp-ls-vpn` | yes, `[NLRI type:2][total length:2][body]` | **Yes, in terms.** RFC 9552 **Section 5.2**: "this document deviates from the default handling behavior specified by Section 5.4 (paragraph 2) of [RFC7606] for Link-State address family. An implementation MUST handle unknown Link-State NLRI types as opaque objects and MUST preserve and propagate them." | **5.4 DOES NOT BIND.** Propagate unchanged. |
+| every other family | not typed, or Ze registers no recognizer | -- | No recognizer registered, so nothing is discarded and today's behaviour is unchanged. |
+
+**Correction to the spec's Required Reading and to `ls/unknown_type_skip_test.go`:** the
+BGP-LS override is RFC 9552 **Section 5.2**, not Section 5.1. Section 5.1 states the
+TLV-level analogue ("Unknown and unsupported types MUST be preserved and propagated
+within both the NLRI and the BGP-LS Attribute"), which governs TLVs INSIDE an NLRI.
+The NLRI-TYPE-level override that names RFC 7606 Section 5.4 is Section 5.2.
+
+### 2. Where recognition happens, and why nowhere cheaper works
+
+`Session.enforceRFC7606` (`internal/component/bgp/reactor/session_validation.go`),
+the ingress RFC 7606 enforcement point, called from `session_read.go` `processMessage`.
+
+The RIB is NOT the propagation gate, so a discard there meets half the requirement:
+
+| Fact | Producing symbol |
+|------|------------------|
+| Relay is wire-driven, off the session read goroutine, with no RIB event involved | `Reactor.notifyMessageReceiver` (`reactor/reactor_notify.go`) calls `reactorForwardRS` with the RECEIVED `*ReceivedUpdate` |
+| The route-server rail fans the received wire to every eligible peer and never filters by family | `reactorForwardRS` (`reactor/forward_rs.go`), whose peer loop tests only `forwardFacts` and `exportFilters` |
+| The same-context branch appends the received payload verbatim | `buildFwdBody` (`reactor/forward_body.go`), `result.rawBodies = append(result.rawBodies, peerWire.Payload())` |
+| For every family with no `nlrisplit` splitter (bgp-ls, mvpn, vpn, mup, rtc, flowspec) the RIB ALREADY installs nothing | `RIBManager.handleReceivedStructured` and `insertPoolNLRIs` both gate on `nlrisplit.Supported` |
+
+So the RIB discards those families today and Ze relays them anyway. Only a point
+upstream of `notifyMessageReceiver` governs both installation and propagation, and
+`enforceRFC7606` is the one that already owns wire rewriting at that point: its
+Section 3.g keep-first strip rebuilds the body with `message.RebuildUpdateBody` and
+wraps it in a fresh `wireu.NewWireUpdate`, and `publishBase` runs last so the
+attribute index is built over the final bytes.
+
+### 3. Registry-driven, no family named in a central package
+
+New core leaf `internal/core/bgp/nlri/nlritype`, sibling of `nlrisplit`:
+
+| Symbol | Role |
+|--------|------|
+| `Recognizer func(nlriBytes []byte, addPath bool) bool` | reports whether one carved NLRI's type is one this speaker implements |
+| `Register(fam, fn)` | called from the owning NLRI plugin's `init()` |
+| `Retain(fam, data, addPath)` | carves with `nlrisplit`, drops the unrecognized, returns `data` unchanged (same backing array) when nothing was dropped |
+
+`Get(fam) == nil` means the family has not been ruled on, so nothing is discarded.
+That is R-1's mitigation expressed as the registry's default. The EVPN plugin
+registers its recognizer beside `family.MustRegister(AFIL2VPN, SAFIEVPN, ...)`
+(`plugins/nlri/evpn/types.go`), so the recognizer's presence tracks the family's
+advertisement: compile the plugin out and Ze neither advertises `l2vpn/evpn` nor
+owes 5.4 for it. BGP-LS registers nothing, and records why in its own package.
+
+### 4. Receive-path cost
+
+Gated three ways, so the common case pays two field stores and one map read:
+
+1. Only an UPDATE carrying MP_REACH or MP_UNREACH enters the check. The validator's
+   EXISTING attribute walk records the family and value range (no second walk, the
+   discipline `RFC7606ValidationResult.PrefixSIDPresent` already states).
+2. Only a family with a registered recognizer proceeds. One `RWMutex` read plus a map
+   lookup. IPv6 unicast, the large MP family, stops here.
+3. Only then is the NLRI section walked, reading the type byte that sits beside the
+   length byte the framing walk already reads.
+
+The rewrite (`make` plus copy) happens only when an unrecognized type is actually
+present, the same tier as `ApplyAttrDiscard`'s rebuild. Zero-copy relay is preserved
+for every UPDATE that carries none.
+
+### 5. RFC 7606 Section 6, weighed rather than ignored
+
+Section 6's warning is scoped to treat-as-withdraw of malformed ATTRIBUTES: "if an
+UPDATE message received on an IBGP session is subjected to this treatment", and "When
+a malformed attribute is indeed detected over an IBGP session". It never mentions
+Section 5.4 or NLRI types. Reading a non-normative Operational Considerations
+paragraph as defeating a normative MUST in the same document is not a legitimate
+construction.
+
+The IETF supplied the authorized escape for this exact concern: 5.4's own "unless the
+relevant specification for that address family specifies otherwise". RFC 9552 used it
+for BGP-LS, for the propagate-through-a-route-reflector reason. RFC 7432 did not use
+it for EVPN. Honoring the clause per family IS the mitigation the RFC prescribes, so
+the design does not trade one violation for another: BGP-LS keeps its RFC 9552 MUST.
+
+The residual hazard is real and bounded: as a route reflector Ze will drop an EVPN
+type its IBGP siblings accept. That is the behaviour the standard mandates.
+
+### 6. Withdrawals
+
+MP_UNREACH is filtered on the same terms. A withdrawal naming an unrecognized type
+refers to a route Ze never installed and never relayed, so relaying the withdrawal
+would be gratuitous. Symmetry is the point: one rule for both directions.
+
 ## Files to Modify
 
-(fill during design)
+| File | Change |
+|------|--------|
+| `internal/component/bgp/message/rfc7606.go` | record MP family and NLRI value range on the existing walk |
+| `internal/component/bgp/reactor/session_validation.go` | apply the Section 5.4 filter before the action switch |
+| `internal/component/bgp/plugins/nlri/evpn/register.go` | register the EVPN recognizer |
+| `internal/component/bgp/plugins/nlri/ls/unknown_type_skip_test.go` | correct the RFC 9552 section citation |
+| `rfc/short/rfc7606.md` | remove the `{gap}` on `RFC7606-5.4-1` |
+| `docs/features/rfc-status.md` | RFC 7606 row: one gap remains, not two |
 
 ## Files to Create
 
-(fill during design)
+| File | Holds |
+|------|-------|
+| `internal/core/bgp/nlri/nlritype/nlritype.go` | the recognizer registry and `Retain` |
+| `internal/core/bgp/nlri/nlritype/nlritype_test.go` | registry and `Retain` unit tests |
+| `internal/component/bgp/reactor/session_validation_nlritype.go` | the ingress filter helper |
+| `internal/component/bgp/reactor/session_validation_nlritype_test.go` | the tagged positive and negative tests |
+| `test/plugin/rfc7606-54-discard-unrecognized-nlri.ci` | relay proof: unrecognized EVPN type is not relayed |
+| `test/plugin/rfc7606-54-bgpls-override-propagates.ci` | relay proof: unrecognized BGP-LS type still is |
 
 ## Implementation Steps
 
-1. **Phase: design** -- answer the per-family binding question BEFORE any code
-2. (fill during design)
+1. **Phase 1:** `nlritype` registry plus `Retain`, red-first unit tests.
+2. **Phase 2:** the ingress filter in `enforceRFC7606`, the EVPN recognizer, the tagged tests.
+3. **Phase 3:** the two `.ci` relay tests, the ledger and the public-status updates.
 
 ## Design Insights
 
@@ -254,6 +378,49 @@ parses a route type today.
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
 | Implement full 5.4 compliance | keep the disclosed divergence | Thomas, 2026-08-01, re-asked with the full counter-argument in front of him. The 2026-07-20 ruling is void under the 2026-07-27 directive. |
+
+## Mistake Log
+
+### Wrong Assumptions
+
+| Assumption | What was actually true | How it was caught | Cost |
+|-----------|------------------------|-------------------|------|
+| A-3: discarding at the RIB meets Section 5.4. The spec's own Data Flow proposed `FamilyRIB.Insert` as the recognition point. | The RIB is not the propagation gate. `reactorForwardRS` (`reactor/forward_rs.go`) fans the RECEIVED wire to every eligible peer off the session read goroutine with no RIB event involved, and `buildFwdBody` appends `peerWire.Payload()` verbatim. Worse, for bgp-ls, mvpn, vpn, mup, rtc and flowspec the RIB installs NOTHING today (every insert site gates on `nlrisplit.Supported`, and only 7 families have a splitter) while ze relays them anyway. A RIB discard would have been invisible on the wire. | Traced the receive-to-forward chain to its producing symbols before writing code. | None: caught in design. Had it not been, the spec would have shipped a change that passed a RIB-level test and left the wire behaviour untouched. |
+
+### Wrong Citations Found
+
+| Where | Said | Actually |
+|-------|------|----------|
+| This spec's Required Reading, `docs/features/rfc-status.md`, `rfc/short/rfc7606.md`'s `{gap}`, and `plugins/nlri/ls/unknown_type_skip_test.go` | RFC 9552 **Section 5.1** overrides RFC 7606 Section 5.4 for BGP-LS. | Section 5.1 is the TLV-level rule, about unknown TLVs INSIDE an NLRI. The NLRI-TYPE-level override, the one that names "Section 5.4 (paragraph 2) of [RFC7606]", is **Section 5.2**. Corrected in all four places. |
+
+## Verification State (2026-08-01)
+
+| Gate | Result |
+|------|--------|
+| `nlritype` unit tests | PASS (11), red-first: the file was written before the package existed |
+| EVPN recognizer unit tests | PASS (5), including the anti-drift binding to `ParseEVPN` |
+| Tagged reactor tests | PASS (6). Mutation-verified: an early return in `applyTypedNLRIDiscard` flipped 3 of the 6 RED |
+| `test/plugin/rfc7606-54-*.ci` | PASS (2). Mutation-verified: the positive file flipped RED with `6304DEADBEEF` on the receiver's wire |
+| `golangci-lint` over the changed packages | 0 issues |
+| `make ze-rfc-check` | The two RFC7606-5.4-1 violations are CLEARED. Two violations remain, both `go vet` failures in packages another session is mid-refactor on |
+| `./internal/component/bgp/...` with feature tags | 80 packages ok, 0 failing tests, 1 package blocked (see below) |
+
+**Blocked on a concurrent session, not on this work.** `internal/component/bgp/reactor`
+and `internal/component/bgp/plugins/role` do not type-check in the working tree:
+`spec-wire-edit-2-edit-apply` is changing the filter-delta handler signature to
+`*filterapi.AttrPlan` and its test files still call the old four-argument form
+(`rfc8277_test.go`, `otc_test.go`). Nothing in this spec touches `filterapi`,
+`forward_build.go` or any attr-mod handler.
+
+The reactor evidence above was therefore taken through a `go test -overlay`
+that maps only those in-flight test files to empty stubs. The overlay changes
+no file in the repository. With it, the reactor package type-checks, the six
+tagged tests pass, and the only two failures in the whole package are
+`TestMergeInsertAscendingOrder` and `TestModifyPathZeroAlloc` in
+`forward_build_merge_test.go`, which is the other session's own subject.
+
+`make ze-rfc-check` and the full `ze-test-bgp` will go green on their own once
+that refactor compiles. Neither needs a change here.
 
 ## Known Limitations
 

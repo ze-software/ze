@@ -55,7 +55,17 @@ callback; `IsAsyncSafe` reports this. A structured subscriber that needs the
 bytes past fire-and-forget delivery calls `Snapshot()`, which owns a copy.
 Enforcement: the receive buffer is poisoned when returned to the pool, so a
 retained `RawBytes` borrow reads poison in debug.
+
+**An index of offsets shares the boundary of the bytes it indexes.** The
+attribute span index (`attribute.SpanIndex`) holds offsets and lengths, never
+bytes, so it carries no lifetime of its own: it is exactly as valid as the base
+that owns it and must never be published apart from that base. Because the
+offsets are relative to the attribute section rather than to the payload, they
+survive a copy of identical bytes unchanged, which is why `Snapshot()` carries
+the index across instead of rebuilding it. A caller that produces *different*
+bytes gets a new index, never a rebased one.
 <!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate.Snapshot eager copy on retain -->
+<!-- source: internal/core/bgp/attribute/wire.go -- AttributesWire.CarryOver -->
 <!-- source: internal/component/bgp/types/rawmessage.go -- RawMessage.IsAsyncSafe borrow-vs-owned boundary -->
 <!-- source: internal/component/bgp/reactor/session.go -- ReturnReadBuffer receive-buffer recycle/poison point -->
 

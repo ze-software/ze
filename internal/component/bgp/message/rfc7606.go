@@ -80,6 +80,17 @@ type RFC7606ValidationResult struct {
 	// action. The one early return that carries RFC7606ActionNone is the empty section,
 	// which holds no attribute of any code.
 	PrefixSIDPresent bool
+	// MPReachNLRI and MPUnreachNLRI locate the NLRI portion of the MP_REACH_NLRI
+	// and MP_UNREACH_NLRI attributes, observed on this walk so the RFC 7606
+	// Section 5.4 typed-NLRI check (reactor.enforceRFC7606) does not repeat it.
+	// Zero-valued (Present false) when the attribute is absent, or when its
+	// header is too short to locate the NLRI at all.
+	//
+	// At most one of each survives validation: Section 3.g session-resets a
+	// duplicate MP attribute, so a later occurrence never overwrites an earlier
+	// one in a result the caller acts on.
+	MPReachNLRI   MPNLRILocation
+	MPUnreachNLRI MPNLRILocation
 }
 
 // Attribute type codes per RFC 4271.
@@ -236,6 +247,10 @@ func ValidateUpdateRFC7606AddPath(
 	// completion (see PrefixSIDPresent).
 	var sawPrefixSID bool
 
+	// RFC 7606 Section 5.4: where the MP attributes' NLRI bytes live, observed on this
+	// walk so the typed-NLRI check does not repeat it (see MPReachNLRI).
+	var mpReachNLRI, mpUnreachNLRI MPNLRILocation
+
 	// recordError updates the strongest action and tracks discard entries.
 	recordError := func(r *RFC7606ValidationResult) {
 		if r.Action == RFC7606ActionAttributeDiscard {
@@ -372,8 +387,10 @@ func ValidateUpdateRFC7606AddPath(
 		case attrCodeMPReachNLRI:
 			mpReachCount++
 			hasNextHop = true // MP_REACH provides next-hop
+			mpReachNLRI = locateMPNLRI(attrCode, attrData)
 		case attrCodeMPUnreachNLRI:
 			mpUnreachCount++
+			mpUnreachNLRI = locateMPNLRI(attrCode, attrData)
 		}
 	}
 
@@ -449,6 +466,8 @@ func ValidateUpdateRFC7606AddPath(
 			Action:           RFC7606ActionNone,
 			DuplicateRanges:  duplicateRanges,
 			PrefixSIDPresent: sawPrefixSID,
+			MPReachNLRI:      mpReachNLRI,
+			MPUnreachNLRI:    mpUnreachNLRI,
 		}
 	}
 
@@ -459,6 +478,8 @@ func ValidateUpdateRFC7606AddPath(
 		DiscardEntries:   discardEntries,
 		DuplicateRanges:  duplicateRanges,
 		PrefixSIDPresent: sawPrefixSID,
+		MPReachNLRI:      mpReachNLRI,
+		MPUnreachNLRI:    mpUnreachNLRI,
 	}
 }
 
@@ -722,24 +743,29 @@ func validateMPUnreachAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606
 func validateMPNLRIField(code uint8, attrData []byte, addPathFor func(afi uint16, safi uint8) bool) *RFC7606ValidationResult {
 	afi := attribute.AFI(binary.BigEndian.Uint16(attrData[0:2]))
 	safi := attribute.SAFI(attrData[2])
-	var nlri []byte
-	if code == attrCodeMPReachNLRI {
-		// NLRI follows AFI(2) SAFI(1) NH_LEN(1) NextHop(nhLen) Reserved(1).
-		nhLen := int(attrData[3])
-		if 4+nhLen+1 > len(attrData) {
-			// A next-hop length past the attribute means the NLRI cannot be located.
-			var b textbuf.Buffer
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionSessionReset,
-				AttrCode:    code,
-				Description: b.Reset().Str("RFC 7606 Section 5.3: MP_REACH_NLRI next-hop length ").Int(int64(nhLen)).Str(" overruns the attribute").String(),
-			}
+	// MPNLRIStart owns the header arithmetic for both codes, so this walk and the
+	// Section 5.4 typed-NLRI check locate the NLRI identically.
+	start, ok := MPNLRIStart(code, attrData)
+	if !ok {
+		// Only MP_REACH reaches here: validateMPReachAttr already refused length < 5 and
+		// validateMPUnreachAttr length < 3, and both refusals return session-reset before
+		// this call. So the failure is always a next-hop length running past the value.
+		// The length byte is read under its own bound rather than on that reasoning, so a
+		// future reordering of the walk degrades the message instead of panicking.
+		var b textbuf.Buffer
+		b.Reset().Str("RFC 7606 Section 5.3: MP_REACH_NLRI next-hop length ")
+		if len(attrData) > 3 {
+			b.Int(int64(attrData[3]))
+		} else {
+			b.Str("field")
 		}
-		nlri = attrData[4+nhLen+1:]
-	} else {
-		// MP_UNREACH: withdrawn NLRI follows AFI(2) SAFI(1).
-		nlri = attrData[3:]
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionSessionReset,
+			AttrCode:    code,
+			Description: b.Str(" overruns the attribute").String(),
+		}
 	}
+	nlri := attrData[start:]
 	addPath := addPathFor != nil && addPathFor(uint16(afi), uint8(safi))
 	return validateMPNLRISyntax(code, afi, safi, nlri, addPath)
 }

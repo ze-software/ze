@@ -31,6 +31,14 @@ var labeledMPReachNLRI = []byte{48, 0x00, 0x06, 0x41, 10, 0, 0}
 // never bound, which would blackhole the MPLS path.
 //
 // RFC requirement: RFC8277-3.2.1-1 positive -- propagating with an unchanged Next Hop leaves the NLRI label octets identical to the ones received.
+//
+// rfc-test-change-approved: 2026-08-01 Thomas approved a CALL-SHAPE change only.
+// wire-edit child 2 migrated AttrModHandler from func(src, ops, buf, off) int to
+// func(*AttrPlan), so a handler now PLANS and writes no bytes; the test drives it
+// through planHandlerBytes to materialize the plan, exactly as the untagged
+// sibling below already does. Every assertion is unchanged in meaning: the whole
+// MP_REACH is byte-identical, the label entry and prefix survive, and the S bit
+// is untouched. No RFC obligation was weakened or re-scoped.
 func TestLabeledPropagationUnchangedNextHopKeepsLabels(t *testing.T) {
 	t.Parallel()
 
@@ -44,12 +52,18 @@ func TestLabeledPropagationUnchangedNextHopKeepsLabels(t *testing.T) {
 	src := buildMPReachSource(1 /*AFI IPv4*/, 4, /*SAFI labeled unicast*/
 		[]byte{10, 0, 0, 1}, labeledMPReachNLRI)
 
-	buf := make([]byte, 256)
-	n := mpReachNextHopHandler()(src, mods.Ops(), buf, 0)
+	// rfc-test-change-approved: 2026-08-01 Thomas approved a CALL-SHAPE change
+	// only. wire-edit child 2 migrated AttrModHandler to func(*AttrPlan), so a
+	// handler now PLANS and writes no bytes; planHandlerBytes materializes the
+	// plan, as the untagged sibling below already does. Assertions below are
+	// unchanged in meaning.
+	out, ok := planHandlerBytes(mpReachNextHopHandler(), 14, src, mods.Ops())
+	require.True(t, ok, "with no op the handler plans a verbatim copy")
+	n := len(out)
 	require.Equal(t, len(src), n)
-	assert.Equal(t, src, buf[:n], "the whole MP_REACH, labels included, is unchanged")
+	assert.Equal(t, src, out, "the whole MP_REACH, labels included, is unchanged")
 
-	val := buf[3:n]
+	val := out[3:n]
 	assert.Equal(t, labeledMPReachNLRI, val[9:],
 		"the label entry and prefix survive propagation byte for byte")
 	assert.Equal(t, byte(0x01), val[9+3]&0x01,
@@ -73,11 +87,12 @@ func TestLabeledPropagationChangedNextHopReusesReceivedLabelGap(t *testing.T) {
 		{Code: 14, Action: filterapi.AttrModSet, Buf: []byte{10, 0, 0, 2}},
 	}
 
-	buf := make([]byte, 256)
-	n := mpReachNextHopHandler()(src, ops, buf, 0)
+	out, ok := planHandlerBytes(mpReachNextHopHandler(), 14, src, ops)
+	require.True(t, ok, "the rewrite must emit an MP_REACH attribute")
+	n := len(out)
 	require.Equal(t, len(src), n)
 
-	val := buf[3:n]
+	val := out[3:n]
 	assert.Equal(t, []byte{10, 0, 0, 2}, val[4:8], "the next hop is rewritten")
 	assert.Equal(t, labeledMPReachNLRI, val[9:],
 		"gap RFC8277-3.2.2-1: the upstream label rides along unchanged, with no label bound at the new next hop")

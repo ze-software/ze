@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -141,4 +142,160 @@ func TestRunIngressPolicyChainNoImportFiltersAccepts(t *testing.T) {
 		"no import policy configured is a legitimate accept, not a guard miss")
 	assert.NotContains(t, rec.warnedPeers(), "10.0.0.5",
 		"no filters is not a miss -- it must not warn")
+}
+
+// The modify-failure guard, driven from its own entry point.
+//
+// T1-1 made five call sites fail closed when buildModifiedPayload reports that
+// it could not apply the modifications it was given. Four of the five were
+// tested; the two in this file were not. Every test that touched the branch
+// called buildModifiedPayload DIRECTLY, which proves the helper reports the
+// failure and says nothing about whether these two callers act on it
+// (ai/rules/fail-closed-guards.md: drive the guard from its entry point, never
+// the helper alone).
+//
+// The ingress one is the sharper of the two. It converts an import-modify
+// failure from accept-unmodified into a DROP on the receive path, so an
+// unexercised guard here is silent route loss rather than a leak.
+//
+// Reaching the branch needs the policy chain to return a text delta, which needs
+// a filter answer. r.api is a concrete *pluginserver.Server and its answer comes
+// off a live plugin socket, so these tests set r.policyFilterSeam (nil in
+// production, see filter_chain.go policyFilterFunc) and leave EVERYTHING else on
+// the real path: the real chain runs, the real delta-to-ops extraction runs, and
+// the real buildModifiedPayload refuses.
+//
+// The refusal is induced the way a deployment would meet it: attrModHandlers has
+// no entry for the code the filter asked to change, so the operation is never
+// applied and the build reports modifyFailureNoHandler. Forwarding then would
+// send a route the policy had not changed.
+
+// modifyingFilter returns a seam that answers every filter call with a text
+// delta setting LOCAL_PREF, which textDeltaToModOps turns into one AttrModSet
+// operation on code 5.
+func modifyingFilter() PolicyFilterFunc {
+	return func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+		return PolicyResponse{Action: PolicyModify, Delta: "local-preference 200"}
+	}
+}
+
+// VALIDATES: AC-12. runIngressPolicyChain drops the route (accept == false) when
+// the import chain asked for a modification that could not be applied.
+// PREVENTS: installing a route the import policy rejected. An import filter can
+// be security or ACL policy, so accepting the unmodified route puts exactly what
+// the policy exists to strip into the RIB.
+func TestRunIngressPolicyChainModifyFailureFailsClosed(t *testing.T) {
+	addr := netip.MustParseAddr("10.0.0.6")
+	peer := NewPeer(&PeerSettings{
+		Address:       addr,
+		LocalAS:       65000,
+		PeerAS:        65001,
+		ImportFilters: []filterapi.FilterRef{{Name: "set-local-pref"}},
+	})
+
+	r := &Reactor{
+		api:              &pluginserver.Server{}, // non-nil: past the r.api guard
+		policyFilterSeam: modifyingFilter(),
+		// No handler for LOCAL_PREF, so the operation the filter asked for is
+		// never applied and the build reports it.
+		attrModHandlers: map[uint8]filterapi.AttrModHandler{},
+	}
+
+	body := []byte{0, 0, 0, 0} // withdrawn-len 0, attr-len 0
+	res := r.runIngressPolicyChain(peer, addr, 65001, testWireUpdate(body), body)
+
+	require.False(t, res.accept,
+		"an import modification that could not be applied must DROP the route, never accept it unmodified")
+	assert.Nil(t, res.modifiedPayload, "a dropped route carries no payload")
+	assert.False(t, res.teardown, "a modify failure is not a session-teardown request")
+}
+
+// VALIDATES: AC-12. runEgressPolicyChainASN4 suppresses the route for this peer
+// (accept == false) AND marks failed, when the export chain asked for a
+// modification that could not be applied.
+// PREVENTS: sending the route UNFILTERED, which leaks whatever the export policy
+// was stripping (RFC 6996 private ASNs, RFC 7947 control communities). failed
+// also keeps the stored-route relay's completeness check from recording a step
+// that could not run as "policy said no".
+func TestRunEgressPolicyChainASN4ModifyFailureFailsClosed(t *testing.T) {
+	r := &Reactor{
+		api:              &pluginserver.Server{},
+		policyFilterSeam: modifyingFilter(),
+		attrModHandlers:  map[uint8]filterapi.AttrModHandler{},
+	}
+	filters := []filterapi.FilterRef{{Name: "set-local-pref"}}
+
+	body := []byte{0, 0, 0, 0}
+	res := r.runEgressPolicyChainASN4(filters, "10.0.0.7", 65001, 65000, testWireUpdate(body), false)
+
+	require.False(t, res.accept,
+		"an export modification that could not be applied must suppress the route, never send it unmodified")
+	require.True(t, res.failed,
+		"the chain COULD NOT RUN to completion; that is not a policy decision (egressStepResult.failed)")
+	assert.Nil(t, res.wireOverride, "a suppressed route carries no wire override")
+}
+
+// VALIDATES: AC-12. runEgressPolicyChain, the forwarded-route entry, reaches the
+// same guard through the shared body rather than accepting first.
+// PREVENTS: the forwarded (route-reflected) rail leaking when a fix lands only on
+// the shared body. This is the same split the nil-api tests above pin.
+func TestRunEgressPolicyChainModifyFailureFailsClosed(t *testing.T) {
+	r := &Reactor{
+		api:              &pluginserver.Server{},
+		policyFilterSeam: modifyingFilter(),
+		attrModHandlers:  map[uint8]filterapi.AttrModHandler{},
+	}
+	filters := []filterapi.FilterRef{{Name: "set-local-pref"}}
+
+	body := []byte{0, 0, 0, 0}
+	res := r.runEgressPolicyChain(filters, "10.0.0.8", 65001, 65000, testWireUpdate(body))
+
+	require.False(t, res.accept, "forwarded egress path must suppress on a modify failure")
+	require.True(t, res.failed, "a step that could not run is not a policy decision")
+}
+
+// VALIDATES: AC-12 (the no-over-fire half). A filter delta that CAN be applied
+// still modifies the route on both chains, so the guard has not been turned into
+// a blanket refusal of every text delta.
+// PREVENTS: the fail-closed branch swallowing the working path. A guard that
+// denies everything passes every negative test above and is useless.
+func TestPolicyChainAppliedModificationStillModifies(t *testing.T) {
+	handlers := attrModHandlersWithDefaults()
+	body := []byte{0, 0, 0, 0}
+
+	t.Run("ingress", func(t *testing.T) {
+		addr := netip.MustParseAddr("10.0.0.9")
+		peer := NewPeer(&PeerSettings{
+			Address:       addr,
+			LocalAS:       65000,
+			PeerAS:        65001,
+			ImportFilters: []filterapi.FilterRef{{Name: "set-local-pref"}},
+		})
+		r := &Reactor{
+			api:              &pluginserver.Server{},
+			policyFilterSeam: modifyingFilter(),
+			attrModHandlers:  handlers,
+		}
+
+		res := r.runIngressPolicyChain(peer, addr, 65001, testWireUpdate(body), body)
+
+		require.True(t, res.accept, "an applicable modification must not be refused")
+		require.NotNil(t, res.modifiedPayload, "the modified payload must reach the caller")
+		assert.NotEqual(t, body, res.modifiedPayload, "the payload must actually differ")
+	})
+
+	t.Run("egress", func(t *testing.T) {
+		r := &Reactor{
+			api:              &pluginserver.Server{},
+			policyFilterSeam: modifyingFilter(),
+			attrModHandlers:  handlers,
+		}
+
+		res := r.runEgressPolicyChainASN4([]filterapi.FilterRef{{Name: "set-local-pref"}},
+			"10.0.0.10", 65001, 65000, testWireUpdate(body), false)
+
+		require.True(t, res.accept, "an applicable modification must not be refused")
+		assert.False(t, res.failed, "an applied modification is not a failure")
+		require.NotNil(t, res.wireOverride, "the wire override must reach the caller")
+	})
 }

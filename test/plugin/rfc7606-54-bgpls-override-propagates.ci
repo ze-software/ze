@@ -1,0 +1,124 @@
+# rfc7606-54-bgpls-override-propagates -- the escape clause, through the relay.
+#
+# RFC requirement: RFC7606-5.4-1 negative -- a family whose own specification overrides
+# Section 5.4 keeps propagating its unknown NLRI types. RFC 9552 Section 5.2: "this document
+# deviates from the default handling behavior specified by Section 5.4 (paragraph 2) of
+# [RFC7606] for Link-State address family. An implementation MUST handle unknown Link-State
+# NLRI types as opaque objects and MUST preserve and propagate them."
+#
+# This is the confining negative of rfc7606-54-discard-unrecognized-nlri.ci. Section 5.4
+# discards "unless the relevant specification for that address family specifies otherwise",
+# so a blanket discard would trade one RFC violation for another: ze sits on the propagation
+# path here, and dropping an unknown Link-State type would stop a newly standardized type
+# reaching every consumer behind it. Run the two files together and neither can pass by
+# accident -- the same unknown type number, 99, is discarded in one family and relayed in
+# the other, decided only by which family's specification says what.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=20s
+option=bind:value=0.0.0.0
+option=conn_map:value=remote-ip
+
+# Source peer (conn=1, AS 65001) announces two BGP-LS NLRIs in one MP_REACH_NLRI:
+#   ORIGIN:   40010100                 IGP
+#   AS_PATH:  40020602010000FDE9       AS_SEQUENCE[65001], 4-byte ASNs
+#   MP_REACH: 800E20 4004 47 04 01010101 00   AFI 16388 / SAFI 71, next-hop 1.1.1.1
+#     NLRI 1: 0001 000B 020000000000000000000000   NLRI type 1, Node -- ze parses this
+#     NLRI 2: 0063 0004 DEADBEEF                   NLRI type 99 -- ze parses no such type
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004702000000304001010040020602010000FDE9800E204004470401010101000001000B020000000000000000000000630004DEADBEEF
+
+# Processing fence, exactly as in the positive file: ze reads this connection in TCP order on
+# one goroutine, so the observer seeing 10.0.0.0/24 forwarded proves the BGP-LS UPDATE above
+# was already handled.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+
+# Receiver (conn=2, AS 65002): BOTH NLRIs arrive, the unknown type included and unchanged.
+# Asserting the whole section rather than just the unknown NLRI is deliberate: it pins that
+# the unknown type is preserved IN PLACE, not appended or reordered.
+expect=bgp:conn=2:seq=1:contains=0001000B020000000000000000000000630004DEADBEEF
+EOF_PEER
+
+tmpfs=shutdown-after-up.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+from ze_api import API
+
+API().run_rs_observer(expected_peers=2, forward_prefix="10.0.0.0/24")
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	internal rs {
+		use bgp-rs
+	}
+	external shutdown-after-up {
+		run ./shutdown-after-up.run
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				bgp-ls/bgp-ls { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+	peer receiver-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			rs-client true
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+				bgp-ls/bgp-ls { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

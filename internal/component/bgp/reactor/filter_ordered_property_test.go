@@ -103,30 +103,26 @@ func randWellFormedBody(r *rand.Rand) []byte {
 	return body
 }
 
-// testAttrHandlers returns a handler for every attribute code that writes a
-// single well-formed non-extended attribute (or no-ops when the buffer is
-// full). Registering all codes forces the handler path for any generated op.
+// testAttrHandlers returns a handler for every attribute code that plans a
+// single well-formed attribute carrying the first op's value. Registering all
+// codes forces the handler path for any generated op.
+//
+// The old shape wrote the header and value itself and truncated an oversized
+// value to 255 octets so its 3-octet header stayed valid. A handler now PLANS:
+// Emit picks the header size class from the final value length, so a value
+// above 255 octets gets the Extended Length header (RFC 4271 Section 4.3)
+// instead of being truncated, and the output stays well-formed either way. The
+// old "no room in the buffer" branch has no equivalent because the plan is
+// sized exactly before any buffer is acquired.
 func testAttrHandlers() map[uint8]filterapi.AttrModHandler {
 	h := make(map[uint8]filterapi.AttrModHandler, 256)
 	for c := range 256 {
 		code := uint8(c) //nolint:gosec // 0..255
-		h[code] = func(_ []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-			var val []byte
-			if len(ops) > 0 {
-				val = ops[0].Buf
+		h[code] = func(p *filterapi.AttrPlan) {
+			if len(p.Ops()) > 0 {
+				p.Op(0) // the whole value; Op is a no-op for an empty buffer
 			}
-			if len(val) > 255 {
-				val = val[:255]
-			}
-			need := 3 + len(val)
-			if off+need > len(buf) {
-				return off // no room: leave offset unchanged (valid contract)
-			}
-			buf[off] = 0x80
-			buf[off+1] = code
-			buf[off+2] = byte(len(val))
-			copy(buf[off+3:], val)
-			return off + need
+			p.Emit(0x80, code)
 		}
 	}
 	return h

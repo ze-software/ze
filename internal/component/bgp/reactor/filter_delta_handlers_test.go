@@ -14,6 +14,65 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 )
 
+// planOutcome records what one handler's plan resolved to.
+type planOutcome struct {
+	out     []byte // the emitted attribute bytes; nil when nothing is emitted
+	failed  bool   // the handler refused: the caller suppresses the route
+	dropped bool   // the attribute leaves the UPDATE
+}
+
+// planHandler drives an AttrModHandler through one attribute plan and
+// materializes exactly what that plan describes.
+//
+// It is the test-side equivalent of planAttr plus attrEmitter.emitSlot
+// (forward_build.go). A handler PLANS and writes no bytes, so a test that
+// asserts on wire bytes has to run the plan to see them. srcAttr is the whole
+// source attribute, header included, and it doubles as the attribute section the
+// plan's offsets resolve against.
+func planHandler(h filterapi.AttrModHandler, code uint8, srcAttr []byte, ops []filterapi.AttrOp) planOutcome {
+	var mods filterapi.ModAccumulator
+	edit := mods.EditSet()
+	edit.Begin()
+
+	var src []byte
+	srcOff, srcLen, valOff, valLen := 0, 0, 0, 0
+	if len(srcAttr) > 0 {
+		hdr := 3
+		if srcAttr[0]&0x10 != 0 { // RFC 4271 Section 4.3 Extended Length
+			hdr = 4
+		}
+		src = srcAttr
+		srcLen = len(srcAttr)
+		valOff, valLen = hdr, len(srcAttr)-hdr
+	}
+
+	p := edit.Attr(code, src, srcOff, srcLen, valOff, valLen, ops, 0)
+	h(p)
+	id := edit.Commit(p)
+	if edit.SlotFailed(id) {
+		return planOutcome{failed: true}
+	}
+	if edit.SlotDropped(id) {
+		return planOutcome{dropped: true}
+	}
+	n := edit.SlotSize(id)
+	buf := make([]byte, n)
+	if got := edit.SlotWrite(id, srcAttr, ops, buf, 0); got != n {
+		return planOutcome{failed: true}
+	}
+	return planOutcome{out: buf}
+}
+
+// planHandlerBytes returns the bytes a handler's plan emits. ok is false when
+// the plan emitted nothing, whether by refusing or by dropping the attribute.
+func planHandlerBytes(h filterapi.AttrModHandler, code uint8, srcAttr []byte, ops []filterapi.AttrOp) (out []byte, ok bool) {
+	res := planHandler(h, code, srcAttr, ops)
+	if res.failed || res.dropped {
+		return nil, false
+	}
+	return res.out, true
+}
+
 // buildMPReachSource constructs a raw MP_REACH_NLRI attribute (header + value).
 // value layout: AFI(2) | SAFI(1) | NHLen(1) | NH(nhLen) | Reserved(1) | NLRI.
 func buildMPReachSource(afi uint16, safi byte, nh, nlri []byte) []byte {
@@ -56,13 +115,12 @@ func TestMPReachNextHopHandler_Rewrite16Bytes(t *testing.T) {
 		{Code: 14, Action: filterapi.AttrModSet, Buf: newNH},
 	}
 
-	buf := make([]byte, 256)
-	handler := mpReachNextHopHandler()
-	n := handler(src, ops, buf, 0)
+	out, ok := planHandlerBytes(mpReachNextHopHandler(), 14, src, ops)
+	require.True(t, ok, "handler planned an emitted attribute")
+	n := len(out)
 	require.Equal(t, len(src), n, "length unchanged for 16->16 rewrite")
 
 	// Parse the output and verify layout.
-	out := buf[:n]
 	assert.Equal(t, byte(0x80), out[0], "flags preserved (optional, not extended)")
 	assert.Equal(t, byte(14), out[1], "attribute code")
 	assert.Equal(t, byte(len(src)-3), out[2], "one-byte length = valLen")
@@ -107,13 +165,12 @@ func TestMPReachNextHopHandler_Rewrite32Bytes(t *testing.T) {
 		{Code: 14, Action: filterapi.AttrModSet, Buf: newNH},
 	}
 
-	buf := make([]byte, 256)
-	handler := mpReachNextHopHandler()
-	n := handler(src, ops, buf, 0)
+	out, ok := planHandlerBytes(mpReachNextHopHandler(), 14, src, ops)
+	require.True(t, ok, "handler planned an emitted attribute")
+	n := len(out)
 	require.Equal(t, len(src)+16, n, "length grew by 16 bytes (old 16 -> new 32)")
 
 	// Parse the output and verify layout.
-	out := buf[:n]
 	assert.Equal(t, byte(0x80), out[0], "flags: optional, non-extended (still < 255)")
 	assert.Equal(t, byte(14), out[1])
 	newValLen := int(out[2])
@@ -139,11 +196,11 @@ func TestMPReachNextHopHandler_CopyWhenNoOps(t *testing.T) {
 	nlri := []byte{0x30, 0xfc, 0x00, 0x00}
 	src := buildMPReachSource(2, 1, oldNH, nlri)
 
-	buf := make([]byte, 256)
-	handler := mpReachNextHopHandler()
-	n := handler(src, nil, buf, 0)
+	out, ok := planHandlerBytes(mpReachNextHopHandler(), 14, src, nil)
+	require.True(t, ok, "handler planned an emitted attribute")
+	n := len(out)
 	require.Equal(t, len(src), n)
-	assert.Equal(t, src, buf[:n])
+	assert.Equal(t, src, out)
 }
 
 // TestMPReachNextHopHandler_InvalidOpLength verifies that an op with a
@@ -162,11 +219,11 @@ func TestMPReachNextHopHandler_InvalidOpLength(t *testing.T) {
 	ops := []filterapi.AttrOp{
 		{Code: 14, Action: filterapi.AttrModSet, Buf: []byte{1, 2, 3}}, // 3 bytes -- invalid
 	}
-	buf := make([]byte, 256)
-	handler := mpReachNextHopHandler()
-	n := handler(src, ops, buf, 0)
+	out, ok := planHandlerBytes(mpReachNextHopHandler(), 14, src, ops)
+	require.True(t, ok, "handler planned an emitted attribute")
+	n := len(out)
 	require.Equal(t, len(src), n)
-	assert.Equal(t, src, buf[:n], "source preserved when op length is invalid")
+	assert.Equal(t, src, out, "source preserved when op length is invalid")
 }
 
 // TestMPReachNextHopHandler_IPv4NextHopThroughMPReach verifies that a 4-byte
@@ -185,12 +242,12 @@ func TestMPReachNextHopHandler_IPv4NextHopThroughMPReach(t *testing.T) {
 	ops := []filterapi.AttrOp{
 		{Code: 14, Action: filterapi.AttrModSet, Buf: newNH},
 	}
-	buf := make([]byte, 256)
-	handler := mpReachNextHopHandler()
-	n := handler(src, ops, buf, 0)
+	out, ok := planHandlerBytes(mpReachNextHopHandler(), 14, src, ops)
+	require.True(t, ok, "handler planned an emitted attribute")
+	n := len(out)
 	require.Equal(t, len(src), n)
 
-	val := buf[3:n]
+	val := out[3:n]
 	assert.Equal(t, byte(4), val[3], "NH length = 4")
 	assert.Equal(t, newNH, val[4:8], "IPv4 NH rewritten")
 	assert.Equal(t, nlri, val[9:], "NLRI preserved")
@@ -205,6 +262,15 @@ func TestMPReachNextHopHandler_IPv4NextHopThroughMPReach(t *testing.T) {
 // pushes newValLen over the cap.
 // PREVENTS: Silent wire corruption -- handler writes N bytes but emits
 // "N mod 65536" in the length field, poisoning downstream attribute parsing.
+//
+// The MECHANISM changed with the plan-based AttrModHandler contract, and the
+// assertions are re-pointed at the new one. A handler used to answer an
+// overflow by copying the source through, which forwarded the route carrying
+// exactly the next-hop the policy existed to rewrite. RFC 4271 Section 4.3 caps
+// an attribute value at 65535 octets, so the plan now REFUSES and the caller
+// suppresses the route for this destination (ai/rules/fail-closed-guards.md).
+// Both outcomes prevent a truncated length field reaching the wire, which is
+// what this test is for; only refusal also stops the unmodified route.
 func TestMPReachNextHopHandler_RejectsOverflow(t *testing.T) {
 	// Build a near-full MP_REACH: 0-byte next-hop, and a giant NLRI padding
 	// so that srcValLen reaches just under 65535. Growing NH to 32 bytes
@@ -220,13 +286,12 @@ func TestMPReachNextHopHandler_RejectsOverflow(t *testing.T) {
 		{Code: 14, Action: filterapi.AttrModSet, Buf: newNH},
 	}
 
-	buf := make([]byte, 131072)
-	handler := mpReachNextHopHandler()
-	n := handler(src, ops, buf, 0)
+	res := planHandler(mpReachNextHopHandler(), 14, src, ops)
 
-	// Must have copied the source unchanged, not written a truncated header.
-	require.Equal(t, len(src), n, "overflow rewrite must preserve source length")
-	assert.Equal(t, src, buf[:n], "overflow rewrite must preserve source bytes")
+	// Must have refused, not planned a value whose length field would wrap.
+	require.True(t, res.failed, "overflow rewrite must refuse so the caller suppresses the route")
+	assert.Nil(t, res.out, "overflow rewrite must emit no bytes rather than a truncated header")
+	assert.False(t, res.dropped, "refusal, not a drop: dropping MP_REACH would forward a route without its NLRI")
 }
 
 // TestBuildModifiedPayload_MPReachNextHopSelf verifies that the full

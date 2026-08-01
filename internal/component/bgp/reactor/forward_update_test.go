@@ -401,12 +401,9 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 	}
 
 	// AttrModHandler that adds a marker attribute (flags+code+len+value = 5 bytes).
-	markerHandler := filterapi.AttrModHandler(func(_ []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-		buf[off] = 0xC0  // flags: Optional + Transitive
-		buf[off+1] = 250 // private code
-		buf[off+2] = byte(len(ops[0].Buf))
-		copy(buf[off+3:], ops[0].Buf)
-		return off + 3 + len(ops[0].Buf)
+	markerHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		p.Op(0)
+		p.Emit(0xC0, 250) // flags: Optional + Transitive; private code
 	})
 
 	var dispatched []fwdItem
@@ -522,7 +519,7 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 		return true
 	}
 
-	panicHandler := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, _ []byte, _ int) int {
+	panicHandler := filterapi.AttrModHandler(func(_ *filterapi.AttrPlan) {
 		panic("deliberate test panic")
 	})
 
@@ -1127,12 +1124,9 @@ func TestForwardUpdateDirectCopyOnModify(t *testing.T) {
 		}
 		return true
 	}
-	markerHandler := filterapi.AttrModHandler(func(_ []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-		buf[off] = 0xC0
-		buf[off+1] = 250
-		buf[off+2] = byte(len(ops[0].Buf))
-		copy(buf[off+3:], ops[0].Buf)
-		return off + 3 + len(ops[0].Buf)
+	markerHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		p.Op(0)
+		p.Emit(0xC0, 250)
 	})
 
 	var mu sync.Mutex
@@ -1709,12 +1703,9 @@ func TestPerDestinationModificationIsolation(t *testing.T) {
 	// Writes ONE marker attribute from the first op for code 250. If a previous
 	// destination's op survived the Reset it sits at index 0, so this peer is
 	// handed the other peer's bytes -- which is what the assertions catch.
-	markerHandler := filterapi.AttrModHandler(func(_ []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-		buf[off] = 0xC0
-		buf[off+1] = 250
-		buf[off+2] = byte(len(ops[0].Buf))
-		copy(buf[off+3:], ops[0].Buf)
-		return off + 3 + len(ops[0].Buf)
+	markerHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		p.Op(0)
+		p.Emit(0xC0, 250)
 	})
 
 	itemsCh := make(chan fwdItem, 8)

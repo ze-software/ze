@@ -13,6 +13,7 @@ import (
 // attrModMetrics holds the attribute-modification contract metrics.
 type attrModMetrics struct {
 	removeBufferRefused metrics.CounterVec // labels: attribute
+	editSpill           metrics.CounterVec // labels: store
 }
 
 // attrModMetricsPtr stays nil until the reactor wires a registry, so every
@@ -40,8 +41,36 @@ func SetMetricsRegistry(reg metrics.Registry) {
 			"Attribute-modification Remove operations refused because the value buffer was not a whole number of wire values (a caller-contract violation of ModAccumulator.Op).",
 			[]string{"attribute"},
 		),
+		editSpill: reg.CounterVec(
+			"ze_bgp_update_edit_spill_total",
+			"Per-destination edit sets whose slot, fragment, or arena store exceeded its inline capacity and allocated.",
+			[]string{"store"},
+		),
 	})
 }
+
+// RecordEditSpill counts one destination whose edit set outgrew an inline store.
+//
+// The inline capacities come from a static census of the edit producers, not
+// from a traffic histogram, so this counter is how that judgement is checked
+// against real traffic rather than re-argued. A spill is correct behavior and is
+// never refused; it is only an allocation on a path that is otherwise free.
+//
+// Attribute count and community-list length are peer-influenceable, so the label
+// set is closed at the three stores and a peer cannot mint a time series.
+func RecordEditSpill(store string) {
+	if m := attrModMetricsPtr.Load(); m != nil {
+		m.editSpill.With(store).Inc()
+	}
+}
+
+// Edit-set store labels. A closed set: these are the only three stores an
+// EditSet has.
+const (
+	EditStoreSlots     = "slot"
+	EditStoreFragments = "fragment"
+	EditStoreArena     = "arena"
+)
 
 // RecordRemoveBufferRefused counts one refused Remove operation for an
 // attribute code.

@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | `plan/spec-wire-edit-1-base-index.md` |
 | Phase | 2 |
 | Deferral shard | `plan/deferrals/spec-wire-edit-2-edit-apply.md` |
-| Updated | 2026-07-28 |
+| Updated | 2026-08-01 |
 
 Child 2 of `plan/spec-wire-edit-0-umbrella.md`. It turns the existing
 accumulator into the full edit set and replaces the progressive build with a
@@ -460,6 +460,30 @@ child is the existing AS_PATH handler behaviour, unchanged.
 | Length-neutral edits are a sizing fast path, not a mechanism | patch equal-length values in place | The base is the shared receive buffer, and the same slice is appended for every destination with no copy. An in-place patch would corrupt every other destination's view |
 | Constant-time reset with the value hoisted above the loop | keep declaring the accumulator per iteration | A 500-byte inline value re-zeroed per destination is slower than today's 150-byte one |
 | Oversize suppresses | keep forwarding unmodified, but log it | Forwarding unmodified can leak exactly what the policy exists to strip. The counter lands first so the rate is known before the behaviour flips |
+
+## BLOCKED: three RFC-tagged test call sites need Thomas's approval (2026-08-01)
+
+The handler contract change (`AttrModHandler` now plans instead of writing) forces
+a CALL-SHAPE change in three test functions that carry `RFC requirement:` tags.
+`.claude/hooks/pretool-writeedit.py` refuses the edit, and only Thomas may
+authorize it (`ai/rules/rfc-compliance.md`). No assertion changes; the call shape
+does.
+
+| Site | Tag | Change |
+|------|-----|--------|
+| `internal/component/bgp/reactor/rfc8277_test.go` `TestLabeledPropagationUnchangedNextHopKeepsLabels` | RFC8277-3.2.1-1 positive | `mpReachNextHopHandler()(src, ops, buf, 0)` -> `planHandlerBytes(...)`; asserted offset becomes asserted length |
+| `internal/component/bgp/plugins/role/otc_test.go` `TestOTCAttrModHandlerNewAttr` | RFC9234-5-6 negative | `otcAttrModHandler(nil, ops, buf, 0)` -> `planOTCBytes(nil, ops)`; `buf[N]` -> `out[N]` |
+| `internal/component/bgp/plugins/role/otc_test.go` `TestOTCAttrModHandlerExistingPreserved` | RFC9234-5-6 positive | same shape; 65001 still wins over the op's 65000 |
+
+**This is urgent rather than cosmetic.** While those three sites stay on the old
+shape, `reactor` and `role` do not compile their test binaries, so all 95 RFC
+requirements tagged in those two packages currently prove NOTHING
+(`make ze-rfc-check` says so explicitly).
+
+The three edits were proven safe without touching the files, using
+`go test -overlay tmp/_editapply/overlay.json`: both packages pass in full.
+On approval, apply them and add
+`// rfc-test-change-approved: <date> <what Thomas approved>` to each.
 
 ## Known Limitations
 

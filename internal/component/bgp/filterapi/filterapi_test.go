@@ -253,9 +253,9 @@ func TestModAccumulatorOpReset(t *testing.T) {
 // PREVENTS: Handler registration lost or wrong code mapping.
 func TestAttrModHandlerRegistration(t *testing.T) {
 	called := false
-	handler := AttrModHandler(func(src []byte, ops []AttrOp, buf []byte, off int) int {
+	handler := AttrModHandler(func(p *AttrPlan) {
 		called = true
-		return off
+		p.Drop()
 	})
 
 	RegisterAttrModHandler(35, handler)
@@ -266,8 +266,13 @@ func TestAttrModHandlerRegistration(t *testing.T) {
 		t.Fatal("AttrModHandlerFor returned nil for registered code")
 	}
 
-	buf := make([]byte, 64)
-	got(nil, nil, buf, 0)
+	// A handler plans rather than writes, so the call needs a planner. The
+	// attribute is absent from the source (nil src), which is the shape a
+	// created attribute has.
+	var mods ModAccumulator
+	edit := mods.EditSet()
+	edit.Begin()
+	got(edit.Attr(35, nil, 0, 0, 0, 0, nil, 0))
 	if !called {
 		t.Fatal("handler was not called")
 	}
@@ -285,7 +290,7 @@ func TestAttrModHandlerNotFound(t *testing.T) {
 // VALIDATES: AC-12 — AttrModHandlers returns snapshot for reactor startup.
 // PREVENTS: Reactor sharing mutable reference with registry.
 func TestAttrModHandlersSnapshot(t *testing.T) {
-	h := AttrModHandler(func(src []byte, ops []AttrOp, buf []byte, off int) int { return off })
+	h := AttrModHandler(func(p *AttrPlan) { p.Drop() })
 
 	RegisterAttrModHandler(200, h)
 	RegisterAttrModHandler(201, h)
@@ -587,6 +592,26 @@ func TestAccumulatorResetClearsEverything(t *testing.T) {
 		t.Fatal("fixture did not fill the accumulator")
 	}
 
+	// Fill the EDIT SET too, or the sweep below is vacuous: an edit set that was
+	// never planned into is already the zero value, so every field passes whether
+	// Reset clears it or not. Planning one attribute makes the sweep test what it
+	// claims to (ai/rules/functional-test-gate.md, mutation-verify).
+	srcAttr := []byte{0x40, 5, 4, 0, 0, 0, 100}
+	edit := mods.EditSet()
+	edit.Begin()
+	planOps := []AttrOp{{Code: 5, Action: AttrModSet, Buf: []byte{0, 0, 0, 200}}}
+	p := edit.Attr(5, srcAttr, 0, len(srcAttr), 3, 4, planOps, 0)
+	p.Keep(0, 4)
+	p.New([]byte{0xAA})
+	p.Op(0)
+	p.Emit(0x40, 5)
+	if id := edit.Commit(p); edit.SlotFailed(id) {
+		t.Fatal("fixture did not fill the edit set")
+	}
+	if edit.SlotCount() == 0 {
+		t.Fatal("fixture did not fill the edit set")
+	}
+
 	mods.Reset()
 
 	// Public surface: identical to a fresh value.
@@ -622,6 +647,40 @@ func TestAccumulatorResetClearsEverything(t *testing.T) {
 		switch name {
 		case "inline":
 			continue // deliberate: see TestAccumulatorResetIsConstantTime
+		case "edit":
+			// The edit set resets in O(1) for exactly the reason `inline` does:
+			// it re-slices its three backing arrays to zero length instead of
+			// re-zeroing them, so it is EMPTY without being the zero VALUE.
+			// Sweep it the same way one level down, with its arrays and its
+			// reusable planner as the deliberate exceptions, so a field added
+			// to EditSet and left uncleared still fails here.
+			ev := f
+			et := ev.Type()
+			for j := range et.NumField() {
+				en := et.Field(j).Name
+				ef := ev.Field(j)
+				switch en {
+				case "slotsArr", "fragsArr", "arenaArr":
+					continue // backing arrays: unreachable at zero length, never re-zeroed
+				// "cur", the reusable planner, is NOT exempt. It is the one part
+				// of the edit set that holds pointers -- the source attribute,
+				// its value and the operation slice -- so leaving it set keeps
+				// the PREVIOUS destination's payload buffer alive for the whole
+				// of the next one. Attr overwrites it before every handler call,
+				// so nothing stale is ever readable, but reachable-for-the-GC is
+				// still a boundary this type claims not to cross. It falls
+				// through to the zero check below.
+				case "slots", "frags", "arena":
+					if ef.Len() != 0 {
+						t.Fatalf("after Reset, edit set field %q has len %d, want 0 -- destination 1's plan is still readable", en, ef.Len())
+					}
+				default:
+					if !ef.IsZero() {
+						t.Fatalf("after Reset, edit set field %q is not zero -- a later destination can read destination 1's plan. "+
+							"If this field was just added, clear it in EditSet.reset", en)
+					}
+				}
+			}
 		case "ops":
 			if f.Len() != 0 {
 				t.Fatalf("after Reset, field %q has len %d, want 0", name, f.Len())

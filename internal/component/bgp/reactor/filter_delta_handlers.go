@@ -1,73 +1,73 @@
 // Design: docs/architecture/core-design.md -- generic attribute modification handlers
+// RFC: rfc/short/rfc4271.md -- path attribute flags and the Extended Length header class (Section 4.3)
+// RFC: rfc/short/rfc4456.md -- ORIGINATOR_ID set-if-absent and CLUSTER_LIST prepend (Section 8)
+// RFC: rfc/short/rfc4760.md -- MP_REACH_NLRI value layout (Section 3)
 // Related: filter_delta.go -- textDeltaToModOps produces AttrModSet ops consumed by these handlers
 // Related: forward_build.go -- buildModifiedPayload dispatches to registered handlers
 
 package reactor
 
 import (
-	"encoding/binary"
-
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
+// lastSetOrSuppress returns the index of the last Set or Suppress operation and
+// whether it was a Suppress. Last wins, which is the rule every handler here
+// already followed and which the ordering of a filter chain depends on.
+func lastSetOrSuppress(ops []filterapi.AttrOp) (idx int, suppress bool) {
+	idx = -1
+	for i := range ops {
+		switch ops[i].Action {
+		case filterapi.AttrModSet:
+			idx, suppress = i, false
+		case filterapi.AttrModSuppress:
+			idx, suppress = i, true
+		}
+	}
+	return idx, suppress
+}
+
+// keepOrDrop finishes a plan that has no modification to make: the source
+// attribute is emitted unchanged when it exists, and nothing is emitted when it
+// does not.
+//
+// KeepAll rather than a rebuilt copy, because rebuilding decides the header size
+// class afresh and would normalize a legal-but-unusual source header, moving a
+// byte on the wire for a route nobody asked to change. It is also the cheapest
+// outcome: a verbatim slot coalesces into the surrounding copy run.
+func keepOrDrop(p *filterapi.AttrPlan) {
+	if p.Source() == nil {
+		p.Drop()
+		return
+	}
+	p.KeepAll()
+}
+
 // genericAttrSetHandler returns an AttrModHandler that supports AttrModSet for any
-// attribute code. On Set, it writes the attribute header (flags + code + length) plus
-// the value bytes from the op. If no Set op is present, it copies the source unchanged.
+// attribute code. On Set it emits the operation's value bytes under a fresh header;
+// on Suppress it drops the attribute; with neither it keeps the source unchanged.
 //
 // This enables the policy filter text-delta-to-wire bridge for attributes that don't
 // have specialized handlers (community types and OTC have their own).
 func genericAttrSetHandler(flags, code byte) filterapi.AttrModHandler {
-	return func(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-		// Find the last Set or Suppress op (last wins).
-		var setOp *filterapi.AttrOp
-		for i := range ops {
-			if ops[i].Action == filterapi.AttrModSet || ops[i].Action == filterapi.AttrModSuppress {
-				setOp = &ops[i]
-			}
+	return func(p *filterapi.AttrPlan) {
+		setIdx, suppress := lastSetOrSuppress(p.Ops())
+
+		// Suppress: emit nothing, removing the attribute.
+		if setIdx >= 0 && suppress {
+			p.Drop()
+			return
+		}
+		if setIdx < 0 {
+			keepOrDrop(p)
+			return
 		}
 
-		// Suppress: write nothing, effectively removing the attribute.
-		if setOp != nil && setOp.Action == filterapi.AttrModSuppress {
-			return off
-		}
-
-		if setOp == nil {
-			// No set op: copy source unchanged.
-			if len(src) > 0 && off+len(src) <= len(buf) {
-				copy(buf[off:], src)
-				return off + len(src)
-			}
-			return off
-		}
-
-		valLen := len(setOp.Buf)
-		if valLen > 65535 {
-			return off // BGP attribute value cannot exceed 65535 bytes.
-		}
-
-		// Extended length for values > 255 bytes.
-		if valLen > 255 {
-			needed := 4 + valLen
-			if off+needed > len(buf) {
-				return off
-			}
-			buf[off] = flags | 0x10 // Add extended length flag.
-			buf[off+1] = code
-			binary.BigEndian.PutUint16(buf[off+2:], uint16(valLen)) //nolint:gosec // capped at 65535 by BGP
-			copy(buf[off+4:], setOp.Buf)
-			return off + needed
-		}
-
-		needed := 3 + valLen
-		if off+needed > len(buf) {
-			return off
-		}
-		buf[off] = flags
-		buf[off+1] = code
-		buf[off+2] = byte(valLen)
-		copy(buf[off+3:], setOp.Buf)
-		return off + needed
+		// The operation's bytes are named, not copied: they already exist in the
+		// accumulator and stay valid for the whole rebuild.
+		p.Op(setIdx)
+		p.Emit(flags, code)
 	}
 }
 
@@ -99,125 +99,70 @@ var genericAttrCodes = []struct {
 
 // originatorIDHandler handles ORIGINATOR_ID (type 9, RFC 4456 Section 8).
 // AttrModSet: set only if the attribute is absent in the source. If already present,
-// copies the existing value unchanged (the original originator is preserved).
+// the existing value is kept unchanged (the original originator is preserved).
 func originatorIDHandler() filterapi.AttrModHandler {
-	return func(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-		// If source already has ORIGINATOR_ID, preserve it.
-		if len(src) > 0 {
-			if off+len(src) <= len(buf) {
-				copy(buf[off:], src)
-				return off + len(src)
-			}
-			return off
+	return func(p *filterapi.AttrPlan) {
+		// RFC 4456 Section 8: "the ORIGINATOR_ID SHOULD NOT be changed" by a
+		// reflector that finds one already present.
+		if p.Source() != nil {
+			p.KeepAll()
+			return
 		}
-		// Source absent: write new ORIGINATOR_ID from the Set op.
-		for i := range ops {
-			if ops[i].Action != filterapi.AttrModSet || len(ops[i].Buf) != 4 {
+		for i, op := range p.Ops() {
+			if op.Action != filterapi.AttrModSet || len(op.Buf) != 4 {
 				continue
 			}
+			p.Op(i)
 			// Flags: 0x80 = Optional, Non-transitive (RFC 4456).
-			needed := 3 + 4
-			if off+needed > len(buf) {
-				return off
-			}
-			buf[off] = 0x80
-			buf[off+1] = byte(attribute.AttrOriginatorID)
-			buf[off+2] = 4
-			copy(buf[off+3:], ops[i].Buf)
-			return off + needed
+			p.Emit(0x80, byte(attribute.AttrOriginatorID))
+			return
 		}
-		return off
+		p.Drop()
 	}
 }
 
 // clusterListHandler handles CLUSTER_LIST (type 10, RFC 4456 Section 8).
 // AttrModPrepend: prepends a 4-byte cluster-id before any existing cluster-list values.
 // AttrModSet: replaces the entire cluster-list.
+//
+// The prepend path is a fragment list: the new cluster-ids come from their
+// operation buffers and the existing list is named where it already sits, so a
+// long cluster list is never copied into an intermediate.
 func clusterListHandler() filterapi.AttrModHandler {
-	return func(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-		// Collect prepend ops (cluster-ids to prepend in order).
-		var prependBufs [][]byte
-		var setBuf []byte
+	code := byte(attribute.AttrClusterList)
+	return func(p *filterapi.AttrPlan) {
+		ops := p.Ops()
+		setIdx := -1
+		prepends := 0
 		for i := range ops {
-			if ops[i].Action == filterapi.AttrModPrepend && len(ops[i].Buf) == 4 {
-				prependBufs = append(prependBufs, ops[i].Buf)
-			} else if ops[i].Action == filterapi.AttrModSet {
-				setBuf = ops[i].Buf
+			switch {
+			case ops[i].Action == filterapi.AttrModSet:
+				setIdx = i
+			case ops[i].Action == filterapi.AttrModPrepend && len(ops[i].Buf) == 4:
+				prepends++
 			}
 		}
 
 		// Set overrides everything.
-		if setBuf != nil {
-			valLen := len(setBuf)
-			needed := 3 + valLen
-			if off+needed > len(buf) {
-				return off
-			}
-			buf[off] = 0x80 // Optional, Non-transitive
-			buf[off+1] = byte(attribute.AttrClusterList)
-			buf[off+2] = byte(valLen)
-			copy(buf[off+3:], setBuf)
-			return off + needed
+		if setIdx >= 0 {
+			p.Op(setIdx)
+			p.Emit(0x80, code) // Optional, Non-transitive
+			return
+		}
+		if prepends == 0 {
+			keepOrDrop(p)
+			return
 		}
 
-		if len(prependBufs) == 0 {
-			// No modifications: copy source unchanged.
-			if len(src) > 0 && off+len(src) <= len(buf) {
-				copy(buf[off:], src)
-				return off + len(src)
-			}
-			return off
-		}
-
-		// Prepend: extract existing value from source, prepend new cluster-ids.
-		var existingVal []byte
-		if len(src) > 2 {
-			// Source format: flags(1) + code(1) + len(1) + value(N)
-			// or flags(1) + code(1) + len(2) + value(N) if extended.
-			hdrLen := 3
-			if src[0]&0x10 != 0 { // Extended length flag
-				hdrLen = 4
-			}
-			if len(src) > hdrLen {
-				existingVal = src[hdrLen:]
+		for i := range ops {
+			if ops[i].Action == filterapi.AttrModPrepend && len(ops[i].Buf) == 4 {
+				p.Op(i)
 			}
 		}
-
-		prependLen := len(prependBufs) * 4
-		valLen := prependLen + len(existingVal)
-
-		// Use extended length if value > 255 bytes.
-		if valLen > 255 {
-			needed := 4 + valLen
-			if off+needed > len(buf) {
-				return off
-			}
-			buf[off] = 0x80 | 0x10 // Optional, Non-transitive, Extended
-			buf[off+1] = byte(attribute.AttrClusterList)
-			binary.BigEndian.PutUint16(buf[off+2:], uint16(valLen)) //nolint:gosec // capped by BGP
-			w := off + 4
-			for _, pb := range prependBufs {
-				copy(buf[w:], pb)
-				w += 4
-			}
-			copy(buf[w:], existingVal)
-			return off + needed
+		if val := p.Value(); len(val) > 0 {
+			p.Keep(0, len(val))
 		}
-
-		needed := 3 + valLen
-		if off+needed > len(buf) {
-			return off
-		}
-		buf[off] = 0x80 // Optional, Non-transitive
-		buf[off+1] = byte(attribute.AttrClusterList)
-		buf[off+2] = byte(valLen)
-		w := off + 3
-		for _, pb := range prependBufs {
-			copy(buf[w:], pb)
-			w += 4
-		}
-		copy(buf[w:], existingVal)
-		return off + needed
+		p.Emit(0x80, code)
 	}
 }
 
@@ -225,79 +170,56 @@ func clusterListHandler() filterapi.AttrModHandler {
 // (type 14, RFC 4760 Section 3).
 //
 // The op Buf carries the new next-hop bytes (16 bytes for an IPv6 global
-// address, or 32 bytes for a global + link-local pair per RFC 2545). The
-// handler parses the source attribute to locate the existing next-hop field,
-// replaces it in place, and copies the surrounding bytes (AFI/SAFI header,
-// reserved byte, NLRI) unchanged. The attribute length is adjusted only when
-// the new next-hop length differs from the existing one.
+// address, or 32 bytes for a global + link-local pair per RFC 2545). This is the
+// handler the fragment model was generalized from: the AFI/SAFI header and the
+// whole NLRI tail are NAMED where they already sit, one synthesized byte carries
+// the new next-hop length, and the next-hop itself comes from its operation
+// buffer. The NLRI tail is therefore copied exactly once, straight into the
+// output, however many prefixes the route carries.
 //
-// If the source attribute is absent or malformed, the handler leaves the
-// output untouched: MP_REACH_NLRI carries the route's NLRI itself, so the
+// If the source attribute is absent or its value is too short to parse, the
+// handler emits nothing: MP_REACH_NLRI carries the route's NLRI itself, so the
 // rewrite only makes sense when a source attribute already exists.
 //
 // Only AttrModSet ops are honored (last-wins). AttrModSuppress on a
 // MP_REACH_NLRI would strip the entire route, which is a withdraw -- that is
 // expressed via ModAccumulator.SetWithdraw(), not via this handler.
 func mpReachNextHopHandler() filterapi.AttrModHandler {
-	return func(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
+	return func(p *filterapi.AttrPlan) {
 		// Pick the last Set op.
-		var setBuf []byte
+		setIdx := -1
+		ops := p.Ops()
 		for i := range ops {
 			if ops[i].Action == filterapi.AttrModSet && len(ops[i].Buf) > 0 {
-				setBuf = ops[i].Buf
+				setIdx = i
 			}
 		}
 
-		// No rewrite requested: copy source unchanged.
-		if setBuf == nil {
-			if len(src) > 0 && off+len(src) <= len(buf) {
-				copy(buf[off:], src)
-				return off + len(src)
-			}
-			return off
+		// No rewrite requested: keep the source unchanged.
+		if setIdx < 0 {
+			keepOrDrop(p)
+			return
 		}
 
-		// Cannot construct MP_REACH_NLRI from nothing -- the NLRI portion
-		// lives in the source attribute value. Drop the rewrite request when
-		// the source is absent or too short to parse.
-		if len(src) < 3 {
-			return off
+		// Cannot construct MP_REACH_NLRI from nothing -- the NLRI portion lives
+		// in the source attribute value.
+		src := p.Source()
+		if src == nil {
+			p.Drop()
+			return
 		}
-
-		// Parse source header to find the value region.
-		flags := src[0]
-		code := src[1]
-		if code != byte(attribute.AttrMPReachNLRI) {
-			// Belt-and-braces: src was routed to this handler, code should match.
-			if len(src) > 0 && off+len(src) <= len(buf) {
-				copy(buf[off:], src)
-				return off + len(src)
-			}
-			return off
-		}
-		hdrLen := 3
-		srcValLen := int(src[2])
-		if flags&0x10 != 0 { // extended length
-			if len(src) < 4 {
-				return off
-			}
-			hdrLen = 4
-			srcValLen = int(binary.BigEndian.Uint16(src[2:4]))
-		}
-		if hdrLen+srcValLen > len(src) {
-			return off // truncated source, bail
-		}
-		val := src[hdrLen : hdrLen+srcValLen]
 
 		// Value layout: AFI(2) + SAFI(1) + NHLen(1) + NH(NHLen) + Reserved(1) + NLRI.
+		val := p.Value()
 		if len(val) < 5 {
-			return off
+			p.Drop()
+			return
 		}
 		nhLen := int(val[3])
-		nhStart := 4
-		nhEnd := nhStart + nhLen
+		nhEnd := 4 + nhLen
 		if nhEnd+1 > len(val) { // +1 for the reserved byte
-			return off
+			p.Drop()
+			return
 		}
 
 		// The new next-hop must be exactly one of the allowed lengths:
@@ -306,65 +228,22 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 		//   - 32 bytes: IPv6 global + link-local per RFC 2545 Section 3.
 		// A mismatched op length is a caller bug; the route is left unchanged
 		// (the caller should have produced a valid op).
-		newNHLen := len(setBuf)
+		newNHLen := len(ops[setIdx].Buf)
 		if newNHLen != 4 && newNHLen != 16 && newNHLen != 32 {
-			if len(src) > 0 && off+len(src) <= len(buf) {
-				copy(buf[off:], src)
-				return off + len(src)
-			}
-			return off
-		}
-		newValLen := srcValLen - nhLen + newNHLen
-
-		// BGP attribute value length is capped at 65535 (RFC 4271 §4.3).
-		// A near-full source MP_REACH combined with NH growth (e.g. 0 -> 32)
-		// could push the new value past that cap. Refuse the rewrite and
-		// preserve the source: the alternative (uint16 truncation) corrupts
-		// the wire output by claiming fewer bytes than we actually wrote.
-		if newValLen < 0 || newValLen > 65535 {
-			if len(src) > 0 && off+len(src) <= len(buf) {
-				copy(buf[off:], src)
-				return off + len(src)
-			}
-			return off
+			p.KeepAll()
+			return
 		}
 
-		// Decide output header width based on the new value length.
-		outFlags := flags
-		outHdrLen := 3
-		if newValLen > 255 {
-			outFlags |= 0x10
-			outHdrLen = 4
-		} else {
-			outFlags &^= 0x10
-		}
+		p.Keep(0, 3)              // AFI + SAFI, already on the wire
+		p.NewByte(byte(newNHLen)) // the one byte that exists nowhere else
+		p.Op(setIdx)              // the new next-hop
+		p.Keep(nhEnd, len(val)-nhEnd)
 
-		needed := outHdrLen + newValLen
-		if off+needed > len(buf) {
-			return off
-		}
-
-		// Write new header.
-		buf[off] = outFlags
-		buf[off+1] = code
-		if outHdrLen == 4 {
-			binary.BigEndian.PutUint16(buf[off+2:], uint16(newValLen)) //nolint:gosec // capped by BGP
-		} else {
-			buf[off+2] = byte(newValLen)
-		}
-
-		// Write value: AFI(2) + SAFI(1) + new NHLen + new NH + Reserved(1) + NLRI
-		w := off + outHdrLen
-		copy(buf[w:], val[:3]) // AFI + SAFI
-		w += 3
-		buf[w] = byte(newNHLen)
-		w++
-		copy(buf[w:], setBuf)
-		w += newNHLen
-		// Reserved byte + NLRI come after the old next-hop in the source.
-		copy(buf[w:], val[nhEnd:])
-		w += len(val) - nhEnd
-		return w
+		// The source flags carry the attribute's optional/transitive bits; Emit
+		// decides the Extended Length bit from the FINAL value length, which is
+		// what a next-hop that grows or shrinks across the 255-octet boundary
+		// needs (RFC 4271 Section 4.3).
+		p.Emit(src[0], byte(attribute.AttrMPReachNLRI))
 	}
 }
 
@@ -374,91 +253,41 @@ func mpReachNextHopHandler() filterapi.AttrModHandler {
 func aspathHandler() filterapi.AttrModHandler {
 	setHandler := genericAttrSetHandler(0x40, byte(attribute.AttrASPath))
 
-	return func(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-		// Check for prepend ops and a possible Set base. Set is applied first,
-		// then prepend ops are placed in front of that base path.
-		var prependBufs [][]byte
+	return func(p *filterapi.AttrPlan) {
+		ops := p.Ops()
 		hasPrepend := false
-		var setOp *filterapi.AttrOp
 		for i := range ops {
 			if ops[i].Action == filterapi.AttrModPrepend && len(ops[i].Buf) > 0 {
-				prependBufs = append(prependBufs, ops[i].Buf)
 				hasPrepend = true
-			} else if ops[i].Action == filterapi.AttrModSet || ops[i].Action == filterapi.AttrModSuppress {
-				setOp = &ops[i]
+				break
 			}
 		}
-
 		if !hasPrepend {
-			// No prepend: delegate to generic set handler.
-			return setHandler(src, ops, buf, off)
+			// No prepend: delegate to the generic set handler.
+			setHandler(p)
+			return
 		}
 
-		if setOp != nil && setOp.Action == filterapi.AttrModSuppress {
-			return off
+		setIdx, suppress := lastSetOrSuppress(ops)
+		if setIdx >= 0 && suppress {
+			p.Drop()
+			return
 		}
 
-		// Prepend: use Set as the base when present, otherwise extract existing
-		// value from source, then prepend new segment(s).
-		var existingVal []byte
-		if setOp != nil {
-			existingVal = setOp.Buf
-		} else if len(src) > 2 {
-			hdrLen := 3
-			if src[0]&0x10 != 0 {
-				hdrLen = 4
-			}
-			if len(src) > hdrLen {
-				existingVal = src[hdrLen:]
+		// Prepend: the new segments first, then the base path. The base is the
+		// Set value when one is present, otherwise the source value where it
+		// already sits.
+		for i := range ops {
+			if ops[i].Action == filterapi.AttrModPrepend && len(ops[i].Buf) > 0 {
+				p.Op(i)
 			}
 		}
-
-		prependLen := 0
-		for _, pb := range prependBufs {
-			prependLen += len(pb)
+		if setIdx >= 0 {
+			p.Op(setIdx)
+		} else if val := p.Value(); len(val) > 0 {
+			p.Keep(0, len(val))
 		}
-		valLen := prependLen + len(existingVal)
-
-		if valLen > 65535 {
-			// Cannot exceed BGP attribute value limit; copy source unchanged.
-			if len(src) > 0 && off+len(src) <= len(buf) {
-				copy(buf[off:], src)
-				return off + len(src)
-			}
-			return off
-		}
-
-		if valLen > 255 {
-			needed := 4 + valLen
-			if off+needed > len(buf) {
-				return off
-			}
-			buf[off] = 0x40 | 0x10 // Well-known, Transitive, Extended
-			buf[off+1] = byte(attribute.AttrASPath)
-			binary.BigEndian.PutUint16(buf[off+2:], uint16(valLen)) //nolint:gosec // capped at 65535
-			w := off + 4
-			for _, pb := range prependBufs {
-				copy(buf[w:], pb)
-				w += len(pb)
-			}
-			copy(buf[w:], existingVal)
-			return off + needed
-		}
-
-		needed := 3 + valLen
-		if off+needed > len(buf) {
-			return off
-		}
-		buf[off] = 0x40 // Well-known, Transitive
-		buf[off+1] = byte(attribute.AttrASPath)
-		buf[off+2] = byte(valLen)
-		w := off + 3
-		for _, pb := range prependBufs {
-			copy(buf[w:], pb)
-			w += len(pb)
-		}
-		copy(buf[w:], existingVal)
-		return off + needed
+		p.Emit(0x40, byte(attribute.AttrASPath)) // Well-known, Transitive
 	}
 }
 

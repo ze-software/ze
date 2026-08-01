@@ -5,6 +5,12 @@
 
 package reactor
 
+import (
+	"net/netip"
+	"sync/atomic"
+	"time"
+)
+
 // modifyFailure names why buildModifiedPayload could not apply the
 // modifications it was given.
 //
@@ -48,7 +54,78 @@ const (
 	// modifyFailureTruncated: the attribute section ended mid-attribute, so the
 	// remaining attributes were never copied.
 	modifyFailureTruncated
+
+	// modifyFailureCount bounds the per-reason arrays in modifyFailureLog. It
+	// MUST stay last in this block: a reason added below it sizes the arrays
+	// without being reachable through them.
+	modifyFailureCount
 )
+
+// modifySite names the rail that could not apply a modification. It is an
+// attribute of the shared warning rather than a different message per call
+// site, because a log scanner matches on the leading phrase and rewording it
+// per site breaks that (ai/rules/error-messages.md).
+//
+// The set is closed and every value is a compile-time constant, so it never
+// allocates and a peer cannot drive it.
+const (
+	modifySiteImportChain      = "import-chain"
+	modifySiteExportChain      = "export-chain"
+	modifySiteEgressForward    = "egress-forward"
+	modifySiteRouteServer      = "route-server"
+	modifySiteStaleReadvertise = "stale-readvertise"
+)
+
+// modifyFailureLogInterval bounds how often ONE reason is logged.
+//
+// The failure is peer-influenceable: a peer that keeps sending a route whose
+// configured modification cannot be applied drives one failure per destination
+// per UPDATE, at its own send rate. Unbounded, a fan-out of N turns one such
+// UPDATE into N warnings, which is a logging denial of service against the
+// operator rather than against the daemon.
+const modifyFailureLogInterval = time.Second
+
+// modifyFailureLog rate-limits the modify-failure warning to one line per
+// reason per modifyFailureLogInterval, and reports how many it swallowed so the
+// operator sees the rate rather than only the first event.
+//
+// Per REASON rather than per peer: the reason set is closed at
+// modifyFailureCount, so the state is a fixed two arrays and a peer cannot grow
+// it. Keying by peer would let a peer that rotates source addresses allocate a
+// slot per address, which is the exhaustion this bound exists to prevent. The
+// peer is still named in the line that does get emitted, and
+// ze_bgp_update_modify_failed_total is not rate-limited, so no failure is lost
+// to counting -- only to logging.
+//
+// The zero value is ready: a zero deadline is in the past, so the first failure
+// of each reason logs immediately.
+type modifyFailureLog struct {
+	nextAllowed [modifyFailureCount]atomic.Int64  // unix nanos
+	suppressed  [modifyFailureCount]atomic.Uint64 // since the last emission
+}
+
+// allow reports whether this reason may be logged at now (unix nanos), and how
+// many emissions were suppressed since the previous one.
+//
+// Losing the race to another goroutine counts as suppressed rather than
+// retried: two goroutines that both cleared the deadline are the burst this
+// bound exists to collapse, and the loser's event is still counted and still
+// reported by the next winner.
+func (l *modifyFailureLog) allow(f modifyFailure, now int64) (emit bool, suppressed uint64) {
+	i := int(f)
+	if i < 0 || i >= len(l.nextAllowed) {
+		// A value no constant produced. Fold it into the reserved slot rather
+		// than dropping the line: String() already folds it to "unclassified",
+		// and a failure nobody can see is the thing this file exists to stop.
+		i = int(modifyFailureNone)
+	}
+	next := l.nextAllowed[i].Load()
+	if now < next || !l.nextAllowed[i].CompareAndSwap(next, now+int64(modifyFailureLogInterval)) {
+		l.suppressed[i].Add(1)
+		return false, 0
+	}
+	return true, l.suppressed[i].Swap(0)
+}
 
 // Prometheus label values for modifyFailure.
 //
@@ -124,15 +201,63 @@ func (f modifyFailure) String() string {
 // correctness is not a thing to trade (ai/rules/rfc-compliance.md).
 func (f modifyFailure) failed() bool { return f != modifyFailureNone }
 
-// recordModifyFailure increments the modify-failure counter. It is the single
-// increment site, so every caller of buildModifiedPayload reports the same way
-// and the label set cannot drift per call site. Safe on a nil registry, which
-// is the state whenever metrics are not configured.
-func (r *Reactor) recordModifyFailure(f modifyFailure) {
-	if !f.failed() {
-		return
+// recordModifyFailure counts a modify failure and says it once.
+//
+// It is the single increment site AND the single logging site, so every caller
+// of buildModifiedPayload reports the same way and neither the label set nor the
+// message can drift per call site. site names the rail; peer names the
+// destination (or, on the import chain, the source).
+//
+// The five callers each used to log their own Warn beside this call, which put
+// the same failure on two lines per destination (this one and the one
+// buildModifiedPayload emits from inside), reworded five ways, at the peer's
+// send rate. Folding them here leaves one rate-limited line with a stable
+// leading phrase a scanner can match (ai/rules/error-messages.md).
+//
+// Safe on a nil receiver and a nil registry, which is the state whenever
+// metrics are not configured.
+func (r *Reactor) recordModifyFailure(f modifyFailure, site, peer string) {
+	if emit, suppressed := r.countModifyFailure(f); emit {
+		fwdLogger().Warn(modifyFailurePhrase,
+			"site", site, "peer", peer, "reason", f.String(), "suppressed-since-last", suppressed)
 	}
-	if r != nil && r.rmetrics != nil {
+}
+
+// recordModifyFailureAddr is recordModifyFailure for the three wire rails, whose
+// peer is already a netip.Addr.
+//
+// It exists so those rails do not pay an addr.String() allocation per
+// destination per failing UPDATE (ai/rules/no-sprintf-alloc.md). slog formats
+// the value through its Stringer inside the handler, so the conversion happens
+// only on the roughly one line per second that is actually emitted -- never on
+// the ones the limiter swallows.
+func (r *Reactor) recordModifyFailureAddr(f modifyFailure, site string, peer netip.Addr) {
+	if emit, suppressed := r.countModifyFailure(f); emit {
+		fwdLogger().Warn(modifyFailurePhrase,
+			"site", site, "peer", peer, "reason", f.String(), "suppressed-since-last", suppressed)
+	}
+}
+
+// modifyFailurePhrase is the one leading phrase every modify failure carries, so
+// a log scanner or an alert matches one string rather than five site-specific
+// rewordings (ai/rules/error-messages.md). The rail is the "site" attribute.
+const modifyFailurePhrase = "modification failed, suppressing route"
+
+// countModifyFailure increments the counter and asks the rate limiter whether
+// this failure may also be logged. It is the shared body of the two
+// recordModifyFailure entry points, so neither the label set nor the bound can
+// drift between them.
+//
+// Safe on a nil receiver and a nil registry, which is the state whenever metrics
+// are not configured.
+func (r *Reactor) countModifyFailure(f modifyFailure) (emit bool, suppressed uint64) {
+	if !f.failed() || r == nil {
+		return false, 0
+	}
+	// The counter is never rate-limited: it is the record of how often this
+	// fires, which is exactly the number the log is throwing away.
+	if r.rmetrics != nil {
 		r.rmetrics.updateModifyFailed.With(f.String()).Inc()
 	}
+	return r.modifyFailLog.allow(f, time.Now().UnixNano())
 }

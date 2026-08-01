@@ -8,9 +8,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// RFC 9552 Section 5.1 requires unknown BGP-LS NLRI types to be preserved and propagated,
-// explicitly overriding RFC 7606 Section 5.4's default discard for this address family. So
-// meeting an unrecognized type is the EXPECTED case, not an exceptional one.
+// RFC 9552 Section 5.2 requires unknown BGP-LS NLRI types to be preserved and propagated,
+// explicitly overriding RFC 7606 Section 5.4's default discard for this address family: "this
+// document deviates from the default handling behavior specified by Section 5.4 (paragraph 2)
+// of [RFC7606] for Link-State address family." So meeting an unrecognized type is the EXPECTED
+// case, not an exceptional one.
+//
+// The citation was Section 5.1 until 2026-08-01. Section 5.1 states the TLV-level analog
+// ("Unknown and unsupported types MUST be preserved and propagated within both the NLRI and
+// the BGP-LS Attribute"), which governs TLVs INSIDE an NLRI. The NLRI-TYPE-level override,
+// the one that names RFC 7606 Section 5.4, is Section 5.2. The distinction is load-bearing:
+// it is what keeps ze's Section 5.4 discard away from this family.
 //
 // decodeBGPLSNLRI used to react to the first unparseable NLRI by dumping the whole
 // remainder as one opaque blob and breaking out of the loop. A single unknown type early in

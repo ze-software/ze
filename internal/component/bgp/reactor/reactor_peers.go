@@ -303,6 +303,7 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 		r.rmetrics.wireBytesSent.Delete(label)
 		r.rmetrics.wireReadErrors.Delete(label)
 		r.rmetrics.wireWriteErrors.Delete(label)
+		r.rmetrics.attrSpanSpill.Delete(label)
 		r.rmetrics.fwdCongestionEvents.Delete(label)
 		r.rmetrics.fwdCongestionResume.Delete(label)
 		r.rmetrics.prefixTeardownTotal.Delete(label)

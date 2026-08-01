@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"net/netip"
 	"testing"
 
@@ -199,6 +200,77 @@ func TestTranscodeBufferPooled(t *testing.T) {
 		assert.Equal(t, before, after, "no ASN width change means no transcode buffer")
 		assert.Nil(t, result.transcodeBuf.Buf, "nothing to adopt when nothing was borrowed")
 	})
+}
+
+// VALIDATES: AC-10, AC-13 -- the cross-context RFC 6793 transcode emits exactly
+// the bytes the pre-T1-2 unpooled `make([]byte, len(payload)*2+1024)` produced.
+// PREVENTS: the half of AC-10 that was claimed and not covered. The Tier 1
+// golden corpus drives buildModifiedPayload only, so nothing compared the
+// transcode's OUTPUT before and after it started borrowing from the read pool.
+// TestTranscodeBufferPooled counts pool borrows and asserts nothing about bytes,
+// so a pooled buffer handed back short, or still holding another route's UPDATE,
+// would have passed it.
+//
+// The reference is computed by the removed code path itself: a fresh make of the
+// same size, transcoded by the same wireu.TranscodeASPath. That is the exact
+// claim AC-10 makes for T1-2 -- only where the buffer comes from changed -- so
+// it needs no pinned hex constant that would rot when a fixture moves.
+func TestGoldenBytesUnchangedCrossContextTranscode(t *testing.T) {
+	srcCtx, srcCtxID := registerForwardBodyTestContext(t, true, false)
+	destCtx, destCtxID := registerForwardBodyTestContext(t, false, false)
+	peer := forwardBodyTestPeer(destCtx, destCtxID)
+
+	body := crossContextTranscodeBody(t)
+
+	// Reference: the pre-T1-2 shape, verbatim -- a fresh make of the size this
+	// call site has always asked for, transcoded by the same function.
+	refDst := make([]byte, len(body)*2+1024)
+	refN, err := wireu.TranscodeASPath(refDst, body, srcCtx.ASN4(), destCtx.ASN4())
+	require.NoError(t, err)
+	require.Positive(t, refN, "guard: the fixture must actually transcode, or this test compares nothing")
+	refUpdate, err := message.UnpackUpdate(refDst[:refN])
+	require.NoError(t, err)
+	// Both sides go through the same packer, so a difference can only come from
+	// the bytes, never from how they were serialized for comparison.
+	want := hex.EncodeToString(fwdPackUpdateBody(refUpdate))
+
+	// Poison every free read-pool buffer, so a transcode that reads past what it
+	// wrote carries 0xEE rather than a plausible zero.
+	poisonReadPool(t)
+
+	result, ok := buildFwdBody(wireu.NewWireUpdate(body, srcCtxID),
+		message.MaxMsgLen, destCtxID, peer, netip.MustParseAddr("192.0.2.30"), &fwdParseCache{})
+	require.True(t, ok)
+	require.Len(t, result.updates, 1, "guard: a fitting UPDATE must not be split")
+	require.NotNil(t, result.transcodeBuf.Buf,
+		"guard: this test is about the POOLED transcode; a nil handle means it took the make fallback")
+
+	assert.Equal(t, want, hex.EncodeToString(fwdPackUpdateBody(result.updates[0])),
+		"pooling the transcode buffer must not move a byte on the wire")
+
+	ReturnReadBuffer(result.transcodeBuf)
+}
+
+// poisonReadPool fills every currently-free standard read-pool buffer with a
+// byte no valid UPDATE body starts with, then returns them. A transcode that
+// emits stale bytes then fails a byte comparison instead of reading as zeros.
+func poisonReadPool(t *testing.T) {
+	t.Helper()
+	var held []BufHandle
+	for range 8 {
+		h := getReadBuf(false)
+		if h.Buf == nil {
+			break
+		}
+		for i := range h.Buf {
+			h.Buf[i] = 0xEE
+		}
+		held = append(held, h)
+	}
+	require.NotEmpty(t, held, "guard: the read pool handed out nothing, so nothing was poisoned")
+	for _, h := range held {
+		ReturnReadBuffer(h)
+	}
 }
 
 // VALIDATES: AC-5 -- every borrowed transcode buffer is returned exactly once:

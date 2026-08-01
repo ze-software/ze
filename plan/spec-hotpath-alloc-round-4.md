@@ -393,6 +393,23 @@ justified or refuted by `ze-perf-bench`. That gap belongs to
 | AC-9 | The full RFC 7606 validation corpus | The verdict for every input is identical before and after T1-4 |
 | AC-10 | A golden corpus of received UPDATEs times the transform matrix | Emitted bytes are identical before and after every Tier 1 item, except the deliberate suppression in AC-1 |
 | AC-11 | An eBGP peer with acceptance not configured sends one, two or three Prefix-SID attributes in one UPDATE | EVERY occurrence is discarded and none reaches the wire, with one ATTR_TOMBSTONE recording the discard and the rest of the UPDATE processed normally (RFC 8669 Section 4). On the two paths where the attribute is kept (iBGP, and an eBGP peer configured to accept) exactly one copy survives however many arrived, per RFC 7606 Section 3.g keep-first, and no marker is written |
+| AC-12 | An import or export policy chain returns a text delta whose modification cannot be applied | `runIngressPolicyChain` DROPS the route and `runEgressPolicyChainASN4` suppresses it with `failed` set, each proven from its OWN entry point rather than from `buildModifiedPayload`. An APPLICABLE delta still modifies on both chains |
+| AC-13 | The Tier 1 golden corpus built from the PER-PEER pool, and the cross-context transcode built from the read pool | Both emit the same bytes as the unpooled path: the corpus matches its pinned hex with the pool backing poisoned, and the transcode matches a reference produced by the pre-T1-2 `make` buffer |
+| AC-14 | One attribute code discarded twice with DIFFERENT Transitive bits | The merged ATTR_TOMBSTONE is non-transitive (0x80), per draft-mangin-idr-attr-tombstone-00 Section 5.7. An all-transitive set still yields 0xC0 |
+| AC-15 | A peer drives modify failures at its send rate across a fan-out of N destinations | At most one warning per reason per `modifyFailureLogInterval`, carrying the count it replaced. `ze_bgp_update_modify_failed_total` is NOT rate-limited and counts every failure |
+
+**AC-12 to AC-15 close an independent review of commits `02b74bf44..1d48f2edd`
+(2026-08-01).** Each was a finding against work this spec had already landed, so
+each is an acceptance criterion of this spec rather than a deferral:
+
+| Finding | Became | What it was |
+|---------|--------|-------------|
+| F1 (BLOCKER) | AC-12 | T1-1 made five call sites fail closed; two of them, both in `filter_ordered.go`, had no test from their entry point. The ingress one converts an import-modify failure into a route DROP on the receive path, which is new, silent route loss |
+| F4 | AC-13 | `goldenModifyCorpus` passed `pp == nil` for every case, so AC-10's "byte identity across the transform matrix" never covered the per-peer pool the forward rails actually take, nor the transcode at all |
+| F2 | AC-14 | The multi-occurrence guard added for T1-5 sends a repeated code to `rebuildWithAttrDiscard` for the first time, and its merged-marker flags came from `AttrFind`, which returns the first occurrence only |
+| F3 | AC-15 | One failing UPDATE emitted two warnings per destination, unbounded, and the caller half used package-level `slog` so `ze.log.bgp.*` could not damp it. The spec's own Security Review "Log volume" row required this be rate-limited or proven rare, and it was neither |
+| F5 | (no new AC) | `prefixsid-ebgp-discard-single-walk.ci` and `asn4-transcode-pooled-buffer.ci` were listed under Files to Create and never written. Drafted under `test/draft/plugin/`, both mutation-verified |
+| F6 | (no new AC) | The TDD table named the wrong file for `TestGoldenBytesUnchangedTier1`; corrected in place |
 
 ## End-to-End User Stories
 
@@ -417,7 +434,18 @@ justified or refuted by `ze-perf-bench`. That gap belongs to
 | `TestAccumulatorResetIsConstantTime` | `internal/component/bgp/filterapi/filterapi_test.go` | reset cost does not scale with the inline capacity, so the umbrella's larger value stays safe | passing. Asserts STRUCTURALLY (the arena bytes survive Reset, and Reset allocates 0), never on wall-clock, which would be a flaky way to assert the same property |
 | `TestPerDestinationModificationIsolation` | `internal/component/bgp/reactor/forward_update_test.go` | AC-6: three destinations, three distinct modification sets | passing; mutation-verified (a no-op `Reset` turns it red with destination B receiving A's attribute value). Drives the real `forwardUpdateCore`; the third destination requests NO modification |
 | `TestPrefixSIDSingleWalkSameVerdict` | `internal/component/bgp/reactor/session_validation_test.go` | AC-8, AC-9: identical verdict, one walk | |
-| `TestGoldenBytesUnchangedTier1` | `internal/component/bgp/reactor/forward_build_test.go` | AC-10: byte identity across the transform matrix | |
+| `TestGoldenBytesUnchangedTier1` | `internal/component/bgp/reactor/forward_modify_failure_test.go` | AC-10: byte identity across the transform matrix, on the sync.Pool fallback only (see AC-13) | passing. ~~`forward_build_test.go`~~ was wrong: the corpus and its test live beside the `modifyFailure` type they were written with (F6, 2026-08-01) |
+| `TestRunIngressPolicyChainModifyFailureFailsClosed` | `internal/component/bgp/reactor/filter_ordered_test.go` | AC-12: the ingress chain DROPS on a modify failure | passing; mutation-verified (reverting the ingress guard alone turns it red and leaves both egress tests green) |
+| `TestRunEgressPolicyChainASN4ModifyFailureFailsClosed` | `internal/component/bgp/reactor/filter_ordered_test.go` | AC-12: the shared egress body suppresses and marks `failed` | passing; mutation-verified (reverting the egress guard turns it red with the forwarded-entry test, and leaves ingress green) |
+| `TestRunEgressPolicyChainModifyFailureFailsClosed` | `internal/component/bgp/reactor/filter_ordered_test.go` | AC-12: the forwarded egress entry reaches the guard through the shared body | passing; mutation-verified with the row above |
+| `TestPolicyChainAppliedModificationStillModifies` | `internal/component/bgp/reactor/filter_ordered_test.go` | AC-12 no-over-fire: an APPLICABLE delta still modifies on both chains | passing. Without it a guard that refused every text delta would satisfy all three rows above |
+| `TestGoldenBytesUnchangedTier1PooledBuffer` | `internal/component/bgp/reactor/forward_modify_failure_test.go` | AC-13: the corpus emits identical bytes from the PER-PEER pool, with the pool backing poisoned 0xEE | passing; mutation-verified (bypassing the per-peer branch of `acquireModBuf` trips the `bufIdx > 0` guard on every corpus row) |
+| `TestPooledBufferIsNotReusedDirty` | `internal/component/bgp/reactor/forward_modify_failure_test.go` | AC-13: a longer route then a shorter one then the longer one again, through ONE pooled buffer, each emitting only its own bytes | passing; mutation-verified with the row above |
+| `TestGoldenBytesUnchangedCrossContextTranscode` | `internal/component/bgp/reactor/forward_body_test.go` | AC-13: the pooled cross-context transcode emits exactly what the pre-T1-2 `make` buffer produced | passing; mutation-verified (flipping ONE byte of the transcoded output turns it red while `TestTranscodeBufferPooled`, which counts borrows, stays green) |
+| `TestApplyAttrDiscardMergedFlagsUseEveryOccurrence` | `internal/component/bgp/message/attr_discard_multi_test.go` | AC-14: the merged ATTR_TOMBSTONE flags are derived from EVERY occurrence, so a mixed Transitive set is non-transitive | passing; mutation-verified (restoring the first-occurrence-only derivation reds exactly the two transitive-first rows with 0xC0 where 0x80 is required) |
+| `TestApplyAttrDiscardMergedFlagsAcrossCodes` | `internal/component/bgp/message/attr_discard_multi_test.go` | AC-14: the same rule across two DIFFERENT codes, which was already correct | passing; green before and after, so it pins the no-regress half |
+| `TestApplyAttrDiscardMergedFlagsAbsentCodeIsNotTransitive` | `internal/component/bgp/message/attr_discard_multi_test.go` | AC-14: a discarded code absent from the section is no evidence of transitivity | passing |
+| `TestModifyFailureLogRateLimits` | `internal/component/bgp/reactor/forward_modify_failure_test.go` | AC-15: one line per reason per interval, with the swallowed count reported on the next emission | passing |
 | `TestRFC8669PrefixSIDEveryOccurrenceDiscardedFromEBGP` | `internal/component/bgp/reactor/rfc8669_multi_test.go` | AC-11, T1-5: no Prefix-SID occurrence reaches the wire at 1, 2 or 3 copies. RFC-tagged (`RFC8669-4-1 negative`) | passing; red before both fixes (1 of 2, then 2 of 3, survived) |
 | `TestRFC8669PrefixSIDKeptPathsKeepExactlyOneCopy` | `internal/component/bgp/reactor/rfc8669_multi_test.go` | AC-11, T1-5: the iBGP and accept-configured paths keep exactly one copy and write no marker. RFC-tagged (`RFC8669-4-1 positive`) | passing; green before and after, so it pins the no-over-fire half |
 | `TestApplyAttrDiscardRemovesEveryOccurrence` | `internal/component/bgp/message/attr_discard_multi_test.go` | T1-5 cause 1 in isolation: `applyInPlace` tombstoned only the first occurrence | passing; mutation-verified (disabling the multi-occurrence guard turns it red while every reactor test stays green) |
@@ -440,9 +468,9 @@ justified or refuted by `ze-perf-bench`. That gap belongs to
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `modify-oversize-suppress` | `test/plugin/modify-oversize-suppress.ci` | a policy modification that cannot fit suppresses the route instead of leaking it unmodified | |
-| `asn4-transcode-pooled-buffer` | `test/plugin/asn4-transcode-pooled-buffer.ci` | forwarding between a four-octet and a two-octet speaker produces identical wire with a pooled buffer | |
+| `asn4-transcode-pooled-buffer` | `test/draft/plugin/asn4-transcode-pooled-buffer.ci` | forwarding between a four-octet and a two-octet speaker produces identical wire with a pooled buffer | DRAFT, passing; mutation-verified (forcing `srcCtx.ASN4() != destCtx.ASN4()` false delivers a raw 4-octet AS_PATH to a 2-octet-only peer and drops AS4_PATH). Receiver is iBGP on purpose: an eBGP receiver diverts to `getEBGPWire` or the RS-client transcode, which `bgp-rs-asn4-transcode.ci` already covers. Promote out of `test/draft/` once the tree builds |
 | `modify-accumulator-per-peer-isolation` | `test/plugin/modify-accumulator-per-peer-isolation.ci` | three peers with three policies each receive only their own modifications | passing; mutation-verified (a no-op `Reset` puts client B's next-hop on client C's wire). 80/80 under `stress-repro.py`. Its observer waits for one forward PER CLIENT, not `run_rs_observer`'s first-forward-to-any-peer proxy |
-| `prefixsid-ebgp-discard-single-walk` | `test/plugin/prefixsid-ebgp-discard-single-walk.ci` | an eBGP route carrying PrefixSID is discarded exactly as before | |
+| `prefixsid-ebgp-discard-single-walk` | `test/draft/plugin/prefixsid-ebgp-discard-single-walk.ci` | an eBGP route carrying PrefixSID is discarded exactly as before | DRAFT, passing; mutation-verified (disabling the Section 4 branch leaves `ATTR_40` on the wire and drops the `ATTR_252` marker). Promote out of `test/draft/` once the tree builds |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -457,6 +485,10 @@ justified or refuted by `ze-perf-bench`. That gap belongs to
 - `internal/component/bgp/reactor/forward_body.go` - take the transcode buffer from a pool (T1-2)
 - `internal/component/bgp/reactor/session_validation.go` - fold the PrefixSID lookup into the existing validation walk (T1-4)
 - `internal/component/bgp/filterapi/filterapi.go` - document that `Reset` is the per-destination entry point and that operation buffers must not be retained across it (T1-3)
+- `internal/component/bgp/message/attr_discard.go` - derive the merged ATTR_TOMBSTONE transitivity from every occurrence, not the first (AC-14, F2)
+- `internal/component/bgp/reactor/forward_modify_failure.go` - fold the five callers' warnings into `recordModifyFailure`, rate-limited per reason (AC-15, F3)
+- `internal/component/bgp/reactor/reactor_api_batch.go` - drop the duplicate warning at the stale-readvertise call site (AC-15, F3)
+- `internal/component/bgp/reactor/filter_chain.go`, `reactor.go` - the `policyFilterSeam` injection point that makes the two policy-chain guards reachable from their own entry points (AC-12, F1)
 - `docs/architecture/core-design.md` - record the modify-failure semantics in the modification-accumulator section
 - `docs/plugin-development/metrics.md` - document the new counter
 
@@ -563,7 +595,7 @@ justified or refuted by `ze-perf-bench`. That gap belongs to
 | Cross-tenant leakage | T1-3 is the highest-risk item in this spec: a hoisted accumulator that is not fully reset sends one destination peer another peer's attributes. Treat it as an isolation boundary, not a performance tweak |
 | Use after free | T1-2 introduces a pooled buffer whose bytes are aliased into a parsed `message.Update`. Verify the return point against the contracts in `docs/architecture/memory/lifetime-contracts.md` and prove it with a debug-build poison test |
 | Resource exhaustion | The counter added in phase 1 is incremented on a peer-influenceable path. Confirm its label set is closed (three fixed reasons) so a peer cannot drive unbounded label cardinality |
-| Log volume | The T1-1 warning fires per destination per failing UPDATE. Confirm it is rate-limited or that the failure is rare enough not to be a logging denial of service |
+| Log volume | The T1-1 warning fires per destination per failing UPDATE. Confirm it is rate-limited or that the failure is rare enough not to be a logging denial of service. **ANSWERED (F3, AC-15):** it was neither. Five callers each logged beside `recordModifyFailure`, on top of the line `buildModifiedPayload` emits from inside, so one failing UPDATE produced two lines per destination at the peer's send rate; the two `filter_ordered.go` callers used package-level `slog`, which `ze.log.bgp.*` cannot damp. The five caller lines are now one, inside `recordModifyFailure`, through `fwdLogger()`, bounded to one per reason per second and carrying the count it swallowed. The counter is deliberately NOT bounded. **Still open:** the line inside `buildModifiedPayload` (`forward_build.go`) is unbounded, so the residual rate is N lines per UPDATE rather than 2N. That file was reserved by a concurrent agent for the whole of this pass |
 
 ### Failure Routing
 | Failure | Route To |

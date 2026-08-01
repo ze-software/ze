@@ -374,7 +374,19 @@ const policyFilterTimeout = 5 * time.Second
 // The reactor's API server is used to look up plugin connections.
 // rawPayload is the raw UPDATE body bytes for AC-15 (raw mode) - may be nil.
 // Implements AC-13 (reject modify of undeclared attributes) and AC-15 (raw mode).
+//
+// policyFilterSeam replaces the IPC body when set. It is nil in production and
+// set only by a test, which is the same shape as pluginServerMaker (reactor.go)
+// and exists for the same reason: r.api is a concrete *pluginserver.Server whose
+// filter answer comes off a live plugin socket, so the branches AFTER the chain
+// runs -- a filter that returns a text delta, and a modification that then
+// cannot be applied -- have no other entry point. Testing those on the helper
+// instead of on runIngressPolicyChain / runEgressPolicyChainASN4 proves the
+// helper and not that a caller reaches it (ai/rules/fail-closed-guards.md).
 func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
+	if r.policyFilterSeam != nil {
+		return r.policyFilterSeam
+	}
 	return func(pluginName, filterName, direction, peer string, peerAS uint32, updateText string) PolicyResponse {
 		if r.api == nil {
 			reactorLogger().Warn("policy filter: no API server", "plugin", pluginName, "filter", filterName)

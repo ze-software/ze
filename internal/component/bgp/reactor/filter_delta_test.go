@@ -402,6 +402,7 @@ func TestFilterModifyOnlyDeclared(t *testing.T) {
 // PREVENTS: Handler producing malformed wire bytes.
 func TestGenericAttrSetHandler(t *testing.T) {
 	handler := genericAttrSetHandler(0x40, byte(attribute.AttrLocalPref))
+	code := byte(attribute.AttrLocalPref)
 
 	// Set op: new value = 300.
 	newVal := make([]byte, 4)
@@ -412,28 +413,28 @@ func TestGenericAttrSetHandler(t *testing.T) {
 		Buf:    newVal,
 	}}
 
-	buf := make([]byte, 64)
-
 	t.Run("replace existing attribute", func(t *testing.T) {
 		// Source: LOCAL_PREF=100.
 		oldVal := make([]byte, 4)
 		binary.BigEndian.PutUint32(oldVal, 100)
 		src := makeAttr(0x40, byte(attribute.AttrLocalPref), oldVal)
 
-		newOff := handler(src, ops, buf, 0)
-		require.Equal(t, 7, newOff, "header(3) + value(4)")
-		assert.Equal(t, byte(0x40), buf[0], "flags")
-		assert.Equal(t, byte(attribute.AttrLocalPref), buf[1], "code")
-		assert.Equal(t, byte(4), buf[2], "length")
-		assert.Equal(t, uint32(300), binary.BigEndian.Uint32(buf[3:7]))
+		out, ok := planHandlerBytes(handler, code, src, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 7, "header(3) + value(4)")
+		assert.Equal(t, byte(0x40), out[0], "flags")
+		assert.Equal(t, byte(attribute.AttrLocalPref), out[1], "code")
+		assert.Equal(t, byte(4), out[2], "length")
+		assert.Equal(t, uint32(300), binary.BigEndian.Uint32(out[3:7]))
 	})
 
 	t.Run("add new attribute (no source)", func(t *testing.T) {
-		newOff := handler(nil, ops, buf, 0)
-		require.Equal(t, 7, newOff)
-		assert.Equal(t, byte(0x40), buf[0])
-		assert.Equal(t, byte(attribute.AttrLocalPref), buf[1])
-		assert.Equal(t, uint32(300), binary.BigEndian.Uint32(buf[3:7]))
+		out, ok := planHandlerBytes(handler, code, nil, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 7)
+		assert.Equal(t, byte(0x40), out[0])
+		assert.Equal(t, byte(attribute.AttrLocalPref), out[1])
+		assert.Equal(t, uint32(300), binary.BigEndian.Uint32(out[3:7]))
 	})
 
 	t.Run("no set op copies source", func(t *testing.T) {
@@ -446,9 +447,10 @@ func TestGenericAttrSetHandler(t *testing.T) {
 			Action: filterapi.AttrModAdd, // Not Set.
 			Buf:    newVal,
 		}}
-		newOff := handler(src, noOps, buf, 0)
-		require.Equal(t, len(src), newOff)
-		assert.Equal(t, src, buf[:newOff], "should copy source unchanged")
+		out, ok := planHandlerBytes(handler, code, src, noOps)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, len(src))
+		assert.Equal(t, src, out, "should copy source unchanged")
 	})
 }
 
@@ -458,7 +460,7 @@ func TestGenericAttrSetHandler(t *testing.T) {
 // PREVENTS: Overwriting existing ORIGINATOR_ID or failing to set when absent.
 func TestOriginatorIDHandler(t *testing.T) {
 	handler := originatorIDHandler()
-	buf := make([]byte, 64)
+	code := byte(attribute.AttrOriginatorID)
 
 	t.Run("set when absent", func(t *testing.T) {
 		ops := []filterapi.AttrOp{{
@@ -466,12 +468,13 @@ func TestOriginatorIDHandler(t *testing.T) {
 			Action: filterapi.AttrModSet,
 			Buf:    []byte{10, 0, 0, 1}, // 10.0.0.1
 		}}
-		off := handler(nil, ops, buf, 0)
-		require.Equal(t, 7, off) // flags(1) + code(1) + len(1) + value(4)
-		assert.Equal(t, byte(0x80), buf[0], "flags: optional non-transitive")
-		assert.Equal(t, byte(attribute.AttrOriginatorID), buf[1])
-		assert.Equal(t, byte(4), buf[2])
-		assert.Equal(t, []byte{10, 0, 0, 1}, buf[3:7])
+		out, ok := planHandlerBytes(handler, code, nil, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 7) // flags(1) + code(1) + len(1) + value(4)
+		assert.Equal(t, byte(0x80), out[0], "flags: optional non-transitive")
+		assert.Equal(t, byte(attribute.AttrOriginatorID), out[1])
+		assert.Equal(t, byte(4), out[2])
+		assert.Equal(t, []byte{10, 0, 0, 1}, out[3:7])
 	})
 
 	t.Run("preserve existing", func(t *testing.T) {
@@ -482,16 +485,18 @@ func TestOriginatorIDHandler(t *testing.T) {
 			Action: filterapi.AttrModSet,
 			Buf:    []byte{10, 0, 0, 1}, // Would set to 10.0.0.1, but should be ignored
 		}}
-		off := handler(src, ops, buf, 0)
-		require.Equal(t, 7, off)
-		assert.Equal(t, src, buf[:7], "existing ORIGINATOR_ID preserved")
+		out, ok := planHandlerBytes(handler, code, src, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 7)
+		assert.Equal(t, src, out, "existing ORIGINATOR_ID preserved")
 	})
 
 	t.Run("no ops copies source", func(t *testing.T) {
 		src := []byte{0x80, byte(attribute.AttrOriginatorID), 4, 1, 2, 3, 4}
-		off := handler(src, nil, buf, 0)
-		require.Equal(t, 7, off)
-		assert.Equal(t, src, buf[:7])
+		out, ok := planHandlerBytes(handler, code, src, nil)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 7)
+		assert.Equal(t, src, out)
 	})
 }
 
@@ -501,7 +506,7 @@ func TestOriginatorIDHandler(t *testing.T) {
 // PREVENTS: Cluster-id appended instead of prepended, or existing list lost.
 func TestClusterListHandler(t *testing.T) {
 	handler := clusterListHandler()
-	buf := make([]byte, 128)
+	code := byte(attribute.AttrClusterList)
 
 	t.Run("prepend to empty", func(t *testing.T) {
 		ops := []filterapi.AttrOp{{
@@ -509,12 +514,13 @@ func TestClusterListHandler(t *testing.T) {
 			Action: filterapi.AttrModPrepend,
 			Buf:    []byte{1, 1, 1, 1}, // cluster-id 1.1.1.1
 		}}
-		off := handler(nil, ops, buf, 0)
-		require.Equal(t, 7, off) // flags(1) + code(1) + len(1) + value(4)
-		assert.Equal(t, byte(0x80), buf[0])
-		assert.Equal(t, byte(attribute.AttrClusterList), buf[1])
-		assert.Equal(t, byte(4), buf[2])
-		assert.Equal(t, []byte{1, 1, 1, 1}, buf[3:7])
+		out, ok := planHandlerBytes(handler, code, nil, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 7) // flags(1) + code(1) + len(1) + value(4)
+		assert.Equal(t, byte(0x80), out[0])
+		assert.Equal(t, byte(attribute.AttrClusterList), out[1])
+		assert.Equal(t, byte(4), out[2])
+		assert.Equal(t, []byte{1, 1, 1, 1}, out[3:7])
 	})
 
 	t.Run("prepend to existing", func(t *testing.T) {
@@ -525,20 +531,22 @@ func TestClusterListHandler(t *testing.T) {
 			Action: filterapi.AttrModPrepend,
 			Buf:    []byte{1, 1, 1, 1}, // prepend 1.1.1.1
 		}}
-		off := handler(src, ops, buf, 0)
-		require.Equal(t, 11, off) // flags(1) + code(1) + len(1) + 4 + 4
-		assert.Equal(t, byte(0x80), buf[0])
-		assert.Equal(t, byte(attribute.AttrClusterList), buf[1])
-		assert.Equal(t, byte(8), buf[2])               // 4 + 4 = 8 bytes
-		assert.Equal(t, []byte{1, 1, 1, 1}, buf[3:7])  // prepended first
-		assert.Equal(t, []byte{2, 2, 2, 2}, buf[7:11]) // existing second
+		out, ok := planHandlerBytes(handler, code, src, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 11) // flags(1) + code(1) + len(1) + 4 + 4
+		assert.Equal(t, byte(0x80), out[0])
+		assert.Equal(t, byte(attribute.AttrClusterList), out[1])
+		assert.Equal(t, byte(8), out[2])               // 4 + 4 = 8 bytes
+		assert.Equal(t, []byte{1, 1, 1, 1}, out[3:7])  // prepended first
+		assert.Equal(t, []byte{2, 2, 2, 2}, out[7:11]) // existing second
 	})
 
 	t.Run("no ops copies source", func(t *testing.T) {
 		src := []byte{0x80, byte(attribute.AttrClusterList), 4, 3, 3, 3, 3}
-		off := handler(src, nil, buf, 0)
-		require.Equal(t, 7, off)
-		assert.Equal(t, src, buf[:7])
+		out, ok := planHandlerBytes(handler, code, src, nil)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 7)
+		assert.Equal(t, src, out)
 	})
 }
 
@@ -548,16 +556,19 @@ func TestClusterListHandler(t *testing.T) {
 // PREVENTS: Suppressed attributes still present in wire output.
 func TestGenericAttrSetHandler_Suppress(t *testing.T) {
 	handler := genericAttrSetHandler(0xC0, 8) // COMMUNITIES
-	buf := make([]byte, 64)
 
+	// A suppressed attribute is a DROP, never a refusal: the attribute leaves the
+	// UPDATE while the route is still forwarded. A refusal would suppress the whole
+	// route, so the outcome kind is asserted here rather than only "no bytes".
 	t.Run("suppress removes attribute", func(t *testing.T) {
 		src := []byte{0xC0, 8, 4, 0xFF, 0xFE, 0x00, 0x64} // community 65534:100
 		ops := []filterapi.AttrOp{{
 			Code:   8,
 			Action: filterapi.AttrModSuppress,
 		}}
-		off := handler(src, ops, buf, 0)
-		assert.Equal(t, 0, off, "suppress should write nothing")
+		res := planHandler(handler, 8, src, ops)
+		assert.Empty(t, res.out, "suppress should write nothing")
+		assert.True(t, res.dropped, "suppress drops the attribute, it does not refuse the route")
 	})
 
 	t.Run("suppress wins over set", func(t *testing.T) {
@@ -566,8 +577,9 @@ func TestGenericAttrSetHandler_Suppress(t *testing.T) {
 			{Code: 8, Action: filterapi.AttrModSet, Buf: []byte{0x00, 0x01, 0x00, 0x02}},
 			{Code: 8, Action: filterapi.AttrModSuppress}, // last wins
 		}
-		off := handler(src, ops, buf, 0)
-		assert.Equal(t, 0, off, "suppress after set should suppress")
+		res := planHandler(handler, 8, src, ops)
+		assert.Empty(t, res.out, "suppress after set should suppress")
+		assert.True(t, res.dropped, "suppress drops the attribute, it does not refuse the route")
 	})
 
 	t.Run("set wins over suppress when last", func(t *testing.T) {
@@ -576,8 +588,9 @@ func TestGenericAttrSetHandler_Suppress(t *testing.T) {
 			{Code: 8, Action: filterapi.AttrModSuppress},
 			{Code: 8, Action: filterapi.AttrModSet, Buf: []byte{0x00, 0x01, 0x00, 0x02}}, // last wins
 		}
-		off := handler(src, ops, buf, 0)
-		assert.Equal(t, 7, off, "set after suppress should write attribute")
+		out, ok := planHandlerBytes(handler, 8, src, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		assert.Len(t, out, 7, "set after suppress should write attribute")
 	})
 }
 
@@ -680,7 +693,7 @@ func TestExtractASPathPrependOps(t *testing.T) {
 // PREVENTS: Prepend clobbering existing path or wrong segment format.
 func TestAspathHandler(t *testing.T) {
 	handler := aspathHandler()
-	buf := make([]byte, 128)
+	code := byte(attribute.AttrASPath)
 
 	t.Run("prepend_to_existing", func(t *testing.T) {
 		// Source: AS_PATH = AS_SEQUENCE [65002]
@@ -695,15 +708,16 @@ func TestAspathHandler(t *testing.T) {
 			Buf:    prependVal,
 		}}
 
-		off := handler(src, ops, buf, 0)
+		out, ok := planHandlerBytes(handler, code, src, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
 		// Header(3) + prepend(6) + existing(6) = 15
-		require.Equal(t, 15, off)
-		assert.Equal(t, byte(0x40), buf[0])
-		assert.Equal(t, byte(attribute.AttrASPath), buf[1])
-		assert.Equal(t, byte(12), buf[2]) // value length
+		require.Len(t, out, 15)
+		assert.Equal(t, byte(0x40), out[0])
+		assert.Equal(t, byte(attribute.AttrASPath), out[1])
+		assert.Equal(t, byte(12), out[2]) // value length
 		// Prepended segment first, then existing.
-		assert.Equal(t, prependVal, buf[3:9])
-		assert.Equal(t, srcVal, buf[9:15])
+		assert.Equal(t, prependVal, out[3:9])
+		assert.Equal(t, srcVal, out[9:15])
 	})
 
 	t.Run("prepend_to_empty", func(t *testing.T) {
@@ -714,10 +728,11 @@ func TestAspathHandler(t *testing.T) {
 			Buf:    prependVal,
 		}}
 
-		off := handler(nil, ops, buf, 0)
-		require.Equal(t, 9, off) // Header(3) + prepend(6)
-		assert.Equal(t, byte(6), buf[2])
-		assert.Equal(t, prependVal, buf[3:9])
+		out, ok := planHandlerBytes(handler, code, nil, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 9) // Header(3) + prepend(6)
+		assert.Equal(t, byte(6), out[2])
+		assert.Equal(t, prependVal, out[3:9])
 	})
 
 	t.Run("set_delegates_to_generic", func(t *testing.T) {
@@ -728,9 +743,10 @@ func TestAspathHandler(t *testing.T) {
 			Buf:    newVal,
 		}}
 
-		off := handler(nil, ops, buf, 0)
-		require.Equal(t, 9, off)
-		assert.Equal(t, newVal, buf[3:9])
+		out, ok := planHandlerBytes(handler, code, nil, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 9)
+		assert.Equal(t, newVal, out[3:9])
 	})
 
 	t.Run("set_and_prepend", func(t *testing.T) {
@@ -741,11 +757,12 @@ func TestAspathHandler(t *testing.T) {
 			{Code: byte(attribute.AttrASPath), Action: filterapi.AttrModPrepend, Buf: prependVal},
 		}
 
-		off := handler(nil, ops, buf, 0)
-		require.Equal(t, 15, off)
-		assert.Equal(t, byte(12), buf[2])
-		assert.Equal(t, prependVal, buf[3:9])
-		assert.Equal(t, setVal, buf[9:15])
+		out, ok := planHandlerBytes(handler, code, nil, ops)
+		require.True(t, ok, "handler planned an emitted attribute")
+		require.Len(t, out, 15)
+		assert.Equal(t, byte(12), out[2])
+		assert.Equal(t, prependVal, out[3:9])
+		assert.Equal(t, setVal, out[9:15])
 	})
 }
 

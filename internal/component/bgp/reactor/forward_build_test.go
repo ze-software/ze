@@ -104,23 +104,21 @@ func TestProgressiveBuildOTCAdd(t *testing.T) {
 	nlri := []byte{24, 10, 0, 0} // 10.0.0.0/24
 	payload := buildModTestPayload(origin, nlri)
 
-	// OTC handler: writes 7-byte OTC attribute.
-	otcHandler := filterapi.AttrModHandler(func(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-		if len(src) > 0 {
-			copy(buf[off:], src)
-			return off + len(src)
+	// OTC handler: plans a 7-byte OTC attribute.
+	otcHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		if p.Source() != nil {
+			p.KeepAll()
+			return
 		}
-		for _, op := range ops {
+		for i, op := range p.Ops() {
 			if op.Action != filterapi.AttrModSet || len(op.Buf) != 4 {
 				continue
 			}
-			buf[off] = 0xC0 // flags: Optional + Transitive
-			buf[off+1] = 35 // OTC type code
-			buf[off+2] = 4  // length
-			copy(buf[off+3:], op.Buf)
-			return off + 7
+			p.Op(i)
+			p.Emit(0xC0, 35) // flags: Optional + Transitive; OTC type code
+			return
 		}
-		return off
+		p.Drop()
 	})
 
 	handlers := map[uint8]filterapi.AttrModHandler{35: otcHandler}
@@ -173,23 +171,21 @@ func TestProgressiveBuildAttrReplace(t *testing.T) {
 	payload := buildModTestPayload(attrs, nil)
 
 	// LOCAL_PREF handler: replaces value with op's buf.
-	lpHandler := filterapi.AttrModHandler(func(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-		for _, op := range ops {
+	lpHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		for i, op := range p.Ops() {
 			if op.Action != filterapi.AttrModSet {
 				continue
 			}
-			buf[off] = 0x40 // flags
-			buf[off+1] = 5  // LOCAL_PREF code
-			buf[off+2] = byte(len(op.Buf))
-			copy(buf[off+3:], op.Buf)
-			return off + 3 + len(op.Buf)
+			p.Op(i)
+			p.Emit(0x40, 5) // flags; LOCAL_PREF code
+			return
 		}
-		// No set op: copy source.
-		if len(src) > 0 {
-			copy(buf[off:], src)
-			return off + len(src)
+		// No set op: keep the source.
+		if p.Source() != nil {
+			p.KeepAll()
+			return
 		}
-		return off
+		p.Drop()
 	})
 
 	handlers := map[uint8]filterapi.AttrModHandler{5: lpHandler}
@@ -227,14 +223,14 @@ func TestProgressiveBuildMultiOps(t *testing.T) {
 
 	// COMMUNITY handler: tracks how many ops it received.
 	var receivedOps int
-	commHandler := filterapi.AttrModHandler(func(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-		receivedOps = len(ops)
-		// Just copy source for simplicity.
-		if len(src) > 0 {
-			copy(buf[off:], src)
-			return off + len(src)
+	commHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		receivedOps = len(p.Ops())
+		// Just keep the source for simplicity.
+		if p.Source() != nil {
+			p.KeepAll()
+			return
 		}
-		return off
+		p.Drop()
 	})
 
 	handlers := map[uint8]filterapi.AttrModHandler{8: commHandler}
@@ -289,12 +285,9 @@ func TestProgressiveBuildWithdrawnPreserved(t *testing.T) {
 	copy(payload[2+len(withdrawn)+2:], origin)
 
 	// Add a new OTC attribute to force modification.
-	otcHandler := filterapi.AttrModHandler(func(_ []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-		buf[off] = 0xC0
-		buf[off+1] = 35
-		buf[off+2] = 4
-		copy(buf[off+3:], ops[0].Buf)
-		return off + 7
+	otcHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		p.Op(0)
+		p.Emit(0xC0, 35)
 	})
 
 	var mods filterapi.ModAccumulator
@@ -318,12 +311,9 @@ func TestProgressiveBuildNLRIPreserved(t *testing.T) {
 	nlri := []byte{24, 10, 0, 0, 16, 172, 16} // Two prefixes.
 	payload := buildModTestPayload(origin, nlri)
 
-	otcHandler := filterapi.AttrModHandler(func(_ []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-		buf[off] = 0xC0
-		buf[off+1] = 35
-		buf[off+2] = 4
-		copy(buf[off+3:], ops[0].Buf)
-		return off + 7
+	otcHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		p.Op(0)
+		p.Emit(0xC0, 35)
 	})
 
 	var mods filterapi.ModAccumulator
@@ -347,15 +337,9 @@ func TestProgressiveBuildAttrLenBackfill(t *testing.T) {
 	payload := buildModTestPayload(origin, nil)
 
 	// Handler adds 7-byte OTC.
-	otcHandler := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, buf []byte, off int) int {
-		buf[off] = 0xC0
-		buf[off+1] = 35
-		buf[off+2] = 4
-		buf[off+3] = 0
-		buf[off+4] = 0
-		buf[off+5] = 0xFD
-		buf[off+6] = 0xE8
-		return off + 7
+	otcHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		p.New([]byte{0, 0, 0xFD, 0xE8})
+		p.Emit(0xC0, 35)
 	})
 
 	var mods filterapi.ModAccumulator
@@ -386,7 +370,7 @@ func TestProgressiveBuildHandlerPanic(t *testing.T) {
 	attrs := slices.Concat(origin, localPref)
 	payload := buildModTestPayload(attrs, nil)
 
-	panicHandler := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, _ []byte, _ int) int {
+	panicHandler := filterapi.AttrModHandler(func(_ *filterapi.AttrPlan) {
 		panic("test panic in handler")
 	})
 
@@ -421,12 +405,9 @@ func TestProgressiveBuildExtendedLengthAttr(t *testing.T) {
 	payload := buildModTestPayload(attrs, nil)
 
 	// Add OTC via handler (new attribute, not touching extended-length one).
-	otcHandler := filterapi.AttrModHandler(func(_ []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-		buf[off] = 0xC0
-		buf[off+1] = 35
-		buf[off+2] = 4
-		copy(buf[off+3:], ops[0].Buf)
-		return off + 7
+	otcHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		p.Op(0)
+		p.Emit(0xC0, 35)
 	})
 
 	var mods filterapi.ModAccumulator
@@ -484,7 +465,7 @@ func TestProgressiveBuildNewAttrHandlerPanic(t *testing.T) {
 	origin := makeAttr(0x40, 1, []byte{0x00})
 	payload := buildModTestPayload(origin, nil)
 
-	panicHandler := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, _ []byte, _ int) int {
+	panicHandler := filterapi.AttrModHandler(func(_ *filterapi.AttrPlan) {
 		panic("test panic creating new attr")
 	})
 
@@ -511,20 +492,14 @@ func TestProgressiveBuildAttrLenOverflow(t *testing.T) {
 
 	payload := buildModTestPayload(bigAttr, nil)
 
-	// Handler that writes 100 bytes (will push past 65535).
-	bigHandler := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, buf []byte, off int) int {
-		n := 100
-		if off+n > len(buf) {
-			return off
-		}
-		for i := range n {
-			buf[off+i] = 0xFF
-		}
-		return off + n
+	// Handler that plans 100 value bytes (will push past 65535).
+	bigHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		p.Op(0)
+		p.Emit(0xC0, p.Code())
 	})
 
 	var mods filterapi.ModAccumulator
-	mods.Op(200, filterapi.AttrModSet, []byte{0x01})
+	mods.Op(200, filterapi.AttrModSet, make([]byte, 100))
 
 	result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{200: bigHandler}, nil, nil)
 	assert.Nil(t, result, "should return nil on attr_len overflow")
@@ -539,9 +514,12 @@ func TestProgressiveBuildInvalidHandlerOffset(t *testing.T) {
 		attrs := slices.Concat(origin, localPref)
 		payload := buildModTestPayload(attrs, nil)
 
-		// Handler returns off-1 (invalid: below input offset).
-		badHandler := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, _ []byte, off int) int {
-			return off - 1
+		// A handler that refuses. Under the exactly-sized rebuild a handler no
+		// longer returns an offset, so "an offset below the input" has become
+		// "the plan could not be produced"; the fault class and the verdict are
+		// unchanged.
+		badHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+			p.Fail()
 		})
 
 		var mods filterapi.ModAccumulator
@@ -563,9 +541,13 @@ func TestProgressiveBuildInvalidHandlerOffset(t *testing.T) {
 		attrs := slices.Concat(origin, localPref)
 		payload := buildModTestPayload(attrs, nil)
 
-		// Handler returns len(buf)+1 (invalid: beyond buffer).
-		badHandler := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, buf []byte, _ int) int {
-			return len(buf) + 1
+		// A handler naming bytes beyond the source value. This is the direct
+		// successor of "an offset beyond the buffer": the plan bounds every
+		// fragment against the source at construction, so the same fault is
+		// caught before a buffer exists rather than after one was written.
+		badHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+			p.Keep(0, 1<<20)
+			p.Emit(0x40, 5)
 		})
 
 		var mods filterapi.ModAccumulator
@@ -585,9 +567,9 @@ func TestProgressiveBuildInvalidHandlerOffset(t *testing.T) {
 		origin := makeAttr(0x40, 1, []byte{0x00})
 		payload := buildModTestPayload(origin, nil)
 
-		// Handler for new attr returns negative offset.
-		badHandler := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, _ []byte, off int) int {
-			return off - 1
+		// A handler that refuses while creating a NEW attribute.
+		badHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+			p.Fail()
 		})
 
 		var mods filterapi.ModAccumulator
@@ -603,39 +585,36 @@ func TestProgressiveBuildInvalidHandlerOffset(t *testing.T) {
 	})
 }
 
-// VALIDATES: Buffer overflow during verbatim copy triggers graceful nil return.
-// PREVENTS: Panic when handler expansion leaves no room for subsequent attrs.
+// VALIDATES: An expansion that cannot fit an UPDATE triggers a graceful nil return.
+// PREVENTS: Panic or truncation when a handler expands an attribute past what a
+// message can carry.
+//
+// test-relax: the MECHANISM this test drives changed and the assertion did not.
+// "The handler filled the slack buffer and left no room for the next verbatim
+// copy" is no longer reachable: the buffer is sized from the plan, so it always
+// has exactly the room the plan needs. The surviving overflow is an expansion
+// past the RFC 8654 body ceiling, which is what this now drives.
 func TestProgressiveBuildBufferOverflow(t *testing.T) {
-	// Build a payload where ORIGIN is first, LOCAL_PREF is second.
-	// The handler for ORIGIN will expand it to fill the buffer,
-	// leaving no room for the LOCAL_PREF verbatim copy.
+	// Build a payload where ORIGIN is first, LOCAL_PREF is second. The handler
+	// for ORIGIN expands it past anything an UPDATE body can carry.
 	origin := makeAttr(0x40, 1, []byte{0x00})            // 4 bytes
 	localPref := makeAttr(0x40, 5, []byte{0, 0, 0, 100}) // 7 bytes
 	attrs := slices.Concat(origin, localPref)
 	nlri := []byte{24, 10, 0, 0}
 	payload := buildModTestPayload(attrs, nlri)
 
-	// Buffer size = len(payload) + 256. payload = 2+2+11+4 = 19. buf = 275.
-	// After withdrawn(2) + attr_len_skip(2) = off is 4.
-	// Handler writes enough to leave < 7 bytes for LOCAL_PREF.
-	// Need to write: 275 - 4 - 7 + 1 = 265 bytes (leaves 6, LOCAL_PREF needs 7).
-	bigHandler := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, buf []byte, off int) int {
-		n := len(buf) - off - 6 // Leave exactly 6 bytes (LOCAL_PREF needs 7)
-		if n <= 0 || off+n > len(buf) {
-			return off
-		}
-		for i := range n {
-			buf[off+i] = 0xAA
-		}
-		return off + n
+	// 65500 value bytes plus LOCAL_PREF, the withdrawn and NLRI sections and the
+	// two length fields lands past the 65516-octet ceiling.
+	bigHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		p.Op(0)
+		p.Emit(0x40, 1)
 	})
 
 	var mods filterapi.ModAccumulator
-	mods.Op(1, filterapi.AttrModSet, []byte{0x00}) // Replace ORIGIN
+	mods.Op(1, filterapi.AttrModSet, make([]byte, 65500)) // Replace ORIGIN
 
 	result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{1: bigHandler}, nil, nil)
-	// Handler fills buffer leaving 6 bytes. LOCAL_PREF (7 bytes) won't fit.
-	assert.Nil(t, result, "should return nil when buffer overflows during verbatim copy")
+	assert.Nil(t, result, "should return nil when the expansion cannot fit an UPDATE body")
 }
 
 // VALIDATES: Successful modification on large payload (>4096, non-pool path).
@@ -658,15 +637,9 @@ func TestProgressiveBuildLargePayload(t *testing.T) {
 	payload := buildModTestPayload(attrs, nlri)
 
 	// Add a small OTC attribute.
-	otcHandler := filterapi.AttrModHandler(func(_ []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-		if off+7 > len(buf) {
-			return off
-		}
-		buf[off] = 0xC0
-		buf[off+1] = 35
-		buf[off+2] = 4
-		copy(buf[off+3:], ops[0].Buf)
-		return off + 7
+	otcHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		p.Op(0)
+		p.Emit(0xC0, 35)
 	})
 
 	var mods filterapi.ModAccumulator
@@ -703,28 +676,20 @@ func TestProgressiveBuildMatchesInsertOTC(t *testing.T) {
 	require.NotNil(t, v1Result, "v1 should produce result")
 
 	// Mod-handler path: buildModifiedPayload with otcAttrModHandler.
-	otcHandler := filterapi.AttrModHandler(func(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
-		if len(src) > 0 {
-			if off+len(src) > len(buf) {
-				return off
-			}
-			copy(buf[off:], src)
-			return off + len(src)
+	otcHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		if p.Source() != nil {
+			p.KeepAll()
+			return
 		}
-		for _, op := range ops {
+		for i, op := range p.Ops() {
 			if op.Action != filterapi.AttrModSet || len(op.Buf) != 4 {
 				continue
 			}
-			if off+7 > len(buf) {
-				return off
-			}
-			buf[off] = 0xC0
-			buf[off+1] = 35
-			buf[off+2] = 4
-			copy(buf[off+3:], op.Buf)
-			return off + 7
+			p.Op(i)
+			p.Emit(0xC0, 35)
+			return
 		}
-		return off
+		p.Drop()
 	})
 
 	asnBuf := make([]byte, 4)

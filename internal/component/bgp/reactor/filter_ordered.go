@@ -203,15 +203,17 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 		nlriOverride := extractLegacyNLRIOverride(updateText, res.Text)
 		if importMods.Len() > 0 || nlriOverride != nil {
 			modPayload, _, modFail := buildModifiedPayload(payload, &importMods, r.attrModHandlers, nil, nlriOverride)
-			r.recordModifyFailure(modFail)
+			// recordModifyFailure counts AND says it: one rate-limited line
+			// through the bgp.reactor.forward subsystem logger, so this site
+			// adds no second line of its own and the message can be damped with
+			// ze.log.bgp.reactor.forward.
+			r.recordModifyFailure(modFail, modifySiteImportChain, peerAddr.String())
 			if modFail.failed() {
 				// A guard MISS, not an accept. The import chain asked for a
 				// change we could not apply, so accepting the route installs
 				// exactly what the policy exists to reject -- the same
 				// fail-closed shape as the r.api == nil branch above
 				// (ai/rules/fail-closed-guards.md).
-				slog.Warn("import filter: modification failed -- fail-closed",
-					"peer", peerAddr.String(), "reason", modFail.String())
 				return ingressStepResult{} // accept == false: drop the route
 			}
 			if modPayload != nil {
@@ -315,7 +317,9 @@ func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, 
 		nlriOverride := extractLegacyNLRIOverride(updateText, res.Text)
 		if exportMods.Len() > 0 || nlriOverride != nil {
 			modPayload, _, modFail := buildModifiedPayload(wireUpdate.Payload(), &exportMods, r.attrModHandlers, nil, nlriOverride)
-			r.recordModifyFailure(modFail)
+			// One rate-limited line, through the subsystem logger; see the
+			// matching call on the ingress chain above.
+			r.recordModifyFailure(modFail, modifySiteExportChain, destAddrStr)
 			if modFail.failed() {
 				// A guard MISS, not a policy decision: the chain produced a
 				// delta we could not apply, so sending the route leaks whatever
@@ -323,8 +327,6 @@ func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, 
 				// the exact leak spec-fixit-private-asn-leak closed on the
 				// neighboring path). failed:true keeps the relay's
 				// completeness check from reading this as "policy said no".
-				slog.Warn("export filter: modification failed -- fail-closed",
-					"peer", destAddrStr, "reason", modFail.String())
 				return egressStepResult{failed: true} // accept == false: suppress for this peer
 			}
 			if modPayload != nil {

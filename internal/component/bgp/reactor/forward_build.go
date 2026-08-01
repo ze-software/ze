@@ -1,6 +1,7 @@
-// Design: docs/architecture/core-design.md — progressive build for egress attribute modification
+// Design: docs/architecture/core-design.md — exactly-sized one-pass rebuild for egress attribute modification
 // Design: .claude/rules/design-principles.md — zero-copy, copy-on-modify (Outgoing Peer Pool is the copy point)
-// RFC: rfc/short/rfc4271.md — UPDATE body layout, Total Path Attribute Length
+// RFC: rfc/short/rfc4271.md — UPDATE body layout, Total Path Attribute Length, attribute ordering (Section 5)
+// RFC: rfc/short/rfc8654.md — extended message body ceiling
 // RFC: rfc/short/rfc9494.md — announce-to-withdrawal conversion for non-LLGR EBGP peers
 // Overview: reactor_api_forward.go — UPDATE forwarding dispatch
 // Detail: forward_modify_failure.go — why a modification could not be applied
@@ -13,7 +14,16 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
+
+// maxUpdateBody is the largest UPDATE body Ze will build.
+//
+// RFC 8654 raises the message ceiling to 65535 octets, of which 19 are the fixed
+// header, so a body cannot exceed 65516. An edit whose exact size lands above
+// this cannot be sent to any peer under any negotiated size, so it is refused
+// here rather than handed to a session that would refuse it with less context.
+const maxUpdateBody = 65516
 
 // modBufPool provides reusable buffers for the progressive build.
 // Standard UPDATE max body is 4096 - 19 = 4077 bytes.
@@ -26,17 +36,36 @@ var modBufPool = sync.Pool{
 	},
 }
 
-// buildModifiedPayload applies attribute modifications to a source UPDATE payload
-// using a single-pass progressive build into a pooled buffer.
+// buildModifiedPayload applies attribute modifications to a source UPDATE
+// payload with a single exactly-sized merge walk into a pooled buffer.
 //
 // The source payload has the standard UPDATE structure:
 //
 //	withdrawn_len(2) + withdrawn + attr_len(2) + attrs + nlri
 //
-// The function walks source attributes, copies unchanged ones verbatim,
-// and calls registered handlers for modified ones. New attributes (from ops
-// with no matching source attribute) are appended after source attributes.
-// The attr_len field is backfilled after all attributes are written.
+// Three things happen, in order.
+//
+//  1. PLAN. The attribute section is indexed once (attribute.BuildSpanIndex),
+//     the operations are grouped by code, and each touched code's registered
+//     handler describes its output as a fragment list. No byte is written and no
+//     intermediate value is built: a handler that keeps most of an attribute
+//     says so with fragments over the source, so the MP_REACH NLRI tail and a
+//     retained run of community values are named rather than copied.
+//  2. SIZE. The plan is walked in emission order and its bytes are counted.
+//     Because the count and the write replay the same walk, the size is exact
+//     rather than an upper bound. That removes the old len(payload)+256 slack
+//     and, with it, the branch that abandoned every modification on overflow and
+//     forwarded the route unchanged (ai/rules/fail-closed-guards.md).
+//  3. WRITE. A buffer of exactly that size is acquired and the same walk writes
+//     it. Adjacent untouched attributes coalesce into one copy, and a new
+//     attribute is merge-inserted at its ascending type-code position rather
+//     than appended after every source attribute.
+//
+// RFC 4271 Section 5 orders path attributes by ascending type code on emission.
+// Merge-insert is what makes the forward path agree with the announce rails,
+// which were already ascending. An UPDATE that gains NO new attribute keeps base
+// order unconditionally, so a pure forward stays byte-identical and the
+// zero-copy identity survives.
 //
 // Copy-on-modify: when pp is non-nil and has a free buffer large enough for
 // the payload, the modified data is written directly into the per-peer pool
@@ -67,17 +96,11 @@ var modBufPool = sync.Pool{
 //     applied. The caller MUST suppress the route for this destination.
 //     Forwarding it would send a route the policy was supposed to change.
 //
-// The third return value is not optional bookkeeping. For every path that
-// RETURNS, the compiler forces a reason to be named, so a new returning failure
-// cannot be added silently.
-//
-// That guarantee does NOT extend to paths that keep building. A missing handler,
-// a faulting handler and a truncated attribute section all warn and carry on,
-// and an independent review found they still reported success while forwarding a
-// route the policy had not changed -- the same fail-open on a different shape.
-// Those paths now set `unapplied`, which is checked before the payload is handed
-// out. The compiler cannot enforce that, so a future edit adding a
-// keep-building failure path MUST set `unapplied` by hand.
+// Every failure path RETURNS, so the compiler forces a reason to be named. The
+// keep-building failures the previous shape needed -- a missing handler, a
+// faulting handler, a truncated section -- are now decided during the plan,
+// before any buffer exists, so there is no half-built payload to reason about
+// and no `unapplied` flag a future edit could forget to set.
 func buildModifiedPayload(
 	payload []byte,
 	mods *filterapi.ModAccumulator,
@@ -85,7 +108,6 @@ func buildModifiedPayload(
 	pp *peerPool,
 	nlriOverride []byte,
 ) ([]byte, int, modifyFailure) {
-	ops := mods.Ops()
 	// The ModAccumulator can also carry per-peer NLRI rewrites. An explicit
 	// nlriOverride argument (the legacy per-prefix modify path) takes precedence;
 	// otherwise the accumulator's announce-NLRI rewrite applies. The withdrawn
@@ -94,13 +116,10 @@ func buildModifiedPayload(
 		nlriOverride = mods.NLRIRewrite()
 	}
 	withdrawnOverride := mods.WithdrawnRewrite()
-	if len(ops) == 0 && nlriOverride == nil && withdrawnOverride == nil {
+	if mods.Len() == 0 && nlriOverride == nil && withdrawnOverride == nil {
 		// The ONE legitimate nil: there was nothing to apply.
 		return nil, 0, modifyFailureNone
 	}
-
-	// Group ops by attribute code.
-	opsByCode := groupOpsByCode(ops)
 
 	// Parse source payload structure. From here on every nil return is a
 	// FAILURE: modifications were required and could not be applied.
@@ -122,26 +141,105 @@ func buildModifiedPayload(
 		return nil, 0, modifyFailureMalformed
 	}
 
-	// Try per-peer pool first (copy-on-modify: zero extra allocation).
-	// The per-peer buffer is sized to the negotiated message max (4K or 64K),
-	// which is always >= the payload. Slack for added attributes is covered
-	// because modifications rarely exceed the original payload size.
-	needSize := len(payload) + 256 // slack for added attributes
-	buf, peerBufIdx, poolBuf := acquireModBuf(pp, needSize)
+	section := payload[attrStart:attrEnd]
 
-	// cleanupBuf returns the per-peer buffer on error and the sync.Pool
-	// buffer on all exit paths.
-	cleanupBuf := func() {
-		if peerBufIdx > 0 && pp != nil {
-			pp.Return(peerBufIdx)
-			peerBufIdx = 0
+	// Index the attribute section once. This is the same builder and the same
+	// verdicts the receive path publishes on the immutable base (RFC 4271
+	// Section 4.3: a header that does not parse, a duplicate type code, and an
+	// attribute running past the section end are each malformed).
+	//
+	// Failing closed here is a deliberate tightening. The old walk tolerated a
+	// duplicate type code and applied the operations to BOTH copies, which emits
+	// an UPDATE a conforming peer rejects, and it reported truncation only after
+	// having already copied part of the section.
+	spans, err := attribute.BuildSpanIndex(section)
+	if err != nil {
+		fwdLogger().Warn("attribute section does not index, suppressing route",
+			"payloadLen", len(payload), "attrLen", attrLen, "error", err)
+		return nil, 0, modifyFailureTruncated
+	}
+
+	// Group the operations by code: one in-place stable sort, no allocation, and
+	// no 256-entry array returned by value.
+	ops := mods.GroupedOps()
+	edit := mods.EditSet()
+	edit.Begin()
+
+	// PLAN. One slot per touched code, in ascending code order because the
+	// operations are now sorted that way.
+	for from := 0; from < len(ops); {
+		code := ops[from].Code
+		to := from + 1
+		for to < len(ops) && ops[to].Code == code {
+			to++
 		}
-		if poolBuf != nil {
-			modBufPool.Put(poolBuf)
+		if fail := planAttr(edit, &spans, section, ops[from:to], from, code, handlers); fail.failed() {
+			return nil, 0, fail
+		}
+		from = to
+	}
+
+	// A store that outgrew its inline capacity allocated. That is correct and is
+	// never refused, but the capacities come from a static census rather than a
+	// traffic histogram, so the rate is counted instead of assumed.
+	if slotSpill, fragSpill, arenaSpill := edit.Spilled(); slotSpill || fragSpill || arenaSpill {
+		if slotSpill {
+			filterapi.RecordEditSpill(filterapi.EditStoreSlots)
+		}
+		if fragSpill {
+			filterapi.RecordEditSpill(filterapi.EditStoreFragments)
+		}
+		if arenaSpill {
+			filterapi.RecordEditSpill(filterapi.EditStoreArena)
 		}
 	}
 
-	// Ensure buffers are returned on panic.
+	// SIZE. The same walk that will write, counting instead.
+	emitter := attrEmitter{edit: edit, spans: &spans, section: section, ops: ops}
+	attrBytes, fail := emitter.run(nil, 0)
+	if fail.failed() {
+		return nil, 0, fail
+	}
+
+	// RFC 4271 Section 4.3: Total Path Attribute Length is a 2-octet field.
+	if attrBytes > 65535 {
+		fwdLogger().Warn("modified attribute section does not fit the 2-octet length field, suppressing route",
+			"newAttrLen", attrBytes, "max", 65535, "attrCount", spans.Len())
+		return nil, 0, modifyFailureAttrLenRange
+	}
+
+	// The withdrawn section: the accumulator's rewrite, or the original.
+	wdBytes := 2 + withdrawnLen
+	if withdrawnOverride != nil {
+		if len(withdrawnOverride) > 65535 {
+			fwdLogger().Warn("withdrawn rewrite exceeds the 2-octet length field, suppressing route",
+				"len", len(withdrawnOverride), "max", 65535)
+			return nil, 0, modifyFailureWithdrawnSize
+		}
+		wdBytes = 2 + len(withdrawnOverride)
+	}
+
+	// The NLRI section: the override, or the original tail.
+	nlriBytes := len(payload) - attrEnd
+	if nlriOverride != nil {
+		nlriBytes = len(nlriOverride)
+	}
+
+	// The EXACT output size. Nothing below this line estimates.
+	needSize := wdBytes + 2 + attrBytes + nlriBytes
+	if needSize > maxUpdateBody {
+		// RFC 8654 bounds the body at 65516 octets, so an edit above it cannot
+		// be sent to any peer under any negotiated size. The route is suppressed
+		// for this destination and says so, rather than going out unmodified
+		// carrying exactly what the policy exists to strip.
+		fwdLogger().Warn("modified UPDATE body exceeds the message ceiling, suppressing route",
+			"bodyLen", needSize, "max", maxUpdateBody, "attrCount", spans.Len())
+		return nil, 0, modifyFailureOverflow
+	}
+
+	buf, peerBufIdx, poolBuf := acquireModBuf(pp, needSize)
+
+	// Ensure buffers are returned on panic and on every failure below.
 	defer func() {
 		if peerBufIdx > 0 && pp != nil {
 			pp.Return(peerBufIdx)
@@ -155,218 +253,53 @@ func buildModifiedPayload(
 
 	off := 0
 
-	// Step 1: Copy the withdrawn section. When withdrawnOverride is non-nil the
-	// egress filter has rewritten the withdrawn NLRI (per-peer prefix translation
-	// on withdrawal, keeping adj-rib-out consistent): write a fresh 2-byte length
+	// Step 1: the withdrawn section. When withdrawnOverride is non-nil the egress
+	// filter has rewritten the withdrawn NLRI (per-peer prefix translation on
+	// withdrawal, keeping adj-rib-out consistent): write a fresh 2-byte length
 	// plus the override bytes. A zero-length (non-nil) override drops every
 	// withdrawn prefix. A nil override copies the original withdrawn section.
 	if withdrawnOverride != nil {
-		if len(withdrawnOverride) > 65535 {
-			fwdLogger().Warn("withdrawn rewrite exceeds the 2-octet length field, suppressing route",
-				"len", len(withdrawnOverride), "max", 65535)
-			cleanupBuf()
-			return nil, 0, modifyFailureWithdrawnSize
-		}
-		binary.BigEndian.PutUint16(buf[off:], uint16(len(withdrawnOverride))) //nolint:gosec // G115: bounded by check above
+		binary.BigEndian.PutUint16(buf[off:], uint16(len(withdrawnOverride))) //nolint:gosec // G115: bounded by the check above
 		off += 2
-		if len(withdrawnOverride) > 0 {
-			if !safeCopy(buf, off, withdrawnOverride) {
-				cleanupBuf()
-				return nil, 0, modifyFailureOverflow
-			}
-			off += len(withdrawnOverride)
-		}
+		off += copy(buf[off:], withdrawnOverride)
 	} else {
-		wdSectionLen := 2 + withdrawnLen
-		if !safeCopy(buf, off, payload[:wdSectionLen]) {
-			cleanupBuf()
-			return nil, 0, modifyFailureOverflow
-		}
-		off += wdSectionLen
+		off += copy(buf[off:], payload[:wdBytes])
 	}
 
-	// Step 2: Skip attr_len (backfill later).
-	attrLenPos := off
+	// Step 2: the attribute section length, known exactly before it is written.
+	// There is no backfill: the size query already produced this number, and the
+	// write below is checked against it.
+	binary.BigEndian.PutUint16(buf[off:], uint16(attrBytes)) //nolint:gosec // G115: bounded by the 65535 check above
 	off += 2
 
-	// Step 3-5: Walk source attributes, apply handlers.
-	// Stack-allocated: attribute codes are uint8, 256 entries covers all codes.
-	var consumed [256]bool
-	overflow := false
-	// unapplied records a modification that was REQUIRED but did not land, on a
-	// path that keeps building rather than returning. Those paths used to warn
-	// and carry on, so the function returned a well-formed payload plus
-	// modifyFailureNone and every caller forwarded a route the policy had not
-	// actually changed -- the same fail-open T1-1 closed on the returning paths.
-	// The compiler cannot catch these, because they fall through rather than
-	// return; this variable is what makes them reportable.
-	unapplied := modifyFailureNone
-	// attrCount is reported in the suppression warning: an operator seeing a
-	// route dropped needs the shape of the UPDATE that could not be rebuilt,
-	// not just that it failed (ai/rules/error-messages.md).
-	attrCount := 0
-	srcOff := attrStart
-	for srcOff < attrEnd {
-		// Every break below leaves the remaining attributes UNCOPIED. The
-		// output would be a truncated attribute section that still looks
-		// well-formed, so each one is a failure rather than an early exit.
-		// A well-formed section leaves this loop by srcOff reaching attrEnd.
-		if srcOff+2 > len(payload) {
-			unapplied = modifyFailureTruncated
-			break
-		}
-		flags := payload[srcOff]
-		code := payload[srcOff+1]
-		var hdrLen int
-		var aLen uint16
-		if flags&0x10 != 0 { // Extended length.
-			if srcOff+4 > len(payload) {
-				unapplied = modifyFailureTruncated
-				break
-			}
-			aLen = binary.BigEndian.Uint16(payload[srcOff+2 : srcOff+4])
-			hdrLen = 4
-		} else {
-			if srcOff+3 > len(payload) {
-				unapplied = modifyFailureTruncated
-				break
-			}
-			aLen = uint16(payload[srcOff+2])
-			hdrLen = 3
-		}
-		attrTotalLen := hdrLen + int(aLen)
-		if srcOff+attrTotalLen > attrEnd {
-			unapplied = modifyFailureTruncated
-			break
-		}
-
-		srcAttr := payload[srcOff : srcOff+attrTotalLen]
-
-		if codeOps := opsByCode[code]; len(codeOps) > 0 {
-			consumed[code] = true
-			handler := handlers[code]
-			if handler == nil {
-				// No handler: the operations for this code are NOT applied.
-				// Copying the source through and reporting success would forward
-				// the route with the very attribute the policy meant to change,
-				// so record the failure and let the caller suppress.
-				fwdLogger().Warn("no attr mod handler registered, suppressing route", "code", code)
-				unapplied = modifyFailureNoHandler
-				if !safeCopy(buf, off, srcAttr) {
-					overflow = true
-					break
-				}
-				off += len(srcAttr)
-			} else {
-				newOff, panicked := safeAttrModHandler(handler, code, srcAttr, codeOps, buf, off)
-				if panicked {
-					unapplied = modifyFailureHandlerFault
-				}
-				if newOff < off || newOff > len(buf) {
-					// The handler panicked (safeAttrModHandler recovered and
-					// returned the original offset) or returned an offset
-					// outside the buffer. Either way its operations did not
-					// land, so this is a failure, not a fallback.
-					fwdLogger().Warn("attr mod handler faulted, suppressing route",
-						"code", code, "off", off, "newOff", newOff, "bufLen", len(buf))
-					unapplied = modifyFailureHandlerFault
-					if !safeCopy(buf, off, srcAttr) {
-						overflow = true
-						break
-					}
-					off += len(srcAttr)
-				} else {
-					off = newOff
-				}
-			}
-		} else {
-			// No ops for this attribute: copy verbatim.
-			if !safeCopy(buf, off, srcAttr) {
-				overflow = true
-				break
-			}
-			off += len(srcAttr)
-		}
-
-		srcOff += attrTotalLen
-		attrCount++
+	// Step 3: the attributes, by the same walk that sized them.
+	written, fail := emitter.run(buf, off)
+	if fail.failed() {
+		return nil, 0, fail
 	}
-
-	if overflow {
-		fwdLogger().Warn("attribute modification overflowed the output buffer, suppressing route",
-			"payloadLen", len(payload), "bufLen", len(buf), "attrCount", attrCount)
-		cleanupBuf()
+	if written != attrBytes {
+		// The size query and the write disagreed. That is the invariant this
+		// whole design exists to guarantee, so it suppresses rather than emitting
+		// a section whose declared length does not match its contents.
+		fwdLogger().Warn("attribute size query disagreed with the write, suppressing route",
+			"sized", attrBytes, "written", written)
 		return nil, 0, modifyFailureOverflow
 	}
+	off += written
 
-	// Step 6: Write unconsumed ops (new attributes).
-	for codeInt := range opsByCode {
-		codeOps := opsByCode[codeInt]
-		code := uint8(codeInt)
-		if len(codeOps) == 0 || consumed[code] {
-			continue
-		}
-		handler := handlers[code]
-		if handler == nil {
-			// The attribute the policy asked to ADD is never written. Silently
-			// skipping it forwards a route missing, for example, the RFC 9234
-			// OTC marker the role plugin exists to stamp.
-			fwdLogger().Warn("no attr mod handler for new attribute, suppressing route", "code", code)
-			unapplied = modifyFailureNoHandler
-			continue
-		}
-		newOff, panicked := safeAttrModHandler(handler, code, nil, codeOps, buf, off)
-		if panicked || newOff < off || newOff > len(buf) {
-			fwdLogger().Warn("attr mod handler faulted on new attribute, suppressing route",
-				"code", code, "panicked", panicked)
-			unapplied = modifyFailureHandlerFault
-			continue // The attribute is not written; the route must not go out.
-		}
-		off = newOff
-	}
-
-	// Step 7: Backfill attr_len.
-	newAttrLen := off - attrLenPos - 2
-	if newAttrLen < 0 || newAttrLen > 65535 {
-		// RFC 4271 Section 4.3: Total Path Attribute Length is a 2-octet field.
-		fwdLogger().Warn("modified attribute section does not fit the 2-octet length field, suppressing route",
-			"newAttrLen", newAttrLen, "max", 65535, "attrCount", attrCount)
-		cleanupBuf()
-		return nil, 0, modifyFailureAttrLenRange
-	}
-	binary.BigEndian.PutUint16(buf[attrLenPos:], uint16(newAttrLen)) //nolint:gosec // G115: bounded by check above
-
-	// Step 8: Write NLRI section. When nlriOverride is non-nil the filter
-	// chain has rewritten the legacy IPv4 NLRI (per-prefix modify path);
-	// copy the override bytes instead of the original NLRI tail. An
-	// override of length zero explicitly drops every legacy NLRI prefix.
+	// Step 4: the NLRI section. When nlriOverride is non-nil the filter chain
+	// has rewritten the legacy IPv4 NLRI (per-prefix modify path); an override
+	// of length zero explicitly drops every legacy NLRI prefix.
 	if nlriOverride != nil {
-		if len(nlriOverride) > 0 {
-			if !safeCopy(buf, off, nlriOverride) {
-				cleanupBuf()
-				return nil, 0, modifyFailureOverflow
-			}
-			off += len(nlriOverride)
-		}
+		off += copy(buf[off:], nlriOverride)
 	} else {
-		nlriLen := len(payload) - attrEnd
-		if nlriLen > 0 {
-			if !safeCopy(buf, off, payload[attrEnd:]) {
-				cleanupBuf()
-				return nil, 0, modifyFailureOverflow
-			}
-			off += nlriLen
-		}
+		off += copy(buf[off:], payload[attrEnd:])
 	}
 
-	// A modification the policy required did not land, on one of the paths that
-	// keeps building. The payload is well-formed but is MISSING that change, so
-	// it must not go out. Returning here, before the per-peer buffer is handed
-	// to the caller, also keeps the buffer contract simple: a caller that
-	// suppresses never has to return a buffer it never stored.
-	if unapplied.failed() {
-		cleanupBuf()
-		return nil, 0, unapplied
+	if off != needSize {
+		fwdLogger().Warn("rebuilt body size disagreed with the size query, suppressing route",
+			"sized", needSize, "written", off)
+		return nil, 0, modifyFailureOverflow
 	}
 
 	// Per-peer buffer path: return the slice directly. The caller stores
@@ -377,16 +310,11 @@ func buildModifiedPayload(
 			modBufPool.Put(poolBuf)
 			poolBuf = nil
 		}
-		idx := peerBufIdx
+		bufIdx := peerBufIdx
 		peerBufIdx = 0 // prevent defer from double-returning
-		// unapplied is normally modifyFailureNone. When it is not, the payload
-		// is well-formed but does NOT carry a modification the policy required,
-		// so the caller must suppress rather than send it.
-		// unapplied is normally modifyFailureNone. When it is not, the payload
-		// is well-formed but is MISSING a modification the policy asked for.
-		// The caller counts it and, per AC-18, still forwards. See
-		// modifyFailure.failed for why this is reported rather than acted on.
-		return buf[:off], idx, modifyFailureNone
+		// Every reason a modification could not be applied returned above, before
+		// a buffer was acquired, so reaching here means the plan landed in full.
+		return buf[:off], bufIdx, modifyFailureNone
 	}
 
 	// Sync.Pool fallback: copy result so pool buffer can be returned.
@@ -394,6 +322,208 @@ func buildModifiedPayload(
 	copy(result, buf[:off])
 
 	return result, 0, modifyFailureNone
+}
+
+// planAttr runs one code's handler under panic recovery and commits its slot.
+//
+// It is the only place a handler is called, so every reason a handler's
+// operations might not land is decided here, before any buffer exists. A
+// half-built payload is therefore not a state this function can produce.
+func planAttr(
+	edit *filterapi.EditSet,
+	spans *attribute.SpanIndex,
+	section []byte,
+	codeOps []filterapi.AttrOp,
+	opFrom int,
+	code uint8,
+	handlers map[uint8]filterapi.AttrModHandler,
+) modifyFailure {
+	handler := handlers[code]
+	if handler == nil {
+		// The operations for this code are NOT applied. Copying the source
+		// through and reporting success forwards the route carrying the very
+		// attribute the policy meant to change, and for RFC 9234 OTC it emits a
+		// route missing an attribute a MUST requires.
+		fwdLogger().Warn("no attr mod handler registered, suppressing route", "code", code)
+		edit.CommitFailed(code)
+		return modifyFailureNoHandler
+	}
+
+	var src []byte
+	srcOff, srcLen, valOff, valLen := 0, 0, 0, 0
+	if span, ok := spans.Find(attribute.AttributeCode(code)); ok {
+		valOff = int(span.Offset)
+		valLen = int(span.Length)
+		srcOff = valOff - int(span.HdrLen)
+		srcLen = int(span.HdrLen) + valLen
+		src = section[srcOff : srcOff+srcLen]
+	}
+
+	p := edit.Attr(code, src, srcOff, srcLen, valOff, valLen, codeOps, opFrom)
+	if panicked := safeAttrModHandler(handler, code, p); panicked {
+		edit.CommitFailed(code)
+		return modifyFailureHandlerFault
+	}
+	id := edit.Commit(p)
+	if edit.SlotFailed(id) {
+		fwdLogger().Warn("attr mod handler refused the modification, suppressing route", "code", code)
+		return modifyFailureHandlerFault
+	}
+	return modifyFailureNone
+}
+
+// attrEmitter walks the output attribute order exactly once per call.
+//
+// It is called twice per rebuild: with a nil buffer to SIZE, and with the
+// acquired buffer to WRITE. Both calls execute the same statements in the same
+// order, which is what makes the size exact rather than an upper bound. An edit
+// that changes the order changes it for both, so the two cannot drift apart.
+type attrEmitter struct {
+	edit    *filterapi.EditSet
+	spans   *attribute.SpanIndex
+	section []byte
+	ops     []filterapi.AttrOp
+
+	buf []byte // nil on the sizing pass
+	off int    // absolute write offset; ignored on the sizing pass
+	n   int    // bytes emitted so far
+
+	runOff int // pending verbatim run: offset into section
+	runLen int
+}
+
+// keep extends the pending verbatim run, or starts a new one when this
+// attribute does not continue the last. Coalescing is why a stretch of
+// untouched attributes costs one copy rather than one copy each, and it is free
+// because the span index already knows where each attribute begins and ends.
+func (e *attrEmitter) keep(off, length int) {
+	if e.runLen > 0 && e.runOff+e.runLen == off {
+		e.runLen += length
+		return
+	}
+	e.flush()
+	e.runOff = off
+	e.runLen = length
+}
+
+// flush emits the pending verbatim run.
+func (e *attrEmitter) flush() {
+	if e.runLen == 0 {
+		return
+	}
+	if e.buf != nil {
+		copy(e.buf[e.off+e.n:], e.section[e.runOff:e.runOff+e.runLen])
+	}
+	e.n += e.runLen
+	e.runLen = 0
+}
+
+// emitSlot emits one planned attribute.
+func (e *attrEmitter) emitSlot(id filterapi.SlotID) modifyFailure {
+	size := e.edit.SlotSize(id)
+	if size == 0 {
+		return modifyFailureNone
+	}
+	if e.buf == nil {
+		e.n += size
+		return modifyFailureNone
+	}
+	at := e.off + e.n
+	got := e.edit.SlotWrite(id, e.section, e.ops, e.buf, at)
+	if got != at+size {
+		fwdLogger().Warn("attr mod slot did not write its planned size, suppressing route",
+			"code", e.edit.SlotCode(id), "planned", size, "written", got-at)
+		return modifyFailureOverflow
+	}
+	e.n += size
+	return modifyFailureNone
+}
+
+// nextNew returns the next planned attribute that has no source span, which is
+// an attribute being ADDED and therefore one waiting for its insertion point.
+// The slots are already in ascending code order, because the operations were
+// sorted by code before planning.
+func (e *attrEmitter) nextNew(from int) (filterapi.SlotID, uint8, int, bool) {
+	for i := from; i < e.edit.SlotCount(); i++ {
+		id := e.edit.SlotAt(i)
+		code := e.edit.SlotCode(id)
+		if _, present := e.spans.Find(attribute.AttributeCode(code)); present {
+			continue
+		}
+		return id, code, i, true
+	}
+	return 0, 0, e.edit.SlotCount(), false
+}
+
+// run walks the emission order and returns the number of bytes emitted.
+//
+// Base attributes keep their wire order, and a planned attribute that HAS a
+// source is emitted in that source's position, so an edit which only changes
+// values never reorders anything and a pure forward stays byte-identical.
+//
+// A planned attribute with NO source is merge-inserted at the first position
+// whose code sorts after it. RFC 4271 Section 5 describes attributes as ordered
+// by ascending type code on emission, which is what both announce rails already
+// emit; appending after every source attribute, as the previous build did, let
+// one route reach the wire in two different byte orders depending on which path
+// built it.
+func (e *attrEmitter) run(buf []byte, off int) (int, modifyFailure) {
+	e.buf = buf
+	e.off = off
+	e.n = 0
+	e.runLen = 0
+	e.runOff = 0
+
+	newAt := 0
+	for i := range e.spans.Len() {
+		span := e.spans.At(i)
+		baseCode := uint8(span.Code)
+
+		// Merge-insert every pending new attribute that sorts before this one.
+		for {
+			id, code, at, ok := e.nextNew(newAt)
+			if !ok || code >= baseCode {
+				break
+			}
+			e.flush()
+			if fail := e.emitSlot(id); fail.failed() {
+				return 0, fail
+			}
+			newAt = at + 1
+		}
+
+		attrOff := int(span.Offset) - int(span.HdrLen)
+		attrLen := int(span.HdrLen) + int(span.Length)
+
+		id, planned := e.edit.Find(baseCode)
+		if !planned || e.edit.SlotVerbatim(id) {
+			// Untouched, or a handler that asked for the source unchanged. Both
+			// coalesce into the same copy run: "leave this attribute alone" and
+			// "nothing asked to change it" are the same bytes.
+			e.keep(attrOff, attrLen)
+			continue
+		}
+		e.flush()
+		if fail := e.emitSlot(id); fail.failed() {
+			return 0, fail
+		}
+	}
+
+	e.flush()
+
+	// Anything still pending sorts after every base attribute.
+	for {
+		id, _, at, ok := e.nextNew(newAt)
+		if !ok {
+			break
+		}
+		if fail := e.emitSlot(id); fail.failed() {
+			return 0, fail
+		}
+		newAt = at + 1
+	}
+
+	return e.n, modifyFailureNone
 }
 
 // buildWithdrawalPayload converts an announce UPDATE payload to a withdrawal.
@@ -610,60 +740,21 @@ func writeMPUnreachFromReach(buf, attrs []byte) int {
 	return 0 // No MP_REACH_NLRI found.
 }
 
-// safeCopy copies src into buf at offset off, returning false if it would overflow.
-func safeCopy(buf []byte, off int, src []byte) bool {
-	if off+len(src) > len(buf) {
-		return false
-	}
-	copy(buf[off:], src)
-	return true
-}
-
-// groupOpsByCode groups AttrOps by attribute code into a fixed array.
-// Two-pass: count first, then pre-allocate and fill.
-func groupOpsByCode(ops []filterapi.AttrOp) [256][]filterapi.AttrOp {
-	var counts [256]int
-	for i := range ops {
-		counts[ops[i].Code]++
-	}
-	var m [256][]filterapi.AttrOp
-	for code := range counts {
-		if counts[code] > 0 {
-			m[code] = make([]filterapi.AttrOp, counts[code]) // pool-fallback
-			counts[code] = 0
-		}
-	}
-	for i := range ops {
-		c := ops[i].Code
-		m[c][counts[c]] = ops[i]
-		counts[c]++
-	}
-	return m
-}
-
-// safeAttrModHandler calls an AttrModHandler with panic recovery.
-// Returns the new offset on success, or the original offset on panic.
-// The panicked return is load-bearing. Recovery copies the source attribute
-// through, which produces a VALID offset, so the caller's offset-range check
-// cannot tell a recovered panic from a successful modification. Without this
-// flag the route goes out carrying the attribute the handler was meant to
-// change -- an independent review found exactly that leak.
-func safeAttrModHandler(handler filterapi.AttrModHandler, code uint8, src []byte, ops []filterapi.AttrOp, buf []byte, off int) (newOff int, panicked bool) {
+// safeAttrModHandler runs an AttrModHandler with panic recovery.
+//
+// A handler now PLANS rather than writes, so a panic can no longer leave half an
+// attribute in an output buffer: at this point there is no output buffer. The
+// recovery marks the plan refused and the caller suppresses the route, rather
+// than forwarding it carrying the attribute the handler was meant to change.
+func safeAttrModHandler(handler filterapi.AttrModHandler, code uint8, p *filterapi.AttrPlan) (panicked bool) {
 	defer func() {
 		if r := recover(); r != nil {
 			fwdLogger().Error("attr mod handler panic, suppressing route",
 				"code", code, "panic", r)
 			panicked = true
-			// On panic with source attr, copy it unchanged if buffer has room.
-			// The bytes keep the walk's offset arithmetic consistent; the
-			// caller discards the whole payload on panicked.
-			if len(src) > 0 && off+len(src) <= len(buf) {
-				copy(buf[off:], src)
-				newOff = off + len(src)
-			} else {
-				newOff = off
-			}
+			p.Fail()
 		}
 	}()
-	return handler(src, ops, buf, off), false
+	handler(p)
+	return false
 }

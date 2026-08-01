@@ -524,6 +524,33 @@ Actual implementation uses `ParseHeader()` function in `attribute.go`.
 <!-- source: internal/core/bgp/attribute/attribute.go -- ParseHeader -->
 <!-- source: internal/core/bgp/attribute/wire.go -- AttributesWire -->
 
+### The Attribute Span Index
+
+`NewAttributesWire` walks the section once, at construction, and records one
+`Span` per attribute: the value offset, the value length, the type code, and the
+header size class. It also sets one presence bit per type code. Value parsing
+stays lazy; only the layout is eager.
+
+Offsets are relative to the start of the attribute section, never to the UPDATE
+payload. A span is therefore valid against any byte array holding the same
+section contents, which is what lets `WireUpdate.Snapshot` carry the index across
+its copy instead of rebuilding it.
+<!-- source: internal/core/bgp/attribute/span.go -- Span, SpanIndex, BuildSpanIndex -->
+
+The index is built once and never written afterwards. That is what makes the base
+shared-immutable, so `Has`, `GetRaw`, `Packed`, `Count` and `Spilled` take no
+lock: many destination goroutines read one received UPDATE concurrently and do
+not contend. Only `Get`, `All` and `ForEach` take a lock, and it guards the
+parsed-value side table alone.
+<!-- source: internal/core/bgp/attribute/wire.go -- AttributesWire.Has, GetRaw, parseAtLocked -->
+
+**The index freezes which attributes an UPDATE has.** Code that rewrites the
+attribute bytes must run before the first `Attrs()` call, or wrap its result in a
+new `WireUpdate`. On the receive path that is why `enforceRFC7606` publishes the
+base last, after its RFC 7606 Section 3.g duplicate strip and its in-place
+attribute-discard branch have both run.
+<!-- source: internal/component/bgp/reactor/session_validation.go -- publishBase -->
+
 ---
 
 ## Real-World Attribute Count Distribution
@@ -544,18 +571,22 @@ Analysis of 112M routes from MRT dumps (RIPE RIS, LINX, RouteViews):
 
 ### Implementation Notes
 
-`AttributesWire` uses initial slice capacity of 8:
+`SpanIndex` holds 8 spans inline, so 99.9% of routes are indexed with no heap
+allocation at all. A 9th attribute spills the remainder to a heap slice and the
+receive path counts the event as `ze_bgp_update_span_spill_total`.
 
-```go
-index := make([]attrIndex, 0, 8)  // 99.9% of routes fit without reallocation
-```
+One span is 6 bytes, so the whole inline array is 48 bytes and rides inside the
+`AttributesWire` allocation.
 
-| Capacity | Coverage | Memory |
-|----------|----------|--------|
-| 6 | 96% | 144 bytes |
-| 8 | 99.9% | 192 bytes |
-| 10 | 100% | 240 bytes |
-<!-- source: internal/core/bgp/attribute/wire.go -- attrIndex slice capacity -->
+| Capacity | Coverage | Inline memory |
+|----------|----------|---------------|
+| 6 | 96% | 36 bytes |
+| 8 | 99.9% | 48 bytes |
+| 10 | 100% | 60 bytes |
+<!-- source: internal/core/bgp/attribute/span.go -- SpanInline, SpanIndex.add -->
+
+The table above is the measurement behind the constant: the maximum observed
+attribute count is 10, and 8 covers 99.9% of the corpus.
 
 ---
 

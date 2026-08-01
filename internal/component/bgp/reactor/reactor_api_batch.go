@@ -1489,7 +1489,7 @@ func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo
 		return staleWithdraw, nil
 	case mods.HasModifications():
 		modified, _, modFail := buildModifiedPayload(body, &mods, a.r.attrModHandlers, nil, nil)
-		a.r.recordModifyFailure(modFail)
+		a.r.recordModifyFailureAddr(modFail, modifySiteStaleReadvertise, dest.Address)
 		if modFail.failed() || modified == nil {
 			// Fail closed. mods.HasModifications() is true, so a nil payload
 			// here can only mean the build refused; re-advertising the stale
@@ -1497,8 +1497,13 @@ func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo
 			// modified == nil with no named failure is unreachable today (the
 			// "nothing to apply" early return needs an EMPTY accumulator), and
 			// is folded in here so a future path cannot make it a silent leak.
-			fwdLogger().Warn("stale re-advertise modification failed, suppressing route",
-				"peer", dest.Address, "reason", modFail.String())
+			//
+			// The nil-with-no-failure half reaches recordModifyFailure as
+			// modifyFailureNone, which does not log, so it keeps its own line.
+			if !modFail.failed() {
+				fwdLogger().Warn("stale re-advertise produced no payload, suppressing route",
+					"peer", dest.Address)
+			}
 			return staleSuppress, nil
 		}
 		return staleModify, modified

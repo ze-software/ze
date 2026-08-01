@@ -265,6 +265,21 @@ type Reactor struct {
 	api             *pluginserver.Server       // API server for CLI and external processes
 	eventDispatcher *bgpserver.EventDispatcher // BGP event dispatch to plugins
 
+	// modifyFailLog bounds the modify-failure warning to one line per reason
+	// per second. The failure is peer-influenceable and fires once per
+	// destination, so a fan-out of N would otherwise turn one bad UPDATE into N
+	// warnings at the peer's send rate. Zero value is ready; see
+	// forward_modify_failure.go.
+	modifyFailLog modifyFailureLog
+
+	// policyFilterSeam replaces the plugin-IPC body of policyFilterFunc. It is
+	// nil in production and set only by a test, exactly as pluginServerMaker
+	// below. Without it the policy chain's post-chain branches (a filter that
+	// returns a text delta, and a modification that then cannot be applied) are
+	// unreachable, because api is a concrete *pluginserver.Server whose answer
+	// comes off a live plugin socket. See filter_chain.go policyFilterFunc.
+	policyFilterSeam PolicyFilterFunc
+
 	// Recent UPDATE cache for efficient forwarding via update-id
 	recentUpdates *RecentUpdateCache
 

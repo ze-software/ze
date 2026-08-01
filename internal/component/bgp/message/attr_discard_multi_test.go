@@ -99,3 +99,141 @@ func TestApplyAttrDiscardTombstoneRecordsTheCodeOnce(t *testing.T) {
 	assert.Equal(t, uint8(attribute.AttrPrefixSID), entries[0].Code)
 	assert.Equal(t, DiscardReasonEBGPInvalid, entries[0].Reason)
 }
+
+// TestApplyAttrDiscardMergedFlagsUseEveryOccurrence pins the Section 5.7 rule
+// against the multi-occurrence case the multi-occurrence guard newly exposes.
+//
+// Before that guard landed, a single-entry discard was absorbed by applyInPlace
+// and never reached rebuildWithAttrDiscard, so the merged-marker derivation was
+// only ever asked about codes present once. It now always reaches the rebuild,
+// and the derivation read the flags of the FIRST occurrence alone
+// (findAttrFlags -> attribute.AttrFind). A peer sending one code twice with
+// different Transitive bits therefore inverted the MUST.
+//
+// VALIDATES: draft-mangin-idr-attr-tombstone-00 Section 5.7 -- "if all discarded
+// attributes were transitive, the result is transitive (0xC0); if all were
+// non-transitive, non-transitive (0x80); if mixed, the result MUST be
+// non-transitive (0x80)". Every occurrence counts, not the first.
+// PREVENTS: a transitive marker for a mixed set, which propagates a discard
+// record past the EBGP boundary the RFC keeps it inside. The "all transitive"
+// and "all non-transitive" rows are here so a fix that simply hardcodes 0x80
+// fails: the derivation must still answer 0xC0 when it should.
+func TestApplyAttrDiscardMergedFlagsUseEveryOccurrence(t *testing.T) {
+	const (
+		optionalTransitive    = 0xC0
+		optionalNonTransitive = 0x80
+	)
+	tests := []struct {
+		name      string
+		occFlags  []uint8
+		wantFlags uint8
+		why       string
+	}{
+		{
+			name:      "all transitive",
+			occFlags:  []uint8{optionalTransitive, optionalTransitive},
+			wantFlags: optionalTransitive,
+			why:       "every occurrence carried Transitive, so the merged marker is transitive",
+		},
+		{
+			name:      "mixed, transitive first",
+			occFlags:  []uint8{optionalTransitive, optionalNonTransitive},
+			wantFlags: optionalNonTransitive,
+			why:       "a mixed set MUST be non-transitive; reading only the first occurrence answered 0xC0",
+		},
+		{
+			name:      "mixed, non-transitive first",
+			occFlags:  []uint8{optionalNonTransitive, optionalTransitive},
+			wantFlags: optionalNonTransitive,
+			why:       "a mixed set MUST be non-transitive whichever copy arrives first",
+		},
+		{
+			name:      "all non-transitive",
+			occFlags:  []uint8{optionalNonTransitive, optionalNonTransitive},
+			wantFlags: optionalNonTransitive,
+			why:       "no occurrence carried Transitive",
+		},
+		{
+			name:      "mixed across three occurrences",
+			occFlags:  []uint8{optionalTransitive, optionalTransitive, optionalNonTransitive},
+			wantFlags: optionalNonTransitive,
+			why:       "the divergent copy is last, so a scan that stops early misses it",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attrs := makeAttr(0x40, 1, []byte{0x00}) // ORIGIN, not discarded
+			for i, f := range tt.occFlags {
+				attrs = concatBytes(attrs, makeAttr(f, uint8(attribute.AttrPrefixSID),
+					[]byte{1, 0, 7, 0, 0, 0, 0x00, 0x00, 0x03, byte(0x09 + i)}))
+			}
+
+			result, rebuilt := ApplyAttrDiscard(attrs, []DiscardEntry{{
+				Code:   uint8(attribute.AttrPrefixSID),
+				Reason: DiscardReasonEBGPInvalid,
+			}})
+
+			require.True(t, rebuilt,
+				"a multi-occurrence discard cannot be expressed in place, so it must rebuild")
+			marker := findAttrByCode(result, uint8(attribute.AttrTombstone))
+			require.NotNil(t, marker, "the discard must leave a marker")
+
+			assert.Equal(t, tt.wantFlags, marker[0], "%s", tt.why)
+			assert.Zero(t, countAttrByCode(result, uint8(attribute.AttrPrefixSID)),
+				"every occurrence must still be removed")
+		})
+	}
+}
+
+// TestApplyAttrDiscardMergedFlagsAcrossCodes pins the same rule for the other
+// mixed shape: two DIFFERENT codes whose Transitive bits disagree. This one was
+// already correct, and it is here so the every-occurrence walk cannot regress it
+// while fixing the repeated-code case.
+//
+// VALIDATES: draft-mangin-idr-attr-tombstone-00 Section 5.7 across codes.
+// PREVENTS: the per-code walk answering from whichever code it saw last.
+func TestApplyAttrDiscardMergedFlagsAcrossCodes(t *testing.T) {
+	attrs := concatBytes(
+		makeAttr(0x40, 1, []byte{0x00}),  // ORIGIN, not discarded
+		makeAttr(0xC0, 40, []byte{1, 2}), // discarded, transitive
+		makeAttr(0x80, 41, []byte{3, 4}), // discarded, non-transitive
+	)
+
+	result, rebuilt := ApplyAttrDiscard(attrs, []DiscardEntry{
+		{Code: 40, Reason: DiscardReasonEBGPInvalid},
+		{Code: 41, Reason: DiscardReasonMalformedValue},
+	})
+
+	require.True(t, rebuilt, "two entries always rebuild")
+	marker := findAttrByCode(result, uint8(attribute.AttrTombstone))
+	require.NotNil(t, marker)
+	assert.Equal(t, uint8(0x80), marker[0],
+		"one transitive and one non-transitive attribute is a mixed set: MUST be non-transitive")
+}
+
+// TestApplyAttrDiscardMergedFlagsAbsentCodeIsNotTransitive pins the miss branch.
+//
+// VALIDATES: a discarded code that is not in the section contributes no
+// transitivity evidence, so the merged marker stays non-transitive. This is the
+// answer the previous findAttrFlags shape gave by returning 0 for a miss, and it
+// is the fail-closed direction (see localSetTransitive).
+// PREVENTS: the every-occurrence walk defaulting an unseen code to transitive,
+// which would emit 0xC0 on no evidence at all.
+func TestApplyAttrDiscardMergedFlagsAbsentCodeIsNotTransitive(t *testing.T) {
+	attrs := concatBytes(
+		makeAttr(0x40, 1, []byte{0x00}),  // ORIGIN
+		makeAttr(0xC0, 40, []byte{1, 2}), // present and transitive
+	)
+
+	result, rebuilt := ApplyAttrDiscard(attrs, []DiscardEntry{
+		{Code: 40, Reason: DiscardReasonEBGPInvalid},
+		{Code: 99, Reason: DiscardReasonMalformedValue}, // never present
+	})
+
+	require.True(t, rebuilt)
+	marker := findAttrByCode(result, uint8(attribute.AttrTombstone))
+	require.NotNil(t, marker)
+	assert.Equal(t, uint8(0x80), marker[0],
+		"a discarded code absent from the section is no evidence of transitivity")
+}

@@ -224,20 +224,9 @@ func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []Discard
 	hasUpstream := upstreamFlags != 0
 	upstreamTransitive := upstreamFlags&0x40 != 0
 
-	// Determine transitivity from local entries' original attributes.
-	allLocalTransitive := true
-	hasLocal := false
-	for _, e := range localEntries {
-		hasLocal = true
-		origFlags := findAttrFlags(pathAttrs, e.Code)
-		if origFlags&0x40 == 0 { // Not transitive
-			allLocalTransitive = false
-			break
-		}
-	}
-	if !hasLocal {
-		allLocalTransitive = false
-	}
+	// Determine transitivity from the local entries' original attributes, over
+	// EVERY occurrence of every discarded code (see localSetTransitive).
+	allLocalTransitive := localSetTransitive(pathAttrs, localEntries, &removeCodes)
 
 	// draft-mangin-idr-attr-tombstone-00 Section 5.7: "The merged ATTR_TOMBSTONE is
 	// transitive (0xC0) only if the upstream ATTR_TOMBSTONE was transitive AND all
@@ -295,10 +284,64 @@ func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []Discard
 	return result
 }
 
+// localSetTransitive reports whether EVERY occurrence of EVERY locally
+// discarded attribute carried the Transitive bit.
+//
+// draft-mangin-idr-attr-tombstone-00 Section 5.7: "if all discarded attributes
+// were transitive, the result is transitive (0xC0); if all were non-transitive,
+// non-transitive (0x80); if mixed, the result MUST be non-transitive (0x80)."
+//
+// "All discarded attributes" is every occurrence, not every code. A single
+// findAttrFlags lookup per entry answered from attribute.AttrFind, which returns
+// the FIRST match, so a peer sending one code twice with different Transitive
+// bits (first 0xC0, then 0x80) produced a transitive marker for a mixed set --
+// the Section 5.7 MUST inverted. That combination could not reach the rebuild
+// before the multi-occurrence guard landed in applyInPlace, because a
+// single-entry discard was absorbed in place; now it always reaches it.
+//
+// One forward pass over the section, no allocation: removeCodes is the caller's
+// already-built set, passed by pointer so the 256-byte array is not copied.
+//
+// A discarded code that is absent from the section contributes no transitivity
+// evidence and makes the set non-transitive, which is what the previous
+// findAttrFlags shape did by returning 0 for a miss. Fail toward 0x80: a marker
+// wrongly non-transitive is dropped at the next EBGP boundary, where a marker
+// wrongly transitive propagates a discard record the RFC says must not spread.
+func localSetTransitive(pathAttrs []byte, localEntries []DiscardEntry, removeCodes *[256]bool) bool {
+	if len(localEntries) == 0 {
+		return false
+	}
+	var seen [256]bool
+	allTransitive := true
+	iter := attribute.NewAttrIterator(pathAttrs)
+	for {
+		typeCode, flags, _, ok := iter.Next()
+		if !ok {
+			break
+		}
+		if !removeCodes[uint8(typeCode)] {
+			continue
+		}
+		seen[uint8(typeCode)] = true
+		if !flags.IsTransitive() {
+			allTransitive = false
+		}
+	}
+	for _, e := range localEntries {
+		if !seen[e.Code] {
+			return false
+		}
+	}
+	return allTransitive
+}
+
 // findAttrFlags finds the flags byte for an attribute by its type code.
 // Returns 0 if the attribute is not found (e.g., upstream ATTR_TOMBSTONE entry
 // whose original attribute is no longer in the path attributes section).
 // Uses AttrFind (zero allocation).
+//
+// Only the upstream ATTR_TOMBSTONE lookup uses this. The local discarded set
+// needs every occurrence, not the first: see localSetTransitive.
 func findAttrFlags(pathAttrs []byte, code uint8) uint8 {
 	_, flags, _, found := attribute.AttrFind(pathAttrs, attribute.AttributeCode(code))
 	if !found {

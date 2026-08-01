@@ -14,6 +14,46 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
+// planOTCHandler drives otcAttrModHandler through one attribute plan and
+// materializes exactly what that plan describes.
+//
+// wire-edit child 2 changed AttrModHandler from func(src, ops, buf, off) int to
+// func(*AttrPlan): a handler now PLANS and writes no bytes, so its size query
+// and its write cannot disagree. A test asserting on wire bytes therefore has to
+// run the plan to see them. This is the role-package twin of planHandlerBytes in
+// the reactor package. srcAttr is the whole source attribute, header included.
+func planOTCHandler(t *testing.T, srcAttr []byte, ops []filterapi.AttrOp) ([]byte, int) {
+	t.Helper()
+
+	var mods filterapi.ModAccumulator
+	edit := mods.EditSet()
+	edit.Begin()
+
+	var src []byte
+	srcLen, valOff, valLen := 0, 0, 0
+	if len(srcAttr) > 0 {
+		hdr := 3
+		if srcAttr[0]&0x10 != 0 { // RFC 4271 Section 4.3 Extended Length
+			hdr = 4
+		}
+		src = srcAttr
+		srcLen = len(srcAttr)
+		valOff, valLen = hdr, len(srcAttr)-hdr
+	}
+
+	p := edit.Attr(otcAttrCode, src, 0, srcLen, valOff, valLen, ops, 0)
+	otcAttrModHandler(p)
+	id := edit.Commit(p)
+	require.False(t, edit.SlotFailed(id), "the OTC handler must not refuse")
+	require.False(t, edit.SlotDropped(id), "the OTC attribute must not be dropped")
+
+	n := edit.SlotSize(id)
+	buf := make([]byte, 64)
+	require.Equal(t, n, edit.SlotWrite(id, srcAttr, ops, buf, 0),
+		"the plan's size query must equal the bytes it writes")
+	return buf, n
+}
+
 // buildTestAttrs creates raw attributes with ORIGIN + optional OTC.
 func buildTestAttrs(otcASN uint32) []byte {
 	// ORIGIN attribute: flags=0x40, type=1, len=1, value=0 (IGP)
@@ -1440,6 +1480,54 @@ func TestOTCIngressUnicastOnly(t *testing.T) {
 	assert.Nil(t, modified, "non-unicast should not modify payload")
 }
 
+// planOTCAttr drives otcAttrModHandler over a synthetic one-attribute section
+// and returns the finished edit set together with the slot the handler planned.
+//
+// The handler no longer writes bytes: it describes the output, and the edit set
+// is what materializes it. A test therefore reads the outcome through the same
+// accessors the rebuild uses, rather than through a returned offset.
+func planOTCAttr(srcAttr []byte, ops []filterapi.AttrOp) (*filterapi.EditSet, filterapi.SlotID) {
+	mods := &filterapi.ModAccumulator{}
+	edit := mods.EditSet()
+	edit.Begin()
+
+	var src []byte
+	srcOff, srcLen, valOff, valLen := 0, 0, 0, 0
+	if len(srcAttr) > 0 {
+		hdr := 3
+		if srcAttr[0]&0x10 != 0 {
+			hdr = 4
+		}
+		src = srcAttr
+		srcLen = len(srcAttr)
+		valOff, valLen = hdr, len(srcAttr)-hdr
+	}
+
+	p := edit.Attr(otcAttrCode, src, srcOff, srcLen, valOff, valLen, ops, 0)
+	otcAttrModHandler(p)
+	id := edit.Commit(p)
+	return edit, id
+}
+
+// planOTCBytes runs otcAttrModHandler over a synthetic one-attribute section and
+// returns the bytes it plans. ok is false when the plan dropped or refused.
+//
+// srcAttr is passed to SlotWrite as the attribute section because a KeepAll plan
+// emits the source attribute verbatim, and the writer reads those bytes from the
+// section rather than from the plan.
+func planOTCBytes(srcAttr []byte, ops []filterapi.AttrOp) (out []byte, ok bool) {
+	edit, id := planOTCAttr(srcAttr, ops)
+	if edit.SlotFailed(id) || edit.SlotDropped(id) {
+		return nil, false
+	}
+	n := edit.SlotSize(id)
+	buf := make([]byte, n)
+	if got := edit.SlotWrite(id, srcAttr, ops, buf, 0); got != n {
+		return nil, false
+	}
+	return buf, true
+}
+
 // VALIDATES: AC-12 — otcAttrModHandler registered by attr code 35 via init().
 // PREVENTS: Progressive build cannot find OTC handler.
 func TestOTCAttrModHandlerRegisteredInRegistry(t *testing.T) {
@@ -1456,8 +1544,12 @@ func TestOTCAttrModHandlerNewAttr(t *testing.T) {
 	binary.BigEndian.PutUint32(asnBuf, 65000)
 	ops := []filterapi.AttrOp{{Code: otcAttrCode, Action: filterapi.AttrModSet, Buf: asnBuf}}
 
-	buf := make([]byte, 64)
-	newOff := otcAttrModHandler(nil, ops, buf, 0)
+	// rfc-test-change-approved: 2026-08-01 Thomas approved a CALL-SHAPE change
+	// only. wire-edit child 2 migrated AttrModHandler to func(*AttrPlan), so a
+	// handler PLANS and writes no bytes; planOTCHandler materializes the plan.
+	// Every assertion below is unchanged: 7 bytes, the flags, the type code, the
+	// length and the ASN.
+	buf, newOff := planOTCHandler(t, nil, ops)
 
 	assert.Equal(t, otcWireLen, newOff, "should write 7 bytes (OTC header + value)")
 	assert.Equal(t, otcAttrFlags, buf[0], "flags")
@@ -1478,8 +1570,10 @@ func TestOTCAttrModHandlerExistingPreserved(t *testing.T) {
 	binary.BigEndian.PutUint32(asnBuf, 65000) // Different ASN in the op.
 	ops := []filterapi.AttrOp{{Code: otcAttrCode, Action: filterapi.AttrModSet, Buf: asnBuf}}
 
-	buf := make([]byte, 64)
-	newOff := otcAttrModHandler(srcOTC[:], ops, buf, 0)
+	// rfc-test-change-approved: 2026-08-01 Thomas approved a CALL-SHAPE change
+	// only, as above. The assertion that matters is untouched: the SOURCE OTC
+	// (65001) survives and the op value (65000) does not overwrite it.
+	buf, newOff := planOTCHandler(t, srcOTC[:], ops)
 
 	assert.Equal(t, otcWireLen, newOff, "should copy source OTC (7 bytes)")
 	asn := binary.BigEndian.Uint32(buf[3:7])
@@ -1488,14 +1582,23 @@ func TestOTCAttrModHandlerExistingPreserved(t *testing.T) {
 
 // VALIDATES: AC-10 — otcAttrModHandler handles buffer overflow gracefully.
 // PREVENTS: Panic or buffer overrun on small output buffer.
+//
+// The bound moved with the contract: a handler no longer touches the output
+// buffer, so the check now sits in SlotWrite, which is the only code that does.
+// The guarantee is the same one the handler used to carry -- a short buffer is
+// left untouched and the offset does not advance.
 func TestOTCAttrModHandlerOverflow(t *testing.T) {
 	asnBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(asnBuf, 65000)
 	ops := []filterapi.AttrOp{{Code: otcAttrCode, Action: filterapi.AttrModSet, Buf: asnBuf}}
 
+	edit, id := planOTCAttr(nil, ops)
+	require.Equal(t, otcWireLen, edit.SlotSize(id), "the plan needs the full 7-byte OTC")
+
 	buf := make([]byte, 3) // Too small for 7-byte OTC.
-	newOff := otcAttrModHandler(nil, ops, buf, 0)
+	newOff := edit.SlotWrite(id, nil, ops, buf, 0)
 	assert.Equal(t, 0, newOff, "should return original offset on overflow")
+	assert.Equal(t, make([]byte, 3), buf, "a short buffer must not be written at all")
 }
 
 // VALIDATES: OTC egress stamp for Peer destination (not just Customer).

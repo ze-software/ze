@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/architecture.md -- BGP route filter pipeline
+// Detail: editset.go -- the edit set: slots, fragments, the arena and the exact size query
 // Related: filterapi_test.go -- ordering and accumulator semantics moved from the generic registry tests
 //
 // Package filterapi defines the BGP route filter pipeline contract: the
@@ -102,7 +103,24 @@ type ModAccumulator struct {
 	withdrawnRewrite []byte // replacement for the withdrawn NLRI section
 	inline           [modAccumulatorInlineBytes]byte
 	inlineOff        int
+
+	// edit is the per-destination rebuild plan: slots, fragments and arena.
+	// It lives here so that hoisting the accumulator above the destination loop
+	// hoists the plan storage with it (editset.go).
+	edit EditSet
+
+	// grouped records that ops has been sorted by attribute code, so the sort
+	// runs once per destination however many times the grouping is asked for.
+	grouped bool
 }
+
+// EditSet returns the accumulator's reusable rebuild plan.
+//
+// The plan is separate from the operations: the operations say WHAT to change
+// and the plan says how the new bytes relate to the old ones. The rebuild reads
+// both, so the plan is cleared by EditSet().Begin() at the start of a rebuild
+// rather than by Reset, which would discard the operations being planned.
+func (a *ModAccumulator) EditSet() *EditSet { return &a.edit }
 
 // Len returns the number of accumulated attribute ops (excluding withdraw flag
 // and NLRI rewrites). Use HasModifications to gate whether the forward path must
@@ -143,6 +161,8 @@ func (a *ModAccumulator) Reset() {
 	a.nlriRewrite = nil
 	a.withdrawnRewrite = nil
 	a.inlineOff = 0
+	a.grouped = false
+	a.edit.reset()
 }
 
 // Op accumulates an attribute modification operation.
@@ -265,13 +285,53 @@ type AttrOp struct {
 	Buf    []byte // Pre-built wire bytes of the VALUE (handler writes the header)
 }
 
-// AttrModHandler is a per-attribute-code handler for the progressive build.
-// It receives the source attribute bytes (nil if absent in source), all ops
-// for this attribute code, the output buffer, and the current write offset.
-// It writes the complete attribute (header + value) into buf and returns
-// the new offset after the written bytes.
-// It cannot reject a route -- only transform. MUST NOT retain buf beyond the call.
-type AttrModHandler func(src []byte, ops []AttrOp, buf []byte, off int) int
+// AttrModHandler is a per-attribute-code handler for the rebuild.
+//
+// It PLANS one attribute and writes nothing. It reads the source attribute
+// (p.Source(), p.Value(), nil when the attribute is absent) and the operations
+// for its code (p.Ops()), appends fragments with Keep, Op and New, and finishes
+// with exactly one of Emit, EmitExtended, Drop or Fail.
+//
+// The plan carries the exact output length, so "how many bytes will you write"
+// is answered before any buffer is acquired and cannot drift from what is then
+// written. That is what removes the slack sizing the rebuild used to need, and
+// with it the branch that abandoned every modification on overflow and forwarded
+// the route unchanged (ai/rules/fail-closed-guards.md).
+//
+// A handler that returns without finishing its plan is treated as a refusal:
+// silence is not consent when the outcome is a route on the wire.
+//
+// MUST NOT retain p beyond the call. One planner value serves every attribute of
+// every destination.
+type AttrModHandler func(p *AttrPlan)
+
+// GroupedOps sorts the accumulated operations by attribute code and returns
+// them, so each code's operations occupy one contiguous run.
+//
+// The sort is stable and in place: it preserves the order producers recorded
+// operations in, which the community handler relies on (remove, then add, then
+// set), and it allocates nothing. It replaces a grouping that returned a
+// 256-entry array of slices BY VALUE and heap-allocated one slice per touched
+// code, on every destination of every fan-out.
+//
+// Insertion sort rather than sort.Slice: the operation count is a handful, and
+// sort.Slice would allocate a reflect-based swapper.
+func (a *ModAccumulator) GroupedOps() []AttrOp {
+	if a.grouped {
+		return a.ops
+	}
+	a.grouped = true
+	for i := 1; i < len(a.ops); i++ {
+		op := a.ops[i]
+		j := i - 1
+		for j >= 0 && a.ops[j].Code > op.Code {
+			a.ops[j+1] = a.ops[j]
+			j--
+		}
+		a.ops[j+1] = op
+	}
+	return a.ops
+}
 
 // Filter describes one plugin's contribution to the BGP route filter
 // pipeline: an optional ingress filter, an optional egress filter, and the

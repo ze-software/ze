@@ -728,37 +728,28 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 }
 
 // otcAttrModHandler is the AttrModHandler for OTC (type 35).
-// Called by the progressive build during the attribute walk.
-// src is the source OTC attribute bytes (nil if absent).
-// ops contains the set operation with pre-built 4-byte ASN value bytes.
-// Writes the complete 7-byte OTC attribute (header + value) into buf at off.
-// Returns the new offset after written bytes.
+//
+// It PLANS the attribute rather than writing it: the plan carries the exact
+// output size, so the buffer the rebuild acquires already has room and the old
+// "buffer overflow, skipping stamp" branch cannot occur. That branch was
+// fail-open — it silently emitted a route missing the marker RFC 9234 requires.
 //
 // RFC 9234 Section 5: "Once the OTC Attribute has been set, it MUST be preserved unchanged."
-// If source already has OTC, it is copied unchanged (set op is ignored).
-func otcAttrModHandler(src []byte, ops []filterapi.AttrOp, buf []byte, off int) int {
+// If the source already has OTC it is kept unchanged and the set op is ignored.
+func otcAttrModHandler(p *filterapi.AttrPlan) {
 	// OTC already present in source: preserve unchanged.
-	if len(src) > 0 {
-		if off+len(src) > len(buf) {
-			return off
-		}
-		copy(buf[off:], src)
-		return off + len(src)
+	if p.Source() != nil {
+		p.KeepAll()
+		return
 	}
 	// OTC absent: create from the first set op's value bytes.
-	for _, op := range ops {
+	for i, op := range p.Ops() {
 		if op.Action != filterapi.AttrModSet || len(op.Buf) != otcAttrLen {
 			continue
 		}
-		if off+otcWireLen > len(buf) {
-			logger().Warn("OTC attr mod handler: buffer overflow, skipping stamp")
-			return off
-		}
-		buf[off] = otcAttrFlags
-		buf[off+1] = otcAttrCode
-		buf[off+2] = otcAttrLen
-		copy(buf[off+3:], op.Buf)
-		return off + otcWireLen
+		p.Op(i)
+		p.Emit(otcAttrFlags, otcAttrCode)
+		return
 	}
-	return off
+	p.Drop()
 }

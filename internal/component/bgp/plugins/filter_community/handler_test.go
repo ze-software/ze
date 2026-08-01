@@ -16,15 +16,112 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
-// buildFullCommunityAttr builds a full COMMUNITY attribute (flags+code+extlen+data) for handler tests.
-// Matches the format that buildModifiedPayload passes to AttrModHandlers.
-func buildFullCommunityAttr(data []byte) []byte {
+// buildFullAttr builds a full community-family attribute (flags+code+extlen+data)
+// for handler tests. Matches the format that buildModifiedPayload passes to
+// AttrModHandlers.
+func buildFullAttr(code byte, data []byte) []byte {
 	attr := make([]byte, 4+len(data))
 	attr[0] = 0xC0 | 0x10 // Optional Transitive + Extended Length
-	attr[1] = byte(attribute.AttrCommunity)
+	attr[1] = code
 	binary.BigEndian.PutUint16(attr[2:4], uint16(len(data))) //nolint:gosec // test data
 	copy(attr[4:], data)
 	return attr
+}
+
+// buildFullCommunityAttr builds a full COMMUNITY attribute (flags+code+extlen+data) for handler tests.
+// Matches the format that buildModifiedPayload passes to AttrModHandlers.
+func buildFullCommunityAttr(data []byte) []byte {
+	return buildFullAttr(byte(attribute.AttrCommunity), data)
+}
+
+// planAttr drives an AttrModHandler over a synthetic one-attribute section and
+// returns the finished edit set together with the slot the handler planned.
+//
+// A handler no longer writes bytes: it describes the output, and the edit set is
+// what materializes it. A test therefore reads the outcome through the same
+// accessors the rebuild uses, rather than through a returned offset.
+func planAttr(h filterapi.AttrModHandler, code uint8, srcAttr []byte, ops []filterapi.AttrOp) (*filterapi.EditSet, filterapi.SlotID) {
+	mods := &filterapi.ModAccumulator{}
+	edit := mods.EditSet()
+	edit.Begin()
+
+	var src []byte
+	srcOff, srcLen, valOff, valLen := 0, 0, 0, 0
+	if len(srcAttr) > 0 {
+		hdr := 3
+		if srcAttr[0]&0x10 != 0 {
+			hdr = 4
+		}
+		src = srcAttr
+		srcLen = len(srcAttr)
+		valOff, valLen = hdr, len(srcAttr)-hdr
+	}
+
+	p := edit.Attr(code, src, srcOff, srcLen, valOff, valLen, ops, 0)
+	h(p)
+	id := edit.Commit(p)
+	return edit, id
+}
+
+// planHandlerBytes runs a handler over a synthetic one-attribute section and
+// returns the bytes it plans. ok is false when the plan dropped or refused.
+//
+// srcAttr is passed to SlotWrite as the attribute section because a KeepAll plan
+// emits the source attribute verbatim, and the writer reads those bytes from the
+// section rather than from the plan.
+func planHandlerBytes(h filterapi.AttrModHandler, code uint8, srcAttr []byte, ops []filterapi.AttrOp) (out []byte, ok bool) {
+	edit, id := planAttr(h, code, srcAttr, ops)
+	if edit.SlotFailed(id) || edit.SlotDropped(id) {
+		return nil, false
+	}
+	n := edit.SlotSize(id)
+	buf := make([]byte, n)
+	if got := edit.SlotWrite(id, srcAttr, ops, buf, 0); got != n {
+		return nil, false
+	}
+	return buf, true
+}
+
+// handlerForWidth maps a community value width to the handler and attribute code
+// that own it. ok is false for a width no community family uses.
+func handlerForWidth(width int) (filterapi.AttrModHandler, byte, bool) {
+	switch width {
+	case 4:
+		return communityAttrModHandler, byte(attribute.AttrCommunity), true
+	case 8:
+		return extCommunityAttrModHandler, byte(attribute.AttrExtCommunity), true
+	case 12:
+		return largeCommunityAttrModHandler, byte(attribute.AttrLargeCommunity), true
+	}
+	return nil, 0, false
+}
+
+// removeViaHandler reproduces, through the migrated handler, the contract the
+// old removeValues helper carried: apply ONE Remove operation of arbitrary arity
+// to a list of wire values, and report both the retained bytes and whether the
+// operation was well-formed.
+//
+// removeValues computed the retained list itself. The handler now names each
+// retained run as a fragment over bytes already on the wire, so the retained list
+// is read back out of the attribute the plan emits. The refusal signal is
+// wholeValues, which is the guard the handler consults before it interprets a
+// Remove buffer at all: a buffer that is not a whole number of values removes
+// nothing, so the emitted value equals the input.
+func removeViaHandler(t *testing.T, data []byte, width int, toRemove []byte) (got []byte, ok bool) {
+	t.Helper()
+	h, code, known := handlerForWidth(width)
+	require.True(t, known, "unsupported community value width %d", width)
+
+	ops := []filterapi.AttrOp{{Code: code, Action: filterapi.AttrModRemove, Buf: toRemove}}
+	out, emitted := planHandlerBytes(h, code, buildFullAttr(code, data), ops)
+	ok = wholeValues(toRemove, width)
+	if !emitted {
+		// Every value was removed: the attribute leaves the UPDATE, so nothing
+		// is retained.
+		return []byte{}, ok
+	}
+	// These handlers always emit the 4-byte extended-length header.
+	return out[4:], ok
 }
 
 // buildCommunityValues builds raw community value bytes (4 bytes each).
@@ -50,19 +147,19 @@ func TestCommunityAttrModHandlerAdd(t *testing.T) {
 	binary.BigEndian.PutUint32(addBuf, 0x0002_0002)
 	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModAdd, Buf: addBuf}}
 
-	buf := make([]byte, 256)
-	off := communityAttrModHandler(src, ops, buf, 0)
+	out, ok := planHandlerBytes(communityAttrModHandler, byte(attribute.AttrCommunity), src, ops)
+	require.True(t, ok, "the plan must emit the attribute")
 
 	// Should have: flags(1) + code(1) + extlen(2) + data(8) = 12 bytes
-	require.Equal(t, 12, off)
-	assert.Equal(t, byte(0xC0|0x10), buf[0])
-	assert.Equal(t, byte(attribute.AttrCommunity), buf[1])
-	dataLen := int(binary.BigEndian.Uint16(buf[2:4]))
+	require.Len(t, out, 12)
+	assert.Equal(t, byte(0xC0|0x10), out[0])
+	assert.Equal(t, byte(attribute.AttrCommunity), out[1])
+	dataLen := int(binary.BigEndian.Uint16(out[2:4]))
 	assert.Equal(t, 8, dataLen)
 
 	// Verify both communities present with correct wire encoding.
-	assert.Equal(t, uint32(0x0001_0001), binary.BigEndian.Uint32(buf[4:8]))
-	assert.Equal(t, uint32(0x0002_0002), binary.BigEndian.Uint32(buf[8:12]))
+	assert.Equal(t, uint32(0x0001_0001), binary.BigEndian.Uint32(out[4:8]))
+	assert.Equal(t, uint32(0x0002_0002), binary.BigEndian.Uint32(out[8:12]))
 }
 
 // TestCommunityAttrModHandlerRemove verifies that AttrModRemove removes matching
@@ -79,13 +176,13 @@ func TestCommunityAttrModHandlerRemove(t *testing.T) {
 	binary.BigEndian.PutUint32(rmBuf, 0x0001_0001)
 	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModRemove, Buf: rmBuf}}
 
-	buf := make([]byte, 256)
-	off := communityAttrModHandler(src, ops, buf, 0)
+	out, ok := planHandlerBytes(communityAttrModHandler, byte(attribute.AttrCommunity), src, ops)
+	require.True(t, ok, "the plan must emit the attribute")
 
-	require.Equal(t, 8, off)
-	dataLen := int(binary.BigEndian.Uint16(buf[2:4]))
+	require.Len(t, out, 8)
+	dataLen := int(binary.BigEndian.Uint16(out[2:4]))
 	assert.Equal(t, 4, dataLen)
-	assert.Equal(t, uint32(0x0002_0002), binary.BigEndian.Uint32(buf[4:8]))
+	assert.Equal(t, uint32(0x0002_0002), binary.BigEndian.Uint32(out[4:8]))
 }
 
 // TestCommunityAttrModHandlerRemoveAll verifies that removing all values
@@ -100,10 +197,10 @@ func TestCommunityAttrModHandlerRemoveAll(t *testing.T) {
 	binary.BigEndian.PutUint32(rmBuf, 0x0001_0001)
 	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModRemove, Buf: rmBuf}}
 
-	buf := make([]byte, 256)
-	off := communityAttrModHandler(src, ops, buf, 0)
+	out, ok := planHandlerBytes(communityAttrModHandler, byte(attribute.AttrCommunity), src, ops)
 
-	assert.Equal(t, 0, off, "all removed: attribute omitted")
+	assert.False(t, ok, "all removed: the plan drops the attribute")
+	assert.Empty(t, out, "all removed: attribute omitted")
 }
 
 // TestCommunityAttrModHandlerCreateAbsent verifies that AttrModAdd with nil src
@@ -116,17 +213,23 @@ func TestCommunityAttrModHandlerCreateAbsent(t *testing.T) {
 	binary.BigEndian.PutUint32(addBuf, 0x0003_0003)
 	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModAdd, Buf: addBuf}}
 
-	buf := make([]byte, 256)
-	off := communityAttrModHandler(nil, ops, buf, 0) // nil src = attribute absent
+	// nil src = attribute absent.
+	out, ok := planHandlerBytes(communityAttrModHandler, byte(attribute.AttrCommunity), nil, ops)
+	require.True(t, ok, "the plan must emit the attribute")
 
-	require.Equal(t, 8, off)
-	assert.Equal(t, byte(0xC0|0x10), buf[0])
-	assert.Equal(t, byte(attribute.AttrCommunity), buf[1])
-	assert.Equal(t, uint32(0x0003_0003), binary.BigEndian.Uint32(buf[4:8]))
+	require.Len(t, out, 8)
+	assert.Equal(t, byte(0xC0|0x10), out[0])
+	assert.Equal(t, byte(attribute.AttrCommunity), out[1])
+	assert.Equal(t, uint32(0x0003_0003), binary.BigEndian.Uint32(out[4:8]))
 }
 
-// TestCommunityAttrModHandlerBoundsCheck verifies that the handler returns off
+// TestCommunityAttrModHandlerBoundsCheck verifies that the write returns off
 // unchanged when the output buffer is too small.
+//
+// The bound moved with the contract: a handler no longer touches the output
+// buffer, so the check now sits in SlotWrite, which is the only code that does.
+// The guarantee is the same one the handler used to carry -- a short buffer is
+// left untouched and the offset does not advance.
 //
 // VALIDATES: Finding 3 -- bounds check before writing to buf.
 // PREVENTS: Panic from writing past buffer end.
@@ -135,9 +238,13 @@ func TestCommunityAttrModHandlerBoundsCheck(t *testing.T) {
 	binary.BigEndian.PutUint32(addBuf, 0x0001_0001)
 	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModAdd, Buf: addBuf}}
 
+	edit, id := planAttr(communityAttrModHandler, byte(attribute.AttrCommunity), nil, ops)
+	require.Equal(t, 8, edit.SlotSize(id), "the plan needs header(4) + data(4)")
+
 	tinyBuf := make([]byte, 4) // Too small for header(4) + data(4)
-	off := communityAttrModHandler(nil, ops, tinyBuf, 0)
+	off := edit.SlotWrite(id, nil, ops, tinyBuf, 0)
 	assert.Equal(t, 0, off, "should return off unchanged when buffer too small")
+	assert.Equal(t, make([]byte, 4), tinyBuf, "a short buffer must not be written at all")
 }
 
 // TestLargeCommunityAttrModHandler verifies Add for large communities
@@ -152,17 +259,17 @@ func TestLargeCommunityAttrModHandler(t *testing.T) {
 	binary.BigEndian.PutUint32(addBuf[8:12], 2)
 	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrLargeCommunity), Action: filterapi.AttrModAdd, Buf: addBuf}}
 
-	buf := make([]byte, 256)
-	off := largeCommunityAttrModHandler(nil, ops, buf, 0)
+	out, ok := planHandlerBytes(largeCommunityAttrModHandler, byte(attribute.AttrLargeCommunity), nil, ops)
+	require.True(t, ok, "the plan must emit the attribute")
 
-	require.Equal(t, 16, off) // flags(1) + code(1) + extlen(2) + data(12)
-	assert.Equal(t, byte(attribute.AttrLargeCommunity), buf[1])
-	dataLen := int(binary.BigEndian.Uint16(buf[2:4]))
+	require.Len(t, out, 16) // flags(1) + code(1) + extlen(2) + data(12)
+	assert.Equal(t, byte(attribute.AttrLargeCommunity), out[1])
+	dataLen := int(binary.BigEndian.Uint16(out[2:4]))
 	assert.Equal(t, 12, dataLen)
 	// Verify actual wire values.
-	assert.Equal(t, uint32(65000), binary.BigEndian.Uint32(buf[4:8]))
-	assert.Equal(t, uint32(1), binary.BigEndian.Uint32(buf[8:12]))
-	assert.Equal(t, uint32(2), binary.BigEndian.Uint32(buf[12:16]))
+	assert.Equal(t, uint32(65000), binary.BigEndian.Uint32(out[4:8]))
+	assert.Equal(t, uint32(1), binary.BigEndian.Uint32(out[8:12]))
+	assert.Equal(t, uint32(2), binary.BigEndian.Uint32(out[12:16]))
 }
 
 // TestExtCommunityAttrModHandler verifies Add for extended communities
@@ -174,15 +281,15 @@ func TestExtCommunityAttrModHandler(t *testing.T) {
 	addBuf := []byte{0x00, 0x02, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64} // target:65000:100
 	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrExtCommunity), Action: filterapi.AttrModAdd, Buf: addBuf}}
 
-	buf := make([]byte, 256)
-	off := extCommunityAttrModHandler(nil, ops, buf, 0)
+	out, ok := planHandlerBytes(extCommunityAttrModHandler, byte(attribute.AttrExtCommunity), nil, ops)
+	require.True(t, ok, "the plan must emit the attribute")
 
-	require.Equal(t, 12, off) // flags(1) + code(1) + extlen(2) + data(8)
-	assert.Equal(t, byte(attribute.AttrExtCommunity), buf[1])
-	dataLen := int(binary.BigEndian.Uint16(buf[2:4]))
+	require.Len(t, out, 12) // flags(1) + code(1) + extlen(2) + data(8)
+	assert.Equal(t, byte(attribute.AttrExtCommunity), out[1])
+	dataLen := int(binary.BigEndian.Uint16(out[2:4]))
 	assert.Equal(t, 8, dataLen)
 	// Verify actual wire bytes.
-	assert.Equal(t, addBuf, buf[4:12])
+	assert.Equal(t, addBuf, out[4:12])
 }
 
 // TestCommunityAttrModHandlerSet verifies that AttrModSet replaces all data.
@@ -198,13 +305,13 @@ func TestCommunityAttrModHandlerSet(t *testing.T) {
 	binary.BigEndian.PutUint32(setBuf, 0x0003_0003)
 	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModSet, Buf: setBuf}}
 
-	buf := make([]byte, 256)
-	off := communityAttrModHandler(src, ops, buf, 0)
+	out, ok := planHandlerBytes(communityAttrModHandler, byte(attribute.AttrCommunity), src, ops)
+	require.True(t, ok, "the plan must emit the attribute")
 
-	require.Equal(t, 8, off) // header(4) + one community(4)
-	assert.Equal(t, uint32(0x0003_0003), binary.BigEndian.Uint32(buf[4:8]))
+	require.Len(t, out, 8) // header(4) + one community(4)
+	assert.Equal(t, uint32(0x0003_0003), binary.BigEndian.Uint32(out[4:8]))
 	// Old values should NOT be present.
-	dataLen := int(binary.BigEndian.Uint16(buf[2:4]))
+	dataLen := int(binary.BigEndian.Uint16(out[2:4]))
 	assert.Equal(t, 4, dataLen, "Set should produce exactly 1 community")
 }
 
@@ -226,14 +333,14 @@ func TestCommunityAttrModHandlerNonExtendedSrc(t *testing.T) {
 	binary.BigEndian.PutUint32(addBuf, 0x0002_0002)
 	ops := []filterapi.AttrOp{{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModAdd, Buf: addBuf}}
 
-	buf := make([]byte, 256)
-	off := communityAttrModHandler(src, ops, buf, 0)
+	out, ok := planHandlerBytes(communityAttrModHandler, byte(attribute.AttrCommunity), src, ops)
+	require.True(t, ok, "the plan must emit the attribute")
 
 	// Output should be extended-length (4-byte header) with both communities.
-	require.Equal(t, 12, off)
-	assert.Equal(t, byte(0xC0|0x10), buf[0], "output should use extended length")
-	assert.Equal(t, uint32(0x0001_0001), binary.BigEndian.Uint32(buf[4:8]))
-	assert.Equal(t, uint32(0x0002_0002), binary.BigEndian.Uint32(buf[8:12]))
+	require.Len(t, out, 12)
+	assert.Equal(t, byte(0xC0|0x10), out[0], "output should use extended length")
+	assert.Equal(t, uint32(0x0001_0001), binary.BigEndian.Uint32(out[4:8]))
+	assert.Equal(t, uint32(0x0002_0002), binary.BigEndian.Uint32(out[8:12]))
 }
 
 // TestApplyEgressFilterOps verifies that applyEgressFilter accumulates the
@@ -284,11 +391,16 @@ func TestApplyEgressFilterOps(t *testing.T) {
 // PREVENTS: the leak this spec exists for. Before the fix the size guard saw
 // 8 bytes against a 4-byte value width, returned the list untouched, and both
 // control communities reached the route-server client.
+//
+// The removeValues helper this test drove no longer exists: the handler plans
+// the retained runs as fragments instead of computing a new list. removeViaHandler
+// puts the same question to the handler and reads the retained values back out of
+// the attribute it emits.
 func TestRemoveValuesMultiValueBuffer(t *testing.T) {
 	data := buildCommunityValues(0x0000_FDE9, 0x0001_0001, 0x0000_FDEA, 0x0002_0002)
 	toRemove := buildCommunityValues(0x0000_FDE9, 0x0000_FDEA)
 
-	got, ok := removeValues(data, 4, toRemove)
+	got, ok := removeViaHandler(t, data, 4, toRemove)
 
 	require.True(t, ok, "a whole number of values is a valid buffer")
 	assert.Equal(t, buildCommunityValues(0x0001_0001, 0x0002_0002), got,
@@ -307,7 +419,7 @@ func TestRemoveValuesSingleUnchanged(t *testing.T) {
 	data := buildCommunityValues(0x0001_0001, 0x0002_0002, 0x0003_0003)
 	toRemove := buildCommunityValues(0x0002_0002)
 
-	got, ok := removeValues(data, 4, toRemove)
+	got, ok := removeViaHandler(t, data, 4, toRemove)
 
 	require.True(t, ok)
 	assert.Equal(t, buildCommunityValues(0x0001_0001, 0x0003_0003), got)
@@ -327,7 +439,7 @@ func TestRemoveValuesNonMultipleRefusedLoudly(t *testing.T) {
 	data := buildCommunityValues(0x0001_0001, 0x0002_0002)
 	toRemove := []byte{0x00, 0x01, 0x00, 0x02, 0xFF} // 5 bytes, width 4
 
-	got, ok := removeValues(data, 4, toRemove)
+	got, ok := removeViaHandler(t, data, 4, toRemove)
 
 	assert.False(t, ok, "a non-multiple length is a caller-contract violation")
 	assert.Equal(t, data, got, "data is preserved unchanged when the op is refused")
@@ -353,15 +465,15 @@ func TestGenericCommunityHandlerWarnsOnNonMultiple(t *testing.T) {
 		{Code: byte(attribute.AttrCommunity), Action: filterapi.AttrModRemove, Buf: buildCommunityValues(0x0001_0001)},
 	}
 
-	buf := make([]byte, 256)
-	off := communityAttrModHandler(src, ops, buf, 0)
+	attr, emitted := planHandlerBytes(communityAttrModHandler, byte(attribute.AttrCommunity), src, ops)
 
 	out := logged.String()
 	assert.Contains(t, out, "level=WARN", "the refusal must be reported, not swallowed")
 	assert.Contains(t, out, "3", "the message names the offending buffer length")
 
-	require.Equal(t, 8, off, "the well-formed sibling op still applied")
-	assert.Equal(t, uint32(0x0002_0002), binary.BigEndian.Uint32(buf[4:8]),
+	require.True(t, emitted, "the plan must emit the attribute")
+	require.Len(t, attr, 8, "the well-formed sibling op still applied")
+	assert.Equal(t, uint32(0x0002_0002), binary.BigEndian.Uint32(attr[4:8]),
 		"only the value named by the VALID op was removed")
 }
 
@@ -392,12 +504,12 @@ func TestRemoveValuesAllWidths(t *testing.T) {
 			data := append(append(append([]byte{}, val(1)...), val(2)...), val(3)...)
 			toRemove := append(append([]byte{}, val(1)...), val(3)...)
 
-			got, ok := removeValues(data, tc.width, toRemove)
+			got, ok := removeViaHandler(t, data, tc.width, toRemove)
 
 			require.True(t, ok)
 			assert.Equal(t, val(2), got, "both listed values removed at width %d", tc.width)
 
-			short, ok := removeValues(data, tc.width, val(1)[:tc.width-1])
+			short, ok := removeViaHandler(t, data, tc.width, val(1)[:tc.width-1])
 			assert.False(t, ok, "a non-multiple length is refused at width %d", tc.width)
 			assert.Equal(t, data, short)
 		})
@@ -419,10 +531,10 @@ func TestRemoveValuesMultiRemovingEverythingOmitsAttribute(t *testing.T) {
 		Buf:    buildCommunityValues(0x0000_FDE9, 0x0000_FDEA),
 	}}
 
-	buf := make([]byte, 256)
-	off := communityAttrModHandler(src, ops, buf, 0)
+	out, ok := planHandlerBytes(communityAttrModHandler, byte(attribute.AttrCommunity), src, ops)
 
-	assert.Equal(t, 0, off, "every value removed: attribute omitted entirely")
+	assert.False(t, ok, "every value removed: the plan drops the attribute")
+	assert.Empty(t, out, "every value removed: attribute omitted entirely")
 }
 
 // countingCounter and countingRegistry are the smallest metrics.Registry that
@@ -505,8 +617,7 @@ func TestGenericCommunityHandlerCountsRefusals(t *testing.T) {
 		Action: filterapi.AttrModRemove,
 		Buf:    buildCommunityValues(0x0001_0001),
 	}}
-	buf := make([]byte, 256)
-	communityAttrModHandler(src, good, buf, 0)
+	planHandlerBytes(communityAttrModHandler, byte(attribute.AttrCommunity), src, good)
 	// Assert on the ABSENCE of the series, not on its value: SetMetricsRegistry
 	// creates the vector eagerly, so reg.vec is already non-nil here and only a
 	// With() call -- i.e. an actual refusal -- creates the per-label counter.
@@ -518,7 +629,7 @@ func TestGenericCommunityHandlerCountsRefusals(t *testing.T) {
 		Action: filterapi.AttrModRemove,
 		Buf:    []byte{0x00, 0x01, 0x00},
 	}}
-	communityAttrModHandler(src, bad, buf, 0)
+	planHandlerBytes(communityAttrModHandler, byte(attribute.AttrCommunity), src, bad)
 
 	require.NotNil(t, reg.vec, "the refusal must have created the counter vector")
 	assert.Equal(t, 1, reg.vec.seen["community"].n)

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
 // VALIDATES: AC-2 — the reason label set of ze_bgp_update_modify_failed_total is
@@ -56,6 +57,68 @@ func TestModifyFailureLabelsAreClosedAndStable(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-15 — the modify-failure warning is bounded to one line per
+// reason per interval, and the next emitted line reports how many were swallowed
+// so the rate is still visible.
+// PREVENTS: the log amplification an independent review found after T1-1 shipped.
+// The failure fires once per DESTINATION at the peer's send rate, so a fan-out of
+// N turned one bad UPDATE into N warnings. That is a logging denial of service
+// against the operator, on a path a peer influences.
+//
+// Time is injected rather than slept on: a test that waits out a real second
+// asserts on elapsed time, which is the load-sensitive shape ai/rules/fix-dont-record.md
+// bans.
+func TestModifyFailureLogRateLimits(t *testing.T) {
+	var l modifyFailureLog
+	const t0 = int64(1_000_000_000)
+
+	emit, suppressed := l.allow(modifyFailureOverflow, t0)
+	require.True(t, emit, "the first failure of a reason must always be logged")
+	assert.Zero(t, suppressed, "nothing was swallowed before the first line")
+
+	for i := range 500 {
+		emit, _ := l.allow(modifyFailureOverflow, t0+int64(i))
+		require.False(t, emit, "a burst inside the window must be swallowed, not logged")
+	}
+
+	// A different reason has its own window, so one noisy reason cannot mute another.
+	emit, _ = l.allow(modifyFailureNoHandler, t0+1)
+	assert.True(t, emit, "each reason carries its own bound")
+
+	// Past the window, the next line reports the burst it swallowed.
+	emit, suppressed = l.allow(modifyFailureOverflow, t0+int64(modifyFailureLogInterval)+1)
+	require.True(t, emit, "the window must reopen")
+	assert.Equal(t, uint64(500), suppressed,
+		"the emitted line must carry the count it replaced, or the rate is invisible")
+
+	// The count resets, so the next line does not re-report the same burst.
+	for range 3 {
+		l.allow(modifyFailureOverflow, t0+int64(modifyFailureLogInterval)+2)
+	}
+	_, suppressed = l.allow(modifyFailureOverflow, t0+2*int64(modifyFailureLogInterval)+3)
+	assert.Equal(t, uint64(3), suppressed, "each line reports only its own window")
+}
+
+// VALIDATES: AC-15 — the limiter's per-reason arrays cover every declared reason,
+// and a value outside the set is folded in rather than dropped or panicking.
+// PREVENTS: a reason added to the iota block below modifyFailureCount, which
+// would size the arrays without being reachable through them and index out of
+// range on the first failure of that kind.
+func TestModifyFailureLogCoversEveryReason(t *testing.T) {
+	var l modifyFailureLog
+	require.Equal(t, int(modifyFailureCount), len(l.nextAllowed),
+		"the limiter must have a slot for every declared reason")
+
+	for f := modifyFailure(0); f < modifyFailureCount; f++ {
+		emit, _ := l.allow(f, 1)
+		assert.True(t, emit, "%s must get its own first line", f.String())
+	}
+
+	// A value no constant produced: folded in, never a panic and never silence.
+	assert.NotPanics(t, func() { l.allow(modifyFailure(200), 1) },
+		"an out-of-range reason must fold into the closed set, as String() already does")
+}
+
 // VALIDATES: AC-3 — "nothing to modify" is NOT a failure. The route is forwarded
 // as-is and no counter increments.
 // PREVENTS: The legitimate empty case being counted as a modify failure, which
@@ -72,34 +135,42 @@ func TestBuildModifiedPayloadNoModsIsNotFailure(t *testing.T) {
 	assert.False(t, fail.failed(), "caller must forward, not suppress")
 }
 
-// VALIDATES: AC-1 — an overflow during the attribute walk is reported as a
-// FAILURE, distinguishable from "nothing to modify".
+// VALIDATES: AC-1 — a modification whose exact size exceeds the RFC 8654 body
+// ceiling is reported as a FAILURE, distinguishable from "nothing to modify".
 // PREVENTS: The fail-open this spec exists to close. Before this, an oversize
 // modification returned the same nil as the empty case and every caller
 // forwarded the route UNMODIFIED, leaking whatever the policy was stripping.
+//
+// The mechanism changed with the exactly-sized rebuild and the assertion did
+// not. Overflow used to mean "the handler wrote past the slack buffer", which
+// cannot happen once the buffer is sized from the plan. It now means the only
+// oversize left: an edit whose exact body would exceed the 65516-octet ceiling
+// RFC 8654 sets, and which therefore fits no peer under any negotiated size.
 func TestBuildModifiedPayloadOverflowReportsFailure(t *testing.T) {
-	origin := makeAttr(0x40, 1, []byte{0x00})
-	localPref := makeAttr(0x40, 5, []byte{0, 0, 0, 100})
-	attrs := slices.Concat(origin, localPref)
-	payload := buildModTestPayload(attrs, []byte{24, 10, 0, 0})
+	// A source attribute section just under the 2-octet Total Path Attribute
+	// Length ceiling, plus an NLRI tail, so the BODY crosses 65516 while the
+	// attribute section stays inside 65535 and reports this failure rather than
+	// the attr-length one.
+	bigValue := make([]byte, 65000)
+	bigAttr := make([]byte, 4+len(bigValue))
+	bigAttr[0] = 0xD0 // optional, transitive, extended length
+	bigAttr[1] = 99
+	binary.BigEndian.PutUint16(bigAttr[2:4], uint16(len(bigValue)))
+	copy(bigAttr[4:], bigValue)
+	payload := buildModTestPayload(bigAttr, make([]byte, 2000))
 
-	// Fill the buffer so the verbatim LOCAL_PREF copy cannot fit.
-	bigHandler := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, buf []byte, off int) int {
-		n := len(buf) - off - 6 // LOCAL_PREF needs 7
-		if n <= 0 || off+n > len(buf) {
-			return off
-		}
-		for i := range n {
-			buf[off+i] = 0xAA
-		}
-		return off + n
+	// A new attribute of 4 + 500 bytes: the section reaches 65508, still inside
+	// the 2-octet field, while the body reaches 67512.
+	addHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		p.Op(0)
+		p.Emit(0xC0, p.Code())
 	})
 
 	var mods filterapi.ModAccumulator
-	mods.Op(1, filterapi.AttrModSet, []byte{0x00})
+	mods.Op(200, filterapi.AttrModSet, make([]byte, 500))
 
 	result, _, fail := buildModifiedPayload(payload, &mods,
-		map[uint8]filterapi.AttrModHandler{1: bigHandler}, nil, nil)
+		map[uint8]filterapi.AttrModHandler{200: addHandler}, nil, nil)
 
 	require.Nil(t, result, "overflow produces no payload")
 	assert.Equal(t, modifyFailureOverflow, fail, "overflow must name itself")
@@ -122,21 +193,15 @@ func TestBuildModifiedPayloadAttrLenRangeReportsFailure(t *testing.T) {
 	copy(bigAttr[4:], bigValue)
 	payload := buildModTestPayload(bigAttr, make([]byte, 2000))
 
-	// Source attrs occupy 65004. 600 more crosses the 2-octet field at 65535
-	// while staying inside the buffer.
-	bigHandler := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, buf []byte, off int) int {
-		n := 600
-		if off+n > len(buf) {
-			return off
-		}
-		for i := range n {
-			buf[off+i] = 0xFF
-		}
-		return off + n
+	// Source attrs occupy 65004. A 4 + 600 byte attribute crosses the 2-octet
+	// Total Path Attribute Length field at 65535.
+	bigHandler := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		p.Op(0)
+		p.Emit(0xC0, p.Code())
 	})
 
 	var mods filterapi.ModAccumulator
-	mods.Op(200, filterapi.AttrModSet, []byte{0x01})
+	mods.Op(200, filterapi.AttrModSet, make([]byte, 600))
 
 	result, _, fail := buildModifiedPayload(payload, &mods,
 		map[uint8]filterapi.AttrModHandler{200: bigHandler}, nil, nil)
@@ -205,11 +270,15 @@ func TestBuildModifiedPayloadUnappliedModificationIsFailure(t *testing.T) {
 	community := makeAttr(0xC0, 8, []byte{0x00, 0x64, 0x00, 0x01})
 	nlri := []byte{24, 10, 0, 0}
 
-	panicking := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, _ []byte, _ int) int {
+	panicking := filterapi.AttrModHandler(func(_ *filterapi.AttrPlan) {
 		panic("handler fault under test")
 	})
-	badOffset := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, buf []byte, _ int) int {
-		return len(buf) + 1 // outside the buffer
+	// A handler naming bytes that are not in the source value. The offset-range
+	// check this replaces guarded the same class of fault at write time; the
+	// plan refuses it at construction, before a buffer exists.
+	badFragment := filterapi.AttrModHandler(func(p *filterapi.AttrPlan) {
+		p.Keep(0, 1<<20) // far outside the source value
+		p.Emit(0xC0, p.Code())
 	})
 
 	cases := []struct {
@@ -252,9 +321,9 @@ func TestBuildModifiedPayloadUnappliedModificationIsFailure(t *testing.T) {
 			want: modifyFailureHandlerFault,
 		},
 		{
-			name:     "handler returns an offset outside the buffer",
+			name:     "handler names bytes outside the source value",
 			payload:  buildModTestPayload(slices.Concat(origin, community), nlri),
-			handlers: map[uint8]filterapi.AttrModHandler{8: badOffset},
+			handlers: map[uint8]filterapi.AttrModHandler{8: badFragment},
 			mods: func(m *filterapi.ModAccumulator) {
 				m.Op(8, filterapi.AttrModRemove, []byte{0x00, 0x64, 0x00, 0x01})
 			},
@@ -370,20 +439,26 @@ func goldenModifyCorpus() []goldenModifyCase {
 			wantHex: "0000001940010100400504000000648009040a000001800a0400000007180a0000",
 		},
 		{
-			// Pins T2-7 rather than endorsing it. MED (code 4) is emitted AFTER
-			// LOCAL_PREF (code 5) because the forward-modify path appends new
-			// attributes after every source attribute, while both announce rails
-			// are pinned to ascending type-code order. One route can therefore
-			// reach the wire in two byte orders depending on which path built it.
-			// Tier 1 must NOT change this; umbrella child 2 merge-inserts and
-			// will legitimately update this golden.
+			// CORRECTED BY CHILD 2, and this is the ONE golden that moves.
+			//
+			// MED (code 4) used to be emitted AFTER LOCAL_PREF (code 5), because
+			// the forward-modify path appended new attributes after every source
+			// attribute while both announce rails emitted ascending type-code
+			// order. One route therefore reached the wire in two byte orders
+			// depending on which path built it. RFC 4271 Section 5 describes
+			// ascending order, so the merge-insert rebuild emits 1, 4, 5 and the
+			// two paths now agree.
+			//
+			// Every OTHER row in this corpus must stay byte-identical: they either
+			// add no attribute, or add one that already sorted last.
 			name:    "set-local-pref-and-add-med",
 			payload: buildModTestPayload(slices.Concat(origin, localPref), nlri),
 			mods: func(m *filterapi.ModAccumulator) {
 				m.Op(5, filterapi.AttrModSet, []byte{0, 0, 0, 200})
 				m.Op(4, filterapi.AttrModSet, []byte{0, 0, 0, 50})
 			},
-			wantHex: "0000001240010100400504000000c880040400000032180a0000",
+			// ORIGIN, MED=50, LOCAL_PREF=200, 10.0.0.0/24
+			wantHex: "000000124001010080040400000032400504000000c8180a0000",
 		},
 	}
 }
@@ -412,5 +487,90 @@ func TestGoldenBytesUnchangedTier1(t *testing.T) {
 			assert.Equal(t, tc.wantHex, got,
 				"Tier 1 must not change emitted bytes. If this is deliberate, it is NOT a Tier 1 item.")
 		})
+	}
+}
+
+// VALIDATES: AC-10, AC-13 -- the corpus emits the same bytes when the output
+// buffer comes from the PER-PEER pool as when it comes from the sync.Pool
+// fallback.
+// PREVENTS: the gap AC-10 claimed to cover and did not. TestGoldenBytesUnchangedTier1
+// passes pp == nil for every case, so it only ever exercised the sync.Pool
+// fallback in acquireModBuf. The per-peer branch (idx > 0) is the one the
+// forward rails actually take, and a pooled buffer handed back short or still
+// holding the previous route's bytes would not have shown up anywhere.
+//
+// The pool backing is poisoned before each case, so a result slice that reaches
+// past what the build wrote carries 0xEE and fails the hex compare rather than
+// looking plausible.
+func TestGoldenBytesUnchangedTier1PooledBuffer(t *testing.T) {
+	for _, tc := range goldenModifyCorpus() {
+		t.Run(tc.name, func(t *testing.T) {
+			pp := newPeerPool(message.MaxMsgLen)
+			// Stale bytes from a previous route, in every buffer of the pool.
+			for i := range pp.backing {
+				pp.backing[i] = 0xEE
+			}
+
+			var mods filterapi.ModAccumulator
+			tc.mods(&mods)
+
+			result, bufIdx, fail := buildModifiedPayload(tc.payload, &mods,
+				attrModHandlersWithDefaults(), pp, nil)
+
+			require.Equal(t, modifyFailureNone, fail, "corpus case must not fail on the pooled path")
+			require.NotNil(t, result, "corpus case must produce a payload")
+			require.Positive(t, bufIdx,
+				"guard: this test is about the PER-PEER pool; bufIdx 0 means it silently took the fallback and proved nothing")
+
+			got := hex.EncodeToString(result)
+			assert.Equal(t, tc.wantHex, got,
+				"a pooled output buffer must emit the same bytes as the fallback, with no stale 0xEE")
+
+			pp.Return(bufIdx)
+		})
+	}
+}
+
+// VALIDATES: AC-10, AC-13 -- a payload larger than one already built from the
+// same pooled buffer does not inherit the shorter one's tail.
+// PREVENTS: the specific dirty-buffer shape the poison above cannot reach.
+// Poisoning proves the build does not read bytes it never wrote; this proves it
+// does not read bytes IT wrote on a previous route, which is the realistic
+// failure because a recycled buffer holds a well-formed UPDATE rather than 0xEE.
+func TestPooledBufferIsNotReusedDirty(t *testing.T) {
+	corpus := goldenModifyCorpus()
+	require.GreaterOrEqual(t, len(corpus), 2, "guard: this test needs two differently sized cases")
+
+	pp := newPeerPool(message.MaxMsgLen)
+
+	// Longest case first, so the buffer is left holding its bytes.
+	var longest goldenModifyCase
+	for _, tc := range corpus {
+		if len(tc.wantHex) > len(longest.wantHex) {
+			longest = tc
+		}
+	}
+	var shortest goldenModifyCase
+	shortest.wantHex = longest.wantHex
+	for _, tc := range corpus {
+		if len(tc.wantHex) < len(shortest.wantHex) {
+			shortest = tc
+		}
+	}
+	require.NotEqual(t, longest.name, shortest.name, "guard: two distinct sizes are needed")
+
+	for _, tc := range []goldenModifyCase{longest, shortest, longest} {
+		var mods filterapi.ModAccumulator
+		tc.mods(&mods)
+
+		result, bufIdx, fail := buildModifiedPayload(tc.payload, &mods,
+			attrModHandlersWithDefaults(), pp, nil)
+
+		require.Equal(t, modifyFailureNone, fail, "%s must not fail", tc.name)
+		require.Positive(t, bufIdx, "%s must take the per-peer pool", tc.name)
+		assert.Equal(t, tc.wantHex, hex.EncodeToString(result),
+			"%s must emit its own bytes, never a tail left by the previous route", tc.name)
+
+		pp.Return(bufIdx)
 	}
 }

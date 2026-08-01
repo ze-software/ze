@@ -164,6 +164,19 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 			"peer", s.settings.Address, "count", len(result.DuplicateRanges))
 	}
 
+	// RFC 7606 Section 5.4: discard routes whose NLRI type ze does not implement, in
+	// families whose own specification has not overridden that rule. Runs on the bytes
+	// the Section 3.g strip left, so the two rewrites compose in one direction only.
+	//
+	// Skipped for treat-as-withdraw and session-reset: the first turns every route in
+	// this UPDATE into a withdrawal and the second drops the session, so there is no
+	// route left for Section 5.4 to discard and the walk would only cost time.
+	if result.Action != message.RFC7606ActionSessionReset && result.Action != message.RFC7606ActionTreatAsWithdraw {
+		wu, pathAttrs = s.applyTypedNLRIDiscard(
+			wu, pathAttrs, offset, result.MPReachNLRI, result.MPUnreachNLRI, addPathFor)
+		body = wu.Payload()
+	}
+
 	switch result.Action {
 	case message.RFC7606ActionNone:
 		return s.publishBase(wu), message.RFC7606ActionNone, nil
