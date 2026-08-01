@@ -15,7 +15,7 @@ confirmation per the git safety rules.
 
 Standing exceptions, where asking is MANDATORY and this rule does not apply:
 
-- **RFC compliance.** When full RFC compliance and full testing of that compliance is one of the answers on the table, stop and ask Thomas rather than choosing anything narrower (`ai/rules/rfc-compliance.md`, "Ask Thomas Whenever Full Compliance Is On The Table"). Asking is required only when you are about to do LESS; doing more never needs permission.
+- **RFC compliance.** When full RFC compliance and full testing of that compliance is reachable, IMPLEMENT it and prove it: that is not a question for Thomas (`ai/rules/rfc-compliance.md`, "Implement Full Compliance. Ask Thomas Only Before Doing LESS"). Asking is mandatory only when you are about to choose something NARROWER, and then the question is "which way do I fix it". Doing more never needs permission.
 - **Deleting or overwriting user-visible or uncommitted work** (`ai/rules/never-destroy-work.md`).
 - **Reducing the scope of a spec or dropping an acceptance criterion** (`ai/rules/no-partial-completion.md`).
 

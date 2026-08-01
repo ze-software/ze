@@ -265,7 +265,7 @@ is not uniform.
 | `rfc/enrolled.txt:5-8` | enrolment needs both polarities, or an annotation of `{not-applicable}`, `{gap}`, or `{single-polarity}` |
 | `scripts/dev/rfc_requirements.py:111` | `{single-polarity}` is a first-class annotation kind |
 | `scripts/dev/rfc_requirements.py:273-285` | `{single-polarity}` needs an explicit polarity AND a reason |
-| `ai/rules/rfc-compliance.md:53` | every earlier answer pointing away from full compliance or full proof is VOID |
+| `ai/rules/rfc-compliance.md:56` | every earlier answer pointing away from full compliance or full proof is VOID |
 
 **A correction to the framing that commissioned this spec.**
 `ai/rules/rfc-compliance.md` does **not** void `{single-polarity}`. The string
@@ -322,7 +322,7 @@ failure rather than swallows it. `RFC1035-3.1-1` and `RFC1035-3.1-2` reach the s
 seam through the same packer.
 
 **Route B is not recommended.** It lowers the obligation but keeps the id. That is
-exactly the shape `ai/rules/rfc-compliance.md:53` voids. It also hides the change
+exactly the shape `ai/rules/rfc-compliance.md:56` voids. It also hides the change
 from a reader who sees only the id.
 
 **Route C carries the residue.** Some rows plausibly have no Ze-reachable
@@ -734,7 +734,7 @@ disclosure surface. Both are in scope here.
 | Reject an unpackable name at config validate time | Discover it at pack time and answer SERVFAIL | `ai/rules/exact-or-reject.md` requires a config Ze cannot serve exactly to fail at verify. An operator learns at commit, not from a resolver timeout |
 | Refuse transfers by default, authorise explicitly | Serve transfers to any client, as some daemons once did | A zone transfer publishes the whole namespace. `ai/rules/fail-closed-guards.md` requires the deny path on a miss or an empty set |
 | Route A before route C for positive-only rows | Annotate all six `{single-polarity}` immediately | Investigating route A already found a reachable negative and a real defect. Annotating first would have hidden both |
-| Reject route B outright | Narrow each requirement's text to what Ze owns | It keeps the id but lowers the obligation, which is the shape `ai/rules/rfc-compliance.md:53` voids. It also hides the change from a reader who sees only the id |
+| Reject route B outright | Narrow each requirement's text to what Ze owns | It keeps the id but lowers the obligation, which is the shape `ai/rules/rfc-compliance.md:56` voids. It also hides the change from a reader who sees only the id |
 | Keep WP-4 in this spec, landed in four commits | Split WP-4 into a sibling spec now | The owner asked for full compliance including transfer. Splitting it invites the transfer half to stall. The four-commit shape keeps the gate green throughout and still splits cleanly at WP-4a if he prefers |
 
 ## Known Limitations

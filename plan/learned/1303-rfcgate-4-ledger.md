@@ -33,7 +33,7 @@ rather than merely self-consistent.
   first claims anything about conformance.
 - **The gap count is cross-checked, never generated.** Deriving Remaining text
   from `{gap}` reasons would publish a compliance claim built from
-  classifications that `ai/rules/rfc-compliance.md:53` voided as authority. A
+  classifications that `ai/rules/rfc-compliance.md:56` voided as authority. A
   count is a fact about how many annotations exist. It is never a claim that
   they are right.
 - **AC-12 reads immediate adjacency only.** A tolerance window reds four honest

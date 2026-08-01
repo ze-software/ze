@@ -2792,7 +2792,7 @@ If a file should be deleted but this rule requires permission, ask the user dire
 
 ## Directives
 Never use phrases like "would you like me to", "want me to", "shall I", or "I can" before completing work.
-- **RFC compliance.** When full RFC compliance and full testing of that compliance is one of the answers on the table, stop and ask Thomas rather than choosing anything narrower (`ai/rules/rfc-compliance.md`, "Ask Thomas Whenever Full Compliance Is On The Table"). Asking is required only when you are about to do LESS; doing more never needs permission.
+- **RFC compliance.** When full RFC compliance and full testing of that compliance is reachable, IMPLEMENT it and prove it: that is not a question for Thomas (`ai/rules/rfc-compliance.md`, "Implement Full Compliance. Ask Thomas Only Before Doing LESS"). Asking is mandatory only when you are about to choose something NARROWER, and then the question is "which way do I fix it". Doing more never needs permission.
 - **Deleting or overwriting user-visible or uncommitted work** (`ai/rules/never-destroy-work.md`).
 - **Reducing the scope of a spec or dropping an acceptance criterion** (`ai/rules/no-partial-completion.md`).
 ## Enforcement
@@ -4111,10 +4111,11 @@ Learned: `plan/learned/363-file-modularity.md`.
 ## Directives
 **Ze aims to be a model of RFC compliance, for EVERY RFC it implements.** Not
 just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RADIUS, TACACS+, gNMI, BMP, RPKI, VRRP -- every protocol surface is held to its own RFCs, and so is anything Ze speaks that has a standard...
-**Conformance is not negotiable and nothing in the repo overrides the RFC: only an explicit instruction from Thomas authorises a deviation, and only one he gives in answer to the question that "Ask Thomas Whenever Full Compliance Is On The Table" (below) requires you to put to him.**
+**Conformance is not negotiable and nothing in the repo overrides the RFC: only an explicit instruction from Thomas authorises a deviation, and only one he gives in answer to the question that "Implement Full Compliance. Ask Thomas Only Before Doing LESS" (below) requires you to put to him. That question is owed only when you are about to do less than the RFC asks. Full compliance needs no question.**
 | Situation | What you MUST do |
 |-----------|------------------|
-| Anything short of full conformance or full proof of conformance looks like the answer | You are not authorized to pick it. STOP and ask Thomas -- see "Ask Thomas Whenever Full Compliance Is On The Table" below |
+| Full conformance and full proof of it are reachable | Implement it and prove it with a tagged test. Do not ask which subset Thomas wants |
+| Anything short of full conformance or full proof of conformance looks like the answer | You are not authorized to pick it. STOP and ask Thomas -- see "Implement Full Compliance. Ask Thomas Only Before Doing LESS" below |
 | You find code that does not do what the RFC requires | Fix the code. Not later, not in a follow-up spec: a known wire-visible violation is a defect you are now the entry point for (`ai/rules/no-parking.md`) |
 | A test pins the non-conformant behaviour | The TEST is wrong. A fixture, golden file, or assertion encoding a violation is not evidence the violation is intended -- it is the violation with a green bar on top. Fix the code, then correct the test and say so |
 | A code comment calls the deviation deliberate | A comment is its author's belief, not a decision record (`ai/rules/no-fabrication.md`). Check the RFC text, then `plan/learned/` for a real ruling. Absent one, the RFC wins |
@@ -4122,9 +4123,10 @@ just BGP: IS-IS, OSPF, BFD, LDP, RSVP-TE, IKE/IPsec, L2TP, PPPoE, DHCP, NTP, RAD
 | Conforming would change behaviour operators rely on | Say so plainly and ask which way to fix it. Never silently keep the violation, and never present "leave it non-conformant" as an option |
 | An exemption genuinely applies (e.g. RFC 7947 route-server transparency) | Gate it on the exact condition the exempting RFC names. An exemption applied unconditionally is a violation for every case it was not written for |
 **Before claiming a protocol behaviour is correct, read the RFC text**, not only the summary and not only the surrounding code. Cite the section you relied on.
-## Ask Thomas Whenever Full Compliance Is On The Table (owner directive, 2026-07-27)
-**When "implement the RFC fully and prove it fully with tests" is one of the answers on the table, that is the answer -- and you are NOT authorized to choose anything narrower on your own. STOP and ask Thomas.**
+## Implement Full Compliance. Ask Thomas Only Before Doing LESS (owner directive, 2026-07-27, clarified 2026-08-01)
+**When "implement the RFC fully and prove it fully with tests" is one of the answers on the table, that IS the answer. Implement it and prove it. Thomas has already chosen, so there is nothing to put to him.**
 **Asking is required only when you are about to do LESS.** Making Ze more conformant, or better proven, never needs permission: do it, then report (`ai/rules/no-asking.md` still governs everything else). The gate exists in one direction only.
+**Two readings, and the one that governs.** "Full compliance is on the table" is a trigger to IMPLEMENT. It is never a trigger to ask. The question is owed only when you are about to choose something NARROWER than full implementation plus a tagged test, and then it is "which way do I fix it", never "may I do less". **Putting full compliance beside a narrower option and asking Thomas to pick between them breaks this rule** (`plan/learned/1314-rule-heading-inverted-its-directive.md`).
 | You are about to ... | Do instead |
 |----------------------|------------|
 | Classify a requirement `{gap}`, `{not-applicable}`, `partial`, or "does not apply to ze" | Ask. A classification that lowers what Ze owes is a decision about compliance, not bookkeeping |
@@ -4281,7 +4283,7 @@ Rules that disagree almost always disagree about one thing: whether to keep goin
 | Rung | Governs | Rules | What it does to the decision |
 |------|---------|-------|------------------------------|
 | 1 | Irreversible or destructive action | `never-destroy-work`, `git-safety` bans, `CLAUDE.md` prohibitions | STOP and ask. Nothing on any lower rung licenses it, including an explicit instruction to hurry |
-| 2 | Correctness owed to someone outside this repo | `rfc-compliance`, `interop-and-goal-validation` | When full compliance AND full proof of it is on the table, you may not pick anything narrower. Ask Thomas which way to fix it |
+| 2 | Correctness owed to someone outside this repo | `rfc-compliance`, `interop-and-goal-validation` | When full compliance AND full proof of it is reachable, IMPLEMENT it. You may not pick anything narrower, and you may not ask Thomas to pick for you. Ask only when you are about to do LESS, and then ask which way to fix it |
 | 3 | Scope integrity | `no-partial-completion`, `no-parking`, `fix-dont-record`, `no-test-deletion` | Never silently reduce scope, park a blocker, or weaken a test. If scope must change, the user decides |
 | 4 | Phase boundaries | `model-selection`, `spec-delegation`, `critical-review` | End the phase, report, and hand off. Do not cross onto the next phase in this context |
 | 5 | Autonomy | `no-asking` | Everything not caught above: finish the work, then report. Do not ask permission to do what you were already asked to do |

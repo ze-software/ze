@@ -47,7 +47,7 @@ bound is mechanical rather than asserted.
 ### The constraint OR-1 creates (BLOCKING, governs every row)
 
 **No `{gap}`, `{not-applicable}`, `partial` or `{single-polarity}` annotation may be
-written for any of the 214 rows.** `ai/rules/rfc-compliance.md:53` already voids every
+written for any of the 214 rows.** `ai/rules/rfc-compliance.md:56` already voids every
 prior annotation as authority; Thomas has now ruled explicitly in the opposite direction
 for this RFC. There is no annotation budget in this spec, not one row, and nothing here
 pre-authorises one.
@@ -194,8 +194,8 @@ this needs no cross product and no `maxIKECombinations`-style bound.
   → Constraint: the tag is `// RFC requirement: <id> <positive|negative> -- <what>`
     (`ai/skills/ze-rfc.md:259-267`), and a tagged test's behaviour may not change without
     the user's approval
-- [ ] `ai/rules/rfc-compliance.md` - "Ask Thomas Whenever Full Compliance Is On The Table"
-  → Constraint (`:53`): every earlier answer pointing away from full compliance is VOID and
+- [ ] `ai/rules/rfc-compliance.md` - "Implement Full Compliance. Ask Thomas Only Before Doing LESS"
+  → Constraint (`:56`): every earlier answer pointing away from full compliance is VOID and
     must be re-raised, never cited
 
 ### RFC Summaries (Scope: protocol)
@@ -839,7 +839,7 @@ risk, and each is its own landing (see Landing Strategy).
 | Completeness | Every one of the 214 rows has a tagged pair at `file:line`, and every one of the 108 has an implementation at `file:line` |
 | Feature completeness | Every user story has a working path: no story ends at a codec with no production consumer, which is exactly the `wire.PayloadCP` failure this spec fixes |
 | **No annotation smuggled in (umbrella R-9)** | `grep -nE "\{(gap|not-applicable|single-polarity|partial)[},:]" rfc/short/rfc7296.md` over the diff. The gate CANNOT catch this: a `{gap}` is a legal annotation. This row is the only defence, and OR-1 makes any hit a blocker unless Thomas's answer is recorded in Deviations with its date and the requirement id |
-| **Pre-existing annotations re-derived** | The three annotations at HEAD (`RFC7296-3.3-1` `:462`, `RFC7296-2.9-1` `:467`, `RFC7296-1.4-1` `:473`) are VOID as authority (`ai/rules/rfc-compliance.md:53`). Each is either cleared by the work that implements it (WP-7 clears `2.9-1`; WP-2 clears `1.4-1`) or re-raised with Thomas |
+| **Pre-existing annotations re-derived** | The three annotations at HEAD (`RFC7296-3.3-1` `:462`, `RFC7296-2.9-1` `:467`, `RFC7296-1.4-1` `:473`) are VOID as authority (`ai/rules/rfc-compliance.md:56`). Each is either cleared by the work that implements it (WP-7 clears `2.9-1`; WP-2 clears `1.4-1`) or re-raised with Thomas |
 | **Id integrity** | No existing id renumbered, reused or retired. `RFC7296-1.3.3-1` keeps its id AND its `(§1.3.3)` citation, because `parse_checklist_line` validates that they agree |
 | **Tagged-test integrity** | No existing tagged test's behaviour changed. The `rfc-tagged-test` hook blocks it and `// test-relax:` does not satisfy that gate; only the user can authorise it |
 | Correctness (fail-closed) | Every new guard denies on a miss, an unmapped input, an empty set or an error. A zero Message ID, zero SPI, empty TS set and empty attribute list are attacker-reachable and none takes a permissive default (`ai/rules/fail-closed-guards.md`) |
@@ -919,7 +919,7 @@ checks a reviewer runs against the diff.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
-| Fix all 108 inside this spec | Annotate them under Thomas's authorisation (the narrower option actually offered); split into 8-12 separate compliance specs as the walk's own cost model suggested | Owner ruling OR-1, 2026-07-29. Thomas chose the complete fix. Splitting would re-create the disclosure problem: an annotated row reads as a decision, and `ai/rules/rfc-compliance.md:53` voids exactly those decisions |
+| Fix all 108 inside this spec | Annotate them under Thomas's authorisation (the narrower option actually offered); split into 8-12 separate compliance specs as the walk's own cost model suggested | Owner ruling OR-1, 2026-07-29. Thomas chose the complete fix. Splitting would re-create the disclosure problem: an annotated row reads as a decision, and `ai/rules/rfc-compliance.md:56` voids exactly those decisions |
 | Run after child 4 rather than inside child 1 | Keep phase 8 inside `plan/spec-rfcgate-1-extraction.md` | Owner ruling OR-2. IKEv2 compliance work is orders of magnitude larger than the machinery it validates; serialising the rfcgate set behind it would strand four machinery specs |
 | Land row and proof in the same commit | Land all 237 rows first, then prove them | A row without its pair reds `ze-rfc-check`, and a red gate blocks every session's commits (`commit_helper.py` refuses a script over a non-green verify). Same-commit landing keeps the gate green at every point without any bypass |
 | Partition the 108 into 12 subsystem work packages | A flat list of 108 rows worked in id order | Id order interleaves unrelated subsystems and forces the same file to be reopened dozens of times. The packages are verified to partition the 108 exactly: no duplicate, no gap |

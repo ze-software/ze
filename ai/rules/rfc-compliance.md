@@ -14,14 +14,15 @@ You cannot write an RFC-based application and not ensure RFC compliance.
 Conformance is a property of the code, checked against the RFC text, and it is
 never traded away for convenience, for a green test, or for expedience.
 
-**Conformance is not negotiable and nothing in the repo overrides the RFC: only an explicit instruction from Thomas authorises a deviation, and only one he gives in answer to the question that "Ask Thomas Whenever Full Compliance Is On The Table" (below) requires you to put to him.**
+**Conformance is not negotiable and nothing in the repo overrides the RFC: only an explicit instruction from Thomas authorises a deviation, and only one he gives in answer to the question that "Implement Full Compliance. Ask Thomas Only Before Doing LESS" (below) requires you to put to him. That question is owed only when you are about to do less than the RFC asks. Full compliance needs no question.**
 
 When he does authorise one, record it in `plan/learned/` with the RFC section and
 the reason, so the next reader finds a decision rather than a bug.
 
 | Situation | What you MUST do |
 |-----------|------------------|
-| Anything short of full conformance or full proof of conformance looks like the answer | You are not authorized to pick it. STOP and ask Thomas -- see "Ask Thomas Whenever Full Compliance Is On The Table" below |
+| Full conformance and full proof of it are reachable | Implement it and prove it with a tagged test. Do not ask which subset Thomas wants |
+| Anything short of full conformance or full proof of conformance looks like the answer | You are not authorized to pick it. STOP and ask Thomas -- see "Implement Full Compliance. Ask Thomas Only Before Doing LESS" below |
 | You find code that does not do what the RFC requires | Fix the code. Not later, not in a follow-up spec: a known wire-visible violation is a defect you are now the entry point for (`ai/rules/no-parking.md`) |
 | A test pins the non-conformant behaviour | The TEST is wrong. A fixture, golden file, or assertion encoding a violation is not evidence the violation is intended -- it is the violation with a green bar on top. Fix the code, then correct the test and say so |
 | A code comment calls the deviation deliberate | A comment is its author's belief, not a decision record (`ai/rules/no-fabrication.md`). Check the RFC text, then `plan/learned/` for a real ruling. Absent one, the RFC wins |
@@ -33,11 +34,13 @@ the reason, so the next reader finds a decision rather than a bug.
 
 Rationale: `ai/rationale/rfc-compliance.md`
 
-## Ask Thomas Whenever Full Compliance Is On The Table (owner directive, 2026-07-27)
+## Implement Full Compliance. Ask Thomas Only Before Doing LESS (owner directive, 2026-07-27, clarified 2026-08-01)
 
-**When "implement the RFC fully and prove it fully with tests" is one of the answers on the table, that is the answer -- and you are NOT authorized to choose anything narrower on your own. STOP and ask Thomas.**
+**When "implement the RFC fully and prove it fully with tests" is one of the answers on the table, that IS the answer. Implement it and prove it. Thomas has already chosen, so there is nothing to put to him.**
 
 **Asking is required only when you are about to do LESS.** Making Ze more conformant, or better proven, never needs permission: do it, then report (`ai/rules/no-asking.md` still governs everything else). The gate exists in one direction only.
+
+**Two readings, and the one that governs.** "Full compliance is on the table" is a trigger to IMPLEMENT. It is never a trigger to ask. The question is owed only when you are about to choose something NARROWER than full implementation plus a tagged test, and then it is "which way do I fix it", never "may I do less". **Putting full compliance beside a narrower option and asking Thomas to pick between them breaks this rule** (`plan/learned/1314-rule-heading-inverted-its-directive.md`).
 
 | You are about to ... | Do instead |
 |----------------------|------------|

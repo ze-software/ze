@@ -24,7 +24,7 @@
 # one-line commit that sets a non-zero rate, taken after the first fleet batch has
 # measured real throughput -- and Thomas takes it. Guessing a rate now would either be so
 # low it forces nothing or so high it reds the tree on unrelated work, and
-# ai/rules/rfc-compliance.md:114-116 records what happens to a rule in the second
+# ai/rules/rfc-compliance.md:135-137 records what happens to a rule in the second
 # category: it gets removed rather than obeyed.
 
 start 2026-07-29

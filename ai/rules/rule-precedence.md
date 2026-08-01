@@ -13,7 +13,7 @@ Rules that disagree almost always disagree about one thing: whether to keep goin
 | Rung | Governs | Rules | What it does to the decision |
 |------|---------|-------|------------------------------|
 | 1 | Irreversible or destructive action | `never-destroy-work`, `git-safety` bans, `CLAUDE.md` prohibitions | STOP and ask. Nothing on any lower rung licenses it, including an explicit instruction to hurry |
-| 2 | Correctness owed to someone outside this repo | `rfc-compliance`, `interop-and-goal-validation` | When full compliance AND full proof of it is on the table, you may not pick anything narrower. Ask Thomas which way to fix it |
+| 2 | Correctness owed to someone outside this repo | `rfc-compliance`, `interop-and-goal-validation` | When full compliance AND full proof of it is reachable, IMPLEMENT it. You may not pick anything narrower, and you may not ask Thomas to pick for you. Ask only when you are about to do LESS, and then ask which way to fix it |
 | 3 | Scope integrity | `no-partial-completion`, `no-parking`, `fix-dont-record`, `no-test-deletion` | Never silently reduce scope, park a blocker, or weaken a test. If scope must change, the user decides |
 | 4 | Phase boundaries | `model-selection`, `spec-delegation`, `critical-review` | End the phase, report, and hand off. Do not cross onto the next phase in this context |
 | 5 | Autonomy | `no-asking` | Everything not caught above: finish the work, then report. Do not ask permission to do what you were already asked to do |
@@ -32,7 +32,7 @@ Rules that disagree almost always disagree about one thing: whether to keep goin
 
 ## Rationale
 
-Four rules give instructions about the same moment and were written independently: `no-asking` ("finish the task, then report; ask only for destructive actions or genuine scope changes"), `model-selection` ("announce the boundary and stop rather than crossing it on the wrong model"), `spec-delegation` ("the main thread supervises only"), and `rfc-compliance` ("STOP and ask Thomas rather than choosing anything narrower"). Each is right. Read together with no ordering, they let an agent justify almost any choice at the moment it is least able to reason carefully, which is precisely when the wrong choice is expensive.
+Four rules give instructions about the same moment and were written independently: `no-asking` ("finish the task, then report; ask only for destructive actions or genuine scope changes"), `model-selection` ("announce the boundary and stop rather than crossing it on the wrong model"), `spec-delegation` ("the main thread supervises only"), and `rfc-compliance` ("implement full compliance, and ask only before doing LESS"). Each is right. Read together with no ordering, they let an agent justify almost any choice at the moment it is least able to reason carefully, which is precisely when the wrong choice is expensive.
 
 Naming the ladder costs one short rule and removes the most common runtime ambiguity in the system.
 
@@ -42,4 +42,4 @@ An implementation phase finishes and the Review Gate is next. Rung 4 applies: re
 
 A functional test fails on a busy host and passes in isolation. Rung 3 applies via `fix-dont-record`: the test waits on elapsed time instead of on state. Fix the wait. Do not write a known-failure shard, and do not report "flaky, passes in isolation" as an outcome.
 
-An RFC MUST is implemented but has no tagged test, and the spec is otherwise finished. Rung 2 applies: do not close, do not file a deferral. Quote the requirement and name the producing function, say what a tagged test would cost, ask Thomas which way to proceed.
+An RFC MUST is implemented but has no tagged test, and the spec is otherwise finished. Rung 2 applies: do not close, do not file a deferral. Writing that test is reachable full proof, so WRITE it. No question is owed. Ask only if you are about to leave the MUST unproven, and then quote the requirement, name the producing function, say what a tagged test would cost, and ask which way he wants it fixed.
