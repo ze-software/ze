@@ -1,4 +1,6 @@
 // Design: docs/architecture/api/architecture.md -- BGP route filter pipeline
+// RFC: rfc/short/rfc4271.md -- path attribute flags, codes and the value length cap (Section 4.3)
+// RFC: rfc/short/rfc6793.md -- the four-octet AS number re-encoding an AttrGenerator exists for
 // Detail: editset.go -- the edit set: slots, fragments, the arena and the exact size query
 // Related: filterapi_test.go -- ordering and accumulator semantics moved from the generic registry tests
 //
@@ -94,6 +96,18 @@ type EgressFilterFunc func(source, dest PeerFilterInfo, payload []byte, meta map
 
 const modAccumulatorInlineBytes = 64
 
+// maxGenerators bounds the generators one destination may record. AttrOp.GenIdx
+// is one byte and reserves 0 for "no generator", so 255 is the ceiling the
+// encoding allows. The AS-path family records at most four (AS_PATH, AS4_PATH,
+// AGGREGATOR, AS4_AGGREGATOR), so the inline capacity below is the real figure
+// and this constant only stops the index wrapping.
+const maxGenerators = 255
+
+// genInline is the number of generators held without a heap allocation. Four
+// covers the whole AS-path family, which is the only producer today; eight
+// leaves room for a second family without changing the structure.
+const genInline = 8
+
 // ModAccumulator collects per-peer route modifications from egress filters.
 // NOT safe for concurrent use. Each peer iteration gets a fresh instance.
 type ModAccumulator struct {
@@ -103,6 +117,12 @@ type ModAccumulator struct {
 	withdrawnRewrite []byte // replacement for the withdrawn NLRI section
 	inline           [modAccumulatorInlineBytes]byte
 	inlineOff        int
+
+	// gens holds the value generators recorded for this destination, addressed by
+	// AttrOp.GenIdx. It is kept OUT of AttrOp so that struct stays 32 bytes; see
+	// the GenIdx doc for why that size is load-bearing.
+	gens    []AttrGenerator
+	gensArr [genInline]AttrGenerator
 
 	// edit is the per-destination rebuild plan: slots, fragments and arena.
 	// It lives here so that hoisting the accumulator above the destination loop
@@ -162,6 +182,15 @@ func (a *ModAccumulator) Reset() {
 	a.withdrawnRewrite = nil
 	a.inlineOff = 0
 	a.grouped = false
+	// Generators are the one part of the accumulator that MUST be re-zeroed
+	// rather than merely re-sliced. A generator holds the previous destination's
+	// payload -- an AS_PATH tail window, a parsed path -- so leaving stale
+	// interface values in the backing array keeps that destination's buffer alive
+	// for the whole of the next one, which is the boundary this type claims not
+	// to cross. clear runs over the LENGTH, which is four at most, so the
+	// constant-time property of Reset is unaffected.
+	clear(a.gens)
+	a.gens = nil
 	a.edit.reset()
 }
 
@@ -194,6 +223,46 @@ func (a *ModAccumulator) Reset() {
 func (a *ModAccumulator) Op(code, action uint8, buf []byte) {
 	a.ops = append(a.ops, AttrOp{Code: code, Action: action, Buf: buf})
 }
+
+// OpGen accumulates a Set operation whose value is produced by a generator
+// rather than by pre-built bytes.
+//
+// It is the recording half of the generate path: the producer says WHAT the
+// attribute becomes without building it, and the generator writes those bytes
+// straight into the destination when the rebuild materializes. Use it when
+// pre-building would mean staging the value in a scratch buffer first, which is
+// a copy the exactly-sized rebuild exists to remove.
+//
+// The action is Set, so the operation composes with every existing handler
+// exactly as a Set carrying Buf does: last Set wins, a later Suppress still
+// drops the attribute, and no handler needs to know a generator was involved.
+//
+// Like Op, the accumulator does not copy: the generator must stay valid, and
+// must not be mutated, until the forward call returns.
+func (a *ModAccumulator) OpGen(code uint8, gen AttrGenerator) {
+	if gen == nil {
+		return
+	}
+	if a.gens == nil {
+		a.gens = a.gensArr[:0]
+	}
+	if len(a.gens) >= maxGenerators {
+		// The index is one byte and 0 means "none", so the store is bounded.
+		// Refusing here rather than truncating keeps a generator from being
+		// recorded and then silently resolved to a different one.
+		return
+	}
+	a.gens = append(a.gens, gen)
+	a.ops = append(a.ops, AttrOp{
+		Code:   code,
+		Action: AttrModSet,
+		GenIdx: uint8(len(a.gens)), //nolint:gosec // G115: bounded by the maxGenerators check above
+	})
+}
+
+// Gens returns the generators recorded for this destination. The rebuild hands
+// them to the edit set so a slot can resolve an operation's GenIdx.
+func (a *ModAccumulator) Gens() []AttrGenerator { return a.gens }
 
 // OpCopy accumulates an attribute modification after copying buf into
 // accumulator-owned storage. Use it when the source buffer is stack-owned or
@@ -283,6 +352,51 @@ type AttrOp struct {
 	Code   uint8  // Attribute type code (e.g., 35 for OTC, 8 for COMMUNITY)
 	Action uint8  // AttrModSet, AttrModAdd, AttrModRemove, AttrModPrepend
 	Buf    []byte // Pre-built wire bytes of the VALUE (handler writes the header)
+
+	// GenIdx names this operation's generator: 0 for none, otherwise the
+	// one-based index into ModAccumulator.Gens. It is the alternative to Buf,
+	// never a companion: a handler that names this operation with AttrPlan.Op
+	// takes the generator when one is set and Buf otherwise.
+	//
+	// A generator exists for a value that cannot be pre-built without staging it
+	// first. An AS_PATH re-encoded to the destination's ASN width is the case
+	// that needs it: every AS number changes width, so no fragment list over the
+	// source can express the result, and building it into a scratch slice to hand
+	// over as Buf would copy it twice -- once into the scratch, once into the
+	// destination. A generator answers its exact size during the plan and writes
+	// its bytes straight into the destination buffer (ai/rules/buffer-first.md).
+	//
+	// It is an INDEX rather than the interface value itself, and that is
+	// load-bearing rather than tidy. An interface field costs two words and grew
+	// this struct from 32 to 48 bytes, which pushed buildModifiedPayload past an
+	// inlining budget and made its span index escape to the heap -- one
+	// allocation per destination, on the exact path the exactly-sized rebuild
+	// exists to keep allocation-free (TestModifyPathZeroAlloc). A one-byte index
+	// lands in the padding Code and Action already leave, so the struct stays 32
+	// bytes and the escape analysis is unchanged.
+	GenIdx uint8
+}
+
+// AttrGenerator writes an attribute VALUE whose bytes exist in no buffer yet.
+//
+// It is the size-then-write pair the exactly-sized rebuild is built on: GenLen
+// answers during the plan, before any buffer is acquired, and GenWrite fills the
+// destination during the write.
+//
+// CALLER OBLIGATION. A generator MUST be immutable for the whole rebuild.
+// GenLen is called during planning and its answer is folded into the attribute's
+// declared length, so a generator whose length changes afterwards produces an
+// attribute whose header contradicts its contents. The rebuild checks the write
+// against the plan and suppresses the route rather than emitting one, but the
+// cheaper fix is not to mutate a generator that has been recorded.
+//
+// GenWrite MUST write exactly GenLen bytes at off and return that count, and
+// MUST NOT write outside buf[off:off+GenLen()].
+type AttrGenerator interface {
+	// GenLen returns the exact number of value bytes GenWrite will write.
+	GenLen() int
+	// GenWrite writes the value into buf at off and returns the bytes written.
+	GenWrite(buf []byte, off int) int
 }
 
 // AttrModHandler is a per-attribute-code handler for the rebuild.

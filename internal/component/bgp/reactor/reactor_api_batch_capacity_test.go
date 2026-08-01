@@ -80,38 +80,54 @@ func TestAnnounceNLRIBatch_RejectsBatchTooLargeForBuildBuffer(t *testing.T) {
 	assert.ErrorIs(t, err, errAnnounceTooLarge)
 }
 
-// TestInsertAttrOrdered_RefusesToExceedBuffer pins the guard itself at its own
+// TestAnnounceRegionBound_RefusesToExceedBuffer pins the guard itself at its own
 // boundary: the last attribute that fits is written, and one octet more is
 // refused rather than written past len.
 //
-// VALIDATES: insertAttrOrdered returns ok=false and leaves attrOff untouched when
-// the attribute would not fit, and ok=true at exactly the fitting size.
+// test-relax: this was TestInsertAttrOrdered_RefusesToExceedBuffer. insertAttrOrdered
+// is gone; the region bound it enforced is now announceAttrs.emit's size query
+// against the destination REGION, which is the same guard at the same boundary and
+// covers both announce rails instead of one. Same three cases, same assertions.
+//
+// VALIDATES: emit returns ok=false having written nothing when the attribute would
+// not fit the region, and ok=true at exactly the fitting size.
 // PREVENTS: an off-by-one in the capacity check re-opening the out-of-slot write.
-func TestInsertAttrOrdered_RefusesToExceedBuffer(t *testing.T) {
+func TestAnnounceRegionBound_RefusesToExceedBuffer(t *testing.T) {
 	// LOCAL_PREF is 7 wire bytes (3 header + 4 value).
 	const localPrefWire = 7
 	lp := attribute.LocalPref(100)
-	require.Equal(t, localPrefWire, attrWireLen(lp), "fixture assumes a 7-byte LOCAL_PREF")
+	require.Equal(t, localPrefWire, attribute.AttrWireLen(lp), "fixture assumes a 7-byte LOCAL_PREF")
+
+	emitInto := func(t *testing.T, region []byte) (int, bool) {
+		t.Helper()
+		var plan announceAttrs
+		plan.begin()
+		defer plan.release()
+		plan.add(lp, nil)
+		return plan.emit(nil, region)
+	}
 
 	t.Run("exact-fit-is-accepted", func(t *testing.T) {
 		buf := make([]byte, localPrefWire)
-		off, ok := insertAttrOrdered(buf, 0, lp)
-		require.True(t, ok, "an attribute that exactly fills the buffer must be written")
+		off, ok := emitInto(t, buf)
+		require.True(t, ok, "an attribute that exactly fills the region must be written")
 		assert.Equal(t, localPrefWire, off)
 	})
 
 	t.Run("one-octet-short-is-refused", func(t *testing.T) {
 		buf := make([]byte, localPrefWire-1)
-		off, ok := insertAttrOrdered(buf, 0, lp)
-		assert.False(t, ok, "must refuse rather than write past len(buf)")
-		assert.Equal(t, 0, off, "a refused insert must not advance the offset")
+		off, ok := emitInto(t, buf)
+		assert.False(t, ok, "must refuse rather than write past the region")
+		assert.Equal(t, 0, off, "a refused emit must not report a length")
 	})
 
 	t.Run("refused-when-existing-content-leaves-too-little", func(t *testing.T) {
+		// The region is what remains after the caller reserved 4 octets elsewhere in
+		// the same slot: 6 free, 7 needed.
 		buf := make([]byte, localPrefWire+3)
-		off, ok := insertAttrOrdered(buf, 4, lp) // 4 used, 6 free, needs 7
+		off, ok := emitInto(t, buf[4:])
 		assert.False(t, ok)
-		assert.Equal(t, 4, off, "a refused insert must leave the block length unchanged")
+		assert.Equal(t, 0, off, "a refused emit must leave the block length unchanged")
 	})
 }
 
@@ -226,43 +242,41 @@ func TestBuildBatchAnnounce_InvalidNextHopWithOversizeAttrs(t *testing.T) {
 	require.Nil(t, update, "a block that does not fit the slot must be rejected, not resliced past len")
 }
 
-// TestWriteMandatoryAttrs_RejectsBlockLargerThanBuffer pins the guard itself, on
-// each of the four arms, at its boundary.
+// TestAnnounceAttrRegion_RejectsBlockLargerThanBuffer pins the guard itself, on
+// each of the four shapes, at its boundary.
 //
-// VALIDATES: writeMandatoryAttrs returns -1 rather than an offset past len(buf),
-// and accepts at exactly the fitting size.
-// PREVENTS: an off-by-one restoring the reslice-past-len on any one arm while the
-// other three stay guarded.
-func TestWriteMandatoryAttrs_RejectsBlockLargerThanBuffer(t *testing.T) {
+// test-relax: this was TestWriteMandatoryAttrs_RejectsBlockLargerThanBuffer, and it
+// called writeMandatoryAttrs directly. That function is gone: the caller's block is
+// now the BASE of an edit set and the size query in announceAttrs.emit is the one
+// bound for every shape, so the four arms are driven through the real entry point
+// instead of through a helper that no longer exists. Same four shapes, same
+// exact-fit / one-octet-short pair, and the assertion is now on the user-visible
+// outcome (the announce is rejected) rather than on a helper's sentinel.
+//
+// VALIDATES: an attribute block one octet larger than the build buffer is rejected
+// rather than resliced past len, and an exactly fitting one is accepted.
+// PREVENTS: an off-by-one restoring the reslice-past-len on any one shape while the
+// others stay guarded.
+func TestAnnounceAttrRegion_RejectsBlockLargerThanBuffer(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: 65000}}}
 
-	// Arm 1: ORIGIN and AS_PATH both present, copied verbatim.
-	full := attribute.NewBuilder()
-	full.SetOrigin(0)
-	full.SetASPath([]uint32{65001})
-	full.AddCommunity(65000, 1)
-	packed := attribute.NewAttributesWire(full.Build(), bgpctx.APIContextID)
-	packedLen := len(full.Build())
+	nlris := []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)}
+	build := func(t *testing.T, wire *attribute.AttributesWire, attrBufLen int) *message.Update {
+		t.Helper()
+		return adapter.buildBatchAnnounceUpdate(make([]byte, attrBufLen), make([]byte, message.MaxMsgLen),
+			bgptypes.NLRIBatch{
+				Family:  family.IPv4Unicast,
+				NLRIs:   nlris,
+				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
+				Wire:    wire,
+			},
+			netip.MustParseAddr("10.0.0.1"), false /*eBGP*/, false /*rsClient*/, true /*asn4*/, false /*addPath*/, 65000)
+	}
 
-	t.Run("verbatim-exact-fit", func(t *testing.T) {
-		n := adapter.writeMandatoryAttrs(make([]byte, packedLen), packed,
-			true /*isIBGP*/, false, true, true, true, 65000, 0)
-		assert.Equal(t, packedLen, n, "a block that exactly fills the buffer must be written")
-	})
-	t.Run("verbatim-one-octet-short", func(t *testing.T) {
-		n := adapter.writeMandatoryAttrs(make([]byte, packedLen-1), packed,
-			true /*isIBGP*/, false, true, true, true, 65000, 0)
-		assert.Equal(t, -1, n, "must reject rather than return an offset past len(buf)")
-	})
-
-	// Arms 2-4: a block missing ORIGIN and/or AS_PATH, so the builder synthesizes
-	// them and the returned offset is a SUM the clamped copy cannot bound.
-	//
 	// Each fixture carries 64 communities (259 wire octets) so the one-octet-short
-	// buffer stays far above the function's fixed minimum for the synthesized
-	// ORIGIN + AS_PATH. Sized any smaller, that minimum answers -1 first and the
-	// sub-test passes without ever reaching the arm it names -- which is exactly
-	// what it did until removing all three arm bounds left it green.
+	// buffer stays far above anything a fixed minimum could answer first. Sized any
+	// smaller, a different guard answers and the sub-test passes without ever
+	// reaching the bound it names.
 	manyCommunities := func(b *attribute.Builder) {
 		for i := range 64 {
 			b.AddCommunity(65000, uint16(i)) //nolint:gosec // G115: bounded by loop
@@ -272,8 +286,13 @@ func TestWriteMandatoryAttrs_RejectsBlockLargerThanBuffer(t *testing.T) {
 		name  string
 		build func(*attribute.Builder)
 	}{
+		{"both-mandatory-present", func(b *attribute.Builder) {
+			b.SetOrigin(0)
+			b.SetASPath([]uint32{65000, 65001})
+			manyCommunities(b)
+		}},
 		{"both-mandatory-missing", func(b *attribute.Builder) { manyCommunities(b) }},
-		{"origin-missing", func(b *attribute.Builder) { b.SetASPath([]uint32{65001}); manyCommunities(b) }},
+		{"origin-missing", func(b *attribute.Builder) { b.SetASPath([]uint32{65000, 65001}); manyCommunities(b) }},
 		{"as-path-missing", func(b *attribute.Builder) { b.SetOrigin(0); manyCommunities(b) }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -281,22 +300,23 @@ func TestWriteMandatoryAttrs_RejectsBlockLargerThanBuffer(t *testing.T) {
 			tc.build(b)
 			wire := attribute.NewAttributesWire(b.Build(), bgpctx.APIContextID)
 
-			// Generous buffer: accepted, and the offset stays inside it.
-			big := make([]byte, message.MaxMsgLen)
-			n := adapter.writeMandatoryAttrs(big, wire, false /*eBGP*/, false, true, true, true, 65000, 0)
-			require.Positive(t, n, "must encode into a full-size buffer")
-			require.LessOrEqual(t, n, len(big))
+			// Generous buffer: accepted, and the block stays inside it.
+			big := build(t, wire, message.MaxMsgLen)
+			require.NotNil(t, big, "must encode into a full-size buffer")
+			n := len(big.PathAttributes)
+			require.Positive(t, n)
+			require.LessOrEqual(t, n, message.MaxMsgLen)
 
 			// Exactly what it needs: accepted.
-			assert.Equal(t, n, adapter.writeMandatoryAttrs(make([]byte, n), wire, false, false, true, true, true, 65000, 0),
-				"a block that exactly fills the buffer must be written")
+			exact := build(t, wire, n)
+			require.NotNil(t, exact, "a block that exactly fills the buffer must be written")
+			assert.Equal(t, n, len(exact.PathAttributes))
 
 			// One octet short of what it just needed: rejected. The buffer must
-			// still clear the fixed minimum, or a different guard answers.
-			tight := make([]byte, n-1)
-			require.Greater(t, len(tight), 64, "fixture must exercise the arm's own bound, not the fixed minimum")
-			assert.Equal(t, -1, adapter.writeMandatoryAttrs(tight, wire, false, false, true, true, true, 65000, 0),
-				"must reject rather than return an offset past len(buf)")
+			// still clear anything a fixed minimum could answer.
+			require.Greater(t, n-1, 64, "fixture must exercise the region bound, not a fixed minimum")
+			assert.Nil(t, build(t, wire, n-1),
+				"must reject rather than return a block past len(buf)")
 		})
 	}
 }
@@ -348,12 +368,12 @@ func TestNLRILenMatchesWriteNLRI(t *testing.T) {
 // at which its answer changes shape: 255 octets take a 3-octet header, 256 take
 // the 4-octet extended-length one (WriteHeaderTo promotes at length > 255).
 //
-// attrWireLen is now load-bearing twice over. insertAttrOrdered shifts the tail
-// right by exactly this many bytes before writing -- so an over-estimate leaves a
-// gap of whatever the pooled buffer last held, and an under-estimate overwrites
-// the following attribute. Both capacity guards added here (insertAttrOrdered,
-// attrWriter) also ADMIT a write on this number, so an under-estimate at the
-// boundary waves through the very out-of-slot write they exist to stop.
+// attribute.AttrWireLen is load-bearing twice over. The announce writer's size
+// query sums exactly this many bytes per contributed attribute before acquiring the
+// region -- so an over-estimate leaves a gap of whatever the pooled buffer last
+// held, and an under-estimate overwrites the attribute that follows. The region
+// bound also ADMITS a write on this number, so an under-estimate at the boundary
+// waves through the very out-of-slot write it exists to stop.
 //
 // TestAttrWireLen_MatchesWriteAttrTo covers the attribute types the builders
 // insert; none of them can be sized to 255 or 256 octets (communities come in
@@ -371,7 +391,7 @@ func TestAttrWireLen_ExtendedLengthBoundary(t *testing.T) {
 
 			buf := make([]byte, message.MaxMsgLen)
 			wrote := attribute.WriteAttrTo(attr, buf, 0)
-			assert.Equal(t, wrote, attrWireLen(attr),
+			assert.Equal(t, wrote, attribute.AttrWireLen(attr),
 				"attrWireLen must equal what WriteAttrTo writes across the 255/256 header boundary")
 
 			wantHdr := 3
@@ -381,13 +401,16 @@ func TestAttrWireLen_ExtendedLengthBoundary(t *testing.T) {
 			assert.Equal(t, wantHdr+valueLen, wrote, "header size must flip at 256 octets, not before or after")
 
 			// And the guard built on it must accept an exact fit and refuse one octet less.
-			exact := make([]byte, wrote)
-			_, ok := insertAttrOrdered(exact, 0, attr)
-			assert.True(t, ok, "an attribute that exactly fills the buffer must be written")
-
-			short := make([]byte, wrote-1)
-			_, ok = insertAttrOrdered(short, 0, attr)
-			assert.False(t, ok, "one octet short must be refused, not written past len")
+			emitInto := func(region []byte) bool {
+				var plan announceAttrs
+				plan.begin()
+				defer plan.release()
+				plan.add(attr, nil)
+				_, ok := plan.emit(nil, region)
+				return ok
+			}
+			assert.True(t, emitInto(make([]byte, wrote)), "an attribute that exactly fills the buffer must be written")
+			assert.False(t, emitInto(make([]byte, wrote-1)), "one octet short must be refused, not written past len")
 		})
 	}
 }

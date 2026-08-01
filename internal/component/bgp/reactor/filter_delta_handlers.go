@@ -91,6 +91,7 @@ var genericAttrCodes = []struct {
 	{attribute.AttrLocalPref, 0x40},       // Well-known (IBGP)
 	{attribute.AttrAtomicAggregate, 0x40}, // Well-known discretionary
 	{attribute.AttrAggregator, 0xC0},      // Optional transitive
+	{attribute.AttrAS4Aggregator, 0xC0},   // Optional transitive (RFC 6793 Section 3)
 	{attribute.AttrOriginatorID, 0x80},    // Optional non-transitive (RFC 4456)
 	{attribute.AttrClusterList, 0x80},     // Optional non-transitive (RFC 4456)
 	{attribute.AttrAIGP, 0xC0},            // Optional transitive (RFC 7311)

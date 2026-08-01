@@ -109,7 +109,8 @@ func TestModifyFailureLogCoversEveryReason(t *testing.T) {
 	require.Equal(t, int(modifyFailureCount), len(l.nextAllowed),
 		"the limiter must have a slot for every declared reason")
 
-	for f := modifyFailure(0); f < modifyFailureCount; f++ {
+	for i := range int(modifyFailureCount) {
+		f := modifyFailure(i)
 		emit, _ := l.allow(f, 1)
 		assert.True(t, emit, "%s must get its own first line", f.String())
 	}

@@ -1,0 +1,84 @@
+# An API-originated route reaches the wire in ascending attribute type-code order,
+# with the attributes the announce rail INJECTS placed between the caller's own.
+#
+# RFC 4271 Section 5: "The sender of an UPDATE message SHOULD order path attributes
+# within the UPDATE message in ascending order of attribute type."
+#
+# The route below carries COMMUNITIES (8) and LARGE_COMMUNITIES (32) from the
+# caller, and the rail injects AS_PATH (2), NEXT_HOP (3) and LOCAL_PREF (5). The
+# injected attributes have to land BEFORE the caller's, which is the shape the
+# established rail used to get wrong: it copied the caller's block verbatim and
+# APPENDED, so the same route went out as 1,8,32,2,3,5 there and 1,2,3,5,8,32
+# through the initial-sync drain -- one route, two byte strings, chosen by whether
+# the destination peer had finished syncing. Both rails now plan the same edit set
+# over the same base and hand it to one writer.
+#
+# test/plugin/ddos-flowspec-announce.ci is the same property with MP_REACH (14)
+# against an EXTENDED_COMMUNITY (16); this one covers the legacy-NLRI shape, where
+# the injected NEXT_HOP is a real attribute rather than part of MP_REACH.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0047020000002B400101004002004003040A00000940050400000064C00804FDE80064C0200C0000FDE80000000100000002200A000007
+EOF_PEER
+
+# Plugin script announces one route through the API.
+tmpfs=wire-edit-api-origin-order.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+
+from ze_api import ready, send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    ready()
+    send('peer * update text origin igp community [65000:100] large-community [65000:1:2] nhop 10.0.0.9 nlri ipv4/unicast add 10.0.0.7/32')
+    wait_for_ack(expected_count=1)
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external wire-edit-api-origin-order {
+		run ./wire-edit-api-origin-order.run
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process wire-edit-api-origin-order {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

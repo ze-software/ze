@@ -296,11 +296,24 @@ func TestBuilderLen(t *testing.T) {
 	}
 }
 
-// TestBuilderWriteTo verifies WriteTo produces same output as Build.
+// test-relax: TestBuilderWriteTo and TestBuilderWriteToWire below were RETARGETED,
+// not weakened. Builder.WriteTo was the tree's second attribute encoder and is
+// gone (spec-wire-edit-4-api-origin); the property each test held is now held
+// against its replacement, with the same assertions. TestBuilderWriteTo becomes
+// TestBuilderAppendAttributesMatchesBuild -- Build must equal the AppendAttributes
+// list written through WriteAttrTo, which is what "Build decides no ordering of its
+// own" means. TestBuilderWriteToWire becomes TestBuilderRawWirePassthrough, which
+// additionally asserts AppendAttributes yields nothing for a raw-wire builder: the
+// escape hatch must be a base, never a re-encoded list.
+
+// TestBuilderAppendAttributesMatchesBuild verifies Build is exactly the ascending
+// attribute list materialized through the shared per-attribute primitive.
 //
-// VALIDATES: WriteTo produces identical wire format as Build.
-// PREVENTS: Inconsistency between Build and WriteTo.
-func TestBuilderWriteTo(t *testing.T) {
+// VALIDATES: Build() == WriteAttrTo over AppendAttributes(), byte for byte, and
+// Len() == that size.
+// PREVENTS: Build growing an emission order or a header-size-class rule of its
+// own, which is what the retired Builder.WriteTo was.
+func TestBuilderAppendAttributesMatchesBuild(t *testing.T) {
 	t.Parallel()
 	b := NewBuilder()
 	b.SetOrigin(0).SetLocalPref(200).SetMED(100)
@@ -312,27 +325,39 @@ func TestBuilderWriteTo(t *testing.T) {
 	// Get expected output from Build
 	expected := b.Build()
 
-	// Use WriteTo with pre-allocated buffer
+	// Write the same attribute list through the shared per-attribute primitive.
+	var scratch [BuilderInlineAttrs]Attribute
+	attrs := b.AppendAttributes(scratch[:0])
 	buf := make([]byte, b.Len())
-	written := b.WriteTo(buf)
+	written := 0
+	last := AttributeCode(0)
+	for _, attr := range attrs {
+		assert.GreaterOrEqual(t, attr.Code(), last, "AppendAttributes must be ascending by type code")
+		last = attr.Code()
+		written += WriteAttrTo(attr, buf, written)
+	}
 
 	assert.Equal(t, len(expected), written)
 	assert.Equal(t, expected, buf[:written])
 }
 
-// TestBuilderWriteToWire verifies WriteTo with wire passthrough.
+// TestBuilderRawWirePassthrough verifies the raw-wire escape hatch.
 //
-// VALIDATES: WriteTo correctly handles pre-built wire bytes.
-// PREVENTS: Wire passthrough failing with WriteTo.
-func TestBuilderWriteToWire(t *testing.T) {
+// VALIDATES: pre-encoded bytes are returned unchanged, Len reports their length,
+// and AppendAttributes yields no attributes for such a builder.
+// PREVENTS: the escape hatch being decoded and re-encoded, which would normalise a
+// legal-but-unusual header and move bytes a caller supplied verbatim.
+func TestBuilderRawWirePassthrough(t *testing.T) {
 	t.Parallel()
 	wire := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64}
 	b := NewBuilder()
 	b.SetWire(wire)
 
-	buf := make([]byte, b.Len())
-	written := b.WriteTo(buf)
+	assert.Equal(t, len(wire), b.Len())
+	assert.Equal(t, wire, b.Build())
+	assert.Equal(t, wire, b.RawWire())
 
-	assert.Equal(t, len(wire), written)
-	assert.Equal(t, wire, buf[:written])
+	var scratch [BuilderInlineAttrs]Attribute
+	assert.Empty(t, b.AppendAttributes(scratch[:0]),
+		"a raw-wire builder is a base section, not a list of attributes")
 }

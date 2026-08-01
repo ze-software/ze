@@ -225,7 +225,8 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 			// Skip: replaced by new AS4_PATH appended at end.
 
 		case attribute.AttrAggregator:
-			if newAggValueLen != 0 {
+			switch {
+			case newAggValueLen != 0:
 				n += attribute.WriteHeaderTo(dst, n,
 					attribute.FlagOptional|attribute.FlagTransitive,
 					attribute.AttrAggregator, uint16(newAggValueLen)) //nolint:gosec // bounded by BGP max
@@ -243,9 +244,17 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 					n += 4
 				}
 				n += copy(dst[n:], aggIP)
-			} else if tn := WriteTombstone(dst, n, payload[off], attribute.AttrAggregator, hdrLen, length, TombstoneInvalidLength); tn > 0 {
-				n += tn
-			} else {
+			case length != 6 && length != 8:
+				// Genuinely malformed: no other AGGREGATOR length is readable
+				// (RFC 4271 Section 5.1.7, RFC 6793 Section 4.2.2).
+				if tn := WriteTombstone(dst, n, payload[off], attribute.AttrAggregator, hdrLen, length, TombstoneInvalidLength); tn > 0 {
+					n += tn
+				} else {
+					n += copy(dst[n:], payload[off:off+hdrLen+length])
+				}
+			default:
+				// Well formed but not re-encodable at this width. Optional
+				// transitive, so it travels on unchanged (RFC 4271 Section 5.1.7).
 				n += copy(dst[n:], payload[off:off+hdrLen+length])
 			}
 

@@ -73,6 +73,18 @@ func BuildSpanIndex(packed []byte) (SpanIndex, error) {
 	return idx, nil
 }
 
+// Rebuild fills the receiver in place, so a caller that indexes one section per
+// destination can reuse one index rather than producing a fresh value each time.
+//
+// It is the same walk and the same verdicts as BuildSpanIndex; only the storage
+// differs. The receiver is zeroed first, so a reused index never carries a span
+// or a presence bit from the section it held before.
+//
+// Use it where the index is per-destination work on a fan-out path: returning by
+// value there forces the index to the heap once per destination, which is an
+// allocation on the path the exactly-sized rebuild exists to keep free.
+func (x *SpanIndex) Rebuild(packed []byte) error { return x.build(packed) }
+
 // build fills the receiver in place. It is the in-place form BuildSpanIndex wraps,
 // used where the index already lives inside its owner so the inline array is never
 // copied. The receiver is cleared first, so a reused one carries nothing forward,

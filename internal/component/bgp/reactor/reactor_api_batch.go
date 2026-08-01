@@ -6,7 +6,6 @@
 package reactor
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -377,7 +376,7 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 // buildBatchASPathAttr builds the AS_PATH stored on a QUEUED route, preserving
 // every segment of a caller-supplied path instead of flattening it.
 //
-// It is the queue-side twin of packedWithLocalASPrepended, which does the same job
+// It is the queue-side twin of announceASPathRewrite, which does the same job
 // on the established rail, and it deliberately reuses that function's two
 // decisions: aspathLeadsWith for "our AS is already there" (which requires the
 // LEADING segment to be an AS_SEQUENCE -- RFC 4271 Section 5.1.2 case 2 prepends a
@@ -476,107 +475,88 @@ func aspathLeadsWith(p *attribute.ASPath, asn uint32) bool {
 	return seg.Type == attribute.ASSequence && len(seg.ASNs) > 0 && seg.ASNs[0] == asn
 }
 
-// packedWithLocalASPrepended copies packed into dst with the AS_PATH attribute
-// replaced by one carrying localAS at the front (RFC 4271 Section 5.1.2), leaving
-// every other attribute byte-identical and in its original type order.
+// announceASPathRewrite returns the AS_PATH this announce must emit in place of
+// the one already in the caller's block, or nil when the caller's own AS_PATH
+// stands.
 //
-// Returns ok=false when no rewrite applies -- an internal peer (Section 5.1.2
-// forbids modifying the path), an RS-client (RFC 7947 Section 2.2.2.1 grants
-// transparency), no local AS, or a path that already leads with ours -- and the
-// caller then copies packed verbatim, which is correct in every one of those
-// cases.
+// RFC 4271 Section 5.1.2: an AS_PATH that arrived complete still has to carry OUR
+// AS toward an external peer. Emitting an operator-supplied as-path unchanged ships
+// a path the receiver's loop detection cannot see itself behind. RFC 7947
+// Section 2.2.2.1 excuses RS-clients and Section 5.1.2 forbids touching the path
+// toward an internal peer, which is what buildBatchASPathAttr already decides for
+// the queued rail -- so both rails reach the same AS_PATH by construction rather
+// than by coincidence.
 //
-// ok=false ALSO covers an AS_PATH that cannot be parsed or re-encoded. That path
-// logs: shipping a path without our AS to an external peer is a conformance
-// defect, and a guard that cannot act must at least say so
-// (ai/rules/fail-closed-guards.md).
-//
-// ok=true with n == -1 is the third answer, and it is NOT the same as ok=false:
-// the rewrite applies but does not fit in dst. Falling back to "copy packed
-// verbatim" there would ship the RFC 4271 Section 5.1.2 violation this function
-// exists to remove, so it is reported as a rejected build instead. The rewrite
-// GROWS the block (a prepend adds an ASN, or a whole AS_SEQUENCE when the leading
-// segment is an AS_SET), so `len(packed) <= len(dst)` does not imply the result
-// fits and every write below is bounded on its own.
-func (a *reactorAPIAdapter) packedWithLocalASPrepended(dst, packed []byte, isIBGP, rsClient, srcKnown, srcASN4, dstASN4 bool, localAS uint32) (int, bool) {
-	if isIBGP || rsClient || localAS == 0 {
-		return 0, false
+// A nil return ALSO covers "the source ASN encoding is unknown". The 2- versus
+// 4-octet encoding of the EXISTING path cannot be guessed: read it wrong and the
+// rewrite silently corrupts AS_PATH, which is worse than the violation being fixed.
+// AttributesWire.Get is not usable here -- it decodes via a REGISTERED source
+// context and a builder-built block carries context 0 -- so the caller, which knows
+// which mode produced the bytes, passes the answer in.
+func (a *reactorAPIAdapter) announceASPathRewrite(existing *attribute.ASPath, isIBGP, rsClient, srcKnown bool, localAS uint32) *attribute.ASPath {
+	if existing == nil || !a.prependApplies(isIBGP, rsClient, true, localAS) {
+		return nil
 	}
-	// The 2-octet vs 4-octet encoding of the EXISTING path cannot be guessed: read
-	// it wrong and the rewrite silently corrupts AS_PATH, which is worse than the
-	// violation being fixed. AttributesWire.Get is not usable here -- it decodes
-	// via a REGISTERED source context and the builder-built wire carries context 0
-	// (buildBatchAnnounceUpdate), so it always errors. The caller, which knows
-	// which mode produced the bytes, passes the answer in.
 	if !srcKnown {
 		routesLogger().Warn("as-path prepend skipped: source ASN encoding unknown; sending an explicit as-path unchanged violates RFC 4271 S5.1.2 toward an external peer",
 			"localAS", localAS)
-		return 0, false
+		return nil
 	}
+	rewritten := a.buildBatchASPathAttr(existing, 0, isIBGP, rsClient, localAS)
+	if rewritten == existing {
+		return nil // already conformant; leave the operator's path alone
+	}
+	return rewritten
+}
 
-	dstCtx := bgpctx.EncodingContextForASN4(dstASN4)
-	off := 0
-	for i := 0; i+3 <= len(packed); {
-		flags := packed[i]
-		code := packed[i+1]
-		hdr, vlen := 3, int(packed[i+2])
-		if flags&byte(attribute.FlagExtLength) != 0 {
-			if i+4 > len(packed) {
-				return 0, false
-			}
-			hdr, vlen = 4, int(packed[i+2])<<8|int(packed[i+3])
-		}
-		end := i + hdr + vlen
-		if end > len(packed) {
-			routesLogger().Warn("as-path prepend skipped: attribute length runs past the packed block",
-				"code", code, "localAS", localAS)
-			return 0, false
-		}
-		if attribute.AttributeCode(code) == attribute.AttrASPath {
-			existing, err := attribute.ParseASPath(packed[i+hdr:end], srcASN4)
-			if err != nil {
-				routesLogger().Warn("as-path prepend skipped: AS_PATH did not decode",
-					"localAS", localAS, "srcASN4", srcASN4, "error", err)
-				return 0, false
-			}
-			if aspathLeadsWith(existing, localAS) {
-				return 0, false // already conformant; leave the operator's path alone
-			}
-			prepended := &attribute.ASPath{Segments: make([]attribute.ASPathSegment, len(existing.Segments))}
-			for k, seg := range existing.Segments {
-				asns := make([]uint32, len(seg.ASNs))
-				copy(asns, seg.ASNs)
-				prepended.Segments[k] = attribute.ASPathSegment{Type: seg.Type, ASNs: asns}
-			}
-			prepended.Prepend(localAS)
-			// WriteAttrToWithContext writes through index expressions
-			// (WriteHeaderTo), so it panics rather than clamps past len(dst).
-			// LenWithContext is the same value it uses internally to size the
-			// header and the value.
-			valueLen := prepended.LenWithContext(nil, dstCtx)
-			hdrLen := 3
-			if valueLen > 255 || prepended.Flags().IsExtLength() {
-				hdrLen = 4
-			}
-			if off+hdrLen+valueLen > len(dst) {
-				return -1, true
-			}
-			off += attribute.WriteAttrToWithContext(prepended, dst, off, nil, dstCtx)
-		} else {
-			if off+(end-i) > len(dst) {
-				return -1, true
-			}
-			off += copy(dst[off:], packed[i:end])
-		}
-		i = end
+// prependApplies reports whether RFC 4271 Section 5.1.2 could owe a prepend at all,
+// without decoding anything. It is the cheap half of announceASPathRewrite, split
+// out so the announce path can skip the decode entirely on every route whose path
+// it is going to keep verbatim.
+func (a *reactorAPIAdapter) prependApplies(isIBGP, rsClient, srcKnown bool, localAS uint32) bool {
+	return !isIBGP && !rsClient && srcKnown && localAS != 0
+}
+
+// baseASPath decodes the AS_PATH already present in a caller-supplied attribute
+// block, or returns nil when there is none (or it does not decode).
+func baseASPath(base []byte, srcASN4 bool) *attribute.ASPath {
+	_, _, value, found := attribute.AttrFind(base, attribute.AttrASPath)
+	if !found {
+		return nil
 	}
-	return off, true
+	existing, err := attribute.ParseASPath(value, srcASN4)
+	if err != nil {
+		routesLogger().Warn("as-path prepend skipped: AS_PATH did not decode",
+			"srcASN4", srcASN4, "error", err)
+		return nil
+	}
+	return existing
 }
 
 // buildBatchAnnounceUpdate builds an UPDATE message for a batch of NLRIs.
+//
+// The caller's attribute block is the BASE, and everything this rail contributes
+// -- the mandatory attributes it must add, the authoritative NEXT_HOP or
+// MP_REACH_NLRI, an iBGP LOCAL_PREF, the RFC 6793 AS4_PATH -- is an edit over it.
+// announceAttrs materializes both with the same one-pass merge writer the forward
+// path uses (announce_build.go), so ascending type-code order (RFC 4271 Section 5)
+// and the exact output size are properties of that writer rather than of this
+// function.
+//
+// It replaces a strip-then-merge-insert scheme local to this rail
+// (findAttrInsertPosition + insertAttrOrdered, a memmove per inserted attribute
+// into the caller's pooled slot) and the verbatim-copy-with-prepends that fed it
+// (writeMandatoryAttrs). Both existed because this was the rail that diverged; the
+// queued rail happened to be right and had neither.
+//
 // attrBuf and nlriBuf are caller-provided buffers (from buildBufPool).
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
+//
+// Returns nil when the batch cannot be encoded into attrBuf, having written
+// nothing: the size query runs before the write, so a truncated or over-long block
+// is not a state this function can produce (ai/rules/fail-closed-guards.md). The
+// caller reports errAnnounceTooLarge rather than sending a short UPDATE.
 func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP, rsClient, asn4, addPath bool, localAS uint32) *message.Update {
 	// Write NLRIs into caller-provided buffer
 	nlriOff := writeBatchNLRI(nlriBuf, batch.NLRIs, addPath)
@@ -586,59 +566,141 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 	}
 	nlriBytes := nlriBuf[:nlriOff]
 
-	// Wire mode: ensure mandatory attributes present, then add NEXT_HOP or MP_REACH_NLRI
-	if batch.Wire != nil {
-		hadASPath, _ := batch.Wire.Has(attribute.AttrASPath)
-		srcASN4, srcKnown := false, false
+	dstCtx := announceDstCtx(asn4)
+
+	// The BASE is the caller's verbatim attribute block. A Builder without the
+	// raw-wire escape hatch has no block at all: its attributes are contributions
+	// over an EMPTY base, which is the whole point of retiring the Builder's own
+	// encoder.
+	var base []byte
+	var builderAttrs []attribute.Attribute
+	var builderScratch [attribute.BuilderInlineAttrs]attribute.Attribute
+	srcASN4, srcKnown := true, true
+
+	switch {
+	case batch.Wire != nil:
+		base = batch.Wire.Packed()
+		srcASN4, srcKnown = false, false
 		if ctx := bgpctx.Registry.Get(batch.Wire.SourceContext()); ctx != nil {
 			srcASN4, srcKnown = ctx.ASN4(), true
 		}
-		attrOff := a.writeMandatoryAttrs(attrBuf, batch.Wire, isIBGP, rsClient, srcKnown, srcASN4, asn4, localAS, batch.OriginAS)
-		if attrOff < 0 {
-			logAnnounceTooLarge(batch, len(attrBuf), "wire-mandatory")
-			return nil
+	case batch.Attrs != nil:
+		base = batch.Attrs.RawWire()
+		if base == nil {
+			builderAttrs = batch.Attrs.AppendAttributes(builderScratch[:0])
 		}
-		update := a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
-		if update == nil {
-			logAnnounceTooLarge(batch, len(attrBuf), "wire")
-			return nil
-		}
-		if !hadASPath && !a.insertAnnounceAS4Path(update, attrBuf, isIBGP, asn4, localAS, batch.OriginAS) {
-			logAnnounceTooLarge(batch, len(attrBuf), "wire-as4path")
-			return nil
-		}
-		return update
+		// A Builder writes 4-octet ASNs.
 	}
 
-	// Builder mode or default: build attributes from Builder or defaults
-	var builtBytes []byte
-	if batch.Attrs != nil {
-		builtBytes = batch.Attrs.Build()
+	plan := getAnnouncePlan()
+	defer putAnnouncePlan(plan)
+
+	hasCode := func(code attribute.AttributeCode) bool {
+		if plan.planned(uint8(code)) {
+			return true
+		}
+		if _, _, _, found := attribute.AttrFind(base, code); found {
+			return true
+		}
+		for _, attr := range builderAttrs {
+			if attr.Code() == code {
+				return true
+			}
+		}
+		return false
+	}
+
+	// The AS_PATH the announce emits. A caller-supplied one is kept in the caller's
+	// own encoding unless RFC 4271 Section 5.1.2 owes a prepend, in which case the
+	// rewritten path is re-encoded toward the destination.
+	//
+	// Presence is answered without decoding. Only the prepend needs the decoded
+	// path, and prependApplies settles every reason it cannot apply first: parsing
+	// on a route that will keep its path verbatim -- every internal peer, every
+	// RS-client -- is an allocation per route for an answer nobody reads.
+	_, _, _, hadASPath := attribute.AttrFind(base, attribute.AttrASPath)
+	if !hadASPath && batch.Attrs != nil {
+		hadASPath = batch.Attrs.ToASPath() != nil
+	}
+	var rewrittenASPath *attribute.ASPath
+	if hadASPath && a.prependApplies(isIBGP, rsClient, srcKnown, localAS) {
+		existingASPath := baseASPath(base, srcASN4)
+		if existingASPath == nil && batch.Attrs != nil {
+			existingASPath = batch.Attrs.ToASPath()
+		}
+		rewrittenASPath = a.announceASPathRewrite(existingASPath, isIBGP, rsClient, srcKnown, localAS)
+	}
+
+	// The Builder's attributes, in the ascending order AppendAttributes declares.
+	for _, attr := range builderAttrs {
+		if attr.Code() == attribute.AttrASPath && rewrittenASPath != nil {
+			continue // the prepended path replaces it below, under the destination context
+		}
+		plan.add(attr, nil)
+	}
+	if rewrittenASPath != nil {
+		plan.add(rewrittenASPath, dstCtx)
+	}
+
+	// RFC 4271 Section 5.1.1 and Section 5.1.2: ORIGIN and AS_PATH are well-known
+	// mandatory. Synthesize whichever the caller did not supply.
+	if !hasCode(attribute.AttrOrigin) {
+		plan.add(attribute.OriginIGP, nil)
+	}
+	if !hadASPath {
+		var scratch [2]uint32
+		asns := announceASPathASNs(scratch[:0], isIBGP, localAS, batch.OriginAS)
+		synth := plan.asPathFor(asns)
+		plan.add(synth, dstCtx)
+
+		// RFC 6793 Section 4.2.2: a NEW speaker whose two-octet AS_PATH had to carry
+		// AS_TRANS MUST also send the four-octet AS4_PATH. Derived from the SAME
+		// announceASPathASNs sequence the AS_PATH above encoded, so the two cannot
+		// disagree. Only when this rail synthesized the path: a verbatim AS_PATH owns
+		// its own encoding.
+		if !asn4 && anyNonMappableAS(asns) {
+			plan.add(plan.as4PathFor(synth.Segments), nil)
+		}
+	}
+
+	if batch.Family == family.IPv4Unicast {
+		// Write exactly one NEXT_HOP, the authoritative resolved address. The base may
+		// already carry one -- a relayed/replayed route stores the full received block,
+		// NEXT_HOP included -- and a contribution REPLACES it rather than adding a
+		// second, which FRR and others treat as a withdraw (RFC 7606 Section 3(g)).
+		//
+		// Guard on validity and fail closed. resolveNextHop (peer.go) does NOT validate
+		// an explicit next-hop -- it deliberately returns whatever Addr was configured,
+		// invalid included (see TestResolveNextHop_ExplicitInvalid) -- and an invalid
+		// Addr encodes as a zero-LENGTH NEXT_HOP value (attribute/simple.go). If
+		// nextHop is invalid, leave the base's own NEXT_HOP alone rather than replace a
+		// good address with a malformed one.
+		if nextHop.IsValid() {
+			plan.add(plan.nextHopFor(nextHop), nil)
+		}
 	} else {
-		// Default: just ORIGIN=IGP
-		b := attribute.NewBuilder()
-		b.SetOrigin(uint8(attribute.OriginIGP))
-		builtBytes = b.Build()
+		// RFC 4760 Section 3: every other family carries its next-hop and NLRI inside
+		// MP_REACH_NLRI. A relayed/replayed block may already carry one; the
+		// contribution replaces it.
+		plan.add(attribute.NewMPReachNLRI(attribute.AFI(batch.Family.AFI), attribute.SAFI(batch.Family.SAFI),
+			[]netip.Addr{nextHop}, nlriBytes), nil)
 	}
 
-	// Ensure ORIGIN and AS_PATH are present (Builder may not include AS_PATH)
-	wire := attribute.NewAttributesWire(builtBytes, 0)
-	hadASPath, _ := wire.Has(attribute.AttrASPath)
-	attrOff := a.writeMandatoryAttrs(attrBuf, wire, isIBGP, rsClient, true /*srcKnown*/, true /*Builder writes 4-octet ASNs*/, asn4, localAS, batch.OriginAS)
-	if attrOff < 0 {
-		logAnnounceTooLarge(batch, len(attrBuf), "builder-mandatory")
+	// RFC 4271 Section 5.1.5: LOCAL_PREF is well-known mandatory on an internal
+	// session. A caller-supplied one wins.
+	if isIBGP && !hasCode(attribute.AttrLocalPref) {
+		plan.add(attribute.LocalPref(100), nil)
+	}
+
+	n, ok := plan.emit(base, attrBuf)
+	if !ok {
+		logAnnounceTooLarge(batch, len(attrBuf), "attributes")
 		return nil
 	}
 
-	// Add NEXT_HOP or MP_REACH_NLRI
-	update := a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
-	if update == nil {
-		logAnnounceTooLarge(batch, len(attrBuf), "builder")
-		return nil
-	}
-	if !hadASPath && !a.insertAnnounceAS4Path(update, attrBuf, isIBGP, asn4, localAS, batch.OriginAS) {
-		logAnnounceTooLarge(batch, len(attrBuf), "builder-as4path")
-		return nil
+	update := &message.Update{PathAttributes: attrBuf[:n]}
+	if batch.Family == family.IPv4Unicast {
+		update.NLRI = nlriBytes
 	}
 	return update
 }
@@ -647,7 +709,7 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 // the bytes written -- or -1, having written nothing past the last whole NLRI,
 // when they do not all fit.
 //
-// The bound is the other half of insertAttrOrdered's. Both build buffers come
+// The bound is the other half of the announce writer's region bound. Both build buffers come
 // from getBuildBuf, so both are backing[off:off+4096] out of a 128-slot slab whose
 // CAP runs into the next peer's buffer (session.go); but where an oversize
 // ATTRIBUTE block silently walked into the neighbor, an oversize NLRI block took
@@ -685,7 +747,7 @@ var errAnnounceTooLarge = errors.New("announce attributes exceed the build buffe
 var errWithdrawTooLarge = errors.New("withdraw NLRIs exceed the build buffer; split the batch into smaller withdrawals")
 
 // logAnnounceTooLarge records a rejected announce. This is the "or say something"
-// half of the fail-closed guard in insertAttrOrdered: the build is abandoned
+// half of the announce writer's fail-closed guard: the build is abandoned
 // rather than truncated, so without this line an operator would see routes simply
 // not arrive. The plugin that issued the command also sees it -- AnnounceNLRIBatch
 // returns errAnnounceTooLarge, which DispatchNLRIGroups turns into a StatusError
@@ -696,403 +758,6 @@ func logAnnounceTooLarge(batch bgptypes.NLRIBatch, bufLen int, stage string) {
 		"family", batch.Family, "nlri-count", len(batch.NLRIs),
 		"buffer-bytes", bufLen, "stage", stage,
 		"action", "route not sent to this peer; send fewer prefixes per announce")
-}
-
-// insertAnnounceAS4Path adds an AS4_PATH attribute to update's PathAttributes
-// (which alias attrBuf) when writeASPath synthesized a two-octet AS_PATH that had
-// to carry AS_TRANS toward an OLD peer. It is called only when this builder
-// synthesized the AS_PATH -- a verbatim AS_PATH copied from batch.Wire/Attrs owns
-// its own encoding.
-//
-// It goes in at its type-code position (17), not at the end. The comment this
-// replaces claimed 17 was "higher than every attribute this builder emits" and
-// listed only the attributes the builder ITSELF writes; the block also carries the
-// caller's attributes verbatim, and IPV6_EXT_COMMUNITIES (25) and
-// LARGE_COMMUNITIES (32) both outrank AS4_PATH.
-// Returns false when the AS4_PATH is owed but does not fit, so the caller aborts
-// the build rather than send an UPDATE missing an attribute RFC 6793 §4.2.2 makes
-// mandatory in that case.
-func (a *reactorAPIAdapter) insertAnnounceAS4Path(update *message.Update, attrBuf []byte, isIBGP, asn4 bool, localAS, originAS uint32) bool {
-	off := len(update.PathAttributes)
-	n := writeAnnounceAS4Path(attrBuf, off, isIBGP, asn4, localAS, originAS)
-	switch {
-	case n < 0:
-		return false
-	case n == 0:
-		return true
-	}
-	update.PathAttributes = attrBuf[:off+n]
-	return true
-}
-
-// buildWireModeUpdate builds UPDATE using pre-written attribute bytes in attrBuf[:attrOff].
-// Inserts NEXT_HOP (IPv4 unicast) or appends MP_REACH_NLRI (other families).
-// attrBuf[:attrOff] must contain mandatory attrs from writeMandatoryAttrs.
-// RFC 4271: NEXT_HOP (type 3) must come after AS_PATH (type 2) but before other attrs.
-// RFC 4271 §5.1.5: LOCAL_PREF is well-known mandatory for iBGP sessions.
-//
-// Returns nil when the attributes do not fit in attrBuf. Every insert below is a
-// fallible write into a pooled slot whose cap runs into the next peer's buffer
-// (see insertAttrOrdered), so "does not fit" has to abort the build rather than
-// produce a truncated or over-long block.
-func (a *reactorAPIAdapter) buildWireModeUpdate(attrBuf []byte, attrOff int, nlriBytes []byte, fam family.Family, nextHop netip.Addr, isIBGP bool) *message.Update {
-	isIPv4Unicast := fam == (family.IPv4Unicast)
-	var ok bool
-
-	if isIPv4Unicast {
-		// Write exactly one NEXT_HOP, the authoritative resolved address. The wire block
-		// may already carry one -- a relayed/replayed route stores the full received block,
-		// NEXT_HOP included (writeMandatoryAttrs copied it) -- so strip any existing one
-		// before inserting ours, or FRR and others treat the duplicate as a withdraw
-		// (RFC 7606 Section 3(g)).
-		//
-		// Guard on validity and fail closed. resolveNextHop (peer.go) does NOT validate an
-		// explicit next-hop -- it deliberately returns whatever Addr was configured, invalid
-		// included (see TestResolveNextHop_ExplicitInvalid) -- and an invalid Addr encodes
-		// as a zero-LENGTH NEXT_HOP value (attribute/simple.go). So the strip's safety
-		// cannot rest on the resolver. If nextHop is invalid, leave the block's own NEXT_HOP
-		// untouched rather than strip a good address and write a malformed one. No reachable
-		// caller feeds an invalid explicit next-hop with a Wire block today; the guard makes
-		// the strip safe regardless.
-		if nextHop.IsValid() {
-			attrOff = a.stripAttribute(attrBuf, attrOff, attribute.AttrNextHop)
-
-			// Insert NEXT_HOP (type 3) after AS_PATH for correct type code order.
-			nh := &attribute.NextHop{Addr: nextHop}
-			if attrOff, ok = insertAttrOrdered(attrBuf, attrOff, nh); !ok {
-				return nil
-			}
-		}
-
-		// LOCAL_PREF=100 for iBGP, inserted in type-code order (5): the block may
-		// already carry COMMUNITIES (8) or EXTENDED_COMMUNITIES (16) copied
-		// verbatim from the caller's attributes, which appending would follow.
-		if isIBGP && !a.hasAttribute(attrBuf[:attrOff], attribute.AttrLocalPref) {
-			if attrOff, ok = insertAttrOrdered(attrBuf, attrOff, attribute.LocalPref(100)); !ok {
-				return nil
-			}
-		}
-
-		return &message.Update{
-			PathAttributes: attrBuf[:attrOff],
-			NLRI:           nlriBytes,
-		}
-	}
-
-	// Non-IPv4 unicast: add LOCAL_PREF and MP_REACH_NLRI to the existing attrs. As with
-	// NEXT_HOP above, a relayed/replayed block may already carry an MP_REACH_NLRI; drop
-	// it before writing the authoritative one so the route is not duplicated (RFC 7606
-	// Section 3(g)).
-	//
-	// Both go in at their type-code position, not at the end. The block here is the
-	// caller's attributes copied verbatim by writeMandatoryAttrs, so it routinely holds
-	// codes above 14 -- a FlowSpec announce carries its traffic-rate in
-	// EXTENDED_COMMUNITIES (16) -- and appending put MP_REACH after it.
-	attrOff = a.stripAttribute(attrBuf, attrOff, attribute.AttrMPReachNLRI)
-	hasLocalPref := a.hasAttribute(attrBuf[:attrOff], attribute.AttrLocalPref)
-	if isIBGP && !hasLocalPref {
-		if attrOff, ok = insertAttrOrdered(attrBuf, attrOff, attribute.LocalPref(100)); !ok {
-			return nil
-		}
-	}
-
-	mpReach := attribute.NewMPReachNLRI(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI), []netip.Addr{nextHop}, nlriBytes)
-	if attrOff, ok = insertAttrOrdered(attrBuf, attrOff, mpReach); !ok {
-		return nil
-	}
-
-	return &message.Update{
-		PathAttributes: attrBuf[:attrOff],
-	}
-}
-
-// stripAttribute removes every occurrence of typeCode from attrBuf[:attrOff],
-// shifting later attributes left to close the gap, and returns the new length.
-// Used before this builder writes an authoritative NEXT_HOP or MP_REACH_NLRI so a
-// relayed/replayed attribute block that already carried one does not end up with
-// the attribute twice (RFC 7606 Section 3(g): duplicate attribute is
-// treat-as-withdraw). A well-formed block carries at most one; the loop also
-// tolerates a malformed input that carried more.
-func (a *reactorAPIAdapter) stripAttribute(attrBuf []byte, attrOff int, typeCode attribute.AttributeCode) int {
-	pos := 0
-	for pos+2 <= attrOff {
-		flags := attrBuf[pos]
-		tc := attribute.AttributeCode(attrBuf[pos+1])
-
-		var attrLen int
-		if flags&0x10 != 0 { // Extended length
-			if pos+4 > attrOff {
-				break
-			}
-			attrLen = 4 + int(binary.BigEndian.Uint16(attrBuf[pos+2:]))
-		} else {
-			if pos+3 > attrOff {
-				break
-			}
-			attrLen = 3 + int(attrBuf[pos+2])
-		}
-		if pos+attrLen > attrOff {
-			break // truncated; leave the tail as-is rather than corrupt it
-		}
-
-		if tc == typeCode {
-			copy(attrBuf[pos:], attrBuf[pos+attrLen:attrOff])
-			attrOff -= attrLen
-			continue // re-examine at the same position after the shift
-		}
-		pos += attrLen
-	}
-	return attrOff
-}
-
-// hasAttribute checks if an attribute type is present in wire attrs.
-func (a *reactorAPIAdapter) hasAttribute(wireAttrs []byte, typeCode attribute.AttributeCode) bool {
-	pos := 0
-	for pos < len(wireAttrs) {
-		if pos+2 > len(wireAttrs) {
-			break
-		}
-		flags := wireAttrs[pos]
-		tc := wireAttrs[pos+1]
-		_ = flags // used for length calculation below
-
-		if attribute.AttributeCode(tc) == typeCode {
-			return true
-		}
-
-		// Calculate attribute length to skip to next
-		var attrLen int
-		if flags&0x10 != 0 { // Extended length
-			if pos+4 > len(wireAttrs) {
-				break
-			}
-			attrLen = 4 + int(binary.BigEndian.Uint16(wireAttrs[pos+2:]))
-		} else {
-			if pos+3 > len(wireAttrs) {
-				break
-			}
-			attrLen = 3 + int(wireAttrs[pos+2])
-		}
-		pos += attrLen
-	}
-	return false
-}
-
-// writeMandatoryAttrs ensures ORIGIN and AS_PATH are present in wire attributes,
-// writing the result into buf. Returns bytes written, or -1 when the result does
-// not fit in buf.
-// RFC 4271 Section 5.1.1: ORIGIN is a well-known mandatory attribute.
-// RFC 4271 Section 5.1.2: AS_PATH is a well-known mandatory attribute.
-// RFC 4271 Section 5.1: Attributes must appear in type code order.
-// If missing, adds defaults: ORIGIN=IGP, AS_PATH per iBGP/eBGP rules.
-// localAS is the peer-specific local AS (used for AS_PATH prepend when missing).
-//
-// The -1 is the third capacity guard on this rail, and the one that closes the
-// disclosure insertAttrOrdered's guard left open. Every arm below ends in
-// `copy(buf, packed)` -- a CLAMPED copy -- but returned an offset derived from
-// len(packed), which is not clamped. So an oversize caller block yielded
-// attrOff > len(buf) while writing only len(buf) bytes, and buildWireModeUpdate
-// then handed `attrBuf[:attrOff]` to the peer. That reslice does not panic: attrBuf
-// is backing[off:off+4096] out of a 128-slot slab (session.go) and its CAP runs
-// into the next peer's buffer, so the UPDATE carried the neighboring session's
-// bytes. insertAttrOrdered rejects a bad attrOff, which covers the paths that
-// insert something -- but the IPv4 branch inserts NEXT_HOP only when the next-hop
-// is VALID (resolveNextHop deliberately passes an invalid explicit next-hop
-// through) and LOCAL_PREF only for iBGP, so an eBGP announce with an invalid
-// next-hop reached the reslice with nothing having checked attrOff.
-// Failing here, at the producer of attrOff, is what makes every consumer below
-// safe by construction (ai/rules/fail-closed-guards.md: make the miss explicit at
-// the producer).
-func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.AttributesWire, isIBGP, rsClient, srcKnown, srcASN4, asn4 bool, localAS, originAS uint32) int {
-	hasOrigin, _ := wire.Has(attribute.AttrOrigin)
-	hasASPath, _ := wire.Has(attribute.AttrASPath)
-	packed := wire.Packed()
-
-	if hasOrigin && hasASPath {
-		// RFC 4271 Section 5.1.2: an AS_PATH that arrived complete still has to
-		// carry OUR AS toward an external peer. Copying `packed` straight through
-		// (what this arm used to do unconditionally) shipped an operator-supplied
-		// as-path without ze in it, so the receiver's loop detection could not see
-		// itself behind us. RFC 7947 Section 2.2.2.1 excuses RS-clients, and
-		// Section 5.1.2 forbids touching the path toward an internal peer.
-		if n, ok := a.packedWithLocalASPrepended(buf, packed, isIBGP, rsClient, srcKnown, srcASN4, asn4, localAS); ok {
-			return n // may be -1: the rewrite applied but did not fit
-		}
-		if len(packed) > len(buf) {
-			return -1
-		}
-		copy(buf, packed)
-		return len(packed)
-	}
-
-	// The synthesized ORIGIN (4 bytes) plus the synthesized AS_PATH this builder
-	// may prepend. announceASPathASNs yields at most two ASNs, so the AS_PATH is at
-	// most 3 header + 2 segment + 2*4 = 13 octets; 32 leaves room and keeps the
-	// bound a constant rather than a second copy of writeASPathAttr's arithmetic.
-	// Checked once, up front, so the fixed-position header writes below cannot
-	// index past a short buffer either.
-	const synthesizedMandatoryMax = 4 + 32
-	if len(buf) < synthesizedMandatoryMax {
-		return -1
-	}
-
-	off := 0
-
-	// Case 1: Both missing - prepend ORIGIN + AS_PATH
-	if !hasOrigin && !hasASPath {
-		// ORIGIN=IGP
-		buf[off] = 0x40 // Transitive
-		buf[off+1] = 1  // ORIGIN
-		buf[off+2] = 1  // Length
-		buf[off+3] = 0  // IGP
-		off += 4
-
-		// AS_PATH
-		off += a.writeASPath(buf[off:], isIBGP, asn4, localAS, originAS)
-
-		if off+len(packed) > len(buf) {
-			return -1
-		}
-		copy(buf[off:], packed)
-		return off + len(packed)
-	}
-
-	// Case 2: Only ORIGIN missing - prepend ORIGIN, copy rest
-	if !hasOrigin {
-		if 4+len(packed) > len(buf) {
-			return -1
-		}
-		buf[0] = 0x40 // Transitive
-		buf[1] = 1    // ORIGIN
-		buf[2] = 1    // Length
-		buf[3] = 0    // IGP
-		copy(buf[4:], packed)
-		return 4 + len(packed)
-	}
-
-	// Case 3: Only AS_PATH missing - insert after ORIGIN
-	// RFC 4271: attributes must be in type code order (ORIGIN=1, AS_PATH=2)
-	originEnd := 4 // ORIGIN is always 4 bytes
-	if len(packed) < originEnd {
-		// hasOrigin said an ORIGIN is present, so a block shorter than one is
-		// malformed. Reject rather than slice past it.
-		return -1
-	}
-	copy(buf, packed[:originEnd])
-	off = originEnd
-
-	// Insert AS_PATH
-	off += a.writeASPath(buf[off:], isIBGP, asn4, localAS, originAS)
-
-	// Copy remaining attributes
-	if off+len(packed)-originEnd > len(buf) {
-		return -1
-	}
-	copy(buf[off:], packed[originEnd:])
-	return off + len(packed) - originEnd
-}
-
-// findAttrInsertPosition finds where an attribute of type `code` belongs in wire
-// attrs so the block stays in ascending type-code order.
-// RFC 4271 Section 5: "The sender of an UPDATE message SHOULD order path
-// attributes within the UPDATE message in ascending order of attribute type."
-// Returns the offset of the first attribute whose type code is >= code, or the
-// end of the block when every attribute present is lower-coded.
-func findAttrInsertPosition(wireAttrs []byte, code attribute.AttributeCode) int {
-	pos := 0
-	for pos < len(wireAttrs) {
-		if pos+2 > len(wireAttrs) {
-			break
-		}
-		flags := wireAttrs[pos]
-		typeCode := wireAttrs[pos+1]
-
-		// First attribute at or above our type code: we belong here.
-		if attribute.AttributeCode(typeCode) >= code {
-			return pos
-		}
-
-		// Calculate attribute length
-		var attrLen int
-		if flags&0x10 != 0 { // Extended length
-			if pos+4 > len(wireAttrs) {
-				break
-			}
-			attrLen = 4 + int(binary.BigEndian.Uint16(wireAttrs[pos+2:]))
-		} else {
-			if pos+3 > len(wireAttrs) {
-				break
-			}
-			attrLen = 3 + int(wireAttrs[pos+2])
-		}
-
-		pos += attrLen
-	}
-	// Nothing at or above our type code: append at the end.
-	return pos
-}
-
-// attrWireLen returns the total wire size (header + value) that WriteAttrTo will
-// write for attr. It has to agree with WriteHeaderTo, which promotes to the
-// 4-octet extended-length header when the value exceeds 255 octets: an ordered
-// insert shifts the tail by exactly this many bytes before writing, so a
-// disagreement would corrupt the block rather than merely misorder it.
-func attrWireLen(attr attribute.Attribute) int {
-	valueLen := attr.Len()
-	if valueLen > 255 || attr.Flags().IsExtLength() {
-		return 4 + valueLen
-	}
-	return 3 + valueLen
-}
-
-// insertAttrOrdered writes attr into attrBuf[:attrOff] at the position that keeps
-// the block in ascending attribute-type-code order (RFC 4271 Section 5), shifting
-// any higher-coded attributes right to make room, and returns the new length.
-//
-// Appending at the end is only correct when nothing higher-coded is already
-// present, and on this rail that does not hold: writeMandatoryAttrs copies the
-// caller's attribute block VERBATIM, so an announce carrying EXTENDED_COMMUNITIES
-// (16), IPV6_EXT_COMMUNITIES (25) or LARGE_COMMUNITIES (32) used to receive
-// LOCAL_PREF (5) and MP_REACH_NLRI (14) after them. The queued rail
-// (peer_rib_routes.go buildRIBRouteUpdate) and message/update_build.go both emit
-// ascending, and which rail runs is decided by Peer.ShouldQueue() -- that is, by
-// scheduling -- so the same route encoded to two different byte strings depending
-// on timing.
-//
-// copy is a memmove and is defined for overlapping ranges, which is what the
-// right-shift needs. No allocation: everything is written at an offset into the
-// caller's pooled buffer (ai/rules/buffer-first.md).
-// It returns ok=false, and writes nothing, when the attribute does not fit in
-// attrBuf. That guard is not defensive tidiness, it is the difference between a
-// rejected announce and a cross-session memory disclosure.
-//
-// attrBuf comes from getBuildBuf, which hands out backing[off:off+4096] from a
-// 128-slot slab (session.go), so its CAP runs into the next peer's buffer while
-// its LEN is the slot. Without the check, an announce whose attributes exceed the
-// slot would: shift the tail into the neighboring slot
-// (attrBuf[pos+n:attrOff+n] is within cap, so no panic to stop it), have
-// MPReachNLRI.WriteTo silently clamp its final copy at len(attrBuf) so the NLRI
-// is short, and then return attrOff+n past len -- which the caller reslices as
-// attrBuf[:attrOff], handing the next peer's bytes to sendUpdateWithSplit. For
-// the LAST slot in a slab cap == len, so the same reslice panics instead.
-//
-// Returning attrOff+written instead would be no better: MPReachNLRI's length
-// field is written from Len() before the clamped copy, so a short write yields an
-// attribute whose declared length exceeds its content -- malformed wire rather
-// than leaked wire. There is no truncation that is correct here, which is why
-// this fails closed and the caller rejects the announce
-// (ai/rules/exact-or-reject.md, ai/rules/fail-closed-guards.md).
-func insertAttrOrdered(attrBuf []byte, attrOff int, attr attribute.Attribute) (int, bool) {
-	n := attrWireLen(attr)
-	if attrOff < 0 || n < 0 || attrOff+n > len(attrBuf) {
-		return attrOff, false
-	}
-	pos := findAttrInsertPosition(attrBuf[:attrOff], attr.Code())
-	if pos < attrOff {
-		copy(attrBuf[pos+n:attrOff+n], attrBuf[pos:attrOff])
-	}
-	attribute.WriteAttrTo(attr, attrBuf, pos)
-	return attrOff + n, true
 }
 
 // announceASPathASNs appends to dst, and returns, the AS_PATH ASN sequence this
@@ -1120,50 +785,6 @@ func announceASPathASNs(dst []uint32, isIBGP bool, localAS, originAS uint32) []u
 		return dst // empty AS_PATH
 	}
 	return append(dst, localAS)
-}
-
-// writeASPath writes the AS_PATH attribute to buf, returning bytes written.
-// localAS is the peer-specific local AS number (may differ from reactor global
-// config). A non-mappable four-octet AS (localAS or originAS > 65535) toward a
-// peer that did not negotiate 4-octet support (asn4 == false) is encoded as
-// AS_TRANS here (via writeASPathAttr); buildBatchAnnounceUpdate then emits the
-// matching AS4_PATH (RFC 6793 §4.2.2) so the OLD peer can recover the real AS.
-func (a *reactorAPIAdapter) writeASPath(buf []byte, isIBGP, asn4 bool, localAS, originAS uint32) int {
-	var scratch [2]uint32
-	return writeASPathAttr(buf, 0, announceASPathASNs(scratch[:0], isIBGP, localAS, originAS), asn4)
-}
-
-// writeAnnounceAS4Path adds an AS4_PATH attribute to the block in buf[:off] when
-// the AS_PATH synthesized by announceASPathASNs had to substitute AS_TRANS toward
-// an OLD (2-octet) peer, returning bytes added (0 when none is needed).
-//
-// RFC 6793 §4.2.2: a NEW speaker sending a two-octet AS_PATH that contains a
-// non-mappable AS MUST also send the AS4_PATH (four-octet encoding of the same
-// sequence); when every AS is mappable it MUST NOT. asn4 == true means the peer
-// negotiated 4-octet support, so AS_PATH already carries the real ASNs and no
-// AS4_PATH is sent.
-//
-// The attribute goes in at its type-code position (17), not at the end: the block
-// carries the caller's attributes verbatim, and IPV6_EXT_COMMUNITIES (25) and
-// LARGE_COMMUNITIES (32) both outrank AS4_PATH. With an empty or all-lower-coded
-// block the insert IS an append, which is why the sibling appenders in
-// reactor_wire.go keep using writeAS4PathForASNs directly.
-//
-// Returns -1, distinct from the 0 meaning "none owed", when the attribute IS owed
-// but does not fit in buf. RFC 6793 §4.2.2 makes it a MUST once the AS_PATH
-// carries AS_TRANS, so quietly returning 0 there would ship a path the OLD peer
-// cannot reconstruct -- a fail-open the caller must turn into a rejected build.
-func writeAnnounceAS4Path(buf []byte, off int, isIBGP, asn4 bool, localAS, originAS uint32) int {
-	var scratch [2]uint32
-	as4 := as4PathForASNs(asn4, announceASPathASNs(scratch[:0], isIBGP, localAS, originAS))
-	if as4 == nil {
-		return 0
-	}
-	newOff, ok := insertAttrOrdered(buf, off, as4)
-	if !ok {
-		return -1
-	}
-	return newOff - off
 }
 
 // buildBatchWithdrawUpdate builds an UPDATE message for withdrawing a batch of NLRIs.
@@ -1201,7 +822,7 @@ func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, ba
 		SAFI: attribute.SAFI(batch.Family.SAFI),
 		NLRI: nlriBytes,
 	}
-	if attrWireLen(mpUnreach) > len(attrBuf) {
+	if attribute.AttrWireLen(mpUnreach) > len(attrBuf) {
 		logWithdrawTooLarge(batch, len(attrBuf), "mp-unreach")
 		return nil
 	}
@@ -1349,7 +970,7 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 				NLRI: nlriBytes,
 			}
 			attrHandle := getBuildBuf()
-			if attrWireLen(mpUnreach) > len(attrHandle.Buf) {
+			if attribute.AttrWireLen(mpUnreach) > len(attrHandle.Buf) {
 				// The NLRI fitted its own slot but the attribute wrapping it does
 				// not fit this one: WriteAttrTo would write a header declaring
 				// more octets than the clamped value copy carries.

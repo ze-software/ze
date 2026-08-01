@@ -1,16 +1,25 @@
 // Design: docs/architecture/wire/attributes.md — path attribute encoding
+// RFC: rfc/short/rfc4271.md — attribute header size class and ascending emission order (Sections 4.3, 5)
+// Related: attribute.go — WriteAttrTo and AttrWireLen, the per-attribute primitives this file emits through
 
 package attribute
 
 import (
-	"encoding/binary"
 	"net/netip"
-
-	"github.com/ze-software/ze/internal/core/bgp/wire"
 )
 
-// Builder accumulates path attributes and produces wire-format bytes.
-// Zero-copy friendly: builds directly into wire format without intermediate structs.
+// Builder accumulates path attributes and hands them out as attribute VALUES in
+// ascending type-code order.
+//
+// It is an intent collector, not an encoder. Until 2026-08-01 it carried a
+// second, independent attribute encoder: a WriteTo whose emission order was
+// hard-coded in the function body, and a Len that re-derived the header size
+// class the same body decided again. That made three writers for one wire
+// format, so ordering was an agreement between call sites rather than a property
+// of one writer. AppendAttributes is now the single ordering statement, and both
+// consumers read it: Build materializes bytes through WriteAttrTo, and the
+// announce rails plan the same list as edit-set slots for the shared one-pass
+// writer (internal/component/bgp/reactor/announce_build.go).
 //
 // Example usage:
 //
@@ -20,16 +29,17 @@ import (
 //	b.AddCommunity(65000, 100)
 //	wireBytes := b.Build()
 type Builder struct {
-	origin           *uint8
-	nextHop          *[4]byte // IPv4 next-hop (type 3)
-	localPref        *uint32
-	med              *uint32
-	asPath           []uint32
-	communities      []uint32
-	largeCommunities []LargeCommunity
-	extCommunities   []ExtendedCommunity
+	origin           *Origin
+	nextHop          *NextHop // IPv4 next-hop (type 3)
+	localPref        *LocalPref
+	med              *MED
+	asPath           *ASPath
+	asPathASNs       []uint32
+	communities      Communities
+	largeCommunities LargeCommunities
+	extCommunities   ExtendedCommunities
 	atomicAggregate  bool
-	aigpMetric       *uint64
+	aigp             *AIGP
 
 	// Pre-built wire bytes (for forwarding received attributes)
 	wire []byte
@@ -43,19 +53,22 @@ func NewBuilder() *Builder {
 // SetOrigin sets the ORIGIN attribute.
 // 0=IGP, 1=EGP, 2=INCOMPLETE.
 func (b *Builder) SetOrigin(origin uint8) *Builder {
-	b.origin = &origin
+	o := Origin(origin)
+	b.origin = &o
 	return b
 }
 
 // SetLocalPref sets the LOCAL_PREF attribute.
 func (b *Builder) SetLocalPref(pref uint32) *Builder {
-	b.localPref = &pref
+	lp := LocalPref(pref)
+	b.localPref = &lp
 	return b
 }
 
 // SetMED sets the MULTI_EXIT_DISC attribute.
 func (b *Builder) SetMED(med uint32) *Builder {
-	b.med = &med
+	m := MED(med)
+	b.med = &m
 	return b
 }
 
@@ -64,8 +77,7 @@ func (b *Builder) SetMED(med uint32) *Builder {
 // For IPv6, use MP_REACH_NLRI instead.
 // The bytes are copied as-is (network byte order).
 func (b *Builder) SetNextHop(ip [4]byte) *Builder {
-	b.nextHop = &ip
-	return b
+	return b.SetNextHopAddr(netip.AddrFrom4(ip))
 }
 
 // SetNextHopAddr sets the NEXT_HOP attribute from netip.Addr.
@@ -74,26 +86,35 @@ func (b *Builder) SetNextHopAddr(addr netip.Addr) *Builder {
 	if !addr.Is4() {
 		return b
 	}
-	ip := addr.As4()
-	b.nextHop = &ip
+	b.nextHop = &NextHop{Addr: addr}
 	return b
 }
 
 // SetASPath sets the AS_PATH as a sequence of ASNs.
+//
+// The builder models an AS_PATH as ONE AS_SEQUENCE. ASPath.WriteToWithASN4
+// splits a segment above MaxASPathSegmentLength exactly as the retired
+// Builder.WriteTo did (RFC 4271 Section 4.3: a segment carries at most 255 AS
+// numbers), so the emitted bytes are unchanged.
 func (b *Builder) SetASPath(asns []uint32) *Builder {
-	b.asPath = asns
+	b.asPathASNs = asns
+	if len(asns) == 0 {
+		b.asPath = nil
+		return b
+	}
+	b.asPath = &ASPath{Segments: []ASPathSegment{{Type: ASSequence, ASNs: asns}}}
 	return b
 }
 
 // AddCommunity adds a standard community (RFC 1997).
 func (b *Builder) AddCommunity(high, low uint16) *Builder {
-	b.communities = append(b.communities, uint32(high)<<16|uint32(low))
+	b.communities = append(b.communities, Community(uint32(high)<<16|uint32(low)))
 	return b
 }
 
 // AddCommunityValue adds a community by its 32-bit value.
 func (b *Builder) AddCommunityValue(community uint32) *Builder {
-	b.communities = append(b.communities, community)
+	b.communities = append(b.communities, Community(community))
 	return b
 }
 
@@ -121,7 +142,7 @@ func (b *Builder) SetAtomicAggregate(v bool) *Builder {
 
 // SetAIGP sets the AIGP attribute with the given metric value.
 func (b *Builder) SetAIGP(metric uint64) *Builder {
-	b.aigpMetric = &metric
+	b.aigp = NewAIGPMetric(metric)
 	return b
 }
 
@@ -132,274 +153,120 @@ func (b *Builder) SetWire(wire []byte) *Builder {
 	return b
 }
 
+// builderInlineAttrs is the number of attributes AppendAttributes can produce.
+// It is the setter count, so a caller's scratch array never spills: ORIGIN,
+// AS_PATH, NEXT_HOP, MED, LOCAL_PREF, ATOMIC_AGGREGATE, COMMUNITY,
+// EXTENDED_COMMUNITY, AIGP, LARGE_COMMUNITY.
+const builderInlineAttrs = 10
+
+// AppendAttributes appends the builder's attributes to dst in ASCENDING type-code
+// order and returns the extended slice.
+//
+// This is the builder's ONLY ordering statement. RFC 4271 Section 5 orders path
+// attributes by ascending type code on emission, and every consumer of a Builder
+// now inherits that order from this one function rather than restating it: Build
+// materializes the list through WriteAttrTo, and the announce rails plan the same
+// list as edit-set slots for the shared one-pass writer.
+//
+// It returns dst unchanged when the raw-wire escape hatch is set: those bytes are
+// an already-encoded attribute section that the builder does not interpret, so
+// they are a base rather than a list of attributes. Callers that must handle both
+// read RawWire first.
+//
+// Pass a stack array of builderInlineAttrs to stay allocation-free:
+//
+//	var scratch [attribute.BuilderInlineAttrs]attribute.Attribute
+//	attrs := b.AppendAttributes(scratch[:0])
+func (b *Builder) AppendAttributes(dst []Attribute) []Attribute {
+	if len(b.wire) > 0 {
+		return dst
+	}
+	if b.origin != nil {
+		dst = append(dst, *b.origin)
+	}
+	if b.asPath != nil {
+		dst = append(dst, b.asPath)
+	}
+	if b.nextHop != nil {
+		dst = append(dst, b.nextHop)
+	}
+	if b.med != nil {
+		dst = append(dst, *b.med)
+	}
+	if b.localPref != nil {
+		dst = append(dst, *b.localPref)
+	}
+	if b.atomicAggregate {
+		dst = append(dst, AtomicAggregate{})
+	}
+	if len(b.communities) > 0 {
+		dst = append(dst, b.communities)
+	}
+	if len(b.extCommunities) > 0 {
+		dst = append(dst, b.extCommunities)
+	}
+	if b.aigp != nil {
+		dst = append(dst, b.aigp)
+	}
+	if len(b.largeCommunities) > 0 {
+		dst = append(dst, b.largeCommunities)
+	}
+	return dst
+}
+
+// BuilderInlineAttrs is builderInlineAttrs, exported so a caller can size its own
+// scratch array against the same constant instead of guessing.
+const BuilderInlineAttrs = builderInlineAttrs
+
+// RawWire returns the pre-encoded attribute section set by SetWire, or nil.
+//
+// The escape hatch is how flowspec and other pre-encoded attributes pass through
+// untouched, so a consumer that can take a base section takes these bytes and
+// plans nothing (AppendAttributes returns no attributes for such a builder).
+func (b *Builder) RawWire() []byte { return b.wire }
+
 // Len returns the wire-format length in bytes.
-// Use this to pre-allocate buffers before calling WriteTo.
+// Use this to pre-allocate buffers before calling Build.
 func (b *Builder) Len() int {
 	if len(b.wire) > 0 {
 		return len(b.wire)
 	}
-
+	var scratch [builderInlineAttrs]Attribute
 	size := 0
-	if b.origin != nil {
-		size += 4 // ORIGIN
+	for _, attr := range b.AppendAttributes(scratch[:0]) {
+		size += AttrWireLen(attr)
 	}
-
-	if len(b.asPath) > 0 {
-		// RFC 4271: Max 255 ASNs per segment, split if needed
-		var asPathLen int
-		remaining := len(b.asPath)
-		for remaining > 0 {
-			chunk := min(remaining, MaxASPathSegmentLength)
-			asPathLen += 2 + chunk*4 // type(1) + count(1) + asns
-			remaining -= chunk
-		}
-		if asPathLen > 255 {
-			size += 4 + asPathLen
-		} else {
-			size += 3 + asPathLen
-		}
-	}
-
-	if b.nextHop != nil {
-		size += 7
-	}
-	if b.med != nil {
-		size += 7
-	}
-	if b.localPref != nil {
-		size += 7
-	}
-	if b.atomicAggregate {
-		size += 3
-	}
-
-	if len(b.communities) > 0 {
-		commLen := len(b.communities) * 4
-		if commLen > 255 {
-			size += 4 + commLen
-		} else {
-			size += 3 + commLen
-		}
-	}
-
-	if len(b.extCommunities) > 0 {
-		extLen := len(b.extCommunities) * 8
-		if extLen > 255 {
-			size += 4 + extLen
-		} else {
-			size += 3 + extLen
-		}
-	}
-
-	if b.aigpMetric != nil {
-		size += 3 + aigpTLVMetricLen // attr header (3) + TLV (11)
-	}
-
-	if len(b.largeCommunities) > 0 {
-		largeLen := len(b.largeCommunities) * 12
-		if largeLen > 255 {
-			size += 4 + largeLen
-		} else {
-			size += 3 + largeLen
-		}
-	}
-
 	return size
 }
 
-// WriteTo writes wire-format bytes to buf, returning bytes written.
-// The buffer must be at least Len() bytes. Use this for zero-allocation encoding.
-// Returns the number of bytes written.
-func (b *Builder) WriteTo(buf []byte) int {
-	if len(b.wire) > 0 {
-		return copy(buf, b.wire)
-	}
-
-	off := 0
-
-	// ORIGIN (type 1) - only if set
-	if b.origin != nil {
-		buf[off] = 0x40
-		buf[off+1] = 1
-		buf[off+2] = 1
-		buf[off+3] = *b.origin
-		off += 4
-	}
-
-	// AS_PATH (type 2)
-	// RFC 4271: Max 255 ASNs per segment, split if needed
-	if len(b.asPath) > 0 {
-		// Calculate value length with segment splitting
-		var asPathLen int
-		remaining := len(b.asPath)
-		for remaining > 0 {
-			chunk := min(remaining, MaxASPathSegmentLength)
-			asPathLen += 2 + chunk*4 // type(1) + count(1) + asns
-			remaining -= chunk
-		}
-
-		// Write header with extended length if needed
-		if asPathLen > 255 {
-			buf[off] = 0x50                                            // Transitive + Extended Length
-			buf[off+1] = 2                                             // AS_PATH
-			binary.BigEndian.PutUint16(buf[off+2:], uint16(asPathLen)) //nolint:gosec // bounded
-			off += 4
-		} else {
-			buf[off] = 0x40 // Transitive
-			buf[off+1] = 2  // AS_PATH
-			buf[off+2] = byte(asPathLen)
-			off += 3
-		}
-
-		// Write segments, splitting at 255 ASNs
-		remaining = len(b.asPath)
-		idx := 0
-		for remaining > 0 {
-			chunk := min(remaining, MaxASPathSegmentLength)
-			buf[off] = byte(ASSequence)
-			buf[off+1] = byte(chunk)
-			off += 2
-			for i := range chunk {
-				binary.BigEndian.PutUint32(buf[off:], b.asPath[idx+i])
-				off += 4
-			}
-			idx += chunk
-			remaining -= chunk
-		}
-	}
-
-	// NEXT_HOP (type 3)
-	if b.nextHop != nil {
-		buf[off] = 0x40
-		buf[off+1] = 3
-		buf[off+2] = 4
-		copy(buf[off+3:], b.nextHop[:])
-		off += 7
-	}
-
-	// MED (type 4)
-	if b.med != nil {
-		buf[off] = 0x80
-		buf[off+1] = 4
-		buf[off+2] = 4
-		binary.BigEndian.PutUint32(buf[off+3:], *b.med)
-		off += 7
-	}
-
-	// LOCAL_PREF (type 5)
-	if b.localPref != nil {
-		buf[off] = 0x40
-		buf[off+1] = 5
-		buf[off+2] = 4
-		binary.BigEndian.PutUint32(buf[off+3:], *b.localPref)
-		off += 7
-	}
-
-	// ATOMIC_AGGREGATE (type 6)
-	if b.atomicAggregate {
-		buf[off] = 0x40
-		buf[off+1] = 6
-		buf[off+2] = 0
-		off += 3
-	}
-
-	// COMMUNITY (type 8)
-	if len(b.communities) > 0 {
-		commLen := len(b.communities) * 4
-		if commLen > 255 {
-			buf[off] = 0xD0
-			buf[off+1] = 8
-			binary.BigEndian.PutUint16(buf[off+2:], uint16(commLen)) //nolint:gosec // bounded
-			off += 4
-		} else {
-			buf[off] = 0xC0
-			buf[off+1] = 8
-			buf[off+2] = byte(commLen)
-			off += 3
-		}
-		for _, c := range b.communities {
-			binary.BigEndian.PutUint32(buf[off:], c)
-			off += 4
-		}
-	}
-
-	// EXTENDED_COMMUNITIES (type 16)
-	if len(b.extCommunities) > 0 {
-		extLen := len(b.extCommunities) * 8
-		if extLen > 255 {
-			buf[off] = 0xD0
-			buf[off+1] = 16
-			binary.BigEndian.PutUint16(buf[off+2:], uint16(extLen)) //nolint:gosec // bounded
-			off += 4
-		} else {
-			buf[off] = 0xC0
-			buf[off+1] = 16
-			buf[off+2] = byte(extLen)
-			off += 3
-		}
-		for _, ec := range b.extCommunities {
-			copy(buf[off:], ec[:])
-			off += 8
-		}
-	}
-
-	// AIGP (type 26) - RFC 7311
-	if b.aigpMetric != nil {
-		buf[off] = 0xC0 // Optional | Transitive
-		buf[off+1] = 26 // AIGP
-		buf[off+2] = byte(aigpTLVMetricLen)
-		off += 3
-		buf[off] = aigpTLVTypeMetric
-		binary.BigEndian.PutUint16(buf[off+1:], aigpTLVMetricLen)
-		binary.BigEndian.PutUint64(buf[off+3:], *b.aigpMetric)
-		off += aigpTLVMetricLen
-	}
-
-	// LARGE_COMMUNITY (type 32)
-	if len(b.largeCommunities) > 0 {
-		largeLen := len(b.largeCommunities) * 12
-		if largeLen > 255 {
-			buf[off] = 0xD0
-			buf[off+1] = 32
-			binary.BigEndian.PutUint16(buf[off+2:], uint16(largeLen)) //nolint:gosec // bounded
-			off += 4
-		} else {
-			buf[off] = 0xC0
-			buf[off+1] = 32
-			buf[off+2] = byte(largeLen)
-			off += 3
-		}
-		for _, lc := range b.largeCommunities {
-			binary.BigEndian.PutUint32(buf[off:], lc.GlobalAdmin)
-			binary.BigEndian.PutUint32(buf[off+4:], lc.LocalData1)
-			binary.BigEndian.PutUint32(buf[off+8:], lc.LocalData2)
-			off += 12
-		}
-	}
-
-	return off
-}
-
-// CheckedWriteTo validates capacity before writing.
-func (b *Builder) CheckedWriteTo(buf []byte) (int, error) {
-	needed := b.Len()
-	if len(buf) < needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return b.WriteTo(buf), nil
-}
-
-// Build produces the wire-format bytes for all attributes.
-// Attributes are ordered per RFC 4271 (by type code).
-// For zero-allocation encoding, use Len() + WriteTo() instead.
+// Build produces the wire-format bytes for all attributes, in ascending type-code
+// order (RFC 4271 Section 5).
+//
+// It is the byte-producing convenience for callers that hold no output buffer.
+// The bytes come from WriteAttrTo -- the same per-attribute primitive every other
+// writer in the tree uses -- so this function decides nothing about the header
+// size class and nothing about order beyond what AppendAttributes already says.
+// A caller on a per-route path plans the AppendAttributes list instead
+// (ai/rules/buffer-first.md: Build is not for the hot path).
 func (b *Builder) Build() []byte {
 	if len(b.wire) > 0 {
 		return b.wire
 	}
 
-	buf := make([]byte, b.Len())
-	b.WriteTo(buf)
-	return buf
+	var scratch [builderInlineAttrs]Attribute
+	attrs := b.AppendAttributes(scratch[:0])
+
+	size := 0
+	for _, attr := range attrs {
+		size += AttrWireLen(attr)
+	}
+
+	buf := make([]byte, size) // result copy for a caller that owns no buffer
+	off := 0
+	for _, attr := range attrs {
+		off += WriteAttrTo(attr, buf, off)
+	}
+	return buf[:off]
 }
 
 // IsEmpty returns true if no attributes have been set.
@@ -408,12 +275,12 @@ func (b *Builder) IsEmpty() bool {
 		b.nextHop == nil &&
 		b.localPref == nil &&
 		b.med == nil &&
-		len(b.asPath) == 0 &&
+		b.asPath == nil &&
 		len(b.communities) == 0 &&
 		len(b.largeCommunities) == 0 &&
 		len(b.extCommunities) == 0 &&
 		!b.atomicAggregate &&
-		b.aigpMetric == nil &&
+		b.aigp == nil &&
 		len(b.wire) == 0
 }
 
@@ -424,36 +291,39 @@ func (b *Builder) Reset() {
 	b.localPref = nil
 	b.med = nil
 	b.asPath = nil
+	b.asPathASNs = nil
 	b.communities = nil
 	b.largeCommunities = nil
 	b.extCommunities = nil
 	b.atomicAggregate = false
-	b.aigpMetric = nil
+	b.aigp = nil
 	b.wire = nil
 }
 
 // ToAttributes converts Builder state to []Attribute slice.
 // This is a transition method for compatibility with code that expects parsed
-// attributes. For true wire-first encoding, use Build() to get wire bytes directly.
-// Note: Does not include NEXT_HOP or AS_PATH (handled separately by reactor).
+// attributes. For true wire-first encoding, use AppendAttributes.
+// Note: Does not include NEXT_HOP or AS_PATH (handled separately by reactor),
+// and it substitutes ORIGIN=IGP when none was set, so it is NOT the emission
+// list. AppendAttributes is.
 func (b *Builder) ToAttributes() []Attribute {
 	var result []Attribute
 
 	// ORIGIN (always present, default IGP)
 	if b.origin != nil {
-		result = append(result, Origin(*b.origin))
+		result = append(result, *b.origin)
 	} else {
 		result = append(result, OriginIGP)
 	}
 
 	// MED
 	if b.med != nil {
-		result = append(result, MED(*b.med))
+		result = append(result, *b.med)
 	}
 
 	// LOCAL_PREF (filtered at send time for eBGP)
 	if b.localPref != nil {
-		result = append(result, LocalPref(*b.localPref))
+		result = append(result, *b.localPref)
 	}
 
 	// ATOMIC_AGGREGATE
@@ -463,26 +333,22 @@ func (b *Builder) ToAttributes() []Attribute {
 
 	// COMMUNITY
 	if len(b.communities) > 0 {
-		comms := make(Communities, len(b.communities))
-		for i, c := range b.communities {
-			comms[i] = Community(c)
-		}
-		result = append(result, comms)
+		result = append(result, b.communities)
 	}
 
 	// LARGE_COMMUNITY
 	if len(b.largeCommunities) > 0 {
-		result = append(result, LargeCommunities(b.largeCommunities))
+		result = append(result, b.largeCommunities)
 	}
 
 	// EXTENDED_COMMUNITIES
 	if len(b.extCommunities) > 0 {
-		result = append(result, ExtendedCommunities(b.extCommunities))
+		result = append(result, b.extCommunities)
 	}
 
 	// AIGP
-	if b.aigpMetric != nil {
-		result = append(result, NewAIGPMetric(*b.aigpMetric))
+	if b.aigp != nil {
+		result = append(result, b.aigp)
 	}
 
 	return result
@@ -490,24 +356,15 @@ func (b *Builder) ToAttributes() []Attribute {
 
 // ToASPath returns the AS_PATH as an ASPath attribute.
 // Returns nil if no AS_PATH was set.
-func (b *Builder) ToASPath() *ASPath {
-	if len(b.asPath) == 0 {
-		return nil
-	}
-	return &ASPath{
-		Segments: []ASPathSegment{
-			{Type: ASSequence, ASNs: b.asPath},
-		},
-	}
-}
+func (b *Builder) ToASPath() *ASPath { return b.asPath }
 
 // ASPathSlice returns a copy of the raw AS_PATH slice.
 // Returns nil if no AS_PATH was set.
 func (b *Builder) ASPathSlice() []uint32 {
-	if len(b.asPath) == 0 {
+	if len(b.asPathASNs) == 0 {
 		return nil
 	}
-	result := make([]uint32, len(b.asPath))
-	copy(result, b.asPath)
+	result := make([]uint32, len(b.asPathASNs)) // result copy for the caller
+	copy(result, b.asPathASNs)
 	return result
 }

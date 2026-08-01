@@ -89,15 +89,39 @@ func buildAnnounce(t *testing.T, batch bgptypes.NLRIBatch, isIBGP, asn4 bool) *m
 	return update
 }
 
+// testWriteASPath and testWriteAnnounceAS4Path compose the two production
+// decisions the announce rails now make separately, and encode the result.
+//
+// test-relax: the rail-local encoders these replace (writeASPath,
+// writeAnnounceAS4Path) are gone. Both were byte writers that bundled the
+// DECISION (which ASNs, and whether an AS4_PATH is owed) with the ENCODING; the
+// decision now lives in announceASPathASNs and as4PathForASNs, which
+// buildBatchAnnounceUpdate composes exactly as these two helpers do, and the
+// encoding is the shared writer's. Every assertion below is unchanged, and the
+// integration tests further down still drive buildBatchAnnounceUpdate end to end,
+// so the composition itself is not asserted only here.
+func testWriteASPath(buf []byte, isIBGP, asn4 bool, localAS uint32) int {
+	var scratch [2]uint32
+	return writeASPathAttr(buf, 0, announceASPathASNs(scratch[:0], isIBGP, localAS, 0 /*originAS*/), asn4)
+}
+
+func testWriteAnnounceAS4Path(buf []byte, isIBGP, asn4 bool, localAS, originAS uint32) int {
+	var scratch [2]uint32
+	as4 := as4PathForASNs(asn4, announceASPathASNs(scratch[:0], isIBGP, localAS, originAS))
+	if as4 == nil {
+		return 0
+	}
+	return attribute.WriteAttrTo(as4, buf, 0)
+}
+
 // --- writeASPath: the AS_TRANS truncation fix -------------------------------
 
 // TestWriteASPath_NonMappableLocalAS_MapsToASTrans guards the fix that a
 // four-octet local AS toward an OLD peer is encoded as AS_TRANS, not truncated to
 // its low 16 bits. RFC 6793 §4.2.1.
 func TestWriteASPath_NonMappableLocalAS_MapsToASTrans(t *testing.T) {
-	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: nonMappableAS}}}
 	buf := make([]byte, 64)
-	n := adapter.writeASPath(buf, false /*eBGP*/, false /*asn4*/, nonMappableAS, 0)
+	n := testWriteASPath(buf, false /*eBGP*/, false /*asn4*/, nonMappableAS)
 
 	// [0x40, AS_PATH, len=4, ASSequence, count=1, AS_TRANS(2 bytes)]
 	require.Equal(t, 7, n)
@@ -110,19 +134,18 @@ func TestWriteASPath_NonMappableLocalAS_MapsToASTrans(t *testing.T) {
 // TestWriteASPath_MappableCases_ByteCompat verifies the refactor left the common
 // (mappable) encodings byte-identical.
 func TestWriteASPath_MappableCases_ByteCompat(t *testing.T) {
-	adapter := &reactorAPIAdapter{r: &Reactor{config: &Config{LocalAS: mappableAS}}}
 	buf := make([]byte, 64)
 
 	// iBGP, no origin-as -> empty AS_PATH
-	assert.Equal(t, []byte{0x40, 0x02, 0x00}, buf[:adapter.writeASPath(buf, true, false, mappableAS, 0)])
+	assert.Equal(t, []byte{0x40, 0x02, 0x00}, buf[:testWriteASPath(buf, true, false, mappableAS)])
 
 	// eBGP, asn4 -> 4-octet [localAS]
 	assert.Equal(t, []byte{0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xE8},
-		buf[:adapter.writeASPath(buf, false, true, mappableAS, 0)])
+		buf[:testWriteASPath(buf, false, true, mappableAS)])
 
 	// eBGP, 2-octet -> [localAS]
 	assert.Equal(t, []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0xFD, 0xE8},
-		buf[:adapter.writeASPath(buf, false, false, mappableAS, 0)])
+		buf[:testWriteASPath(buf, false, false, mappableAS)])
 }
 
 // --- writeAnnounceAS4Path: the emit predicate -------------------------------
@@ -131,7 +154,7 @@ func TestWriteAnnounceAS4Path_Cases(t *testing.T) {
 	buf := make([]byte, 64)
 
 	// eBGP origin-as, OLD peer, non-mappable origin -> AS4_PATH [localAS, originAS]
-	n := writeAnnounceAS4Path(buf, 0, false, false, mappableAS, nonMappableAS)
+	n := testWriteAnnounceAS4Path(buf, false, false, mappableAS, nonMappableAS)
 	require.Positive(t, n)
 	flags, value, ok := findPathAttr(buf[:n], byte(attribute.AttrAS4Path))
 	require.True(t, ok, "AS4_PATH must be emitted")
@@ -142,7 +165,7 @@ func TestWriteAnnounceAS4Path_Cases(t *testing.T) {
 	assert.Equal(t, []uint32{mappableAS, nonMappableAS}, as4.Segments[0].ASNs)
 
 	// iBGP origin-as, OLD peer -> AS4_PATH [originAS]
-	n = writeAnnounceAS4Path(buf, 0, true, false, mappableAS, nonMappableAS)
+	n = testWriteAnnounceAS4Path(buf, true, false, mappableAS, nonMappableAS)
 	_, value, ok = findPathAttr(buf[:n], byte(attribute.AttrAS4Path))
 	require.True(t, ok)
 	as4, err = attribute.ParseAS4Path(value)
@@ -150,16 +173,16 @@ func TestWriteAnnounceAS4Path_Cases(t *testing.T) {
 	assert.Equal(t, []uint32{nonMappableAS}, as4.Segments[0].ASNs)
 
 	// NEW peer (asn4) -> never emit
-	assert.Zero(t, writeAnnounceAS4Path(buf, 0, false, true, mappableAS, nonMappableAS))
+	assert.Zero(t, testWriteAnnounceAS4Path(buf, false, true, mappableAS, nonMappableAS))
 
 	// all-mappable origin -> MUST NOT emit
-	assert.Zero(t, writeAnnounceAS4Path(buf, 0, false, false, mappableAS, 112))
+	assert.Zero(t, testWriteAnnounceAS4Path(buf, false, false, mappableAS, 112))
 
 	// plain export, mappable localAS -> no emit
-	assert.Zero(t, writeAnnounceAS4Path(buf, 0, false, false, mappableAS, 0))
+	assert.Zero(t, testWriteAnnounceAS4Path(buf, false, false, mappableAS, 0))
 
 	// plain export, non-mappable localAS -> AS4_PATH [localAS]
-	n = writeAnnounceAS4Path(buf, 0, false, false, nonMappableAS, 0)
+	n = testWriteAnnounceAS4Path(buf, false, false, nonMappableAS, 0)
 	_, value, ok = findPathAttr(buf[:n], byte(attribute.AttrAS4Path))
 	require.True(t, ok)
 	as4, err = attribute.ParseAS4Path(value)

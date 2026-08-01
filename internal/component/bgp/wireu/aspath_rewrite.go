@@ -126,15 +126,24 @@ func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 b
 		off += hdrLen + length
 	}
 
+	// Every path below builds wire for a true EBGP peer (it prepends the local
+	// ASN per RFC 4271 Section 9.1.2) into a per-destination buffer, so the
+	// tombstone Transitive clear that draft-mangin-idr-attr-tombstone-00
+	// Section 5.3 requires at that boundary applies to all three alike. It used
+	// to ride on the re-encoding path only, which made the marker's propagation
+	// depend on which prepend path the route took.
 	if aspAttrOff == -1 {
 		// No AS_PATH found -- insert one.
-		return rewriteInsertASPath(dst, payload, asns, dstASN4, attrLen, attrLenOff, nlriStart)
+		n := rewriteInsertASPath(dst, payload, asns, dstASN4, attrLen, attrLenOff, nlriStart)
+		ClearTombstoneTransitiveInBody(dst, n)
+		return n, nil
 	}
 
 	// Fast path: same encoding, single prepend into AS_SEQUENCE with room.
 	// No AGGREGATOR scan needed since encoding matches.
 	if n, ok := tryDirectPrepend(dst, payload, asns, srcASN4, dstASN4,
 		aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen); ok {
+		ClearTombstoneTransitiveInBody(dst, n)
 		return n, nil
 	}
 
@@ -206,7 +215,7 @@ func rewriteASPathPrepend(dst, payload []byte, asns []uint32, srcASN4, dstASN4 b
 // asns are placed in the new AS_SEQUENCE with asns[len-1] at the outermost
 // position (matches the prepend order convention of rewriteASPathPrepend).
 func rewriteInsertASPath(dst, payload []byte, asns []uint32, dstASN4 bool,
-	attrLen, attrLenOff, nlriStart int) (int, error) {
+	attrLen, attrLenOff, nlriStart int) int {
 
 	// Build the new AS_PATH: single AS_SEQUENCE segment with the prepended ASNs
 	// in "outermost last" order. Reverse asns so asns[len-1] becomes segment[0].
@@ -279,7 +288,7 @@ func rewriteInsertASPath(dst, payload []byte, asns []uint32, dstASN4 bool,
 	newAttrLen := attrLen + newAttrWireSize + newAS4WireSize - droppedAS4
 	binary.BigEndian.PutUint16(dst[attrLenOff:attrLenOff+2], uint16(newAttrLen)) //nolint:gosec // bounded by BGP max
 
-	return off, nil
+	return off
 }
 
 // tryDirectPrepend attempts a zero-allocation offset-based AS_SEQUENCE prepend.
@@ -494,7 +503,8 @@ func rewritePrependASPathFull(dst, payload []byte, asns []uint32, srcASN4, dstAS
 			// Otherwise skip: replaced by the AS4_PATH appended at the end.
 
 		case attribute.AttrAggregator:
-			if newAggValueLen != 0 {
+			switch {
+			case newAggValueLen != 0:
 				n += attribute.WriteHeaderTo(dst, n,
 					attribute.FlagOptional|attribute.FlagTransitive,
 					attribute.AttrAggregator, uint16(newAggValueLen)) //nolint:gosec // bounded by BGP max
@@ -512,9 +522,27 @@ func rewritePrependASPathFull(dst, payload []byte, asns []uint32, srcASN4, dstAS
 					n += 4
 				}
 				n += copy(dst[n:], aggIP)
-			} else if tn := WriteTombstone(dst, n, payload[off], attribute.AttrAggregator, hl, length, TombstoneInvalidLength); tn > 0 {
-				n += tn
-			} else {
+			case length != 6 && length != 8:
+				// Genuinely malformed: an AGGREGATOR is a two- or four-octet AS
+				// number followed by a four-octet address (RFC 4271 Section 5.1.7,
+				// RFC 6793 Section 4.2.2), so no other length is readable.
+				if tn := WriteTombstone(dst, n, payload[off], attribute.AttrAggregator, hl, length, TombstoneInvalidLength); tn > 0 {
+					n += tn
+				} else {
+					n += copy(dst[n:], payload[off:off+hl+length])
+				}
+			default:
+				// A well-formed AGGREGATOR that needs no re-encoding. It is optional
+				// TRANSITIVE, so it is propagated unchanged (RFC 4271 Section 5.1.7).
+				//
+				// newAggValueLen is zero for two different reasons and treating them
+				// alike destroyed data: it is zero when the widths MATCH and no
+				// re-encode is needed at all, which is every same-width prepend that
+				// reaches this slow path -- a dual-AS local-as prepend is the
+				// ordinary one. Stamping a tombstone over those replaced a valid
+				// AGGREGATOR with a marker saying it had an invalid length, and
+				// whether it survived depended only on whether the prepend took the
+				// fast path.
 				n += copy(dst[n:], payload[off:off+hl+length])
 			}
 

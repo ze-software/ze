@@ -270,8 +270,10 @@ func TestBuilderParseAIGP(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			require.NotNil(t, b.aigpMetric)
-			assert.Equal(t, tt.want, *b.aigpMetric)
+			require.NotNil(t, b.aigp)
+			metric, ok := b.aigp.Metric()
+			require.True(t, ok)
+			assert.Equal(t, tt.want, metric)
 		})
 	}
 }
@@ -309,7 +311,7 @@ func TestBuilderAIGPReset(t *testing.T) {
 	b.SetAIGP(100)
 	b.Reset()
 	assert.True(t, b.IsEmpty())
-	assert.Nil(t, b.aigpMetric)
+	assert.Nil(t, b.aigp)
 }
 
 func TestBuilderAIGPToAttributes(t *testing.T) {

@@ -75,7 +75,7 @@ func TestBuilderParseASPath(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, b.asPath)
+			assert.Equal(t, tt.want, b.ASPathSlice())
 		})
 	}
 }
@@ -89,16 +89,16 @@ func TestBuilderParseCommunity(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
-		want    []uint32
+		want    Communities
 		wantErr bool
 	}{
-		{name: "standard", input: "65000:100", want: []uint32{0xFDE80064}},
-		{name: "no-export", input: "no-export", want: []uint32{0xFFFFFF01}},
-		{name: "no-advertise", input: "no-advertise", want: []uint32{0xFFFFFF02}},
-		{name: "no-export-subconfed", input: "no-export-subconfed", want: []uint32{0xFFFFFF03}},
-		{name: "nopeer", input: "nopeer", want: []uint32{0xFFFFFF04}},
-		{name: "multiple", input: "65000:100 65000:200", want: []uint32{0xFDE80064, 0xFDE800C8}},
-		{name: "bracketed", input: "[65000:100 65000:200]", want: []uint32{0xFDE80064, 0xFDE800C8}},
+		{name: "standard", input: "65000:100", want: Communities{0xFDE80064}},
+		{name: "no-export", input: "no-export", want: Communities{0xFFFFFF01}},
+		{name: "no-advertise", input: "no-advertise", want: Communities{0xFFFFFF02}},
+		{name: "no-export-subconfed", input: "no-export-subconfed", want: Communities{0xFFFFFF03}},
+		{name: "nopeer", input: "nopeer", want: Communities{0xFFFFFF04}},
+		{name: "multiple", input: "65000:100 65000:200", want: Communities{0xFDE80064, 0xFDE800C8}},
+		{name: "bracketed", input: "[65000:100 65000:200]", want: Communities{0xFDE80064, 0xFDE800C8}},
 		{name: "invalid_format", input: "invalid", wantErr: true},
 		{name: "missing_value", input: "65000:", wantErr: true},
 	}
@@ -147,7 +147,7 @@ func TestBuilderParseLargeCommunity(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, b.largeCommunities)
+			assert.Equal(t, LargeCommunities(tt.want), b.largeCommunities)
 		})
 	}
 }
@@ -234,7 +234,7 @@ func TestBuilderParseExtCommunity(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tt.want, b.extCommunities)
+			assert.Equal(t, ExtendedCommunities(tt.want), b.extCommunities)
 		})
 	}
 }
@@ -270,7 +270,7 @@ func TestBuilderParseMED(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.NotNil(t, b.med)
-			assert.Equal(t, tt.want, *b.med)
+			assert.Equal(t, MED(tt.want), *b.med)
 		})
 	}
 }
@@ -304,7 +304,7 @@ func TestBuilderParseLocalPref(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.NotNil(t, b.localPref)
-			assert.Equal(t, tt.want, *b.localPref)
+			assert.Equal(t, LocalPref(tt.want), *b.localPref)
 		})
 	}
 }

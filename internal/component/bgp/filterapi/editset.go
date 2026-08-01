@@ -20,7 +20,9 @@ package filterapi
 // edit the engine applies:
 //
 //   - the source attribute's VALUE, for bytes already on the wire;
-//   - an operation's buffer, for bytes a producer already built;
+//   - an operation's buffer, for bytes a producer already built, or its
+//     GENERATOR, for bytes that exist nowhere yet and are written straight into
+//     the destination at materialization time;
 //   - the arena, for the rare byte a handler must synthesize.
 //
 // Nothing is copied while planning. The exact output length is the plan's own
@@ -50,7 +52,9 @@ const (
 	// fragValue reads the SOURCE attribute's value bytes. Offsets are relative
 	// to the start of that value, which is what every handler already thinks in.
 	fragValue fragmentSource = iota
-	// fragOp reads one operation's pre-built buffer.
+	// fragOp reads one operation: its pre-built buffer, or its generator when the
+	// operation carries one. Both are named by an operation index, so they are
+	// one source; only the write differs.
 	fragOp
 	// fragArena reads bytes the handler synthesized. Only bytes that did not
 	// already exist anywhere else ever land here.
@@ -131,6 +135,11 @@ type EditSet struct {
 	// planning allocation-free; the handler contract forbids retaining it.
 	cur AttrPlan
 
+	// gens resolves an operation's AttrGenerator by its one-based GenIdx. The
+	// accumulator owns the store and hands it over with SetGens for the duration
+	// of one rebuild; the edit set only reads it.
+	gens []AttrGenerator
+
 	// touched carries one presence bit per attribute type code, so "is this code
 	// planned" is answered without scanning the slots. It is the same shape the
 	// span index uses, and it replaces the 256-entry array the old grouping
@@ -196,6 +205,11 @@ func (e *EditSet) reset() {
 	// the same whatever the inline capacities are, so the constant-time property
 	// above is unaffected.
 	e.cur = AttrPlan{}
+	// The generator store belongs to the accumulator, which clears it in its own
+	// Reset. Dropping the reference here keeps the edit set from holding the
+	// previous destination's generators -- and through them its payload -- alive
+	// across the boundary.
+	e.gens = nil
 }
 
 // ensure lazily establishes the inline aliases for an accumulator that was never
@@ -219,6 +233,26 @@ func (e *EditSet) ensure() {
 // is visible rather than silent.
 func (e *EditSet) Spilled() (slots, frags, arena bool) {
 	return e.spilledSlots, e.spilledFrags, e.spilledArena
+}
+
+// SetGens hands the accumulator's generator store to the edit set for the
+// duration of one rebuild. It is called after Begin, because Begin clears the
+// reference along with everything else.
+//
+// The edit set only READS the store. It is separate from Begin so the ownership
+// stays visible: the generators belong to the accumulator, which cleared and
+// refilled them while the destination's operations were being recorded.
+func (e *EditSet) SetGens(gens []AttrGenerator) { e.gens = gens }
+
+// generator resolves a one-based GenIdx, returning nil for 0 (no generator) and
+// for any index outside the store. An out-of-range index reads as absent rather
+// than as a different generator, so a mis-recorded operation falls back to its
+// Buf and cannot silently emit another attribute's bytes.
+func (e *EditSet) generator(idx uint8) AttrGenerator {
+	if idx == 0 || int(idx) > len(e.gens) {
+		return nil
+	}
+	return e.gens[idx-1]
 }
 
 // Begin clears the edit set for one destination's rebuild and returns it ready
@@ -318,15 +352,37 @@ func (p *AttrPlan) Keep(off, n int) {
 	p.appendFragment(fragValue, off, n, 0)
 }
 
-// Op appends the whole of the i-th operation's buffer as a fragment. The bytes
-// are not copied: the operation slice stays valid for the whole rebuild, and the
-// writer resolves the fragment against it.
+// Op appends the whole of the i-th operation as a fragment. The bytes are not
+// copied: the operation slice stays valid for the whole rebuild, and the writer
+// resolves the fragment against it.
+//
+// An operation carrying a GENERATOR contributes its generator's exact length
+// here and its bytes at write time, so a value that exists in no buffer -- an
+// AS_PATH re-encoded to the destination's ASN width, for instance -- is sized
+// now and written once, straight into the destination. Nothing is staged.
+//
+// The generator's GenLen MUST be stable for the whole rebuild: it is read here,
+// during the size query, and again as the write is checked. A generator that
+// answers two different lengths refuses the plan rather than emitting an
+// attribute whose declared length does not match its contents.
 func (p *AttrPlan) Op(i int) {
 	if p.closed {
 		return
 	}
 	if i < 0 || i >= len(p.ops) || i > 255 {
 		p.Fail()
+		return
+	}
+	if g := p.set.generator(p.ops[i].GenIdx); g != nil {
+		n := g.GenLen()
+		if n < 0 {
+			p.Fail()
+			return
+		}
+		if n == 0 {
+			return
+		}
+		p.appendFragment(fragOp, 0, n, uint8(i)) //nolint:gosec // G115: bounded by the i > 255 check above
 		return
 	}
 	buf := p.ops[i].Buf
@@ -654,6 +710,21 @@ func (e *EditSet) SlotWrite(id SlotID, section []byte, ops []AttrOp, buf []byte,
 			oi := int(s.opFrom) + int(f.opIndex)
 			if oi >= len(ops) || oi >= int(s.opTo) {
 				return off
+			}
+			if g := e.generator(ops[oi].GenIdx); g != nil {
+				// The generator writes into the destination directly, so there is
+				// no source slice to copy from. Its length was folded into the
+				// slot's size during planning; a generator that now writes a
+				// different number of bytes refuses the write rather than leaving
+				// an attribute whose header contradicts its contents.
+				if w+int(f.n) > len(buf) {
+					return off
+				}
+				if g.GenWrite(buf, w) != int(f.n) {
+					return off
+				}
+				w += int(f.n)
+				continue
 			}
 			b := ops[oi].Buf
 			end := int(f.off) + int(f.n)

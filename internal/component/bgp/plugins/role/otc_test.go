@@ -14,46 +14,6 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
-// planOTCHandler drives otcAttrModHandler through one attribute plan and
-// materializes exactly what that plan describes.
-//
-// wire-edit child 2 changed AttrModHandler from func(src, ops, buf, off) int to
-// func(*AttrPlan): a handler now PLANS and writes no bytes, so its size query
-// and its write cannot disagree. A test asserting on wire bytes therefore has to
-// run the plan to see them. This is the role-package twin of planHandlerBytes in
-// the reactor package. srcAttr is the whole source attribute, header included.
-func planOTCHandler(t *testing.T, srcAttr []byte, ops []filterapi.AttrOp) ([]byte, int) {
-	t.Helper()
-
-	var mods filterapi.ModAccumulator
-	edit := mods.EditSet()
-	edit.Begin()
-
-	var src []byte
-	srcLen, valOff, valLen := 0, 0, 0
-	if len(srcAttr) > 0 {
-		hdr := 3
-		if srcAttr[0]&0x10 != 0 { // RFC 4271 Section 4.3 Extended Length
-			hdr = 4
-		}
-		src = srcAttr
-		srcLen = len(srcAttr)
-		valOff, valLen = hdr, len(srcAttr)-hdr
-	}
-
-	p := edit.Attr(otcAttrCode, src, 0, srcLen, valOff, valLen, ops, 0)
-	otcAttrModHandler(p)
-	id := edit.Commit(p)
-	require.False(t, edit.SlotFailed(id), "the OTC handler must not refuse")
-	require.False(t, edit.SlotDropped(id), "the OTC attribute must not be dropped")
-
-	n := edit.SlotSize(id)
-	buf := make([]byte, 64)
-	require.Equal(t, n, edit.SlotWrite(id, srcAttr, ops, buf, 0),
-		"the plan's size query must equal the bytes it writes")
-	return buf, n
-}
-
 // buildTestAttrs creates raw attributes with ORIGIN + optional OTC.
 func buildTestAttrs(otcASN uint32) []byte {
 	// ORIGIN attribute: flags=0x40, type=1, len=1, value=0 (IGP)
@@ -1549,7 +1509,9 @@ func TestOTCAttrModHandlerNewAttr(t *testing.T) {
 	// handler PLANS and writes no bytes; planOTCHandler materializes the plan.
 	// Every assertion below is unchanged: 7 bytes, the flags, the type code, the
 	// length and the ASN.
-	buf, newOff := planOTCHandler(t, nil, ops)
+	buf, ok := planOTCBytes(nil, ops)
+	require.True(t, ok, "the handler must plan an emitted OTC attribute")
+	newOff := len(buf)
 
 	assert.Equal(t, otcWireLen, newOff, "should write 7 bytes (OTC header + value)")
 	assert.Equal(t, otcAttrFlags, buf[0], "flags")
@@ -1573,7 +1535,9 @@ func TestOTCAttrModHandlerExistingPreserved(t *testing.T) {
 	// rfc-test-change-approved: 2026-08-01 Thomas approved a CALL-SHAPE change
 	// only, as above. The assertion that matters is untouched: the SOURCE OTC
 	// (65001) survives and the op value (65000) does not overwrite it.
-	buf, newOff := planOTCHandler(t, srcOTC[:], ops)
+	buf, ok := planOTCBytes(srcOTC[:], ops)
+	require.True(t, ok, "the handler must plan an emitted OTC attribute")
+	newOff := len(buf)
 
 	assert.Equal(t, otcWireLen, newOff, "should copy source OTC (7 bytes)")
 	asn := binary.BigEndian.Uint32(buf[3:7])

@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | `plan/spec-wire-edit-2-edit-apply.md` |
-| Phase | 3 |
+| Phase | 1/6 |
 | Deferral shard | `plan/deferrals/spec-wire-edit-3-aspath-fold.md` |
-| Updated | 2026-07-28 |
+| Updated | 2026-08-01 |
 
 Child 3 of `plan/spec-wire-edit-0-umbrella.md`. It removes the second full
 payload copy that every eBGP destination with a policy pays today.
@@ -94,7 +94,7 @@ into a different execution position, byte for byte.
 **Key insights:** (minimal context to resume after compaction)
 - The generate kind and the one-pass writer already exist after `plan/spec-wire-edit-2-edit-apply.md`. This child registers a resolver, it does not extend the writer.
 - The exact size function already exists: `LenWithASN4`, called at `internal/component/bgp/wireu/aspath_rewrite.go:224` and `internal/component/bgp/wireu/aspath_rewrite.go:411`.
-- The AS-path family owns four codes, not one: AS_PATH (2), AS4_PATH (17), AGGREGATOR (18) and AS4_AGGREGATOR (also derived). One resolver owns all of them, because RFC 6793 makes them a single decision.
+- The AS-path family owns four codes, not one: AS_PATH (2), AGGREGATOR (7), AS4_PATH (17) and AS4_AGGREGATOR (18). One resolver owns all of them, because RFC 6793 makes them a single decision. (AGGREGATOR is code 7. An earlier draft of this line said 18, which is AS4_AGGREGATOR.)
 - The tombstone transitive clear at the eBGP boundary (`internal/component/bgp/wireu/aspath_rewrite.go:542`) rides on the same pass today and must ride on the resolver afterwards.
 - The dual-AS local-as mode prepends two ASNs in a defined order, the override outermost. `RewriteASPathDual` (`internal/component/bgp/wireu/aspath_rewrite.go:52`) encodes that order in the array it builds. RFC 7705 Section 3.3 is the authority for that order (append the globally configured ASN first, the "Local AS" value immediately after, so the override lands closest to the peer), and Section 3.2 shows the result as AS_PATH 64510 64500 64499. The slot must carry the order as ordered intent, never as a set.
 - `getEBGPWire` (`internal/component/bgp/reactor/reactor_api_forward.go:428`) caches per key within one forward call, and `EBGPWire` (`internal/component/bgp/reactor/received_update.go:170`) caches across calls in two atomic slots. Both exist only to amortise the intermediate copy this child deletes.
@@ -219,7 +219,7 @@ into a different execution position, byte for byte.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | The AS-path transform matrix replayed over a corpus of received UPDATEs | Byte-identical output to the current implementation for every cell |
+| AC-1 | The AS-path transform matrix replayed over a corpus of received UPDATEs | Byte-identical to the current implementation for every cell, EXCEPT where merge-insert corrects attribute order. A newly derived AS4_PATH (17) or AS4_AGGREGATOR (18) used to be appended after every source attribute; the one-pass writer inserts it at its ascending type-code position instead. RFC 4271 Section 5 orders attributes ascending on emission, and `plan/spec-wire-edit-2-edit-apply.md` already made that correction for other codes, so AS4 follows rather than staying an exception (Thomas, 2026-08-01). A base carrying LARGE_COMMUNITY (32) or OTC (35) plus a derived AS4 attribute therefore reaches the wire in a different byte ORDER, with the same content. Any golden that moves for a reason OTHER than AS4 ordering is a stop-and-report |
 | AC-2 | An eBGP destination with an export policy that modifies attributes | Exactly one full payload copy occurs for that destination, down from two, asserted by a copy counter in a benchmark |
 | AC-3 | A four-octet AS_PATH forwarded to a two-octet-ASN destination | AS_PATH carries AS_TRANS where required and AS4_PATH carries the real values, both emitted by one writer pass |
 | AC-4 | An RS-client destination | AS_PATH is not modified, and an ASN4 transcode still applies when the widths differ |

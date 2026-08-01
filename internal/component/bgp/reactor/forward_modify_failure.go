@@ -155,7 +155,9 @@ const (
 // against a value no constant above produced.
 func (f modifyFailure) String() string {
 	switch f {
-	case modifyFailureNone:
+	case modifyFailureNone, modifyFailureCount:
+		// modifyFailureCount is the sentinel bounding the reason set, never a
+		// reason itself; it shares the no-failure label so the set stays closed.
 		return modifyLabelNoFailure
 	case modifyFailureMalformed:
 		return modifyLabelMalformed

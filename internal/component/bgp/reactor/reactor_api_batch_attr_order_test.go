@@ -347,37 +347,49 @@ func TestAnnounceBatchRail_AS4PathOrderedAgainstLargeCommunity(t *testing.T) {
 	assertAscending(t, codes)
 }
 
-// TestInsertAttrOrdered_ExtendedLengthShift guards the one way an ordered insert
-// can corrupt rather than merely misorder: attrWireLen and WriteHeaderTo must agree
-// on the header size, or the tail is shifted by the wrong amount. A value longer
-// than 255 octets takes the 4-octet extended-length header.
+// TestAnnounceMergeInsert_ExtendedLengthShift guards the one way a merge insert
+// can corrupt rather than merely misorder: attribute.AttrWireLen and WriteHeaderTo
+// must agree on the header size, or the size query and the write disagree about
+// where the next attribute starts. A value longer than 255 octets takes the
+// 4-octet extended-length header.
 //
-// VALIDATES: inserting a >255-octet attribute in front of an existing one keeps
+// test-relax: this was TestInsertAttrOrdered_ExtendedLengthShift. insertAttrOrdered
+// shifted a byte block in place; the shared writer emits into a freshly sized
+// region instead, so the same property is asserted against announceAttrs.emit.
+// Same fixture, same two assertions.
+//
+// VALIDATES: emitting a >255-octet attribute in front of an existing one keeps
 // both attributes intact and walkable.
 // PREVENTS: a 3-vs-4 byte header disagreement silently truncating the block.
-func TestInsertAttrOrdered_ExtendedLengthShift(t *testing.T) {
+func TestAnnounceMergeInsert_ExtendedLengthShift(t *testing.T) {
 	buf := make([]byte, message.MaxMsgLen)
 
-	// Start with LARGE_COMMUNITIES (32) already in the block.
+	// Start with LARGE_COMMUNITIES (32) already in the base block.
 	large := attribute.LargeCommunities{{GlobalAdmin: 65000, LocalData1: 1, LocalData2: 2}}
-	off := attribute.WriteAttrTo(large, buf, 0)
+	baseLen := attribute.WriteAttrTo(large, buf, 0)
+	base := make([]byte, baseLen)
+	copy(base, buf[:baseLen])
 
-	// Insert a COMMUNITIES (8) attribute whose value exceeds 255 octets.
+	// Contribute a COMMUNITIES (8) attribute whose value exceeds 255 octets.
 	comms := make(attribute.Communities, 100) // 400 octets
 	for i := range comms {
 		comms[i] = attribute.Community(uint32(i)) //nolint:gosec // G115: bounded by loop
 	}
 	require.Greater(t, comms.Len(), 255, "fixture must exercise the extended-length header")
-	var ok bool
-	off, ok = insertAttrOrdered(buf, off, comms)
-	require.True(t, ok, "insert must fit in a MaxMsgLen buffer")
+
+	var plan announceAttrs
+	plan.begin()
+	defer plan.release()
+	plan.add(comms, nil)
+	off, ok := plan.emit(base, buf)
+	require.True(t, ok, "emit must fit in a MaxMsgLen buffer")
 
 	codes := attrCodes(t, buf[:off])
 	assert.Equal(t, []int{8, 32}, codes)
 
 	_, value, ok := findPathAttr(buf[:off], byte(attribute.AttrLargeCommunity))
-	require.True(t, ok, "LARGE_COMMUNITIES must survive the shift")
-	assert.Len(t, value, 12, "LARGE_COMMUNITIES value must be intact after the shift")
+	require.True(t, ok, "LARGE_COMMUNITIES must survive the merge")
+	assert.Len(t, value, 12, "LARGE_COMMUNITIES value must be intact after the merge")
 }
 
 // TestBatchBuild_EmitsNoUnwrittenBufferBytes checks the consequence of the
@@ -392,8 +404,8 @@ func TestInsertAttrOrdered_ExtendedLengthShift(t *testing.T) {
 //
 // VALIDATES: the emitted attribute block walks cleanly and its declared lengths
 // account for every byte, with the buffer pre-poisoned.
-// PREVENTS: insertAttrOrdered (or a future sibling) shifting by more than it
-// writes and leaking pool memory onto the wire.
+// PREVENTS: the announce writer sizing more than it writes and leaking pool memory
+// onto the wire.
 func TestBatchBuild_EmitsNoUnwrittenBufferBytes(t *testing.T) {
 	for _, c := range orderCases(t) {
 		t.Run(c.name, func(t *testing.T) {
@@ -442,26 +454,26 @@ func TestBatchBuild_EmitsNoUnwrittenBufferBytes(t *testing.T) {
 // build-buffer capacity guard is a memory-safety concern, not an ordering one.
 // Coverage is strictly greater after the move.
 
-// TestAttrWireLen_MatchesWriteAttrTo is the invariant insertAttrOrdered rests on,
-// checked directly instead of only through its consequences.
+// TestAttrWireLen_MatchesWriteAttrTo is the invariant the announce writer's size
+// query rests on, checked directly instead of only through its consequences.
 //
-// insertAttrOrdered shifts the tail right by attrWireLen(attr) and THEN writes the
-// attribute at the gap. WriteAttrTo returns what it actually wrote. If the two ever
+// The size query sums attribute.AttrWireLen(attr) per contributed attribute and the
+// write then emits each one with WriteAttrTo's own header rule. If the two ever
 // disagree, an over-estimate leaves a gap of whatever the pooled buffer happened to
 // hold -- stale bytes from a previous UPDATE emitted as attribute content -- and an
 // under-estimate overwrites the attribute that follows. Neither shows up as a
 // mis-ordering, so the ordering tests above cannot catch it.
 //
-// The attributes below are exactly the ones the batch builder inserts (NEXT_HOP,
+// The attributes below are exactly the ones the batch builder contributes (NEXT_HOP,
 // LOCAL_PREF, MP_REACH_NLRI, AS4_PATH), plus the two shapes most likely to break
 // the identity: an AS4_PATH carrying a confederation segment, which RFC 6793
 // Section 3 makes WriteTo skip, and a value over the 255-octet extended-length
 // boundary.
 //
-// VALIDATES: attrWireLen(attr) == WriteAttrTo(attr, buf, 0) for every attribute
-// this builder inserts.
+// VALIDATES: attribute.AttrWireLen(attr) == WriteAttrTo(attr, buf, 0) for every
+// attribute the announce rails contribute.
 // PREVENTS: a pool-memory leak into the wire (or a clobbered neighbor) from a
-// Len()/WriteTo() mismatch in any attribute type reached by insertAttrOrdered.
+// Len()/WriteTo() mismatch in any attribute type the announce writer sizes.
 func TestAttrWireLen_MatchesWriteAttrTo(t *testing.T) {
 	bigComms := make(attribute.Communities, 100) // 400 octets: extended-length header
 	for i := range bigComms {
@@ -492,7 +504,7 @@ func TestAttrWireLen_MatchesWriteAttrTo(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			buf := make([]byte, message.MaxMsgLen)
 			wrote := attribute.WriteAttrTo(c.attr, buf, 0)
-			assert.Equal(t, wrote, attrWireLen(c.attr),
+			assert.Equal(t, wrote, attribute.AttrWireLen(c.attr),
 				"attrWireLen must equal what WriteAttrTo writes, or insertAttrOrdered shifts by the wrong amount")
 		})
 	}

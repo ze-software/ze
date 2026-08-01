@@ -77,6 +77,36 @@ Pack attributes in this order (within the RFC attribute section):
 This is an internal optimization, NOT a protocol change. Receivers parse per RFC.
 Senders MAY order attributes however they want (RFC 4271 Appendix F.3 is SHOULD, not MUST).
 
+## One Writer for Every Origin
+
+An UPDATE Ze originates through the API reaches the wire by one of two rails.
+`Peer.ShouldQueue` picks: a route injected while the destination peer still drains
+its initial sync is queued and drained through `buildRIBRouteUpdate`, and the same
+route injected after establishment is built by `buildBatchAnnounceUpdate`. Nothing
+in the route selects the rail. Scheduling does.
+
+Both rails now describe the announce the same way: the caller's attribute block is
+a BASE, and everything the rail adds (the mandatory attributes, the authoritative
+NEXT_HOP or MP_REACH_NLRI, an iBGP LOCAL_PREF, the RFC 6793 AS4_PATH) is an edit
+over it. `announceAttrs` hands both to `attrEmitter`, which is the same
+plan-size-write walk `buildModifiedPayload` runs for a FORWARDED UPDATE. Ascending
+type-code order (RFC 4271 Section 5), the header size class, and the exact output
+size are therefore properties of that one writer.
+
+<!-- source: internal/component/bgp/reactor/announce_build.go -- announceAttrs, the shared announce writer -->
+<!-- source: internal/component/bgp/reactor/forward_build.go -- attrEmitter, the plan-size-write walk both origins run -->
+
+Three writers preceded it, and the cost was a class of timing-dependent defect
+rather than a style problem. `attribute.Builder.WriteTo` emitted a fixed order
+coded into a function body, the established rail merge-inserted into a byte block
+with `findAttrInsertPosition`, and the queued rail interleaved range passes around
+an `attrWriter`. One route could reach the wire as two different byte strings
+depending on which rail won the race. `attribute.Builder` is now an intent
+collector: `AppendAttributes` is its single ordering statement, and both consumers
+read it.
+
+<!-- source: internal/core/bgp/attribute/builder.go -- AppendAttributes, the builder's only ordering statement -->
+
 ## Non-Goal
 
 This is NOT proposing an RFC change. Just documenting Ze's internal strategy

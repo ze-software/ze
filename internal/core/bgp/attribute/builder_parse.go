@@ -146,7 +146,7 @@ func (b *Builder) ParseCommunity(s string) error {
 		if err != nil {
 			return err
 		}
-		b.communities = append(b.communities, comm)
+		b.communities = append(b.communities, Community(comm))
 	}
 
 	return nil

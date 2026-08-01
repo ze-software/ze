@@ -36,6 +36,17 @@ var modBufPool = sync.Pool{
 	},
 }
 
+// spanIndexPool supplies the reusable attribute index each rebuild needs.
+//
+// A pool rather than a field on the accumulator, because buildModifiedPayload is
+// reached from five call sites with different owners and only some of them hoist
+// an accumulator above a destination loop. A pool gives every one of them the
+// same allocation-free behavior without changing a signature that a reserved
+// file also calls.
+var spanIndexPool = sync.Pool{
+	New: func() any { return new(attribute.SpanIndex) },
+}
+
 // buildModifiedPayload applies attribute modifications to a source UPDATE
 // payload with a single exactly-sized merge walk into a pooled buffer.
 //
@@ -152,7 +163,15 @@ func buildModifiedPayload(
 	// duplicate type code and applied the operations to BOTH copies, which emits
 	// an UPDATE a conforming peer rejects, and it reported truncation only after
 	// having already copied part of the section.
-	spans, err := attribute.BuildSpanIndex(section)
+	// The index is REUSED rather than produced by value. Returning it by value and
+	// taking its address forces it to the heap once per destination as soon as
+	// anything in the plan makes an indirect call the escape analysis cannot see
+	// through -- which is exactly what a value generator is. Reusing a pooled
+	// index keeps the rebuild allocation-free whatever the plan contains, and it
+	// is what TestModifyPathZeroAlloc measures.
+	spans, _ := spanIndexPool.Get().(*attribute.SpanIndex)
+	defer spanIndexPool.Put(spans)
+	err := spans.Rebuild(section)
 	if err != nil {
 		fwdLogger().Warn("attribute section does not index, suppressing route",
 			"payloadLen", len(payload), "attrLen", attrLen, "error", err)
@@ -164,6 +183,9 @@ func buildModifiedPayload(
 	ops := mods.GroupedOps()
 	edit := mods.EditSet()
 	edit.Begin()
+	// Begin cleared the reference, so the generators recorded while this
+	// destination's operations were accumulated are handed back now.
+	edit.SetGens(mods.Gens())
 
 	// PLAN. One slot per touched code, in ascending code order because the
 	// operations are now sorted that way.
@@ -173,7 +195,7 @@ func buildModifiedPayload(
 		for to < len(ops) && ops[to].Code == code {
 			to++
 		}
-		if fail := planAttr(edit, &spans, section, ops[from:to], from, code, handlers); fail.failed() {
+		if fail := planAttr(edit, spans, section, ops[from:to], from, code, handlers); fail.failed() {
 			return nil, 0, fail
 		}
 		from = to
@@ -195,7 +217,7 @@ func buildModifiedPayload(
 	}
 
 	// SIZE. The same walk that will write, counting instead.
-	emitter := attrEmitter{edit: edit, spans: &spans, section: section, ops: ops}
+	emitter := attrEmitter{edit: edit, spans: spans, section: section, ops: ops}
 	attrBytes, fail := emitter.run(nil, 0)
 	if fail.failed() {
 		return nil, 0, fail

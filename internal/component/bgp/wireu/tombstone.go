@@ -39,6 +39,66 @@ func clearTombstoneTransitive(dst []byte, flagsOff int) {
 	dst[flagsOff] &^= byte(attribute.FlagTransitive)
 }
 
+// ClearTombstoneTransitiveInBody clears the Transitive bit on every
+// ATTR_TOMBSTONE marker in a freshly built UPDATE body.
+//
+// draft-mangin-idr-attr-tombstone-00 Section 5.3: "At the originating AS's EBGP
+// boundary, the sending speaker controls propagation. Under the "inherit"
+// policy, a recognizing EBGP speaker MUST clear the Transitive bit before
+// forwarding the marker to the EBGP peer. This prevents the peer from
+// propagating the marker further."
+//
+// It exists because that MUST used to ride on ONE of the three prepend paths.
+// Only the re-encoding slow path cleared the bit; the byte-shifting fast path
+// and the insert path copied the marker through with its Transitive bit intact,
+// so whether a peer could propagate the marker onward depended on which prepend
+// path the route happened to take. This walks the body the caller just wrote, so
+// every path clears it the same way.
+//
+// dst must be a complete UPDATE body the caller has finished writing, and n its
+// length. A body that does not parse is left alone: it is the caller's own
+// output, and a malformed one is a caller bug rather than something to repair
+// here.
+func ClearTombstoneTransitiveInBody(dst []byte, n int) {
+	if n < 4 {
+		return
+	}
+	wdLen := int(binary.BigEndian.Uint16(dst[0:2]))
+	attrLenOff := 2 + wdLen
+	if attrLenOff+2 > n {
+		return
+	}
+	attrLen := int(binary.BigEndian.Uint16(dst[attrLenOff : attrLenOff+2]))
+	off := attrLenOff + 2
+	end := off + attrLen
+	if end > n {
+		return
+	}
+	for off < end {
+		if off+3 > end {
+			return
+		}
+		flags := attribute.AttributeFlags(dst[off])
+		code := attribute.AttributeCode(dst[off+1])
+		length := int(dst[off+2])
+		hdrLen := 3
+		if flags.IsExtLength() {
+			if off+4 > end {
+				return
+			}
+			length = int(binary.BigEndian.Uint16(dst[off+2 : off+4]))
+			hdrLen = 4
+		}
+		if off+hdrLen+length > end {
+			return
+		}
+		if code == attribute.AttrTombstone {
+			clearTombstoneTransitive(dst, off)
+		}
+		off += hdrLen + length
+	}
+}
+
 // WriteTombstone writes an ATTR_TOMBSTONE marker into dst at offset n,
 // replacing a malformed or policy-discarded attribute. The marker occupies
 // exactly the same wire space as the original attribute (no data movement).

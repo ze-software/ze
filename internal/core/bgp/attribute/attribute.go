@@ -1,5 +1,6 @@
 // Design: docs/architecture/wire/attributes.md — path attribute encoding
 // RFC: rfc/short/rfc4271.md — path attribute definitions (Section 5)
+// Related: builder.go — the intent collector that emits through WriteAttrTo and AttrWireLen
 //
 // Package attribute implements BGP path attributes.
 //
@@ -230,6 +231,46 @@ func WriteHeaderTo(buf []byte, off int, flags AttributeFlags, code AttributeCode
 	buf[off+1] = byte(code)
 	buf[off+2] = byte(length)
 	return 3
+}
+
+// AttrWireLen returns the total wire size (header + value) WriteAttrTo writes for
+// attr.
+//
+// It has to agree with WriteHeaderTo, which promotes to the 4-octet extended-length
+// header when the value exceeds 255 octets (RFC 4271 Section 4.3). A caller that
+// sizes a buffer, shifts a tail, or bounds a region by this number and then writes
+// with WriteAttrTo would corrupt the block on a disagreement rather than merely
+// mis-size it, so both derive the header class from the same two conditions.
+func AttrWireLen(attr Attribute) int {
+	return attrWireLenForValue(attr, attr.Len())
+}
+
+// AttrWireLenWithContext is AttrWireLen for a destination encoding context, so an
+// AS_PATH or AGGREGATOR sized here matches what WriteAttrToWithContext writes
+// (RFC 6793: two- versus four-octet AS numbers).
+func AttrWireLenWithContext(attr Attribute, dstCtx *bgpctx.EncodingContext) int {
+	return attrWireLenForValue(attr, ValueLenWithContext(attr, dstCtx))
+}
+
+func attrWireLenForValue(attr Attribute, valueLen int) int {
+	if valueLen < 0 {
+		return -1
+	}
+	if valueLen > 255 || attr.Flags().IsExtLength() {
+		return 4 + valueLen
+	}
+	return 3 + valueLen
+}
+
+// ValueLenWithContext returns the attribute VALUE length under a destination
+// encoding context, which is the length WriteAttrToWithContext puts in the header.
+//
+// It exposes the arithmetic WriteAttrToWithContext already does internally, so a
+// caller that must know the value size before writing (a size query, a region
+// bound) reads it from the same place rather than restating the context-dependent
+// type switch (RFC 6793 Section 4.1).
+func ValueLenWithContext(attr Attribute, dstCtx *bgpctx.EncodingContext) int {
+	return attrLenWithContext(attr, dstCtx)
 }
 
 // WriteAttrTo writes a complete attribute (header + value) into buf at offset.

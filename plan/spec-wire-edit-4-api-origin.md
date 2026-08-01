@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | `plan/spec-wire-edit-2-edit-apply.md` |
-| Phase | 4 |
+| Phase | 6/7 |
 | Deferral shard | `plan/deferrals/spec-wire-edit-4-api-origin.md` |
-| Updated | 2026-07-28 |
+| Updated | 2026-08-01 |
 
 Child 4 of `plan/spec-wire-edit-0-umbrella.md`. It removes the second attribute
 encoder by making an API-originated route an edit set over an empty base.
@@ -175,11 +175,11 @@ apply. This child changes who writes the bytes, not what they say.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Every attribute the `Builder` can emit is expressible as a slot over an empty base. | The `Builder` setters cover a fixed list, each producing a self-contained value; the raw-wire escape hatch at `internal/core/bgp/attribute/builder.go:130` covers everything else. | The escape hatch stays as a terminal override on the edit set, which the vocabulary already supports. | A mapping table with one row per setter, each with a byte-identity test. | unvalidated |
-| A-2 | The two rails already agree byte for byte on every case the current tests cover, so convergence cannot regress those cases. | `TestAnnounceRailsAgreeByteForByte` (`internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go:312`) and `TestAnnounceRailsPreserveUnlistedAttributes` (`internal/component/bgp/reactor/reactor_api_batch_attr_preserve_test.go:167`) both pass today. | Convergence would be fixing a live divergence as well as removing an encoder, which changes the blast radius and must be reported before proceeding. | Run both test files at the start of implementation and record the result. | unvalidated |
-| A-3 | The announce path's per-route cost after convergence is within benchmark noise of an equivalent forwarded route. | Both would run the same size query and the same writer over the same number of slots. | The claim in the umbrella is dropped; the encoder consolidation stands on its own merits. | `BenchmarkAPIOriginVsForward`, comparing equal touched-attribute counts. | unvalidated |
-| A-4 | No out-of-tree or plugin caller depends on `Builder.WriteTo` or `Builder.Build` producing bytes. | Both are exported from a core package, so the grep must be tree-wide rather than reactor-local. | Keep a thin compatibility implementation over the shared writer rather than deleting the methods. | Tree-wide grep for `WriteTo(`, `CheckedWriteTo(` and `Build()` on a `Builder` receiver. | unvalidated |
-| A-5 | The NLRI region bound can be expressed as an argument to the shared writer without special-casing the queued rail. | `attrWriter` already models it as a plain limit distinct from the buffer length (`internal/component/bgp/reactor/peer_rib_routes.go:278`). | The queued rail keeps its own bounded wrapper around the shared writer. | A test that fills the attribute region to the limit and asserts the NLRI is intact. | unvalidated |
+| A-1 | Every attribute the `Builder` can emit is expressible as a slot over an empty base. | The `Builder` setters cover a fixed list, each producing a self-contained value; the raw-wire escape hatch at `internal/core/bgp/attribute/builder.go:130` covers everything else. | The escape hatch stays as a terminal override on the edit set, which the vocabulary already supports. | A mapping table with one row per setter, each with a byte-identity test. | confirmed: `AppendAttributes` covers every setter, `TestBuilderAppendAttributesMatchesBuild` holds Build against it |
+| A-2 | The two rails already agree byte for byte on every case the current tests cover, so convergence cannot regress those cases. | `TestAnnounceRailsAgreeByteForByte` (`internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go:312`) and `TestAnnounceRailsPreserveUnlistedAttributes` (`internal/component/bgp/reactor/reactor_api_batch_attr_preserve_test.go:167`) both pass today. | Convergence would be fixing a live divergence as well as removing an encoder, which changes the blast radius and must be reported before proceeding. | Run both test files at the start of implementation and record the result. | confirmed: both green before any edit (tmp/wire4/baseline.log) |
+| A-3 | The announce path's per-route cost after convergence is within benchmark noise of an equivalent forwarded route. | Both would run the same size query and the same writer over the same number of slots. | The claim in the umbrella is dropped; the encoder consolidation stands on its own merits. | `BenchmarkAPIOriginVsForward`, comparing equal touched-attribute counts. | confirmed with a caveat: the encoder cost matches; the announce carries one extra allocation, its `*message.Update` return value, which the forward path does not have |
+| A-4 | No out-of-tree or plugin caller depends on `Builder.WriteTo` or `Builder.Build` producing bytes. | Both are exported from a core package, so the grep must be tree-wide rather than reactor-local. | Keep a thin compatibility implementation over the shared writer rather than deleting the methods. | Tree-wide grep for `WriteTo(`, `CheckedWriteTo(` and `Build()` on a `Builder` receiver. | confirmed: `Builder.WriteTo`/`CheckedWriteTo` had no caller outside `Build`; `Build` kept and reimplemented over `AppendAttributes` + `WriteAttrTo` |
+| A-5 | The NLRI region bound can be expressed as an argument to the shared writer without special-casing the queued rail. | `attrWriter` already models it as a plain limit distinct from the buffer length (`internal/component/bgp/reactor/peer_rib_routes.go:278`). | The queued rail keeps its own bounded wrapper around the shared writer. | A test that fills the attribute region to the limit and asserts the NLRI is intact. | confirmed: `announceAttrs.emit` takes the region as `dst`; `TestQueuedRailNLRIRegionIntact` walks the boundary |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -237,8 +237,8 @@ apply. This child changes who writes the bytes, not what they say.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestBuilderSettersMapToSlots` | `internal/core/bgp/attribute/builder_slots_test.go` | A-1: one row per setter, each producing the same bytes through the shared writer | |
-| `TestBuilderRawWirePassthrough` | `internal/core/bgp/attribute/builder_slots_test.go` | AC-9: the escape hatch survives as a terminal override | |
+| `TestBuilderAppendAttributesMatchesBuild` | `internal/core/bgp/attribute/builder_test.go` | A-1: Build equals the AppendAttributes list written through WriteAttrTo, and the list is ascending | pass |
+| `TestBuilderRawWirePassthrough` | `internal/core/bgp/attribute/builder_test.go` | AC-9: the escape hatch survives as a terminal override, and yields no attributes | pass |
 | `TestAnnounceBatchRail_AscendingTypeCodeOrder` | existing `internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go` | AC-1: unchanged and still passing | |
 | `TestAnnounceQueuedRail_AscendingTypeCodeOrder` | existing `internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go` | AC-1: unchanged and still passing | |
 | `TestAnnounceRailsAgreeByteForByte` | existing `internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go` | AC-1: the gate for every phase of this child | |
@@ -247,7 +247,7 @@ apply. This child changes who writes the bytes, not what they say.
 | `TestAnnounceAS4PathFromSharedResolver` | `internal/component/bgp/reactor/reactor_api_origin_test.go` | AC-4: AS4_PATH comes from the shared resolver, not a rail-local insertion | |
 | `TestAnnounceOversizeDropsWithNamedLog` | `internal/component/bgp/reactor/reactor_api_origin_test.go` | AC-5: fail-closed drop, route named | |
 | `TestQueuedRailNLRIRegionIntact` | `internal/component/bgp/reactor/reactor_api_origin_test.go` | AC-6, A-5: a saturated attribute region does not touch the NLRI tail | |
-| `BenchmarkAPIOriginVsForward` | `internal/component/bgp/reactor/reactor_api_origin_bench_test.go` | AC-2, A-3: equal cost for an equal touched-attribute count | |
+| `BenchmarkAPIOriginVsForward` | `internal/component/bgp/reactor/reactor_api_origin_bench_test.go` | AC-2, A-3: equal cost for an equal touched-attribute count | pass: api-origin 300-342ns/1 alloc vs forward 224ns/0 allocs; the one allocation is the `*message.Update` the announce API returns |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -262,7 +262,7 @@ apply. This child changes who writes the bytes, not what they say.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `wire-edit-api-origin-order` | `test/plugin/wire-edit-api-origin-order.ci` | an API-announced route reaches the peer with ascending attribute order, identical on both rails | |
+| `wire-edit-api-origin-order` | `test/plugin/wire-edit-api-origin-order.ci` | an API-announced route reaches the peer with ascending attribute order | pass; mutation-verified (a descending contribution sort emits 32,8,5,3,2,1 and the test goes red) |
 | `ddos-flowspec-announce` | existing `test/plugin/ddos-flowspec-announce.ci` | the flowspec announce encoding is unchanged | |
 | `as112-community-choice` | existing `test/plugin/as112-community-choice.ci` | community selection on an originated route is unchanged | |
 | `redistribute-as112-community` | existing `test/plugin/redistribute-as112-community.ci` | the redistribution announce path is unchanged | |
