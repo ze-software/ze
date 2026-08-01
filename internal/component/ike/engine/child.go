@@ -326,25 +326,31 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		IsAEAD:    isAEAD,
 	}
 
-	// RFC 3948: UDP encapsulation follows the PORT this SA runs on, not the NAT
-	// verdict. RFC 7296 Section 2.23 lets either side encapsulate
+	// RFC 3948: UDP encapsulation follows EITHER the NAT verdict OR the port this SA
+	// runs on. createFirstChildSA sets UDPEncap from a disjunction, so either condition
+	// alone is enough. RFC 7296 Section 2.23 lets either side encapsulate
 	// "irrespective of the choice made by the other side",
 	// and a peer that encapsulates ESP runs its IKE on port 4500 too. The float is
-	// therefore the signal, and it is set both when a NAT is detected and when an
+	// therefore a second signal beside the NAT verdict, and it is set when an
 	// AUTHENTICATED message arrives on port 4500 (sa.adoptAuthenticatedEndpoint).
 	//
 	// RFC 7296 Section 2.23 MUST NOT (rfc/full/rfc7296.txt:3544): "UDP encapsulation
 	// MUST NOT be done on port 500." Both ports below are the NAT-T constant, and the
 	// branch runs only for a floated SA, so no path here can encapsulate on port 500.
 	//
-	// MEASURED KERNEL CONSTRAINT, and it bounds what this can achieve. On Linux XFRM
-	// one inbound state accepts exactly ONE of the two ESP forms.
+	// KERNEL CONSTRAINT, and it bounds what this can achieve. On Linux XFRM one inbound
+	// state accepts exactly ONE of the two ESP forms.
 	//
-	// A state carrying an ESP-in-UDP template rejects bare ESP with
-	// XfrmInStateMismatch. A state without one rejects encapsulated ESP the same way.
-	// Two states on one SPI do not help. The state lookup is not encapsulation-aware,
-	// so it returns the first and the mismatch check then drops the packet.
-	// TestEncapKernelBindsOneESPFormPerState records the truth table.
+	// MEASURED: a state carrying an ESP-in-UDP template rejects bare ESP with
+	// XfrmInStateMismatch, and a state without one rejects encapsulated ESP the same
+	// way. TestEncapKernelBindsOneESPFormPerState records that truth table. It installs
+	// its two states on two DISTINCT SPIs.
+	//
+	// REASONED, and not measured: two states on one SPI do not help either. The state
+	// lookup is keyed on destination, SPI, protocol and family, so it returns the first
+	// match and the mismatch check then drops the packet. No test installs two states on
+	// one SPI. plan/spec-ipsec-esp-dual-form-receive.md carries this as an assumption to
+	// validate, and it owns the work of lifting the constraint.
 	if child.UDPEncap {
 		inbound.UDPEncap = true
 		inbound.UDPEncapSPort = transport.NATTPort

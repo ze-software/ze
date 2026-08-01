@@ -328,23 +328,46 @@ func TestPortEncodingFollowsSection3131(t *testing.T) {
 			singleTS.EndPort)
 	}
 
-	// rfc-test-change-approved: 2026-07-31 owner standing approval for
-	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only.
+	// rfc-test-change-approved: 2026-08-01 owner standing approval for
+	// plan/spec-rfcgate-1b-rfc7296-pilot.md, strengthening only. The block below was
+	// deliberately untagged while an owner decision was open. The owner ruled on
+	// 2026-08-01 that the row LANDS as encoder-proven. The tags are added, and nothing
+	// else moves.
 	//
-	// NOT TAGGED, deliberately. RFC 7296 S3.13.1 (rfc/full/rfc7296.txt:6074-6079) binds a
-	// system "that wishes to indicate 'OPAQUE' ports, but not 'ANY' ports" to the 65535/0
-	// encoding. The encoder below implements it, and it round-trips. Ze never WISHES to
-	// indicate OPAQUE: no backend can program an opaque-port policy, so the form is
-	// refused at commit (ipsec.ValidateTrafficSelectors) and narrowed away at negotiation
-	// (programmableSelector). The MUST's antecedent is therefore unreachable in
-	// production, and tagging this assertion would claim a sender obligation Ze never
-	// exercises. Landing RFC7296-3.13.1-3 is an owner decision, and the ordinal stays free
-	// because -1 and -2 land below it.
+	// RFC requirement: RFC7296-3.13.1-3 positive -- "Systems that wish to indicate
+	// 'OPAQUE' ports, but not 'ANY' ports, MUST set the start port to 65535 and the end
+	// port to 0" (RFC 7296 S3.13.1, rfc/full/rfc7296.txt:6074-6079).
+	//
+	// The obligation is an ENCODING rule. It is proven at the layer that owns the
+	// encoding. ipsec.PortSelector.Wire (ipsec/traffic_selector.go) is the single
+	// producer of every port pair Ze puts on the wire, and selectorsToWire is its only
+	// caller. A PortOpaque selector therefore encodes as 65535/0 wherever one appears.
+	//
+	// Ze never WISHES to indicate OPAQUE. That refusal is Ze's conformant behavior and
+	// not a hole. No dataplane backend can program an opaque-port policy EXACTLY.
+	//
+	// The vendored netlink derives the port mask from the port VALUE. selFromPolicy
+	// (vendor/github.com/vishvananda/netlink/xfrm_policy_linux.go:117-124) sets DportMask
+	// only when the port is non-zero. An exact match on port 0 is therefore
+	// inexpressible, and it would install as ANY port. That is WIDER than the selector
+	// negotiated, which RFC 7296 Section 2.9 forbids.
+	//
+	// Ze refuses the form at commit (ipsec.checkPortProgrammable). It drops the form at
+	// negotiation (programmableSelector). That is ai/rules/exact-or-reject.md applied
+	// correctly. A backend that cannot deliver the operator's config exactly must reject
+	// it, and must never approximate it.
+	//
+	// WHAT WOULD FALSIFY THIS: PortSelector.Wire returning any pair other than 65535/0
+	// for PortOpaque, or a second producer of wire ports that bypasses it.
 	if opaqueTS.StartPort != 65535 || opaqueTS.EndPort != 0 {
 		t.Errorf("opaque selector ports = %d/%d, want 65535/0", opaqueTS.StartPort, opaqueTS.EndPort)
 	}
-	// The discriminator: an ANY selector is NOT emitted in the OPAQUE form, so the two
-	// encodings are distinguished rather than aliased.
+	// RFC requirement: RFC7296-3.13.1-3 negative -- the discriminator. It rests on a
+	// property the encoder HAS and not on a guard that is absent. The encoder emits a
+	// DIFFERENT pair for ANY (0/65535, asserted above). 65535/0 is therefore the form it
+	// chooses for OPAQUE alone, and not a constant it cannot leave. If the two were
+	// aliased, the positive would prove nothing. "Wish to indicate OPAQUE ports, but not
+	// ANY ports" is exactly the distinction the MUST exists to draw.
 	if anyTS.StartPort == 65535 && anyTS.EndPort == 0 {
 		t.Error("an ANY selector was emitted in the OPAQUE form; the two encodings are not distinguished")
 	}

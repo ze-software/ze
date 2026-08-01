@@ -133,9 +133,13 @@ ASCENDING, or land all four together.
 
 WP-8 reserved `2.23-10` and `2.23-11` rather than annotating them. A QEMU probe against a
 real XFRM stack disproved the design. An inbound state with an ESP-in-UDP template refuses
-bare ESP. A state without one refuses encapsulated ESP. The lookup is not encap-aware, so
-two states on one SPI do not help. Receiving both forms at any time is unreachable per SA
-on XFRM.
+bare ESP. A state without one refuses encapsulated ESP.
+
+The probe measured those two
+verdicts on two distinct SPIs. It installed no second state on one SPI. The lookup is
+keyed on destination, SPI, protocol and family, so two states on one SPI do not help
+either. That last step is reasoning rather than a measurement. Receiving both forms at
+any time is unreachable per SA on XFRM.
 
 Writing `{gap}` is itself a compliance decision (`ai/rules/rfc-compliance.md`), so the rows
 stay open. Raise them with Thomas.

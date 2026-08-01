@@ -202,7 +202,9 @@ func buildIKEProposals(ikeGroup ipsec.IKEGroup) []crypto.IKEProposal {
 	return out
 }
 
-// wireProposalsToIKE converts wire SA proposals to crypto proposals for negotiation.
+// wireProposalsToIKE converts wire SA proposals to crypto proposals for negotiation. One
+// wire proposal produces ONE crypto proposal for each complete parameter set it offers,
+// so a proposal that carries alternatives produces several. See appendIKECombinations.
 //
 // RFC 7296 Section 3.3.6: a proposal that contains a Transform Type the responder does not
 // understand MUST be considered unacceptable. This reader is the only place that sees the
@@ -213,27 +215,113 @@ func buildIKEProposals(ikeGroup ipsec.IKEGroup) []crypto.IKEProposal {
 func wireProposalsToIKE(wireProps []wire.Proposal) []crypto.IKEProposal {
 	out := make([]crypto.IKEProposal, 0, len(wireProps))
 	for _, wp := range wireProps {
-		p := crypto.IKEProposal{Number: uint16(wp.Number)}
-		for _, t := range wp.Transforms {
-			transformType := crypto.TransformType(t.Type)
-			if !crypto.TransformTypeUnderstoodIKE(transformType) {
-				if p.UnknownTransformType == 0 {
-					p.UnknownTransformType = transformType
-				}
-				continue
+		out = appendIKECombinations(out, wp)
+	}
+	return out
+}
+
+// maxIKECombinations bounds how many complete parameter sets ONE wire proposal expands
+// to. The expansion below is a cross product. Without a bound, an unauthenticated peer
+// CAN turn four lists of transforms into an arbitrarily large amount of work.
+//
+// The combinations are emitted in the peer's preference order. The cap therefore drops
+// the peer's LEAST preferred combinations and keeps every one it asked for first. It only
+// ever removes candidates, so it can never make Ze accept a set the peer did not offer.
+const maxIKECombinations = 64
+
+// appendIKECombinations expands one wire proposal into every complete IKE parameter set
+// it offers. It appends them in the peer's preference order.
+//
+// RFC 7296 Section 3.3 lets one proposal carry SEVERAL transforms of the same type. That
+// is the mandated encoding for alternatives. Section 3.3.5 requires two encryption key
+// lengths to be offered as two separate ENCR transforms. The sender lists them in order
+// of preference, and the responder selects one of each type that it supports.
+//
+// Reading only the last transform of each type therefore misreads the offer. A peer that
+// offered [group 14, group NONE] was read as offering NONE alone. ikeProposalComplete
+// refused it with NO_PROPOSAL_CHOSEN, although group 14 was on offer and configured.
+// strongSwan offers alternatives this way, so that was a live interop failure.
+//
+// The expansion is an odometer with ENCR turning slowest and D-H fastest. The FIRST set
+// emitted therefore pairs the peer's first choice of every type. crypto.negotiateIKE
+// scans this list in order and returns the first entry any local proposal matches.
+// Selection stays deterministic, and the peer's stated preference is what decides.
+//
+// A proposal that offers only transforms Ze does not support still matches nothing, and
+// it is still refused. The expansion adds candidates. It never relaxes a comparison.
+func appendIKECombinations(out []crypto.IKEProposal, wp wire.Proposal) []crypto.IKEProposal {
+	base := crypto.IKEProposal{Number: uint16(wp.Number)}
+
+	var (
+		encs   []crypto.EncryptionTransform
+		prfs   []crypto.PRFTransform
+		integs []crypto.IntegrityTransform
+		dhs    []crypto.DHGroupTransform
+	)
+
+	for _, t := range wp.Transforms {
+		transformType := crypto.TransformType(t.Type)
+		if !crypto.TransformTypeUnderstoodIKE(transformType) {
+			if base.UnknownTransformType == 0 {
+				base.UnknownTransformType = transformType
 			}
-			switch t.Type {
-			case wire.TransformTypeENCR:
-				p.Encryption = wireEncryptionTransform(t)
-			case wire.TransformTypePRF:
-				p.PRF.ID = crypto.PRFID(t.ID)
-			case wire.TransformTypeINTG:
-				p.Integrity.ID = crypto.IntegrityID(t.ID)
-			case wire.TransformTypeDH:
-				p.DHGroup.ID = crypto.DHGroupID(t.ID)
+			continue
+		}
+		switch t.Type {
+		case wire.TransformTypeENCR:
+			encs = append(encs, wireEncryptionTransform(t))
+		case wire.TransformTypePRF:
+			prfs = append(prfs, crypto.PRFTransform{ID: crypto.PRFID(t.ID)})
+		case wire.TransformTypeINTG:
+			integs = append(integs, crypto.IntegrityTransform{ID: crypto.IntegrityID(t.ID)})
+		case wire.TransformTypeDH:
+			dhs = append(dhs, crypto.DHGroupTransform{ID: crypto.DHGroupID(t.ID)})
+		}
+	}
+
+	// RFC 7296 Section 3.3.6 makes a proposal that carries a Transform Type IKE does not
+	// use unusable as a whole. Every combination inside it would be refused for that one
+	// reason. A single entry carries the refusal exactly as it did before this expansion
+	// existed, and it keeps the reported reason stable.
+	if base.UnknownTransformType != 0 {
+		return append(out, base)
+	}
+
+	// A type the peer omitted altogether keeps its zero value. ikeProposalComplete
+	// refuses that as a missing mandatory transform. One zero-value element keeps the
+	// refusal reachable. An empty list would collapse the cross product to nothing, and
+	// the proposal would vanish silently instead of being refused.
+	if len(encs) == 0 {
+		encs = []crypto.EncryptionTransform{{}}
+	}
+	if len(prfs) == 0 {
+		prfs = []crypto.PRFTransform{{}}
+	}
+	if len(integs) == 0 {
+		integs = []crypto.IntegrityTransform{{}}
+	}
+	if len(dhs) == 0 {
+		dhs = []crypto.DHGroupTransform{{}}
+	}
+
+	emitted := 0
+	for _, enc := range encs {
+		for _, prf := range prfs {
+			for _, integ := range integs {
+				for _, dh := range dhs {
+					if emitted == maxIKECombinations {
+						return out
+					}
+					p := base
+					p.Encryption = enc
+					p.PRF = prf
+					p.Integrity = integ
+					p.DHGroup = dh
+					out = append(out, p)
+					emitted++
+				}
 			}
 		}
-		out = append(out, p)
 	}
 	return out
 }

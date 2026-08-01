@@ -1170,9 +1170,9 @@ the Obligation text.
 | `RFC7296-2.22-4` | MUST NOT | Implementations of this specification MUST NOT compress using an algorithm other than one proposed and accepted in the setup of the Child SA (§2.22) | **NOT IMPL** |
 | `RFC7296-2.23-8` (was `-2.23-4`) | MUST | An IPsec endpoint that discovers a NAT between it and its correspondent (as described below) MUST send all subsequent traffic from port 4500 (§2.23) | landed 2026-07-31, WP-8 |
 | `RFC7296-2.23-9` (was `-2.23-5`) | MUST NOT | UDP encapsulation MUST NOT be done on port 500 (§2.23) | landed 2026-07-31, WP-8 |
-| `RFC7296-2.23-6` -> to land as `-2.23-10` | MUST | If Network Address Translation Traversal (NAT-T) is supported, all devices MUST be able to receive and process both UDP-encapsulated ESP and non-UDP-encapsulated ESP packets at any time (§2.23) | **NOT IMPL, OPEN OWNER QUESTION OR-WP8-4** |
+| `RFC7296-2.23-10` (was `-2.23-6`) | MUST | If Network Address Translation Traversal (NAT-T) is supported, all devices MUST be able to receive and process both UDP-encapsulated ESP and non-UDP-encapsulated ESP packets at any time (§2.23) | landed 2026-08-01, owner ruling on OR-WP8-4: gated as a platform limit |
 | `RFC7296-2.23-7` | MUST | Both the IKE initiator and responder MUST include in their IKE_SA_INIT packets Notify payloads of type NAT_DETECTION_SOURCE_IP and NAT_DETECTION_DESTINATION_IP (§2.23) | impl-untested |
-| `RFC7296-2.23-8` -> to land as `-2.23-11` | MUST | Implementations MUST process received UDP-encapsulated ESP packets even when no NAT was detected (§2.23) | **NOT IMPL, OPEN OWNER QUESTION OR-WP8-4** |
+| `RFC7296-2.23-11` (was `-2.23-8`) | MUST | Implementations MUST process received UDP-encapsulated ESP packets even when no NAT was detected (§2.23) | landed 2026-08-01, owner ruling on OR-WP8-4: gated as a platform limit |
 | `RFC7296-2.23.1-1` | MUST | For transport mode, it MUST use exactly one IP address in the TSi and TSr payloads (§2.23.1, §2.23) | **NOT IMPL** |
 | `RFC7296-2.23.1-2` | MUST | The TSi entries MUST have exactly one IP address, and that MUST match the source address of the IKE SA (§2.23.1) | **NOT IMPL** |
 | `RFC7296-2.23.1-3` | MUST | The TSr entries MUST have exactly one IP address, and that MUST match the destination address of the IKE SA (§2.23.1) | **NOT IMPL** |
@@ -1240,7 +1240,7 @@ the Obligation text.
 | `RFC7296-3.12-3` | MUST | Writers of documents who wish to extend this protocol MUST define a Vendor ID payload to announce the ability to implement the extension in the document (§3.12) | impl-untested |
 | `RFC7296-3.13.1-1` | MUST | For protocols for which port is undefined (including protocol 0), or if all ports are allowed, the Start Port field MUST be zero (§3.13.1) | **NOT IMPL** |
 | `RFC7296-3.13.1-2` | MUST | For protocols for which port is undefined (including protocol 0), or if all ports are allowed, the End Port field MUST be 65535 (§3.13.1) | **NOT IMPL** |
-| `RFC7296-3.13.1-3` | MUST | Systems that wish to indicate OPAQUE ports, but not ANY ports, MUST set the start port to 65535 and the end port to 0 (§3.13.1) | **NOT IMPL** |
+| `RFC7296-3.13.1-3` | MUST | Systems that wish to indicate OPAQUE ports, but not ANY ports, MUST set the start port to 65535 and the end port to 0 (§3.13.1) | landed 2026-08-01, owner ruling: encoder-proven, and the refusal to emit OPAQUE is the conformant behavior |
 | `RFC7296-3.14-7` | MUST NOT | Peers MUST NOT negotiate transforms for which no such specification exists (§3.14) | impl-testable |
 | `RFC7296-3.14-2` | MUST | Senders MUST select a new unpredictable IV for every message (§3.14) | impl-testable |
 | `RFC7296-3.14-3` | MUST | Initialization Vector -- recipients MUST accept any value (§3.14) | impl-untested |
@@ -1429,7 +1429,41 @@ All fifteen mutations of these guards were killed. `rekeyLead` and the unconditi
 expiry are one change: either alone is a regression, because the previous soft trigger could
 coincide exactly with the hard time whenever `lifetimeJitter` returned zero.
 
-### A defect found while proving `3.3.6-8`, not fixed here
+### A defect found while proving `3.3.6-8`, FIXED 2026-08-01 by owner ruling
+
+The paragraph below records the defect as it was found. The owner ruled on 2026-08-01
+that it is fixed inside this spec, and it is. `wireProposalsToIKE` now expands one wire
+proposal into every complete parameter set it offers, in the peer's order of preference.
+It hands that list to the unchanged selection loop.
+
+`crypto.negotiateIKE` already iterated a LIST and returned the first complete match. No
+comparison was relaxed and no selection rule moved. The reader stopped discarding
+alternatives, and nothing else changed.
+
+`[group 14, group NONE]` now selects group 14 in either order. Peer preference decides
+among the alternatives Ze supports, and the result is deterministic. A proposal that
+offers only transforms Ze does not support is still refused. So is one missing a mandatory
+type, and one carrying a Transform Type IKE does not use. The cross product is bounded
+(`maxIKECombinations`), because an unauthenticated peer must not be able to turn four
+lists of transforms into unbounded work.
+
+No existing tagged test changed. None of them encoded the collapsing, which is why the
+defect survived. Proof is `internal/component/ike/engine/rfc7296_transform_alternatives_test.go`,
+tagged `RFC7296-3.3.6-5` in both polarities. That row's "other transforms with the same
+Transform Type are processed as usual" is exactly this obligation. The crypto layer cannot
+prove it, because `crypto.IKEProposal` holds one transform per type.
+
+**A sibling this ruling did not cover.** `espProposalMatches`
+(`internal/component/ike/engine/responder.go:677`) collapses the same way for a Child SA
+offer. `wireProposalsToESP` (`initiator.go`) does the same for the initiator's re-check.
+The re-check reads an ACCEPTED proposal, which RFC 7296 Section 3.3.6 makes a single
+suite, so it is not a live defect.
+
+`espProposalMatches` IS a responder selection path, and it has the same shape as the one
+just fixed. It changes Child SA selection, so it is the owner's call in the same way this
+one was. Raised, and not taken.
+
+The original finding follows.
 
 `wireProposalsToIKE` (`engine/initiator.go`) collapses several transforms of one type to the
 LAST one seen, for DH, PRF and INTEG alike. RFC 7296 Section 3.3 lets a proposal offer
@@ -1522,7 +1556,7 @@ be able to receive and process both UDP-encapsulated ESP and non-UDP-encapsulate
 packets at any time." `RFC7296-2.23-8` (`:3624-3625`): "Implementations MUST process
 received UDP-encapsulated ESP packets even when no NAT was detected."
 
-**The measurement, not an inference.** `TestEncapKernelBindsOneESPFormPerState`
+**What the probe measured.** `TestEncapKernelBindsOneESPFormPerState`
 (`internal/component/ike/dataplane/encap_integration_linux_test.go`) drives a real kernel in
 QEMU and records this table:
 
@@ -1534,16 +1568,27 @@ QEMU and records this table:
 An SPI with no state at all raises `XfrmInNoStates`. That is how the two verdicts are
 told apart.
 
-**Two states on one SPI do not help.** The state lookup is keyed on destination, SPI,
+**Two states on one SPI do not help. That part is reasoning, not a measurement.** The
+probe installs two states on two distinct SPIs (`encapSPIBare`, `encapSPIEncapsulated`).
+No case installs two states on one SPI. The state lookup is keyed on destination, SPI,
 protocol and family. It returns the first match, and the encapsulation check then
-drops the packet. That was measured too.
+drops the packet.
 
 **So one XFRM state accepts exactly one form, and Ze installs one state per SPI.** The
 "at any time" of `-2.23-6` is not reachable on the dataplane Ze ships.
 
 **What WP-8 did instead, and it is more conformant than before.** The Child SA's
-encapsulation now follows the PORT the IKE SA runs on, not Ze's own NAT verdict
+encapsulation now follows either Ze's own NAT verdict or the port the IKE SA runs on.
+`createFirstChildSA` sets it from a disjunction, so either condition alone is enough
 (`internal/component/ike/engine/child.go`).
+
+**Correction, 2026-08-01.** Two earlier statements of this work were stronger than the
+code and the test support. The commit body of `1ebdb35cc` says the port replaces the NAT
+verdict, and a commit message cannot be edited. `docs/features/rfc-status.md` now carries
+the accurate form of both claims. The one-SPI consequence is reasoning from the state
+lookup key, and the encapsulation decision is a disjunction. The comment at
+`child.go:329-330` carries the same overstatement, and
+`plan/spec-ipsec-esp-dual-form-receive.md` A-2 tracks it.
 
 A peer that chooses UDP encapsulation with no NAT present runs its IKE on port 4500.
 `adoptAuthenticatedEndpoint` floats the SA on that authenticated observation. The
