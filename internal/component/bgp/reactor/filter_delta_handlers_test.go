@@ -273,7 +273,7 @@ func TestBuildModifiedPayload_MPReachNextHopSelf(t *testing.T) {
 	mods.Op(14, filterapi.AttrModSet, newNH)
 
 	handlers := attrModHandlersWithDefaults()
-	modified, _ := buildModifiedPayload(payload, &mods, handlers, nil, nil)
+	modified, _, _ := buildModifiedPayload(payload, &mods, handlers, nil, nil)
 	require.NotNil(t, modified, "payload was modified")
 	require.Equal(t, len(payload), len(modified), "length unchanged for 16->16 rewrite")
 

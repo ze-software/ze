@@ -436,7 +436,9 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 		} else if mods.HasModifications() {
 			peerKey := fwdKey{peerAddr: facts.peerKey}
 			modPool := r.fwdPool.OutgoingPool(peerKey)
-			if modified, bufIdx := buildModifiedPayload(peerWire.Payload(), &mods, r.attrModHandlers, modPool, nil); modified != nil {
+			modified, bufIdx, modFail := buildModifiedPayload(peerWire.Payload(), &mods, r.attrModHandlers, modPool, nil)
+			r.recordModifyFailure(modFail)
+			if modified != nil {
 				peerWire = wireu.NewWireUpdate(modified, peerWire.SourceCtxID())
 				modBufIdx = bufIdx
 				modPoolRef = modPool

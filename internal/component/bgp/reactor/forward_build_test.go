@@ -43,7 +43,7 @@ func TestProgressiveBuildNoMods(t *testing.T) {
 	payload := buildModTestPayload(attrs, nil)
 
 	var mods filterapi.ModAccumulator
-	result, _ := buildModifiedPayload(payload, &mods, nil, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, nil, nil, nil)
 	assert.Nil(t, result, "no mods should return nil")
 }
 
@@ -61,7 +61,7 @@ func TestBuildModifiedPayloadNLRIRewrite(t *testing.T) {
 	require.True(t, mods.HasModifications(), "NLRI rewrite counts as a modification")
 	assert.Equal(t, 0, mods.Len(), "NLRI rewrite is not an attribute op")
 
-	result, _ := buildModifiedPayload(payload, &mods, nil, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, nil, nil, nil)
 	require.NotNil(t, result, "NLRI rewrite alone must produce a modified payload")
 
 	wdLen := int(binary.BigEndian.Uint16(result[0:2]))
@@ -87,7 +87,7 @@ func TestBuildModifiedPayloadWithdrawnRewrite(t *testing.T) {
 	mods.SetWithdrawnRewrite(rewritten)
 	require.True(t, mods.HasModifications())
 
-	result, _ := buildModifiedPayload(payload, &mods, nil, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, nil, nil, nil)
 	require.NotNil(t, result, "withdrawn rewrite must produce a modified payload")
 
 	wdLen := int(binary.BigEndian.Uint16(result[0:2]))
@@ -131,7 +131,7 @@ func TestProgressiveBuildOTCAdd(t *testing.T) {
 	var mods filterapi.ModAccumulator
 	mods.Op(35, filterapi.AttrModSet, asnBuf)
 
-	result, _ := buildModifiedPayload(payload, &mods, handlers, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, handlers, nil, nil)
 	require.NotNil(t, result, "should produce modified payload")
 
 	// Parse result: should have ORIGIN + OTC + NLRI.
@@ -199,7 +199,7 @@ func TestProgressiveBuildAttrReplace(t *testing.T) {
 	var mods filterapi.ModAccumulator
 	mods.Op(5, filterapi.AttrModSet, newLPValue)
 
-	result, _ := buildModifiedPayload(payload, &mods, handlers, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, handlers, nil, nil)
 	require.NotNil(t, result)
 
 	// Same total length (same-size replacement).
@@ -244,7 +244,7 @@ func TestProgressiveBuildMultiOps(t *testing.T) {
 	mods.Op(8, filterapi.AttrModRemove, []byte{0xFF, 0xFF, 0x00, 0x01}) // remove no-export
 	mods.Op(8, filterapi.AttrModAdd, []byte{0xFF, 0xFF, 0x00, 0x03})    // add another
 
-	result, _ := buildModifiedPayload(payload, &mods, handlers, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, handlers, nil, nil)
 	require.NotNil(t, result)
 	assert.Equal(t, 3, receivedOps, "handler should receive all 3 ops at once")
 }
@@ -259,7 +259,7 @@ func TestProgressiveBuildUnknownCode(t *testing.T) {
 	mods.Op(99, filterapi.AttrModSet, []byte{0x01}) // No handler for code 99.
 
 	// No handlers registered.
-	result, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{}, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{}, nil, nil)
 	require.NotNil(t, result)
 
 	// ORIGIN should still be present.
@@ -296,7 +296,7 @@ func TestProgressiveBuildWithdrawnPreserved(t *testing.T) {
 	binary.BigEndian.PutUint32(asnBuf, 65000)
 	mods.Op(35, filterapi.AttrModSet, asnBuf)
 
-	result, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: otcHandler}, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: otcHandler}, nil, nil)
 	require.NotNil(t, result)
 
 	// Check withdrawn section preserved.
@@ -325,7 +325,7 @@ func TestProgressiveBuildNLRIPreserved(t *testing.T) {
 	binary.BigEndian.PutUint32(asnBuf, 65000)
 	mods.Op(35, filterapi.AttrModSet, asnBuf)
 
-	result, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: otcHandler}, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: otcHandler}, nil, nil)
 	require.NotNil(t, result)
 
 	// NLRI should be at the end after the expanded attr section.
@@ -355,7 +355,7 @@ func TestProgressiveBuildAttrLenBackfill(t *testing.T) {
 	var mods filterapi.ModAccumulator
 	mods.Op(35, filterapi.AttrModSet, []byte{0, 0, 0xFD, 0xE8})
 
-	result, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: otcHandler}, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: otcHandler}, nil, nil)
 	require.NotNil(t, result)
 
 	attrLen := int(binary.BigEndian.Uint16(result[2:4]))
@@ -383,7 +383,7 @@ func TestProgressiveBuildHandlerPanic(t *testing.T) {
 	var mods filterapi.ModAccumulator
 	mods.Op(5, filterapi.AttrModSet, []byte{0, 0, 0, 0})
 
-	result, _ := buildModifiedPayload(payload, &mods, handlers, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, handlers, nil, nil)
 	require.NotNil(t, result)
 
 	// LOCAL_PREF should be copied unchanged (panic recovery).
@@ -422,7 +422,7 @@ func TestProgressiveBuildExtendedLengthAttr(t *testing.T) {
 	binary.BigEndian.PutUint32(asnBuf, 65000)
 	mods.Op(35, filterapi.AttrModSet, asnBuf)
 
-	result, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: otcHandler}, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: otcHandler}, nil, nil)
 	require.NotNil(t, result)
 
 	// Check attr_len = ORIGIN(4) + ExtComm(12) + OTC(7) = 23.
@@ -454,7 +454,7 @@ func TestProgressiveBuildMalformedPayload(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, _ := buildModifiedPayload(tt.payload, &mods, handlers, nil, nil)
+			result, _, _ := buildModifiedPayload(tt.payload, &mods, handlers, nil, nil)
 			assert.Nil(t, result, "malformed payload should return nil")
 		})
 	}
@@ -473,7 +473,7 @@ func TestProgressiveBuildNewAttrHandlerPanic(t *testing.T) {
 	var mods filterapi.ModAccumulator
 	mods.Op(35, filterapi.AttrModSet, []byte{0, 0, 0xFD, 0xE8})
 
-	result, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: panicHandler}, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: panicHandler}, nil, nil)
 	require.NotNil(t, result)
 
 	// ORIGIN preserved, new attr not written (panic skipped it).
@@ -509,7 +509,7 @@ func TestProgressiveBuildAttrLenOverflow(t *testing.T) {
 	var mods filterapi.ModAccumulator
 	mods.Op(200, filterapi.AttrModSet, []byte{0x01})
 
-	result, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{200: bigHandler}, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{200: bigHandler}, nil, nil)
 	assert.Nil(t, result, "should return nil on attr_len overflow")
 }
 
@@ -530,7 +530,7 @@ func TestProgressiveBuildInvalidHandlerOffset(t *testing.T) {
 		var mods filterapi.ModAccumulator
 		mods.Op(5, filterapi.AttrModSet, []byte{0, 0, 0, 0})
 
-		result, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{5: badHandler}, nil, nil)
+		result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{5: badHandler}, nil, nil)
 		require.NotNil(t, result, "should fall back to source copy, not abandon")
 
 		// LOCAL_PREF should be preserved unchanged (fallback to safeCopy).
@@ -552,7 +552,7 @@ func TestProgressiveBuildInvalidHandlerOffset(t *testing.T) {
 		var mods filterapi.ModAccumulator
 		mods.Op(5, filterapi.AttrModSet, []byte{0, 0, 0, 0})
 
-		result, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{5: badHandler}, nil, nil)
+		result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{5: badHandler}, nil, nil)
 		require.NotNil(t, result, "should fall back to source copy, not abandon")
 
 		attrLen := int(binary.BigEndian.Uint16(result[2:4]))
@@ -571,7 +571,7 @@ func TestProgressiveBuildInvalidHandlerOffset(t *testing.T) {
 		var mods filterapi.ModAccumulator
 		mods.Op(35, filterapi.AttrModSet, []byte{0, 0, 0xFD, 0xE8})
 
-		result, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: badHandler}, nil, nil)
+		result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: badHandler}, nil, nil)
 		require.NotNil(t, result)
 
 		// New attr skipped, only ORIGIN in output.
@@ -610,7 +610,7 @@ func TestProgressiveBuildBufferOverflow(t *testing.T) {
 	var mods filterapi.ModAccumulator
 	mods.Op(1, filterapi.AttrModSet, []byte{0x00}) // Replace ORIGIN
 
-	result, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{1: bigHandler}, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{1: bigHandler}, nil, nil)
 	// Handler fills buffer leaving 6 bytes. LOCAL_PREF (7 bytes) won't fit.
 	assert.Nil(t, result, "should return nil when buffer overflows during verbatim copy")
 }
@@ -651,7 +651,7 @@ func TestProgressiveBuildLargePayload(t *testing.T) {
 	binary.BigEndian.PutUint32(asnBuf, 65000)
 	mods.Op(35, filterapi.AttrModSet, asnBuf)
 
-	result, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: otcHandler}, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: otcHandler}, nil, nil)
 	require.NotNil(t, result, "large payload should produce non-nil result")
 
 	// Verify structure.
@@ -709,7 +709,7 @@ func TestProgressiveBuildMatchesInsertOTC(t *testing.T) {
 	var mods filterapi.ModAccumulator
 	mods.Op(35, filterapi.AttrModSet, asnBuf)
 
-	v2Result, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: otcHandler}, nil, nil)
+	v2Result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: otcHandler}, nil, nil)
 	require.NotNil(t, v2Result, "v2 should produce result")
 
 	assert.Equal(t, v1Result, v2Result, "v1 and v2 must produce byte-identical output")

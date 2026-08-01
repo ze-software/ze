@@ -2,12 +2,20 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | - |
 | Phase | - |
 | Deferral shard | `plan/deferrals/spec-hotpath-alloc-round-4.md` |
-| Updated | 2026-07-28 |
+| Updated | 2026-08-01 |
+
+→ Decision (2026-08-01, Thomas): design approved for implementation. Asked where
+to start `plan/spec-wire-edit-0-umbrella.md`; he chose this spec's Tier 1 first,
+which is the ordering the Task section above already declares load-bearing.
+→ Decision (2026-08-01, Thomas): implementation runs on Opus 5 by explicit
+operator override of `ai/rules/model-selection.md`, recorded in
+`tmp/session/.model-ack-2546e79c-8d57-4803-b856-593a4da12c55`. An independent
+review pass is still owed, and this session is not it.
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

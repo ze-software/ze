@@ -200,7 +200,9 @@ func (r *Reactor) runIngressPolicyChain(peer *Peer, peerAddr netip.Addr, peerAS 
 		ExtractASPathPrependOps(modAttrs, peer.settings.LocalAS, &importMods)
 		nlriOverride := extractLegacyNLRIOverride(updateText, res.Text)
 		if importMods.Len() > 0 || nlriOverride != nil {
-			if modPayload, _ := buildModifiedPayload(payload, &importMods, r.attrModHandlers, nil, nlriOverride); modPayload != nil {
+			modPayload, _, modFail := buildModifiedPayload(payload, &importMods, r.attrModHandlers, nil, nlriOverride)
+			r.recordModifyFailure(modFail)
+			if modPayload != nil {
 				return ingressStepResult{accept: true, modifiedPayload: modPayload}
 			}
 		}
@@ -300,7 +302,9 @@ func (r *Reactor) runEgressPolicyChainASN4(exportFilters []filterapi.FilterRef, 
 		ExtractASPathPrependOps(modAttrs, destLocalAS, &exportMods)
 		nlriOverride := extractLegacyNLRIOverride(updateText, res.Text)
 		if exportMods.Len() > 0 || nlriOverride != nil {
-			if modPayload, _ := buildModifiedPayload(wireUpdate.Payload(), &exportMods, r.attrModHandlers, nil, nlriOverride); modPayload != nil {
+			modPayload, _, modFail := buildModifiedPayload(wireUpdate.Payload(), &exportMods, r.attrModHandlers, nil, nlriOverride)
+			r.recordModifyFailure(modFail)
+			if modPayload != nil {
 				return egressStepResult{accept: true, wireOverride: wireu.NewWireUpdate(modPayload, wireUpdate.SourceCtxID())}
 			}
 		}

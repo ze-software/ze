@@ -1,6 +1,9 @@
 // Design: docs/architecture/core-design.md — progressive build for egress attribute modification
 // Design: .claude/rules/design-principles.md — zero-copy, copy-on-modify (Outgoing Peer Pool is the copy point)
+// RFC: rfc/short/rfc4271.md — UPDATE body layout, Total Path Attribute Length
+// RFC: rfc/short/rfc9494.md — announce-to-withdrawal conversion for non-LLGR EBGP peers
 // Overview: reactor_api_forward.go — UPDATE forwarding dispatch
+// Detail: forward_modify_failure.go — why a modification could not be applied
 // Related: reactor_notify.go — panic recovery helpers
 
 package reactor
@@ -51,17 +54,29 @@ var modBufPool = sync.Pool{
 // that need per-NLRI decisions on non-CIDR families must declare raw=true
 // and return a full payload rewrite themselves).
 //
-// Returns (modified payload, peerBufIdx). peerBufIdx > 0 means the returned
-// slice is backed by pp and MUST be returned via pp.Return(peerBufIdx).
+// Returns (modified payload, peerBufIdx, failure). peerBufIdx > 0 means the
+// returned slice is backed by pp and MUST be returned via pp.Return(peerBufIdx).
 // peerBufIdx == 0 means the slice is independently allocated (safe to retain).
-// Returns (nil, 0) if no modifications were needed.
+//
+// A nil payload has TWO meanings and the caller MUST tell them apart by the
+// third value (ai/rules/fail-closed-guards.md):
+//
+//   - (nil, 0, modifyFailureNone): no modifications were needed. Forward the
+//     route as it stands.
+//   - (nil, 0, anything else): the modifications were needed and could NOT be
+//     applied. The caller MUST suppress the route for this destination.
+//     Forwarding it would send a route the policy was supposed to change.
+//
+// The third return value is not optional bookkeeping: it is what makes a new
+// failure path impossible to add silently, because the compiler forces every
+// return in this function to name a reason.
 func buildModifiedPayload(
 	payload []byte,
 	mods *filterapi.ModAccumulator,
 	handlers map[uint8]filterapi.AttrModHandler,
 	pp *peerPool,
 	nlriOverride []byte,
-) ([]byte, int) {
+) ([]byte, int, modifyFailure) {
 	ops := mods.Ops()
 	// The ModAccumulator can also carry per-peer NLRI rewrites. An explicit
 	// nlriOverride argument (the legacy per-prefix modify path) takes precedence;
@@ -72,29 +87,31 @@ func buildModifiedPayload(
 	}
 	withdrawnOverride := mods.WithdrawnRewrite()
 	if len(ops) == 0 && nlriOverride == nil && withdrawnOverride == nil {
-		return nil, 0
+		// The ONE legitimate nil: there was nothing to apply.
+		return nil, 0, modifyFailureNone
 	}
 
 	// Group ops by attribute code.
 	opsByCode := groupOpsByCode(ops)
 
-	// Parse source payload structure.
+	// Parse source payload structure. From here on every nil return is a
+	// FAILURE: modifications were required and could not be applied.
 	if len(payload) < 4 {
-		fwdLogger().Warn("malformed payload in buildModifiedPayload, skipping mods", "payloadLen", len(payload))
-		return nil, 0
+		fwdLogger().Warn("malformed payload in buildModifiedPayload, suppressing route", "payloadLen", len(payload))
+		return nil, 0, modifyFailureMalformed
 	}
 	withdrawnLen := int(binary.BigEndian.Uint16(payload[0:2]))
 	attrOffset := 2 + withdrawnLen
 	if len(payload) < attrOffset+2 {
-		fwdLogger().Warn("malformed payload in buildModifiedPayload, skipping mods", "payloadLen", len(payload))
-		return nil, 0
+		fwdLogger().Warn("malformed payload in buildModifiedPayload, suppressing route", "payloadLen", len(payload))
+		return nil, 0, modifyFailureMalformed
 	}
 	attrLen := int(binary.BigEndian.Uint16(payload[attrOffset : attrOffset+2]))
 	attrStart := attrOffset + 2
 	attrEnd := attrStart + attrLen
 	if len(payload) < attrEnd {
-		fwdLogger().Warn("malformed payload in buildModifiedPayload, skipping mods", "payloadLen", len(payload))
-		return nil, 0
+		fwdLogger().Warn("malformed payload in buildModifiedPayload, suppressing route", "payloadLen", len(payload))
+		return nil, 0, modifyFailureMalformed
 	}
 
 	// Try per-peer pool first (copy-on-modify: zero extra allocation).
@@ -137,16 +154,17 @@ func buildModifiedPayload(
 	// withdrawn prefix. A nil override copies the original withdrawn section.
 	if withdrawnOverride != nil {
 		if len(withdrawnOverride) > 65535 {
-			fwdLogger().Warn("withdrawn rewrite too large, skipping mods", "len", len(withdrawnOverride))
+			fwdLogger().Warn("withdrawn rewrite exceeds the 2-octet length field, suppressing route",
+				"len", len(withdrawnOverride), "max", 65535)
 			cleanupBuf()
-			return nil, 0
+			return nil, 0, modifyFailureWithdrawnSize
 		}
 		binary.BigEndian.PutUint16(buf[off:], uint16(len(withdrawnOverride))) //nolint:gosec // G115: bounded by check above
 		off += 2
 		if len(withdrawnOverride) > 0 {
 			if !safeCopy(buf, off, withdrawnOverride) {
 				cleanupBuf()
-				return nil, 0
+				return nil, 0, modifyFailureOverflow
 			}
 			off += len(withdrawnOverride)
 		}
@@ -154,7 +172,7 @@ func buildModifiedPayload(
 		wdSectionLen := 2 + withdrawnLen
 		if !safeCopy(buf, off, payload[:wdSectionLen]) {
 			cleanupBuf()
-			return nil, 0
+			return nil, 0, modifyFailureOverflow
 		}
 		off += wdSectionLen
 	}
@@ -167,6 +185,10 @@ func buildModifiedPayload(
 	// Stack-allocated: attribute codes are uint8, 256 entries covers all codes.
 	var consumed [256]bool
 	overflow := false
+	// attrCount is reported in the suppression warning: an operator seeing a
+	// route dropped needs the shape of the UPDATE that could not be rebuilt,
+	// not just that it failed (ai/rules/error-messages.md).
+	attrCount := 0
 	srcOff := attrStart
 	for srcOff < attrEnd {
 		if srcOff+2 > len(payload) {
@@ -231,11 +253,14 @@ func buildModifiedPayload(
 		}
 
 		srcOff += attrTotalLen
+		attrCount++
 	}
 
 	if overflow {
+		fwdLogger().Warn("attribute modification overflowed the output buffer, suppressing route",
+			"payloadLen", len(payload), "bufLen", len(buf), "attrCount", attrCount)
 		cleanupBuf()
-		return nil, 0
+		return nil, 0, modifyFailureOverflow
 	}
 
 	// Step 6: Write unconsumed ops (new attributes).
@@ -261,9 +286,11 @@ func buildModifiedPayload(
 	// Step 7: Backfill attr_len.
 	newAttrLen := off - attrLenPos - 2
 	if newAttrLen < 0 || newAttrLen > 65535 {
-		fwdLogger().Warn("attr modification abandoned: attr_len out of range", "newAttrLen", newAttrLen)
+		// RFC 4271 Section 4.3: Total Path Attribute Length is a 2-octet field.
+		fwdLogger().Warn("modified attribute section does not fit the 2-octet length field, suppressing route",
+			"newAttrLen", newAttrLen, "max", 65535, "attrCount", attrCount)
 		cleanupBuf()
-		return nil, 0
+		return nil, 0, modifyFailureAttrLenRange
 	}
 	binary.BigEndian.PutUint16(buf[attrLenPos:], uint16(newAttrLen)) //nolint:gosec // G115: bounded by check above
 
@@ -275,7 +302,7 @@ func buildModifiedPayload(
 		if len(nlriOverride) > 0 {
 			if !safeCopy(buf, off, nlriOverride) {
 				cleanupBuf()
-				return nil, 0
+				return nil, 0, modifyFailureOverflow
 			}
 			off += len(nlriOverride)
 		}
@@ -284,7 +311,7 @@ func buildModifiedPayload(
 		if nlriLen > 0 {
 			if !safeCopy(buf, off, payload[attrEnd:]) {
 				cleanupBuf()
-				return nil, 0
+				return nil, 0, modifyFailureOverflow
 			}
 			off += nlriLen
 		}
@@ -300,14 +327,14 @@ func buildModifiedPayload(
 		}
 		idx := peerBufIdx
 		peerBufIdx = 0 // prevent defer from double-returning
-		return buf[:off], idx
+		return buf[:off], idx, modifyFailureNone
 	}
 
 	// Sync.Pool fallback: copy result so pool buffer can be returned.
 	result := make([]byte, off) // pool-fallback
 	copy(result, buf[:off])
 
-	return result, 0
+	return result, 0, modifyFailureNone
 }
 
 // buildWithdrawalPayload converts an announce UPDATE payload to a withdrawal.

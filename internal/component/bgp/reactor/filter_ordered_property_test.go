@@ -181,7 +181,7 @@ func TestFilterChainRandomUpdatesProperty(t *testing.T) {
 				}
 			}
 			// Must not panic (a panic aborts quick.Check and fails the test).
-			result, _ := buildModifiedPayload(in.payload, in.accumulator(), handlers, nil, nlriOverride)
+			result, _, _ := buildModifiedPayload(in.payload, in.accumulator(), handlers, nil, nlriOverride)
 			if result == nil {
 				return true // no modification / rejected malformed input
 			}

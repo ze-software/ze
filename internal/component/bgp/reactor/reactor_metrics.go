@@ -51,6 +51,12 @@ type reactorMetrics struct {
 	fwdBufferDeniedTotal metrics.Counter    // AC-2: total buffer denials
 	fwdTeardownTotal     metrics.Counter    // AC-4: forced congestion teardowns
 
+	// Egress modification failures. A non-zero value means a configured
+	// modification could not be applied to a route, so the route was suppressed
+	// for that destination rather than forwarded unmodified. The reason label
+	// set is closed (see modifyFailure.String, forward_modify_failure.go).
+	updateModifyFailed metrics.CounterVec // labels: reason
+
 	// Config + operational
 	configReloads      metrics.Counter    // Successful config reloads
 	configReloadErrors metrics.CounterVec // labels: error_type
@@ -115,6 +121,12 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		fwdCongestionResume:  reg.CounterVec("ze_forward_congestion_resumed_total", "Channel resumed from congestion.", []string{"peer"}),
 		fwdBufferDeniedTotal: reg.Counter("ze_forward_buffer_denied_total", "Buffer denials due to congestion backpressure (AC-2)."),
 		fwdTeardownTotal:     reg.Counter("ze_forward_congestion_teardown_total", "Forced session teardowns due to pool exhaustion (AC-4)."),
+
+		updateModifyFailed: reg.CounterVec(
+			"ze_bgp_update_modify_failed_total",
+			"Egress modifications that could not be applied, so the route was suppressed for that destination.",
+			[]string{"reason"},
+		),
 
 		// Config + operational
 		configReloads:      reg.Counter("ze_config_reloads_total", "Successful config reloads."),

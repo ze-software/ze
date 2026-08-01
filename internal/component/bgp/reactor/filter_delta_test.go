@@ -323,7 +323,7 @@ func TestDirtyTracking(t *testing.T) {
 		byte(attribute.AttrLocalPref): genericAttrSetHandler(0x40, byte(attribute.AttrLocalPref)),
 	}
 
-	result, _ := buildModifiedPayload(payload, &mods, handlers, nil, nil)
+	result, _, _ := buildModifiedPayload(payload, &mods, handlers, nil, nil)
 	require.NotNil(t, result, "buildModifiedPayload should produce output")
 
 	// Parse result to find LOCAL_PREF value.
@@ -888,7 +888,7 @@ func TestExportRemovePrivateASBeforeEBGPPrepend(t *testing.T) {
 
 	var mods filterapi.ModAccumulator
 	ExtractRemovePrivateASOps(parseFilterAttrs("remove-private strip"), attrsWire, true, 65002, &mods)
-	modified, _ := buildModifiedPayload(payload, &mods, attrModHandlersWithDefaults(), nil, nil)
+	modified, _, _ := buildModifiedPayload(payload, &mods, attrModHandlersWithDefaults(), nil, nil)
 	require.NotNil(t, modified)
 
 	dst := make([]byte, len(modified)+64)

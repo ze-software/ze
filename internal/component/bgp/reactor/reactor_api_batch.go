@@ -1488,7 +1488,8 @@ func (a *reactorAPIAdapter) decideStaleReadvertise(dest filterapi.PeerFilterInfo
 	case mods.IsWithdraw():
 		return staleWithdraw, nil
 	case mods.HasModifications():
-		modified, _ := buildModifiedPayload(body, &mods, a.r.attrModHandlers, nil, nil)
+		modified, _, modFail := buildModifiedPayload(body, &mods, a.r.attrModHandlers, nil, nil)
+		a.r.recordModifyFailure(modFail)
 		return staleModify, modified
 	default:
 		return staleKeep, nil
