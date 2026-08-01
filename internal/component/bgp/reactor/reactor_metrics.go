@@ -69,6 +69,13 @@ type reactorMetrics struct {
 	wireReadErrors  metrics.CounterVec // labels: peer
 	wireWriteErrors metrics.CounterVec // labels: peer
 
+	// A received UPDATE whose attribute count exceeded the inline span capacity
+	// (attribute.SpanInline), so its index spilled to the heap. The inline size is
+	// a judgement about the attribute-count distribution rather than a measurement,
+	// and this counter is what makes that judgement answerable from a running
+	// daemon.
+	attrSpanSpill metrics.CounterVec // labels: peer
+
 	// Startup timing (histograms)
 	pluginStartupSeconds      metrics.Histogram    // WaitForPluginStartupComplete duration
 	apiReadySeconds           metrics.Histogram    // WaitForAPIReady duration
@@ -139,6 +146,8 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		wireBytesSent:   reg.CounterVec("ze_wire_bytes_sent_total", "Bytes written to TCP.", []string{"peer"}),
 		wireReadErrors:  reg.CounterVec("ze_wire_read_errors_total", "Socket read failures.", []string{"peer"}),
 		wireWriteErrors: reg.CounterVec("ze_wire_write_errors_total", "Socket write failures.", []string{"peer"}),
+		attrSpanSpill: reg.CounterVec("ze_bgp_update_span_spill_total",
+			"Received UPDATEs whose attribute count exceeded the inline span capacity.", []string{"peer"}),
 
 		// Startup and connection timing
 		pluginStartupSeconds: reg.Histogram("ze_plugin_startup_seconds", "WaitForPluginStartupComplete duration.",

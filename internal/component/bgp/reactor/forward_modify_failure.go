@@ -39,6 +39,15 @@ const (
 	// modifyFailureWithdrawnSize: the withdrawn rewrite does not fit the
 	// two-octet Withdrawn Routes Length field.
 	modifyFailureWithdrawnSize
+	// modifyFailureNoHandler: an attribute code carried operations but no
+	// handler is registered for it, so the operations were never applied.
+	modifyFailureNoHandler
+	// modifyFailureHandlerFault: a registered handler panicked, or returned an
+	// offset outside the output buffer, so its operations were never applied.
+	modifyFailureHandlerFault
+	// modifyFailureTruncated: the attribute section ended mid-attribute, so the
+	// remaining attributes were never copied.
+	modifyFailureTruncated
 )
 
 // Prometheus label values for modifyFailure.
@@ -57,6 +66,9 @@ const (
 	modifyLabelOverflow      = "overflow"
 	modifyLabelAttrLenRange  = "attr-length-range"
 	modifyLabelWithdrawnSize = "withdrawn-size"
+	modifyLabelNoHandler     = "no-handler"
+	modifyLabelHandlerFault  = "handler-fault"
+	modifyLabelTruncated     = "truncated"
 	modifyLabelUnclassified  = "unclassified"
 )
 
@@ -76,6 +88,12 @@ func (f modifyFailure) String() string {
 		return modifyLabelAttrLenRange
 	case modifyFailureWithdrawnSize:
 		return modifyLabelWithdrawnSize
+	case modifyFailureNoHandler:
+		return modifyLabelNoHandler
+	case modifyFailureHandlerFault:
+		return modifyLabelHandlerFault
+	case modifyFailureTruncated:
+		return modifyLabelTruncated
 	}
 	return modifyLabelUnclassified
 }
@@ -83,6 +101,27 @@ func (f modifyFailure) String() string {
 // failed reports whether the modifications could not be applied. A caller that
 // gets true MUST suppress the route for this destination rather than forward it
 // unmodified.
+//
+// EVERY reason suppresses, including the three that arise on paths which keep
+// building rather than returning. An independent review found those three still
+// reported success, so the route went out with the modification missing.
+//
+// This supersedes AC-18, pinned by TestProgressiveBuildUnknownCode, which
+// specified that an unregistered handler code has its operations skipped and the
+// source copied. That conclusion emits a route the policy forbids, and for at
+// least one code it emits an RFC violation:
+//
+//   - RFC 9234 Section 5 requires the OTC attribute be added when sending to a
+//     customer, a peer or an RS client. If the role plugin's handler is absent,
+//     skip-and-copy sends the route WITHOUT OTC, which is a MUST violated.
+//   - A truncated attribute section means the rebuild stopped early, so the
+//     emitted attributes are not the ones we parsed.
+//   - A faulted handler leaves bytes no one can vouch for.
+//
+// AC-18's stated concern was "panic or data loss on unregistered handler code".
+// The panic half is handled by safeAttrModHandler's recover and stays handled.
+// The data-loss half traded a policy violation for route continuity, and
+// correctness is not a thing to trade (ai/rules/rfc-compliance.md).
 func (f modifyFailure) failed() bool { return f != modifyFailureNone }
 
 // recordModifyFailure increments the modify-failure counter. It is the single

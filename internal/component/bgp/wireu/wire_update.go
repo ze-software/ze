@@ -94,9 +94,17 @@ func (u *WireUpdate) Withdrawn() ([]byte, error) {
 	return u.sections.Withdrawn(u.payload), nil
 }
 
-// Attrs returns the Path Attributes as an AttributesWire for lazy parsing.
+// Attrs returns the Path Attributes as an AttributesWire for lazy value parsing.
 // RFC 4271 Section 4.3 - Path attribute sequence.
 // Returns (nil, nil) if empty, (nil, error) if malformed.
+//
+// The AttributesWire built here indexes the attribute section eagerly and is
+// immutable afterwards, so this call FREEZES which attributes this UPDATE has.
+// Any code that rewrites the attribute bytes must therefore run BEFORE the first
+// Attrs call, or wrap its result in a new WireUpdate. On the receive path that
+// ordering is the reason enforceRFC7606 (reactor/session_validation.go) publishes
+// the base only after its RFC 7606 Section 3.g strip and its in-place
+// attribute-discard branch have both run.
 func (u *WireUpdate) Attrs() (*attribute.AttributesWire, error) {
 	u.attrsOnce.Do(func() {
 		u.ensureParsed()
@@ -210,12 +218,36 @@ func (u *WireUpdate) MixesNLRIFields() bool {
 // fire-and-forget delivery boundary, so the returned WireUpdate no longer
 // borrows the recyclable receive buffer. See
 // docs/architecture/memory/lifetime-contracts.md.
+//
+// The attribute span index is carried across the copy rather than rebuilt. Span
+// offsets are relative to the attribute section, and the copy is byte-identical,
+// so every span is valid against the new array without arithmetic. The index
+// holds offsets and never bytes, so it inherits the copy's lifetime exactly.
 func (u *WireUpdate) Snapshot() *WireUpdate {
 	owned := make([]byte, len(u.payload))
 	copy(owned, u.payload)
 	s := NewWireUpdate(owned, u.sourceCtxID)
 	s.messageID = u.messageID
 	s.sourceID = u.sourceID
+
+	srcAttrs, srcErr := u.Attrs()
+	s.attrsOnce.Do(func() {
+		s.ensureParsed()
+		if s.parseErr != nil {
+			// The copy is byte-identical, so a section parse that failed on the
+			// original fails here with the same verdict.
+			s.cachedAttrsErr = fmt.Errorf("attrs: %w", s.parseErr)
+			return
+		}
+		if srcErr != nil {
+			s.cachedAttrsErr = srcErr
+			return
+		}
+		if srcAttrs == nil {
+			return // no attribute section
+		}
+		s.cachedAttrs = srcAttrs.CarryOver(s.sections.Attrs(s.payload))
+	})
 	return s
 }
 

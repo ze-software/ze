@@ -67,9 +67,17 @@ var modBufPool = sync.Pool{
 //     applied. The caller MUST suppress the route for this destination.
 //     Forwarding it would send a route the policy was supposed to change.
 //
-// The third return value is not optional bookkeeping: it is what makes a new
-// failure path impossible to add silently, because the compiler forces every
-// return in this function to name a reason.
+// The third return value is not optional bookkeeping. For every path that
+// RETURNS, the compiler forces a reason to be named, so a new returning failure
+// cannot be added silently.
+//
+// That guarantee does NOT extend to paths that keep building. A missing handler,
+// a faulting handler and a truncated attribute section all warn and carry on,
+// and an independent review found they still reported success while forwarding a
+// route the policy had not changed -- the same fail-open on a different shape.
+// Those paths now set `unapplied`, which is checked before the payload is handed
+// out. The compiler cannot enforce that, so a future edit adding a
+// keep-building failure path MUST set `unapplied` by hand.
 func buildModifiedPayload(
 	payload []byte,
 	mods *filterapi.ModAccumulator,
@@ -185,13 +193,26 @@ func buildModifiedPayload(
 	// Stack-allocated: attribute codes are uint8, 256 entries covers all codes.
 	var consumed [256]bool
 	overflow := false
+	// unapplied records a modification that was REQUIRED but did not land, on a
+	// path that keeps building rather than returning. Those paths used to warn
+	// and carry on, so the function returned a well-formed payload plus
+	// modifyFailureNone and every caller forwarded a route the policy had not
+	// actually changed -- the same fail-open T1-1 closed on the returning paths.
+	// The compiler cannot catch these, because they fall through rather than
+	// return; this variable is what makes them reportable.
+	unapplied := modifyFailureNone
 	// attrCount is reported in the suppression warning: an operator seeing a
 	// route dropped needs the shape of the UPDATE that could not be rebuilt,
 	// not just that it failed (ai/rules/error-messages.md).
 	attrCount := 0
 	srcOff := attrStart
 	for srcOff < attrEnd {
+		// Every break below leaves the remaining attributes UNCOPIED. The
+		// output would be a truncated attribute section that still looks
+		// well-formed, so each one is a failure rather than an early exit.
+		// A well-formed section leaves this loop by srcOff reaching attrEnd.
 		if srcOff+2 > len(payload) {
+			unapplied = modifyFailureTruncated
 			break
 		}
 		flags := payload[srcOff]
@@ -200,12 +221,14 @@ func buildModifiedPayload(
 		var aLen uint16
 		if flags&0x10 != 0 { // Extended length.
 			if srcOff+4 > len(payload) {
+				unapplied = modifyFailureTruncated
 				break
 			}
 			aLen = binary.BigEndian.Uint16(payload[srcOff+2 : srcOff+4])
 			hdrLen = 4
 		} else {
 			if srcOff+3 > len(payload) {
+				unapplied = modifyFailureTruncated
 				break
 			}
 			aLen = uint16(payload[srcOff+2])
@@ -213,6 +236,7 @@ func buildModifiedPayload(
 		}
 		attrTotalLen := hdrLen + int(aLen)
 		if srcOff+attrTotalLen > attrEnd {
+			unapplied = modifyFailureTruncated
 			break
 		}
 
@@ -222,18 +246,30 @@ func buildModifiedPayload(
 			consumed[code] = true
 			handler := handlers[code]
 			if handler == nil {
-				// No handler: copy source unchanged, log warning.
-				fwdLogger().Warn("no attr mod handler registered", "code", code)
+				// No handler: the operations for this code are NOT applied.
+				// Copying the source through and reporting success would forward
+				// the route with the very attribute the policy meant to change,
+				// so record the failure and let the caller suppress.
+				fwdLogger().Warn("no attr mod handler registered, suppressing route", "code", code)
+				unapplied = modifyFailureNoHandler
 				if !safeCopy(buf, off, srcAttr) {
 					overflow = true
 					break
 				}
 				off += len(srcAttr)
 			} else {
-				newOff := safeAttrModHandler(handler, code, srcAttr, codeOps, buf, off)
+				newOff, panicked := safeAttrModHandler(handler, code, srcAttr, codeOps, buf, off)
+				if panicked {
+					unapplied = modifyFailureHandlerFault
+				}
 				if newOff < off || newOff > len(buf) {
-					fwdLogger().Warn("attr mod handler returned invalid offset",
+					// The handler panicked (safeAttrModHandler recovered and
+					// returned the original offset) or returned an offset
+					// outside the buffer. Either way its operations did not
+					// land, so this is a failure, not a fallback.
+					fwdLogger().Warn("attr mod handler faulted, suppressing route",
 						"code", code, "off", off, "newOff", newOff, "bufLen", len(buf))
+					unapplied = modifyFailureHandlerFault
 					if !safeCopy(buf, off, srcAttr) {
 						overflow = true
 						break
@@ -272,13 +308,19 @@ func buildModifiedPayload(
 		}
 		handler := handlers[code]
 		if handler == nil {
-			fwdLogger().Warn("no attr mod handler for new attribute", "code", code)
+			// The attribute the policy asked to ADD is never written. Silently
+			// skipping it forwards a route missing, for example, the RFC 9234
+			// OTC marker the role plugin exists to stamp.
+			fwdLogger().Warn("no attr mod handler for new attribute, suppressing route", "code", code)
+			unapplied = modifyFailureNoHandler
 			continue
 		}
-		newOff := safeAttrModHandler(handler, code, nil, codeOps, buf, off)
-		if newOff < off || newOff > len(buf) {
-			fwdLogger().Warn("attr mod handler returned invalid offset for new attr", "code", code)
-			continue // Skip this new attribute.
+		newOff, panicked := safeAttrModHandler(handler, code, nil, codeOps, buf, off)
+		if panicked || newOff < off || newOff > len(buf) {
+			fwdLogger().Warn("attr mod handler faulted on new attribute, suppressing route",
+				"code", code, "panicked", panicked)
+			unapplied = modifyFailureHandlerFault
+			continue // The attribute is not written; the route must not go out.
 		}
 		off = newOff
 	}
@@ -317,6 +359,16 @@ func buildModifiedPayload(
 		}
 	}
 
+	// A modification the policy required did not land, on one of the paths that
+	// keeps building. The payload is well-formed but is MISSING that change, so
+	// it must not go out. Returning here, before the per-peer buffer is handed
+	// to the caller, also keeps the buffer contract simple: a caller that
+	// suppresses never has to return a buffer it never stored.
+	if unapplied.failed() {
+		cleanupBuf()
+		return nil, 0, unapplied
+	}
+
 	// Per-peer buffer path: return the slice directly. The caller stores
 	// peerBufIdx in fwdItem so releaseItem returns it after TCP write.
 	// No copy needed -- the buffer IS the result.
@@ -327,6 +379,13 @@ func buildModifiedPayload(
 		}
 		idx := peerBufIdx
 		peerBufIdx = 0 // prevent defer from double-returning
+		// unapplied is normally modifyFailureNone. When it is not, the payload
+		// is well-formed but does NOT carry a modification the policy required,
+		// so the caller must suppress rather than send it.
+		// unapplied is normally modifyFailureNone. When it is not, the payload
+		// is well-formed but is MISSING a modification the policy asked for.
+		// The caller counts it and, per AC-18, still forwards. See
+		// modifyFailure.failed for why this is reported rather than acted on.
 		return buf[:off], idx, modifyFailureNone
 	}
 
@@ -584,12 +643,20 @@ func groupOpsByCode(ops []filterapi.AttrOp) [256][]filterapi.AttrOp {
 
 // safeAttrModHandler calls an AttrModHandler with panic recovery.
 // Returns the new offset on success, or the original offset on panic.
-func safeAttrModHandler(handler filterapi.AttrModHandler, code uint8, src []byte, ops []filterapi.AttrOp, buf []byte, off int) (newOff int) {
+// The panicked return is load-bearing. Recovery copies the source attribute
+// through, which produces a VALID offset, so the caller's offset-range check
+// cannot tell a recovered panic from a successful modification. Without this
+// flag the route goes out carrying the attribute the handler was meant to
+// change -- an independent review found exactly that leak.
+func safeAttrModHandler(handler filterapi.AttrModHandler, code uint8, src []byte, ops []filterapi.AttrOp, buf []byte, off int) (newOff int, panicked bool) {
 	defer func() {
 		if r := recover(); r != nil {
-			fwdLogger().Error("attr mod handler panic, skipping modification",
+			fwdLogger().Error("attr mod handler panic, suppressing route",
 				"code", code, "panic", r)
+			panicked = true
 			// On panic with source attr, copy it unchanged if buffer has room.
+			// The bytes keep the walk's offset arithmetic consistent; the
+			// caller discards the whole payload on panicked.
 			if len(src) > 0 && off+len(src) <= len(buf) {
 				copy(buf[off:], src)
 				newOff = off + len(src)
@@ -598,5 +665,5 @@ func safeAttrModHandler(handler filterapi.AttrModHandler, code uint8, src []byte
 			}
 		}
 	}()
-	return handler(src, ops, buf, off)
+	return handler(src, ops, buf, off), false
 }

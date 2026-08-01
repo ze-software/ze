@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | protocol |
 | Depends | `plan/spec-wire-edit-0-umbrella.md` |
-| Phase | 1 |
+| Phase | 1/6 |
 | Deferral shard | `plan/deferrals/spec-wire-edit-1-base-index.md` |
-| Updated | 2026-07-28 |
+| Updated | 2026-08-01 |
 
 Child 1 of `plan/spec-wire-edit-0-umbrella.md`. It is the substrate every later
 child stands on and the only one that is pure addition: **no emitted byte
@@ -165,11 +165,11 @@ this base is `plan/spec-wire-edit-2-edit-apply.md`.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The span index can be emitted from the existing RFC 7606 walk with no measurable added receive cost. | The walk is unconditional (`internal/component/bgp/reactor/session_validation.go:108`) and a second walk already runs at `internal/component/bgp/reactor/session_validation.go:112`. | Keep the lazy build and the mutex; every later child still works, it just pays a walk. | Go benchmark of the receive path before and after, same corpus. | unvalidated |
-| A-2 | Removing the mutex is safe once the index is built before publication. | The lock exists only to guard lazy construction (`internal/core/bgp/attribute/wire.go:291`) and parsed-value caching (`internal/core/bgp/attribute/wire.go:336`). | Keep a lock on the side table only; the forward path still never takes one. | Race detector over the forward-path suites plus a concurrent-fanout unit test. | unvalidated |
-| A-3 | An 8-entry inline span array covers the common attribute count without a heap allocation. | The current builder pre-sizes to 8 (`internal/core/bgp/attribute/wire.go:298`), which is an existing judgement about the same distribution. | Raise the constant; the structure does not change. | Instrumented run recording the attribute-count distribution over a real feed. | unvalidated |
-| A-4 | No consumer relies on the parsed-value cache surviving on the index entry. | `parsed` is private and reachable only through `Get` (`internal/core/bgp/attribute/wire.go:63`), `All` and `ForEach`. | The side table gains the same caching semantics behind the same accessors. | Compile plus a grep for `parsed` across the tree at the start of implementation. | unvalidated |
-| A-5 | API-originated UPDATEs tolerate a first-use index build, since they never pass through `enforceRFC7606`. | `NewWireUpdate` (`internal/component/bgp/wireu/wire_update.go:60`) is the announce-rail constructor and has no validation pass. | The announce rails call the builder explicitly at construction. | Unit test asserting an API-built base answers `Has` correctly with no prior accessor call. | unvalidated |
+| A-1 | The span index can be emitted from the existing RFC 7606 walk with no measurable added receive cost. | The walk is unconditional (`internal/component/bgp/reactor/session_validation.go:108`) and a second walk already runs at `internal/component/bgp/reactor/session_validation.go:112`. | Keep the lazy build and the mutex; every later child still works, it just pays a walk. | Go benchmark of the receive path before and after, same corpus. | **superseded** (2026-08-01) -- the index is not emitted from the RFC 7606 walk at all. A-6 made that unsound, so it is built in `NewAttributesWire` and published by `publishBase` at the end of `enforceRFC7606`. Net walk count is UNCHANGED (the lazy build already walked once on first access) and one heap allocation per UPDATE is removed (`TestSpanIndexZeroAllocUpToEight`). |
+| A-2 | Removing the mutex is safe once the index is built before publication. | The lock exists only to guard lazy construction (`internal/core/bgp/attribute/wire.go:291`) and parsed-value caching (`internal/core/bgp/attribute/wire.go:336`). | Keep a lock on the side table only; the forward path still never takes one. | Race detector over the forward-path suites plus a concurrent-fanout unit test. | **confirmed** -- writer set enumerated and closed (see Deviations). `sync.RWMutex` gone; a `sync.Mutex` guards the parsed side table only. `make ze-race-reactor` reported 0 data races over 20 iterations; `TestBaseImmutableAfterPublication` drives 16 concurrent readers under `-race`. |
+| A-3 | An 8-entry inline span array covers the common attribute count without a heap allocation. | The current builder pre-sizes to 8 (`internal/core/bgp/attribute/wire.go:298`), which is an existing judgement about the same distribution. | Raise the constant; the structure does not change. | Instrumented run recording the attribute-count distribution over a real feed. | **confirmed** -- the histogram already existed: `docs/architecture/wire/attributes.md` "Real-World Attribute Count Distribution" measures 112M MRT routes at 99.9% <= 8 attributes, maximum observed 10. `ze_bgp_update_span_spill_total` makes the same question answerable from a running daemon. |
+| A-4 | No consumer relies on the parsed-value cache surviving on the index entry. | `parsed` is private and reachable only through `Get` (`internal/core/bgp/attribute/wire.go:63`), `All` and `ForEach`. | The side table gains the same caching semantics behind the same accessors. | Compile plus a grep for `parsed` across the tree at the start of implementation. | **confirmed** -- `parsed` was unexported and reachable only from those three accessors. The side table keeps identical caching semantics; the package's own 800-line `wire_test.go` passes unedited. |
+| A-5 | API-originated UPDATEs tolerate a first-use index build, since they never pass through `enforceRFC7606`. | `NewWireUpdate` (`internal/component/bgp/wireu/wire_update.go:60`) is the announce-rail constructor and has no validation pass. | The announce rails call the builder explicitly at construction. | Unit test asserting an API-built base answers `Has` correctly with no prior accessor call. | **confirmed, and stronger than assumed** -- building in `NewAttributesWire` means every rail (announce, `update` command, API batch) is eager too, with no rail-side call. `TestAPIBuiltBaseAnswersHas`. |
 | A-6 | **The bytes the RFC 7606 walk indexes are the bytes that get published.** | Assumed silently by "emit the span index as a by-product of the walk". NOT stated anywhere in this spec before 2026-08-01. | The index must be built AFTER the rebuild paths, or rebuilt on them. "Pure addition, no second walk" weakens. | Read `enforceRFC7606` end to end, past the validator call. | **broken** (2026-08-01) |
 
 → A-6 is BROKEN, and it is the load-bearing correction to this child. Found by a
@@ -206,6 +206,28 @@ descriptions above are current as of that change, not before it.
 → Correction to the umbrella, same date: AC-6's saving from folding the PrefixSID
 walk does not exist on iBGP sessions. That second walk was always gated on
 `!isIBGP && !AcceptSRv6PrefixSID`. The umbrella states it unconditionally.
+
+→ **A-6 resolved by ORDERING, not by rebuilding (2026-08-01, implementation).** The
+index is built in `attribute.NewAttributesWire`, which `wireu.WireUpdate.Attrs`
+calls once under `attrsOnce`. `enforceRFC7606` now calls `Attrs` itself, from
+`publishBase`, as the LAST thing it does -- after the Section 3.g strip and after
+`ApplyAttrDiscard`. Both mutation branches therefore complete before any index
+exists, so neither needs a rebuild:
+
+| Branch | Why the index is right | Test |
+|--------|------------------------|------|
+| Section 3.g keep-first strip | wraps the deduped body in a NEW `WireUpdate`, whose `Attrs` indexes the new bytes | `TestStripRebuildIndexMatchesPublished` |
+| `ApplyAttrDiscard` in place | mutates `pathAttrs` before `publishBase` runs, so the index sees ATTR_TOMBSTONE, not the original code | `TestInPlaceDiscardPrecedesIndexBuild` |
+
+Verified at the producer: `processMessage` (`reactor/session_read.go`) constructs
+the `WireUpdate` and calls `enforceRFC7606` immediately, with no `Attrs` call in
+between; `ApplyAttrDiscard` has exactly one non-test caller, `enforceRFC7606`; and
+every forward-path writer (`wireu.WriteTombstone`, `clearTombstoneTransitive`,
+`rewriteASPathPrepend`) writes into a `dst` egress buffer, never into a received
+payload. So `StripAttrRanges` and `ApplyAttrDiscard` needed no change and are
+correctly absent from Files to Modify. The ordering invariant is documented on
+`WireUpdate.Attrs` and on `publishBase`, and the two tests above fail if a future
+edit calls `Attrs` earlier.
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -260,19 +282,24 @@ walk does not exist on iBGP sessions. That second walk was always gated on
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestSpanIndexMatchesLazyIndex` | `internal/core/bgp/attribute/span_test.go` | over a fuzz corpus, the eager index yields the same code, offset and length set as the current lazy build | |
-| `TestSpanIsEightBytes` | `internal/core/bgp/attribute/span_test.go` | one span is 8 bytes and the inline array is 64 bytes, pinned by size assertions | |
-| `TestSpanIndexRejectsDuplicateCode` | `internal/core/bgp/attribute/span_test.go` | AC-2: a duplicate type code fails the build with the same `seen[code]` verdict as `internal/core/bgp/attribute/wire.go:309` | |
-| `TestSpanIndexRejectsTruncatedAttribute` | `internal/core/bgp/attribute/span_test.go` | AC-3: matches the current `offset+hdrLen+int(length) > len(a.packed)` verdict at `internal/core/bgp/attribute/wire.go:315` | |
-| `TestSpanIndexZeroAllocUpToEight` | `internal/core/bgp/attribute/span_test.go` | AC-8: no heap allocation at or below the inline capacity | |
-| `TestPresenceBitsetAnswersHasWithoutScan` | `internal/core/bgp/attribute/span_test.go` | AC-6: presence answers without walking | |
-| `TestReceivePathPublishesSpanIndex` | `internal/component/bgp/reactor/session_validation_test.go` | AC-1: the index exists on the base before publication, with no accessor called first | |
-| `TestRFC7606VerdictsUnchangedByEagerIndex` | `internal/component/bgp/reactor/session_validation_test.go` | AC-2, AC-3: a table of malformed inputs yields the identical action set | |
-| `TestBaseImmutableAfterPublication` | `internal/component/bgp/wireu/base_test.go` | AC-4: concurrent readers under `-race`, no write after publication | |
-| `TestSnapshotCarriesSpanIndex` | `internal/component/bgp/wireu/base_test.go` | AC-7: a snapshot reads back identically and rebuilds nothing | |
-| `TestAPIBuiltBaseAnswersHas` | `internal/component/bgp/wireu/base_test.go` | A-5: an announce-rail base with no receive walk still answers correctly | |
-| `BenchmarkReceivePathIndexBuild` | `internal/component/bgp/reactor/session_validation_bench_test.go` | AC-10, A-1: receive cost before and after | |
-| `BenchmarkAttributeReadNoLock` | `internal/core/bgp/attribute/span_test.go` | AC-4, AC-5: concurrent read throughput with the lock gone | |
+| `TestSpanIndexMatchesAttributesWire` + `FuzzSpanIndexMatchesIterator` | `internal/core/bgp/attribute/span_test.go` | AC-1: the eager index matches an INDEPENDENT `AttrIterator` oracle on code, value offset, value length and header class. Renamed from `TestSpanIndexMatchesLazyIndex`: the lazy build is deleted, so comparing against it is impossible; an oracle that shares no code with the builder is the stronger test. 2.4M fuzz executions, no divergence | done |
+| `TestSpanFitsEightBytes` | `internal/core/bgp/attribute/span_test.go` | the span budget. Renamed from `TestSpanIsEightBytes`: the realized span is **6** bytes (offset, length, code, hdrLen), so the test pins the <=8 budget and the 48-byte inline array rather than asserting a number that is not true | done |
+| `TestSpanIndexRejectsDuplicateCode` | `internal/core/bgp/attribute/span_test.go` | AC-2: identical verdict to the old `seen[code]` check, and a failed build publishes no spans and no presence bits | done |
+| `TestSpanIndexRejectsTruncatedAttribute` | `internal/core/bgp/attribute/span_test.go` | AC-3: identical verdict to the old containment check | done |
+| `TestSpanIndexRejectsOversizeSection` | `internal/core/bgp/attribute/span_test.go` | the fail-closed 16-bit bound the old builder papered over with a `//nolint:gosec` | done (added) |
+| `TestSpanIndexZeroAllocUpToEight` | `internal/core/bgp/attribute/span_test.go` | AC-8: zero heap allocations at or below the inline capacity, and the constructor allocates at most the struct | done |
+| `TestSpanIndexSpillsPastInlineCapacity` | `internal/core/bgp/attribute/span_test.go` | the 8/9 span-count boundary across the inline/spill seam | done (added) |
+| `TestPresenceBitsetAnswersHasWithoutScan` | `internal/core/bgp/attribute/span_test.go` | presence answers without walking and without allocating | done |
+| `TestReceivePathPublishesSpanIndex` | `internal/component/bgp/reactor/session_span_index_test.go` | AC-1: after `enforceRFC7606`, a first `Attrs()` costs zero allocations, which only holds if the base was already published | done |
+| `TestRFC7606VerdictsUnchangedByEagerIndex` | `internal/component/bgp/reactor/session_span_index_test.go` | AC-2, AC-3: nine verdict classes, each pinned by action, error-ness AND the exact emitted payload hex | done |
+| `TestInPlaceDiscardPrecedesIndexBuild` | `internal/component/bgp/reactor/session_span_index_test.go` | A-6, in-place branch | done (added) |
+| `TestStripRebuildIndexMatchesPublished` | `internal/component/bgp/reactor/session_span_index_test.go` | A-6, strip branch | done (added) |
+| `TestBaseImmutableAfterPublication` | `internal/component/bgp/wireu/base_test.go` | AC-4: 16 concurrent readers under `-race` | done |
+| `TestSnapshotCarriesSpanIndex` | `internal/component/bgp/wireu/base_test.go` | AC-7: a snapshot reads back identically and rebuilds nothing (zero allocations on its first `Attrs()`) | done |
+| `TestSnapshotOfEmptyAndMalformedUpdates` | `internal/component/bgp/wireu/base_test.go` | AC-7 at its edges: no attribute section, and unparsable sections | done (added) |
+| `TestAPIBuiltBaseAnswersHas` | `internal/component/bgp/wireu/base_test.go` | A-5 | done |
+| ~~`BenchmarkReceivePathIndexBuild`~~ | ~~`session_validation_bench_test.go`~~ | ~~AC-10, A-1~~ | **not written.** A-1 was superseded: the index is not folded into the RFC 7606 walk, so there is no before/after receive-path delta to measure. What changed is one fewer heap allocation per UPDATE, which `TestSpanIndexZeroAllocUpToEight` asserts directly rather than by timing |
+| `BenchmarkAttributeReadNoLock` | `internal/core/bgp/attribute/span_test.go` | AC-4, AC-5: concurrent read throughput with the lock gone | done |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -300,6 +327,27 @@ the right reason; the new coverage that can is the Go layer above.
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | existing receive-side scenarios | `test/interop/scenarios/` | FRR, BIRD, GoBGP | a real peer's UPDATEs still parse to the same attribute set; no new scenario is warranted because no emitted byte changes | |
+
+## Deviations from the design (2026-08-01, implementation)
+
+| # | Design said | What was built | Why |
+|---|-------------|----------------|-----|
+| D-1 | Emit the index from the RFC 7606 walk | Build it in `attribute.NewAttributesWire`; `enforceRFC7606` calls `publishBase` last | A-6. The walk reads pre-strip, pre-tombstone bytes. Building at construction makes the index correct for whichever byte array is published, on the receive rail and on every API rail, with no second walk and no rebuild. |
+| D-2 | New `internal/component/bgp/wireu/base.go` type | No new type. The base is `WireUpdate` + `AttributesWire`, now immutable with an eager index | A parallel base type duplicating `WireUpdate` would be a second read surface over the same bytes (`ai/rules/no-layering.md`), and every consumer already reaches the bytes through these two. Nothing in this child needs a field they do not have. |
+| D-3 | Span is 8 bytes | Span is 6 bytes (`offset uint16`, `length uint16`, `code uint8`, `hdrLen uint8`) | 8 was a budget, not a requirement. The inline array is 48 bytes, not 64. |
+| D-4 | The mutex "retires" | `sync.RWMutex` is gone; a `sync.Mutex` guards the parsed-value side table | Exactly what Known Limitations already allowed: the forward path (`Has`, `GetRaw`, `Packed`, `Count`, `Spilled`) is lock-free; only `Get`, `All`, `ForEach` lock, and only to fill the cache. AC-5's grep returns nothing. |
+| D-5 | AC-6: delete the second PrefixSID walk | Already deleted by commit `8e67a9b03` before this child started | `grep AttrFind internal/component/bgp/reactor/session_validation.go` returns nothing; `result.PrefixSIDPresent` comes from the validator. Nothing to do. |
+| D-6 | Spill counter named `bgp_update_span_spill_total` | `ze_bgp_update_span_spill_total`, labelled by peer, on `reactorMetrics` | The repo's counters all carry the `ze_` prefix, and the per-peer label matches its wire-layer siblings. A package-level counter in `internal/core/bgp/attribute` would be global mutable state in a leaf on the hot path. |
+
+**Writer enumeration behind D-4 (the mutex removal).** Five post-construction
+writers existed, all in `wire.go`: `a.index = index` in `ensureIndexLocked`, and
+four `a.index[i].parsed = attr` sites (`getAndParse` twice, `All`, `ForEach`). The
+first is gone -- the index is built by the constructor and never assigned again.
+The other four collapse to one, `parseAtLocked`, writing the side table under
+`parseMu`. The set is closed: `AttributesWire` exposes no setter, every field is
+unexported, and every method on the type lives in `wire.go`. The bytes are not
+written either -- `ApplyAttrDiscard` is the only in-place mutator of attribute
+bytes in the tree, it has one non-test caller, and it runs before `publishBase`.
 
 ## Files to Modify
 - `internal/core/bgp/attribute/wire.go` - index moves to the base; `sync.RWMutex` and the lazy build retire; parsed values move to a side table

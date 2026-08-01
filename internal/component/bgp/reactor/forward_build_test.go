@@ -249,8 +249,15 @@ func TestProgressiveBuildMultiOps(t *testing.T) {
 	assert.Equal(t, 3, receivedOps, "handler should receive all 3 ops at once")
 }
 
-// VALIDATES: AC-18 — Unknown attr code: ops skipped, source copied.
-// PREVENTS: Panic or data loss on unregistered handler code.
+// VALIDATES: an unregistered handler code SUPPRESSES the route.
+// PREVENTS: emitting a route whose policy did not take effect. For RFC 9234
+// (OTC, code 35) a missing handler would send the route without the attribute
+// Section 5 requires, so skip-and-copy is an RFC violation, not a safe fallback.
+//
+// test-relax: SUPERSEDES AC-18 ("ops skipped, source copied"). Thomas ruled
+// 2026-08-01 that correctness governs and there is one correct way forward. The
+// panic half of AC-18's concern is still met by safeAttrModHandler's recover;
+// only its skip-and-forward conclusion is reversed. See modifyFailure.failed.
 func TestProgressiveBuildUnknownCode(t *testing.T) {
 	origin := makeAttr(0x40, 1, []byte{0x00})
 	payload := buildModTestPayload(origin, nil)
@@ -259,12 +266,11 @@ func TestProgressiveBuildUnknownCode(t *testing.T) {
 	mods.Op(99, filterapi.AttrModSet, []byte{0x01}) // No handler for code 99.
 
 	// No handlers registered.
-	result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{}, nil, nil)
-	require.NotNil(t, result)
-
-	// ORIGIN should still be present.
-	attrLen := int(binary.BigEndian.Uint16(result[2:4]))
-	assert.Equal(t, len(origin), attrLen, "original attrs preserved")
+	result, _, fail := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{}, nil, nil)
+	assert.Equal(t, modifyFailureNoHandler, fail, "an unapplied op must name itself")
+	assert.True(t, fail.failed(), "the caller must suppress")
+	assert.Nil(t, result, "no payload is handed out")
+	_ = origin
 }
 
 // VALIDATES: Withdrawn section copied verbatim.
@@ -366,8 +372,14 @@ func TestProgressiveBuildAttrLenBackfill(t *testing.T) {
 	assert.Equal(t, attrLen, len(actualAttrs))
 }
 
-// VALIDATES: Handler panic is caught, source attr preserved.
-// PREVENTS: Panic in handler crashes forward path.
+// VALIDATES: a handler panic is caught AND the route is suppressed.
+// PREVENTS: a panic crashing the forward path, and separately, a recovered panic
+// silently forwarding a route whose modification never happened.
+//
+// test-relax: SUPERSEDES the previous "attrs unchanged after panic" expectation.
+// Recovery copies the source through, which produced a valid payload and a
+// success verdict, so the route went out unmodified. Thomas ruled 2026-08-01
+// that correctness governs. The panic-containment half is unchanged.
 func TestProgressiveBuildHandlerPanic(t *testing.T) {
 	origin := makeAttr(0x40, 1, []byte{0x00})
 	localPref := makeAttr(0x40, 5, []byte{0, 0, 0, 100})
@@ -383,12 +395,12 @@ func TestProgressiveBuildHandlerPanic(t *testing.T) {
 	var mods filterapi.ModAccumulator
 	mods.Op(5, filterapi.AttrModSet, []byte{0, 0, 0, 0})
 
-	result, _, _ := buildModifiedPayload(payload, &mods, handlers, nil, nil)
-	require.NotNil(t, result)
+	result, _, fail := buildModifiedPayload(payload, &mods, handlers, nil, nil)
 
-	// LOCAL_PREF should be copied unchanged (panic recovery).
-	attrLen := int(binary.BigEndian.Uint16(result[2:4]))
-	assert.Equal(t, len(attrs), attrLen, "attrs unchanged after panic")
+	assert.Equal(t, modifyFailureHandlerFault, fail, "a recovered panic must name itself")
+	assert.True(t, fail.failed(), "the caller must suppress")
+	assert.Nil(t, result, "no payload is handed out after a handler panic")
+	assert.NotEmpty(t, attrs, "guard: the fixture built attributes")
 }
 
 // VALIDATES: Extended-length attribute parsing in progressive build.
@@ -460,8 +472,14 @@ func TestProgressiveBuildMalformedPayload(t *testing.T) {
 	}
 }
 
-// VALIDATES: Handler panic during new attribute creation (src=nil).
-// PREVENTS: Panic in handler for new attribute crashes forward path.
+// VALIDATES: a panic while creating a NEW attribute is caught AND suppresses.
+// PREVENTS: the crash, and separately the RFC 9234 hole -- code 35 is OTC, so
+// forwarding after a failed add sends a route without the attribute Section 5
+// requires.
+//
+// test-relax: SUPERSEDES "only ORIGIN preserved after new-attr handler panic".
+// Thomas ruled 2026-08-01 that correctness governs. Panic containment is
+// unchanged; only the forward-anyway conclusion is reversed.
 func TestProgressiveBuildNewAttrHandlerPanic(t *testing.T) {
 	origin := makeAttr(0x40, 1, []byte{0x00})
 	payload := buildModTestPayload(origin, nil)
@@ -473,12 +491,11 @@ func TestProgressiveBuildNewAttrHandlerPanic(t *testing.T) {
 	var mods filterapi.ModAccumulator
 	mods.Op(35, filterapi.AttrModSet, []byte{0, 0, 0xFD, 0xE8})
 
-	result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: panicHandler}, nil, nil)
-	require.NotNil(t, result)
-
-	// ORIGIN preserved, new attr not written (panic skipped it).
-	attrLen := int(binary.BigEndian.Uint16(result[2:4]))
-	assert.Equal(t, len(origin), attrLen, "only ORIGIN preserved after new-attr handler panic")
+	result, _, fail := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: panicHandler}, nil, nil)
+	assert.Equal(t, modifyFailureHandlerFault, fail, "a recovered panic must name itself")
+	assert.True(t, fail.failed(), "the caller must suppress")
+	assert.Nil(t, result, "no payload is handed out")
+	assert.NotEmpty(t, origin, "guard: the fixture built an ORIGIN attribute")
 }
 
 // VALIDATES: attr_len overflow returns nil.
@@ -530,12 +547,14 @@ func TestProgressiveBuildInvalidHandlerOffset(t *testing.T) {
 		var mods filterapi.ModAccumulator
 		mods.Op(5, filterapi.AttrModSet, []byte{0, 0, 0, 0})
 
-		result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{5: badHandler}, nil, nil)
-		require.NotNil(t, result, "should fall back to source copy, not abandon")
-
-		// LOCAL_PREF should be preserved unchanged (fallback to safeCopy).
-		attrLen := int(binary.BigEndian.Uint16(result[2:4]))
-		assert.Equal(t, len(attrs), attrLen, "attrs unchanged after invalid offset")
+		// test-relax: SUPERSEDES "should fall back to source copy, not abandon".
+		// An out-of-range offset means the handler's operations never landed, so
+		// the route must not go out. Thomas ruled 2026-08-01 that correctness
+		// governs.
+		result, _, fail := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{5: badHandler}, nil, nil)
+		assert.True(t, fail.failed(), "an invalid handler offset must suppress")
+		assert.Nil(t, result, "no payload is handed out")
+		assert.NotEmpty(t, attrs, "guard: the fixture built attributes")
 	})
 
 	t.Run("offset_beyond_buffer", func(t *testing.T) {
@@ -552,11 +571,14 @@ func TestProgressiveBuildInvalidHandlerOffset(t *testing.T) {
 		var mods filterapi.ModAccumulator
 		mods.Op(5, filterapi.AttrModSet, []byte{0, 0, 0, 0})
 
-		result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{5: badHandler}, nil, nil)
-		require.NotNil(t, result, "should fall back to source copy, not abandon")
-
-		attrLen := int(binary.BigEndian.Uint16(result[2:4]))
-		assert.Equal(t, len(attrs), attrLen, "attrs unchanged after invalid offset")
+		// test-relax: SUPERSEDES "should fall back to source copy, not abandon".
+		// An out-of-range offset means the handler's operations never landed, so
+		// the route must not go out. Thomas ruled 2026-08-01 that correctness
+		// governs.
+		result, _, fail := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{5: badHandler}, nil, nil)
+		assert.True(t, fail.failed(), "an invalid handler offset must suppress")
+		assert.Nil(t, result, "no payload is handed out")
+		assert.NotEmpty(t, attrs, "guard: the fixture built attributes")
 	})
 
 	t.Run("invalid_offset_new_attr", func(t *testing.T) {
@@ -571,12 +593,13 @@ func TestProgressiveBuildInvalidHandlerOffset(t *testing.T) {
 		var mods filterapi.ModAccumulator
 		mods.Op(35, filterapi.AttrModSet, []byte{0, 0, 0xFD, 0xE8})
 
-		result, _, _ := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: badHandler}, nil, nil)
-		require.NotNil(t, result)
-
-		// New attr skipped, only ORIGIN in output.
-		attrLen := int(binary.BigEndian.Uint16(result[2:4]))
-		assert.Equal(t, len(origin), attrLen, "new attr skipped on invalid offset")
+		// test-relax: same reversal -- the attribute the policy asked to add was
+		// never written, so forwarding emits a route missing it. For code 35
+		// that is the RFC 9234 OTC attribute.
+		result, _, fail := buildModifiedPayload(payload, &mods, map[uint8]filterapi.AttrModHandler{35: badHandler}, nil, nil)
+		assert.True(t, fail.failed(), "an invalid new-attr offset must suppress")
+		assert.Nil(t, result, "no payload is handed out")
+		assert.NotEmpty(t, origin, "guard: the fixture built an ORIGIN attribute")
 	})
 }
 

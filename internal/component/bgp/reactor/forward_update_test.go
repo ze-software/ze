@@ -464,11 +464,17 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 	assert.Equal(t, origAttrs, got[4:4+len(origAttrs)], "ORIGIN must be preserved unchanged")
 }
 
-// TestForwardUpdate_ModHandlerPanic verifies that a panicking mod handler
-// is caught by safeAttrModHandler and the original payload is forwarded.
+// TestForwardUpdate_ModHandlerPanic verifies that a panicking mod handler is
+// caught by safeAttrModHandler AND that the route is suppressed for that
+// destination rather than forwarded with the modification missing.
 //
-// VALIDATES: Panic recovery in attr mod handler path (safeAttrModHandler).
-// PREVENTS: Panicking handler crashing the reactor forward loop.
+// VALIDATES: panic recovery, and the fail-closed decision at the forward rail.
+// PREVENTS: the panic crashing the reactor loop, and separately a recovered
+// panic leaking a route the policy was meant to change.
+//
+// test-relax: SUPERSEDES "original payload should be forwarded when handler
+// panics". Thomas ruled 2026-08-01 that correctness governs. Panic containment
+// is unchanged; the forward-anyway conclusion is reversed.
 func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
@@ -549,30 +555,27 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	require.NoError(t, err)
 
 	// Must not panic -- safeAttrModHandler catches it.
+	// Every destination is suppressed, so the forward reaches nobody. That is
+	// the point: a recovered panic must not leak an unmodified route.
 	err = adapter.ForwardUpdate(sel, 301, "test-plugin")
-	require.NoError(t, err)
-
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		t.Fatal("timeout waiting for dispatch")
-	}
+	require.Error(t, err, "a suppressed-for-all forward must report that it reached nobody")
 
 	mu.Lock()
-	require.Len(t, dispatched, 1)
-	item := dispatched[0]
+	n := len(dispatched)
 	mu.Unlock()
-
-	// Original payload forwarded unchanged (panic handler skipped).
-	require.Len(t, item.rawBodies, 1)
-	assert.Equal(t, payload, item.rawBodies[0], "original payload should be forwarded when handler panics")
+	assert.Zero(t, n, "a recovered handler panic must suppress, not forward unmodified")
 }
 
 // TestForwardUpdate_ModsNoHandler verifies that a mod key with no registered
-// handler does not crash and the original payload is forwarded unchanged.
+// handler does not crash AND suppresses the route for that destination.
 //
-// VALIDATES: handler == nil branch in mod application loop.
-// PREVENTS: Nil dereference when egress filter writes a key with no handler.
+// VALIDATES: the handler == nil branch, and the fail-closed decision above it.
+// PREVENTS: a nil dereference, and separately emitting a route whose policy
+// never took effect -- for code 35 that is the RFC 9234 OTC attribute.
+//
+// test-relax: SUPERSEDES "original payload should be forwarded when mod handler
+// is missing", which is AC-18's conclusion. Thomas ruled 2026-08-01 that
+// correctness governs.
 func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)
@@ -649,23 +652,15 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 	sel, err := selector.Parse("*")
 	require.NoError(t, err)
 
+	// Every destination is suppressed, so the forward reaches nobody. That is
+	// the point: the route does not go out with the policy unapplied.
 	err = adapter.ForwardUpdate(sel, 302, "test-plugin")
-	require.NoError(t, err)
-
-	select {
-	case <-done:
-	case <-time.After(time.Second):
-		t.Fatal("timeout waiting for dispatch")
-	}
+	require.Error(t, err, "a suppressed-for-all forward must report that it reached nobody")
 
 	mu.Lock()
-	require.Len(t, dispatched, 1)
-	item := dispatched[0]
+	n := len(dispatched)
 	mu.Unlock()
-
-	// Original payload forwarded unchanged (no handler = no modification).
-	require.Len(t, item.rawBodies, 1)
-	assert.Equal(t, payload, item.rawBodies[0], "original payload should be forwarded when mod handler is missing")
+	assert.Zero(t, n, "a missing handler must suppress, not forward unmodified")
 }
 
 // --- source-peer fail-closed guard (errForwardNoSource) ---

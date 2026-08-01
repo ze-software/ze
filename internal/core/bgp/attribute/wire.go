@@ -1,5 +1,6 @@
 // Design: docs/architecture/wire/attributes.md — path attribute encoding
 // RFC: rfc/short/rfc4271.md — path attribute wire format (Section 4.3)
+// Detail: span.go — Span, SpanIndex, and the single eager index builder
 
 package attribute
 
@@ -13,37 +14,71 @@ import (
 
 var errNilEncodingContext = errors.New("nil encoding context")
 
-// attrIndex caches attribute location and parsed value within packed bytes.
-// Built lazily on first scan, reused for subsequent lookups.
-// hdrLen is retained to locate original flags for unknown attributes.
-type attrIndex struct {
-	code   AttributeCode
-	offset uint16 // Points to value (after header)
-	length uint16
-	hdrLen uint8     // 3 or 4; flags at packed[offset-hdrLen]
-	parsed Attribute // nil until parsed on demand
-}
-
-// AttributesWire stores path attributes in wire format with lazy parsing.
+// AttributesWire stores path attributes in wire format with lazy value parsing.
 //
-// Wire bytes are the canonical representation. Parsed attributes are
-// cached in the index on demand. Thread-safe for concurrent read access.
+// Wire bytes are the canonical representation. The attribute index is built once,
+// eagerly, by the constructor, and is never written afterwards; parsed values are
+// cached on demand in a side table.
 //
-// Memory contract: packed is NOT owned by AttributesWire. Caller must
-// ensure the underlying buffer outlives this struct and is not modified.
+// The split is what makes the read surface safe without a lock. packed,
+// sourceCtxID, index and indexErr are written only by NewAttributesWire, so
+// Packed, SourceContext, Has, GetRaw, Count and Spilled take no lock at all and
+// the forward path never contends. Get, All and ForEach fill the parsed side
+// table, and parseMu guards that table alone.
+//
+// Memory contract: packed is NOT owned by AttributesWire. Caller must ensure the
+// underlying buffer outlives this struct and is not modified. The index holds
+// offsets into those bytes, so it shares that boundary exactly: a caller that
+// rewrites the bytes must build a new AttributesWire over them
+// (docs/architecture/memory/lifetime-contracts.md).
 type AttributesWire struct {
-	mu          sync.RWMutex
 	packed      []byte
 	sourceCtxID bgpctx.ContextID
-	index       []attrIndex // nil until first scan; parsed cached in each entry
+	index       SpanIndex // built once by the constructor; immutable afterwards
+	indexErr    error     // the build verdict, immutable afterwards
+
+	// parsed is the parsed-value side table. It is the only mutable state left on
+	// this type and is reached only by Get, All and ForEach, which is why the
+	// parsed values no longer sit inside the index entries: a span stays 6 bytes,
+	// and no heap pointer is retained for the life of a recent-update cache entry.
+	parseMu sync.Mutex
+	parsed  []Attribute
 }
 
-// NewAttributesWire creates from raw packed bytes.
+// NewAttributesWire creates from raw packed bytes and indexes them once.
+//
+// The index is built here rather than on first access so that the value it
+// publishes is immutable and needs no lock to read. A build failure is recorded
+// and returned identically by every accessor: the builder is deterministic, so
+// the error a caller sees is the one the lazy build produced on first use.
+//
 // WARNING: packed is NOT copied. Caller retains ownership and must not modify.
 func NewAttributesWire(packed []byte, ctxID bgpctx.ContextID) *AttributesWire {
-	return &AttributesWire{
+	a := &AttributesWire{
 		packed:      packed,
 		sourceCtxID: ctxID,
+	}
+	a.indexErr = a.index.build(packed)
+	return a
+}
+
+// CarryOver returns a new AttributesWire over newPacked that reuses this one's
+// index instead of rebuilding it.
+//
+// Span offsets are relative to the attribute section, so they are valid against
+// any array holding the same section contents. The caller MUST pass a
+// byte-identical copy; the length equality below is the cheap half of that
+// contract, and a length mismatch falls back to a full rebuild rather than
+// publishing an index that does not describe the bytes.
+func (a *AttributesWire) CarryOver(newPacked []byte) *AttributesWire {
+	if len(newPacked) != len(a.packed) {
+		return NewAttributesWire(newPacked, a.sourceCtxID)
+	}
+	return &AttributesWire{
+		packed:      newPacked,
+		sourceCtxID: a.sourceCtxID,
+		index:       a.index,
+		indexErr:    a.indexErr,
 	}
 }
 
@@ -58,105 +93,42 @@ func (a *AttributesWire) SourceContext() bgpctx.ContextID {
 	return a.sourceCtxID
 }
 
+// Count returns the number of path attributes present. Takes no lock.
+func (a *AttributesWire) Count() int {
+	return a.index.Len()
+}
+
+// Spilled reports whether this UPDATE carried more attributes than the inline
+// span capacity, so the receive path can count the event for an operator.
+func (a *AttributesWire) Spilled() bool {
+	return a.index.Spilled()
+}
+
 // Get returns a specific attribute by code (lazy parse).
 // Returns (nil, nil) if attribute is not present.
 func (a *AttributesWire) Get(code AttributeCode) (Attribute, error) {
-	a.mu.RLock()
-	if a.index != nil {
-		for i := range a.index {
-			if a.index[i].code == code {
-				if attr := a.index[i].parsed; attr != nil {
-					a.mu.RUnlock()
-					return attr, nil
-				}
-				// Found but not parsed - need write lock
-				a.mu.RUnlock()
-				return a.getAndParse(i, code)
-			}
-		}
-		// Index exists but code not found
-		a.mu.RUnlock()
+	if a.indexErr != nil {
+		return nil, a.indexErr
+	}
+	i := a.index.findIndex(code)
+	if i < 0 {
 		return nil, nil //nolint:nilnil // nil means not found
 	}
-	a.mu.RUnlock()
 
-	// Index not built yet
-	return a.getAndParse(-1, code)
-}
-
-// getAndParse acquires write lock and parses attribute.
-// If hint >= 0, it's the index position from RLock scan (still needs double-check).
-// If hint < 0, index needs to be built first.
-func (a *AttributesWire) getAndParse(hint int, code AttributeCode) (Attribute, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	if err := a.ensureIndexLocked(); err != nil {
-		return nil, err
-	}
-
-	// If we have a hint, check that position first (double-check after lock upgrade)
-	if hint >= 0 && hint < len(a.index) && a.index[hint].code == code {
-		if attr := a.index[hint].parsed; attr != nil {
-			return attr, nil
-		}
-		attr, err := a.parseAtLocked(a.index[hint])
-		if err != nil {
-			return nil, err
-		}
-		a.index[hint].parsed = attr
-		return attr, nil
-	}
-
-	// Full search (hint invalid or index was rebuilt)
-	for i := range a.index {
-		if a.index[i].code != code {
-			continue
-		}
-		if attr := a.index[i].parsed; attr != nil {
-			return attr, nil
-		}
-		attr, err := a.parseAtLocked(a.index[i])
-		if err != nil {
-			return nil, err
-		}
-		a.index[i].parsed = attr
-		return attr, nil
-	}
-
-	return nil, nil //nolint:nilnil // nil means not found
+	a.parseMu.Lock()
+	defer a.parseMu.Unlock()
+	return a.parseAtLocked(i)
 }
 
 // Has checks if attribute exists without parsing value.
 // Returns error if wire bytes are malformed.
+//
+// Answered from the presence bitset: no scan, no lock, no parse.
 func (a *AttributesWire) Has(code AttributeCode) (bool, error) {
-	a.mu.RLock()
-	if a.index != nil {
-		for i := range a.index {
-			if a.index[i].code == code {
-				a.mu.RUnlock()
-				return true, nil
-			}
-		}
-		a.mu.RUnlock()
-		return false, nil
+	if a.indexErr != nil {
+		return false, a.indexErr
 	}
-	a.mu.RUnlock()
-
-	// Build index (upgrades to write lock)
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	if err := a.ensureIndexLocked(); err != nil {
-		return false, err
-	}
-
-	for i := range a.index {
-		if a.index[i].code == code {
-			return true, nil
-		}
-	}
-	return false, nil
+	return a.index.Has(code), nil
 }
 
 // GetMultiple returns multiple attributes (for API output).
@@ -178,60 +150,35 @@ func (a *AttributesWire) GetMultiple(codes []AttributeCode) (map[AttributeCode]A
 // Zero-copy: returns a slice into the packed buffer.
 // Returns (nil, nil) if attribute is not present.
 // Use this for attributes that need custom handling (e.g., MP_REACH_NLRI for MPReachWire).
+//
+// This is the accessor the forward path uses, and it takes no lock.
 func (a *AttributesWire) GetRaw(code AttributeCode) ([]byte, error) {
-	a.mu.RLock()
-	if a.index != nil {
-		for i := range a.index {
-			if a.index[i].code == code {
-				result := a.packed[a.index[i].offset : a.index[i].offset+a.index[i].length]
-				a.mu.RUnlock()
-				return result, nil
-			}
-		}
-		a.mu.RUnlock()
+	if a.indexErr != nil {
+		return nil, a.indexErr
+	}
+	span, ok := a.index.Find(code)
+	if !ok {
 		return nil, nil //nolint:nilnil // nil means not found
 	}
-	a.mu.RUnlock()
-
-	// Index not built yet
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	if err := a.ensureIndexLocked(); err != nil {
-		return nil, err
-	}
-
-	for i := range a.index {
-		if a.index[i].code == code {
-			return a.packed[a.index[i].offset : a.index[i].offset+a.index[i].length], nil
-		}
-	}
-
-	return nil, nil //nolint:nilnil // nil means not found
+	return a.packed[span.Offset : span.Offset+span.Length], nil
 }
 
 // All returns all attributes (full parse).
 // Attributes are returned in wire order.
 func (a *AttributesWire) All() ([]Attribute, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	if err := a.ensureIndexLocked(); err != nil {
-		return nil, err
+	if a.indexErr != nil {
+		return nil, a.indexErr
 	}
 
-	result := make([]Attribute, 0, len(a.index))
-	for i := range a.index {
-		if a.index[i].parsed != nil {
-			result = append(result, a.index[i].parsed)
-			continue
-		}
+	a.parseMu.Lock()
+	defer a.parseMu.Unlock()
 
-		attr, err := a.parseAtLocked(a.index[i])
+	result := make([]Attribute, 0, a.index.Len())
+	for i := range a.index.Len() {
+		attr, err := a.parseAtLocked(i)
 		if err != nil {
 			return nil, err
 		}
-		a.index[i].parsed = attr
 		result = append(result, attr)
 	}
 
@@ -242,24 +189,19 @@ func (a *AttributesWire) All() ([]Attribute, error) {
 // Unlike All(), no result slice is allocated. Attributes are parsed on demand
 // and cached for subsequent calls. If fn returns false, iteration stops early.
 func (a *AttributesWire) ForEach(fn func(AttributeCode, Attribute) bool) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	if err := a.ensureIndexLocked(); err != nil {
-		return err
+	if a.indexErr != nil {
+		return a.indexErr
 	}
 
-	for i := range a.index {
-		attr := a.index[i].parsed
-		if attr == nil {
-			var err error
-			attr, err = a.parseAtLocked(a.index[i])
-			if err != nil {
-				return err
-			}
-			a.index[i].parsed = attr
+	a.parseMu.Lock()
+	defer a.parseMu.Unlock()
+
+	for i := range a.index.Len() {
+		attr, err := a.parseAtLocked(i)
+		if err != nil {
+			return err
 		}
-		if !fn(a.index[i].code, attr) {
+		if !fn(a.index.At(i).Code, attr) {
 			break
 		}
 	}
@@ -282,59 +224,29 @@ func (a *AttributesWire) PackFor(destCtxID bgpctx.ContextID) ([]byte, error) {
 	return a.packWithContext(destCtx)
 }
 
-// ensureIndexLocked builds the attribute index if not already built.
-// Caller must hold write lock.
-// RFC 4271: Duplicate attributes are a Malformed Attribute List error.
-//
-// Index is built atomically: on error, a.index remains nil so subsequent
-// calls will retry and return the same error.
-func (a *AttributesWire) ensureIndexLocked() error {
-	if a.index != nil {
-		return nil
+// parseAtLocked returns the parsed value of the i-th attribute, filling the side
+// table on a miss. Caller must hold parseMu.
+func (a *AttributesWire) parseAtLocked(i int) (Attribute, error) {
+	if i < len(a.parsed) && a.parsed[i] != nil {
+		return a.parsed[i], nil
 	}
 
-	// Build index locally first - only assign to a.index on success
-	// This ensures parse errors leave a.index nil for retry
-	index := make([]attrIndex, 0, 8)
-	var seen [256]bool
-
-	offset := 0
-	for offset < len(a.packed) {
-		_, code, length, hdrLen, err := ParseHeader(a.packed[offset:])
-		if err != nil {
-			return fmt.Errorf("parsing header at offset %d: %w", offset, err)
-		}
-
-		// RFC 4271: duplicate attributes are malformed
-		if seen[code] {
-			return fmt.Errorf("duplicate attribute %s at offset %d", code, offset)
-		}
-		seen[code] = true
-
-		// Validate we have enough data
-		if offset+hdrLen+int(length) > len(a.packed) {
-			return fmt.Errorf("attribute %s truncated at offset %d", code, offset)
-		}
-
-		index = append(index, attrIndex{
-			code:   code,
-			offset: uint16(offset + hdrLen), //nolint:gosec // G115: bounded by packed length (max 65535)
-			length: length,
-			hdrLen: uint8(hdrLen), //nolint:gosec // G115: hdrLen is 3 or 4
-		})
-
-		offset += hdrLen + int(length)
+	attr, err := a.parseSpan(a.index.At(i))
+	if err != nil {
+		return nil, err
 	}
 
-	// Success - atomically publish the index
-	a.index = index
-	return nil
+	if a.parsed == nil {
+		a.parsed = make([]Attribute, a.index.Len())
+	}
+	a.parsed[i] = attr
+	return attr, nil
 }
 
-// parseAtLocked parses the attribute at the given index.
-// Caller must hold lock.
-func (a *AttributesWire) parseAtLocked(idx attrIndex) (Attribute, error) {
-	valueBytes := a.packed[idx.offset : idx.offset+idx.length]
+// parseSpan parses the attribute one span describes. It reads only immutable
+// state, so it needs no lock of its own.
+func (a *AttributesWire) parseSpan(span Span) (Attribute, error) {
+	valueBytes := a.packed[span.Offset : span.Offset+span.Length]
 
 	// Get source context for context-dependent parsing (e.g., ASN4)
 	srcCtx := bgpctx.Registry.Get(a.sourceCtxID)
@@ -343,7 +255,7 @@ func (a *AttributesWire) parseAtLocked(idx attrIndex) (Attribute, error) {
 	}
 
 	// Try known attribute parsers first
-	attr, err := parseKnownAttribute(idx.code, valueBytes, srcCtx)
+	attr, err := parseKnownAttribute(span.Code, valueBytes, srcCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -353,8 +265,8 @@ func (a *AttributesWire) parseAtLocked(idx attrIndex) (Attribute, error) {
 
 	// Unknown attribute: read original flags from header for preservation
 	// Flags are at the start of the header: packed[offset - hdrLen]
-	flags := AttributeFlags(a.packed[idx.offset-uint16(idx.hdrLen)])
-	return NewOpaqueAttribute(flags, idx.code, valueBytes), nil
+	flags := AttributeFlags(a.packed[span.Offset-uint16(span.HdrLen)])
+	return NewOpaqueAttribute(flags, span.Code, valueBytes), nil
 }
 
 // packWithContext re-encodes all attributes with destination context.

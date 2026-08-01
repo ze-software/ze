@@ -1,5 +1,6 @@
 // Design: docs/architecture/wire/attributes.md — path attribute encoding
 // RFC: rfc/short/rfc4271.md — path attribute TLV iteration (Section 4.3)
+// Related: span.go — SpanIndex, the built-once index a base carries
 
 package attribute
 
@@ -129,6 +130,11 @@ func (it *AttrIterator) Count() int {
 // Returns header start offset, flags, value subslice, and whether the attribute was found.
 // Zero allocation — standalone function with no pointer receiver, no escape path.
 // Use this instead of NewAttrIterator + Find when only a single lookup is needed.
+//
+// This is for a caller holding BARE attribute bytes with no base. A caller that has an
+// AttributesWire should ask its index instead (Has, GetRaw): the index is already built,
+// answers absence from a presence bit, and takes no lock. AttrFind stays because forcing a
+// base on a caller that has none would be coupling for its own sake.
 func AttrFind(data []byte, code AttributeCode) (hdrStart int, flags AttributeFlags, value []byte, found bool) {
 	offset := 0
 	for offset+3 <= len(data) {

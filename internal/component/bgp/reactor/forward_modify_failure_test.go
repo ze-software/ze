@@ -28,6 +28,12 @@ func TestModifyFailureLabelsAreClosedAndStable(t *testing.T) {
 		{modifyFailureOverflow, "overflow", true},
 		{modifyFailureAttrLenRange, "attr-length-range", true},
 		{modifyFailureWithdrawnSize, "withdrawn-size", true},
+		// These three arise on paths that keep building rather than returning.
+		// They suppress like the rest: a route missing a modification the
+		// policy required must not go out. See modifyFailure.failed.
+		{modifyFailureNoHandler, "no-handler", true},
+		{modifyFailureHandlerFault, "handler-fault", true},
+		{modifyFailureTruncated, "truncated", true},
 	}
 	for _, tc := range cases {
 		t.Run(tc.label, func(t *testing.T) {
@@ -183,6 +189,112 @@ func TestBuildModifiedPayloadMalformedReportsFailure(t *testing.T) {
 			assert.True(t, fail.failed(), "caller must suppress")
 		})
 	}
+}
+
+// VALIDATES: AC-1 — a modification that does not land because the build kept
+// going, rather than because it returned early, is STILL reported as a failure.
+// PREVENTS: the fail-open an independent review found after T1-1 shipped. T1-1
+// closed only the paths that RETURN nil. Four paths warn and carry on — a
+// missing handler, a faulting handler, and the same two for a newly added
+// attribute — and each produced a well-formed payload plus modifyFailureNone,
+// so every caller forwarded a route the policy had not changed. For a community
+// strip or a private-ASN removal that is the exact leak the policy exists to
+// prevent.
+func TestBuildModifiedPayloadUnappliedModificationIsFailure(t *testing.T) {
+	origin := makeAttr(0x40, 1, []byte{0x00})
+	community := makeAttr(0xC0, 8, []byte{0x00, 0x64, 0x00, 0x01})
+	nlri := []byte{24, 10, 0, 0}
+
+	panicking := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, _ []byte, _ int) int {
+		panic("handler fault under test")
+	})
+	badOffset := filterapi.AttrModHandler(func(_ []byte, _ []filterapi.AttrOp, buf []byte, _ int) int {
+		return len(buf) + 1 // outside the buffer
+	})
+
+	cases := []struct {
+		name     string
+		payload  []byte
+		handlers map[uint8]filterapi.AttrModHandler
+		mods     func(*filterapi.ModAccumulator)
+		want     modifyFailure
+	}{
+		{
+			// The policy asks to strip a community and no handler is
+			// registered. The route must NOT go out carrying it.
+			name:     "no handler for an existing attribute",
+			payload:  buildModTestPayload(slices.Concat(origin, community), nlri),
+			handlers: map[uint8]filterapi.AttrModHandler{},
+			mods: func(m *filterapi.ModAccumulator) {
+				m.Op(8, filterapi.AttrModRemove, []byte{0x00, 0x64, 0x00, 0x01})
+			},
+			want: modifyFailureNoHandler,
+		},
+		{
+			// The policy asks to ADD an attribute and no handler exists, so it
+			// is never written. Silently skipping would drop, for example, the
+			// RFC 9234 OTC marker.
+			name:     "no handler for a new attribute",
+			payload:  buildModTestPayload(origin, nlri),
+			handlers: map[uint8]filterapi.AttrModHandler{},
+			mods: func(m *filterapi.ModAccumulator) {
+				m.Op(35, filterapi.AttrModSet, []byte{0, 0, 0xFD, 0xE8})
+			},
+			want: modifyFailureNoHandler,
+		},
+		{
+			name:     "handler panics on an existing attribute",
+			payload:  buildModTestPayload(slices.Concat(origin, community), nlri),
+			handlers: map[uint8]filterapi.AttrModHandler{8: panicking},
+			mods: func(m *filterapi.ModAccumulator) {
+				m.Op(8, filterapi.AttrModRemove, []byte{0x00, 0x64, 0x00, 0x01})
+			},
+			want: modifyFailureHandlerFault,
+		},
+		{
+			name:     "handler returns an offset outside the buffer",
+			payload:  buildModTestPayload(slices.Concat(origin, community), nlri),
+			handlers: map[uint8]filterapi.AttrModHandler{8: badOffset},
+			mods: func(m *filterapi.ModAccumulator) {
+				m.Op(8, filterapi.AttrModRemove, []byte{0x00, 0x64, 0x00, 0x01})
+			},
+			want: modifyFailureHandlerFault,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var mods filterapi.ModAccumulator
+			tc.mods(&mods)
+
+			result, _, fail := buildModifiedPayload(tc.payload, &mods, tc.handlers, nil, nil)
+
+			assert.Equal(t, tc.want, fail, "an unapplied modification must name itself")
+			assert.True(t, fail.failed(), "the caller must suppress, never forward a route missing the change")
+			assert.Nil(t, result, "a failed build hands out no payload")
+		})
+	}
+}
+
+// VALIDATES: AC-1 — a truncated attribute section is a failure, not an early
+// exit. The walk stops, so the remaining attributes are never copied.
+// PREVENTS: emitting a silently short attribute section that still parses.
+func TestBuildModifiedPayloadTruncatedSectionIsFailure(t *testing.T) {
+	origin := makeAttr(0x40, 1, []byte{0x00})
+	// Declare an attribute length the section cannot satisfy: a 3-byte header
+	// claiming 200 value bytes, with none present.
+	truncated := []byte{0x40, 5, 200}
+	payload := buildModTestPayload(slices.Concat(origin, truncated), nil)
+
+	var mods filterapi.ModAccumulator
+	mods.Op(1, filterapi.AttrModSet, []byte{0x00})
+
+	result, _, fail := buildModifiedPayload(payload, &mods,
+		attrModHandlersWithDefaults(), nil, nil)
+
+	assert.Equal(t, modifyFailureTruncated, fail, "truncation must name itself")
+	assert.True(t, fail.failed(), "an incomplete rebuild must not go out")
+	assert.Nil(t, result, "a truncated rebuild hands out no payload")
 }
 
 // goldenModifyCase is one row of the Tier 1 byte-identity corpus.

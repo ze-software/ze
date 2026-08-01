@@ -166,7 +166,7 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 
 	switch result.Action {
 	case message.RFC7606ActionNone:
-		return wu, message.RFC7606ActionNone, nil
+		return s.publishBase(wu), message.RFC7606ActionNone, nil
 
 	case message.RFC7606ActionAttributeDiscard:
 		// RFC 7606 Section 2: "The attribute MUST be discarded ... and the UPDATE
@@ -201,7 +201,7 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 		// If not rebuilt, pathAttrs (a slice of body) was modified in-place,
 		// so wu.Payload() already reflects the change.
 
-		return wu, message.RFC7606ActionAttributeDiscard, nil
+		return s.publishBase(wu), message.RFC7606ActionAttributeDiscard, nil
 
 	case message.RFC7606ActionTreatAsWithdraw:
 		// RFC 7606 Section 2: "MUST be handled as though all of the routes contained in an
@@ -228,7 +228,40 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 		return s.rfc7606SessionReset(wu, result.Description)
 	}
 
-	return wu, message.RFC7606ActionNone, nil
+	return s.publishBase(wu), message.RFC7606ActionNone, nil
+}
+
+// publishBase builds the attribute span index over the bytes this UPDATE will be
+// published with, on the receive goroutine, and returns the same WireUpdate.
+//
+// It is deliberately the LAST thing enforceRFC7606 does. Two branches above change the
+// bytes after the RFC 7606 walk has read them, and an index built before either would
+// describe an object nobody sees:
+//
+//   - the Section 3.g keep-first strip rebuilds the body and wraps it in a NEW WireUpdate,
+//     shifting every attribute after the first stripped range;
+//   - ApplyAttrDiscard's in-place branch overwrites the type-code byte with ATTR_TOMBSTONE
+//     and builds no new WireUpdate at all, so the offsets survive but the code does not.
+//
+// wireu.WireUpdate.Attrs freezes the index on its first call, so this ordering is the whole
+// guarantee. TestInPlaceDiscardPrecedesIndexBuild and TestStripRebuildIndexMatchesPublished
+// pin it from the receive entry point.
+//
+// A build failure is NOT routed into an RFC 7606 action. The error is recorded on the base
+// and returned by every accessor, which is exactly what the lazy builder did on first use,
+// so no verdict changes. It is logged here because this is the one place that knows which
+// peer sent the bytes.
+func (s *Session) publishBase(wu *wireu.WireUpdate) *wireu.WireUpdate {
+	attrs, err := wu.Attrs()
+	if err != nil {
+		sessionLogger().Debug("attribute index not built",
+			"peer", s.settings.Address, "error", err)
+		return wu
+	}
+	if attrs != nil && attrs.Spilled() && s.prefixMetrics != nil {
+		s.prefixMetrics.attrSpanSpill.With(s.addrLabel).Inc()
+	}
+	return wu
 }
 
 // rfc7606Diagnostics logs the debugging facility RFC 7606 Section 6 requires.
