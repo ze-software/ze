@@ -24,6 +24,8 @@ Rules that disagree almost always disagree about one thing: whether to keep goin
 
 **Deferral versus parking, settled by one question: does the goal this work exists to achieve still hold if I leave this?** If yes, it is separable future work: home it per `deferral-tracking.md`. If no, it is parking with a polite name: fix it now (`no-parking.md`).
 
+**Closing comes first, and the same question decides the ORDER as well as the verdict: a defect the goal does NOT depend on is fixed AFTER the work in hand is closed, never on the way to closing it.** `no-parking.md` makes you the owner of a defect you walked into, and it does not make you its owner this minute. Name it, home it per `deferral-tracking.md`, close, then fix it. Work that was finished but never landed is the most expensive failure this repo has, and an unrelated fix folded into a closing commit is its usual cause: it costs the commit its single focus and the review its scope, and it restarts the gates that were already green.
+
 **Recording versus fixing, settled by one question: did I try to reproduce it and fail?** Only a failure whose mechanism you actively tried and could not reproduce may be written down instead of fixed. Anything deterministic, structural, or load-explained gets fixed (`fix-dont-record.md`).
 
 **A rule's own subject matter is never overridden by this ladder.** The ladder decides stop/ask/delegate/continue. It does not license writing `fmt.Sprintf` on a hot path because you were in a hurry, and it does not exempt you from `no-fabrication` at any rung.

@@ -82,6 +82,8 @@ If you are unsure which side you are on, you are on the "fix it" side. The cost
 of over-fixing is some extra work; the cost of parking a real blocker is
 shipping something that does not do what it claims.
 
+**A defect you own is not a defect you fix this minute. When it does not block the goal, the order is: close the work in hand, then fix it.** "ALWAYS" governs WHETHER you fix it, never WHEN. Fixing it first is how finished work fails to land: the closing commit loses its single focus, the review loses its scope, and the gates that were green run again. Name it, home it per `deferral-tracking.md`, close, then come back for it (`ai/rules/rule-precedence.md`).
+
 ## Banned moves
 
 | Banned | Why |
