@@ -85,13 +85,31 @@ func BuildSpanIndex(packed []byte) (SpanIndex, error) {
 // allocation on the path the exactly-sized rebuild exists to keep free.
 func (x *SpanIndex) Rebuild(packed []byte) error { return x.build(packed) }
 
+// reset returns the index to its zero state while keeping spill's capacity, so a
+// pooled index does not re-allocate. Nothing built so far stays readable: len is
+// 0 and every accessor is bounded by it.
+func (x *SpanIndex) reset(spill []Span) {
+	*x = SpanIndex{}
+	x.spill = spill
+}
+
 // build fills the receiver in place. It is the in-place form BuildSpanIndex wraps,
 // used where the index already lives inside its owner so the inline array is never
 // copied. The receiver is cleared first, so a reused one carries nothing forward,
 // and on error it is left zero-valued: a partially built index must never be
 // readable as "this UPDATE has these attributes".
+//
+// The spill slice is the one thing carried across the reset, truncated rather
+// than dropped. A pooled index (spanIndexPool, reactor/forward_build.go) exists
+// to keep that heap storage alive; zeroing the whole struct would hand it back
+// nil every rebuild and re-allocate on the forward hot path for any UPDATE
+// carrying more than SpanInline attributes -- reintroducing the very allocation
+// the pool was added to remove. Truncating keeps the reset honest: nothing is
+// readable, because len is 0 and every accessor is bounded by it.
 func (x *SpanIndex) build(packed []byte) error {
+	spill := x.spill[:0]
 	*x = SpanIndex{}
+	x.spill = spill
 
 	if len(packed) > spanMaxOffset {
 		return fmt.Errorf("%w: %d", ErrAttrSectionTooLarge, len(packed))
@@ -101,19 +119,19 @@ func (x *SpanIndex) build(packed []byte) error {
 	for offset < len(packed) {
 		_, code, length, hdrLen, err := ParseHeader(packed[offset:])
 		if err != nil {
-			*x = SpanIndex{}
+			x.reset(spill)
 			return fmt.Errorf("parsing header at offset %d: %w", offset, err)
 		}
 
 		// RFC 4271 Section 4.3: duplicate attributes are malformed. The presence
 		// bitset is the same set the old builder kept in a separate [256]bool.
 		if x.has(code) {
-			*x = SpanIndex{}
+			x.reset(spill)
 			return fmt.Errorf("duplicate attribute %s at offset %d", code, offset)
 		}
 
 		if offset+hdrLen+int(length) > len(packed) {
-			*x = SpanIndex{}
+			x.reset(spill)
 			return fmt.Errorf("attribute %s truncated at offset %d", code, offset)
 		}
 

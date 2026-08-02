@@ -319,3 +319,65 @@ func BenchmarkAttributeReadNoLock(b *testing.B) {
 		}
 	})
 }
+
+// VALIDATES: a REUSED SpanIndex keeps its spill capacity across rebuilds, so a
+// pooled index does not allocate on the forward hot path.
+// PREVENTS: the regression an independent review found on 2026-08-02. build()
+// opened with `*x = SpanIndex{}`, which nils spill, and then appended to it — so
+// spanIndexPool (reactor/forward_build.go) handed back an index whose heap
+// storage was thrown away every rebuild. Any UPDATE carrying more than
+// SpanInline attributes then allocated once per destination, reintroducing
+// exactly the allocation the pool was added to remove.
+//
+// The existing zero-alloc tests could not see this: their fixtures stay within
+// SpanInline, so the spill never engages. This one deliberately exceeds it.
+func TestSpanIndexReuseKeepsSpillCapacity(t *testing.T) {
+	// SpanInline+4 attributes, so the index must spill to the heap.
+	var packed []byte
+	for code := byte(1); code <= byte(SpanInline+4); code++ {
+		packed = append(packed, 0x40, code, 0x01, 0x00)
+	}
+
+	var idx SpanIndex
+	require.NoError(t, idx.Rebuild(packed))
+	require.Greater(t, idx.Len(), SpanInline, "guard: the fixture must spill")
+
+	allocs := testing.AllocsPerRun(100, func() {
+		if err := idx.Rebuild(packed); err != nil {
+			t.Fatalf("rebuild: %v", err)
+		}
+	})
+	assert.Zero(t, allocs, "a reused index must not re-allocate its spill")
+}
+
+// VALIDATES: an error path also keeps spill CAPACITY while leaving nothing
+// readable, so the next rebuild does not re-allocate.
+// PREVENTS: fixing the happy path only, and re-allocating the span storage on
+// every malformed UPDATE a peer sends — the case an attacker controls.
+//
+// This asserts capacity, NOT zero allocations: the error itself is built with
+// fmt.Errorf, which allocates, and an error is a cold path where that is
+// correct. Asserting zero here would pin the error construction rather than the
+// storage reuse this test exists for.
+func TestSpanIndexErrorPathKeepsCapacityAndReadsEmpty(t *testing.T) {
+	var packed []byte
+	for code := byte(1); code <= byte(SpanInline+4); code++ {
+		packed = append(packed, 0x40, code, 0x01, 0x00)
+	}
+	var idx SpanIndex
+	require.NoError(t, idx.Rebuild(packed))
+
+	// A duplicate code is malformed per RFC 4271 Section 4.3.
+	bad := append(append([]byte(nil), packed...), 0x40, 0x01, 0x01, 0x00)
+
+	require.Error(t, idx.Rebuild(bad), "a duplicate attribute is malformed")
+	assert.Zero(t, idx.Len(), "a failed build leaves nothing readable")
+
+	// The storage survived the failure, so the next good UPDATE reuses it.
+	allocs := testing.AllocsPerRun(100, func() {
+		if err := idx.Rebuild(packed); err != nil {
+			t.Fatalf("rebuild after a failure: %v", err)
+		}
+	})
+	assert.Zero(t, allocs, "a rebuild after an error must not re-allocate")
+}

@@ -113,6 +113,271 @@ func makeASN2RSClientPeer(t testing.TB, addr string, asn2Ctx *bgpctx.EncodingCon
 	return peer
 }
 
+// makeASN2IBGPPeer builds an established IBGP peer that negotiated 2-byte ASN
+// encoding (send context ASN4=false).
+//
+// IBGP is the load-bearing half, and it is what separates this fixture from
+// makeASN2RSClientPeer above. An EBGP destination records the RFC 6793 width
+// change as an AS-path INTENT in the shared edit set, so forwardUpdateCore
+// rebuilds the payload and relabels the wire with the destination's context
+// (fwdContextIDWithASN4) -- buildFwdBody then sees matching contexts and borrows
+// nothing. An IBGP destination records no AS-path intent and no next-hop op
+// (nhModeNone), so its edit set stays EMPTY, the wire keeps the SOURCE context,
+// and buildFwdBody must transcode: the one shape that still reaches
+// fwdUpdateForDestination's borrow and adoptFwdHandle in forwardUpdateCore.
+//
+// The topology is ordinary: an EBGP-learned route relayed to a legacy IBGP
+// speaker that never negotiated RFC 6793 four-octet ASNs.
+func makeASN2IBGPPeer(t testing.TB, addr string, asn2Ctx *bgpctx.EncodingContext, asn2CtxID bgpctx.ContextID) *Peer {
+	t.Helper()
+	peerAddr := netip.MustParseAddr(addr)
+	settings := &PeerSettings{
+		Connection:    ConnectionBoth,
+		Address:       peerAddr,
+		LocalAS:       65000,
+		GlobalLocalAS: 65000,
+		PeerAS:        65000, // IBGP: LocalAS == PeerAS
+		RouterID:      0x01020300 | uint32(peerAddr.As4()[3]),
+	}
+	peer := NewPeer(settings)
+	peer.state.Store(int32(PeerStateEstablished))
+	peer.negotiated.Store(&NegotiatedCapabilities{
+		families:        map[family.Family]bool{{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}: true},
+		ExtendedMessage: false,
+	})
+	peer.sendCtx.Store(asn2Ctx)
+	peer.sendCtxID = asn2CtxID
+	peer.refreshForwardFacts()
+	require.False(t, peer.forwardFacts().isEBGP,
+		"precondition: the peer must be IBGP, or the width change folds into the edit set and nothing is borrowed")
+	require.False(t, peer.forwardFacts().sendASN4,
+		"precondition: the peer must send 2-byte ASN, or there is no width change to transcode")
+	require.Equal(t, nhModeNone, peer.forwardFacts().nhMode,
+		"precondition: no next-hop policy, or the edit set is non-empty and the wire is relabeled")
+	return peer
+}
+
+// gatedWorker holds one destination's handshake with the batch handler, so a
+// test can hold that destination's async write open and then let it finish at a
+// chosen point.
+type gatedWorker struct {
+	entered  chan struct{} // the real batch reached the handler
+	release  chan struct{} // closed to let the real batch return
+	sentinel chan struct{} // a later batch reached the handler
+	batches  int           // guarded by gatedWorkers.mu
+}
+
+// gatedWorkers routes the batch handler to the gate of the peer being served.
+type gatedWorkers struct {
+	mu    sync.Mutex
+	gates map[netip.Addr]*gatedWorker
+}
+
+func newGatedWorkers(addrs ...netip.Addr) *gatedWorkers {
+	g := &gatedWorkers{gates: make(map[netip.Addr]*gatedWorker, len(addrs))}
+	for _, a := range addrs {
+		g.gates[a] = &gatedWorker{
+			entered:  make(chan struct{}, 1),
+			release:  make(chan struct{}),
+			sentinel: make(chan struct{}, 1),
+		}
+	}
+	return g
+}
+
+// handle is the fwdPool batch handler. The FIRST batch a peer receives is the
+// forwarded UPDATE: it reports and then blocks, holding the async write open.
+// Every later batch is a sentinel and returns at once.
+func (g *gatedWorkers) handle(key fwdKey, items []fwdItem) {
+	// The bodies still alias the adopted read buffer at this point, which is the
+	// whole reason the handle may not be returned yet.
+	for i := range items {
+		_ = items[i].rawBodies
+	}
+	g.mu.Lock()
+	gate := g.gates[key.peerAddr.Addr()]
+	if gate == nil {
+		g.mu.Unlock()
+		return
+	}
+	gate.batches++
+	first := gate.batches == 1
+	g.mu.Unlock()
+
+	if !first {
+		select {
+		case gate.sentinel <- struct{}{}:
+		default:
+		}
+		return
+	}
+	select {
+	case gate.entered <- struct{}{}:
+	default:
+	}
+	<-gate.release
+}
+
+// releaseAll unblocks every gate. A failed assertion ends the test goroutine, and
+// a worker left parked would turn that failure into a hung binary.
+func (g *gatedWorkers) releaseAll() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	for _, gate := range g.gates {
+		select {
+		case <-gate.release:
+		default:
+			close(gate.release)
+		}
+	}
+}
+
+// awaitEntered blocks until this peer's forwarded batch is inside the handler.
+func (g *gatedWorkers) awaitEntered(t testing.TB, addr netip.Addr) {
+	t.Helper()
+	select {
+	case <-g.gates[addr].entered:
+	case <-time.After(5 * time.Second):
+		require.FailNowf(t, "dispatch worker never ran", "peer %s", addr)
+	}
+}
+
+// finishWrite lets this peer's forwarded batch return AND waits until the pool
+// has run its post-handler work for that batch: done() (the cache Release) and
+// releaseItem.
+//
+// The wait is a happens-before, not a duration. runWorker processes one batch at
+// a time and safeBatchHandle's deferred loop calls done() before the worker
+// takes the next batch, so a sentinel batch reaching the handler PROVES the
+// forwarded batch's done() has already run. Sampling on a timer instead would
+// make the ordering assertion below load-sensitive, which is the failure mode
+// ai/rules/fix-dont-record.md exists to stop.
+func (g *gatedWorkers) finishWrite(t testing.TB, pool *fwdPool, addr netip.AddrPort) {
+	t.Helper()
+	gate := g.gates[addr.Addr()]
+	// Queued while the worker is still inside the forwarded batch's handler, so
+	// it cannot be drained into that same batch.
+	require.True(t, pool.TryDispatch(fwdKey{peerAddr: addr}, fwdItem{}),
+		"the sentinel batch must reach peer %s's worker", addr)
+	close(gate.release)
+	select {
+	case <-gate.sentinel:
+	case <-time.After(5 * time.Second):
+		require.FailNowf(t, "worker never finished the forwarded batch", "peer %s", addr)
+	}
+}
+
+// TestForwardAdoptedHandleHeldUntilLastWrite proves the EARLY-RELEASE ORDERING of
+// an adopted read-buffer handle: one buffer aliased into SEVERAL destinations'
+// async writes is not returned when the first write completes, only after the
+// last.
+//
+// This is the invariant adoptFwdHandle exists for, and the reason it hands the
+// handle to the cache entry instead of returning it at the end of the forward
+// call. Every other read-buffer assertion in this package is now before == after
+// over ZERO borrows -- true, but true of code that holds no buffer at all -- so
+// nothing exercised the ordering while the two production call sites stayed live.
+//
+// The fixture borrows for real, and proves that before it asserts anything about
+// ordering: two IBGP destinations sharing a 2-byte send context receive an
+// EBGP-learned 4-byte-ASN route, so buildFwdBody transcodes (RFC 6793) and
+// forwardUpdateCore adopts the handle. Update groups are ON, so the pointer-keyed
+// body cache serves the second destination the FIRST destination's sections: one
+// handle, two async writes.
+//
+// VALIDATES: an adopted handle stays borrowed while any dispatched item still
+// aliases it, and is returned exactly once, at eviction, after the LAST write.
+// PREVENTS: returning the handle on the first done(), or at the end of the
+// forward call. The second destination's worker would then be writing out of a
+// buffer already handed back to the read pool and refilled by another session --
+// a use-after-free whose symptom is one peer receiving another session's bytes.
+func TestForwardAdoptedHandleHeldUntilLastWrite(t *testing.T) {
+	src4Ctx := bgpctx.EncodingContextForASN4(true)
+	src4CtxID, _ := bgpctx.Registry.Register(src4Ctx)
+	asn2Ctx := bgpctx.EncodingContextForASN4(false)
+	asn2CtxID, _ := bgpctx.Registry.Register(asn2Ctx)
+
+	// 4-byte AS_PATH source UPDATE, so TranscodeASPath (4->2) yields n > 0 and the
+	// borrowed buffer is actually carried out of fwdUpdateForDestination.
+	payload := testUpdatePayloadWithASPath([]uint32{65001})
+
+	_, before := bufMuxStd.Stats()
+
+	cache := NewRecentUpdateCache(100)
+	update, id := newLeakTestUpdate(t, cache, payload, src4CtxID)
+
+	first := makeASN2IBGPPeer(t, "10.0.0.2", asn2Ctx, asn2CtxID)
+	second := makeASN2IBGPPeer(t, "10.0.0.3", asn2Ctx, asn2CtxID)
+
+	gates := newGatedWorkers(first.Settings().Address, second.Settings().Address)
+	pool := newFwdPool(gates.handle, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+
+	// Order is load-bearing, and defers run LIFO: releaseAll must be registered
+	// LAST so it runs FIRST. pool.Stop waits for every worker to finish its batch,
+	// so stopping while a worker is parked on its gate deadlocks -- which is what a
+	// failed assertion would do, turning one red into a hung binary. Proven, not
+	// reasoned: the first mutation run of this test hung here for the full 3m
+	// timeout with the two workers parked in handle().
+	defer pool.Stop()
+	defer gates.releaseAll()
+
+	r := &Reactor{
+		attrModHandlers: attrModHandlersWithDefaults(),
+		recentUpdates:   cache,
+		peers: map[netip.AddrPort]*Peer{
+			first.Settings().PeerKey():  first,
+			second.Settings().PeerKey(): second,
+		},
+		fwdPool: pool,
+		// ON, so the body cache hands the second destination the first's
+		// sections: ONE adopted handle backing TWO async writes.
+		updateGroups: NewUpdateGroupIndex(true),
+	}
+	adapter := &reactorAPIAdapter{r: r}
+
+	require.NoError(t, adapter.forwardUpdateCore(update, id, []*Peer{first, second}, leakTestSource))
+
+	gates.awaitEntered(t, first.Settings().Address)
+	gates.awaitEntered(t, second.Settings().Address)
+
+	// The fixture must BORROW, or every assertion below is vacuously true of a
+	// path that holds no buffer. This is the guard that makes the ordering
+	// assertion mean something.
+	update.fwdHandleMu.Lock()
+	adopted := len(update.fwdHandles)
+	update.fwdHandleMu.Unlock()
+	require.Equal(t, 1, adopted,
+		"the cross-context transcode must adopt exactly one handle, shared by both destinations")
+	_, held := bufMuxStd.Stats()
+	require.Equal(t, before+1, held,
+		"the transcode buffer must be borrowed and still held while both writes are pending")
+
+	// The plugin consumer is done; only the two forward retains keep the entry.
+	require.NoError(t, cache.Ack(id, "test-plugin"))
+
+	// The FIRST write completes. Its done() has provably run (see finishWrite).
+	gates.finishWrite(t, pool, first.forwardFacts().peerKey)
+
+	_, stillCached := cache.Get(id)
+	require.True(t, stillCached,
+		"the entry must survive while the second destination's write is still in flight")
+	_, stillHeld := bufMuxStd.Stats()
+	require.Equal(t, before+1, stillHeld,
+		"the adopted buffer must NOT be returned when the FIRST write completes: the second destination's body still aliases it")
+
+	// The LAST write completes: retains reach zero, the entry evicts, the handle
+	// goes back exactly once.
+	gates.finishWrite(t, pool, second.forwardFacts().peerKey)
+	require.Eventually(t, func() bool {
+		_, ok := cache.Get(id)
+		return !ok
+	}, 5*time.Second, time.Millisecond, "the entry must evict once the last write completes")
+
+	_, after := bufMuxStd.Stats()
+	assert.Equal(t, before, after,
+		"the adopted buffer must be returned exactly once, at eviction, after the last write")
+}
+
 // newLeakTestUpdate builds a cache-resident ReceivedUpdate with a fresh message
 // ID, one activated plugin consumer, and a no-op poolBuf (noPoolBufID so eviction
 // does not touch the shared pool for the base buffer -- only adopted forward
