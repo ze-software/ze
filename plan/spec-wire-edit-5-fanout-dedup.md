@@ -257,6 +257,8 @@ What that changes in the spec above:
 | `TestSharedMaterialisationSplits` | `internal/component/bgp/reactor/forward_dedup_test.go` | AC-9, A-5: an oversized shared UPDATE splits per destination as today | |
 | `TestGroupsDisabledNoDedup` | `internal/component/bgp/reactor/forward_dedup_test.go` | AC-10: the existing gate still turns everything off | |
 | `BenchmarkFanoutDedup` | `internal/component/bgp/reactor/forward_dedup_bench_test.go` | AC-11, A-1: per-destination cost with dedup on and off at 1, 2, 10, 100 | |
+| `TestDifferentBaseSameEditSetNeverShares` | `internal/component/bgp/reactor/forward_dedup_test.go` | AC-2, AC-3, R-1: the identity's BASE half. Same edit set (same digest, same fingerprint) over DIFFERENT bases does not share. Added post-review; see "Review findings closed" | done |
+| `TestForwardAdoptedHandleHeldUntilLastWrite` | `internal/component/bgp/reactor/forward_readbuf_leak_test.go` | AC-8, A-4: one adopted read-buffer handle backing several destinations' async writes is returned only after the LAST write. Added post-review; see "Review findings closed" | done |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -435,6 +437,42 @@ What that changes in the spec above:
 - The win does not appear in the existing single-peer convergence baseline. The fan-out benchmark is the proof, and A-1 is the gate that decides whether this child lands at all.
 - Sharing applies to the materialised body. Splitting still runs per destination, so an oversized UPDATE shared by many peers still splits many times.
 - This child assumes children 1 to 4 have landed. On its own it has nothing to fingerprint.
+
+## Review findings closed (post-`b1fa7ab1e`)
+
+An independent review found two coverage holes. The CODE was correct in both; the
+PROOF was missing. Both are closed, and each was mutation-verified in both
+directions. Every mutation was applied through `go test -overlay`, so no
+production file was edited to prove it.
+
+| Finding | Was | Now | Mutation that kills the new test |
+|---------|-----|-----|----------------------------------|
+| The dedup identity's payload half was entirely unproven. `fwdDedupTable.begin` guards with `e.fp != fp \|\| e.id != id`, and the whole reactor suite stayed green with `\|\| e.id != id` removed. Only one test built an `fwdDedupIdentity`, and it passed the same base for both entries. Reachable through `exportWireOverride`, declared inside `forwardUpdateCore`'s destination loop and fed to `peerBaseWire`: a destination with a filter-supplied wire override and a sibling without one share a policy group, so their digests are IDENTICAL over DIFFERENT bases | no coverage | `TestDifferentBaseSameEditSetNeverShares` drives `forwardUpdateCore` end to end with a raw export override on one of two same-group destinations, and asserts each destination's wire carries its OWN base's MULTI_EXIT_DISC | removing `\|\| e.id != id`: the plain peer's delivered wire carries the other peer's override MED (`80 04 04 00 00 00 aa`), printed in the failure |
+| `forward_readbuf_leak_test.go` had gone vacuous at the invariant it exists for. Every read-buffer assertion in the package is `before == after` over ZERO borrows, one saying so itself ("satisfied vacuously at this site because no buffer is borrowed at all"), while `adoptFwdHandle` stays live at two production sites | single-return covered (`TestTranscodeBufferSingleReturn`, `TestReceivedUpdateAdoptedHandlesReturnedOnce`); early-release ORDERING covered nowhere | `TestForwardAdoptedHandleHeldUntilLastWrite` forwards cross-context to two destinations, proves the borrow is real (one adopted handle, pool in-use `before+1`) before asserting anything, then holds both async writes open and asserts the handle is still held after the FIRST completes | returning the handle at the end of the forward call, and returning it on the first `done()`. The second reds at the ordering assertion specifically |
+
+Reaching a real borrow needed a shape no existing fixture had: an **IBGP**
+destination on a 2-byte send context. An EBGP one folds the RFC 6793 width change
+into the edit set, so the wire is rebuilt and relabelled with the destination
+context and `buildFwdBody` borrows nothing. `makeASN2IBGPPeer` pins all three
+preconditions (IBGP, `sendASN4` false, `nhModeNone`), so the fixture fails loudly
+rather than going quiet if a later change removes the borrow again.
+
+The ordering assertion needed a happens-before, not a timer. A sentinel batch
+dispatched to the same peer's worker cannot be handled until the forwarded batch's
+`done()` has run, because `runWorker` takes one batch at a time and
+`safeBatchHandle` calls `done()` in a defer. A sampled delay would have made the
+assertion load-sensitive (`ai/rules/fix-dont-record.md`).
+
+### Open finding, NOT fixed here
+
+`reject=bgp:` inside a `stdin=peer` block is a **silent no-op**. Neither
+`record_parse.go`'s peer-block loop nor `expect.go` consumes it, so the directive
+parses into nothing and the test reads as covering a negative it never checks.
+Live at `test/plugin/rfc7606-54-discard-unrecognized-nlri.ci:50` and two other
+pre-existing sites. The runner already hard-errors on `option=env:` inside a peer
+block for exactly this silent-drop class, so the fix is the matching guard for
+`reject=`, plus an audit of the three sites once it fires. Out of scope for this
+child: it belongs with the test runner, not with the fan-out dedup.
 
 ## RFC Documentation (Scope: protocol)
 

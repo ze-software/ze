@@ -4,6 +4,7 @@
 package reactor
 
 import (
+	"bytes"
 	"net/netip"
 	"sync"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -555,6 +557,110 @@ func TestGroupsDisabledNoDedup(t *testing.T) {
 			require.Zero(t, got.dedupHits)
 		})
 	}
+}
+
+// overrideMED is the marker byte the export policy chain's raw override writes
+// into MULTI_EXIT_DISC, so a destination's delivered wire says which BASE it was
+// rebuilt from rather than only which edit set was applied to it.
+const overrideMED = 0xAA
+
+// fanoutOverridePayload is the raw full-UPDATE-body replacement a raw=true
+// export filter returns. It is fanoutPayload with one attribute value changed,
+// so the two bases differ by a needle a test can point at while every other
+// property (length, attribute order, NLRI) stays equal.
+func fanoutOverridePayload() []byte {
+	asPath := []byte{0x02, 0x03, 0, 0, 0xFD, 0xE9, 0, 0, 0xFD, 0xEA, 0, 0, 0xFD, 0xEB}
+	var attrs []byte
+	attrs = append(attrs, makeAttr(0x40, 1, []byte{0x00})...)
+	attrs = append(attrs, makeAttr(0x40, 2, asPath)...)
+	attrs = append(attrs, makeAttr(0x40, 3, []byte{192, 0, 2, 1})...)
+	attrs = append(attrs, makeAttr(0x80, 4, []byte{0, 0, 0, overrideMED})...) // the marker
+	attrs = append(attrs, makeAttr(0x40, 5, []byte{0, 0, 0, 100})...)
+	comms := make([]byte, 0, 32)
+	for i := range 8 {
+		comms = append(comms, 0xFD, 0xE9, 0x00, byte(i+1)) //nolint:gosec // fixture index
+	}
+	attrs = append(attrs, makeAttr(0xC0, 8, comms)...)
+	nlri := []byte{24, 10, 0, 0, 24, 10, 0, 1}
+	return buildModTestPayload(attrs, nlri)
+}
+
+// VALIDATES: AC-2, AC-3, R-1 -- the dedup identity's BASE half. Two destinations
+// in ONE policy group (identical edit set, so identical digest and fingerprint)
+// whose BASES differ must not share a materialization.
+// PREVENTS: the cross-peer wrong-wire leak this child exists to prevent, entered
+// through the one door the digest cannot see. `exportWireOverride` is declared
+// inside forwardUpdateCore's destination loop (reactor_api_forward.go), assigned
+// from an egress filter's res.wireOverride and fed to peerBaseWire, so a
+// destination carrying a raw export override and a sibling without one produce
+// IDENTICAL digests over DIFFERENT bases. Drop `|| e.id != id` from
+// fwdDedupTable.begin and the sibling is sent bytes rebuilt from the other
+// peer's payload -- silently, because the digest, the counters and every other
+// fan-out test agree it was a legitimate hit.
+func TestDifferentBaseSameEditSetNeverShares(t *testing.T) {
+	fanoutCounterMu.Lock()
+	defer fanoutCounterMu.Unlock()
+
+	// ONE policy group: both destinations get the same NextHopSelf local address,
+	// so their edit sets -- and therefore their digests and fingerprints -- are
+	// equal by construction. The base is the only thing left that differs.
+	h := newFanoutHarnessWith(t, 2, 1, fanoutOpts{modify: true, groups: true})
+
+	override := fanoutOverridePayload()
+	r := h.adapter.r
+	r.api = &pluginserver.Server{} // non-nil: past the fail-closed r.api guard
+	// A raw=true filter returning a full UPDATE-body replacement. Terminal for the
+	// chain, and the production producer of a non-nil res.wireOverride.
+	r.policyFilterSeam = func(_, _, _, _ string, _ uint32, _ string) PolicyResponse {
+		return PolicyResponse{Action: PolicyModify, Raw: override}
+	}
+	r.orderedEgressSteps = []orderedEgressStep{{name: policyChainStepName, policyChain: true}}
+
+	// Only the FIRST destination has an export policy, so only it gets a wire
+	// override. The second runs the same chain step, finds no filters, and keeps
+	// the original payload as its base.
+	overridden := h.dests[0]
+	overridden.settings.ExportFilters = []filterapi.FilterRef{{Name: "someplugin:rewrite"}}
+	overridden.refreshForwardFacts()
+	require.Empty(t, h.dests[1].forwardFacts().exportFilters,
+		"the second destination must reach the chain with no filters, so its base stays the original")
+
+	before := readFanoutCounters()
+	require.NoError(t, h.forward())
+	got := readFanoutCounters().since(before)
+	sent := h.delivered(t, 2)
+	require.Len(t, sent, 2)
+
+	byPeer := make(map[netip.Addr][]byte, 2)
+	for _, s := range sent {
+		byPeer[s.peer] = s.body
+	}
+	overriddenBody := byPeer[overridden.Settings().Address]
+	plainBody := byPeer[h.dests[1].Settings().Address]
+	require.NotEmpty(t, overriddenBody)
+	require.NotEmpty(t, plainBody)
+
+	// The needle: the whole MULTI_EXIT_DISC attribute, header included, so a
+	// coincidental byte run elsewhere cannot satisfy it.
+	overrideNeedle := makeAttr(0x80, 4, []byte{0, 0, 0, overrideMED})
+	originalNeedle := makeAttr(0x80, 4, []byte{0, 0, 0, 10})
+
+	// The wire assertions come first: they are the leak itself, and a failure
+	// here prints the borrowed bytes rather than a counter.
+	require.True(t, bytes.Contains(overriddenBody, overrideNeedle),
+		"the destination with the export override must be rebuilt from the OVERRIDE base\noverridden peer wire: %x", overriddenBody)
+	require.True(t, bytes.Contains(plainBody, originalNeedle),
+		"the destination without an override must be rebuilt from the ORIGINAL base\nplain peer wire: %x", plainBody)
+	require.False(t, bytes.Contains(plainBody, overrideNeedle),
+		"the destination WITHOUT an export override received bytes rebuilt from the other peer's override base -- this is the cross-peer wire leak\nplain peer wire: %x\noverridden peer wire: %x", plainBody, overriddenBody)
+	require.NotEqual(t, overriddenBody, plainBody,
+		"two destinations over two different bases must not receive one wire")
+
+	// And the mechanism behind them: each destination rebuilt for itself.
+	require.Equal(t, uint64(2), got.materializations,
+		"same edit set but different bases is two equality classes, so two rebuilds")
+	require.Zero(t, got.dedupHits,
+		"a fingerprint match over a different BASE must not be answered from the table")
 }
 
 // VALIDATES: AC-4, R-1 -- inside the forward rail, a fingerprint that matches an
