@@ -14,7 +14,7 @@ that no past task description in `plan/` would surface
 Every other rule is named in `ai/rules/TRIGGERS.md`. Read its file when its
 trigger matches.
 
-Rules: 12 of 97. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
+Rules: 12 of 98. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
 
 ---
 

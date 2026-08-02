@@ -84,6 +84,33 @@ BASH_CMDS = [
     # ... and the launcher must still resolve to the REAL command word: a cheap
     # command behind the same operands stays allowed.
     "timeout 240s ls | head -5",
+    # A wait loop is judged on whether it can END (ai/rules/no-poll-loops.md).
+    # Unbounded blocks; a `timeout` in front of the loop passes, and so does a
+    # loop that terminates by construction or a one-shot pgrep.
+    "until ! pgrep -f qemu; do sleep 5; done",
+    "while pgrep -q qemu; do :; done",
+    "timeout 600 bash -c 'until [ -f tmp/s/x/ready ]; do sleep 30; done'",
+    "while read -r f; do echo $f; done < tmp/list",
+    "pgrep -f qemu",
+    # Naming a sleep is not calling one: the word must be a COMMAND, or every
+    # search for a sleep in the .ci corpus would be rejected.
+    "grep -rn 'time.sleep(' test/plugin",
+    # The bound is credited per LOOP, over the statement the keyword opens.
+    # Crediting any earlier `timeout` made the guard fail open on a routine
+    # compound line, and left a bounded loop covering an unbounded one.
+    "timeout 10 curl -s localhost:8080; until ! pgrep -f qemu; do sleep 5; done",
+    "timeout 60 bash -c 'until [ -f a ]; do sleep 1; done'; while true; do sleep 5; done",
+    "while true; do sleep 5; timeout 10 curl -s localhost; done",
+    # A `-timeout` FLAG bounds a test binary, never a loop. A `timeout` with no
+    # duration bounds nothing at all.
+    "go test -timeout 300s ./... | while read l; do sleep 5; done",
+    "timeout bash -c 'until [ -f tmp/s/x/r ]; do sleep 30; done'",
+    # A keyword inside a search PATTERN is text. Without this the rule could not
+    # be audited from Bash, since its own summary quotes the banned loop.
+    "grep -rn 'until ! pgrep' ai/rules",
+    # Precision of the sleep operand, and the Python spelling of the same wait.
+    "while read -r line; do echo no-sleep-here; done < tmp/list",
+    "python3 -c 'import time; while True: time.sleep(5)'",
 ]
 
 CLEAN_GO = "package foo\n\nfunc Hello() string {\n\treturn greeting\n}\n"
@@ -545,6 +572,28 @@ BASH_GOLDEN = {
     "timeout 240s ls | head -5": 0,
     "rm internal/foo_test.go": 2,
     "rm tmp/x": 0,
+    # An unbounded wait loop is the blocked shape, whether it sleeps or spins.
+    "until ! pgrep -f qemu; do sleep 5; done": 2,
+    "while pgrep -q qemu; do :; done": 2,
+    # Bounded by a `timeout` in front of the loop: it ends on its own.
+    "timeout 600 bash -c 'until [ -f tmp/s/x/ready ]; do sleep 30; done'": 0,
+    # Loops that are not waits, and a pgrep that runs once.
+    "while read -r f; do echo $f; done < tmp/list": 0,
+    "pgrep -f qemu": 0,
+    "grep -rn 'time.sleep(' test/plugin": 0,
+    # The escape is credited per loop, in the loop's own statement: an earlier
+    # bounded command, an earlier bounded LOOP, and a bound inside the body all
+    # leave this loop unbounded.
+    "timeout 10 curl -s localhost:8080; until ! pgrep -f qemu; do sleep 5; done": 2,
+    "timeout 60 bash -c 'until [ -f a ]; do sleep 1; done'; while true; do sleep 5; done": 2,
+    "while true; do sleep 5; timeout 10 curl -s localhost; done": 2,
+    # A `-timeout` flag is not a bound, and `timeout` with no duration is not one.
+    "go test -timeout 300s ./... | while read l; do sleep 5; done": 2,
+    "timeout bash -c 'until [ -f tmp/s/x/r ]; do sleep 30; done'": 2,
+    # Searching for the pattern stays possible; the sleep operand stays precise.
+    "grep -rn 'until ! pgrep' ai/rules": 0,
+    "while read -r line; do echo no-sleep-here; done < tmp/list": 0,
+    "python3 -c 'import time; while True: time.sleep(5)'": 2,
 }
 WE_GOLDEN = {
     "Edit|and function": 2,

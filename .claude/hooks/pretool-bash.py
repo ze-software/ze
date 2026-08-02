@@ -269,6 +269,94 @@ def check_pipe_tail(cmd, _ctx):
     return None
 
 
+# ai/rules/no-poll-loops.md. A Bash command started with run_in_background
+# re-invokes the session when it exits, so a loop that watches one carries no
+# information the completion notification does not already carry. The harm is
+# not the fork cost no-fork-loops.md measures: it is the WAKE and its LIFETIME.
+# A watcher ticking every few seconds competes with QEMU, Docker and ze-verify
+# for the same cores, and it keeps doing so long after its reason expired.
+POLL_LOOP_KEYWORD = re.compile(r"\b(while|until)\b")
+# `sleep` as a CALL. The boundary class carries `.` and `/` so the Python and
+# absolute-path forms count (`time.sleep(5)`, `/bin/sleep 5`); the operand class
+# keeps a bare mention out (`echo no-sleep-here`).
+SLEEP_CALL = re.compile(r"(?:^|[;&|(\s./])sleep\s*[\d$\"'(]")
+# `pgrep` in the loop CONDITION (`until ! pgrep -f qemu`). Matching pgrep
+# anywhere would reject `pgrep -f x | while read pid; do ...`, a one-shot loop
+# that terminates on its own.
+LOOP_PGREP = re.compile(r"\b(while|until)\s+(?:!\s*)?(?:\[\[?\s*)?pgrep\b")
+# A `timeout` in front of the loop makes it die on its own, which is the whole
+# property this check asks for. `timeout -k 5 300 bash -c '...'` counts. The
+# lookbehind keeps a FLAG out: `go test -timeout 300s` bounds a test binary and
+# bounds no loop, and crediting it disarmed the gate on a routine compound line.
+TIMEOUT_BOUND = re.compile(r"(?<![-\w])timeout\s+(?:-\S+\s+)*\d+(?:\.\d+)?[smhd]?\b")
+STATEMENT_SEPARATOR = re.compile(r"&&|\|\||;|\n")
+# A loop keyword sitting in a SEARCH argument is text, not a loop. Without this
+# the rule became unauditable from Bash: `grep -rn 'until ! pgrep' ai/rules`
+# blocked, and the banned pattern is quoted in the rule and its learned summary.
+SEARCH_COMMANDS = {
+    "grep",
+    "egrep",
+    "fgrep",
+    "rg",
+    "ag",
+    "git",
+    "sed",
+    "awk",
+    "cat",
+    "echo",
+    "printf",
+}
+
+
+def check_poll_loop(cmd, _ctx):
+    """no-poll-loops.md: no unbounded wait loop.
+
+    Blocks `while`/`until` paired with a `sleep` call or a `pgrep` condition,
+    unless a `timeout` bounds THAT loop. The bound is the escape on purpose: a
+    poll that really is the only available signal stays one word away, and that
+    word is the property that keeps it from outliving the session's interest.
+
+    The bound is judged per loop occurrence, over the statement the keyword
+    opens, never over the whole command. Crediting any earlier `timeout` made
+    the guard fail open: `timeout 10 curl x; until ! pgrep -f qemu; do sleep 5;
+    done` was accepted, and so was a bounded loop followed by an unbounded one.
+
+    Two boundaries are deliberate. The check reads command TEXT, so a loop
+    inside a script file (`nohup bash tmp/watch.sh &`) is out of reach by
+    construction. And a loop that bounds itself in its own condition
+    (`while [ $SECONDS -lt 300 ]`) is still refused, because the arithmetic is
+    not decidable here: add the `timeout` and it passes.
+    """
+    for match in POLL_LOOP_KEYWORD.finditer(cmd):
+        head = cmd[: match.start()]
+        cuts = [m.end() for m in STATEMENT_SEPARATOR.finditer(head)]
+        prefix = head[cuts[-1] :] if cuts else head
+        words = prefix.split()
+        if words and words[0].split("/")[-1] in SEARCH_COMMANDS:
+            continue  # the keyword is inside a search PATTERN
+        tail = cmd[match.start() :]
+        end = tail.find("done")
+        body = tail if end == -1 else tail[:end]
+        if not SLEEP_CALL.search(body) and not LOOP_PGREP.search(tail):
+            continue
+        if TIMEOUT_BOUND.search(prefix):
+            continue
+        return (
+            2,
+            "❌ Blocked: unbounded wait loop (ai/rules/no-poll-loops.md)\n"
+            "  -- A command you started with run_in_background notifies you when it\n"
+            "     exits. Waiting for one you launched needs no loop: delete it.\n"
+            "  -- A poll that is the only signal must die on its own. Put the bound\n"
+            "     immediately in front of the loop, in the same statement:\n"
+            "     timeout 300 bash -c 'until [ -f <path> ]; do sleep 30; done'\n"
+            "  -- A repeated event belongs to the Monitor tool. Leave persistent\n"
+            "     false, or its timeout_ms deadline does not apply.\n"
+            "  -- One watcher at a time. Each wake competes with QEMU, Docker and\n"
+            "     ze-verify for the same cores.",
+        )
+    return None
+
+
 def check_system_tmp(cmd, _ctx):
     """block-system-tmp.sh (Bash branch): no absolute /tmp references."""
     if not cmd:
@@ -314,6 +402,7 @@ CHECKS = (
     check_destructive_git,
     check_root_build,
     check_pipe_tail,
+    check_poll_loop,
     check_system_tmp,
     check_test_deletion,
 )

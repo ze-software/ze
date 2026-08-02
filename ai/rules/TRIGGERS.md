@@ -9,7 +9,7 @@ already loaded in full (`ai/rules/CORE.md`) and needs no read; every other
 rule's body is one Read away, and `ai/rules/CONDENSED.md` holds all of them in
 one file when several apply at once.
 
-Rules: 97 (69 blocking, 28 advisory). Always-on: 12.
+Rules: 98 (70 blocking, 28 advisory). Always-on: 12.
 
 | Rule | Severity | When to read it |
 |------|----------|-----------------|
@@ -79,6 +79,7 @@ Rules: 97 (69 blocking, 28 advisory). Always-on: 12.
 | `ai/rules/no-layering.md` | blocking, always-on | when replacing X with Y |
 | `ai/rules/no-parking.md` | blocking | when a defect blocks a goal the current work exists to achieve |
 | `ai/rules/no-partial-completion.md` | blocking | before claiming any work done, complete, or ready to commit |
+| `ai/rules/no-poll-loops.md` | blocking | waiting for a command, a build, a QEMU boot, a lab, or another session's run to finish |
 | `ai/rules/no-sprintf-alloc.md` | blocking | reaching for `fmt.Sprintf`, `fmt.Fprintf`, `fmt.Errorf`, or `.String()` concatenation on a hot or allocation-sensitive path |
 | `ai/rules/no-test-deletion.md` | blocking | when a test is red and you are tempted to delete, skip, weaken, or rewrite it |
 | `ai/rules/no-workarounds-for-missing-behavior.md` | blocking | If a user could experience a problem while trying to achieve a goal, implement the missing behavior at the source |

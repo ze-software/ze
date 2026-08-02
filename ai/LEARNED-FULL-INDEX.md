@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 890 summaries
+Total: 897 summaries
 
 ## 400-499
 
@@ -949,3 +949,10 @@ Total: 890 summaries
 | 1314 | A Rule Heading Inverted Its Own Directive | `plan/learned/1314-rule-heading-inverted-its-directive.md` |
 | 1315 | hotpath-alloc-round-4 | `plan/learned/1315-hotpath-alloc-round-4.md` |
 | 1316 | knowledge-0-umbrella | `plan/learned/1316-knowledge-0-umbrella.md` |
+| 1317 | wire-edit-1-base-index | `plan/learned/1317-wire-edit-1-base-index.md` |
+| 1318 | wire-edit-2-edit-apply | `plan/learned/1318-wire-edit-2-edit-apply.md` |
+| 1319 | wire-edit-3-aspath-fold | `plan/learned/1319-wire-edit-3-aspath-fold.md` |
+| 1320 | wire-edit-4-api-origin | `plan/learned/1320-wire-edit-4-api-origin.md` |
+| 1321 | wire-edit-5-fanout-dedup | `plan/learned/1321-wire-edit-5-fanout-dedup.md` |
+| 1322 | wire-edit-0-umbrella | `plan/learned/1322-wire-edit-0-umbrella.md` |
+| 1324 | Poll Loop Gate | `plan/learned/1324-poll-loop-gate.md` |

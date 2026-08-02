@@ -6,7 +6,7 @@
 One-line overview of every rule under `ai/rules/`. Read the listed file in
 full before acting on a topic it covers.
 
-Total: 97 rules
+Total: 98 rules
 
 | Rule | When to read | Severity | File |
 |------|--------------|----------|------|
@@ -76,6 +76,7 @@ Total: 97 rules
 | No Layering | when replacing X with Y | blocking | `ai/rules/no-layering.md` |
 | No Parking: Fix Blockers, Never Reduce Coverage To Reach Green | when a defect blocks a goal the current work exists to achieve | blocking | `ai/rules/no-parking.md` |
 | No Partial Completion | before claiming any work done, complete, or ready to commit | blocking | `ai/rules/no-partial-completion.md` |
+| No Poll Loops | waiting for a command, a build, a QEMU boot, a lab, or another session's run to finish | blocking | `ai/rules/no-poll-loops.md` |
 | No Printf Allocations | reaching for `fmt.Sprintf`, `fmt.Fprintf`, `fmt.Errorf`, or `.String()` concatenation on a hot or allocation-sensitive path | blocking | `ai/rules/no-sprintf-alloc.md` |
 | Test Deletion and Weakening | when a test is red and you are tempted to delete, skip, weaken, or rewrite it | blocking | `ai/rules/no-test-deletion.md` |
 | No Workarounds For Missing Behavior | If a user could experience a problem while trying to achieve a goal, implement the missing behavior at the source | blocking | `ai/rules/no-workarounds-for-missing-behavior.md` |
