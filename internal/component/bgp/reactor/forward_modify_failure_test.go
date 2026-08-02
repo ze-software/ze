@@ -5,12 +5,14 @@ import (
 	"encoding/hex"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/test/sim"
 )
 
 // VALIDATES: AC-2 — the reason label set of ze_bgp_update_modify_failed_total is
@@ -574,4 +576,29 @@ func TestPooledBufferIsNotReusedDirty(t *testing.T) {
 
 		pp.Return(bufIdx)
 	}
+}
+
+// VALIDATES: countModifyFailure reads the reactor's INJECTED clock, so the
+// one-line-per-second suppression window advances with simulated time in a
+// chaos or simulation run rather than with wall time.
+// PREVENTS: the window silently reverting to time.Now(). TestNoDirectTimeCalls
+// (internal/core/clock) is a textual grep, so it would keep passing if the call
+// moved behind a helper that still read wall time; this asserts the behavior.
+func TestCountModifyFailureUsesInjectedClock(t *testing.T) {
+	fc := sim.NewFakeClock(time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC))
+	r := &Reactor{clock: fc}
+
+	emit, suppressed := r.countModifyFailure(modifyFailureOverflow)
+	require.True(t, emit, "the first failure of a reason must be logged")
+	require.Zero(t, suppressed, "nothing was suppressed before the first emission")
+
+	emit, _ = r.countModifyFailure(modifyFailureOverflow)
+	require.False(t, emit, "a repeat inside the window must be suppressed")
+
+	// Wall time would still be inside the window here, so this is the assertion
+	// that separates an injected clock from time.Now().
+	fc.Add(modifyFailureLogInterval + time.Nanosecond)
+	emit, suppressed = r.countModifyFailure(modifyFailureOverflow)
+	require.True(t, emit, "the window must reopen once the INJECTED clock passes it")
+	assert.Equal(t, uint64(1), suppressed, "the suppressed repeat must be reported by the next emission")
 }

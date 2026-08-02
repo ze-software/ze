@@ -537,3 +537,192 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] Learned summary written to `plan/learned/NNN-wire-edit-2-edit-apply.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-wire-edit-2-edit-apply.md` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+- `internal/component/bgp/filterapi/editset.go`: `EditSet` with per-code `editSlot`s, a `fragment` list naming a source (base or arena) plus offset and length, an inline arena, an exact size delta, and the `AttrPlan` handler contract (`KeepAll`, `Keep`, `Op`, `New`, `NewByte`, `Emit`, `EmitExtended`, `Drop`, `Fail`).
+- `buildModifiedPayload` (`internal/component/bgp/reactor/forward_build.go`) is a single exactly-sized merge walk. `groupOpsByCode` and the `len(payload)+256` slack are gone, and the abandon-on-overflow branch is replaced by a counted, logged suppression.
+- Merge-insert: a newly added attribute lands at its ascending type-code position instead of after every source attribute.
+- `genericCommunityHandler` and `removeValues` are fragment-based and allocation-free; the arity refusal, its warning and its counter moved across verbatim.
+- The three `AttrModHandler` call-shape changes in RFC-tagged tests were approved and applied, so `reactor` and `role` compile their test binaries again and their 95 tagged requirements prove something once more.
+- RFC 7606 Section 5.4 discard of unrecognized NLRI landed in the same commit (`plan/spec-fixit-rfc7606-5-4-discard-unrecognized-nlri.md`, closed separately).
+
+### Bugs Found/Fixed
+
+- The fail-open overflow branch. `buildModifiedPayload` returned nil on overflow and the caller read that as "nothing to modify", forwarding the route UNMODIFIED and leaking exactly what the policy existed to strip. Now suppressed, warned and counted; `test/plugin/modify-oversize-suppress.ci`.
+- `countModifyFailure` read wall time rather than the reactor's injected clock, which reddened `TestNoDirectTimeCalls` (`internal/core/clock/audit_test.go`) and left the suppression window wall-driven under simulation. Fixed at closure: `Reactor.nowUnixNano`, with `TestCountModifyFailureUsesInjectedClock`.
+
+### Documentation Updates
+
+- `docs/architecture/wire/attributes.md` -- the fragment model and the header size-class rule.
+- `docs/architecture/memory/lifetime-contracts.md` -- the arena and base-fragment lifetimes.
+- `docs/features/rfc-status.md` and `rfc/short/rfc7606.md` -- the Section 5.4 row that landed in the same commit.
+- `ai/RFC-REQUIREMENTS.md` regenerated for the re-tagged call sites.
+
+### Deviations from Plan
+
+| # | Plan said | What was built | Why |
+|---|-----------|----------------|-----|
+| D-1 | `test/plugin/wire-edit-oversize-suppress.ci` | `test/plugin/modify-oversize-suppress.ci`, hardened in `ea6a4bbda` so it covers the code again | The file already existed from the T1-1 fix and pins the ceiling by exact byte arithmetic. A second file asserting the same property would be duplication |
+| D-2 | `test/plugin/wire-edit-rr-attr-order.ci` | `test/plugin/wire-edit-api-origin-order.ci` (child 4) | RR adds ORIGINATOR_ID (9) and CLUSTER_LIST (10) to a base of ORIGIN (1), AS_PATH (2), NEXT_HOP (3), LOCAL_PREF (5), so appending is ALREADY ascending: the RR case cannot discriminate merge-insert from append. The announce case can -- it injects 2, 3 and 5 before the caller's 8 and 32 -- and it asserts the whole message by hex |
+| D-3 | `test/plugin/wire-edit-single-materialise.ci` | not created | The wire result is pinned by existing `nexthop-self.ci` and `community-tag.ci`; the "exactly once" half is an allocation claim a `.ci` cannot see, and is asserted by `TestModifyPathZeroAlloc` |
+| D-4 | `forward_build_golden_test.go` as the byte-identity harness | `goldenModifyCorpus` in `forward_modify_failure_test.go`, plus `TestGoldenBytesUnchangedCrossContextTranscode` | The corpus is small enough to live beside the failure taxonomy it shares fixtures with |
+| D-5 | AC-1 byte-identical for every transform | One golden moved: `set-local-pref-and-add-med` now emits MED before LOCAL_PREF | That IS merge-insert working. RFC 4271 Section 5 orders attributes ascending on emission, so the previous append order was the defect. Deliberate wire change |
+| D-6 | `TestSlotKindsCoverEveryProducer` | not written as a single table test | Coverage is per producer instead: `TestEditSizeIsExact`, `TestArenaHoldsOnlyNewBytes`, the community handler suite, `TestFragmentListNoIntermediateCopy` and the OTC suite each pin one producer's slot kind |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The handler contract change was applied to three RFC-tagged test call sites, which the edit hook refuses without Thomas's approval | The three edits were call-SHAPE only, no assertion change, and were proven safe with `go test -overlay` before any file was touched | The hook blocked the edit | Approval obtained, edits applied, both packages compile and pass |
+| escalation | `countModifyFailure` was written with `time.Now()` on a reactor path | The reactor has an injectable clock and a gate that says so | `make ze-test-core` red at closure, `TestNoDirectTimeCalls` | `Reactor.nowUnixNano` plus a behavioural test; mutation-verified by an independent reviewer |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| A slot per touched attribute code, of three kinds | Done | `filterapi/editset.go` `slotKind`, `editSlot` | fragments, delete, generate |
+| A fragment naming source, offset and length | Done | `filterapi/editset.go` `fragment`, `fragmentSource` | adjacent fragments coalesce (`TestAdjacentFragmentsCoalesce`) |
+| An arena holding only new bytes | Done | `filterapi/editset.go` `EditSet` arena | `TestArenaHoldsOnlyNewBytes` |
+| An exact size delta maintained per edit | Done | `AttrPlan.ValueLen`, `editSlot.outLen` | `TestEditSizeIsExact` |
+| One-pass merge writer, slack sizing retired | Done | `reactor/forward_build.go` `buildModifiedPayload` | `groupOpsByCode` gone |
+| Overflow suppresses instead of forwarding unmodified | Done | `reactor/forward_modify_failure.go` `modifyFailureOverflow` | `test/plugin/modify-oversize-suppress.ci` |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Changed | `goldenModifyCorpus` (`forward_modify_failure_test.go`), `TestGoldenBytesUnchangedCrossContextTranscode` | Byte-identical everywhere EXCEPT one golden, `set-local-pref-and-add-med`, where MED now precedes LOCAL_PREF. That is merge-insert correcting RFC 4271 Section 5 order, and it is a deliberate wire change |
+| AC-2 | Done | `TestEditSizeIsExact` | Both header size classes |
+| AC-3 | Done | `TestModifyPathZeroAlloc` | |
+| AC-4 | Done | `test/plugin/modify-oversize-suppress.ci`, `modifyFailureOverflow` counter | The `.ci` places the body EXACTLY on the RFC 8654 ceiling, so it does not guess how many bytes the policy adds |
+| AC-5 | Done | `TestMergeInsertAscendingOrder`; end-to-end by `test/plugin/wire-edit-api-origin-order.ci` | |
+| AC-6 | Done | `TestFragmentListNoIntermediateCopy` | MP_REACH NLRI tail copied once |
+| AC-7 | Done | `TestCommunityRemoveZeroAllocAndCorrect` | |
+| AC-8 | Done | `TestRemoveValuesNonMultipleRefusedLoudly`, `TestGenericCommunityHandlerCountsRefusals`, `TestGenericCommunityHandlerWarnsOnNonMultiple` | Refused, warned, counted; other operations still apply |
+| AC-9 | Done | `TestNoEditSetNoBuffer` | |
+| AC-10 | Done | `TestResetIsConstantTime` | Reset clears used prefixes only |
+| AC-11 | Done | `TestEditSizeIsExact` 255/256 rows; `AttrPlan.EmitExtended` | |
+| AC-12 | Done | `TestProgressiveBuildHandlerPanic`, `TestProgressiveBuildNewAttrHandlerPanic`, `TestForwardUpdate_ModHandlerPanic` | Panic contained, route suppressed, daemon up |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestEditSizeIsExact`, `TestResetIsConstantTime`, `TestArenaHoldsOnlyNewBytes` | Done | `filterapi/editset_test.go` | plus `TestFragmentBoundsAreRefused`, `TestUnfinishedPlanRefuses`, `TestAdjacentFragmentsCoalesce`, `TestGroupedOpsIsStableAndAllocationFree` (added) |
+| `TestMergeInsertAscendingOrder`, `TestUntouchedAttributesKeepBaseOrder`, `TestModifyPathZeroAlloc`, `TestNoEditSetNoBuffer`, `TestFragmentListNoIntermediateCopy` | Done | `reactor/forward_build_merge_test.go` | |
+| `TestSlotKindsCoverEveryProducer` | Changed | per-producer coverage instead | D-6 |
+| `TestEditGoldenByteIdentity` | Changed | `goldenModifyCorpus`, `TestGoldenBytesUnchangedCrossContextTranscode` | D-4 |
+| `TestOversizeModificationSuppresses` | Changed | `test/plugin/modify-oversize-suppress.ci` | D-1 |
+| `TestHandlerPanicSuppressesRoute` | Changed | three existing panic tests | AC-12 |
+| `TestCommunityRemoveZeroAlloc` / `ArityRefusal` | Done | `TestCommunityRemoveZeroAllocAndCorrect`; `TestRemoveValuesNonMultipleRefusedLoudly` | |
+| `BenchmarkForwardModifiedPerDestination` | Changed | `BenchmarkForwardDirect`, `BenchmarkForwardDirect_Batch` | Existing per-destination forward benchmarks carry the measurement |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/filterapi/editset.go` + `_test.go` | Done | |
+| `forward_build_golden_test.go` | Changed | D-4 |
+| `test/plugin/wire-edit-single-materialise.ci` | Skipped | D-3 |
+| `test/plugin/wire-edit-rr-attr-order.ci` | Changed | D-2 |
+| `test/plugin/wire-edit-oversize-suppress.ci` | Changed | D-1 |
+| every "Files to Modify" row | Done | see the diff of `a1aec5e6c` |
+
+### Audit Summary
+- **Total items:** 30
+- **Done:** 22
+- **Partial:** 0
+- **Skipped:** 1 (`wire-edit-single-materialise.ci`, D-3)
+- **Changed:** 7 (D-1 to D-6 plus the benchmark substitution)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| A handler can say "keep these base bytes, insert these new ones" instead of rebuilding the value | unit | `TestFragmentListNoIntermediateCopy`, `TestCommunityRemoveZeroAllocAndCorrect`, `TestArenaHoldsOnlyNewBytes` |
+| The output size is known before a buffer is acquired | unit | `TestEditSizeIsExact` over both header classes; the `len(payload)+256` slack is gone from `forward_build.go` |
+| An edit that cannot fit is a suppression, never a silent unmodified forward | functional | `test/plugin/modify-oversize-suppress.ci`, body placed exactly on the RFC 8654 ceiling |
+| Attributes reach the wire in ascending type-code order | functional | `test/plugin/wire-edit-api-origin-order.ci`, whole message asserted by hex |
+| No heap allocation on the modify path | unit | `TestModifyPathZeroAlloc`, `TestGroupedOpsIsStableAndAllocationFree` |
+| The arity refusal survives the rewrite | functional + unit | existing `test/plugin/bgp-rs-community-strip-multi.ci`; `TestGenericCommunityHandlerCountsRefusals` |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none -- `plan/deferrals/spec-wire-edit-2-edit-apply.md` was never created | done | `ls plan/deferrals/ \| grep wire-edit-2` returns nothing |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/wire-edit-2-edit-apply-<session-id>.md` |
+| `review_gate.py check` | clean |
+| Reviewer lenses used | correctness/wire/lifetime; tests/security/coverage (two agents over `bbd53bf22^..b1fa7ab1e`, 2026-08-02). Run 2 and run 3: two further agents over the closure-time clock fix and its test |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | `countModifyFailure` read wall time on a reactor path, reddening `TestNoDirectTimeCalls` and leaving the suppression window wall-driven under simulation | `reactor/forward_modify_failure.go` `Reactor.countModifyFailure` | `Reactor.nowUnixNano` reading `r.clock` |
+| 2 | ISSUE | That fix had no behavioural test; only a textual grep gate reddened on revert | `reactor/forward_modify_failure_test.go` | `TestCountModifyFailureUsesInjectedClock`, mutation-verified by an independent reviewer with `go test -overlay`: the test fails on the third assertion when the helper reverts to `time.Now()` |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/filterapi/editset.go` | Yes | `grep -n "^type \|^func " ...` lists `fragment`, `slotKind`, `editSlot`, `EditSet`, `AttrPlan` and 30 methods |
+| `internal/component/bgp/filterapi/editset_test.go` | Yes | 7 `Test` functions |
+| `internal/component/bgp/reactor/forward_build_merge_test.go` | Yes | 6 `Test` functions |
+| `test/plugin/modify-oversize-suppress.ci` | Yes | `ls test/plugin/modify-oversize-suppress.ci` |
+| `test/plugin/bgp-rs-community-strip-multi.ci` | Yes | `ls test/plugin/bgp-rs-community-strip-multi.ci` |
+| `test/plugin/wire-edit-single-materialise.ci` | No | Deliberate (D-3). `ls` returns "no matches found" |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | one golden moved, and only for merge-insert | `grep -n "set-local-pref-and-add-med" internal/component/bgp/reactor/forward_modify_failure_test.go` -> line 457, the single moved row |
+| AC-2 | size query equals bytes written | `grep -rl "func TestEditSizeIsExact(" internal/` -> `filterapi/editset_test.go`; `make ze-test-bgp` green |
+| AC-4 | oversize suppresses | `sed -n '1,18p' test/plugin/modify-oversize-suppress.ci` shows the body placed on 65516 = `maxUpdateBody` exactly |
+| AC-5 | ascending order on the wire | `test/plugin/wire-edit-api-origin-order.ci` asserts the full message hex with the injected 2,3,5 before the caller's 8,32 |
+| AC-8 | arity refusal, warned and counted | `grep -n "func TestGenericCommunityHandlerCountsRefusals" internal/component/bgp/plugins/filter_community/handler_test.go` |
+| AC-12 | handler panic contained | `grep -n "func TestForwardUpdate_ModHandlerPanic" internal/component/bgp/reactor/forward_update_test.go` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| eBGP peer with next-hop-self and a community tag | `test/plugin/nexthop-self.ci` + `test/plugin/community-tag.ci` | Yes -- read: both drive a real session and pin the modified wire. The "built once" half is `TestModifyPathZeroAlloc` (D-3) |
+| Route reflector forwards to a client | `test/plugin/wire-edit-api-origin-order.ci` | Yes -- read: it is the discriminating order case; the RR codes 9 and 10 append into ascending order anyway and cannot discriminate (D-2) |
+| An export policy result exceeds the message size | `test/plugin/modify-oversize-suppress.ci` | Yes -- read: exact byte arithmetic to the ceiling, asserts suppression rather than an unmodified forward |
+| Route server strips several control communities | `test/plugin/bgp-rs-community-strip-multi.ci` | Yes -- read: multi-value strip, unedited by this child |
+| Received UPDATE forwarded unchanged | `test/plugin/bgp-rs-fastpath-ebgp-shared.ci` | Yes -- read: pins the zero-copy passthrough by hex |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Every producer migrated to `AttrPlan`. Fragments cover the community family and MP_REACH, delete covers the suppress producers, generate covers AS_PATH. The terminal raw override at `filter_ordered.go` survives for the inexpressible case and is unchanged |
+| A-2 | confirmed | The contract change reached exactly the registered handlers plus the internal generics, and three RFC-tagged test call sites. No out-of-tree break; `reactor` and `role` compile and pass |
+| A-3 | confirmed for the tested corpus, not for a traffic histogram | `EditSet.Spilled()` reports slot, fragment and arena spill separately, so the census can be checked live. No fixture in the suite spills. Known Limitations already records that only the constants would change |
+| A-4 | confirmed | `TestResetIsConstantTime` asserts reset cost does not scale with inline capacity; `TestGroupedOpsIsStableAndAllocationFree` and `TestModifyPathZeroAlloc` hold the hoisted path allocation-free |
+| A-5 | confirmed | `TestEditSizeIsExact` over both header classes; `AttrPlan.Fail` makes a mismatch a hard failure rather than a silent truncation, and `TestUnfinishedPlanRefuses` pins it |
+| A-6 | confirmed | The counter landed first (`modifyFailureOverflow` on `ze_bgp_update_modify_failed_total`), and the behaviour change is proven by a `.ci` that puts the body exactly on the ceiling rather than by guessing a rate |
+| A-7 | confirmed | `plan/spec-hotpath-alloc-round-4.md` landed first and is closed. `grep -n "mods.Reset()" internal/component/bgp/reactor/` finds the hoisted reset; T1-1's modify-failure split is the `modifyFailure` type this child extends |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Wire format: the fragment model and header size class | `docs/architecture/wire/attributes.md` checked against `AttrPlan.emit`, which chooses the class from `outLen` against 255 | Yes |
+| Memory: arena and base-fragment lifetimes | `docs/architecture/memory/lifetime-contracts.md` checked against `fragmentSource` -- a base fragment borrows the shared receive buffer and is never patched in place | Yes |
+| RFC compliance: RFC 7606 Section 5.4 | `rfc/short/rfc7606.md` and `docs/features/rfc-status.md`, both updated in `a1aec5e6c`; proven by `test/plugin/rfc7606-54-discard-unrecognized-nlri.ci` | Yes |
+| Plugin SDK: the handler size query | `ai/rules/plugin-design.md` and `docs/guide/plugins.md` describe the plan-then-write contract that `AttrPlan` implements | Yes |
+| Categories answered No | No config leaf, no CLI command, no new RPC, no new family or capability in `a1aec5e6c`'s diff | Yes |
+
+## Core Insight
+
+Exact sizing is not primarily a performance change. It is what lets a fail-open
+branch be deleted rather than merely made louder: while the buffer was
+over-sized by a guess, overflow had nowhere to go but "abandon every
+modification", and the caller could not tell that from "nothing to modify".

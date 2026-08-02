@@ -9,6 +9,8 @@ import (
 	"net/netip"
 	"sync/atomic"
 	"time"
+
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // modifyFailure names why buildModifiedPayload could not apply the
@@ -261,5 +263,22 @@ func (r *Reactor) countModifyFailure(f modifyFailure) (emit bool, suppressed uin
 	if r.rmetrics != nil {
 		r.rmetrics.updateModifyFailed.With(f.String()).Inc()
 	}
-	return r.modifyFailLog.allow(f, time.Now().UnixNano())
+	return r.modifyFailLog.allow(f, r.nowUnixNano())
+}
+
+// nowUnixNano reads the reactor's injected clock, so a simulated run drives the
+// suppression window with simulated time (`TestNoDirectTimeCalls` in
+// internal/core/clock enforces this for every file in this package).
+//
+// A zero-value Reactor carries no clock -- several tests construct one to
+// exercise a single method -- so a nil clock falls back to the same real clock
+// the constructor installs. That is the nil tolerance countModifyFailure already
+// documents for its receiver and its metrics registry, not a silent default: the
+// value is identical to what a constructed Reactor would read.
+func (r *Reactor) nowUnixNano() int64 {
+	c := r.clock
+	if c == nil {
+		c = clock.RealClock{}
+	}
+	return c.Now().UnixNano()
 }
