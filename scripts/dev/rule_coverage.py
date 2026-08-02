@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Report blocking rules whose trigger matched this session's files, unread.
 
-`plan/spec-knowledge-3-rule-digest.md` wants to stop loading all 97 condensed
+`plan/spec-knowledge-3-rule-digest.md` wants to stop loading every condensed
 rule sections into every session and route rules by their `**When:**` trigger
 instead. That plan rests on one assumption (A-4) which no amount of code reading
 can settle: that a model which SEES a matching trigger will actually open the
@@ -16,13 +16,28 @@ break once the body stops being eager.
 Only `blocking` rules are reported. An advisory miss is not worth an operator's
 attention and would bury the ones that are.
 
+Always-on rules are excluded for the same reason, one step further on. Their
+directives are carried in `ai/rules/CORE.md`, which `CLAUDE.md` imports into
+every session, so no session ever Reads their file and every session would be
+told it missed them. The exclusion rests on that unclearability, not on CORE.md
+being verbatim: `condense_body` (`scripts/dev/rules_condensed.py`) drops
+denylisted sections and collapses prose, so CORE.md is a digest. Measured over the first 75 recorded sessions, three such rules were
+named in 87% of reports, alongside five genuine misses. A report whose lines
+cannot be acted on teaches the reader to skip the lines that can.
+
 ## The blind spot, stated rather than hidden
 
 A trigger that names an ACTION rather than a file type cannot be matched from
-touched files at all. `ai/rules/never-destroy-work.md` ("before deleting,
-reverting, or overwriting any file holding uncommitted or user-visible work") is
-the standing example: no file extension implies it. 22 of the 69 blocking rules
-are unmatchable this way on the current corpus.
+touched files at all. `ai/rules/fail-closed-guards.md` ("writing or reviewing a
+guard: an auth check, validator, constraint, ratchet, or lookup that gates
+behavior") is the standing example: no file extension implies it. A large
+minority of the routable blocking rules are unmatchable this way.
+
+The exact counts are deliberately not written here. They are computed per run
+and printed by `format_text`, because the rule corpus changes under this file:
+it went from 97 rules to 98 inside an hour while this paragraph was being
+edited, which is precisely how the previous count in this docstring came to be
+wrong (`ai/rules/stale-comments.md`).
 
 The detector therefore UNDER-reports, which is the safe direction: it never
 claims coverage it has not observed. Silence from this tool is NOT evidence that
@@ -78,15 +93,24 @@ TOOLS_READ = ("Read",)
 
 RULES_DIR = "ai/rules/"
 
+# The rule paths `ai/rules/CORE.md` carries, one per section heading. Membership
+# is DERIVED from that file at every run, never listed here: `make
+# ze-rules-condensed` regenerates CORE.md, and a list in this file would go stale
+# the moment it does (`ai/rules/derive-not-hardcode.md`).
+CORE_RULE_LINE = re.compile(
+    r"^`" + re.escape(RULES_DIR) + r"([^`/]+\.md)`\s*$", re.MULTILINE
+)
+
 # The file-kind vocabulary. Each entry is (kind, path predicate, trigger words
 # that NAME work on that kind of file). Matching is keyword -> file kind, never
 # rule name -> file kind: adding a rule needs no edit here, which is what
 # `ai/rules/derive-not-hardcode.md` asks for.
 #
 # The word lists are a FLOOR on recall, not a ceiling. They were tuned against
-# the live corpus until a Go-editing session matched 19 of 69 blocking rules:
-# few enough to act on, many enough to carry signal. Widening a list makes the
-# detector report more, which is always the recoverable direction.
+# the live corpus until a Go-editing session matched roughly a quarter of the
+# blocking rules: few enough to act on, many enough to carry signal. Widening a
+# list makes the detector report more, which is always the recoverable
+# direction. Counts are not pinned here; the corpus moves under this file.
 KIND_RULES = (
     (
         "go",
@@ -203,6 +227,46 @@ def repo_root() -> Path:
     )
 
 
+def always_on_rules(rules_dir: Path) -> set[str]:
+    """Rule file names that `ai/rules/CORE.md` carries a section for.
+
+    `CLAUDE.md` imports CORE.md, so an always-on rule is in every session's
+    context WITHOUT a Read, and CORE.md says so itself ("such a rule needs no
+    read"). Since `read_transcript` can only see a direct Read of
+    `ai/rules/<name>.md`, counting these would report a miss that no session can
+    ever clear: the same names would appear in every report forever and train
+    the reader to skip the whole thing.
+
+    Every way this can fail excludes nothing and SAYS so
+    (`ai/rules/fail-closed-guards.md`). Over-reporting is the safe direction, but
+    silent over-reporting is indistinguishable from the 87%-noise state this
+    exists to remove, so the operator is told which one they are looking at.
+    """
+    core = rules_dir / "CORE.md"
+    try:
+        text = core.read_text(encoding="utf-8", errors="replace")
+    except OSError as err:
+        print(
+            f"rule-coverage: cannot read {core}: {err}; excluding no always-on "
+            "rule, so any always-on rule its triggers match will be reported",
+            file=sys.stderr,
+        )
+        return set()
+    names = set(CORE_RULE_LINE.findall(text))
+    if not names:
+        # A CORE.md that exists but parses to nothing is the drift case: the
+        # generator's shape moved and this reader did not follow. Reverting to
+        # over-reporting is safe; doing it quietly is not.
+        print(
+            f"rule-coverage: {core} is readable but carries no "
+            f"`{RULES_DIR}<name>.md` line; excluding no always-on rule. The "
+            "generator (scripts/dev/rules_condensed.py, rule_block) has most "
+            "likely changed shape",
+            file=sys.stderr,
+        )
+    return names
+
+
 def load_rules(rules_dir: Path) -> list[dict]:
     """Every rule with its trigger and severity, using the linted metadata block.
 
@@ -213,6 +277,7 @@ def load_rules(rules_dir: Path) -> list[dict]:
     convention for `CONDENSED.md` / `INDEX.md` / the forthcoming `TRIGGERS.md`)
     rather than by a list that would need editing when the next one lands.
     """
+    always_on = always_on_rules(rules_dir)
     rules = []
     for md in sorted(rules_dir.glob("*.md")):
         if md.name in rules_lint.SKIP or md.stem.isupper():
@@ -231,6 +296,7 @@ def load_rules(rules_dir: Path) -> list[dict]:
                 "path": f"{RULES_DIR}{md.name}",
                 "trigger": meta.get("When", ""),
                 "severity": meta.get("Severity", ""),
+                "always-on": md.name in always_on,
             }
         )
     return rules
@@ -308,8 +374,19 @@ def read_transcript(path: str) -> tuple[set[str], set[str]]:
 
 
 def analyse(rules: list[dict], written: set[str], rules_read: set[str]) -> dict:
-    """Match touched file kinds against triggers; report unread blocking rules."""
-    blocking = [r for r in rules if r["severity"] == "blocking"]
+    """Match touched file kinds against triggers; report unread blocking rules.
+
+    Always-on rules are excluded before matching, not after: they are outside
+    the population this detector measures. A-4 asks whether a model that SEES a
+    matching trigger opens the rule, and an always-on rule reaches the session
+    through CORE.md with no trigger and no read to perform.
+    """
+    always_on = sorted(
+        r["name"] for r in rules if r["severity"] == "blocking" and r.get("always-on")
+    )
+    blocking = [
+        r for r in rules if r["severity"] == "blocking" and not r.get("always-on")
+    ]
     kinds = kinds_for(written)
 
     matched, unmatchable = [], []
@@ -329,6 +406,8 @@ def analyse(rules: list[dict], written: set[str], rules_read: set[str]) -> dict:
     missed = sorted(r["name"] for r in matched if r["name"] not in rules_read)
     return {
         "blocking-total": len(blocking),
+        "always-on-excluded": len(always_on),
+        "always-on-rules": always_on,
         "touched": len(written),
         "kinds": sorted(kinds),
         "rules-read": sorted(rules_read),
@@ -352,6 +431,7 @@ def append_report(result: dict, session: str, root: Path) -> Path:
             "read": len(result["rules-read"]),
             "missed": result["missed"],
             "unmatchable": result["unmatchable"],
+            "always-on": result["always-on-excluded"],
         },
         separators=(",", ":"),
     )
@@ -387,6 +467,15 @@ def format_text(result: dict, report_path: Path) -> str:
         f"rule-coverage: {result['unmatchable']} of {result['blocking-total']} "
         "blocking rules have action-shaped triggers that no file type can match, "
         "so this count UNDER-reports; silence is not proof of coverage"
+    )
+    # Unconditional, including the zero case: the line above now counts only the
+    # ROUTABLE blocking rules, which is fewer than the repo holds, so the
+    # difference is named whether or not it is non-zero.
+    out.append(
+        f"rule-coverage: {result['always-on-excluded']} always-on rule(s) sit "
+        "outside that total; ai/rules/CORE.md carries their directives and "
+        "CLAUDE.md imports it, so no session Reads them and none is ever "
+        "counted missed"
     )
     out.append(f"rule-coverage: report {report_path}")
     return "\n".join(out)

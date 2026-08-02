@@ -15,6 +15,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -175,6 +176,223 @@ class TestDetector(DetectorCase):
         result = self.analyse()
 
         self.assertEqual(["buffer-first.md"], result["missed"])
+
+    def write_core(self, *names, cites="no-parking.md"):
+        """A CORE.md carrying the given rules, in the generator's own shape.
+
+        The directive body CITES another rule inline, exactly as the real
+        `ai/rules/CORE.md` does throughout. That citation is the reason
+        `CORE_RULE_LINE` is `^`/`$` anchored, and a fixture without one lets the
+        anchors be deleted with every test still green. On the live artifact
+        that deletion nearly doubles the muted set, swallowing rules every
+        session is expected to read (`no-parking.md`, `testing.md`, `tdd.md`,
+        `planning.md` among them): over-muting, the one direction this module
+        exists to prevent. The exact counts move with the corpus, so they are
+        measured rather than written down here.
+        """
+        body = "# Ze Rules -- Always-On Core\n\n"
+        for name in names:
+            body += (
+                f"## {name}\n"
+                f"`ai/rules/{name}`\n"
+                "**When:** always\n\n"
+                f"Fix the root cause (`ai/rules/{cites}`), never record it.\n\n"
+            )
+        (self.rules / "CORE.md").write_text(body, encoding="utf-8")
+
+    def test_inline_citation_in_core_is_not_treated_as_membership(self):
+        """A rule CITED inside CORE.md is not a rule CARRIED by CORE.md.
+
+        Deleting the `^`/`$` anchors from CORE_RULE_LINE makes this red. Without
+        it, that deletion mutes a rule every session is expected to read.
+        """
+        write_rule(
+            self.rules, "spec-no-code.md", "writing or editing a spec", "blocking"
+        )
+        write_rule(
+            self.rules, "no-parking.md", "when creating or updating a spec", "blocking"
+        )
+        self.write_core("spec-no-code.md", cites="no-parking.md")
+        write_transcript(
+            self.transcript, [("Edit", str(self.root / "plan" / "spec-thing.md"))]
+        )
+
+        result = self.analyse()
+
+        self.assertEqual(
+            ["spec-no-code.md"],
+            result["always-on-rules"],
+            "only the standalone path line is membership; an inline citation is prose",
+        )
+        self.assertEqual(
+            ["no-parking.md"], result["missed"], "the cited rule is still owed"
+        )
+
+    def test_parse_matches_the_generator_that_writes_core(self):
+        """Pin the reader to `rules_condensed.rule_block`, its actual producer.
+
+        `write_core` above is this file's own idea of the shape. If the
+        generator's changes, every other test here stays green while the live
+        exclusion silently empties (`ai/rules/derive-not-hardcode.md`).
+        """
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import rules_condensed
+
+        block = rules_condensed.rule_block(
+            {
+                "path": "ai/rules/spec-no-code.md",
+                "title": "No Code in Specs",
+                "meta": [
+                    ("When", "writing or editing a spec"),
+                    ("Severity", "blocking"),
+                ],
+                "body": ["## Directives", "", "Specs MUST NOT contain code."],
+            }
+        )
+        (self.rules / "CORE.md").write_text(block + "\n", encoding="utf-8")
+
+        self.assertEqual(
+            {"spec-no-code.md"},
+            rule_coverage.always_on_rules(self.rules),
+            "CORE_RULE_LINE no longer matches what rule_block emits",
+        )
+
+    def test_live_core_artifact_parses_to_its_own_header_count(self):
+        """The real `ai/rules/CORE.md`, not a fixture, still yields its 12 rules.
+
+        Every other test builds its own corpus, which is what keeps them stable.
+        That is also what makes them blind to drift in the real artifact, so one
+        test reads it: the header states `Rules: N of M`, and N must equal the
+        number of names the parse recovers.
+        """
+        live = Path(__file__).resolve().parents[2] / "ai" / "rules"
+        core = live / "CORE.md"
+        if not core.is_file():
+            self.skipTest("no live ai/rules/CORE.md in this checkout")
+
+        header = re.search(
+            r"^Rules:\s*(\d+)\s+of\s+\d+",
+            core.read_text(encoding="utf-8"),
+            re.MULTILINE,
+        )
+        self.assertIsNotNone(header, "CORE.md no longer states its own rule count")
+        self.assertEqual(
+            int(header.group(1)),
+            len(rule_coverage.always_on_rules(live)),
+            "the parse and CORE.md's own header disagree on how many rules it carries",
+        )
+
+    def test_always_on_rule_is_never_reported_missed(self):
+        """CORE.md carries its text, so no session can Read it or clear it.
+
+        Without this, the same names are named in every report forever and the
+        reader learns to skip the whole thing.
+        """
+        write_rule(
+            self.rules, "spec-no-code.md", "writing or editing a spec", "blocking"
+        )
+        self.write_core("spec-no-code.md")
+        write_transcript(
+            self.transcript, [("Edit", str(self.root / "plan" / "spec-thing.md"))]
+        )
+
+        result = self.analyse()
+
+        self.assertEqual([], result["missed"])
+        self.assertNotIn("spec-no-code.md", result["matched"])
+        self.assertEqual(1, result["always-on-excluded"])
+        self.assertEqual(["spec-no-code.md"], result["always-on-rules"])
+        self.assertEqual(0, result["blocking-total"], "it leaves the measured set")
+        self.assertEqual(0, self.run_detector(), "an unclearable miss must not exit 1")
+
+    def test_always_on_exclusion_is_stated_not_silent(self):
+        """A guard that mutes something says so (ai/rules/fail-closed-guards.md)."""
+        write_rule(
+            self.rules, "spec-no-code.md", "writing or editing a spec", "blocking"
+        )
+        self.write_core("spec-no-code.md")
+        write_transcript(
+            self.transcript, [("Edit", str(self.root / "plan" / "spec-thing.md"))]
+        )
+
+        text = rule_coverage.format_text(self.analyse(), Path("tmp/x.ndjson"))
+
+        self.assertIn("1 always-on rule(s)", text)
+        self.assertIn("CORE.md", text)
+
+    def test_exclusion_is_scoped_to_core_not_a_blanket_mute(self):
+        """A routable rule sharing the trigger is still reported.
+
+        This is the test that would fail if the exclusion were widened to the
+        trigger, the severity, or the file kind instead of CORE membership.
+        """
+        write_rule(
+            self.rules, "spec-no-code.md", "writing or editing a spec", "blocking"
+        )
+        write_rule(
+            self.rules, "planning.md", "when creating or updating a spec", "blocking"
+        )
+        self.write_core("spec-no-code.md")
+        write_transcript(
+            self.transcript, [("Edit", str(self.root / "plan" / "spec-thing.md"))]
+        )
+
+        result = self.analyse()
+
+        self.assertEqual(["planning.md"], result["missed"])
+        self.assertEqual(1, result["always-on-excluded"])
+        self.assertEqual(1, self.run_detector(), "the genuine miss still exits 1")
+
+    def test_missing_core_excludes_nothing_and_says_so(self):
+        """No CORE.md must not silently mute; it must fall back to reporting.
+
+        Both halves are asserted. The announcement is the guard's other half
+        (`ai/rules/fail-closed-guards.md`), and asserting only the behaviour
+        leaves deleting the print() green.
+        """
+        write_rule(
+            self.rules, "spec-no-code.md", "writing or editing a spec", "blocking"
+        )
+        write_transcript(
+            self.transcript, [("Edit", str(self.root / "plan" / "spec-thing.md"))]
+        )
+
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            result = self.analyse()
+
+        self.assertEqual(["spec-no-code.md"], result["missed"])
+        self.assertEqual(0, result["always-on-excluded"])
+        self.assertIn("cannot read", err.getvalue())
+        self.assertIn("excluding no always-on rule", err.getvalue())
+
+    def test_unparsable_core_excludes_nothing_and_says_so(self):
+        """A CORE.md that exists but parses to nothing is the drift case.
+
+        Reverting to over-reporting is safe; doing it quietly is not, because
+        the operator cannot tell that state from the noise the exclusion was
+        built to remove.
+        """
+        write_rule(
+            self.rules, "spec-no-code.md", "writing or editing a spec", "blocking"
+        )
+        (self.rules / "CORE.md").write_text(
+            "# Ze Rules -- Always-On Core\n\n## spec-no-code\n"
+            "- [spec-no-code](ai/rules/spec-no-code.md)\n",
+            encoding="utf-8",
+        )
+        write_transcript(
+            self.transcript, [("Edit", str(self.root / "plan" / "spec-thing.md"))]
+        )
+
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            result = self.analyse()
+
+        self.assertEqual(["spec-no-code.md"], result["missed"], "safe direction")
+        self.assertEqual(0, result["always-on-excluded"])
+        self.assertIn("readable but carries no", err.getvalue())
+        self.assertIn("rules_condensed", err.getvalue(), "name the generator to check")
 
     def test_unmatchable_action_trigger_is_counted_not_hidden(self):
         """The blind spot is published, so silence is never read as coverage."""
