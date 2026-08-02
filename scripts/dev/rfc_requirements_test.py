@@ -3089,6 +3089,63 @@ def _artifact(stem="rfc9999", src=_SRC_TWO_SITES, register="rfc2119", **over):
 _LIVE_BASELINE = object()
 
 
+# The destination of a relocation, as the artifact spells it and as the file is named. A
+# FIXTURE spec, never a real one: plan/spec-*.md is deleted the day its work closes
+# (ai/rules/spec-preservation.md), so a test pinned to a live spec would red on the day the
+# obligation it points at was finally met.
+_SPEC_NAME = "spec-relocation-fixture.md"
+_SPEC_REL = "plan/" + _SPEC_NAME
+_SPEC_BODY = (
+    "# Fixture spec\n\n"
+    "| Requirement | Level | Text |\n"
+    "|---|---|---|\n"
+    "| `RFC9999-2-3` | MUST | the obligation this spec owes |\n"
+)
+
+
+@contextlib.contextmanager
+def _spec_tree(specs=None):
+    """A temp plan/, holding {filename: text}. SPEC_DIR is patched the way EXTRACTION_DIR
+    is, so the tripwire reads this tree and never the repository's own plan/.
+
+    Default: the one fixture spec, carrying the one reserved id. Pass `{}` for "the
+    destination spec does not exist".
+    """
+    tmp = _mkdtemp("ze-spec-")
+    body = {_SPEC_NAME: _SPEC_BODY} if specs is None else specs
+    for name, text in body.items():
+        with open(os.path.join(tmp, name), "w", encoding="utf-8") as fh:
+            fh.write(text)
+    try:
+        with _patched(SPEC_DIR=tmp):
+            yield tmp
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _relocated_site(sid, quote, rel=_SPEC_REL, rid="RFC9999-2-3", **over):
+    entry = {
+        "excluded-kind": "relocated-to-spec",
+        "relocated-to": rel,
+        "reserved-id": rid,
+        "reason": "owner ruling moved this obligation to the named spec, still gated there",
+    }
+    entry.update(over)
+    return _site(sid, quote, "excluded", **entry)
+
+
+def _relocated_artifact(rel=_SPEC_REL, rid="RFC9999-2-3", **over):
+    """`_artifact()` with its second site RELOCATED rather than mapped.
+
+    Its summary therefore declares ONE requirement (`_reqs_9999(1)`), which is the whole
+    point of the kind: the row for the relocated obligation is not in rfc/short/ at all,
+    it is reserved in the destination spec.
+    """
+    art = _artifact()
+    art["sites"][1] = _relocated_site("2:2", _Q2, rel, rid, **over)
+    return art
+
+
 @contextlib.contextmanager
 def _extraction_tree(
     artifacts=None, budget="start 2026-07-01\nrate 0\n", src=None, baseline=None
@@ -3522,6 +3579,109 @@ class TestExtractionArtifact(unittest.TestCase):
         with self.assertRaises(R.ParseError):
             self._parse(_artifact(register="rfc2119 "))
 
+    # ------------------------------------------------------------------
+    # relocated-to-spec, parse time. The tripwire itself lives in
+    # TestRelocatedToSpec; these are the SHAPE refusals, which belong here beside every
+    # other closed-enum and required-field case.
+    # ------------------------------------------------------------------
+
+    def test_a_relocated_site_parses(self):
+        """The discriminating twin for every refusal below: the kind is legal, and its two
+        authored fields survive the parse."""
+        art = self._parse(_relocated_artifact())
+        site = {s.id: s for s in art.sites}["2:2"]
+        self.assertEqual(site.excluded_kind, "relocated-to-spec")
+        self.assertEqual(site.relocated_to, _SPEC_REL)
+        self.assertEqual(site.reserved_id, "RFC9999-2-3")
+
+    def test_a_relocation_with_no_destination_spec_is_refused(self):
+        """A pointer with no target is the shrug this kind exists NOT to be."""
+        art = _relocated_artifact()
+        del art["sites"][1]["relocated-to"]
+        with self.assertRaisesRegex(R.ParseError, "needs a 'relocated-to'"):
+            self._parse(art)
+
+    def test_a_relocation_naming_something_other_than_a_spec_is_refused(self):
+        """`relocated-to-spec` means a SPEC. A deferral shard, a known-failure file and a
+        learned summary are the three homes ai/rules/rfc-compliance.md names as NOT a
+        compliance decision procedure, and a path leaving the repository is not a document
+        this gate may read at all."""
+        for bad in (
+            "plan/deferrals/rfcgate-1b-rfc7296-pilot.md",
+            "plan/known-failures/whatever.md",
+            "plan/learned/1300-something.md",
+            "docs/architecture/ike.md",
+            "plan/spec-x.txt",
+            "/etc/passwd",
+            "../plan/spec-x.md",
+            "plan/../../etc/spec-x.md",
+            "plan/sub/spec-x.md",
+        ):
+            art = _relocated_artifact(rel=bad)
+            with self.assertRaisesRegex(
+                R.ParseError, "needs a 'relocated-to'", msg=repr(bad)
+            ):
+                self._parse(art)
+
+    def test_a_relocation_with_no_reserved_id_is_refused(self):
+        """Without the id the relocation points at a document rather than at a row, and
+        the tripwire has nothing to re-check."""
+        art = _relocated_artifact()
+        del art["sites"][1]["reserved-id"]
+        with self.assertRaisesRegex(R.ParseError, "needs a 'reserved-id'"):
+            self._parse(art)
+
+    def test_a_reserved_id_of_another_rfc_is_refused(self):
+        """The obligation is THIS RFC's. A reserved id belonging to another one would let
+        any spec that happens to quote any requirement satisfy the tripwire."""
+        for bad in ("RFC7606-2-1", "TBD", "RFC9999", "RFC99990-2-1", "rfc9999-2-3"):
+            art = _relocated_artifact(rid=bad)
+            with self.assertRaisesRegex(
+                R.ParseError, "needs a 'reserved-id'", msg=repr(bad)
+            ):
+                self._parse(art)
+
+    def test_relocation_fields_on_any_other_site_are_refused(self):
+        """An authored field that means nothing where it sits must never pass silently:
+        that is the same failure `_reject_unknown_keys` exists to stop, one level down."""
+        for over in (
+            {"relocated-to": _SPEC_REL},
+            {"reserved-id": "RFC9999-2-3"},
+        ):
+            art = _artifact()
+            art["sites"][0] = _site(
+                "2:1", _Q1, "mapped", **{"mapped-to": "RFC9999-2-1"}, **over
+            )
+            with self.assertRaisesRegex(
+                R.ParseError, "mean something only on a", msg=repr(over)
+            ):
+                self._parse(art)
+
+            art = _artifact()
+            art["sites"][0] = _site(
+                "2:1",
+                _Q1,
+                "excluded",
+                **{"excluded-kind": "not-a-requirement", "reason": "boilerplate"},
+                **over,
+            )
+            with self.assertRaisesRegex(
+                R.ParseError, "mean something only on a", msg=repr(over)
+            ):
+                self._parse(art)
+
+    def test_the_kind_is_refused_as_a_section_skip_kind(self):
+        """`relocated-to-spec` is a SITE disposition. The two closed sets stay apart: a
+        section is a run of text, so it can be walked or skipped, and it can never be the
+        thing a spec reserves an id for."""
+        art = _artifact()
+        art["sections"][3] = _section(
+            "3", 0, "skipped", **{"skip-kind": "relocated-to-spec", "reason": "moved"}
+        )
+        with self.assertRaises(R.ParseError):
+            self._parse(art)
+        self.assertNotIn("relocated-to-spec", R.SECTION_SKIP_KINDS)
+
 
 class TestSkeletonWriter(unittest.TestCase):
     """R-2, structurally: the writer can ONLY emit UNCLASSIFIED dispositions, so
@@ -3599,6 +3759,42 @@ class TestSkeletonWriter(unittest.TestCase):
         self.assertEqual(by_id["2:1"]["mapped-to"], "RFC9999-2-1")
         self.assertEqual(art["reviewer"], "tester")
         self.assertEqual(art["signed-off"], "2026-07-29")
+
+    def test_refresh_preserves_every_field_the_kind_requires(self):
+        """A refresh copies the disposition and the kind. It did NOT copy the fields those
+        kinds make MANDATORY, and the consequence is not a silent one: the writer
+        re-parses its own output before it lands, so the whole refresh was refused.
+
+        Found in the live tree, not in a fixture. rfc/extraction/rfc1035.json holds one
+        `duplicate-of` site, so `make ze-rfc-extract STEM=rfc1035` could not write at all
+        -- it printed 'a defect in the derivation' and exited 2, leaving the reviewer no
+        way to re-run the walk after the source moved. The carry-forward is now driven by
+        what the PARSER stored rather than by a per-kind ladder, so a seventh kind with an
+        authored field inherits it.
+        """
+        art = _artifact()
+        art["sites"][1] = _site(
+            "2:2",
+            _Q2,
+            "excluded",
+            **{
+                "excluded-kind": "duplicate-of",
+                "mapped-to": "RFC9999-2-1",
+                "reason": "restates RFC9999-2-1",
+            },
+        )
+        code, out, _path, on_disk = self._write_raw(existing=art)
+        self.assertEqual(code, 0, out)
+        by_id = {s["id"]: s for s in on_disk["sites"]}
+        self.assertEqual(by_id["2:2"]["excluded-kind"], "duplicate-of")
+        self.assertEqual(by_id["2:2"]["mapped-to"], "RFC9999-2-1")
+
+        code, out, _path, on_disk = self._write_raw(existing=_relocated_artifact())
+        self.assertEqual(code, 0, out)
+        by_id = {s["id"]: s for s in on_disk["sites"]}
+        self.assertEqual(by_id["2:2"]["excluded-kind"], "relocated-to-spec")
+        self.assertEqual(by_id["2:2"]["relocated-to"], _SPEC_REL)
+        self.assertEqual(by_id["2:2"]["reserved-id"], "RFC9999-2-3")
 
     def test_refresh_drops_a_classification_whose_sentence_changed(self):
         """A locator is a POSITION. If the source text moved under it, keeping the old
@@ -4075,6 +4271,204 @@ class TestExtractionSignoff(unittest.TestCase):
         with _extraction_tree(artifacts={"rfc9999": _artifact()}, src={}):
             errs = R.check_extraction_signoff(_reqs_9999())
         self.assertTrue(any("no source text" in e for e in errs), errs)
+
+
+class TestRelocatedToSpec(unittest.TestCase):
+    """The sixth exclusion kind, and the one that does not say "this binds nobody".
+
+    The other five dismiss a sentence. `relocated-to-spec` says the opposite: the
+    obligation IS owed, by a named spec, under a reserved id, and it is not in this
+    summary because an owner ruling moved it there. Two independent agents refused to
+    force `binds-another-role` onto the twelve RFC 7296 sites of owner ruling D-1
+    (2026-07-31), and they were right to: that kind asserts Ze plays no such role, while
+    two specs exist to implement exactly those roles.
+
+    So the kind is a POINTER, and a pointer with no tripwire is a shrug with a longer
+    name. The parse-time shape refusals live in TestExtractionArtifact; this class is the
+    tripwire, the ratchet and the published counts.
+    """
+
+    def _errs(self, art, reqs=None, specs=None, src=_SRC_TWO_SITES, stem="rfc9999"):
+        reqs = _reqs_9999(1) if reqs is None else reqs
+        with (
+            _spec_tree(specs),
+            _extraction_tree(artifacts={stem: art}, src={stem: src}),
+        ):
+            return R.check_extraction_signoff(reqs)
+
+    def test_a_relocation_whose_spec_carries_the_id_is_accepted(self):
+        """The discriminating twin. Without it every refusal below is satisfied by a
+        check that refuses everything."""
+        self.assertEqual(self._errs(_relocated_artifact()), [])
+
+    def test_a_relocation_whose_spec_does_not_exist_is_refused(self):
+        """Delete the destination and the gate goes red naming the site. This is the
+        whole reason the kind is not a shrug: an obligation cannot be parked by pointing
+        at a document that nobody has to keep."""
+        errs = self._errs(_relocated_artifact(), specs={})
+        joined = " ".join(errs)
+        self.assertIn("2:2", joined)
+        self.assertIn(_SPEC_REL, joined)
+        self.assertIn("RFC9999-2-3", joined)
+        # The ARM, not merely the redness. Both arms name the site, the path and the id,
+        # so an assertion over those three survives the existence arm being deleted: the
+        # id search then fails against an empty read and reports the other message.
+        self.assertIn("does not exist", joined)
+
+    def test_a_relocation_whose_spec_dropped_the_id_is_refused(self):
+        """The likelier failure, and the one a file-existence check alone would miss: the
+        spec survives, the row is edited out of it, and the obligation is owed by nobody
+        while both documents look healthy."""
+        errs = self._errs(
+            _relocated_artifact(),
+            specs={_SPEC_NAME: "# Fixture spec\n\nNothing reserved here.\n"},
+        )
+        joined = " ".join(errs)
+        self.assertIn("2:2", joined)
+        self.assertIn("RFC9999-2-3", joined)
+        self.assertIn("no longer names", joined)
+
+    def test_an_empty_destination_spec_is_refused(self):
+        """A file that exists and says nothing reserves nothing. Present-but-empty passes
+        every existence test there is, which is the shape ai/rules/fail-closed-guards.md
+        records as passing `ok` while being unusable."""
+        errs = self._errs(_relocated_artifact(), specs={_SPEC_NAME: ""})
+        self.assertTrue(any("2:2" in e and "no longer names" in e for e in errs), errs)
+
+    def test_a_longer_id_does_not_satisfy_the_reservation(self):
+        """`RFC9999-2-30` is not `RFC9999-2-3`. A substring test would let the wrong row
+        keep the tripwire green, and it is the neighbouring ordinal that a renumbering
+        actually produces."""
+        errs = self._errs(
+            _relocated_artifact(),
+            specs={_SPEC_NAME: "| `RFC9999-2-30` | MUST | a different obligation |\n"},
+        )
+        self.assertTrue(any("2:2" in e for e in errs), errs)
+
+    def test_a_reserved_id_the_summary_still_declares_is_refused(self):
+        """A relocation ASSERTS the row left rfc/short/. If the summary still declares it,
+        the site is a mapping wearing the wrong kind, and the obligation would be counted
+        as homed elsewhere while it is also claimed here."""
+        errs = self._errs(_relocated_artifact(), reqs=_reqs_9999(3))
+        self.assertTrue(
+            any("2:2" in e and "RFC9999-2-3" in e for e in errs),
+            errs,
+        )
+
+    def test_a_relocation_is_not_in_the_signed_set_until_it_resolves(self):
+        """The consequence that matters: a broken pointer costs the stem its sign-off, so
+        it stops earning drain credit and cannot satisfy the enrolment precondition."""
+        with (
+            _spec_tree({}),
+            _extraction_tree(
+                artifacts={"rfc9999": _relocated_artifact()},
+                src={"rfc9999": _SRC_TWO_SITES},
+            ),
+        ):
+            signed, errs = R.evaluate_extractions(_reqs_9999(1))
+        self.assertTrue(errs)
+        self.assertNotIn("rfc9999", signed)
+
+    # ------------------------------------------------------------------
+    # Decision 1: the exclusion count. A relocation IS an exclusion, so it counts in the
+    # ratchet's number and in the published ratio -- and it is ALSO published apart, so a
+    # reviewer can tell a homed obligation from a dismissed sentence.
+    # ------------------------------------------------------------------
+
+    def test_a_relocation_counts_toward_the_ratchet(self):
+        """One definition of "exclusion" on both sides. `_git_baseline_extractions` counts
+        `disposition == "excluded"` in a HEAD blob and never reads the kind, so netting
+        relocations out of the working-tree number would make relocation the cheap route
+        past the resign-reason gate, and would split the comparison across two parsers."""
+        baseline = {
+            "rfc9999": R.BaselineExtraction(
+                excluded=0, signed_off="2026-07-29", resign_reason=""
+            )
+        }
+        with (
+            _spec_tree(),
+            _extraction_tree(
+                artifacts={"rfc9999": _relocated_artifact()},
+                src={"rfc9999": _SRC_TWO_SITES},
+                baseline=baseline,
+            ),
+        ):
+            errs = R.check_extraction_ratchet()
+        self.assertTrue(any("exclusions rose from 0 to 1" in e for e in errs), errs)
+
+    def test_a_resigned_relocation_passes_the_ratchet(self):
+        """The twin: the rise is legal once the walk is redone and says so."""
+        baseline = {
+            "rfc9999": R.BaselineExtraction(
+                excluded=0, signed_off="2026-07-29", resign_reason=""
+            )
+        }
+        art = _relocated_artifact()
+        art["signed-off"] = "2026-08-02"
+        art["resign-reason"] = "owner ruling D-1 moved the obligation to a named spec"
+        with (
+            _spec_tree(),
+            _extraction_tree(
+                artifacts={"rfc9999": art},
+                src={"rfc9999": _SRC_TWO_SITES},
+                baseline=baseline,
+            ),
+        ):
+            self.assertEqual(R.check_extraction_ratchet(), [])
+
+    def test_the_published_ratio_counts_a_relocation_and_names_it_apart(self):
+        """The ratio keeps its reach: 1 of 2 sites unmapped is 0.50 whether the walk
+        dismissed the sentence or homed it. Netting relocations out would let a walk that
+        relocated everything publish a pristine 0.00, which is the exact shape the ratio
+        exists to make visible. The separate count is what stops the two being
+        confused."""
+        with (
+            _spec_tree(),
+            _extraction_tree(
+                artifacts={"rfc9999": _relocated_artifact()},
+                src={"rfc9999": _SRC_TWO_SITES},
+            ),
+        ):
+            body = "\n".join(R.render_extraction_table(_reqs_9999(1), {"rfc9999"}))
+        self.assertIn("| 2 | 1 | 1 | 0.50 |", body)
+        self.assertIn("relocated-to-spec", body)
+        self.assertIn("`rfc9999` 1", body)
+
+    def test_a_corpus_with_no_relocation_publishes_no_relocation_line(self):
+        """Derived, so it appears exactly when the fact does. Its absence is a true
+        statement about the corpus, and it keeps ai/RFC-REQUIREMENTS.md byte-identical
+        until the first relocation actually lands."""
+        with _extraction_tree(
+            artifacts={"rfc9999": _artifact()}, src={"rfc9999": _SRC_TWO_SITES}
+        ):
+            body = "\n".join(R.render_extraction_table(_reqs_9999(), {"rfc9999"}))
+        self.assertNotIn("relocated", body.lower())
+
+    def test_the_envelope_publishes_the_relocated_count(self):
+        """`make ze-rfc-extraction-status` is the machine-readable half. A count that only
+        a human can read is not one the drain policy can ever consume."""
+        with (
+            _spec_tree(),
+            _extraction_tree(
+                artifacts={"rfc9999": _relocated_artifact()},
+                src={"rfc9999": _SRC_TWO_SITES},
+            ),
+        ):
+            env = R.extraction_status(_reqs_9999(1), {"rfc9999"})
+        self.assertEqual(env["relocated"], 1)
+        self.assertEqual(env["signed"], 1)
+        for key in env:
+            self.assertEqual(key, key.lower(), key)
+            self.assertNotIn("_", key)
+
+    def test_the_envelope_reports_zero_rather_than_nothing(self):
+        """A missing key reads as "not a thing", not as "zero" -- the same reason every
+        register is present in the split even at zero."""
+        with _extraction_tree(
+            artifacts={"rfc9999": _artifact()}, src={"rfc9999": _SRC_TWO_SITES}
+        ):
+            env = R.extraction_status(_reqs_9999(), {"rfc9999"})
+        self.assertEqual(env["relocated"], 0)
 
 
 class TestPre2119FailsClosed(unittest.TestCase):
@@ -5314,6 +5708,39 @@ class TestRealTreeExtraction(unittest.TestCase):
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
+    def test_every_existing_signoff_survives_a_refresh(self):
+        """The case above passes `previous=None`, so the whole carry-forward path was
+        untested against the corpus. A refresh over an artifact that ALREADY exists must
+        also produce a document its own parser accepts, or the reviewer cannot re-run the
+        walk after the source text moves.
+
+        rfc1035's single `duplicate-of` site failed exactly here: `mapped-to` was dropped,
+        the re-parse guard refused the write, and `make ze-rfc-extract STEM=rfc1035`
+        exited 2 over a file it declined to touch."""
+        tmp = _mkdtemp("ze-refresh-")
+        try:
+            broken = []
+            for stem in sorted(R.extraction_stems()):
+                previous = R.parse_extraction_artifact(
+                    os.path.join(R.EXTRACTION_DIR, stem + ".json")
+                )
+                inv = R.derive_inventory(
+                    stem, R.gated_counts(R._summary_requirements(stem)).get(stem, 0)
+                )
+                if inv is None:
+                    continue
+                path = os.path.join(tmp, stem + ".json")
+                with open(path, "w", encoding="utf-8") as fh:
+                    json.dump(R._artifact_document(inv, previous), fh, indent=2)
+                try:
+                    R.parse_extraction_artifact(path)
+                except R.ParseError as exc:
+                    broken.append(f"{stem}: {exc}")
+                os.unlink(path)
+            self.assertEqual(broken, [], "refreshes their own parser would refuse")
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
     def test_no_enrolled_stem_derives_a_duplicate_locator(self):
         """A locator is the only handle a reviewer's decision has on a sentence.
         _evaluate_extraction keys sites into a dict, so a collision silently drops one
@@ -5797,7 +6224,9 @@ class TestInteropTierIsDerivedFromWorkflows(unittest.TestCase):
             found = R.scheduled_workflow_targets(d)
         self.assertNotIn("ze-interop-test", found)
         self.assertEqual(
-            {c.name: c.tier for c in R._interop_carriers("/check.py", found)}["interop-bgp"],
+            {c.name: c.tier for c in R._interop_carriers("/check.py", found)}[
+                "interop-bgp"
+            ],
             R.TIER_UNRUN,
         )
 
@@ -10291,6 +10720,238 @@ class TestTagPackagesCompileWiring(unittest.TestCase):
         code, out = self._drive(_FakeVet(raises=FileNotFoundError("go")))
         self.assertEqual(code, 2, out)
         self.assertIn("cannot run", out)
+
+
+class TestRealTree(unittest.TestCase):
+    """The RFC 7296 pilot's Wiring Test, asserted over the REAL rfc/ tree.
+
+    Spec: plan/spec-rfcgate-1b-rfc7296-pilot.md, "Wiring Test" and D-3. Deliberately not
+    patched. What these prove is a fact about THIS repository -- the pilot grew
+    rfc/short/rfc7296.md from 23 rows to 223 and proved every gated one of them in both
+    polarities -- and a synthetic fixture would pass with all 200 landed rows absent, which
+    is the whole failure the pilot exists to end.
+
+    R-12 is why they arrive green rather than red-first. `make ze-rfc-check` runs
+    `--selftest` over this file (rfc_requirements.py, run_selftest) and
+    scripts/dev/python_tests_test.go globs the same path into ze-unit-test, so a red case
+    here reds BOTH verify branches and commit_helper.py then refuses every session's
+    commits. The spec's Resolution 2 settles it: TDD requires the test to fail before the
+    implementation exists, not to be committed failing. Each case's red was observed and
+    recorded in the spec before its subject landed.
+    """
+
+    STEM = "rfc7296"
+    PREFIX = "RFC7296-"
+
+    # The 23 ids rfc/short/rfc7296.md carried before the pilot's first landing, read from
+    # `git show 9551e66f4^:rfc/short/rfc7296.md`. Recorded here rather than re-derived,
+    # because both ratchets below compare against HEAD and HEAD has already moved past the
+    # re-authoring they were written to police.
+    PRE_PILOT_IDS = frozenset(
+        {
+            "RFC7296-1.2-1",
+            "RFC7296-1.3.3-1",
+            "RFC7296-1.4-1",
+            "RFC7296-2.1-1",
+            "RFC7296-2.1-2",
+            "RFC7296-2.4-1",
+            "RFC7296-2.4-2",
+            "RFC7296-2.4-3",
+            "RFC7296-2.4-4",
+            "RFC7296-2.6-1",
+            "RFC7296-2.7-1",
+            "RFC7296-2.8-1",
+            "RFC7296-2.8-2",
+            "RFC7296-2.8-3",
+            "RFC7296-2.9-1",
+            "RFC7296-2.23-1",
+            "RFC7296-2.23-2",
+            "RFC7296-2.23-3",
+            "RFC7296-3.3-1",
+            "RFC7296-3.3-2",
+            "RFC7296-3.3.2-1",
+            "RFC7296-3.3.6-1",
+            "RFC7296-3.8-1",
+        }
+    )
+
+    # The three ids that carried an annotation before the pilot: {single-polarity} on
+    # 3.3-1 and {gap} on the other two. AC-18: each was CLEARED by the work that
+    # implemented its obligation. None was reclassified downward, which only the owner may
+    # do (ai/rules/rfc-compliance.md).
+    FORMERLY_ANNOTATED = ("RFC7296-3.3-1", "RFC7296-2.9-1", "RFC7296-1.4-1")
+
+    # The pilot's landed figure. A floor, never an equality: a later row is welcome, and
+    # deleting rows must not be the cheap way to keep this case green.
+    GATED_FLOOR = 218
+
+    @classmethod
+    def setUpClass(cls):
+        cls.reqs = R.parse_summary_file(os.path.join(R.SUMMARY_DIR, cls.STEM + ".md"))
+        cls.tags = [t for t in R.scan_tree() if t.rid.startswith(cls.PREFIX)]
+        cls.polarities = {}
+        for tag in cls.tags:
+            cls.polarities.setdefault(tag.rid, set()).add(tag.polarity)
+        cls.enrolled = R.load_enrolled()
+
+    def test_rfc7296_signoff_is_valid_and_the_rest_stay_grandfathered(self):
+        """AC-5. The sign-off is VALID, and grandfathering stays the majority position.
+
+        rfc/extraction/rfc7296.json landed signed on 2026-08-02, so the first half now
+        takes its live branch: the artifact exists, therefore it MUST be a valid sign-off.
+        That is the strong form. R-13 measured the tempting alternative, and an UNSIGNED
+        skeleton committed here yields 385 gate errors and exit 2; this names that move in
+        one line instead of 385, whichever branch it is on.
+
+        "Grandfathered" is asserted only while a stem has no artifact, because the two
+        states are exclusive: a signed stem is signed. What survives the sign-off is the
+        claim that carries the meaning, that unsigned stems remain the MAJORITY. That is
+        what "grandfathering is scope, not an allowlist" means
+        (rfc/extraction/README.md), and it breaks if evaluate_extractions starts demanding
+        an artifact from a stem that predates the bar.
+        """
+        self.assertIn(self.STEM, self.enrolled, "rfc7296 must stay enrolled")
+
+        _enrolled, all_reqs, _errs, _tags, _by_stem = R._collect_for_check()
+        signed, violations = R.evaluate_extractions(all_reqs)
+
+        artifact = os.path.join(R.EXTRACTION_DIR, self.STEM + ".json")
+        if os.path.exists(artifact):
+            self.assertIn(
+                self.STEM,
+                signed,
+                f"{artifact} exists but is not a VALID sign-off: {violations}",
+            )
+        else:
+            self.assertNotIn(self.STEM, signed)
+
+        self.assertEqual(
+            violations,
+            [],
+            "an artifact in rfc/extraction/ is unsigned or contradicted by its source",
+        )
+        unsigned = self.enrolled - set(signed)
+        if not os.path.exists(artifact):
+            self.assertIn(
+                self.STEM,
+                unsigned,
+                "rfc7296 has no artifact, so it must be grandfathered rather than accused",
+            )
+        self.assertGreater(
+            len(unsigned),
+            len(signed),
+            "grandfathering must stay the majority position, or the bound moved silently",
+        )
+
+    def test_rfc7296_summary_carries_the_section_2_2_requirements(self):
+        """AC-1. The two Message ID obligations, each citing the section its id names.
+
+        2.2-2 is the one the walk found unimplemented: NextMsgID was a bare uint32 whose
+        every mutation was an unchecked `++`, so the SA wrapped to 0 and kept running.
+        engine/msgid.go now freezes both counters at the ceiling.
+        """
+        by_rid = {r.rid: r for r in self.reqs}
+        for rid in ("RFC7296-2.2-1", "RFC7296-2.2-2"):
+            req = by_rid.get(rid)
+            self.assertIsNotNone(req, f"{rid} missing from rfc/short/rfc7296.md")
+            self.assertEqual(req.section, "2.2", f"{rid} cites the wrong section")
+            self.assertTrue(req.gated, f"{rid} must stay MUST-level")
+            self.assertIsNone(req.annotation, f"{rid} carries an annotation")
+            self.assertEqual(
+                self.polarities.get(rid), R.POLARITIES, f"{rid} is not proven both ways"
+            )
+
+    def test_rfc7296_every_gated_row_is_proven_in_both_polarities(self):
+        """AC-2 and AC-4: 218 gated rows, every one proven positive AND negative, and not
+        one annotation in the file.
+
+        Owner ruling OR-1 gave this spec no annotation budget. Nothing mechanical enforces
+        that, because {gap} is a LEGAL annotation the gate accepts (umbrella R-9), so
+        absorbing a newly extracted MUST into a fresh annotation is the cheapest way to
+        keep the gate green over a row nobody implemented. This case is the catch.
+        """
+        gated = [r for r in self.reqs if r.gated]
+        self.assertGreaterEqual(
+            len(gated),
+            self.GATED_FLOOR,
+            f"the pilot landed {self.GATED_FLOOR} gated rows; rows do not disappear",
+        )
+        unproven = sorted(
+            r.rid for r in gated if self.polarities.get(r.rid) != R.POLARITIES
+        )
+        self.assertEqual(unproven, [], "gated rows lacking a polarity")
+        annotated = sorted(f"{r.rid} {r.annotation}" for r in self.reqs if r.annotation)
+        self.assertEqual(annotated, [], "OR-1 permits no annotation on any rfc7296 row")
+
+    def test_rfc7296_ids_are_neither_retired_nor_demoted(self):
+        """AC-3, driving check_retired_requirements and check_coverage_ratchet.
+
+        Both ratchets compare the working tree against HEAD, and HEAD sits well past the
+        pilot's start, so neither can still see the 23 -> 223 re-authoring they protect.
+        Feeding them the RECORDED pre-pilot baseline restores that reach. The polarity
+        baseline claims BOTH for every gated pre-pilot id, which is the strongest claim a
+        real loss could fail against.
+        """
+        live = {r.rid for r in self.reqs}
+        self.assertEqual(
+            sorted(self.PRE_PILOT_IDS - live), [], "a pre-pilot id was retired"
+        )
+
+        stems = R.summary_stems()
+        retired = R.check_retired_requirements(
+            self.reqs,
+            self.enrolled,
+            set(self.PRE_PILOT_IDS),
+            {self.STEM},
+            stems,
+            stems,
+        )
+        self.assertEqual(retired, [])
+
+        baseline = {
+            r.rid: set(R.POLARITIES)
+            for r in self.reqs
+            if r.gated and r.rid in self.PRE_PILOT_IDS
+        }
+        self.assertTrue(baseline, "the pre-pilot baseline must not be empty")
+        demoted = R.check_coverage_ratchet(
+            self.reqs, self.tags, self.enrolled, baseline, {self.STEM}
+        )
+        self.assertEqual(demoted, [])
+
+        for rid in self.FORMERLY_ANNOTATED:
+            self.assertIn(rid, live, f"{rid} was retired rather than cleared")
+            req = next(r for r in self.reqs if r.rid == rid)
+            self.assertIsNone(req.annotation, f"{rid} carries an annotation again")
+            self.assertEqual(
+                self.polarities.get(rid),
+                R.POLARITIES,
+                f"{rid} lost the polarity that let its annotation be cleared",
+            )
+
+    def test_rfc7296_ledger_is_fresh_after_the_pilot(self):
+        """Story 1: an operator sizes ze's IKEv2 from docs/features/rfc-status.md, and that
+        page's evidence is ai/RFC-REQUIREMENTS.md, which is DERIVED from the summaries and
+        the `RFC requirement:` tags.
+
+        566 tag lines across 73 files moved during the pilot. A moved tag line stales the
+        ledger, and the ledger then cites a test at a line that holds something else. The
+        fix is `make ze-rfc-index` in the same commit, never a hand edit.
+        """
+        enrolled, reqs, _errs, tags, _by_stem = R._collect_for_check()
+        self.assertEqual(
+            R.check_ledger_fresh(reqs, tags, enrolled),
+            [],
+            "regenerate with: make ze-rfc-index",
+        )
+
+        with open(R.LEDGER_FILE, encoding="utf-8") as fh:
+            ledger = fh.read()
+        # One id from each half of the pilot: a row that was already implemented and only
+        # needed proof, one that was a LIVE defect (a peer Delete of the live Child SA was
+        # ignored), and one the walk found had no producer at all (keys survived SA close).
+        for rid in ("RFC7296-2.2-1", "RFC7296-1.4.1-6", "RFC7296-2.12-1"):
+            self.assertIn(rid, ledger, f"{rid} is absent from the generated ledger")
 
 
 class TestRealTreeIsGreen(unittest.TestCase):

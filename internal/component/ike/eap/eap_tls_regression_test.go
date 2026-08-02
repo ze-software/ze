@@ -104,7 +104,11 @@ func TestTransportFeedWakesBlockedRead(t *testing.T) {
 
 	// Let the reader reach its blocking <-peerCh before any data is fed.
 	time.Sleep(20 * time.Millisecond)
-	tr.feedPeerData([]byte("hello"))
+	// feedPeerData now refuses data past the unread-backlog ceiling, so its error
+	// is checked here. Five bytes on an empty transport is nowhere near it.
+	if err := tr.feedPeerData([]byte("hello")); err != nil {
+		t.Fatalf("feedPeerData refused 5 bytes on an empty transport: %v", err)
+	}
 
 	select {
 	case b := <-got:

@@ -305,13 +305,13 @@ class TestScenarioPKIFixtures(unittest.TestCase):
 
     def test_every_pki_scenario_resolves_to_decodable_der(self):
         pki_dir = os.path.join(LAB_DIR, "pki")
-        seen = 0
+        seen = set()
         checked = 0
         for path in self.scenario_configs():
             text = self.read(path)
             if "%%PKI_B64:" not in text:
                 continue
-            seen += 1
+            seen.add(os.path.basename(os.path.dirname(path)))
             wanted = len(_PKI_PLACEHOLDER.findall(text))
             out = resolve_pki_placeholders(text, pki_dir)
             self.assertNotIn("%%PKI_B64:", out)
@@ -329,8 +329,26 @@ class TestScenarioPKIFixtures(unittest.TestCase):
             for value in values:
                 self.assertEqual(0x30, base64.b64decode(value)[0], path)
             checked += len(values)
-        self.assertEqual(3, seen, "scenarios 03, 04 and 08 carry PKI material")
-        self.assertEqual(9, checked, "each of the three scenarios holds 3 pki leaves")
+        # The expected SET is spelled out, not just its size. A count alone lets
+        # two errors cancel: scenario 06 losing all three placeholders while a new
+        # PKI scenario appears keeps the total at four and passes green. Naming the
+        # scenarios makes each side of that trade visible on its own.
+        #
+        # Spelled out rather than derived, so a scenario that silently stops
+        # carrying PKI material turns this red. Adding a PKI scenario is meant to
+        # cost one edit here: that is the prompt to check the new scenario
+        # resolves, not an accident of the count.
+        self.assertEqual(
+            {
+                "03-eap-mschapv2",
+                "04-eap-tls",
+                "06-eap-tls13",
+                "08-responder-eap-mschapv2",
+            },
+            seen,
+            "exactly these scenarios carry PKI material",
+        )
+        self.assertEqual(12, checked, "each of the four scenarios holds 3 pki leaves")
 
 
 if __name__ == "__main__":

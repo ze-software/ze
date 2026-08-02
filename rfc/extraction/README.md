@@ -44,9 +44,9 @@ never claims to judge the rendering.
 
 ## Derived versus authored
 
-Only **dispositions and reasons** are authored. `sites`, `sections`, `quote`, `register`,
-`source-path`, `source-sha` and every published count are DERIVED from the source text at
-check time and compared against what the artifact records
+Only **dispositions, reasons and the two relocation fields** are authored. `sites`,
+`sections`, `quote`, `register`, `source-path`, `source-sha` and every published count are
+DERIVED from the source text at check time and compared against what the artifact records
 (`ai/rules/derive-not-hardcode.md`). A hand-typed "sites seen" number would be a claim,
 and claims are what this programme exists to remove; editing a derived field to make a red
 go green fails the check naming the field and the locator.
@@ -111,7 +111,7 @@ Source Anchors.)*
 | `reviewer` | authored | who performed it |
 | `resign-reason` | authored | required only when the exclusion count rises above HEAD |
 | `sections[]` | mixed | `id` and `sites` derived; `disposition` (`walked`/`skipped`), `skip-kind`, `reason` and `unsourced-ids` authored |
-| `sites[]` | mixed | `id` (`<section>:<n>`) and `quote` derived; `disposition` (`mapped`/`excluded`), `mapped-to`, `excluded-kind` and `reason` authored |
+| `sites[]` | mixed | `id` (`<section>:<n>`) and `quote` derived; `disposition` (`mapped`/`excluded`), `mapped-to`, `excluded-kind`, `reason`, `relocated-to` and `reserved-id` authored |
 
 `signed-off`, `reviewer` and `register-reason` are required to sign off, not to parse: an
 unsigned skeleton is a legal intermediate state, so the check can be run mid-walk to see
@@ -126,6 +126,49 @@ which sites are left.
 | `duplicate-of` | restates an obligation already captured | `mapped-to` must name an id that some OTHER site maps |
 | `cross-document` | the obligation belongs to another RFC the sentence cites | -- |
 | `advisory-in-context` | the capitalised keyword sits inside a SHOULD/MAY construction the splitter mis-cut | the reason quotes the enclosing construction |
+| `relocated-to-spec` | the obligation IS owed, by a named spec, and it left this summary by an owner ruling | `relocated-to` names the spec, `reserved-id` names the id reserved for it there |
+
+### `relocated-to-spec`: the kind that does not dismiss its sentence
+
+The other five say a sentence binds nobody. This one says the opposite: somebody is bound,
+over there. It exists because owner ruling D-1 (2026-07-31) moved twelve RFC 7296 sites out
+of `rfc/short/rfc7296.md` and into `plan/spec-ipsec-remote-access.md` and
+`plan/spec-ipsec-ipcomp.md`, where they stay gated. No other kind can say that. Forcing
+`binds-another-role` onto such a site would assert Ze plays no IRAS or IPComp role, while
+two specs exist to implement exactly those roles.
+
+A pointer with no tripwire is a shrug with a longer name, so `make ze-rfc-check` re-reads
+the claim on every run and REFUSES the sign-off when:
+
+| Condition | Where |
+|---|---|
+| `relocated-to` is absent, or is not `plan/spec-<name>.md` | parse time, `_relocation_fields` |
+| `reserved-id` is absent, or is not an id of THIS RFC (`<RFCSTEM>-<section>-<n>`) | parse time, `_relocation_fields` |
+| either field sits on a site that is not a `relocated-to-spec` exclusion | parse time |
+| the named spec does not exist, or cannot be read | check time, `_relocation_errors` |
+| the spec exists but no longer names `reserved-id`, as a whole id | check time, `_relocation_errors` |
+| `rfc/short/<stem>.md` still declares `reserved-id` | check time, `_relocation_errors` |
+
+A deferral shard, a known-failure file and a learned summary are all refused by the path
+shape. `ai/rules/rfc-compliance.md` names those three as NOT a compliance decision
+procedure, and this kind may not become one.
+
+**A closing spec turns the site red, and that is correct.** A completed spec is deleted
+(`ai/rules/spec-preservation.md`), so the tripwire fires the day the work lands. By then the
+requirement is in `rfc/short/<stem>.md`, so the site is a mapping now and must be
+re-classified as one. The red is the reminder, not a defect.
+
+**A relocation counts as an exclusion, and is published apart.** It counts in
+`Extraction.excluded`, which is the number the ratchet compares against HEAD and the
+numerator of the published ratio. Netting relocations out of either one would make
+relocation the cheap route past the resign-reason gate, and would let a walk that relocated
+everything publish a pristine `0.00` ratio, which is the exact shape the ratio exists to
+show a reviewer. `_git_baseline_extractions` counts `disposition == "excluded"` in a HEAD
+blob and never reads the kind, so one definition on both sides also keeps the comparison
+from splitting across two parsers. The relocated SUBSET is then published on its own, in
+`ai/RFC-REQUIREMENTS.md` below the table and as `relocated` in
+`make ze-rfc-extraction-status`, because a homed obligation and a dismissed sentence are
+not the same fact. That line is derived, so it appears exactly when a relocation exists.
 
 ### Section skip kinds (closed set)
 
@@ -135,7 +178,9 @@ which sites are left.
 
 The set of stems with a valid sign-off may not shrink, and a signed stem's exclusion count
 may not rise without a `resign-reason` and a bumped `signed-off` date. Both compare
-against HEAD. Exclusions are shrink-only rather than capped at a ratio, because a cap is
+against HEAD. A `relocated-to-spec` site is an exclusion for this purpose, so turning a
+mapping into a relocation costs a fresh reason and a new date, exactly as any other
+re-classification does. Exclusions are shrink-only rather than capped at a ratio, because a cap is
 gamed by rewording and picks a number nobody can defend; the per-RFC exclusion ratio is
 published in `ai/RFC-REQUIREMENTS.md` instead, so the pressure is directional and the state
 is visible.

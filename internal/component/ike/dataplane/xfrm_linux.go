@@ -1,11 +1,13 @@
 // Design: plan/learned/742-ipsec-8-ikev2-child-xfrm.md -- XFRM netlink backend
 // RFC: rfc/short/rfc4303.md -- ESP SA parameters
+// Related: policy_owner.go -- who owns a policy selector, since the kernel cannot say
 
 //go:build linux
 
 package dataplane
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -15,11 +17,25 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
+// xfrmPolicyDel is the kernel call RemovePolicyParams makes.
+//
+// It is a variable so a test can drive the arm below it, where the ownership record and
+// the kernel's own state can part. No real kernel refuses a well-formed delete on demand
+// for a reason other than ENOENT, and driving that arm from the helper alone would leave
+// the entry point itself unproven (ai/rules/fail-closed-guards.md).
+var xfrmPolicyDel = netlink.XfrmPolicyDel
+
 type xfrmBackend struct {
 	// espForms serves the ESP wire form the installed state refuses. One XFRM state
 	// binds one form, and RFC 7296 Section 2.23 requires both to be received, so an
 	// inbound state that asks for both is registered here as well as with the kernel.
 	espForms *espFormReceiver
+
+	// policies records who owns each installed policy selector, because the kernel
+	// cannot. Every policy below is upserted, so without this a second peer on the
+	// same selector would replace the first peer's policy instead of being refused.
+	// See SPParams.Owner.
+	policies policyOwners
 }
 
 func newXFRMBackend() (Dataplane, error) {
@@ -202,12 +218,37 @@ func (b *xfrmBackend) InstallPolicy(p SPParams) error {
 	// This is idempotent AND safer than swallowing EEXIST: swallowing would leave ze
 	// believing it installed a policy when a DIFFERENT one occupied that selector,
 	// which is a guard that fails open (ai/rules/fail-closed-guards.md).
+	//
+	// The upsert is what a rekey needs and what a DIFFERENT peer must not get. EEXIST
+	// used to refuse the second peer loudly, and the claim below is what refuses it
+	// now: the kernel has no per-peer identity to tell the two apart, so ze keeps one
+	// (SPParams.Owner). Claimed BEFORE the netlink call, so a refused peer never
+	// reaches the kernel at all.
+	created, err := b.policies.claim(p)
+	if err != nil {
+		return err
+	}
 	if err := netlink.XfrmPolicyUpdate(pol); err != nil {
+		// Undo only a record this call CREATED. When the selector was already this
+		// owner's -- a Child SA rekey re-installing it -- the kernel still holds the
+		// earlier policy, so forgetting the record here would let the next foreign peer
+		// take a LIVE selector over. That is the very takeover the claim exists to stop.
+		if created {
+			if relErr := b.policies.release(p); relErr != nil {
+				return fmt.Errorf("xfrm: policy update: %w (and the ownership record could not be released: %w)", err, relErr)
+			}
+		}
 		return fmt.Errorf("xfrm: policy update: %w", err)
 	}
 	return nil
 }
 
+// RemovePolicy deletes by the three-field selector only, so it carries no owner and
+// cannot be refused on one. It forgets every record it could have matched, because a
+// record outliving its kernel policy would refuse a later, legitimate install.
+//
+// Prefer RemovePolicyParams. It is the owner-aware form, and it is what every IKE
+// caller uses.
 func (b *xfrmBackend) RemovePolicy(src, dst *net.IPNet, dir SADir) error {
 	pol := &netlink.XfrmPolicy{
 		Src: src,
@@ -217,15 +258,33 @@ func (b *xfrmBackend) RemovePolicy(src, dst *net.IPNet, dir SADir) error {
 	if err := netlink.XfrmPolicyDel(pol); err != nil {
 		return fmt.Errorf("xfrm: policy del: %w", err)
 	}
+	b.policies.releaseBySelector(src, dst, dir)
 	return nil
 }
 
+// RemovePolicyParams deletes a policy by its whole selector, and REFUSES to delete one
+// a different owner installed.
+//
+// That refusal is load-bearing. installChildSA (engine/child.go) rolls a failed policy
+// install back by removing the policy of the other direction, so a peer whose install
+// this backend just refused would otherwise take the owning peer's live policy down on
+// its way out, and the owning peer's tunnel would blackhole with its states still
+// installed (ai/rules/fail-closed-guards.md).
 func (b *xfrmBackend) RemovePolicyParams(p SPParams) error {
 	pol, err := xfrmPolicyFromParams(p)
 	if err != nil {
 		return fmt.Errorf("xfrm: policy del: %w", err)
 	}
-	if err := netlink.XfrmPolicyDel(pol); err != nil {
+	// THE RECORD'S LIFETIME MUST MATCH THE KERNEL'S, and a failed delete is the one place
+	// the two can part. deleteThenRelease checks the owner first, so a refused delete
+	// never reaches the kernel, and it drops the record only once the kernel confirms the
+	// policy is gone. InstallPolicy above compensates for the mirror case with `if
+	// created`; this side needs no compensation because it never gets ahead of the kernel.
+	if err := b.policies.deleteThenRelease(p, func() error { return xfrmPolicyDel(pol) }); err != nil {
+		var owned *PolicyOwnedError
+		if errors.As(err, &owned) {
+			return err
+		}
 		return fmt.Errorf("xfrm: policy del: %w", err)
 	}
 	return nil

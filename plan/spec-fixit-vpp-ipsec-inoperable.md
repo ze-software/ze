@@ -99,6 +99,37 @@ VPP as the same request.
 CRCs stay `"00000000"`, so a policy binding would have nothing to bind to. Repair this with
 the rest of the message rewrite, and add the new criterion AC-8 below.
 
+### Added 2026-08-02: `InstallPolicy` also ignores the `Action` and `Priority` contract
+
+Found while closing `plan/spec-rfcgate-1b-rfc7296-pilot.md`. This extends the paragraph
+above rather than restating it: the hardcoded `Policy: 3` is named there as the SA-id gap,
+and two further fields were added to `SPParams` after this spec was written.
+
+`vppBackend.InstallPolicy` (`internal/component/ike/dataplane/vpp.go:141`) hardcodes
+`Priority: 100` at `:153` and `Policy: 3` at `:158`. It reads neither `p.Action` nor
+`p.Priority`.
+
+Both fields are now part of the interface contract, and both carry explicit instructions in
+their own declarations:
+
+- `SPParams.Action` (`dataplane.go:310`) states that a backend which cannot express
+  `SPActionBypass` MUST reject the install rather than fall back to protecting, and gives
+  the reason: a bypass silently downgraded to a protect policy black-holes the traffic it
+  was meant to let through (`ai/rules/exact-or-reject.md`). The VPP backend does exactly
+  that fall-back, because 3 is PROTECT unconditionally.
+- `SPParams.Priority` (`dataplane.go:344`) states that lower means higher precedence and
+  names the two constants callers use, `PriorityIKEBypass` (100) and `PriorityChildSA`
+  (2000). A hardcoded 100 gives every Child SA policy the IKE bypass precedence, which
+  inverts the ranking the constants exist to express.
+
+**Masked today, and only by an accident of ordering.** `vppUnsupportedSelector(p)` runs
+first, at `:142`, and refuses the selectors that would reach these fields. So the defect is
+latent rather than active. That mask is not a fix, and it disappears the moment the selector
+support widens. Whoever relaxes `vppUnsupportedSelector` inherits this.
+
+Repair it with the rest of the message rewrite. A bypass policy that VPP cannot express must
+be REFUSED, never downgraded.
+
 ## The AEAD key and salt reach VPP as one field
 
 Found on 2026-07-31, while `SAParams.EncKey` gained a documented contract.

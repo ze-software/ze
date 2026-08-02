@@ -785,3 +785,51 @@ on its header rules.
 - [ ] Learned summary written to `plan/learned/NNN-<name>.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+
+## Audit 2026-08-02: phases 1 to 4 landed, phase 5 open. NOT ready to close
+
+Read against the code on 2026-08-02, during the closure of
+`plan/spec-rfcgate-1b-rfc7296-pilot.md`. This section is a bookkeeping record. It changes no
+code and closes nothing.
+
+**AC-1, AC-2, AC-3, AC-6 and AC-7 are landed. AC-5 is not-applicable by measurement and is
+recorded as such. AC-4 has no proof of any kind.** Phases 1 to 4 landed, including the rekey
+inheritance. Phase 5 is the only open one, and its docs half is done.
+
+**The published claim is stronger than the evidence, and that is the finding that matters.**
+`docs/features/rfc-status.md` states that the platform limit is LIFTED and that "a peer that
+changes form on that SA is served". Nothing proves the mid-SA change. `TestEncapOneStateAcceptsBothForms`
+measures one state accepting both forms, which is necessary and not sufficient: it never
+changes form on an ESTABLISHED SA, which is what AC-4 asserts and what the doc sentence
+promises a reader.
+
+**Residual work.** Five items, not the two named in "What is NOT done" above.
+
+- Write `test/ipsec/ipsec-esp-form-change.ci`: bring a tunnel up, change the peer's ESP form
+  on the established Child SA, assert traffic still flows both ways and the SA was neither
+  rekeyed nor deleted. This is the ONLY proof of AC-4, and the only thing that makes the
+  `rfc-status.md` sentence true.
+- Write `test/ipsec-interop/scenarios/23-esp-form-change/`, the strongSwan-driven mid-SA
+  change. Its header must state why it carries no RFC tag.
+- Write `test/ipsec-interop/scenarios/22-esp-encap-no-nat/`. The Interop table above names it
+  and it does not exist. Neither `22-*` nor `23-*` is present under
+  `test/ipsec-interop/scenarios/` (verified 2026-08-02).
+- Write `test/ipsec/ipsec-esp-encap-no-nat.ci` (user story 1). Drop the planned
+  `ipsec-esp-form-vpp-reject.ci`, since AC-5 is not-applicable by measurement.
+- User story 3 has no path at all: `show vpn ipsec sa` exposes no ESP-form field. Either add
+  the field and its test, or strike the row.
+
+Plus two bookkeeping items:
+
+- `ai/RFC-REQUIREMENTS.md` regeneration is still owed after the tagged-test rename.
+- The spec's line anchors are stale: the encapsulation decision and the inbound and outbound
+  programming sites have all moved since they were written. Prefer symbol names over line
+  numbers on the next edit (`ai/rules/detail-budget.md`).
+
+**Until AC-4 has a test, either the test lands or the `rfc-status.md` sentence narrows to
+what is measured.** Leaving a public claim ahead of its evidence is the one thing here that
+misleads a reader rather than merely leaving work open.
+
+The declared deferral shard did not exist when this audit ran. It was created on 2026-08-02
+as `plan/deferrals/ipsec-esp-dual-form-receive.md`, so the Goal Gate "Deferral shard
+resolved" can be evaluated. The spec stays OPEN.

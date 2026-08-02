@@ -575,7 +575,11 @@ func (ps *PeerSession) reapStalePending(now time.Time, table *SATable, dp datapl
 	pending.forgetKeys()
 	ps.setPendingSA(nil)
 	if pc := ps.getPendingChild(); pc != nil {
-		removeChildSA(pc, dp, log)
+		// The LIVE Child SA answers to the same policies whenever the parallel
+		// handshake negotiated the same selector, which the ordinary 0.0.0.0/0
+		// site-to-site selector always does. Dropping them here would blackhole the
+		// tunnel that is still up, so they are kept for the survivor.
+		removeChildSAExcept(pc, firstSharingSelector(pc, ps.getChildSA()), dp, log)
 		ps.setPendingChild(nil)
 	}
 	ps.responderBusy.Store(false)
@@ -606,20 +610,40 @@ func (ps *PeerSession) cleanupChild(dp dataplane.Dataplane, bus ze.EventBus, log
 	// outstanding Delete. The records are dropped BEFORE the removals below, so nothing
 	// names a pair these two calls have already freed.
 	ps.abandonOwnDeletes()
-	// A rekey this session responded to leaves the retired pair installed until the
-	// peer's Delete arrives (make-before-break). A session that ends first would leave
-	// that XFRM state behind, because the removal below reaches only the live pair.
+	// Two Child SAs can outlive this one on the SAME pair of kernel policies, and the
+	// removals below must keep the policies for either of them.
+	//
+	// The first is a rekey this session responded to, which leaves the retired pair
+	// installed until the peer's Delete arrives (make-before-break).
+	//
+	// The second is a parallel RE-INITIATION, where finishResponderEstablish
+	// (responder.go) has installed the new handshake's Child SA in the pending slot. It
+	// UPSERTS the same selector, so the kernel holds one policy per direction shared by
+	// both pairs. Removing the live pair's policy here left resolvePendingAfterOwnerLoop
+	// (fsm.go) promoting a Child SA with states and NO policy: outbound traffic then left
+	// the box in the clear and inbound ESP was dropped.
+	//
+	// THIS FUNCTION IS NOT THE SUPERSEDE ARM'S ALONE. maintainSA calls it from eight
+	// exits -- operator clear, supersede, the Section 4 reestablish fallback, the SA
+	// marked dead, DPD timeout, both hard lifetimes, and an unanswered IKE rekey -- and a
+	// pending child can be installed on any of them. An earlier version of this comment
+	// named only the supersede arm, which read as a guarantee that the OTHER seven could
+	// not meet a shared policy. That reading is what let the peer-Delete path
+	// (closeDesignatedChildSAs, delete.go) reach the reestablish exit having already
+	// removed both shared policies, which this function cannot repair: it reinstalls
+	// nothing, and by then there is nothing left to keep.
+	pending := ps.getPendingChild()
+	live := ps.getChildSA()
 	if old := ps.supersededChild; old != nil {
 		ps.supersededChild = nil
-		// The live pair below still answers to these policies, so they survive this
-		// call and are removed by the one after it -- once, in total.
-		removeChildSAExcept(old, ps.getChildSA(), dp, log)
+		// Whichever survivor shares the selector keeps the policies alive; they are
+		// removed by that survivor's own teardown -- once, in total.
+		removeChildSAExcept(old, firstSharingSelector(old, live, pending), dp, log)
 	}
-	child := ps.getChildSA()
-	if child != nil {
-		removeChildSA(child, dp, log)
-		emitChildDown(bus, ps.peerName, child, log)
-		emitRouteRemove(bus, child.TSRemote, log)
+	if live != nil {
+		removeChildSAExcept(live, firstSharingSelector(live, pending), dp, log)
+		emitChildDown(bus, ps.peerName, live, log)
+		emitRouteRemove(bus, live.TSRemote, log)
 		log.Info("ike: tunnel routes withdrawn", "peer", ps.peerName)
 		ps.setChildSA(nil)
 	}

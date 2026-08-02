@@ -806,9 +806,7 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 		authPayload, err = computeLocalAuth(sa)
 	}
 	if err != nil {
-		if dp != nil {
-			removeChildSA(child, dp, log)
-		}
+		ps.rollbackFirstChildSA(child, dp, log)
 		return nil, nil, err
 	}
 
@@ -817,9 +815,7 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 	if sa.PeerCfg.Auth.Mode == ipsec.AuthX509 {
 		certPayloads, cErr := buildCertPayloads(sa)
 		if cErr != nil {
-			if dp != nil {
-				removeChildSA(child, dp, log)
-			}
+			ps.rollbackFirstChildSA(child, dp, log)
 			return nil, nil, cErr
 		}
 		inner = append(inner, certPayloads...)
@@ -842,12 +838,26 @@ func (ps *PeerSession) buildAuthResponse(sa *SA, msgID uint32, remoteSAi2 *wire.
 
 	resp, err := buildEncryptedMessageEx(sa, inner, msgID, wire.ExchangeIKEAuth, wire.FlagResponse)
 	if err != nil {
-		if dp != nil {
-			removeChildSA(child, dp, log)
-		}
+		ps.rollbackFirstChildSA(child, dp, log)
 		return nil, nil, fmt.Errorf("ike auth: build response: %w", err)
 	}
 	return resp, child, nil
+}
+
+// rollbackFirstChildSA undoes the Child SA createFirstChildSA just installed, when the
+// IKE_AUTH response this session was building cannot be completed.
+//
+// It keeps the POLICIES whenever another installed Child SA still answers to them, which
+// is why it is not a plain removeChildSA. During a parallel RE-INITIATION (RFC 7296
+// Section 2.4) the old owner loop's Child SA is still carrying traffic on the very
+// selector this one just upserted, so the kernel holds ONE policy per direction shared by
+// both pairs. A rollback that dropped it blackholed the live tunnel over an error in a
+// handshake that never completed: the states stayed, the policy did not, and outbound
+// traffic left the box in the clear.
+//
+// removeChildSAExcept tolerates a nil dataplane, so the caller needs no guard.
+func (ps *PeerSession) rollbackFirstChildSA(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
+	removeChildSAExcept(child, firstSharingSelector(child, ps.getChildSA(), ps.getPendingChild()), dp, log)
 }
 
 // finishResponderEstablish caches and sends the IKE_AUTH response, adopts the
@@ -859,8 +869,16 @@ func (ps *PeerSession) finishResponderEstablish(sa *SA, msgID uint32, resp []byt
 	// now authenticated (we reached finishResponderEstablish only after verifyRemoteAuth).
 	// RFC 7296 Section 2.4: the old SA is superseded ONLY here, on this authenticated
 	// message -- never on the unauthenticated IKE_SA_INIT. Keep the new Child SA in the
-	// second slot until the owner loop relinquishes and runResponder promotes it, so the
-	// old owner's cleanupChild removes only its own child (make-before-break, R-2).
+	// second slot until the owner loop relinquishes and runResponder promotes it
+	// (make-before-break, R-2).
+	//
+	// The line above installed this Child SA, and its policies UPSERT the selector the
+	// old owner's Child SA already holds (dataplane.xfrmBackend.InstallPolicy), so the
+	// kernel now has ONE policy per direction shared by both pairs. The old owner's
+	// cleanupChild therefore does NOT remove only its own child's policies: it is told
+	// about this pending child and keeps them (established.go). An earlier version of
+	// this comment claimed the isolation was automatic, and it was not -- the promoted
+	// Child SA came up with states and no policy, which sends traffic in the clear.
 	parallel := ps.ownedSA.Load() != nil
 	if parallel {
 		ps.setPendingChild(child)

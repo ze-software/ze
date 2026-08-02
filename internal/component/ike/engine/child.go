@@ -74,6 +74,13 @@ type ChildSA struct {
 	ReqID       uint32
 	NATDetected bool
 
+	// Owner is the configured peer this Child SA belongs to. It is the identity the
+	// dataplane uses to tell this peer's re-install of a selector from a DIFFERENT
+	// peer's takeover of it, which the kernel cannot tell apart on its own
+	// (dataplane.SPParams.Owner). A rekey inherits it, so the replacement upserts the
+	// retired pair's policies instead of being refused.
+	Owner string
+
 	// Selectors is the negotiated selector set in TSi/TSr orientation, carrying the
 	// port and protocol of each entry as well as its prefix.
 	//
@@ -259,6 +266,7 @@ func createFirstChildSA(
 		IfID:             ifID,
 		TSLocal:          tsLocal,
 		TSRemote:         tsRemote,
+		Owner:            sa.PeerName,
 		Selectors:        sa.NegotiatedPairs,
 		Mode:             mode,
 		Keys:             keys,
@@ -443,69 +451,21 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	}
 	log.Debug("child-sa: installed outbound SA", "spi", child.OutboundSPI, "ifid", child.IfID)
 
-	// Install policies. Src/Dst are the traffic selectors, the inner traffic each
-	// policy matches. TunnelSrc/TunnelDst are the tunnel endpoints, the outer IP
-	// header addresses. The kernel resolves a policy to a state through the
-	// endpoints, so each policy names the same pair as the SA it must resolve to.
-	//
-	// A TRANSPORT-mode policy carries NEITHER endpoint. RFC 4301 Section 4.4.1.2 leaves
-	// a transport-mode template's addresses unused, and dataplane.tunnelEndpoints
-	// REJECTS a non-tunnel policy that carries any, so supplying them here would fail the
-	// install outright rather than be ignored.
-	inTunnelSrc, inTunnelDst := child.RemoteAddr, child.LocalAddr
-	outTunnelSrc, outTunnelDst := child.LocalAddr, child.RemoteAddr
-	if mode == modeTransport {
-		inTunnelSrc, inTunnelDst = nil, nil
-		outTunnelSrc, outTunnelDst = nil, nil
-	}
-
 	// The policies below can capture ze's own IKE traffic whenever the negotiated
 	// selector covers the two addresses IKE runs between, which the ordinary
 	// 0.0.0.0/0 site-to-site selector always does. The exemption that stops it is
 	// installed once, at engine start, and it outlives every Child SA: see
 	// installIKEBypass in bypass.go for why it is not installed here.
-	if err := dp.InstallPolicy(dataplane.SPParams{
-		Src: child.TSRemote,
-		Dst: child.TSLocal,
-		Dir: dataplane.SADirIn,
-		// Stated rather than left to the zero value. SPActionProtect IS zero, chosen so a
-		// caller who forgets the field protects traffic instead of passing it in the
-		// clear (dataplane.go). Naming it here says the choice was made, and it keeps the
-		// contrast with the IKE bypass (bypass.go) legible at both call sites.
-		Action:     dataplane.SPActionProtect,
-		Proto:      protoESP,
-		Mode:       mode,
-		IfID:       child.IfID,
-		ReqID:      child.ReqID,
-		Priority:   dataplane.PriorityChildSA,
-		UpperProto: selectorProto(child),
-		SrcPort:    selectorPort(child, false),
-		DstPort:    selectorPort(child, true),
-		TunnelSrc:  inTunnelSrc,
-		TunnelDst:  inTunnelDst,
-	}); err != nil {
+	if err := dp.InstallPolicy(childPolicyParams(child, dataplane.SADirIn)); err != nil {
 		_ = dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP)
 		_ = dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP)
 		return fmt.Errorf("child-sa: install inbound policy: %w", err)
 	}
 
-	if err := dp.InstallPolicy(dataplane.SPParams{
-		Src:        child.TSLocal,
-		Dst:        child.TSRemote,
-		Dir:        dataplane.SADirOut,
-		Action:     dataplane.SPActionProtect,
-		Proto:      protoESP,
-		Mode:       mode,
-		IfID:       child.IfID,
-		ReqID:      child.ReqID,
-		Priority:   dataplane.PriorityChildSA,
-		UpperProto: selectorProto(child),
-		SrcPort:    selectorPort(child, true),
-		DstPort:    selectorPort(child, false),
-		TunnelSrc:  outTunnelSrc,
-		TunnelDst:  outTunnelDst,
-	}); err != nil {
-		_ = dp.RemovePolicy(child.TSRemote, child.TSLocal, dataplane.SADirIn)
+	if err := dp.InstallPolicy(childPolicyParams(child, dataplane.SADirOut)); err != nil {
+		// Owner-aware, so a peer whose install was refused cannot roll back over the
+		// owning peer's live inbound policy (dataplane.SPParams.Owner).
+		_ = dp.RemovePolicyParams(childPolicyParams(child, dataplane.SADirIn))
 		_ = dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP)
 		_ = dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP)
 		return fmt.Errorf("child-sa: install outbound policy: %w", err)
@@ -532,6 +492,85 @@ func installChildTolerant(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.D
 		return err
 	}
 	child.ESPInstalled = true
+	return nil
+}
+
+// childPolicyParams builds the Security Policy this Child SA installs for one
+// direction.
+//
+// Install AND remove both go through it, so the delete selector is the install
+// selector by construction. The kernel identifies a policy by its whole selector and by
+// nothing else, so a delete that rebuilt only some of the fields would either miss the
+// policy or match a wider one than it meant to. It is also what carries the Owner the
+// dataplane refuses a foreign takeover on (dataplane.SPParams.Owner).
+//
+// Src/Dst are the traffic selectors, the inner traffic the policy matches.
+// TunnelSrc/TunnelDst are the tunnel endpoints, the outer IP header addresses the
+// kernel resolves the policy to a state through. Both pairs reverse with the direction.
+//
+// A TRANSPORT-mode policy carries NEITHER endpoint. RFC 4301 Section 4.4.1.2 leaves a
+// transport-mode template's addresses unused, and dataplane.tunnelEndpoints REJECTS a
+// non-tunnel policy that carries any, so supplying them would fail the install outright
+// rather than be ignored.
+func childPolicyParams(child *ChildSA, dir dataplane.SADir) dataplane.SPParams {
+	// A Child SA built by a test that fills the struct literally carries the zero
+	// value, which is not a mode in the dataplane vocabulary. Resolved here exactly as
+	// installChildSA resolves it, so the two agree.
+	mode := child.Mode
+	if mode == 0 {
+		mode = modeTunnel
+	}
+
+	src, dst := child.TSLocal, child.TSRemote
+	tunnelSrc, tunnelDst := child.LocalAddr, child.RemoteAddr
+	srcPort, dstPort := selectorPort(child, true), selectorPort(child, false)
+	if dir == dataplane.SADirIn {
+		src, dst = child.TSRemote, child.TSLocal
+		tunnelSrc, tunnelDst = child.RemoteAddr, child.LocalAddr
+		srcPort, dstPort = selectorPort(child, false), selectorPort(child, true)
+	}
+	if mode == modeTransport {
+		tunnelSrc, tunnelDst = nil, nil
+	}
+
+	return dataplane.SPParams{
+		Src: src,
+		Dst: dst,
+		Dir: dir,
+		// Stated rather than left to the zero value. SPActionProtect IS zero, chosen so a
+		// caller who forgets the field protects traffic instead of passing it in the
+		// clear (dataplane.go). Naming it here says the choice was made, and it keeps the
+		// contrast with the IKE bypass (bypass.go) legible.
+		Action:     dataplane.SPActionProtect,
+		Owner:      child.Owner,
+		Proto:      protoESP,
+		Mode:       mode,
+		IfID:       child.IfID,
+		ReqID:      child.ReqID,
+		Priority:   dataplane.PriorityChildSA,
+		UpperProto: selectorProto(child),
+		SrcPort:    srcPort,
+		DstPort:    dstPort,
+		TunnelSrc:  tunnelSrc,
+		TunnelDst:  tunnelDst,
+	}
+}
+
+// firstSharingSelector returns the first Child SA in keep that still answers to child's
+// policies, or nil when none does.
+//
+// It exists because a Child SA's policies can outlive it in more than one way. A
+// make-before-break REKEY leaves the retired pair and the replacement on one selector,
+// and a parallel RE-INITIATION (RFC 7296 Section 2.4) leaves the old owner's child and
+// the new handshake's pending child on one selector. A caller that considered only one
+// of the two survivors would drop the policy the other one needs, so both are offered
+// here and the first match wins.
+func firstSharingSelector(child *ChildSA, keep ...*ChildSA) *ChildSA {
+	for _, k := range keep {
+		if samePolicySelector(child, k) {
+			return k
+		}
+	}
 	return nil
 }
 
@@ -603,8 +642,13 @@ func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 		return
 	}
 	if dropPolicy {
-		if err := dp.RemovePolicy(child.TSLocal, child.TSRemote, dataplane.SADirOut); err != nil {
-			log.Debug("child-sa: remove outbound policy", "error", err)
+		// RemovePolicyParams, not the three-argument RemovePolicy: it names the whole
+		// selector the install used, and it carries the Owner the dataplane refuses a
+		// foreign delete on (dataplane.SPParams.Owner). A refusal here means another
+		// peer owns the selector, which is a takeover the install should already have
+		// stopped, so it is logged at Warn rather than swallowed.
+		if err := dp.RemovePolicyParams(childPolicyParams(child, dataplane.SADirOut)); err != nil {
+			logPolicyRemoveFailure(log, "outbound", child, err)
 		}
 	}
 	if err := dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP); err != nil {
@@ -619,13 +663,30 @@ func removeChildSAIncoming(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 		return
 	}
 	if dropPolicy {
-		if err := dp.RemovePolicy(child.TSRemote, child.TSLocal, dataplane.SADirIn); err != nil {
-			log.Debug("child-sa: remove inbound policy", "error", err)
+		if err := dp.RemovePolicyParams(childPolicyParams(child, dataplane.SADirIn)); err != nil {
+			logPolicyRemoveFailure(log, "inbound", child, err)
 		}
 	}
 	if err := dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP); err != nil {
 		log.Debug("child-sa: remove inbound SA", "error", err)
 	}
+}
+
+// logPolicyRemoveFailure reports a policy that could not be removed, at the level the
+// CAUSE deserves.
+//
+// A refusal on ownership is not routine cleanup noise. It means a different peer holds
+// this selector, so this Child SA's policy was never installed and something upstream
+// let two peers negotiate one selector. A netlink failure on teardown is ordinary (the
+// policy is often already gone), so it stays at Debug.
+func logPolicyRemoveFailure(log *slog.Logger, dir string, child *ChildSA, err error) {
+	var owned *dataplane.PolicyOwnedError
+	if errors.As(err, &owned) {
+		log.Warn("child-sa: refused to remove a policy another peer owns",
+			"direction", dir, "peer", child.Owner, "owner", owned.HeldBy, "error", err)
+		return
+	}
+	log.Debug("child-sa: remove policy", "direction", dir, "error", err)
 }
 
 // selectorProto returns the IP protocol the negotiated selector restricts the policy to,

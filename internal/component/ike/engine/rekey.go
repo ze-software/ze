@@ -371,6 +371,11 @@ func newRekeyedChild(old *ChildSA, inSPI, outSPI uint32, keys *crypto.ChildSAKey
 		ESPGroup:    old.ESPGroup,
 		ReqID:       old.ReqID,
 		NATDetected: old.NATDetected,
+		// The replacement installs the SAME policy selector as the retired pair, so it
+		// must claim it under the SAME owner. A replacement that dropped this would be
+		// refused by the dataplane as a foreign peer taking the selector over
+		// (dataplane.SPParams.Owner), and the rekey would fail at its policy install.
+		Owner: old.Owner,
 		// UDPEncap decides whether installChildSA gives the XFRM state an ESP-in-UDP
 		// template (child.go). createFirstChildSA is its only other writer, so a rekeyed
 		// child that does not inherit it installs a state with no template. The kernel

@@ -58,6 +58,144 @@ func critMessage(firstType uint8, chain []byte) []byte {
 	return buf
 }
 
+// critFlagsOctet is the offset of octet 1 of the first payload's generic header inside a
+// complete message: the octet whose high bit is the Critical bit (RFC 7296 Section 3.2).
+const critFlagsOctet = HeaderLen + 1
+
+// critCriticalBit is the mask of the Critical bit inside that octet. The other seven bits
+// are RESERVED and carry their own requirement, so the assertions mask rather than compare
+// the whole octet.
+const critCriticalBit byte = 0x80
+
+// critEncodeSenderChoice encodes one message carrying a payload of a type this document
+// does not define, with the Critical bit set to the sender's choice, and returns the bytes
+// that go on the wire. The choice travels Message.WriteTo -> GenericHeader.WriteTo, the
+// only path that puts the bit on the wire.
+func critEncodeSenderChoice(t *testing.T, critical bool) []byte {
+	t.Helper()
+	msg := Message{
+		Header: Header{
+			InitiatorSPI: [8]byte{1, 2, 3, 4, 5, 6, 7, 8},
+			MajorVersion: 2,
+			ExchangeType: ExchangeInformational,
+			MessageID:    7,
+		},
+		Payloads: []PayloadEntry{{
+			Payload:  &PayloadRaw{PayloadType: critUnknownType, Data: []byte{0xDE, 0xAD, 0xBE, 0xEF}},
+			Critical: critical,
+		}},
+	}
+	buf := make([]byte, msg.Len())
+	n, err := msg.CheckedWriteTo(buf, 0)
+	if err != nil {
+		t.Fatalf("encoding a one-payload message failed: %v", err)
+	}
+	if n <= critFlagsOctet {
+		t.Fatalf("encoded %d bytes, too short to hold a generic header", n)
+	}
+	return buf[:n]
+}
+
+// VALIDATES: a sender that wants the recipient to SKIP an unrecognized payload gets a zero
+// Critical bit on the wire, and the recipient does skip it.
+// RFC requirement: RFC7296-3.2-5 positive -- Message.WriteTo carries PayloadEntry.Critical
+// into GenericHeader.WriteTo, which leaves the high bit of octet 1 clear. The bit is read
+// off the encoded bytes, never off the struct field that was set. Message.ReadFrom then
+// returns the choice unchanged and keeps the unrecognized payload as *PayloadRaw, which is
+// the skip the sender asked for: the message stands and the rest of it is parsed.
+// RFC requirement: RFC7296-3.2-5 negative -- a sender that did NOT ask for a skip does not
+// get a zero bit. The same encoder with Critical set emits the bit, and the recipient stops
+// skipping and refuses the message instead. Zero is the sender's choice, not a constant the
+// encoder writes either way.
+func TestCritSenderZeroBitRequestsSkip(t *testing.T) {
+	t.Run("the sender asking for a skip encodes zero", func(t *testing.T) {
+		encoded := critEncodeSenderChoice(t, false)
+		if got := encoded[critFlagsOctet] & critCriticalBit; got != 0 {
+			t.Fatalf("Critical bit on the wire = %#02x, want it clear for a sender asking for a skip", got)
+		}
+	})
+
+	t.Run("the zero survives a round trip", func(t *testing.T) {
+		var msg Message
+		if err := msg.ReadFrom(critEncodeSenderChoice(t, false)); err != nil {
+			t.Fatalf("a message whose unrecognized payload is not critical was refused: %v", err)
+		}
+		if len(msg.Payloads) != 1 {
+			t.Fatalf("payload count = %d, want 1", len(msg.Payloads))
+		}
+		if msg.Payloads[0].Critical {
+			t.Error("the decoded Critical bit is set, but the sender encoded zero")
+		}
+		raw, ok := msg.Payloads[0].Payload.(*PayloadRaw)
+		if !ok {
+			t.Fatalf("payload type = %T, want the unrecognized payload skipped as *PayloadRaw", msg.Payloads[0].Payload)
+		}
+		if raw.PayloadType != critUnknownType {
+			t.Errorf("skipped payload type = %d, want %d", raw.PayloadType, critUnknownType)
+		}
+	})
+
+	// Negative. The other sender choice must not reach the same wire byte or the same
+	// treatment, or the encoder would be writing zero whatever the sender wants.
+	t.Run("a sender not asking for a skip does not encode zero", func(t *testing.T) {
+		encoded := critEncodeSenderChoice(t, true)
+		if got := encoded[critFlagsOctet] & critCriticalBit; got == 0 {
+			t.Fatalf("Critical bit on the wire = %#02x, want it SET when the sender did not ask for a skip", got)
+		}
+		var msg Message
+		if err := msg.ReadFrom(encoded); !errors.Is(err, ErrUnsupportedCrit) {
+			t.Fatalf("error = %v, want ErrUnsupportedCrit: the payload was skipped although the sender did not ask for that", err)
+		}
+	})
+}
+
+// VALIDATES: a sender that wants the recipient to REJECT the entire message on an
+// unrecognized payload gets a Critical bit of one on the wire, and the recipient does
+// reject the entire message.
+// RFC requirement: RFC7296-3.2-6 positive -- GenericHeader.WriteTo sets the high bit of
+// octet 1 when the sender chose it, asserted against the encoded bytes. Message.ReadFrom
+// then refuses the ENTIRE message with ErrUnsupportedCrit and keeps no payload, which is
+// the rejection the sender asked for, and CriticalPayloadType names the payload type.
+// RFC requirement: RFC7296-3.2-6 negative -- a sender that did NOT ask for a rejection does
+// not get a one on the wire, and the recipient accepts the message. One is the sender's
+// choice, not a constant.
+func TestCritSenderOneBitRequestsWholeMessageRejection(t *testing.T) {
+	t.Run("the sender asking for a rejection encodes one", func(t *testing.T) {
+		encoded := critEncodeSenderChoice(t, true)
+		if got := encoded[critFlagsOctet] & critCriticalBit; got != critCriticalBit {
+			t.Fatalf("Critical bit on the wire = %#02x, want %#02x for a sender asking for a rejection", got, critCriticalBit)
+		}
+	})
+
+	t.Run("the one survives a round trip into a whole-message rejection", func(t *testing.T) {
+		var msg Message
+		err := msg.ReadFrom(critEncodeSenderChoice(t, true))
+		if !errors.Is(err, ErrUnsupportedCrit) {
+			t.Fatalf("error = %v, want ErrUnsupportedCrit for a critical unrecognized payload", err)
+		}
+		if len(msg.Payloads) != 0 {
+			t.Errorf("payload count = %d, want the ENTIRE message rejected", len(msg.Payloads))
+		}
+		ptype, ok := CriticalPayloadType(err)
+		if !ok || ptype != critUnknownType {
+			t.Errorf("rejected payload type = %d ok=%v, want %d true", ptype, ok, critUnknownType)
+		}
+	})
+
+	// Negative. The other sender choice must not reach the same wire byte or the same
+	// outcome, or the rejection would not be caused by the sender's one.
+	t.Run("a sender not asking for a rejection does not encode one", func(t *testing.T) {
+		encoded := critEncodeSenderChoice(t, false)
+		if got := encoded[critFlagsOctet] & critCriticalBit; got == critCriticalBit {
+			t.Fatalf("Critical bit on the wire = %#02x, want it CLEAR when the sender did not ask for a rejection", got)
+		}
+		var msg Message
+		if err := msg.ReadFrom(encoded); err != nil {
+			t.Fatalf("the entire message was rejected although the sender did not ask for that: %v", err)
+		}
+	})
+}
+
 // VALIDATES: an unrecognized payload carrying the critical bit is refused, and the
 // refusal names the one-octet payload type the answering Notify must carry.
 // RFC requirement: RFC7296-2.5-18 positive -- both producers return an

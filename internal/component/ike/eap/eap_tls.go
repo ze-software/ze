@@ -27,6 +27,23 @@ const (
 const eapTLSFragmentSize = 1024
 const eapTLSMaxReassembly = 65536
 
+// eapTLSMaxPeerBuffered bounds the octets the EAP layer may hand the TLS engine
+// before the engine has read them.
+//
+// A live handshake leaves nothing buffered between rounds: Process feeds the
+// reassembled message, then waits for the engine to settle, and the engine
+// settles only once it has consumed that message and parked in Read. So two
+// messages' worth is the smallest ceiling a conformant exchange cannot reach --
+// it leaves room for one whole undrained message plus the next full-size one --
+// while still bounding the growth at a fixed 128 KiB.
+//
+// Past that the engine has stopped reading, which is what a failed handshake
+// looks like: runTLSServer returns, and every later feed is pure accumulation.
+// EAP-TLS runs before the peer is authenticated, so those octets come from an
+// unauthenticated party and the refusal must be an error rather than more memory
+// (ai/rules/fail-closed-guards.md).
+const eapTLSMaxPeerBuffered = 2 * eapTLSMaxReassembly
+
 // tlsFragmenter holds fragmentation and reassembly state shared by
 // both the EAP-TLS server (tlsMethod) and peer (PeerSession).
 type tlsFragmenter struct {
@@ -331,12 +348,45 @@ func (m *tlsMethod) Process(response *Packet) MethodResult {
 
 	// All fragments received. Feed reassembled data to TLS.
 	if data := m.drainReassembled(); len(data) > 0 {
-		m.transport.feedPeerData(data)
+		if err := m.transport.feedPeerData(data); err != nil {
+			return MethodResult{Err: err}
+		}
 	}
 
 	// Read TLS engine output, waiting for the engine to settle so the whole
 	// flight goes out in one EAP message.
 	serverData := m.transport.waitServerData()
+
+	// Report a rejected handshake as the failure it is, and report it with its
+	// CAUSE. runTLSServer records the engine's error and returns, so from here on
+	// the engine produces nothing: without this check waitServerData keeps
+	// answering empty, the branch below keeps sending a bare fragment ACK, and a
+	// peer whose certificate was refused is ACKed until the session reaper fires
+	// 30s later while feedPeerData accumulates everything it sends. Placed before
+	// the handshaked branch because a failed handshake never sets that flag, so
+	// the alternative report is the "no MSK exists" consequence rather than the
+	// certificate error that caused it.
+	if err := m.transport.handshakeError(); err != nil {
+		// SEND THE ALERT BEFORE REPORTING THE ERROR. serverData holds the fatal TLS
+		// alert the engine produced in this same round, and returning without it
+		// dropped 24 octets that the pre-fix code did put on the wire.
+		//
+		// RFC 5216 Section 2.1.3 (rfc/full/rfc5216.txt:429-435): the server SHOULD
+		// send the alert "so as to allow the peer to inform the user or log the
+		// cause". A peer whose certificate ze rejects otherwise learns only that the
+		// exchange ended, never why, which is the diagnostic the SHOULD exists for.
+		//
+		// The error is still returned, so the exchange still fails. Only the peer's
+		// ability to say why is restored.
+		if len(serverData) > 0 {
+			m.startSending(serverData)
+			return MethodResult{
+				Response: &Packet{Code: CodeRequest, Type: TypeTLS, TypeData: m.nextFragment()},
+				Err:      fmt.Errorf("eap-tls: TLS handshake failed: %w", err),
+			}
+		}
+		return MethodResult{Err: fmt.Errorf("eap-tls: TLS handshake failed: %w", err)}
+	}
 
 	if m.handshaked.Load() {
 		// Send the engine's closing flight before concluding. Go's TLS 1.2
@@ -477,8 +527,22 @@ func newEAPTLSTransport() *eapTLSTransport {
 	}
 }
 
-func (t *eapTLSTransport) feedPeerData(data []byte) {
+// feedPeerData hands the TLS engine octets the peer sent.
+//
+// It REFUSES data that would grow the unread backlog past
+// eapTLSMaxPeerBuffered and returns an error saying so, rather than appending.
+// The caller MUST report that error and end the exchange: an engine that has
+// stopped reading never drains what is already queued, so continuing would
+// accumulate whatever an unauthenticated peer chooses to send
+// (ai/rules/fail-closed-guards.md).
+func (t *eapTLSTransport) feedPeerData(data []byte) error {
 	t.mu.Lock()
+	// Check BEFORE the append, so the refused message is never held at all.
+	if grown := len(t.peerBuf) + len(data); grown > eapTLSMaxPeerBuffered {
+		buffered := len(t.peerBuf)
+		t.mu.Unlock()
+		return fmt.Errorf("eap-tls: peer sent %d more bytes with %d still unread by the TLS engine, over the %d byte limit", len(data), buffered, eapTLSMaxPeerBuffered)
+	}
 	t.peerBuf = append(t.peerBuf, data...)
 	// Input is available, so the engine is no longer idle. Clearing this here
 	// rather than in Read closes a race: the engine clears it only once it is
@@ -487,6 +551,22 @@ func (t *eapTLSTransport) feedPeerData(data []byte) {
 	t.readIdle = false
 	t.mu.Unlock()
 	notifyCh(t.peerCh)
+	return nil
+}
+
+// handshakeError returns the error the TLS engine goroutine recorded, or nil.
+//
+// waitServerData settles on a FAILED handshake exactly as readily as on a
+// finished flight, and its return value cannot tell the two apart: both can be
+// empty. A caller that does not read this therefore treats "the handshake was
+// rejected" as "the engine produced nothing this round" and answers with a bare
+// fragment ACK forever (ai/rules/fail-closed-guards.md). This mirrors the peer
+// side, which keeps the same error in PeerSession.tlsErr and reports it from
+// deriveTLSMSK.
+func (t *eapTLSTransport) handshakeError() error {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.err
 }
 
 // waitServerData blocks until the TLS engine settles, then returns everything it

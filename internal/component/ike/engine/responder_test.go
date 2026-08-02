@@ -342,6 +342,14 @@ func TestRespondIKERekey(t *testing.T) {
 // network or XFRM, so it is the primary responder correctness gate on any host.
 // PREVENTS: every direction bug the responder could have (SK send/recv, AUTH nonce
 // order, AUTH ID selection, Child KEYMAT nonce order).
+// RFC requirement: RFC7296-4-5 positive -- this is the four-message exchange Section 4
+// makes mandatory, and nothing else runs here. buildSAInitRequest emits request 1,
+// handleSAInitRequest emits response 2, handleSAInitResponse emits request 3, and
+// ps.handleAuthRequest emits response 4, which handleAuthResponse consumes. Two SAs come
+// out of it: the IKE SA (both sides at StateEstablished over one agreed SK hierarchy) and
+// the ESP SA (the responder's installed Child SA, whose KEYMAT and ESP SPIs cross-match the
+// initiator's). The negative half is TestFourmFirstPairEstablishesNeitherSA
+// (rfc7296_fourmessage_test.go).
 func TestResponderHandshakePSKEndToEnd(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	ikeGroup := testIKEGroup()

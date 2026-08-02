@@ -53,10 +53,13 @@ func TestRetiredChildKeepsThePolicyTheReplacementUses(t *testing.T) {
 	dp := &bypassDP{}
 	removeChildSAExcept(old, replacement, dp, slogutil.DiscardLogger())
 
-	if len(dp.removedPolicies) != 0 {
-		t.Errorf("retiring the superseded pair removed %d policies (%+v); the replacement "+
+	// Both removal APIs are checked. removeChildSA* now goes through the owner-aware
+	// RemovePolicyParams (dp.removed), and reading only the three-argument recorder
+	// would have made this assertion vacuous the moment the call moved.
+	if len(dp.removed) != 0 || len(dp.removedPolicies) != 0 {
+		t.Errorf("retiring the superseded pair removed %d+%d policies (%+v %+v); the replacement "+
 			"answers to them and the tunnel stops forwarding",
-			len(dp.removedPolicies), dp.removedPolicies)
+			len(dp.removed), len(dp.removedPolicies), dp.removed, dp.removedPolicies)
 	}
 	// The states are keyed by SPI and are never shared, so both must go.
 	if len(dp.removedSAs) != 2 {
@@ -74,15 +77,28 @@ func TestLastChildOnASelectorRemovesThePolicies(t *testing.T) {
 	dp := &bypassDP{}
 	removeChildSA(old, dp, slogutil.DiscardLogger())
 
-	if len(dp.removedPolicies) != 2 {
-		t.Fatalf("removed %d policies, want 2 (in + out) when nothing else uses the selector", len(dp.removedPolicies))
+	if len(dp.removed) != 2 {
+		t.Fatalf("removed %d policies, want 2 (in + out) when nothing else uses the selector", len(dp.removed))
 	}
 	dirs := map[dataplane.SADir]bool{}
-	for _, p := range dp.removedPolicies {
-		dirs[p.dir] = true
+	for _, p := range dp.removed {
+		dirs[p.Dir] = true
 	}
 	if !dirs[dataplane.SADirIn] || !dirs[dataplane.SADirOut] {
-		t.Errorf("policy removals covered %v, want both SADirIn and SADirOut", dp.removedPolicies)
+		t.Errorf("policy removals covered %v, want both SADirIn and SADirOut", dp.removed)
+	}
+	// The removal must go through the owner-aware API. The three-argument RemovePolicy
+	// carries no owner, so a removal taking that route could delete a policy another
+	// peer installed (dataplane.SPParams.Owner).
+	if len(dp.removedPolicies) != 0 {
+		t.Errorf("%d removals took the ownerless three-argument RemovePolicy route (%+v); "+
+			"that route cannot refuse a foreign delete", len(dp.removedPolicies), dp.removedPolicies)
+	}
+	for _, p := range dp.removed {
+		if p.Owner != old.Owner {
+			t.Errorf("removal for %v carries owner %q, want %q: an unowned delete cannot be refused",
+				p.Dir, p.Owner, old.Owner)
+		}
 	}
 }
 

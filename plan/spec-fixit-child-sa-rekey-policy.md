@@ -329,3 +329,107 @@ The VPP IPsec backend cannot program a security association at all
 - [ ] `make ze-verify` green
 - [ ] QEMU integration green
 - [ ] Interop scenario green
+
+## Audit 2026-08-02: implemented by a DIFFERENT design. NOT ready to close
+
+Read against the code on 2026-08-02, during the closure of
+`plan/spec-rfcgate-1b-rfc7296-pilot.md`. This section is a bookkeeping record. It changes
+no code and closes nothing.
+
+**The tunnel-level defect is fixed and interop-proven. The spec text is counterfactual.**
+Commit `1963345b4` added this spec file and the fix in one commit, and the fix took the
+alternative this spec's Key Design Decisions section explicitly REJECTS. There is no
+`PeerSession`-owned policy record. What shipped is:
+
+- `xfrmBackend.InstallPolicy` upserts, at `internal/component/ike/dataplane/xfrm_linux.go:205`
+  (`netlink.XfrmPolicyUpdate`). No `XfrmPolicyAdd` remains in production code (verified
+  2026-08-02 by a tree-wide grep over `internal/`, `cmd/` and `pkg/`).
+- Removal is guarded by a shared-selector comparison: `samePolicySelector`
+  (`internal/component/ike/engine/child.go:546`) feeding `dropPolicy` in
+  `removeChildSAExcept` (`child.go:584`).
+
+**AC verdicts.**
+
+| AC | Verdict | Evidence |
+|----|---------|----------|
+| AC-1 | NOT landed as written | `installChildSA` still calls `dp.InstallPolicy` unconditionally at `child.go:467` and `child.go:492`, on every install including both rekey paths. The AC says "no `InstallPolicy` call is made", which is false today. The HARM it proxied for is gone, cured one layer down by the upsert |
+| AC-2 | Landed, by a different mechanism | The duplicate error cannot occur, because UPDPOLICY replaces. `TestXFRMPolicyInstallIsIdempotent` |
+| AC-3 | Landed | `removeChildSAExcept`, retired from `closeDesignatedChildSAs`. `TestRetiredChildKeepsThePolicyTheReplacementUses` |
+| AC-4 | Partially landed | First clause holds. The second ("no second delete is attempted") is false BY DESIGN: the peer-Delete-then-teardown path repeats `removeChildSA` on the live pair, and the code comment concedes it as harmless |
+| AC-5 | NOT landed | `TestXFRMPolicyResolvesToAReplacedState` does not exist. Neither QEMU test installs an XFRM state at all, so neither exercises reqid resolution. **A-1 is still `unvalidated` and still load-bearing**, because the upsert design has one policy serve successive states |
+| AC-6 | Landed, behavior unchanged | The install-failure paths still fail closed. No test named for it exists |
+
+**Residual work.** Each line is concrete enough to implement from.
+
+- Rewrite Key Design Decisions and the ACs to state the design that SHIPPED: one upserted
+  policy per selector plus a shared-selector guard on removal. Not a `PeerSession`-owned
+  policy record.
+- Restate AC-1: `InstallPolicy` IS called on rekey and MUST be idempotent.
+- Restate AC-4's second clause, or stop the live pair's teardown being repeated.
+- Write the AC-5 QEMU test: install a policy, install a state at one request id, replace it
+  with a second state at the same request id, assert the policy still resolves. This is what
+  validates A-1.
+- Write the AC-6 test proving a non-unsupported policy-install error still fails the Child SA
+  install and rolls back both states.
+- Add a teardown test for the two-child "exactly once" case. The existing test covers only
+  the single-child case.
+- Audit `reapStalePending` and `cleanupPendingSA` (`engine/established.go`): both tear down a
+  pending child with no `keep`, so a pending child sharing the live child's selector and
+  interface id can strip the LIVE pair's policy. This is the bug class AC-3 fixes, on a path
+  the fix did not reach. **Read, not measured. Unverified.**
+- Audit the three responder rollback sites for the same hazard.
+- Add a `.ci` exercising the real dataplane. `test/ipsec/ipsec-child-rekey.ci` still pins the
+  no-op dataplane and is blind to this whole class, exactly as this spec's own "Why the
+  existing `.ci` is blind" paragraph says.
+- Reconcile Files to Modify with reality: `dataplane/xfrm_linux.go` was changed and is not
+  listed.
+
+Tracked by `plan/deferrals/rfcgate-1b-rfc7296-pilot.md`, which names this spec as the
+destination. The spec stays OPEN.
+
+## Audit 2026-08-02, second pass: three more policy-identity residuals
+
+Found while closing `plan/spec-rfcgate-1b-rfc7296-pilot.md`, after the audit above was
+written. All three sit on the same surface this spec owns: what identifies a policy, and
+what may remove one. They are appended rather than merged into the list above, so the
+first pass stays as it was written.
+
+The three responder rollback sites are NOT repeated here. The list above already carries
+them as "Audit the three responder rollback sites for the same hazard", and they are
+`responder.go:810`, `:821` and `:846`. Each calls `removeChildSA`, which is
+`removeChildSAExcept(child, nil, ...)`, so a rollback can remove a policy a surviving
+pair still answers to.
+
+**1. `samePolicySelector` flips orientation on a peer-initiated rekey.** `selectorPort`
+(`internal/component/ike/engine/child.go:725`) chooses which side of the selector pair to
+read from `child.LocalIsInitiator` at `:732`. `newRekeyedChild` resets that field. So the
+same selector compares unequal across a peer-initiated rekey, and `samePolicySelector`
+(`child.go:585`) answers false where it should answer true.
+
+Refuted as a policy DROP: an incorrect false makes `removeChildSAExcept` drop a policy it
+should keep, which the upsert then reinstalls. The real consequence is an ORPHANED policy,
+left behind because the guard did not recognise the pair that still needs it. Exercising it
+needs a peer-proposed port narrowing, which no current test produces. READ, not measured.
+
+**2. Removal and install disagree on what identifies a policy.** Install passes `SPParams`
+carrying `Proto`, `IfID`, `ReqID`, `Action` and `Priority`
+(`internal/component/ike/dataplane/dataplane.go:296`). Removal is the three-argument
+`RemovePolicy(src, dst *net.IPNet, dir SADir)` (`dataplane.go:400`), which carries no
+ports, no protocol and no interface id.
+
+This predates the `keep` work, so it is not a regression. It matters now because the `keep`
+design assumes removal matches install: a guard that decides "this selector is still in
+use" is only as good as the identity the removal call can express. A removal keyed on
+fewer fields than the install can remove a policy the guard meant to protect.
+
+**3. `resolvePendingAfterOwnerLoop` returns early on a nil `pendingSA`.** The function
+(`internal/component/ike/engine/fsm.go:370`, called at `:330`) returns before it can
+consider a `pendingChild`. A non-nil `pendingChild` holding the only claim on a shared
+policy is therefore stranded when `pendingSA` is nil.
+
+READ, not measured, and stated that way deliberately. What would settle it is a case that
+produces a nil `pendingSA` beside a non-nil `pendingChild`. If that combination cannot
+arise, the finding dissolves, and proving it cannot arise is the cheaper answer.
+
+**All three stay OPEN and none is closed by the first pass.** Rows in
+`plan/deferrals/rfcgate-1b-rfc7296-pilot.md` name this spec as their destination.

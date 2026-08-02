@@ -85,6 +85,15 @@ STATUS_FILE = os.path.join(PROJECT_DIR, "docs", "features", "rfc-status.md")
 LEDGER_FILE = os.path.join(PROJECT_DIR, "ai", "RFC-REQUIREMENTS.md")
 AUDIT_DIR = os.path.join(PROJECT_DIR, "rfc", "audit")
 
+# Where a RELOCATED obligation's destination spec lives (see EXCLUSION_KINDS,
+# `relocated-to-spec`). The directory name has ONE spelling: _SPEC_PATH_RE:5150 builds its
+# prefix from it, so the validator and the resolver can never disagree about where a spec
+# is (ai/rules/derive-not-hardcode.md). Named as a constant for the same reason
+# EXTRACTION_DIR is: the tests point it at a fixture tree, because a real plan/spec-*.md is
+# DELETED the day its work closes (ai/rules/spec-preservation.md).
+_SPEC_DIR_NAME = "plan"
+SPEC_DIR = os.path.join(PROJECT_DIR, _SPEC_DIR_NAME)
+
 # Repo-relative forms, for the batch HEAD reader (_git_cat_blobs takes paths, not abspaths).
 ENROLLED_REL = os.path.join("rfc", "enrolled.txt")
 NOT_ENROLLED_REL = os.path.join("rfc", "not-enrolled.txt")
@@ -5101,6 +5110,16 @@ REGISTER_MANUAL_WALK = "manual-walk"
 REGISTERS = (REGISTER_RFC2119, REGISTER_PROSE, REGISTER_MANUAL_WALK)
 _REGISTER_STRENGTH = {name: len(REGISTERS) - i for i, name in enumerate(REGISTERS)}
 
+# The one exclusion kind that does NOT say "this sentence binds nobody". It says the
+# opposite: the obligation is owed, by a named spec, under an id reserved there, and it is
+# absent from this summary because an owner ruling moved it (the twelve RFC 7296
+# Configuration-payload and IPComp sites of D-1, 2026-07-31).
+#
+# Named rather than spelled at each site: it is read in six places (the closed set, two
+# parse-time branches, the tripwire, the carry-forward and the published count), and a
+# second spelling is a second place for one of them to drift.
+RELOCATED_TO_SPEC = "relocated-to-spec"
+
 # Closed sets, validated at parse time exactly as ANNOTATION_KINDS:77 is. Anything outside
 # them is a ParseError, never a silently tolerated novel value.
 EXCLUSION_KINDS = frozenset(
@@ -5110,8 +5129,15 @@ EXCLUSION_KINDS = frozenset(
         "duplicate-of",
         "cross-document",
         "advisory-in-context",
+        RELOCATED_TO_SPEC,
     }
 )
+
+# A relocation may name a SPEC and nothing else. `plan/deferrals/`, `plan/known-failures/`
+# and `plan/learned/` are the three homes ai/rules/rfc-compliance.md names as NOT a
+# compliance decision procedure, and this shape refuses all three, along with any path that
+# leaves the repository. One path segment only, so the resolver's basename lookup is exact.
+_SPEC_PATH_RE = re.compile(rf"^{_SPEC_DIR_NAME}/spec-[a-z0-9][a-z0-9._-]*\.md\Z")
 SECTION_SKIP_KINDS = frozenset(
     {"front-matter", "references", "iana", "acknowledgements", "appendix-non-normative"}
 )
@@ -5482,6 +5508,8 @@ class ExtractionSite(NamedTuple):
     mapped_to: str
     excluded_kind: str
     reason: str
+    relocated_to: str  # `relocated-to-spec` only: the spec that owes the obligation
+    reserved_id: str  # `relocated-to-spec` only: the id reserved for it there
 
 
 class ExtractionSection(NamedTuple):
@@ -5514,6 +5542,21 @@ class Extraction(NamedTuple):
     def mapped(self) -> int:
         return sum(1 for s in self.sites if s.disposition == "mapped")
 
+    @property
+    def relocated(self) -> int:
+        """The `relocated-to-spec` SUBSET of `excluded`, never a disposition of its own.
+
+        `excluded` stays the number both the ratchet and the published ratio read, so
+        relocating cannot be the cheap way past either. This counts the subset so a
+        reviewer can still tell a homed obligation from a dismissed sentence
+        (render_extraction_table, extraction_status).
+        """
+        return sum(
+            1
+            for s in self.sites
+            if s.disposition == "excluded" and s.excluded_kind == RELOCATED_TO_SPEC
+        )
+
 
 _ARTIFACT_KEYS = frozenset(
     {
@@ -5531,7 +5574,16 @@ _ARTIFACT_KEYS = frozenset(
     }
 )
 _SITE_KEYS = frozenset(
-    {"id", "quote", "disposition", "mapped-to", "excluded-kind", "reason"}
+    {
+        "id",
+        "quote",
+        "disposition",
+        "mapped-to",
+        "excluded-kind",
+        "reason",
+        "relocated-to",
+        "reserved-id",
+    }
 )
 _SECTION_KEYS = frozenset(
     {"id", "sites", "disposition", "skip-kind", "reason", "unsourced-ids"}
@@ -5547,6 +5599,40 @@ def _str_field(obj: Dict, key: str, where: str, required: bool = True) -> str:
     if not isinstance(val, str) or not val.strip():
         raise ParseError(f"{where}: {key!r} must be a non-empty string, got {val!r}")
     return val.strip()
+
+
+def _relocation_fields(entry: Dict, where: str, stem: str) -> Tuple[str, str]:
+    """(destination spec, reserved id) for a `relocated-to-spec` exclusion.
+
+    Both are required and both are shape-checked, because this kind is the one that does
+    not dismiss its sentence: it says somebody else is bound, over there. A pointer whose
+    target nothing can resolve is the shrug the kind exists not to be, so neither field
+    may be a note, a plan or a placeholder.
+    """
+    rel = entry.get("relocated-to")
+    if not isinstance(rel, str) or not _SPEC_PATH_RE.match(rel.strip()):
+        raise ParseError(
+            f"{where}: {RELOCATED_TO_SPEC} needs a 'relocated-to' naming the spec that "
+            f"owes this obligation, as {_SPEC_DIR_NAME}/spec-<name>.md; got {rel!r}. A "
+            f"deferral shard, a known-failure file, a learned summary and any document "
+            f"outside {_SPEC_DIR_NAME}/ are none of them a spec, and the deferral "
+            f"machinery is not a compliance decision procedure "
+            f"(ai/rules/rfc-compliance.md)"
+        )
+    rid = entry.get("reserved-id")
+    want = rfc_prefix(stem) + "-"
+    if (
+        not isinstance(rid, str)
+        or not rid.strip().startswith(want)
+        or not _ID_RE.match(rid.strip())
+    ):
+        raise ParseError(
+            f"{where}: {RELOCATED_TO_SPEC} needs a 'reserved-id', the requirement id the "
+            f"destination spec reserves for this obligation, as {want}<section>-<n>; got "
+            f"{rid!r}. Without it the relocation points at a document rather than at a "
+            f"row, and the spec could satisfy the gate while owing nothing"
+        )
+    return rel.strip(), rid.strip()
 
 
 def _reject_unknown_keys(obj: Dict, allowed: Set[str], where: str) -> None:
@@ -5684,6 +5770,8 @@ def parse_extraction_artifact(path: str) -> Extraction:
             )
         mapped_to = ""
         excluded_kind = ""
+        relocated_to = ""
+        reserved_id = ""
         reason = _str_field(entry, "reason", where, required=False)
         if disp == "mapped":
             mapped_to = _str_field(entry, "mapped-to", where)
@@ -5706,6 +5794,21 @@ def parse_extraction_artifact(path: str) -> Extraction:
                 # duplicate that names nothing cannot be compared against anything, and a
                 # chain of such could cover an RFC in which nothing is actually mapped.
                 mapped_to = _str_field(entry, "mapped-to", where)
+            elif excluded_kind == RELOCATED_TO_SPEC:
+                relocated_to, reserved_id = _relocation_fields(entry, where, stem)
+        if excluded_kind != RELOCATED_TO_SPEC and (
+            entry.get("relocated-to") is not None
+            or entry.get("reserved-id") is not None
+        ):
+            # Authored where they mean nothing, both fields would be read by nobody and
+            # reported by nobody: the same failure _reject_unknown_keys refuses one level
+            # up, where a typo'd key reads as an absent one.
+            raise ParseError(
+                f"{where}: 'relocated-to' and 'reserved-id' mean something only on a "
+                f"{RELOCATED_TO_SPEC} exclusion. Here they are silently ignored, and a "
+                f"silently ignored authored field is indistinguishable from one nobody "
+                f"wrote"
+            )
         sites.append(
             ExtractionSite(
                 id=sid,
@@ -5714,6 +5817,8 @@ def parse_extraction_artifact(path: str) -> Extraction:
                 mapped_to=mapped_to,
                 excluded_kind=excluded_kind,
                 reason=reason,
+                relocated_to=relocated_to,
+                reserved_id=reserved_id,
             )
         )
 
@@ -5786,6 +5891,17 @@ def _artifact_document(
         if keep and keep.disposition == "excluded":
             entry["excluded-kind"] = keep.excluded_kind
             entry["reason"] = keep.reason
+        # Every OTHER authored field the parser stored, carried by what it stored rather
+        # than by a per-kind ladder here. A kind's mandatory field dropped on refresh is a
+        # reviewer's decision destroyed (ai/rules/never-destroy-work.md), and the writer's
+        # own re-parse then refuses the whole write: `duplicate-of` lost `mapped-to` this
+        # way, so `make ze-rfc-extract STEM=rfc1035` could not refresh the one artifact in
+        # the corpus that carried one. A seventh kind inherits this.
+        if keep and keep.mapped_to and "mapped-to" not in entry:
+            entry["mapped-to"] = keep.mapped_to
+        if keep and keep.relocated_to:
+            entry["relocated-to"] = keep.relocated_to
+            entry["reserved-id"] = keep.reserved_id
         sites.append(entry)
 
     sections: List[Dict[str, object]] = []
@@ -5974,6 +6090,70 @@ def _summary_requirements(stem: str) -> List[Requirement]:
         return []
 
 
+def _relocation_errors(
+    art: Extraction,
+    site: ExtractionSite,
+    known_ids: Set[str],
+    cache: Dict[str, Optional[str]],
+) -> List[str]:
+    """The tripwire under `relocated-to-spec`. Every arm DENIES.
+
+    The kind's whole claim is that a named spec owes the obligation under a reserved id.
+    Nothing about that claim is checkable a year later unless the gate re-reads it, so it
+    does: delete the spec, or edit the row out of it, and this reds naming the site. When
+    the spec CLOSES the file is removed (ai/rules/spec-preservation.md) and this reds too,
+    which is correct rather than unfortunate: the obligation has landed in the summary by
+    then, so the site is a mapping now and must be re-classified as one.
+    """
+    where = f"{art.path}: site {site.id}"
+    rel, rid = site.relocated_to, site.reserved_id
+
+    if rid in known_ids:
+        return [
+            f"{where} is relocated to {rel} reserving {rid}, but rfc/short/{art.stem}.md "
+            f"still declares {rid}. A relocation asserts the row left this summary: while "
+            f"it is here, the site is a mapping and must say so, or the obligation is "
+            f"counted as homed elsewhere while it is also claimed here"
+        ]
+
+    if rel not in cache:
+        path = os.path.join(SPEC_DIR, os.path.basename(rel))
+        if not os.path.exists(path):
+            cache[rel] = None
+        else:
+            try:
+                with open(path, encoding="utf-8", errors="replace") as fh:
+                    cache[rel] = fh.read()
+            except OSError:
+                cache[rel] = None
+    text = cache[rel]
+
+    if text is None:
+        return [
+            f"{where} is relocated to {rel}, which does not exist or cannot be read. A "
+            f"relocation is a pointer, not a dismissal: {rid} is owed by that spec, so "
+            f"the spec must be there. If the work landed, map the site to its row in "
+            f"rfc/short/{art.stem}.md instead"
+        ]
+    if not _reserved_id_re(rid).search(text):
+        return [
+            f"{where} reserves {rid} in {rel}, and that file no longer names {rid}. The "
+            f"obligation is now owed by nobody: put the row back, or map the site if the "
+            f"requirement has landed in rfc/short/{art.stem}.md"
+        ]
+    return []
+
+
+def _reserved_id_re(rid: str) -> "re.Pattern[str]":
+    """A whole-id match, never a substring one.
+
+    `RFC7296-2.19-2` is a prefix of `RFC7296-2.19-25`, and a neighbouring ordinal is
+    exactly what a renumbering produces -- so a substring test would let the WRONG row
+    keep the tripwire green, which is a fail-open in the one direction that matters.
+    """
+    return re.compile(rf"(?<![\w.-]){re.escape(rid)}(?![\w-])")
+
+
 def _evaluate_extraction(
     art: Extraction, inv: Inventory, reqs: Sequence[Requirement]
 ) -> List[str]:
@@ -6049,6 +6229,9 @@ def _evaluate_extraction(
     mapped_targets = {
         s.mapped_to for s in art.sites if s.disposition == "mapped" and s.mapped_to
     }
+    # One read per destination spec, however many sites point at it. D-1 relocated twelve
+    # RFC 7296 sites into two specs.
+    spec_cache: Dict[str, Optional[str]] = {}
 
     for sid in sorted(set(derived_sites) & set(art_sites)):
         site, derived = art_sites[sid], derived_sites[sid]
@@ -6093,15 +6276,15 @@ def _evaluate_extraction(
                     f"row -- an obligation recorded as captured but proven by nothing is "
                     f"the miss this sign-off exists to make impossible"
                 )
-        elif (
-            site.excluded_kind == "duplicate-of"
-            and site.mapped_to not in mapped_targets
-        ):
-            errs.append(
-                f"{where}: site {sid} is excluded duplicate-of {site.mapped_to}, but no "
-                f"other site MAPS that id. A chain of duplicates cannot cover an RFC in "
-                f"which nothing is actually mapped"
-            )
+        elif site.excluded_kind == "duplicate-of":
+            if site.mapped_to not in mapped_targets:
+                errs.append(
+                    f"{where}: site {sid} is excluded duplicate-of {site.mapped_to}, but "
+                    f"no other site MAPS that id. A chain of duplicates cannot cover an "
+                    f"RFC in which nothing is actually mapped"
+                )
+        elif site.excluded_kind == RELOCATED_TO_SPEC:
+            errs.extend(_relocation_errors(art, site, known_ids, spec_cache))
 
     derived_sections = {s.id: s.sites for s in inv.sections}
     art_sections = {s.id: s for s in art.sections}
@@ -6383,6 +6566,12 @@ def extraction_status(
         # a register dropped from the split now disagrees with the total out loud.
         "signed": len(signed),
         "signed-by-register": counts,
+        # Published beside the totals rather than folded into them. A relocation counts as
+        # an exclusion everywhere a decision is taken (the ratchet, the ratio), because it
+        # is one: this walk declined to map the sentence. It is counted apart HERE because
+        # what it declined to do and what a dismissal declined to do are different facts,
+        # and a drain policy that could not tell them apart could not act on either.
+        "relocated": sum(art.relocated for art in signed.values()),
         "backlog": len(unsigned),
         "unsigned": unsigned,
     }
@@ -6464,6 +6653,26 @@ def render_extraction_table(
             f"UNSIGNED (grandfathered) |"
         )
     out.append("")
+
+    # DERIVED, so it appears exactly when the fact does and its absence is a true statement
+    # about the corpus. Not a column: the Exclusion ratio above must keep counting a
+    # relocation, because a walk that relocated everything would otherwise publish a
+    # pristine 0.00 -- the very shape the ratio exists to make visible to a reviewer
+    # approving a first sign-off (rfc/extraction/README.md, "A FIRST sign-off is reviewed").
+    relocations = {stem: art.relocated for stem, art in signed.items() if art.relocated}
+    if relocations:
+        detail = ", ".join(f"`{s}` {n}" for s, n in sorted(relocations.items()))
+        out.append(
+            f"Of those exclusions, {sum(relocations.values())} carry `relocated-to-spec` "
+            f"({detail}): the obligation is owed, by the spec the site names, under the "
+            f"requirement id reserved for it there. `make ze-rfc-check` refuses the "
+            f"sign-off unless that spec exists and still names that id, so a relocation "
+            f"cannot outlive the document it points at. It is counted in `Excluded` and "
+            f"in the ratio above because this walk did decline to map the sentence HERE, "
+            f"and it is counted apart because a homed obligation and a dismissed sentence "
+            f"are not the same fact."
+        )
+        out.append("")
     return out
 
 

@@ -374,10 +374,21 @@ func (ps *PeerSession) closeDesignatedChildSAs(del *wire.PayloadDelete, dp datap
 			// the owner loop's tunnel-down exit, and that exit's cleanupChild is what
 			// emits child-down and withdraws the tunnel routes. Detaching here would
 			// leave those routes advertised over a tunnel that no longer exists. Its
-			// second removeChildSA is harmless: ChildSA.Clear touches only the keys, so
-			// the SPIs still name the right state and the repeat is two dataplane calls
-			// that find nothing and log at Debug.
-			removeChildSA(child, dp, log)
+			// second removeChildSAExcept is harmless: ChildSA.Clear touches only the
+			// keys, so the SPIs still name the right state and the repeat is two
+			// dataplane calls that find nothing and log at Debug.
+			//
+			// THE POLICIES CAN BE SHARED, and this is the path a PEER triggers rather
+			// than one ze reaches on its own. Two Child SAs answer to one pair of kernel
+			// policies here: the make-before-break survivor above, and the parallel
+			// re-initiation's pending child that finishResponderEstablish (responder.go)
+			// has already installed on the same selector. Removing this pair's policies
+			// unconditionally left resolvePendingAfterOwnerLoop (fsm.go) promoting a
+			// Child SA with states and NO policy, and outbound traffic then left the box
+			// in the clear. cleanupChild cannot repair it: by the time the owner loop's
+			// reestablish exit runs, the policies are already gone and nothing reinstalls
+			// them.
+			removeChildSAExcept(child, firstSharingSelector(child, ps.supersededChild, ps.getPendingChild()), dp, log)
 			paired = append(paired, child.InboundSPI)
 			sessionChildDown = true
 			log.Info("child-sa: peer deleted the live Child SA", "peer", ps.peerName,

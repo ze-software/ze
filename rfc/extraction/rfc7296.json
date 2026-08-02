@@ -1,0 +1,2583 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7296",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc7296.txt",
+  "source-sha": "a6f1a101b818977b",
+  "signed-off": "2026-08-02",
+  "reviewer": "six /ze-implement agents, one per section range, spec-rfcgate-1b-rfc7296-pilot AC-5; merged and re-checked in the main thread",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "The abstract, the status of this memo, the copyright notice and the table of contents. No protocol obligation appears before Section 1."
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "The introduction names the exchange types and their order. Its one keyword site is the exchange-order sentence, mapped to RFC7296-1-1. The rest of the section describes what each exchange carries."
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "One paragraph introducing the four usage scenarios below it. It states no obligation."
+    },
+    {
+      "id": "1.1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "A figure and one paragraph on the security gateway to security gateway tunnel. It describes a deployment, not protocol behavior."
+    },
+    {
+      "id": "1.1.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "The endpoint-to-endpoint transport mode scenario. Its only keyword is a MAY on application-layer access control, which gates nothing."
+    },
+    {
+      "id": "1.1.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "The endpoint to security gateway tunnel scenario, including why the initiator asks for an address through configuration payloads. It states no obligation."
+    },
+    {
+      "id": "1.1.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "One paragraph on nested combinations of the earlier scenarios. It states no obligation."
+    },
+    {
+      "id": "1.2",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "The initial exchanges. Five keyword sites map to rows RFC7296-1.2-2 through RFC7296-1.2-6. Row RFC7296-1.2-1 is read from two indicative sentences, that the initial exchanges are four messages and that every message after IKE_SA_INIT is cryptographically protected, and neither carries a keyword.",
+      "unsourced-ids": [
+        "RFC7296-1.2-1"
+      ]
+    },
+    {
+      "id": "1.3",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "The CREATE_CHILD_SA exchange. Two of its three keyword sites map to RFC7296-1.3-1 and RFC7296-1.3-2; the third restates the first. The NO_ADDITIONAL_SAS paragraph carries no keyword and no row."
+    },
+    {
+      "id": "1.3.1",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Creating a new Child SA. Both keyword sites sit in the USE_TRANSPORT_MODE paragraph and map to RFC7296-1.3.1-1 and RFC7296-1.3.1-2. The TFC padding and non-first-fragment paragraphs carry no keyword."
+    },
+    {
+      "id": "1.3.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Rekeying the IKE SA. Its one keyword site makes the KEi payload mandatory, and row RFC7296-1.3.3-1 holds that obligation under an id and a citation that name Section 1.3.3 instead."
+    },
+    {
+      "id": "1.3.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Rekeying a Child SA. Its one keyword site binds the REKEY_SA notification into a CREATE_CHILD_SA exchange that replaces an ESP or AH SA. No row stated that obligation when the walk began: it was extracted during the walk as RFC7296-1.3.3-2, which site 1.3.3:1 now maps to. Note that RFC7296-1.3.3-1 is a different row whose obligation sits in section 1.3.2; its anchor is a recorded Known Limitation and was deliberately left alone."
+    },
+    {
+      "id": "1.4",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "The INFORMATIONAL exchange. Four keyword sites map to RFC7296-1.4-5, to RFC7296-1.4-3 twice, and to RFC7296-1.4-4."
+    },
+    {
+      "id": "1.4.1",
+      "sites": 6,
+      "disposition": "walked",
+      "reason": "Deleting an SA. Six keyword sites map to RFC7296-1.4.1-1 twice and to RFC7296-1.4.1-4 through RFC7296-1.4.1-7. Row RFC7296-1.4-1 is read from the sentence that the response carries Delete payloads for the paired SAs in the other direction, which carries no keyword; that row cites Section 1.4.",
+      "unsourced-ids": [
+        "RFC7296-1.4-1"
+      ]
+    },
+    {
+      "id": "1.5",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Informational messages outside an IKE SA. Its one keyword site bars an answer to the unprotected message and maps to RFC7296-1.5-1. The closing paragraphs that build the response carry no keyword, and row RFC7296-2.21.4-2 cites Section 2.21.4 first."
+    },
+    {
+      "id": "1.6",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Requirements terminology. It points at [IPSECARCH] for the primitive terms and gives the RFC 2119 reading of the keywords. It states no protocol obligation."
+    },
+    {
+      "id": "1.7",
+      "sites": 7,
+      "disposition": "walked",
+      "reason": "The change list against RFC 4306. Three sites carry obligations that live in Sections 2.5, 2.13 and 3.6, two are prose about the keywords themselves, one quotes the Section 1.3.2 change, and one states the configuration attribute type 5 rule that no row in rfc/short/rfc7296.md holds."
+    },
+    {
+      "id": "1.8",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "The change list against RFC 5996. Every entry names a section that was added, clarified or corrected. It states no obligation."
+    },
+    {
+      "id": "2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "IKE protocol details and variations. Two keyword sites: the 1280-octet message size and the four zero octets that prefix an IKE message on port 4500."
+    },
+    {
+      "id": "2.1",
+      "sites": 7,
+      "disposition": "walked",
+      "reason": "Retransmission timers. Seven keyword sites map to rows RFC7296-2.1-3 through RFC7296-2.1-8. The half-open IKE SA paragraphs and the one-way message paragraph that follow carry no keyword and no row."
+    },
+    {
+      "id": "2.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Message ID sequence numbers. Two keyword sites map to RFC7296-2.2-1 and RFC7296-2.2-2. The counter and original-initiator paragraphs carry no keyword."
+    },
+    {
+      "id": "2.3",
+      "sites": 9,
+      "disposition": "walked",
+      "reason": "Window size for overlapping requests. Six sites map to the Section 2.3 rows, two map to RFC7296-2.1-5 which cites Section 2.1 and Section 2.3, and one restates the window limit that site 2.3:4 maps."
+    },
+    {
+      "id": "2.4",
+      "sites": 8,
+      "disposition": "walked",
+      "reason": "Walked the whole section: state loss after a crash, INITIAL_CONTACT, liveness detection, retransmission, and Child SA deletion. The eight sites carry every capitalised obligation. The empty INFORMATIONAL liveness exchange is described in indicative prose with no keyword.",
+      "unsourced-ids": [
+        "RFC7296-2.4-1"
+      ]
+    },
+    {
+      "id": "2.5",
+      "sites": 11,
+      "disposition": "walked",
+      "reason": "Walked the version number and forward compatibility rules, including the critical flag paragraph. Eleven sites carry the obligations. Two sentences each carry two obligations while deriving one site, so the second obligation of each has no site.",
+      "unsourced-ids": [
+        "RFC7296-2.5-7",
+        "RFC7296-2.5-18"
+      ]
+    },
+    {
+      "id": "2.6",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Walked the SPI text, the cookie exchange, the worked cookie construction, and the terminology note. Four sites carry the obligations. The identification of an IKE SA by the SPI pair is stated in indicative prose in the first paragraph.",
+      "unsourced-ids": [
+        "RFC7296-2.6-1"
+      ]
+    },
+    {
+      "id": "2.6.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked the interaction of COOKIE and INVALID_KE_PAYLOAD, including the three round trip diagram. The section states one obligation, in its closing sentence, and the site carries it."
+    },
+    {
+      "id": "2.7",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Walked the algorithm negotiation rules. The five sites state one rule set that the summary captures in two rows, so three sites restate obligations those rows already carry."
+    },
+    {
+      "id": "2.8",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Walked the rekeying section: lifetime expiry, rekey failure, IKE SA replacement, proactive rekey, and the window where the two ends disagree about an SA. Four sites carry the capitalised obligations. Independent lifetime policy is written as a difference from IKEv1 in indicative prose.",
+      "unsourced-ids": [
+        "RFC7296-2.8-2"
+      ]
+    },
+    {
+      "id": "2.8.1",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked the simultaneous Child SA rekeying rules and both packet loss traces. The site carries the accept-on-either-SA obligation. The lowest-of-four-nonces collision rule is written as a SHOULD in this section, so it derives no MUST-level site.",
+      "unsourced-ids": [
+        "RFC7296-2.8-1"
+      ]
+    },
+    {
+      "id": "2.8.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked the simultaneous IKE SA rekeying case, the TEMPORARY_FAILURE path, and the message trace. The site carries the one capitalised obligation, that the surviving IKE SA inherits the Child SAs."
+    },
+    {
+      "id": "2.8.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked the comparison of IKE SA rekeying against reauthentication. The section states what each mechanism does and how reauthentication is built from the existing exchanges. It imposes no obligation and derives no site."
+    },
+    {
+      "id": "2.9",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked the traffic selector negotiation text, including the four narrowing bullets and the SINGLE_PAIR_REQUIRED discussion. One bullet carries a capitalised MUST and is mapped. The TS_UNACCEPTABLE bullet and the narrowing-not-widening rule are written in indicative prose.",
+      "unsourced-ids": [
+        "RFC7296-2.9-1"
+      ]
+    },
+    {
+      "id": "2.9.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Walked the section on selectors that violate the initiator's own policy. It is a worked example of dropped traffic and closes with a general statement of the hazard. It imposes no obligation and derives no site."
+    },
+    {
+      "id": "2.9.2",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Walked the rekeying selector rules. The two sites carry the two prohibitions, one binding the new SA and one binding the responder."
+    },
+    {
+      "id": "2.10",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked the nonce section. One sentence carries three obligations and derives one site, so the two size floors have no site of their own.",
+      "unsourced-ids": [
+        "RFC7296-2.10-2",
+        "RFC7296-2.10-3"
+      ]
+    },
+    {
+      "id": "2.11",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Walked the address and port agility section, four sentences long. It derives two sites. The first sentence carries two obligations, so the second has no site of its own.",
+      "unsourced-ids": [
+        "RFC7296-2.11-2"
+      ]
+    },
+    {
+      "id": "2.12",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Walked the Diffie-Hellman exponential reuse section. Its one obligation is the forget-the-keys sentence, which the site carries. The reuse strategies are stated as choices that do not affect interoperability."
+    },
+    {
+      "id": "2.13",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Walked the keying material section through the prf+ definition and its 255-iteration limit. The four sites carry the key size and key derivation obligations. The prf+ construction is stated as a definition."
+    },
+    {
+      "id": "2.14",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "The section derives SKEYSEED and the seven SK_ values with prf and prf+. Its one MUST-level sentence fixes the length of SK_d, SK_pi and SK_pr, and the summary carries that obligation as RFC7296-2.13-3, which cites both sections."
+    },
+    {
+      "id": "2.15",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "The section defines the signed octets and the pre-shared-key AUTH computation. Its three MUST-level obligations sit in one management-interface passage that the extractor cut into two sites, so the null-terminator half has no site of its own and is recorded unsourced.",
+      "unsourced-ids": [
+        "RFC7296-2.15-2"
+      ]
+    },
+    {
+      "id": "2.16",
+      "sites": 8,
+      "disposition": "walked",
+      "reason": "Every MUST-level sentence of the EAP section derives a site, and the eight sites map one to one onto the eight requirement ids anchored to this section. The remaining text is the message diagram and SHOULD NOT or MAY guidance."
+    },
+    {
+      "id": "2.17",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "The section gives KEYMAT and three ordering bullets. Both MUST-level sites map to the two \u00a72.17 rows, and the first bullet's ordering rule is already inside the text of RFC7296-2.17-1."
+    },
+    {
+      "id": "2.18",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "The section derives SKEYSEED for a rekeyed IKE SA and states two obligations: a new Diffie-Hellman exchange, and a message-counter reset. Both \u00a72.18 rows are the target of a site."
+    },
+    {
+      "id": "2.19",
+      "sites": 6,
+      "disposition": "walked",
+      "reason": "Two of the six MUST-level sentences map to the two \u00a72.19 rows the summary carries. The other four are the Configuration payload obligations that the 2026-07-31 owner ruling moved to plan/spec-ipsec-remote-access.md as RFC7296-2.19-2, -3, -5 and -6; those ids are not in rfc/short/rfc7296.md, so their sites stay unclassified."
+    },
+    {
+      "id": "2.20",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "The section shows the APPLICATION_VERSION exchange. Its one MUST states what a peer that declines to give version information returns, and RFC7296-2.20-1 carries it."
+    },
+    {
+      "id": "2.21",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "The section states the general error-handling rule in indicative prose and MAY constructions: a badly formatted or unacceptable request draws a Notify, and a bad response draws none. It derives no MUST-level site and no summary row cites \u00a72.21."
+    },
+    {
+      "id": "2.21.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "IKE_SA_INIT error handling is written with 'should' throughout, because every notification at that point is unauthenticated. The section derives no site and no summary row cites \u00a72.21.1."
+    },
+    {
+      "id": "2.21.2",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Three MUST-level sentences and three rows: whole-message rejection, the initiator not failing authentication over a piggybacked error, and the limit on new error notifications defined by extension documents."
+    },
+    {
+      "id": "2.21.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "The section's one MUST requires a response for every errored request once the IKE SA is authenticated. The rest is SHOULD NOT guidance against starting new exchanges to report errors."
+    },
+    {
+      "id": "2.21.4",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Five sites carry the out-of-SA rules for a message on port 500 or 4500 with no known IKE SA. Two of those sentences state two obligations each, so RFC7296-2.21.4-4 and -6 have no site of their own and are recorded unsourced.",
+      "unsourced-ids": [
+        "RFC7296-2.21.4-4",
+        "RFC7296-2.21.4-6"
+      ]
+    },
+    {
+      "id": "2.22",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Both MUST-level sentences are IPComp obligations: where an IPCOMP_SUPPORTED notification can appear, and what an implementation accepts and compresses with. The 2026-07-31 owner ruling moved the four \u00a72.22 rows to plan/spec-ipsec-ipcomp.md, so no id exists in rfc/short/rfc7296.md and both sites stay unclassified."
+    },
+    {
+      "id": "2.23",
+      "sites": 10,
+      "disposition": "walked",
+      "reason": "Nine of the ten sites map to a summary row and one is the section's own applicability statement. RFC7296-2.23-3, the four zero octets prepended to a tunnelled IKE header, is stated in indicative prose with no MUST-level keyword, so it is recorded unsourced.",
+      "unsourced-ids": [
+        "RFC7296-2.23-3"
+      ]
+    },
+    {
+      "id": "2.23.1",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Read the transport mode NAT traversal scenario and the client and responder rule lists. Three MUST sites, all mapped; every other rule in the section is SHOULD or MAY."
+    },
+    {
+      "id": "2.24",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Read the ECN section. Its one normative sentence carries two MUSTs and yields one site, so RFC7296-2.24-2 (the [IPSECARCH] encapsulation and decapsulation processing) has no site of its own.",
+      "unsourced-ids": [
+        "RFC7296-2.24-2"
+      ]
+    },
+    {
+      "id": "2.25",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Read the exchange collision section. The TEMPORARY_FAILURE retry ban is its only MUST; the TEMPORARY_FAILURE and CHILD_SA_NOT_FOUND sending rules are SHOULD."
+    },
+    {
+      "id": "2.25.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Read the Child SA rekey and close collision rules. Every rule in the section is SHOULD, so the section holds no MUST-level site and no requirement row cites it."
+    },
+    {
+      "id": "2.25.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Read the IKE SA rekey and close collision rules. Every rule in the section is SHOULD, so the section holds no MUST-level site and no requirement row cites it."
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Read the section head. Its one normative sentence is a SHOULD NOT about items marked UNSPECIFIED, so the section holds no MUST-level site."
+    },
+    {
+      "id": "3.1",
+      "sites": 13,
+      "disposition": "walked",
+      "reason": "Read the IKE header section and every field description. Two rows share a source sentence with the row mapped from the same site: RFC7296-3.1-2 (no Encrypted payload inside an Encrypted payload) sits in site 3.1:1, and RFC7296-3.1-8 (ignore X bits on receipt) sits in site 3.1:9.",
+      "unsourced-ids": [
+        "RFC7296-3.1-2",
+        "RFC7296-3.1-8"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 6,
+      "disposition": "walked",
+      "reason": "Read the generic payload header section, the payload type table and the Critical bit paragraph. All six sites map. Sites 3.2:1 and 3.2:2 state the sender obligations for the Critical bit; they were unextracted and are now carried by RFC7296-3.2-5 and RFC7296-3.2-6."
+    },
+    {
+      "id": "3.3",
+      "sites": 7,
+      "disposition": "walked",
+      "reason": "Read the Security Association payload section, its nesting rules and its proposal example. RFC7296-3.3-1 (combined-mode ciphers and normal ciphers go in separate proposals) is written with a lowercase must, so it has no capitalised site.",
+      "unsourced-ids": [
+        "RFC7296-3.3-1"
+      ]
+    },
+    {
+      "id": "3.3.1",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Read the proposal substructure and every field description. Four sites, all mapped, two of them to the RESERVED rows that cite this section."
+    },
+    {
+      "id": "3.3.2",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Read the transform substructure, the Transform Type table and the Transform ID tables. RFC7296-3.3.2-1 (an IKE SA proposal carries ENCR, PRF, INTEG and D-H) is read from the Used In column of that table, which carries no keyword.",
+      "unsourced-ids": [
+        "RFC7296-3.3.2-1"
+      ]
+    },
+    {
+      "id": "3.3.3",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Read the valid Transform Types section and its mandatory and optional table. Its one MUST is mapped."
+    },
+    {
+      "id": "3.3.4",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Read the mandatory Transform IDs section. Three MUSTs bind the implementation and are mapped; two sentences use the keyword to describe other documents' suite specifications and are excluded."
+    },
+    {
+      "id": "3.3.5",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Read the transform attribute section, the attribute format figure and the Key Length rules. Five sites, all mapped; the interoperability note at the end is SHOULD."
+    },
+    {
+      "id": "3.3.6",
+      "sites": 8,
+      "disposition": "walked",
+      "reason": "Read the whole section: the responder selection rules, the handling of an unknown Transform Type or Transform Attribute, and the three Diffie-Hellman negotiation paragraphs. RFC7296-3.3.6-1 has no site here, because Section 3.3.6 treats Diffie-Hellman negotiation in indicative prose and the mandate that an IKE proposal carries a D-H transform is the mandatory Transform Type table of Section 3.3.3.",
+      "unsourced-ids": [
+        "RFC7296-3.3.6-1"
+      ]
+    },
+    {
+      "id": "3.4",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Read the Key Exchange payload section, the payload figure and the two paragraphs that follow it. All four sites map, and the INVALID_KE_PAYLOAD rejection maps to the row the summary anchors at Section 1.3."
+    },
+    {
+      "id": "3.5",
+      "sites": 5,
+      "disposition": "walked",
+      "reason": "Read the Identification payload section, the ID Type table and the interoperability paragraph. RFC7296-3.5-3 has no site of its own: one sentence carries the send obligation and the accept obligation together, and site 3.5:4 maps the send half.",
+      "unsourced-ids": [
+        "RFC7296-3.5-3"
+      ]
+    },
+    {
+      "id": "3.6",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Read the Certificate payload section, the Certificate Encoding table, the CertBundle ASN.1 module and the two closing paragraphs. RFC7296-3.6-2 has no site of its own: one sentence carries the four-certificate obligation and the Hash and URL obligation together, and site 3.6:1 maps the first half.",
+      "unsourced-ids": [
+        "RFC7296-3.6-2"
+      ]
+    },
+    {
+      "id": "3.7",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Read the Certificate Request payload section in full. It derives no site: its obligations are written at SHOULD and MAY level, such as CERTREQ payloads MAY be included and a certificate chain SHOULD be sent back to the requestor. The summary declares no requirement anchored at Section 3.7."
+    },
+    {
+      "id": "3.8",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Read the Authentication payload section and the Auth Method table. Its one site is the RESERVED field rule, which restates the forward compatibility rule of Section 2.5. The only summary row anchored at Section 3.8 is a SHOULD and never gates."
+    },
+    {
+      "id": "3.9",
+      "sites": 2,
+      "disposition": "walked",
+      "reason": "Read the Nonce payload section. Both sites map: the 16 to 256 octet size range, and the ban on reusing a nonce value."
+    },
+    {
+      "id": "3.10",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Read the Notify payload section and its field list. All three sites map to the Protocol ID and SPI Size rules that the field descriptions state."
+    },
+    {
+      "id": "3.10.1",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Read the Notify Message Types section, including the error type table and the status type table. Three sites map to the error handling paragraph and the INVALID_SYNTAX entry, and the fourth repeats the ignore rule for status types."
+    },
+    {
+      "id": "3.11",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Read the Delete payload section and its field list. Two sites carry the same one-protocol-per-payload rule, and the third carries the SPI Size rule."
+    },
+    {
+      "id": "3.12",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Read the Vendor ID payload section. All three sites map: the critical bit rule, the ignore rule for an unfamiliar Vendor ID, and the obligation on writers of documents that extend the protocol."
+    },
+    {
+      "id": "3.13",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Read the Traffic Selector payload section, its field list and the TSi/TSr matching example. Its one site is the RESERVED field rule of Section 2.5. The summary declares no requirement anchored at Section 3.13."
+    },
+    {
+      "id": "3.13.1",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "Read the Traffic Selector substructure section, the Start Port and End Port descriptions, and the ANY and OPAQUE paragraph. Three sites map and one restates the port encoding that the first two carry."
+    },
+    {
+      "id": "3.14",
+      "sites": 6,
+      "disposition": "walked",
+      "reason": "Read the Encrypted payload section, its field list, and the padding and checksum rules. RFC7296-3.14-3 has no site of its own: one sentence binds the sender to a new unpredictable IV and the recipient to accept any value, and site 3.14:3 maps the sender half.",
+      "unsourced-ids": [
+        "RFC7296-3.14-3"
+      ]
+    },
+    {
+      "id": "3.15",
+      "sites": 1,
+      "disposition": "walked",
+      "reason": "Configuration payload header. The one site is the 3-octet RESERVED field; the rest of the section names payload type 47, lists the four CFG Type values and says the attribute list can be empty."
+    },
+    {
+      "id": "3.15.1",
+      "sites": 8,
+      "disposition": "walked",
+      "reason": "Configuration Attribute format, the attribute-type table, the per-attribute entries and the CFG_REQUEST/CFG_REPLY and CFG_SET/CFG_ACK paragraphs. Eight sites. Three of them state obligations rfc/short/rfc7296.md carries no row for, recorded on those sites."
+    },
+    {
+      "id": "3.15.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "The meaning of INTERNAL_IP4_SUBNET and INTERNAL_IP6_SUBNET, given as four worked CFG_REPLY examples. It says what a gateway conveys with the attribute and closes by saying the attribute cannot be used reliably in a CFG_REQUEST. No sentence obliges a speaker."
+    },
+    {
+      "id": "3.15.3",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Configuration payloads for IPv6. One worked exchange, the gateway's address-selection behavior at MAY level, and the limitation that an IKEv2 tunnel is not a full IPv6 interface. No obligation is stated."
+    },
+    {
+      "id": "3.15.4",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Address assignment failures. The section states in indicative prose that a responder which cannot assign an address responds with INTERNAL_ADDRESS_FAILURE, and sends it only when no address can be assigned. That obligation carries no capitalised keyword and rfc/short/rfc7296.md declares no row for it, so unsourced-ids cannot name it. It needs a checklist row."
+    },
+    {
+      "id": "3.16",
+      "sites": 4,
+      "disposition": "walked",
+      "reason": "The EAP payload and the EAP message format. Four sites, one per field rule: Identifier, Length, Type presence and Type value. Each has its own row."
+    },
+    {
+      "id": "4",
+      "sites": 10,
+      "disposition": "walked",
+      "reason": "Conformance requirements. Ten sites: the section opener, the two payload-handling rules, the minimal-implementation paragraph, the three Configuration payload conditionals and the configurable-authentication list. RFC7296-3.2-3 is listed unsourced because Section 4 states it in the same sentence as site 4:2, which is mapped to RFC7296-2.5-8.",
+      "unsourced-ids": [
+        "RFC7296-3.2-3"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 3,
+      "disposition": "walked",
+      "reason": "Security considerations. Three capitalised sites: the PRF output floor, the ban on NONE and ENCR_NULL inside the IKE SA, and public-key authentication of the server before EAP starts. The rest of the section is analysis and SHOULD-level advice."
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Traffic selector authorization. It describes the Peer Authorization Database of [IPSECARCH] and reads an assigned inner address as a temporary PAD entry. The constraints it names belong to that document; the section states none of its own."
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA considerations. It records that IANA registered the IKEv2 types and values in [IKEV2IANA], deprecated the Raw RSA Key certificate encoding and repointed the RFC 5996 references."
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References heading."
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative references."
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative references."
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Summary of changes from IKEv1. Twelve numbered goals of the revision, written as a design record. It obliges no implementation."
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Diffie-Hellman groups. It defines two groups for use in IKE and says group 1 is kept for historic reasons. The prime and generator it carries are data, not a sentence that binds a speaker, so the section yields no site."
+    },
+    {
+      "id": "B.1",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Group 1, 768-bit MODP: the assigned id, the prime and the generator 2. Constants only."
+    },
+    {
+      "id": "B.2",
+      "sites": 0,
+      "disposition": "walked",
+      "reason": "Group 2, 1024-bit MODP: the assigned id, the prime and the generator 2. Constants only."
+    },
+    {
+      "id": "C",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "Exchanges and payloads. The appendix says of itself that it is purely informative, and that the body of the document is correct wherever the two disagree."
+    },
+    {
+      "id": "C.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "IKE_SA_INIT payload diagram: request, normal response, cookie response and the INVALID_KE_PAYLOAD response. Diagram only, under Appendix C's informative statement."
+    },
+    {
+      "id": "C.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "IKE_AUTH without EAP: request, response and the Child SA error response. Diagram only, under Appendix C's informative statement."
+    },
+    {
+      "id": "C.3",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "IKE_AUTH with EAP: first pair, the repeated EAP pair and the last pair. Diagram only, under Appendix C's informative statement."
+    },
+    {
+      "id": "C.4",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "CREATE_CHILD_SA for creating or rekeying Child SAs, with the error and INVALID_KE_PAYLOAD responses. Diagram only, under Appendix C's informative statement."
+    },
+    {
+      "id": "C.5",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "CREATE_CHILD_SA for rekeying the IKE SA, where KEi and KEr are mandatory. Diagram only, under Appendix C's informative statement."
+    },
+    {
+      "id": "C.6",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "appendix-non-normative",
+      "reason": "INFORMATIONAL exchange: notify, delete and Configuration payloads in request and response. Diagram only, under Appendix C's informative statement."
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "In all cases, all IKE_SA_INIT exchanges MUST complete before any other exchange type, then all IKE_AUTH exchanges MUST complete, and following that, any number of CREATE_CHILD_SA and INFORMATIONAL exchanges may occur in any order.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1-1",
+      "reason": "The introduction fixes the exchange order: every IKE_SA_INIT completes, then every IKE_AUTH, then CREATE_CHILD_SA and INFORMATIONAL in any order. Row RFC7296-1-1 quotes this sentence in full."
+    },
+    {
+      "id": "1.2:1",
+      "quote": "If any CERT payloads are included, the first certificate provided MUST contain the public key used to verify the AUTH field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.2-2",
+      "reason": "The IKE_AUTH description binds the order of the CERT payloads the initiator sends. Row RFC7296-1.2-2 quotes the sentence and cites Section 1.2 and Section 3.6."
+    },
+    {
+      "id": "1.2:2",
+      "quote": "Both parties in the IKE_AUTH exchange MUST verify that all signatures and Message Authentication Codes (MACs) are computed correctly.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.2-3",
+      "reason": "The IKE_AUTH response paragraph binds both peers to check every signature and MAC. Row RFC7296-1.2-3 quotes the sentence."
+    },
+    {
+      "id": "1.2:3",
+      "quote": "If either side uses a shared secret for authentication, the names in the ID payload MUST correspond to the key used to generate the AUTH payload.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.2-4",
+      "reason": "The same paragraph ties the names in the ID payload to the shared secret that produced the AUTH payload. Row RFC7296-1.2-4 quotes the sentence."
+    },
+    {
+      "id": "1.2:4",
+      "quote": "In this case, the initiator MUST retry the IKE_SA_INIT with the corrected Diffie-Hellman group.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.2-5",
+      "reason": "The INVALID_KE_PAYLOAD paragraph binds the initiator to retry IKE_SA_INIT with the group the responder named. Row RFC7296-1.2-5 quotes the sentence together with the condition before it."
+    },
+    {
+      "id": "1.2:5",
+      "quote": "The initiator MUST again propose its full set of acceptable cryptographic suites because the rejection message was unauthenticated and otherwise an active attacker could trick the endpoints into negotiating a weaker suite than a stronger one that they both prefer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.2-6",
+      "reason": "The same paragraph binds the retry to carry the full suite list, because the rejection was unauthenticated. Row RFC7296-1.2-6 quotes the sentence."
+    },
+    {
+      "id": "1.3:1",
+      "quote": "If a CREATE_CHILD_SA exchange includes a KEi payload, at least one of the SA offers MUST include the Diffie-Hellman group of the KEi.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.3-1",
+      "reason": "The CREATE_CHILD_SA paragraph binds the SA offers to include the group of the KEi payload. Row RFC7296-1.3-1 quotes the sentence."
+    },
+    {
+      "id": "1.3:2",
+      "quote": "The Diffie-Hellman group of the KEi MUST be an element of the group the initiator expects the responder to accept (additional Diffie-Hellman groups can be proposed).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC7296-1.3-1",
+      "reason": "The sentence restates the one before it from the side of the KEi: the group the initiator expects the responder to accept is the group set it proposes, which the parenthesis about additional groups confirms. Site 1.3:1 maps RFC7296-1.3-1."
+    },
+    {
+      "id": "1.3:3",
+      "quote": "If the responder selects a proposal using a different Diffie-Hellman group (other than NONE), the responder MUST reject the request and indicate its preferred Diffie-Hellman group in the INVALID_KE_PAYLOAD Notify payload.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.3-2",
+      "reason": "The same paragraph binds a responder that selects a different group to reject the request and name its group in INVALID_KE_PAYLOAD. Row RFC7296-1.3-2 quotes the sentence."
+    },
+    {
+      "id": "1.3.1:1",
+      "quote": "If the request is accepted, the response MUST also include a notification of type USE_TRANSPORT_MODE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.3.1-1",
+      "reason": "The USE_TRANSPORT_MODE paragraph binds the responder to echo the notification when it accepts transport mode. Row RFC7296-1.3.1-1 quotes the sentence."
+    },
+    {
+      "id": "1.3.1:2",
+      "quote": "If this is unacceptable to the initiator, the initiator MUST delete the SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.3.1-2",
+      "reason": "The same paragraph binds the initiator to delete the SA when the tunnel-mode fallback is unacceptable. Row RFC7296-1.3.1-2 quotes the sentence with the fallback sentence before it."
+    },
+    {
+      "id": "1.3.2:1",
+      "quote": "The KEi payload MUST be included.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.3.3-1",
+      "reason": "Section 1.3.2 rekeys the IKE SA and makes the KEi payload mandatory. Row RFC7296-1.3.3-1 states that obligation under a Section 1.3.3 citation, the discrepancy the summary's Section Index note records."
+    },
+    {
+      "id": "1.3.3:1",
+      "quote": "The REKEY_SA notification MUST be included in a CREATE_CHILD_SA exchange if the purpose of the exchange is to replace an existing ESP or AH SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.3.3-2",
+      "reason": "Section 1.3.3 makes the REKEY_SA notification conditional on the purpose of the CREATE_CHILD_SA exchange: it is included when the exchange replaces an existing ESP or AH SA. No row stated it, so the walk added RFC7296-1.3.3-2, which quotes the sentence in full. initiateChildRekey (internal/component/ike/engine/rekey.go) puts the notification first in the request and hasRekeySANotify (internal/component/ike/engine/inbound.go) recognizes it inbound."
+    },
+    {
+      "id": "1.4:1",
+      "quote": "INFORMATIONAL exchanges MUST ONLY occur after the initial exchanges and are cryptographically protected with the negotiated keys.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.4-5",
+      "reason": "Section 1.4 confines INFORMATIONAL exchanges to the period after the initial exchanges and under the negotiated keys. Row RFC7296-1.4-5 quotes the sentence."
+    },
+    {
+      "id": "1.4:2",
+      "quote": "Control messages that pertain to an IKE SA MUST be sent under that IKE SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.4-3",
+      "reason": "The control-message paragraph binds the control messages of an IKE SA to that IKE SA. Row RFC7296-1.4-3 quotes this sentence and the one after it."
+    },
+    {
+      "id": "1.4:3",
+      "quote": "Control messages that pertain to Child SAs MUST be sent under the protection of the IKE SA that generated them (or its successor if the IKE SA was rekeyed).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.4-3",
+      "reason": "The second half of the same paragraph binds the control messages of a Child SA to the IKE SA that generated it. Row RFC7296-1.4-3 quotes this sentence too."
+    },
+    {
+      "id": "1.4:4",
+      "quote": "The recipient of an INFORMATIONAL exchange request MUST send some response; otherwise, the sender will assume the message was lost in the network and will retransmit it.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.4-4",
+      "reason": "The INFORMATIONAL paragraph binds the recipient of a request to send a response. Row RFC7296-1.4-4 quotes the sentence."
+    },
+    {
+      "id": "1.4.1:1",
+      "quote": "When an SA is closed, both members of the pair MUST be closed (that is, deleted).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.4.1-1",
+      "reason": "The deletion paragraph binds both members of an SA pair to close together. Row RFC7296-1.4.1-1 quotes this sentence and the one after it."
+    },
+    {
+      "id": "1.4.1:2",
+      "quote": "Each endpoint MUST close its incoming SAs and allow the other endpoint to close the other SA in each pair.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.4.1-1",
+      "reason": "The next sentence gives each endpoint its own incoming SAs to close and leaves the other SA to the peer. Row RFC7296-1.4.1-1 quotes this sentence too."
+    },
+    {
+      "id": "1.4.1:3",
+      "quote": "The recipient MUST close the designated SAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.4.1-6",
+      "reason": "The same paragraph binds the recipient of a Delete payload to close the SAs the listed SPIs name. Row RFC7296-1.4.1-6 quotes the sentence with the Delete payload description before it."
+    },
+    {
+      "id": "1.4.1:4",
+      "quote": "If a node receives a delete request for SAs for which it has already issued a delete request, it MUST delete the outgoing SAs while processing the request and the incoming SAs while processing the response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.4.1-7",
+      "reason": "The crossed-delete paragraph binds a node with its own delete outstanding to close outgoing SAs on the request and incoming SAs on the response. Row RFC7296-1.4.1-7 quotes the sentence."
+    },
+    {
+      "id": "1.4.1:5",
+      "quote": "In that case, the responses MUST NOT include Delete payloads for the deleted SAs, since that would result in duplicate deletion and could in theory delete the wrong SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.4.1-4",
+      "reason": "The same paragraph bars Delete payloads from that response, because they would delete an SA twice. Row RFC7296-1.4.1-4 quotes the sentence."
+    },
+    {
+      "id": "1.4.1:6",
+      "quote": "A node MAY refuse to accept incoming data on half-closed connections but MUST NOT unilaterally close them and reuse the SPIs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.4.1-5",
+      "reason": "The half-closed connection paragraph bars a node from closing the pair alone and reusing the SPIs. Row RFC7296-1.4.1-5 quotes the sentence with its MAY clause."
+    },
+    {
+      "id": "1.5:1",
+      "quote": "This message is not part of an INFORMATIONAL exchange, and the receiving node MUST NOT respond to it because doing so could cause a message loop.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.5-1",
+      "reason": "Section 1.5 bars an answer to an unprotected informational message sent outside an IKE SA, because an answer could loop. Row RFC7296-1.5-1 quotes the sentence."
+    },
+    {
+      "id": "1.7:1",
+      "quote": "They also have noted that there are MUST- level requirements that are not related to interoperability.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The sentence reports what IKEv2 developers observed about RFC 4306. The keyword names a class of requirement in that earlier document and imposes nothing."
+    },
+    {
+      "id": "1.7:2",
+      "quote": "All non-capitalized uses of the words SHOULD and MUST now mean their normal English sense, not the interoperability sense of [MUSTSHOULD].",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The sentence sets how a reader interprets the lower-case words should and must in this document. It is a reading convention, and the keyword is the word being defined."
+    },
+    {
+      "id": "1.7:3",
+      "quote": "Implementations that conform to this document MUST ignore proposals that have configuration attribute type 5, the old value for INTERNAL_ADDRESS_EXPIRY.",
+      "disposition": "excluded",
+      "excluded-kind": "relocated-to-spec",
+      "relocated-to": "plan/spec-ipsec-remote-access.md",
+      "reserved-id": "RFC7296-1.7-3",
+      "reason": "The obligation, ignore proposals carrying configuration attribute type 5, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-1.7-3 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears."
+    },
+    {
+      "id": "1.7:4",
+      "quote": "This document removes the allowance for rejecting messages in which the payloads were not in the \"right\" order; now implementations MUST NOT reject them.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-13",
+      "reason": "The change list records that a receiver can no longer reject a message for the order of its payloads. Row RFC7296-2.5-13 carries the obligation and cites Section 2.5 and Section 1.7."
+    },
+    {
+      "id": "1.7:5",
+      "quote": "In Section 1.3.2, \"The KEi payload SHOULD be included\" was changed to be \"The KEi payload MUST be included\".",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC7296-1.3.3-1",
+      "reason": "The sentence quotes the Section 1.3.2 change that turned the KEi payload from SHOULD to MUST. Site 1.3.2:1 maps RFC7296-1.3.3-1, which is that obligation."
+    },
+    {
+      "id": "1.7:6",
+      "quote": "This document adds the restriction in Section 2.13 that all pseudorandom functions (PRFs) used with IKEv2 MUST take variable- sized keys.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.7-2",
+      "reason": "The change list adds the Section 2.13 restriction that every PRF used with IKEv2 takes variable-sized keys. Row RFC7296-1.7-2 states it and cites Section 1.7 and Section 2.13."
+    },
+    {
+      "id": "1.7:7",
+      "quote": "In Section 3.6, \"Implementations MUST support the \"http:\" scheme for hash-and-URL lookup.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.6-3",
+      "reason": "The change list records the Section 3.6 addition that makes the http scheme mandatory for hash-and-URL lookup. Row RFC7296-3.6-3 carries it and cites Section 3.6 and Section 1.7."
+    },
+    {
+      "id": "2:1",
+      "quote": "All IKEv2 implementations MUST be able to send, receive, and process IKE messages that are up to 1280 octets long, and they SHOULD be able to send, receive, and process messages that are up to 3000 octets long.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2-1",
+      "reason": "Section 2 sets the smallest IKE message size every implementation sends, receives and processes. Row RFC7296-2-1 quotes the MUST clause of this sentence."
+    },
+    {
+      "id": "2:2",
+      "quote": "The UDP payload of all packets containing IKE messages sent on port 4500 MUST begin with the prefix of four zeros; otherwise, the receiver won't know how to handle them.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.23-3",
+      "reason": "Section 2 binds every IKE message on port 4500 to start with four zero octets, the non-ESP marker. Row RFC7296-2.23-3 states the rule, and Section 2.23 describes the same prefix without a keyword, so this is the only keyword site for it."
+    },
+    {
+      "id": "2.1:1",
+      "quote": "The responder MUST never retransmit a response unless it receives a retransmission of the request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.1-3",
+      "reason": "The retransmission paragraph bars the responder from resending a response on its own. Row RFC7296-2.1-3 quotes the sentence."
+    },
+    {
+      "id": "2.1:2",
+      "quote": "In that event, the responder MUST ignore the retransmitted request except insofar as it causes a retransmission of the response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.1-4",
+      "reason": "The next sentence binds the responder to ignore the repeated request apart from resending the response. Row RFC7296-2.1-4 quotes the sentence."
+    },
+    {
+      "id": "2.1:3",
+      "quote": "The initiator MUST remember each request until it receives the corresponding response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.1-5",
+      "reason": "The same paragraph binds the initiator to hold each request until its response arrives. Row RFC7296-2.1-5 quotes this sentence and the responder half after it."
+    },
+    {
+      "id": "2.1:4",
+      "quote": "The responder MUST remember each response until it receives a request whose sequence number is larger than or equal to the sequence number in the response plus its window size (see Section 2.3).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.1-5",
+      "reason": "The responder half sizes response retention by the window. Row RFC7296-2.1-5 quotes this sentence too and cites Section 2.1 and Section 2.3."
+    },
+    {
+      "id": "2.1:5",
+      "quote": "If the responder receives a retransmitted request for which it has already forgotten the response, it MUST ignore the request (and not, for example, attempt constructing a new response).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.1-6",
+      "reason": "The same paragraph binds a responder that already dropped a response to ignore the repeated request. Row RFC7296-2.1-6 quotes the sentence."
+    },
+    {
+      "id": "2.1:6",
+      "quote": "IKE is a reliable protocol: the initiator MUST retransmit a request until it either receives a corresponding response or deems the IKE SA to have failed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.1-7",
+      "reason": "The reliability paragraph binds the initiator to retransmit until a response arrives or it treats the IKE SA as failed. Row RFC7296-2.1-7 quotes the sentence."
+    },
+    {
+      "id": "2.1:7",
+      "quote": "A retransmission from the initiator MUST be bitwise identical to the original request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.1-8",
+      "reason": "The same paragraph binds a retransmission to be identical from the IKE header onwards. Row RFC7296-2.1-8 quotes the sentence."
+    },
+    {
+      "id": "2.2:1",
+      "quote": "Retransmission of a message MUST use the same Message ID as the original message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.2-1",
+      "reason": "Section 2.2 binds a retransmission to reuse the Message ID of the original. Row RFC7296-2.2-1 quotes the sentence."
+    },
+    {
+      "id": "2.2:2",
+      "quote": "In the unlikely event that Message IDs grow too large to fit in 32 bits, the IKE SA MUST be closed or rekeyed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.2-2",
+      "reason": "The last paragraph binds an endpoint to close or rekey the IKE SA before the Message ID overflows 32 bits. Row RFC7296-2.2-2 quotes the sentence."
+    },
+    {
+      "id": "2.3:1",
+      "quote": "The data associated with a SET_WINDOW_SIZE notification MUST be 4 octets long and contain the big endian representation of the number of messages the sender promises to keep.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.3-7",
+      "reason": "Section 2.3 fixes the SET_WINDOW_SIZE notification data at 4 octets in big endian order. Row RFC7296-2.3-7 quotes the sentence."
+    },
+    {
+      "id": "2.3:2",
+      "quote": "An IKE endpoint MUST wait for a response to each of its messages before sending a subsequent message unless it has received a SET_WINDOW_SIZE Notify message from its peer informing it that the peer is prepared to maintain state for multiple outstanding messages in order to allow greater throughput.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.3-2",
+      "reason": "The next paragraph holds an endpoint to one outstanding message until a SET_WINDOW_SIZE notification from the peer raises the window. Row RFC7296-2.3-2 quotes the sentence."
+    },
+    {
+      "id": "2.3:3",
+      "quote": "An IKE endpoint MUST be prepared to accept and process a request while it has a request outstanding in order to avoid a deadlock in this situation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.3-8",
+      "reason": "The overlapping-request paragraph binds an endpoint to accept and process an incoming request while its own request is outstanding, to avoid deadlock. Row RFC7296-2.3-8 quotes the sentence."
+    },
+    {
+      "id": "2.3:4",
+      "quote": "An IKE endpoint MUST NOT exceed the peer's stated window size for transmitted IKE requests.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.3-4",
+      "reason": "The window paragraph bars an endpoint from sending past the window size the peer stated. Row RFC7296-2.3-4 quotes the sentence."
+    },
+    {
+      "id": "2.3:5",
+      "quote": "In other words, if the responder stated its window size is N, then when the initiator needs to make a request X, it MUST wait until it has received responses to all requests up through request X-N.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC7296-2.3-4",
+      "reason": "The RFC opens this sentence with 'In other words' and restates the window limit as a wait for the responses up through request X-N. Site 2.3:4 maps RFC7296-2.3-4."
+    },
+    {
+      "id": "2.3:6",
+      "quote": "An IKE endpoint MUST keep a copy of (or be able to regenerate exactly) each request it has sent until it receives the corresponding response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.1-5",
+      "reason": "The same paragraph binds an endpoint to keep or regenerate each request it sent until the response arrives. Row RFC7296-2.1-5 states that obligation and cites Section 2.1 and Section 2.3."
+    },
+    {
+      "id": "2.3:7",
+      "quote": "An IKE endpoint MUST keep a copy of (or be able to regenerate exactly) the number of previous responses equal to its declared window size in case its response was lost and the initiator requests its retransmission by retransmitting the request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.1-5",
+      "reason": "The next sentence sizes response retention by the declared window, which is the responder half of row RFC7296-2.1-5. That row cites Section 2.1 and Section 2.3."
+    },
+    {
+      "id": "2.3:8",
+      "quote": "This Notify message MUST NOT be sent in a response; the invalid request MUST NOT be acknowledged.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.3-5",
+      "reason": "The INVALID_MESSAGE_ID paragraph bars the notification from a response and bars acknowledging the invalid request. Row RFC7296-2.3-5 quotes both clauses."
+    },
+    {
+      "id": "2.3:9",
+      "quote": "Sending this notification is OPTIONAL, and notifications of this type MUST be rate limited.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.3-9",
+      "reason": "The same paragraph makes sending the notification optional and binds a rate limit on it. Row RFC7296-2.3-9 quotes the sentence."
+    },
+    {
+      "id": "2.4:1",
+      "quote": "This notification MUST NOT be sent by an entity that may be replicated (e.g., a roaming user's credentials where the user is allowed to connect to the corporate firewall from two remote systems at the same time).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.4-14",
+      "reason": "The sentence bars an entity that can be replicated from sending INITIAL_CONTACT, which is the obligation the row states."
+    },
+    {
+      "id": "2.4:2",
+      "quote": "The INITIAL_CONTACT notification, if sent, MUST be in the first IKE_AUTH request or response, not as a separate exchange afterwards; receiving parties MAY ignore it in other messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.4-4",
+      "reason": "The sentence places INITIAL_CONTACT in the first IKE_AUTH request or response and not in a later exchange, which is the row."
+    },
+    {
+      "id": "2.4:3",
+      "quote": "Since IKE is designed to operate in spite of DoS attacks from the network, an endpoint MUST NOT conclude that the other endpoint has failed based on any routing information (e.g., ICMP messages) or IKE messages that arrive without cryptographic protection (e.g., Notify messages complaining about unknown SPIs).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.4-3",
+      "reason": "The sentence bars concluding peer failure from routing information or from IKE messages that arrive without cryptographic protection, which is the row's MUST NOT."
+    },
+    {
+      "id": "2.4:4",
+      "quote": "An endpoint MUST conclude that the other endpoint has failed only when repeated attempts to contact it have gone unanswered for a timeout period or when a cryptographically protected INITIAL_CONTACT notification is received on a different IKE SA to the same authenticated identity.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.4-11",
+      "reason": "The sentence names the only two conditions that let an endpoint conclude the peer failed, which is the row."
+    },
+    {
+      "id": "2.4:5",
+      "quote": "Implementations MUST limit the rate at which they take actions based on unprotected messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.4-12",
+      "reason": "The sentence caps the rate at which an implementation acts on unprotected messages, which is the row."
+    },
+    {
+      "id": "2.4:6",
+      "quote": "To be a good network citizen, retransmission times MUST increase exponentially to avoid flooding the network and making an existing congestion situation worse.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.4-13",
+      "reason": "The sentence requires retransmission times to increase exponentially, which is the row."
+    },
+    {
+      "id": "2.4:7",
+      "quote": "If a system creates Child SAs that can fail independently from one another without the associated IKE SA being able to send a delete message, then the system MUST negotiate such Child SAs using separate IKE SAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.4-9",
+      "reason": "The sentence requires separate IKE SAs for Child SAs that can fail independently, which is the row."
+    },
+    {
+      "id": "2.4:8",
+      "quote": "If an IKE endpoint chooses to delete Child SAs, it MUST send Delete payloads to the other end notifying it of the deletion.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.4-10",
+      "reason": "The sentence requires Delete payloads when an endpoint deletes Child SAs, which is the row."
+    },
+    {
+      "id": "2.5:1",
+      "quote": "The minor version number indicates new capabilities, and MUST be ignored by a node with a smaller minor version number, but used for informational purposes by the node with the larger minor version number.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-1",
+      "reason": "The sentence tells a node with the smaller minor version number to ignore that field, which is the row."
+    },
+    {
+      "id": "2.5:2",
+      "quote": "If an endpoint receives a message with a higher major version number, it MUST drop the message and SHOULD send an unauthenticated Notify message of type INVALID_MAJOR_VERSION containing the highest (closest) version number it supports.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-2",
+      "reason": "The sentence's MUST is to drop a message carrying a higher major version number, which is the row. The trailing INVALID_MAJOR_VERSION notification is a SHOULD and gates nothing."
+    },
+    {
+      "id": "2.5:3",
+      "quote": "If an endpoint supports major version n, and major version m, it MUST support all versions between n and m.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-14",
+      "reason": "The sentence requires support for every major version between two supported ones, which is the row."
+    },
+    {
+      "id": "2.5:4",
+      "quote": "If it receives a message with a major version that it supports, it MUST respond with that version number.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-15",
+      "reason": "The sentence requires the response to carry the major version of a supported request, which is the row."
+    },
+    {
+      "id": "2.5:5",
+      "quote": "If they mistakenly (perhaps through an active attacker sending error messages) negotiate to version n, then both will notice that the other side can support a higher version number, and they MUST break the connection and reconnect using version n+1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-16",
+      "reason": "The sentence requires both nodes to break a connection negotiated down to version n and reconnect at n+1, which is the row."
+    },
+    {
+      "id": "2.5:6",
+      "quote": "Also, for forward compatibility, all fields marked RESERVED MUST be set to zero by an implementation running version 2.0, and their content MUST be ignored by an implementation running version 2.0 (\"Be conservative in what you send and liberal in what you receive\" [IP]).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-6",
+      "reason": "The sentence carries two RESERVED field obligations. This maps the send side, setting the fields to zero; the receive side has no site of its own and is recorded in unsourced-ids on section 2.5."
+    },
+    {
+      "id": "2.5:7",
+      "quote": "Similarly, payload types that are not defined are reserved for future use; implementations of a version where they are undefined MUST skip over those payloads and ignore their contents.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-8",
+      "reason": "The sentence requires an implementation to skip undefined payload types and ignore their contents, which is the row."
+    },
+    {
+      "id": "2.5:8",
+      "quote": "If the critical flag is set and the payload type is unrecognized, the message MUST be rejected and the response to the IKE request containing that payload MUST include a Notify payload UNSUPPORTED_CRITICAL_PAYLOAD, indicating an unsupported critical payload was included.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-9",
+      "reason": "The sentence carries two obligations for an unrecognized critical payload. This maps the rejection of the message; the UNSUPPORTED_CRITICAL_PAYLOAD response has no site of its own and is recorded in unsourced-ids on section 2.5."
+    },
+    {
+      "id": "2.5:9",
+      "quote": "If the critical flag is not set and the payload type is unsupported, that payload MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-11",
+      "reason": "The sentence requires an unsupported non-critical payload to be ignored, which is the row."
+    },
+    {
+      "id": "2.5:10",
+      "quote": "Payloads sent in IKE response messages MUST NOT have the critical flag set.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-17",
+      "reason": "The sentence bars the critical flag on payloads sent in IKE responses, which is the row."
+    },
+    {
+      "id": "2.5:11",
+      "quote": "Although new payload types may be added in the future and may appear interleaved with the fields defined in this specification, implementations SHOULD send the payloads defined in this specification in the order shown in the figures in Sections 1 and 2; implementations MUST NOT reject as invalid a message with those payloads in any other order.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-13",
+      "reason": "The sentence's MUST NOT bars rejecting a message because its payloads arrive in another order, which is the row. The preceding send-order clause is a SHOULD."
+    },
+    {
+      "id": "2.6:1",
+      "quote": "Each endpoint chooses one of the two SPIs and MUST choose them so as to be unique identifiers of an IKE SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.6-2",
+      "reason": "The sentence requires each endpoint to choose its IKE SPI so the pair identifies the IKE SA uniquely, which is the row."
+    },
+    {
+      "id": "2.6:2",
+      "quote": "The data associated with this notification MUST be between 1 and 64 octets in length (inclusive), and its generation is described later in this section.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.6-3",
+      "reason": "The sentence bounds COOKIE notification data to 1 through 64 octets, which is the row."
+    },
+    {
+      "id": "2.6:3",
+      "quote": "If the IKE_SA_INIT response includes the COOKIE notification, the initiator MUST then retry the IKE_SA_INIT request, and include the COOKIE notification containing the received data as the first payload, and all other payloads unchanged.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.6-4",
+      "reason": "The sentence requires the initiator to retry IKE_SA_INIT with the COOKIE notification first and all other payloads unchanged, which is the row."
+    },
+    {
+      "id": "2.6:4",
+      "quote": "When one party receives an IKE_SA_INIT request containing a cookie whose contents do not match the value expected, that party MUST ignore the cookie and process the message as if no cookie had been included; usually this means sending a response containing a new cookie.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.6-5",
+      "reason": "The sentence requires a party to ignore a cookie whose contents do not match the expected value, which is the row."
+    },
+    {
+      "id": "2.6.1:1",
+      "quote": "Implementations SHOULD support this shorter exchange, but MUST NOT fail if other implementations do not support this shorter exchange.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.6.1-1",
+      "reason": "The sentence's MUST NOT bars failing when the peer does not support the shorter cookie and INVALID_KE_PAYLOAD exchange, which is the row."
+    },
+    {
+      "id": "2.7:1",
+      "quote": "The responder MUST choose a single suite, which may be any subset of the SA proposal following the rules below.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC7296-2.7-1",
+      "reason": "This sentence introduces the negotiation rules that follow it, and each of those rules restates the single-suite obligation with its own site. RFC7296-2.7-1 carries it, mapped from the exactly-one-transform-per-type site."
+    },
+    {
+      "id": "2.7:2",
+      "quote": "If a proposal is accepted, the SA response MUST contain the same protocol.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.7-2",
+      "reason": "The sentence requires an accepted proposal's protocol to appear in the SA response, which is the row."
+    },
+    {
+      "id": "2.7:3",
+      "quote": "The responder MUST accept a single proposal or reject them all and return an error.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC7296-2.7-1",
+      "reason": "Accepting one proposal or rejecting them all with an error is the second half of RFC7296-2.7-1, whose first half the exactly-one-transform-per-type site maps."
+    },
+    {
+      "id": "2.7:4",
+      "quote": "The accepted cryptographic suite MUST contain exactly one transform of each type included in the proposal.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.7-1",
+      "reason": "The sentence requires the accepted suite to hold exactly one transform of each type in the proposal, which is the row's first half."
+    },
+    {
+      "id": "2.7:5",
+      "quote": "For example: if an ESP proposal includes transforms ENCR_3DES, ENCR_AES w/keysize 128, ENCR_AES w/keysize 256, AUTH_HMAC_MD5, and AUTH_HMAC_SHA, the accepted suite MUST contain one of the ENCR_ transforms and one of the AUTH_ transforms.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC7296-2.7-1",
+      "reason": "The sentence opens with 'For example' and applies the preceding rule to a named ESP proposal. It states no obligation the preceding sentence does not, and RFC7296-2.7-1 carries that obligation."
+    },
+    {
+      "id": "2.8:1",
+      "quote": "When the lifetime of a Security Association expires, the Security Association MUST NOT be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.8-8",
+      "reason": "The sentence bars use of a Security Association after its lifetime expires, which is the row."
+    },
+    {
+      "id": "2.8:2",
+      "quote": "If an SA has expired or is about to expire and rekeying attempts using the mechanisms described here fail, an implementation MUST close the IKE SA and any associated Child SAs and then MAY start new ones.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.8-5",
+      "reason": "The sentence requires closing the IKE SA and its Child SAs when rekeying fails on an expired or expiring SA, which is the row."
+    },
+    {
+      "id": "2.8:3",
+      "quote": "After the new equivalent IKE SA is created, the initiator deletes the old IKE SA, and the Delete payload to delete itself MUST be the last request sent over the old IKE SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.8-6",
+      "reason": "The sentence requires the self-delete payload to be the last request sent over the old IKE SA, which is the row."
+    },
+    {
+      "id": "2.8:4",
+      "quote": "The responder to a CREATE_CHILD_SA MUST be prepared to accept messages on an SA before sending its response to the creation request, so there is no ambiguity for the initiator.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.8-7",
+      "reason": "The sentence requires the CREATE_CHILD_SA responder to accept messages on the new SA before it sends its response, which is the row."
+    },
+    {
+      "id": "2.8.1:1",
+      "quote": "When there are two SAs eligible to receive packets, a node MUST accept incoming packets through either SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.8.1-1",
+      "reason": "The sentence requires a node to accept incoming packets through either of two SAs eligible to receive them, which is the row."
+    },
+    {
+      "id": "2.8.2:1",
+      "quote": "The new IKE SA containing the lowest nonce SHOULD be deleted by the node that created it, and the other surviving new IKE SA MUST inherit all the Child SAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.8.2-1",
+      "reason": "The sentence's MUST is that the surviving new IKE SA inherits all the Child SAs, which is the row. The deletion of the lowest-nonce IKE SA in the same sentence is a SHOULD."
+    },
+    {
+      "id": "2.9:1",
+      "quote": "o If the responder's policy allows it to accept the first selector of TSi and TSr, then the responder MUST narrow the Traffic Selectors to a subset that includes the initiator's first choices.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.9-2",
+      "reason": "The bullet requires the responder to narrow to a subset that includes the initiator's first choices when its policy accepts them, which is the row."
+    },
+    {
+      "id": "2.9.2:1",
+      "quote": "Thus, the new SA MUST NOT have narrower selectors than the original.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.9.2-1",
+      "reason": "The sentence bars a rekeyed SA from carrying narrower selectors than the SA it replaces, which is the row."
+    },
+    {
+      "id": "2.9.2:2",
+      "quote": "The responder MUST NOT narrow down the Traffic Selectors narrower than the scope currently in use.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.9.2-2",
+      "reason": "The sentence bars the responder from narrowing Traffic Selectors below the scope currently in use, which is the row."
+    },
+    {
+      "id": "2.10:1",
+      "quote": "Nonces used in IKEv2 MUST be randomly chosen, MUST be at least 128 bits in size, and MUST be at least half the key size of the negotiated pseudorandom function (PRF).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.10-4",
+      "reason": "The sentence carries three nonce obligations. This maps random choice; the 128-bit floor and the PRF key size floor have no site of their own and are recorded in unsourced-ids on section 2.10."
+    },
+    {
+      "id": "2.11:1",
+      "quote": "An implementation MUST accept incoming requests even if the source port is not 500 or 4500, and MUST respond to the address and port from which the request was received.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.11-1",
+      "reason": "The sentence carries two obligations. This maps accepting requests whose source port is neither 500 nor 4500; responding to the address and port the request came from has no site of its own and is recorded in unsourced-ids on section 2.11."
+    },
+    {
+      "id": "2.11:2",
+      "quote": "It MUST specify the address and port at which the request was received as the source address and port in the response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.11-3",
+      "reason": "The sentence requires the response to carry the address and port at which the request was received as its source, which is the row."
+    },
+    {
+      "id": "2.12:1",
+      "quote": "Achieving perfect forward secrecy requires that when a connection is closed, each endpoint MUST forget not only the keys used by the connection but also any information that could be used to recompute those keys.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.12-1",
+      "reason": "The sentence requires each endpoint to forget the connection keys and anything that recomputes them when the connection closes, which is the row."
+    },
+    {
+      "id": "2.13:1",
+      "quote": "For algorithms that accept a variable-length key, a fixed key size MUST be specified as part of the cryptographic transform negotiated (see Section 3.3.5 for the definition of the Key Length transform attribute).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.13-1",
+      "reason": "The sentence requires a fixed key size in the negotiated transform for a variable-length key algorithm, which is the row."
+    },
+    {
+      "id": "2.13:2",
+      "quote": "For algorithms for which not all values are valid keys (such as DES or 3DES with key parity), the algorithm by which keys are derived from arbitrary values MUST be specified by the cryptographic transform.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.13-2",
+      "reason": "The sentence requires the transform to specify how keys are derived when not all values are valid keys, which is the row."
+    },
+    {
+      "id": "2.13:3",
+      "quote": "The preferred key size MUST be used as the length of SK_d, SK_pi, and SK_pr (see Section 2.14).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.13-3",
+      "reason": "The sentence sets SK_d, SK_pi and SK_pr to the PRF's preferred key size, which is the row."
+    },
+    {
+      "id": "2.13:4",
+      "quote": "Other types of PRFs MUST specify their preferred key size.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.13-4",
+      "reason": "The sentence requires a PRF outside the HMAC construction to state its preferred key size, which is the row."
+    },
+    {
+      "id": "2.14:1",
+      "quote": "The lengths of SK_d, SK_pi, and SK_pr MUST be the preferred key length of the PRF agreed upon.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.13-3",
+      "reason": "The sentence sets the length of the three PRF-keyed secrets to the PRF's preferred key length. RFC7296-2.13-3 states that obligation and cites \u00a72.13 and \u00a72.14, so this site is its \u00a72.14 source."
+    },
+    {
+      "id": "2.15:1",
+      "quote": "The management interface by which the shared secret is provided MUST accept ASCII strings of at least 64 octets and MUST NOT add a null terminator before using them as shared secrets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.15-1",
+      "reason": "The management-interface sentence carries two obligations. This site maps the 64-octet ASCII acceptance; the null-terminator half is recorded unsourced on \u00a72.15 as RFC7296-2.15-2."
+    },
+    {
+      "id": "2.15:2",
+      "quote": "It MUST also accept a hex encoding of the shared secret.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.15-3",
+      "reason": "'It' is the management interface of the previous sentence. The obligation to accept a hex encoding of the shared secret is RFC7296-2.15-3 verbatim."
+    },
+    {
+      "id": "2.16:1",
+      "quote": "For this reason, these protocols are typically used to authenticate the initiator to the responder and MUST be used in conjunction with a public-key-signature-based authentication of the responder to the initiator.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.16-11",
+      "reason": "EAP methods are asymmetric and can be non-mutual, so the section requires a public-key signature from the responder alongside them. RFC7296-2.16-11 states it and cites \u00a72.16."
+    },
+    {
+      "id": "2.16:2",
+      "quote": "Extensible authentication is implemented in IKE as additional IKE_AUTH exchanges that MUST be completed in order to initialize the IKE SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.16-6",
+      "reason": "The sentence makes the extra IKE_AUTH exchanges a precondition of initializing the IKE SA. RFC7296-2.16-6 quotes it."
+    },
+    {
+      "id": "2.16:3",
+      "quote": "For EAP methods that create a shared key as a side effect of authentication, that shared key MUST be used by both the initiator and responder to generate AUTH payloads in messages 7 and 8 using the syntax for shared secrets specified in Section 2.15.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.16-12",
+      "reason": "For a key-generating EAP method the MSK becomes the shared secret in the message 7 and 8 AUTH computation of \u00a72.15. RFC7296-2.16-12 quotes the sentence."
+    },
+    {
+      "id": "2.16:4",
+      "quote": "This shared key generated during an IKE exchange MUST NOT be used for any other purpose.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.16-7",
+      "reason": "The sentence confines the EAP MSK to the AUTH computation named two sentences earlier. RFC7296-2.16-7 quotes it."
+    },
+    {
+      "id": "2.16:5",
+      "quote": "If EAP methods that do not generate a shared key are used, the AUTH payloads in messages 7 and 8 MUST be generated using SK_pi and SK_pr, respectively.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.16-5",
+      "reason": "The non-key-generating branch of the same AUTH computation, keyed with SK_pi and SK_pr. RFC7296-2.16-5 quotes it."
+    },
+    {
+      "id": "2.16:6",
+      "quote": "Once the protocol exchange defined by the chosen EAP authentication method has successfully terminated, the responder MUST send an EAP payload containing the Success message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.16-14",
+      "reason": "On successful termination of the EAP method the responder sends an EAP Success payload. RFC7296-2.16-14 quotes the sentence."
+    },
+    {
+      "id": "2.16:7",
+      "quote": "Similarly, if the authentication method has failed, the responder MUST send an EAP payload containing the Failure message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.16-15",
+      "reason": "The failure counterpart of the previous sentence, and RFC7296-2.16-15 quotes it."
+    },
+    {
+      "id": "2.16:8",
+      "quote": "Following such an extended exchange, the EAP AUTH payloads MUST be included in the two messages following the one containing the EAP Success message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.16-13",
+      "reason": "The sentence fixes where the AUTH payloads sit after an extended EAP exchange: the two messages after the EAP Success message. RFC7296-2.16-13 quotes it."
+    },
+    {
+      "id": "2.17:1",
+      "quote": "In any case, keying material for each Child SA MUST be taken from the expanded KEYMAT using the following rules:",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.17-1",
+      "reason": "The sentence introduces the three KEYMAT ordering bullets. RFC7296-2.17-1 states it together with the first bullet, initiator-to-responder keys first."
+    },
+    {
+      "id": "2.17:2",
+      "quote": "For ESP and AH, [IPSECARCH] defines the order, namely: the encryption key (if any) MUST be taken from the first bits and the integrity key (if any) MUST be taken from the remaining bits.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.17-2",
+      "reason": "The third bullet fixes the ESP and AH split of a Child SA's keying material: encryption key first, integrity key from the rest. RFC7296-2.17-2 states it."
+    },
+    {
+      "id": "2.18:1",
+      "quote": "Therefore, implementations MUST perform a new Diffie-Hellman exchange when rekeying the IKE SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.18-3",
+      "reason": "The obligation to run a fresh Diffie-Hellman exchange when rekeying the IKE SA. RFC7296-2.18-3 opens with this sentence."
+    },
+    {
+      "id": "2.18:2",
+      "quote": "In other words, an initiator MUST NOT propose the value \"NONE\" for the Diffie-Hellman transform, and a responder MUST NOT accept such a proposal.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.18-3",
+      "reason": "The proposal-level form of the same obligation, binding the initiator and the responder. RFC7296-2.18-3 carries this sentence as its second half, so the site is a source of that row rather than a separate one."
+    },
+    {
+      "id": "2.18:3",
+      "quote": "The new IKE SA MUST reset its message counters to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.18-2",
+      "reason": "A rekeyed IKE SA starts its Message ID counters at 0. RFC7296-2.18-2 quotes the sentence."
+    },
+    {
+      "id": "2.19:1",
+      "quote": "Since the IKE_AUTH exchange creates an IKE SA and a Child SA, the IRAC MUST request the IRAS-controlled address (and optionally other information concerning the protected network) in the IKE_AUTH exchange.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.19-1",
+      "reason": "The IKE_AUTH exchange creates both SAs, so an IRAC asks for its internal address there. RFC7296-2.19-1 quotes the sentence and cites \u00a72.19 and \u00a74."
+    },
+    {
+      "id": "2.19:2",
+      "quote": "Initiator Responder ------------------------------------------------------------------- HDR, SK {IDi, [CERT,] [CERTREQ,] [IDr,] AUTH, CP(CFG_REQUEST), SAi2, TSi, TSr} --> <-- HDR, SK {IDr, [CERT,] AUTH, CP(CFG_REPLY), SAr2, TSi, TSr} In all cases, the CP payload MUST be inserted before the SA payload.",
+      "disposition": "excluded",
+      "reason": "The obligation, the CP payload's position in the responder's payload chain, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-2 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
+      "excluded-kind": "relocated-to-spec",
+      "relocated-to": "plan/spec-ipsec-remote-access.md",
+      "reserved-id": "RFC7296-2.19-2"
+    },
+    {
+      "id": "2.19:3",
+      "quote": "In variations of the protocol where there are multiple IKE_AUTH exchanges, the CP payloads MUST be inserted in the messages containing the SA payloads.",
+      "disposition": "excluded",
+      "reason": "The obligation, never send an unsolicited CFG_REPLY, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-3 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
+      "excluded-kind": "relocated-to-spec",
+      "relocated-to": "plan/spec-ipsec-remote-access.md",
+      "reserved-id": "RFC7296-2.19-3"
+    },
+    {
+      "id": "2.19:4",
+      "quote": "CP(CFG_REQUEST) MUST contain at least an INTERNAL_ADDRESS attribute (either IPv4 or IPv6) but MAY contain any number of additional attributes the initiator wants returned in the response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.19-4",
+      "reason": "Fixes the minimum content of a CFG_REQUEST: at least one INTERNAL_ADDRESS attribute. RFC7296-2.19-4 quotes the sentence."
+    },
+    {
+      "id": "2.19:5",
+      "quote": "The responder MUST NOT send a CFG_REPLY without having first received a CP(CFG_REQUEST) from the initiator, because we do not want the IRAS to perform an unnecessary configuration lookup if the IRAC cannot process the REPLY.",
+      "disposition": "excluded",
+      "reason": "The obligation, emit FAILED_CP_REQUIRED when a required CP is absent, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-5 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
+      "excluded-kind": "relocated-to-spec",
+      "relocated-to": "plan/spec-ipsec-remote-access.md",
+      "reserved-id": "RFC7296-2.19-5"
+    },
+    {
+      "id": "2.19:6",
+      "quote": "In the case where the IRAS's configuration requires that CP be used for a given identity IDi, but IRAC has failed to send a CP(CFG_REQUEST), IRAS MUST fail the request, and terminate the Child SA creation with a FAILED_CP_REQUIRED error.",
+      "disposition": "excluded",
+      "reason": "The obligation, the SA state after a failed configuration exchange, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.19-6 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
+      "excluded-kind": "relocated-to-spec",
+      "relocated-to": "plan/spec-ipsec-remote-access.md",
+      "reserved-id": "RFC7296-2.19-6"
+    },
+    {
+      "id": "2.20:1",
+      "quote": "In that case, it MUST either return an empty string or no CP payload if CP is not supported.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.20-1",
+      "reason": "'That case' is the peer declining to give out version information. The sentence fixes the two permitted answers, and RFC7296-2.20-1 carries the whole construction."
+    },
+    {
+      "id": "2.21.2:1",
+      "quote": "Note, however, that request messages that contain an unsupported critical payload, or where the whole message is malformed (rather than just bad payload contents), MUST be rejected in their entirety, and MUST only lead to an UNSUPPORTED_CRITICAL_PAYLOAD or INVALID_SYNTAX Notification sent as a response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.21.2-1",
+      "reason": "An unsupported critical payload or a malformed message is rejected whole, with one of two notifications and nothing else. RFC7296-2.21.2-1 quotes the sentence."
+    },
+    {
+      "id": "2.21.2:2",
+      "quote": "Specifically, a responder may include all the payloads associated with authentication (IDr, CERT, and AUTH) while sending error notifications for the piggybacked exchanges (FAILED_CP_REQUIRED, NO_PROPOSAL_CHOSEN, and so on), and the initiator MUST NOT fail the authentication because of this.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.21.2-2",
+      "reason": "A failed piggybacked exchange does not fail the authentication that succeeded in the same IKE_AUTH. RFC7296-2.21.2-2 quotes the sentence."
+    },
+    {
+      "id": "2.21.2:3",
+      "quote": "Extension documents may define new error notifications with these semantics, but MUST NOT use them unless the peer has been shown to understand them, such as by using the Vendor ID payload.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.21.2-3",
+      "reason": "Bars an extension document's new IKE-SA-deleting notification until the peer is known to understand it. RFC7296-2.21.2-3 quotes the sentence."
+    },
+    {
+      "id": "2.21.3:1",
+      "quote": "After the IKE SA is authenticated, all requests having errors MUST result in a response notifying the other end of the error.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.21.3-1",
+      "reason": "Once the IKE SA is authenticated every errored request draws a response naming the error. RFC7296-2.21.3-1 quotes the sentence."
+    },
+    {
+      "id": "2.21.4:1",
+      "quote": "If the message is marked as a response, the node can audit the suspicious event but MUST NOT respond.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.21.4-1",
+      "reason": "A message outside any known IKE SA that is marked as a response draws no reply. RFC7296-2.21.4-1 quotes the sentence."
+    },
+    {
+      "id": "2.21.4:2",
+      "quote": "If a response is sent, the response MUST be sent to the IP address and port from where it came with the same IKE SPIs and the Message ID copied.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.21.4-2",
+      "reason": "Fixes the destination and the header fields of the optional response to an out-of-SA request. RFC7296-2.21.4-2 states it and adds the Exchange Type and Response flag from \u00a71.5."
+    },
+    {
+      "id": "2.21.4:3",
+      "quote": "The response MUST NOT be cryptographically protected and MUST contain an INVALID_IKE_SPI Notify payload.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.21.4-3",
+      "reason": "The sentence carries two obligations. This site maps the ban on cryptographic protection; the INVALID_IKE_SPI payload half is recorded unsourced on \u00a72.21.4 as RFC7296-2.21.4-4."
+    },
+    {
+      "id": "2.21.4:4",
+      "quote": "A peer receiving such an unprotected Notify payload MUST NOT respond and MUST NOT change the state of any existing SAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.21.4-5",
+      "reason": "The sentence carries two obligations for the receiver of that unprotected Notify. This site maps the ban on responding; the SA-state half is recorded unsourced on \u00a72.21.4 as RFC7296-2.21.4-6."
+    },
+    {
+      "id": "2.21.4:5",
+      "quote": "The recipient MUST NOT change the state of any SAs as a result, but may wish to audit the event to aid in diagnosing malfunctions.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.21.4-7",
+      "reason": "The recipient here is the peer that received the protected Notify sent over an existing IKE SA after a suspicious message. RFC7296-2.21.4-7 carries the SHOULD send clause together with this MUST NOT."
+    },
+    {
+      "id": "2.22:1",
+      "quote": "These payloads MUST NOT occur in messages that do not contain SA payloads.",
+      "disposition": "excluded",
+      "reason": "The obligation, IPComp association negotiation, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.22-1 in plan/spec-ipsec-ipcomp.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
+      "excluded-kind": "relocated-to-spec",
+      "relocated-to": "plan/spec-ipsec-ipcomp.md",
+      "reserved-id": "RFC7296-2.22-1"
+    },
+    {
+      "id": "2.22:2",
+      "quote": "Although there has been discussion of allowing multiple compression algorithms to be accepted and to have different compression algorithms available for the two directions of a Child SA, implementations of this specification MUST NOT accept an IPComp algorithm that was not proposed, MUST NOT accept more than one, and MUST NOT compress using an algorithm other than one proposed and accepted in the setup of the Child SA.",
+      "disposition": "excluded",
+      "reason": "The obligation, IPComp CPI handling, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-2.22-2 in plan/spec-ipsec-ipcomp.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
+      "excluded-kind": "relocated-to-spec",
+      "relocated-to": "plan/spec-ipsec-ipcomp.md",
+      "reserved-id": "RFC7296-2.22-2"
+    },
+    {
+      "id": "2.23:1",
+      "quote": "For this reason, even though IKE packets MUST be sent to and from UDP port 500 or 4500, they MUST be accepted coming from any port and responses MUST be sent to the port from whence they came.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.11-1",
+      "reason": "NATs rewrite ports, so a conforming node accepts IKE from any source port and answers the port it heard. RFC7296-2.11-1 states the acceptance obligation and cites \u00a72.11 and \u00a72.23, so this site is its \u00a72.23 source; RFC7296-2.11-2 carries the reply-port half and is anchored to \u00a72.11."
+    },
+    {
+      "id": "2.23:2",
+      "quote": "An IPsec endpoint that discovers a NAT between it and its correspondent (as described below) MUST send all subsequent traffic from port 4500, which NATs should not treat specially (as they might with port 500).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.23-8",
+      "reason": "Once a node detects a NAT it sends everything from port 4500, which NATs handle without special treatment. RFC7296-2.23-8 quotes the sentence."
+    },
+    {
+      "id": "2.23:3",
+      "quote": "UDP encapsulation MUST NOT be done on port 500.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.23-9",
+      "reason": "Port 500 carries plain IKE only; UDP encapsulation belongs to port 4500. RFC7296-2.23-9 quotes the sentence."
+    },
+    {
+      "id": "2.23:4",
+      "quote": "If Network Address Translation Traversal (NAT-T) is supported (that is, if NAT_DETECTION_*_IP payloads were exchanged during IKE_SA_INIT), all devices MUST be able to receive and process both UDP-encapsulated ESP and non-UDP-encapsulated ESP packets at any time.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.23-10",
+      "reason": "A NAT-T capable node receives both ESP forms at any time, because either side decides on encapsulation for itself. RFC7296-2.23-10 quotes the sentence."
+    },
+    {
+      "id": "2.23:5",
+      "quote": "However, if a NAT is detected, both devices MUST use UDP encapsulation for ESP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.23-2",
+      "reason": "The exception to that free choice: a detected NAT makes UDP encapsulation of ESP mandatory on both sides. RFC7296-2.23-2 is the summary's row for what a detected NAT forces on IKE and ESP traffic."
+    },
+    {
+      "id": "2.23:6",
+      "quote": "In this section only, requirements listed as MUST apply only to implementations supporting NAT traversal.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "An applicability statement, not an obligation: it tells the reader that the MUSTs in the bullet list below bind only implementations that support NAT traversal, which the preceding sentence calls optional."
+    },
+    {
+      "id": "2.23:7",
+      "quote": "o Both the IKE initiator and responder MUST include in their IKE_SA_INIT packets Notify payloads of type NAT_DETECTION_SOURCE_IP and NAT_DETECTION_DESTINATION_IP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.23-7",
+      "reason": "Both ends put the two NAT_DETECTION payloads in IKE_SA_INIT, just after Ni and Nr. RFC7296-2.23-7 quotes the sentence."
+    },
+    {
+      "id": "2.23:8",
+      "quote": "o The IKE initiator MUST check the NAT_DETECTION_SOURCE_IP or NAT_DETECTION_DESTINATION_IP payloads if present, and if they do not match the addresses in the outer packet, MUST tunnel all future IKE and ESP packets associated with this IKE SA over UDP port 4500.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.23-1",
+      "reason": "The only MUST-level source for the detection check itself: the initiator compares the payloads against the outer packet. The sentence's second clause, tunnelling over port 4500 on a mismatch, is the obligation RFC7296-2.23-2 carries."
+    },
+    {
+      "id": "2.23:9",
+      "quote": "o Implementations MUST process received UDP-encapsulated ESP packets even when no NAT was detected.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.23-11",
+      "reason": "Reception of UDP-encapsulated ESP does not depend on a NAT having been detected. RFC7296-2.23-11 quotes the sentence."
+    },
+    {
+      "id": "2.23:10",
+      "quote": "In the case of transport mode NAT traversal, the Traffic Selectors MUST contain exactly one IP address, which is then used as the original IP address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.23.1-1",
+      "reason": "Transport-mode checksum fixup needs one original IP address, so the Traffic Selectors hold exactly one. The sentence names \u00a72.23.1 as the detailed treatment, and RFC7296-2.23.1-1 is that row."
+    },
+    {
+      "id": "2.23.1:1",
+      "quote": "For transport mode, it MUST use exactly one IP address in the TSi and TSr payloads.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.23.1-1",
+      "reason": "The transport mode scenario binds the client to one IP address in the TSi and TSr payloads. The row states that obligation."
+    },
+    {
+      "id": "2.23.1:2",
+      "quote": "- The TSi entries MUST have exactly one IP address, and that MUST match the source address of the IKE SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.23.1-2",
+      "reason": "First bullet of the client rule list: one TSi address, and it matches the IKE SA source address."
+    },
+    {
+      "id": "2.23.1:3",
+      "quote": "- The TSr entries MUST have exactly one IP address, and that MUST match the destination address of the IKE SA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.23.1-3",
+      "reason": "Second bullet of the client rule list: one TSr address, and it matches the IKE SA destination address."
+    },
+    {
+      "id": "2.24:1",
+      "quote": "Specifically, tunnel encapsulators and decapsulators for all tunnel mode SAs created by IKEv2 MUST support the ECN full-functionality option for tunnels specified in [ECN] and MUST implement the tunnel encapsulation and decapsulation processing specified in [IPSECARCH] to prevent discarding of ECN congestion indications.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.24-1",
+      "reason": "The sentence carries two MUSTs and the splitter emits one site. This site is recorded against the ECN full-functionality row; the encapsulation processing half is RFC7296-2.24-2, homed on the section."
+    },
+    {
+      "id": "2.25:1",
+      "quote": "When a peer receives a TEMPORARY_FAILURE notification, it MUST NOT immediately retry the operation; it MUST wait so that the sender may complete whatever operation caused the temporary condition.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.25-1",
+      "reason": "The row quotes both clauses of this sentence: no immediate retry after TEMPORARY_FAILURE, and wait for the sender to finish."
+    },
+    {
+      "id": "3.1:1",
+      "quote": "An Encrypted payload MUST be the last payload in a packet and an Encrypted payload MUST NOT contain another Encrypted payload.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.1-1",
+      "reason": "The payload chaining paragraph states two MUSTs in one sentence. This site is recorded against the last-payload row; the nesting ban is RFC7296-3.1-2, homed on the section."
+    },
+    {
+      "id": "3.1:2",
+      "quote": "This value MUST NOT be zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.1-3",
+      "reason": "Initiator's SPI field description. The row states the same non-zero rule."
+    },
+    {
+      "id": "3.1:3",
+      "quote": "This value MUST be zero in the first message of an IKE initial exchange (including repeats of that message including a cookie).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.1-4",
+      "reason": "Responder's SPI field description: zero in the first message of an initial exchange, cookie repeats included."
+    },
+    {
+      "id": "3.1:4",
+      "quote": "Implementations based on this version of IKE MUST set the major version to 2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.1-5",
+      "reason": "Major Version field description. The row states the same value 2 rule for an IKEv2 implementation."
+    },
+    {
+      "id": "3.1:5",
+      "quote": "Implementations based on previous versions of IKE and ISAKMP MUST set the major version to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The sentence sets the major version for implementations of previous IKE versions and of ISAKMP. Ze implements IKEv2 only, so the obligation binds an IKEv1 or ISAKMP implementation."
+    },
+    {
+      "id": "3.1:6",
+      "quote": "Implementations based on this document's version (version 2) of IKE MUST reject or ignore messages containing a version number greater than 2 with an INVALID_MAJOR_VERSION notification message as described in Section 2.5.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-2",
+      "reason": "The Major Version field description repeats the Section 2.5 rule for a version number above 2. The summary carries it as the Section 2.5 row, which cites 3.1 as well."
+    },
+    {
+      "id": "3.1:7",
+      "quote": "Implementations based on this version of IKE MUST set the minor version to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.1-6",
+      "reason": "Minor Version field description. The row states the same value 0 rule."
+    },
+    {
+      "id": "3.1:8",
+      "quote": "They MUST ignore the minor version number of received messages. o Exchange Type (1 octet) - Indicates the type of exchange being used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-1",
+      "reason": "The Minor Version field description obliges a receiver to ignore the minor version of received messages. The summary carries that obligation as the Section 2.5 row, which cites 3.1."
+    },
+    {
+      "id": "3.1:9",
+      "quote": "In the description below, a bit being 'set' means its value is '1', while 'cleared' means its value is '0'. 'X' bits MUST be cleared when sending and MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.1-7",
+      "reason": "Flags field description. This site is recorded against the clear-when-sending row for X bits; the ignore-on-receipt half of the same sentence is RFC7296-3.1-8, homed on the section."
+    },
+    {
+      "id": "3.1:10",
+      "quote": "This bit MUST be cleared in all request messages and MUST be set in all responses.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.1-9",
+      "reason": "R bit description. The row states both clauses: cleared in requests, set in responses."
+    },
+    {
+      "id": "3.1:11",
+      "quote": "An IKE endpoint MUST NOT generate a response to a message that is marked as being a response (with one exception; see Section 2.21.2).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.1-12",
+      "reason": "R bit description continues with the ban on responding to a response. The row states it with the Section 2.21.2 exception."
+    },
+    {
+      "id": "3.1:12",
+      "quote": "Implementations of IKEv2 MUST clear this bit when sending and MUST ignore it in incoming messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.1-11",
+      "reason": "V bit description: clear when sending, ignore on receipt. The row states both clauses."
+    },
+    {
+      "id": "3.1:13",
+      "quote": "* I (Initiator) - This bit MUST be set in messages sent by the original initiator of the IKE SA and MUST be cleared in messages sent by the original responder.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.1-13",
+      "reason": "I bit description: set by the original initiator, cleared by the original responder. The row states both clauses."
+    },
+    {
+      "id": "3.2:1",
+      "quote": "o Critical (1 bit) - MUST be set to zero if the sender wants the recipient to skip this payload if it does not understand the payload type code in the Next Payload field of the previous payload.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.2-5",
+      "reason": "Critical bit description: the sender sets the bit to zero when it wants the recipient to skip a payload whose type code it does not understand. The row now states that sender obligation."
+    },
+    {
+      "id": "3.2:2",
+      "quote": "MUST be set to one if the sender wants the recipient to reject this entire message if it does not understand the payload type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.2-6",
+      "reason": "Critical bit description: the sender sets the bit to one when it wants the recipient to reject the entire message on a payload type it does not understand. The row now states that sender obligation."
+    },
+    {
+      "id": "3.2:3",
+      "quote": "MUST be ignored by the recipient if the recipient understands the payload type code.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.2-2",
+      "reason": "Critical bit description: the recipient ignores the bit when it understands the payload type code. The row states that obligation."
+    },
+    {
+      "id": "3.2:4",
+      "quote": "MUST be set to zero for payload types defined in this document.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.2-4",
+      "reason": "Critical bit description: zero for every payload type defined in this document. The row states that obligation."
+    },
+    {
+      "id": "3.2:5",
+      "quote": "The reasoning behind not setting the critical bit for payloads defined in this document is that all implementations MUST understand all payload types defined in this document and therefore must ignore the critical bit's value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.2-3",
+      "reason": "The explanation of why the Critical bit stays zero carries the obligation to understand all payload types defined in this document. The row states that obligation."
+    },
+    {
+      "id": "3.2:6",
+      "quote": "o RESERVED (7 bits) - MUST be sent as zero; MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-6",
+      "reason": "RESERVED field of the generic payload header. The summary carries the send-as-zero half as the Section 2.5 row, which cites 3.2; the ignore-on-receipt half is RFC7296-2.5-7, mapped from the Section 3.3.1 RESERVED site."
+    },
+    {
+      "id": "3.3:1",
+      "quote": "If there is more than one, they MUST be ordered from most preferred to least preferred.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3-3",
+      "reason": "Proposal ordering in an SA payload: most preferred first. The row states that obligation."
+    },
+    {
+      "id": "3.3:2",
+      "quote": "When parsing an SA, an implementation MUST check that the total Payload Length is consistent with the payload's internal lengths and counts.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3-4",
+      "reason": "Parsing rule: the total Payload Length agrees with the internal lengths and counts. The row states that obligation."
+    },
+    {
+      "id": "3.3:3",
+      "quote": "Each structure MUST have a proposal number one (1) greater than the previous structure.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3-5",
+      "reason": "First sentence of the proposal numbering rule. The row combines this sentence with the next one, which site 3.3:4 carries."
+    },
+    {
+      "id": "3.3:4",
+      "quote": "The first Proposal in the initiator's SA payload MUST have a Proposal Num of one (1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3-5",
+      "reason": "Second sentence of the proposal numbering rule: the first proposal of the initiator is number one. The row combines both sentences."
+    },
+    {
+      "id": "3.3:5",
+      "quote": "Combined-mode ciphers include both integrity and encryption in a single encryption algorithm, and MUST either offer no integrity algorithm or a single integrity algorithm of \"NONE\", with no integrity algorithm being the RECOMMENDED method.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3-2",
+      "reason": "A combined-mode cipher proposal offers no integrity algorithm or the single algorithm NONE. The row states that rule for an AEAD proposal."
+    },
+    {
+      "id": "3.3:6",
+      "quote": "A transform MUST NOT have multiple attributes of the same type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3-6",
+      "reason": "Attribute rule: one attribute type per transform. The row states that obligation."
+    },
+    {
+      "id": "3.3:7",
+      "quote": "To propose alternate values for an attribute (for example, multiple key sizes for the AES encryption algorithm), an implementation MUST include multiple transforms with the same Transform Type each with a single Attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3-7",
+      "reason": "Alternate attribute values go in separate transforms of the same Transform Type. The row states that obligation."
+    },
+    {
+      "id": "3.3.1:1",
+      "quote": "o RESERVED (1 octet) - MUST be sent as zero; MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-7",
+      "reason": "RESERVED field of the proposal substructure. This site is recorded against the ignore-on-receipt row; the send-as-zero row RFC7296-2.5-6 is mapped from the Section 3.2 RESERVED site. Both rows cite 3.3.1."
+    },
+    {
+      "id": "3.3.1:2",
+      "quote": "o Proposal Num (1 octet) - When a proposal is made, the first proposal in an SA payload MUST be 1, and subsequent proposals MUST be one more than the previous proposal (indicating an OR of the two proposals).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3-5",
+      "reason": "The Proposal Num field description states the same numbering rule as Section 3.3, and the row cites both sections."
+    },
+    {
+      "id": "3.3.1:3",
+      "quote": "When a proposal is accepted, the proposal number in the SA payload MUST match the number on the proposal sent that was accepted. o Protocol ID (1 octet) - Specifies the IPsec protocol identifier for the current negotiation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.1-1",
+      "reason": "An accepted proposal keeps the number of the proposal that was sent. The row states that obligation."
+    },
+    {
+      "id": "3.3.1:4",
+      "quote": "o SPI Size (1 octet) - For an initial IKE SA negotiation, this field MUST be zero; the SPI is obtained from the outer header.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.1-2",
+      "reason": "SPI Size is zero for an initial IKE SA negotiation. The row states that obligation."
+    },
+    {
+      "id": "3.3.2:1",
+      "quote": "o RESERVED - MUST be sent as zero; MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-6",
+      "reason": "RESERVED field of the transform substructure. The row for the send-as-zero obligation cites 3.3.2, so this field description is one of its sources."
+    },
+    {
+      "id": "3.3.3:1",
+      "quote": "A compliant implementation MUST understand all mandatory and optional types for each protocol it supports (though it need not accept proposals with unacceptable suites).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.3-1",
+      "reason": "A compliant implementation understands every mandatory and optional Transform Type of each protocol it supports. The row states that obligation."
+    },
+    {
+      "id": "3.3.4:1",
+      "quote": "The specification of suites that MUST and SHOULD be supported for interoperability has been removed from this document because they are likely to change more rapidly than this document evolves.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The keywords name the suite specifications that were removed from this document. The sentence records an editorial change and binds no implementation."
+    },
+    {
+      "id": "3.3.4:2",
+      "quote": "All implementations of IKEv2 MUST include a management facility that enables a user or system administrator to specify the suites that are acceptable for use with IKE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.4-4",
+      "reason": "Every IKEv2 implementation carries a management facility for the acceptable suites. The row states that obligation."
+    },
+    {
+      "id": "3.3.4:3",
+      "quote": "Upon receipt of a payload with a set of Transform IDs, the implementation MUST compare the transmitted Transform IDs against those locally configured via the management controls, to verify that the proposed suite is acceptable based on local policy.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.4-2",
+      "reason": "Received Transform IDs are compared against the locally configured suites. The row states that obligation."
+    },
+    {
+      "id": "3.3.4:4",
+      "quote": "The implementation MUST reject SA proposals that are not authorized by these IKE suite controls.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.4-3",
+      "reason": "An SA proposal that the suite controls do not authorize is rejected. The row states that obligation."
+    },
+    {
+      "id": "3.3.4:5",
+      "quote": "Note that cryptographic suites that MUST be implemented need not be configured as acceptable to local policy.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The sentence removes an expectation: a suite that another document makes mandatory to implement need not sit in local policy. The keyword names that other document's obligation, not one this sentence imposes."
+    },
+    {
+      "id": "3.3.5:1",
+      "quote": "Attributes described as fixed length MUST NOT be encoded using the variable-length encoding unless that length exceeds two bytes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.5-1",
+      "reason": "Fixed-length attributes use the TV encoding below three bytes. The row states that obligation."
+    },
+    {
+      "id": "3.3.5:2",
+      "quote": "Variable-length attributes MUST NOT be encoded as fixed-length even if their value can fit into two octets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.5-2",
+      "reason": "Variable-length attributes keep the TLV encoding even for a two-octet value. The row states that obligation."
+    },
+    {
+      "id": "3.3.5:3",
+      "quote": "The Key Length attribute specifies the key length in bits (MUST use network byte order) for certain transforms as follows:",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.5-3",
+      "reason": "The Key Length attribute value is in network byte order. The row states that obligation."
+    },
+    {
+      "id": "3.3.5:4",
+      "quote": "o The Key Length attribute MUST NOT be used with transforms that use a fixed-length key.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.5-4",
+      "reason": "The Key Length attribute is absent for a fixed-length key transform. The row states that obligation."
+    },
+    {
+      "id": "3.3.5:5",
+      "quote": "o Some transforms specify that the Key Length attribute MUST be always included (omitting the attribute is not allowed, and proposals not containing it MUST be rejected).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.5-5",
+      "reason": "Some transforms always carry the Key Length attribute, and a proposal without it is rejected. The row states both clauses."
+    },
+    {
+      "id": "3.3.6:1",
+      "quote": "Responders MUST select a single complete set of parameters from the offers (or reject all offers if none are acceptable).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.7-1",
+      "reason": "The sentence states the responder selection rule: take one complete parameter set from the offers, or reject every offer. RFC7296-2.7-1 captures that rule with the NO_PROPOSAL_CHOSEN error Section 2.7 names."
+    },
+    {
+      "id": "3.3.6:2",
+      "quote": "If there are multiple proposals, the responder MUST choose a single proposal.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC7296-2.7-1",
+      "reason": "The sentence narrows the same selection rule to the proposal level. Site 3.3.6:1 maps RFC7296-2.7-1, which already binds the responder to one proposal or a rejection of all of them."
+    },
+    {
+      "id": "3.3.6:3",
+      "quote": "If the selected proposal has multiple transforms with the same type, the responder MUST choose a single one.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC7296-2.7-1",
+      "reason": "The sentence narrows the same selection rule to one transform per Transform Type. Section 2.7 states it as the accepted suite containing exactly one transform of each type, which RFC7296-2.7-1 captures."
+    },
+    {
+      "id": "3.3.6:4",
+      "quote": "Any attributes of a selected transform MUST be returned unmodified.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.6-7",
+      "reason": "The responder returns the attributes of the transform it selected without change. RFC7296-3.3.6-7 states that obligation."
+    },
+    {
+      "id": "3.3.6:5",
+      "quote": "The initiator of an exchange MUST check that the accepted offer is consistent with one of its proposals, and if not MUST terminate the exchange.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.6-3",
+      "reason": "The sentence binds the initiator to check the accepted offer against its own proposals and to terminate the exchange on a mismatch. RFC7296-3.3.6-3 quotes it."
+    },
+    {
+      "id": "3.3.6:6",
+      "quote": "If the responder receives a proposal that contains a Transform Type it does not understand, or a proposal that is missing a mandatory Transform Type, it MUST consider this proposal unacceptable; however, other proposals in the same SA payload are processed as usual.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.6-4",
+      "reason": "The sentence makes a proposal with an unknown or missing mandatory Transform Type unacceptable while the other proposals continue to be processed. RFC7296-3.3.6-4 quotes it."
+    },
+    {
+      "id": "3.3.6:7",
+      "quote": "Similarly, if the responder receives a transform that it does not understand, or one that contains a Transform Attribute it does not understand, it MUST consider this transform unacceptable; other transforms with the same Transform Type are processed as usual.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.6-5",
+      "reason": "The sentence makes an unknown transform or an unknown Transform Attribute unacceptable while the other transforms of that type continue to be processed. RFC7296-3.3.6-5 quotes it."
+    },
+    {
+      "id": "3.3.6:8",
+      "quote": "If one of the proposals offered is for the Diffie-Hellman group of NONE, and the responder selects that Diffie-Hellman group, then it MUST ignore the initiator's KE payload and omit the KE payload from the response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.3.6-8",
+      "reason": "The sentence binds a responder that selects the Diffie-Hellman group NONE to ignore the initiator KE payload and to omit KE from the response. RFC7296-3.3.6-8 quotes it."
+    },
+    {
+      "id": "3.4:1",
+      "quote": "The length of the Diffie-Hellman public value for MODP groups MUST be equal to the length of the prime modulus over which the exponentiation was performed, prepending zero bits to the value if necessary.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.4-1",
+      "reason": "The sentence fixes the encoded length of a MODP Diffie-Hellman public value to the length of the prime modulus, with zero bits prepended. RFC7296-3.4-1 quotes it."
+    },
+    {
+      "id": "3.4:2",
+      "quote": "This Diffie-Hellman Group Num MUST match a Diffie-Hellman group specified in a proposal in the SA payload that is sent in the same message, and SHOULD match the Diffie-Hellman group in the first group in the first proposal, if such exists.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.4-2",
+      "reason": "The MUST half binds the Diffie-Hellman Group Num to a group that a proposal in the same message offers, which is RFC7296-3.4-2. The SHOULD half about the first proposal is advisory and gates nothing."
+    },
+    {
+      "id": "3.4:3",
+      "quote": "If none of the proposals in that SA payload specifies a Diffie-Hellman group, the KE payload MUST NOT be present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.4-3",
+      "reason": "The sentence bans a KE payload when no proposal in the SA payload names a Diffie-Hellman group. RFC7296-3.4-3 quotes it."
+    },
+    {
+      "id": "3.4:4",
+      "quote": "If the selected proposal uses a different Diffie-Hellman group (other than NONE), the message MUST be rejected with a Notify payload of type INVALID_KE_PAYLOAD.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.3-2",
+      "reason": "Section 3.4 repeats the INVALID_KE_PAYLOAD rejection that Section 1.3 states for a selected proposal with a different Diffie-Hellman group. The summary anchors it at RFC7296-1.3-2 and cites Section 3.4 on that same row."
+    },
+    {
+      "id": "3.5:1",
+      "quote": "o RESERVED - MUST be sent as zero; MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-6",
+      "reason": "The RESERVED field of the Identification payload restates the general forward compatibility rule of Section 2.5. RFC7296-2.5-6 carries the send-as-zero half and cites Section 3.5."
+    },
+    {
+      "id": "3.5:2",
+      "quote": "The string MUST NOT contain any terminators (e.g., NULL, CR, etc.).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.5-5",
+      "reason": "The ID_FQDN entry bans terminator characters in the identification string. RFC7296-3.5-5 states that ban for ID_FQDN and ID_RFC822_ADDR."
+    },
+    {
+      "id": "3.5:3",
+      "quote": "The string MUST NOT contain any terminators.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC7296-3.5-5",
+      "reason": "The ID_RFC822_ADDR entry repeats the terminator ban that the ID_FQDN entry states. Site 3.5:2 maps RFC7296-3.5-5, whose text names both identification types."
+    },
+    {
+      "id": "3.5:4",
+      "quote": "To assure maximum interoperability, implementations MUST be configurable to send at least one of ID_IPV4_ADDR, ID_FQDN, ID_RFC822_ADDR, or ID_KEY_ID, and MUST be configurable to accept all of these four types.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.5-2",
+      "reason": "One sentence carries two obligations: be configurable to send one of four identification types, and be configurable to accept all four. This site maps the send half, RFC7296-3.5-2."
+    },
+    {
+      "id": "3.5:5",
+      "quote": "IPv6-capable implementations MUST additionally be configurable to accept ID_IPV6_ADDR.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.5-4",
+      "reason": "The sentence binds an IPv6-capable implementation to be configurable to accept ID_IPV6_ADDR. RFC7296-3.5-4 quotes it."
+    },
+    {
+      "id": "3.6:1",
+      "quote": "END Implementations MUST be capable of being configured to send and accept up to four X.509 certificates in support of authentication, and also MUST be capable of being configured to send and accept the two Hash and URL formats (with HTTP URLs).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.6-1",
+      "reason": "One sentence carries two obligations: be configurable for up to four X.509 certificates, and be configurable for the two Hash and URL formats. This site maps the certificate half, RFC7296-3.6-1."
+    },
+    {
+      "id": "3.6:2",
+      "quote": "If multiple certificates are sent, the first certificate MUST contain the public key associated with the private key used to sign the AUTH payload.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.2-2",
+      "reason": "Section 3.6 repeats the rule that the first certificate sent holds the public key for the AUTH payload signature. The summary anchors it at RFC7296-1.2-2 and cites Section 3.6 on that same row."
+    },
+    {
+      "id": "3.6:3",
+      "quote": "Implementations MUST support the \"http:\" scheme for hash-and-URL lookup.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.6-3",
+      "reason": "The sentence binds an implementation to support the http scheme for a hash-and-URL lookup. RFC7296-3.6-3 quotes it."
+    },
+    {
+      "id": "3.8:1",
+      "quote": "o RESERVED - MUST be sent as zero; MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-7",
+      "reason": "The RESERVED field of the Authentication payload restates the general forward compatibility rule of Section 2.5. RFC7296-2.5-7 carries the ignore-on-receipt half and cites Section 3.8."
+    },
+    {
+      "id": "3.9:1",
+      "quote": "The size of the Nonce Data MUST be between 16 and 256 octets, inclusive.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.9-1",
+      "reason": "The sentence bounds the Nonce Data size to 16 through 256 octets. RFC7296-3.9-1 quotes it."
+    },
+    {
+      "id": "3.9:2",
+      "quote": "Nonce values MUST NOT be reused.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.9-2",
+      "reason": "The sentence bans reuse of a nonce value. RFC7296-3.9-2 quotes it."
+    },
+    {
+      "id": "3.10:1",
+      "quote": "For notifications concerning Child SAs, this field MUST contain either (2) to indicate AH or (3) to indicate ESP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.10-4",
+      "reason": "The Protocol ID field of a Notify payload about a Child SA holds 2 for AH or 3 for ESP. RFC7296-3.10-4 quotes it."
+    },
+    {
+      "id": "3.10:2",
+      "quote": "If the SPI field is empty, this field MUST be sent as zero and MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.10-5",
+      "reason": "With an empty SPI field the Protocol ID is sent as zero and ignored on receipt. RFC7296-3.10-5 quotes it."
+    },
+    {
+      "id": "3.10:3",
+      "quote": "For a notification concerning the IKE SA, the SPI Size MUST be zero and the field must be empty.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.10-3",
+      "reason": "For a notification about the IKE SA the SPI Size is zero and the SPI field is empty. RFC7296-3.10-3 quotes it."
+    },
+    {
+      "id": "3.10.1:1",
+      "quote": "An implementation receiving a Notify payload with one of these types that it does not recognize in a response MUST assume that the corresponding request has failed entirely.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.10.1-1",
+      "reason": "An unrecognized error type in a response means the whole request failed. The preceding sentence gives the range 0 to 16383 that RFC7296-3.10.1-1 records with the same rule."
+    },
+    {
+      "id": "3.10.1:2",
+      "quote": "Unrecognized error types in a request and status types in a request or response MUST be ignored, and they should be logged.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.10.1-2",
+      "reason": "Unrecognized error types in a request, and unrecognized status types in either direction, are ignored and logged. RFC7296-3.10.1-2 quotes it."
+    },
+    {
+      "id": "3.10.1:3",
+      "quote": "Notify payloads with status types MAY be added to any message and MUST be ignored if not recognized.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC7296-3.10.1-2",
+      "reason": "The paragraph on status types repeats the ignore rule of the preceding paragraph. Site 3.10.1:2 maps RFC7296-3.10.1-2, whose text already covers an unrecognized status type in a request or a response."
+    },
+    {
+      "id": "3.10.1:4",
+      "quote": "To avoid leaking information to someone probing a node, this status MUST be sent in response to any error not covered by one of the other status types.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.10.1-3",
+      "reason": "The INVALID_SYNTAX entry binds a node to send that status for any error no other status type covers, so a prober learns nothing. RFC7296-3.10.1-3 quotes it."
+    },
+    {
+      "id": "3.11:1",
+      "quote": "It is possible to send multiple SPIs in a Delete payload; however, each SPI MUST be for the same protocol.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.11-1",
+      "reason": "Every SPI in one Delete payload belongs to the same protocol. RFC7296-3.11-1 states that rule and its mixing ban."
+    },
+    {
+      "id": "3.11:2",
+      "quote": "Mixing of protocol identifiers MUST NOT be performed in the Delete payload.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC7296-3.11-1",
+      "reason": "The mixing ban is the same obligation as the preceding sentence, written as a prohibition. Site 3.11:1 maps RFC7296-3.11-1, whose text carries both sentences."
+    },
+    {
+      "id": "3.11:3",
+      "quote": "It MUST be zero for IKE (SPI is in message header) or four for AH and ESP. o Num of SPIs (2 octets, unsigned integer) - The number of SPIs contained in the Delete payload.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.11-2",
+      "reason": "The SPI Size field of a Delete payload is zero for IKE and four for AH and ESP. RFC7296-3.11-2 quotes it. The Num of SPIs text the splitter appended is a field description and adds no obligation."
+    },
+    {
+      "id": "3.12:1",
+      "quote": "A Vendor ID payload MUST NOT change the interpretation of any information defined in this specification (i.e., the critical bit MUST be set to 0).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.12-4",
+      "reason": "A Vendor ID payload never changes how this specification is read, and its critical bit is 0. RFC7296-3.12-4 quotes it."
+    },
+    {
+      "id": "3.12:2",
+      "quote": "Unfamiliar Vendor IDs MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.12-2",
+      "reason": "An unfamiliar Vendor ID is ignored. RFC7296-3.12-2 quotes it."
+    },
+    {
+      "id": "3.12:3",
+      "quote": "Writers of documents who wish to extend this protocol MUST define a Vendor ID payload to announce the ability to implement the extension in the document.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.12-3",
+      "reason": "A document that extends this protocol defines a Vendor ID payload to announce the extension. RFC7296-3.12-3 quotes it."
+    },
+    {
+      "id": "3.13:1",
+      "quote": "o Number of TSs (1 octet) - Number of Traffic Selectors being provided. o RESERVED - This field MUST be sent as zero and MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-6",
+      "reason": "The RESERVED field of the Traffic Selector payload restates the general forward compatibility rule of Section 2.5. RFC7296-2.5-6 carries it and cites Section 3.13. The Number of TSs text the splitter kept in the quote is a field description."
+    },
+    {
+      "id": "3.13.1:1",
+      "quote": "For protocols for which port is undefined (including protocol 0), or if all ports are allowed, this field MUST be zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.13.1-1",
+      "reason": "The Start Port field is zero when the port is undefined for the protocol or when all ports are allowed. RFC7296-3.13.1-1 quotes it."
+    },
+    {
+      "id": "3.13.1:2",
+      "quote": "For protocols for which port is undefined (including protocol 0), or if all ports are allowed, this field MUST be 65535.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.13.1-2",
+      "reason": "The End Port field is 65535 when the port is undefined for the protocol or when all ports are allowed. RFC7296-3.13.1-2 quotes it."
+    },
+    {
+      "id": "3.13.1:3",
+      "quote": "Systems that are complying with [IPSECARCH] that wish to indicate \"ANY\" ports MUST set the start port to 0 and the end port to 65535; note that according to [IPSECARCH], \"ANY\" includes \"OPAQUE\".",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "mapped-to": "RFC7296-3.13.1-1",
+      "reason": "ANY ports means start port 0 and end port 65535, which is the port encoding the two field descriptions already state. Site 3.13.1:1 maps RFC7296-3.13.1-1 and site 3.13.1:2 maps RFC7296-3.13.1-2."
+    },
+    {
+      "id": "3.13.1:4",
+      "quote": "Systems working with [IPSECARCH] that wish to indicate \"OPAQUE\" ports, but not \"ANY\" ports, MUST set the start port to 65535 and the end port to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.13.1-3",
+      "reason": "OPAQUE ports without ANY ports are encoded as start port 65535 and end port 0. RFC7296-3.13.1-3 quotes it."
+    },
+    {
+      "id": "3.14:1",
+      "quote": "The Encrypted payload, if present in a message, MUST be the last payload in the message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.1-1",
+      "reason": "The Encrypted payload is the last payload of the message. The summary anchors that rule at RFC7296-3.1-1 and cites Section 3.14 on that same row."
+    },
+    {
+      "id": "3.14:2",
+      "quote": "Peers MUST NOT negotiate transforms for which no such specification exists.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.14-7",
+      "reason": "A peer never negotiates a transform whose Encrypted payload processing no document specifies. RFC7296-3.14-7 quotes it."
+    },
+    {
+      "id": "3.14:3",
+      "quote": "Senders MUST select a new unpredictable IV for every message; recipients MUST accept any value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.14-2",
+      "reason": "One sentence binds the sender to a new unpredictable IV for every message and the recipient to accept any IV value. This site maps the sender half, RFC7296-3.14-2."
+    },
+    {
+      "id": "3.14:4",
+      "quote": "o Padding MAY contain any value chosen by the sender, and MUST have a length that makes the combination of the payloads, the Padding, and the Pad Length to be a multiple of the encryption block size.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.14-4",
+      "reason": "The Padding field length makes the payloads, the Padding and the Pad Length a multiple of the encryption block size. RFC7296-3.14-4 quotes it."
+    },
+    {
+      "id": "3.14:5",
+      "quote": "The sender SHOULD set the Pad Length to the minimum value that makes the combination of the payloads, the Padding, and the Pad Length a multiple of the block size, but the recipient MUST accept any length that results in proper alignment.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.14-5",
+      "reason": "The MUST half binds the recipient to accept any Pad Length that gives proper alignment, which is RFC7296-3.14-5. The SHOULD half on the minimum value is advisory and gates nothing."
+    },
+    {
+      "id": "3.14:6",
+      "quote": "The checksum MUST be computed over the encrypted message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.14-6",
+      "reason": "The integrity checksum is computed over the encrypted message. RFC7296-3.14-6 quotes it."
+    },
+    {
+      "id": "3.15:1",
+      "quote": "o RESERVED (3 octets) - MUST be sent as zero; MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-6",
+      "reason": "The Configuration payload's 3-octet RESERVED field. It restates for this payload the rule Section 2.5 states once for every RESERVED field, and RFC7296-2.5-6 cites this section for that reason. The ignore-on-receipt half of the same sentence is carried by RFC7296-2.5-7, mapped from site 3.15.1:1."
+    },
+    {
+      "id": "3.15.1:1",
+      "quote": "o Reserved (1 bit) - This bit MUST be set to zero and MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-7",
+      "reason": "The Configuration Attribute's 1-bit Reserved field, which sits above the 15-bit attribute type. It carries the ignore-on-receipt half of the RESERVED rule Section 2.5 states generally, and RFC7296-2.5-7 cites this section for it."
+    },
+    {
+      "id": "3.15.1:2",
+      "quote": "Only one netmask is allowed in the request and response messages (e.g., 255.255.255.0), and it MUST be used only with an INTERNAL_IP4_ADDRESS attribute.",
+      "disposition": "excluded",
+      "reason": "The obligation, at most one netmask, and only beside an INTERNAL_IP4_ADDRESS, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-3.15.1-1 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
+      "excluded-kind": "relocated-to-spec",
+      "relocated-to": "plan/spec-ipsec-remote-access.md",
+      "reserved-id": "RFC7296-3.15.1-1"
+    },
+    {
+      "id": "3.15.1:3",
+      "quote": "Non-empty values for this attribute in a CFG_REQUEST do not make sense and thus MUST NOT be included.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.15.1-2",
+      "reason": "The send-side rule for INTERNAL_IP4_NETMASK: a CFG_REQUEST carries the attribute empty to ask for the value, so a non-empty value is forbidden there. The row quotes this sentence."
+    },
+    {
+      "id": "3.15.1:4",
+      "quote": "o SUPPORTED_ATTRIBUTES - When used within a Request, this attribute MUST be zero-length and specifies a query to the responder to reply back with all of the attributes that it supports.",
+      "disposition": "excluded",
+      "reason": "The obligation, a SUPPORTED_ATTRIBUTES request carries zero length, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-3.15.1-3 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
+      "excluded-kind": "relocated-to-spec",
+      "relocated-to": "plan/spec-ipsec-remote-access.md",
+      "reserved-id": "RFC7296-3.15.1-3"
+    },
+    {
+      "id": "3.15.1:5",
+      "quote": "Unrecognized or unsupported attributes MUST be ignored in both requests and responses.",
+      "disposition": "excluded",
+      "reason": "The obligation, ignore attributes the responder does not recognize, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-3.15.1-4 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
+      "excluded-kind": "relocated-to-spec",
+      "relocated-to": "plan/spec-ipsec-remote-access.md",
+      "reserved-id": "RFC7296-3.15.1-4"
+    },
+    {
+      "id": "3.15.1:6",
+      "quote": "The responder MUST return a Configuration payload if it accepted any of the configuration data, and the Configuration payload MUST contain the attributes that the responder accepted with zero-length data.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.15.1-5",
+      "reason": "The first responder obligation of the CFG_SET/CFG_ACK paragraph: acknowledge accepted configuration data with a Configuration payload naming those attributes with zero-length data. The row quotes this sentence."
+    },
+    {
+      "id": "3.15.1:7",
+      "quote": "Those attributes that it did not accept MUST NOT be in the CFG_ACK Configuration payload.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.15.1-6",
+      "reason": "The exclusion half of the same CFG_ACK rule: an attribute the responder did not accept stays out of the payload, which is what makes the acknowledgement readable. The row quotes this sentence."
+    },
+    {
+      "id": "3.15.1:8",
+      "quote": "If no attributes were accepted, the responder MUST return either an empty CFG_ACK payload or a response message without a CFG_ACK payload.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.15.1-7",
+      "reason": "The empty case of the same CFG_ACK rule: with nothing accepted, the responder answers with an empty CFG_ACK or with no CFG_ACK at all. The row quotes this sentence."
+    },
+    {
+      "id": "3.16:1",
+      "quote": "In a response message, this octet MUST be set to match the identifier in the corresponding request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.16-1",
+      "reason": "The EAP message Identifier field. The sentence says the field serves no function over IKE and then binds the response to echo the request's value. The row quotes it."
+    },
+    {
+      "id": "3.16:2",
+      "quote": "MUST be four less than the Payload Length of the encapsulating payload.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.16-2",
+      "reason": "The EAP message Length field, fixed at four less than the encapsulating EAP payload's Payload Length because the payload adds a 4-octet generic header. The row quotes it."
+    },
+    {
+      "id": "3.16:3",
+      "quote": "For other codes, the EAP message length MUST be four octets and the Type and Type_Data fields MUST NOT be present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.16-3",
+      "reason": "The Type field's presence rule: Success and Failure messages are four octets and carry neither Type nor Type_Data. The row quotes it."
+    },
+    {
+      "id": "3.16:4",
+      "quote": "In a Response (2) message, Type MUST either be Nak or match the type of the data requested.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-3.16-4",
+      "reason": "The Type field's value rule in a Response: either Nak or the type the Request asked for. The row quotes it."
+    },
+    {
+      "id": "4:1",
+      "quote": "In order to assure that all implementations of IKEv2 can interoperate, there are \"MUST support\" requirements in addition to those listed elsewhere.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The opening sentence of Section 4, which describes what the section contains. Its capitalised words sit inside the quoted phrase \"MUST support\", naming the class of requirements that follow. It binds nobody."
+    },
+    {
+      "id": "4:2",
+      "quote": "To assure interoperability, all implementations MUST be capable of parsing all payload types (if only to skip over them) and to ignore payload types that it does not support unless the critical bit is set in the payload header.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-8",
+      "reason": "The conformance restatement of the payload-skipping rule: parse every payload type, if only to skip it, and ignore what is not supported. RFC7296-2.5-8 states that obligation and cites this section. The same sentence also carries the parse-every-defined-type clause, which is RFC7296-3.2-3, recorded in this section's unsourced-ids."
+    },
+    {
+      "id": "4:3",
+      "quote": "If the critical bit is set in an unsupported payload header, all implementations MUST reject the messages containing those payloads.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.5-9",
+      "reason": "The critical-bit half of the same conformance paragraph: an unsupported payload whose critical bit is set makes the whole message rejected. RFC7296-2.5-9 states it and cites this section."
+    },
+    {
+      "id": "4:4",
+      "quote": "Every implementation MUST be capable of doing four-message IKE_SA_INIT and IKE_AUTH exchanges establishing two SAs (one for IKE, one for ESP or AH).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-4-5",
+      "reason": "Section 4 names the four-message IKE_SA_INIT and IKE_AUTH exchange establishing an IKE SA and an ESP or AH SA as a capability every implementation must have. No row stated it, so the walk added RFC7296-4-5, which quotes the sentence in full. The ordinal is -5 rather than -2 because Section 4's high-water mark is already 4 (check_id_allocation, scripts/dev/rfc_requirements.py)."
+    },
+    {
+      "id": "4:5",
+      "quote": "Every implementation MUST be capable of responding to an INFORMATIONAL exchange, but a minimal implementation MAY respond to any request in the INFORMATIONAL exchange with an empty response (note that within the context of an IKE SA, an \"empty\" message consists of an IKE header followed by an Encrypted payload with no payloads contained in it).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-1.4-4",
+      "reason": "The minimal-implementation paragraph's INFORMATIONAL rule: every implementation answers an INFORMATIONAL request, and the trailing MAY lets the answer be empty. RFC7296-1.4-4 states the response obligation and cites this section."
+    },
+    {
+      "id": "4:6",
+      "quote": "If the responder rejects the CREATE_CHILD_SA request with a NO_ADDITIONAL_SAS notification, the implementation MUST be capable of instead deleting the old SA and creating a new one.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-4-1",
+      "reason": "The rekey fallback: a responder that refuses CREATE_CHILD_SA with NO_ADDITIONAL_SAS leaves the initiator to delete the old SA and create a new one, so that path must exist. The row quotes this sentence."
+    },
+    {
+      "id": "4:7",
+      "quote": "If an implementation does support issuing such requests and its policy requires using temporary IP addresses, it MUST include a CP payload in the first message in the IKE_AUTH exchange containing at least a field of type INTERNAL_IP4_ADDRESS or INTERNAL_IP6_ADDRESS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.19-1",
+      "reason": "Section 4's conditional for an implementation that requests a temporary IP address: the CP payload goes in the first IKE_AUTH message and carries an internal address attribute. RFC7296-2.19-1 states that IRAC obligation and cites this section."
+    },
+    {
+      "id": "4:8",
+      "quote": "If an implementation supports responding to such requests, it MUST parse the CP payload of type CFG_REQUEST in the first message in the IKE_AUTH exchange and recognize a field of type INTERNAL_IP4_ADDRESS or INTERNAL_IP6_ADDRESS.",
+      "disposition": "excluded",
+      "reason": "The obligation, parse the CFG_REQUEST and recognize the address attribute, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-4-2 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
+      "excluded-kind": "relocated-to-spec",
+      "relocated-to": "plan/spec-ipsec-remote-access.md",
+      "reserved-id": "RFC7296-4-2"
+    },
+    {
+      "id": "4:9",
+      "quote": "If it supports leasing an address of the appropriate type, it MUST return a CP payload of type CFG_REPLY containing an address of the requested type.",
+      "disposition": "excluded",
+      "reason": "The obligation, return a CFG_REPLY carrying an address of the requested type, was moved out of rfc/short/rfc7296.md by owner ruling D-1 (2026-07-31) and is reserved as RFC7296-4-3 in plan/spec-ipsec-remote-access.md. It is gated at that destination, so nothing is dropped: this site records where the obligation went, and the tripwire reds if that spec or that id disappears.",
+      "excluded-kind": "relocated-to-spec",
+      "relocated-to": "plan/spec-ipsec-remote-access.md",
+      "reserved-id": "RFC7296-4-3"
+    },
+    {
+      "id": "4:10",
+      "quote": "For an implementation to be called conforming to this specification, it MUST be possible to configure it to accept the following:",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-4-4",
+      "reason": "The stem of the conformance list: an implementation is conforming only if it can be configured to accept the three authentication cases in the bullets that follow. The row quotes the stem with its bullets folded in."
+    },
+    {
+      "id": "5:1",
+      "quote": "For this reason, a PRF whose output is less than 128 bits (e.g., 3DES-CBC) MUST NOT be used with this protocol.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-5-3",
+      "reason": "The PRF output floor. The sentence before it says key strength is bounded by the negotiated PRF's output size, which is why a PRF under 128 bits is barred. The row quotes it."
+    },
+    {
+      "id": "5:2",
+      "quote": "Though the security of negotiated Child SAs does not depend on the strength of the encryption and integrity protection negotiated in the IKE SA, implementations MUST NOT negotiate NONE as the IKE integrity protection algorithm or ENCR_NULL as the IKE encryption algorithm.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-5-2",
+      "reason": "The ban on a null integrity or null encryption transform for the IKE SA, stated even though Child SA security does not depend on it. The row quotes it."
+    },
+    {
+      "id": "5:3",
+      "quote": "An implementation using EAP MUST also use a public-key-based authentication of the server to the client before the EAP authentication begins, even if the EAP method offers mutual authentication.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7296-2.16-11",
+      "reason": "Section 5's EAP rule: the server authenticates to the client with a public key before EAP begins, whatever the EAP method offers. RFC7296-2.16-11 states the same pairing obligation and cites this section."
+    }
+  ]
+}

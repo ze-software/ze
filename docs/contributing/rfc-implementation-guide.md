@@ -637,10 +637,16 @@ generating the skeleton cannot produce a sign-off, only the walk can. Enrolling
 a stem that was not enrolled at HEAD REQUIRES this artifact. Contract and field
 reference: `rfc/extraction/README.md`.
 
-<!-- source: scripts/dev/rfc_requirements.py -- run_extract_skeleton/check_extraction_signoff -->
+One exclusion kind does not dismiss its sentence. `relocated-to-spec` says the
+obligation is owed by a named spec, under an id reserved there, because an owner
+ruling moved it out of the summary. It authors `relocated-to`
+(`plan/spec-<name>.md`) and `reserved-id`, and the gate refuses the sign-off
+unless that spec exists and still names that id.
 
-The counts machine-readably (signed, enrolled, the per-register split, and the
-unsigned backlog): `make ze-rfc-extraction-status`. Do NOT spell it
+<!-- source: scripts/dev/rfc_requirements.py -- run_extract_skeleton/check_extraction_signoff/_relocation_errors -->
+
+The counts machine-readably (signed, enrolled, the per-register split, the
+relocated count, and the unsigned backlog): `make ze-rfc-extraction-status`. Do NOT spell it
 `make ze-rfc-extraction-status --json` -- GNU make reads `--json` as one of its own
 options and exits 2 before the recipe runs. The target always emits JSON.
 

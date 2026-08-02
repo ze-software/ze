@@ -1,4 +1,4 @@
-// Design: plan/handover/03-design-wp7.md -- USE_TRANSPORT_MODE negotiation
+// Design: plan/learned/1313-rfcgate-1b-rfc7296-pilot.md -- USE_TRANSPORT_MODE negotiation
 // Related: child.go -- the Child SA install that carries the negotiated mode
 // Related: ts_narrow.go -- the single-address constraint transport mode puts on selectors
 // RFC: rfc/short/rfc7296.md -- USE_TRANSPORT_MODE (Section 1.3.1), transport-mode

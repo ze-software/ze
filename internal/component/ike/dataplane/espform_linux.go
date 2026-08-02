@@ -28,6 +28,32 @@ var errNoESPFormReceiver = errors.New("dataplane: no ESP form receiver, so this 
 // (ai/rules/memory-architecture.md).
 const espFormReadBufLen = 0xFFFF
 
+// espFormInjector delivers one built datagram back to the local endpoint.
+//
+// It is the seam that makes the re-presentation observable. The real sender needs
+// CAP_NET_RAW and writes a complete IPv4 header through an IP_HDRINCL socket, and neither
+// the capability nor the bytes it wrote can be read back inside a unit test. A test
+// therefore substitutes a recorder and asserts on the datagram run actually built
+// (the fakeOps seam of ai/rules/testing.md).
+type espFormInjector interface {
+	// inject sends pkt, one complete IPv4 datagram, to dst. dst is that datagram's own
+	// destination, which is the local address the SA was installed with.
+	//
+	// The implementation MUST NOT retain pkt: the reader hands it the same buffer for
+	// every datagram.
+	inject(pkt []byte, dst netip.Addr) error
+}
+
+// rawESPFormInjector is the production sender. The socket carries IPPROTO_RAW, which
+// implies IP_HDRINCL, so the IPv4 header writeESPForm built is sent verbatim.
+type rawESPFormInjector struct{ fd int }
+
+func (i rawESPFormInjector) inject(pkt []byte, dst netip.Addr) error {
+	var addr unix.SockaddrInet4
+	addr.Addr = dst.As4()
+	return unix.Sendto(i.fd, pkt, 0, &addr)
+}
+
 // espFormReceiver re-presents inbound ESP that arrived in the form its XFRM state does
 // not accept, so ONE Child SA receives both wire forms.
 //
@@ -179,7 +205,7 @@ func (r *espFormReceiver) startLocked() error {
 	r.stop = make(chan struct{})
 
 	r.wg.Add(1)
-	go r.run(conn, fd, r.stop)
+	go r.run(conn, rawESPFormInjector{fd: fd}, r.stop)
 	return nil
 }
 
@@ -212,7 +238,11 @@ func espFormStopped(stop <-chan struct{}) bool {
 // run reads bare ESP and re-presents every datagram whose SPI is watched. It is one
 // long-lived worker for the life of the sockets (ai/rules/goroutine-lifecycle.md), and
 // both buffers are allocated once here rather than per datagram.
-func (r *espFormReceiver) run(conn net.PacketConn, fd int, stop <-chan struct{}) {
+//
+// The caller MUST have called r.wg.Add(1); run reports its own completion.
+// inj is the seam: the production caller passes rawESPFormInjector, and a test passes a
+// recorder so the re-presented datagram can be read back.
+func (r *espFormReceiver) run(conn net.PacketConn, inj espFormInjector, stop <-chan struct{}) {
 	defer r.wg.Done()
 
 	read := make([]byte, espFormReadBufLen)
@@ -247,9 +277,7 @@ func (r *espFormReceiver) run(conn net.PacketConn, fd int, stop <-chan struct{})
 			continue
 		}
 
-		var addr unix.SockaddrInet4
-		addr.Addr = target.local.As4()
-		if err := unix.Sendto(fd, out[:wrote], 0, &addr); err != nil {
+		if err := inj.inject(out[:wrote], target.local); err != nil {
 			r.log.Debug("esp-form: re-present refused ESP", "spi", spi, "error", err)
 		}
 	}

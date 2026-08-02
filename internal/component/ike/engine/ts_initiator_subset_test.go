@@ -1,4 +1,4 @@
-// Design: plan/handover/03-design-wp7.md -- RFC 7296 Section 2.9 traffic-selector narrowing
+// Design: plan/learned/1313-rfcgate-1b-rfc7296-pilot.md -- RFC 7296 Section 2.9 traffic-selector narrowing
 // RFC: rfc/short/rfc7296.md -- Traffic Selector negotiation (Section 2.9)
 
 package engine

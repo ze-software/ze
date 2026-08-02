@@ -1,0 +1,213 @@
+# Test: the RFC 2661 control bytes ze EMITS, checked by an oracle outside ze.
+#
+# VALIDATES: every assertion here reads a byte off a real UDP datagram with a
+#            Python parser that shares no code with ze, and compares it against a
+#            value computed here from the RFC text.
+# PREVENTS:  producer and verifier agreeing with each other and with no other
+#            implementation -- the defect shape that shipped five times on
+#            2026-08-01 in the IKE stack (bare OID vs AlgorithmIdentifier
+#            SEQUENCE, a one-octet OpCode read as four, an MSK nobody else
+#            computes). Every one of those was unit-green for months.
+#
+# Why unit evidence cannot reach these obligations:
+#   - the AVP/header shape is asserted in Go against ze's OWN AVP iterator
+#     (internal/component/l2tp/avp.go -- NewAVPIterator), so an encoder and a
+#     decoder that share a misreading agree;
+#   - the tunnel-auth digest is asserted against ze's OWN helper
+#     (internal/component/l2tp/auth.go -- VerifyChallengeResponse CALLS
+#     ChallengeResponse), so the two can never disagree by construction.
+#
+# Every check is POSITIVE: it names a byte that must be present and equal to an
+# externally computed value. Nothing passes because something failed to happen
+# (ai/rules/interop-and-goal-validation.md, vacuity traps).
+#
+# RFC requirement: RFC2661-4.1-2 positive -- the Message Type AVP (type 0) is the
+# FIRST AVP in the SCCRP ze puts on the wire, read off the datagram by an
+# external parser rather than by ze's own AVP iterator.
+# RFC requirement: RFC2661-x-1 positive -- reserved bits 8-11 of the L2TP control
+# header ze emits are zero on the wire.
+# RFC requirement: RFC2661-4.1-1 positive -- every AVP ze emits carries reserved
+# bits 2-5 clear.
+
+tmpfs=emitted-shape.py:mode=755:terminator=EOF_PY
+#!/usr/bin/env python3
+"""Speak L2TPv2 at ze over a real UDP socket and check the bytes it sends back.
+
+Nothing here imports ze. The CHAP-MD5 tunnel-authentication digest is recomputed
+from the RFC 2661 Section 4.2 formula rather than read back from the daemon.
+"""
+import hashlib
+import socket
+import struct
+import sys
+
+if len(sys.argv) < 2:
+	print("usage: emitted-shape.py <port>", file=sys.stderr)
+	sys.exit(2)
+
+TARGET = ("127.0.0.1", int(sys.argv[1]))
+SECRET = b"s3cr3t"
+OUR_CHALLENGE = bytes.fromhex("00112233445566778899aabbccddeeff")
+
+MSG_SCCRQ, MSG_SCCRP, MSG_SCCCN = 1, 2, 3
+AVP_MESSAGE_TYPE = 0
+AVP_ASSIGNED_TUNNEL_ID, AVP_CHALLENGE, AVP_CHALLENGE_RESPONSE = 9, 11, 13
+
+# AVP first word: M(1) H(1) reserved(4) Length(10). RFC 2661 Section 4.1.
+AVP_M = 0x8000
+AVP_RESERVED_MASK = 0x3C00
+AVP_LENGTH_MASK = 0x03FF
+# Control header first word: T L x x S x O P x x x x Ver. Reserved bits 8-11.
+HDR_RESERVED_MASK = 0x00F0
+
+failures = []
+
+
+def check(ok, msg):
+	if ok:
+		print("PASS:", msg)
+	else:
+		failures.append(msg)
+		print("FAIL:", msg, file=sys.stderr)
+
+
+def avp(mandatory, attr_type, value):
+	flags = AVP_M if mandatory else 0
+	return struct.pack("!HHH", flags | (6 + len(value)), 0, attr_type) + value
+
+
+def control(dest_tid, ns, nr, body):
+	return struct.pack("!HHHHHH", 0xC802, 12 + len(body), dest_tid, 0, ns, nr) + body
+
+
+def build_sccrq(local_tid, challenge):
+	body = avp(True, AVP_MESSAGE_TYPE, struct.pack("!H", MSG_SCCRQ))
+	body += avp(True, 2, b"\x01\x00")
+	body += avp(True, 3, struct.pack("!I", 0x3))
+	body += avp(True, 4, struct.pack("!I", 0x0))
+	body += avp(True, 7, b"py-shape")
+	body += avp(True, AVP_ASSIGNED_TUNNEL_ID, struct.pack("!H", local_tid))
+	body += avp(True, 10, struct.pack("!H", 8))
+	body += avp(True, AVP_CHALLENGE, challenge)
+	return control(0, 0, 0, body)
+
+
+def split_avps(body):
+	"""Ordered (first_word, vendor, type, value). An external parser, not ze's."""
+	out, off = [], 0
+	while off + 6 <= len(body):
+		word, vendor, atype = struct.unpack("!HHH", body[off:off + 6])
+		length = word & AVP_LENGTH_MASK
+		if length < 6 or off + length > len(body):
+			break
+		out.append((word, vendor, atype, body[off + 6:off + length]))
+		off += length
+	return out
+
+
+def main():
+	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	sock.bind(("127.0.0.1", 0))
+	sock.settimeout(0.25)
+	sccrq = build_sccrq(0x0301, OUR_CHALLENGE)
+	sccrp = None
+	# Poll interval; the loop exits as soon as ze's listener answers the SCCRQ.
+	for _ in range(40):
+		try:
+			sock.sendto(sccrq, TARGET)
+			sccrp = sock.recvfrom(1500)[0]
+			break
+		except (socket.timeout, ConnectionRefusedError, OSError):
+			continue
+	if sccrp is None:
+		print("ERROR: no SCCRP received; cannot inspect ze's wire shape", file=sys.stderr)
+		return 1
+
+	word0, length = struct.unpack("!HH", sccrp[:4])
+
+	# RFC2661-x-1 positive: reserved bits 8-11 of the control header are zero.
+	check(
+		(word0 & HDR_RESERVED_MASK) == 0,
+		f"SCCRP header reserved bits 8-11 zero (word0={word0:#06x})",
+	)
+
+	avps = split_avps(sccrp[12:length])
+	check(bool(avps), "SCCRP body parses into at least one AVP")
+	if not avps:
+		return 1
+
+	# RFC2661-4.1-2 positive: Message Type is the FIRST AVP, not merely present.
+	check(
+		avps[0][2] == AVP_MESSAGE_TYPE,
+		f"Message Type AVP is first in SCCRP (first type={avps[0][2]})",
+	)
+	mtype = struct.unpack("!H", avps[0][3][:2])[0]
+	check(mtype == MSG_SCCRP, f"first AVP names SCCRP (message type={mtype})")
+
+	# RFC2661-4.1-1 positive: reserved bits 2-5 clear on every emitted AVP.
+	offenders = [t for (w, _, t, _) in avps if w & AVP_RESERVED_MASK]
+	check(not offenders, f"all SCCRP AVP reserved bits 2-5 clear (offenders={offenders})")
+
+	by_type = {t: v for (_, _, t, v) in avps}
+
+	# RFC 2661 Section 4.2, against an oracle that is not ze:
+	# response = MD5(message-type-byte || shared-secret || challenge).
+	resp = by_type.get(AVP_CHALLENGE_RESPONSE)
+	want = hashlib.md5(bytes([MSG_SCCRP]) + SECRET + OUR_CHALLENGE).digest()
+	check(
+		resp == want,
+		"SCCRP Challenge Response equals MD5(2 || secret || challenge) computed "
+		f"independently (got={None if resp is None else resp.hex()}, want={want.hex()})",
+	)
+
+	# The mirror direction: ze must ACCEPT a response this script computed from the
+	# same formula. bad-challenge-response.ci proves ze rejects a wrong digest;
+	# nothing proved it accepts a right one that ze did not compute itself.
+	tid_bytes = by_type.get(AVP_ASSIGNED_TUNNEL_ID)
+	ze_challenge = by_type.get(AVP_CHALLENGE)
+	if tid_bytes is None or ze_challenge is None:
+		print("ERROR: SCCRP lacked Assigned Tunnel ID or Challenge", file=sys.stderr)
+		return 1
+	local_tid = struct.unpack("!H", tid_bytes)[0]
+	scccn_resp = hashlib.md5(bytes([MSG_SCCCN]) + SECRET + ze_challenge).digest()
+	body = avp(True, AVP_MESSAGE_TYPE, struct.pack("!H", MSG_SCCCN))
+	body += avp(True, AVP_CHALLENGE_RESPONSE, scccn_resp)
+	sock.sendto(control(local_tid, 1, 1, body), TARGET)
+	print("OK: SCCCN sent with independently computed Challenge Response")
+
+	if failures:
+		print(f"ERROR: {len(failures)} wire-shape check(s) failed", file=sys.stderr)
+		return 1
+	print("OK: all RFC 2661 emitted-shape checks passed")
+	return 0
+
+
+if __name__ == "__main__":
+	sys.exit(main())
+EOF_PY
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+	enabled true
+	shared-secret s3cr3t
+}
+environment {
+	l2tp {
+		server main {
+			ip 127.0.0.1
+			port $PORT
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ze.log.l2tp:value=debug
+option=env:var=ze.l2tp.skip-kernel-probe:value=true
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=python3 emitted-shape.py $PORT:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=OK: all RFC 2661 emitted-shape checks passed
+# The daemon's own confirmation that the independently computed SCCCN response
+# verified. A positive signal, so the acceptance step cannot pass vacuously.
+expect=stderr:contains=tunnel now established

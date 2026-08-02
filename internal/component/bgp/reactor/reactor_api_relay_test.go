@@ -56,8 +56,21 @@ func relayFixtureAS(t *testing.T, srcAS, dstAS uint32) (*reactorAPIAdapter, *Rec
 	done := make(chan struct{}, 8)
 
 	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		// The bodies alias the read-pool buffer: forward_body.go appends
+		// peerWire.Payload() zero-copy, and done() drops the last retain, so
+		// evictLocked hands that buffer back (recent_cache.go). Copy before
+		// releasing. Keeping the alias would let a later assertion read whatever
+		// the pool handed out next, which fails a test whose code is correct.
 		mu.Lock()
-		dispatched = append(dispatched, items...)
+		for i := range items {
+			item := items[i]
+			bodies := make([][]byte, len(item.rawBodies))
+			for j, body := range item.rawBodies {
+				bodies[j] = append([]byte(nil), body...)
+			}
+			item.rawBodies = bodies
+			dispatched = append(dispatched, item)
+		}
 		mu.Unlock()
 		for i := range items {
 			if items[i].done != nil {

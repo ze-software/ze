@@ -402,7 +402,18 @@ The question is which way the obligation is discharged. **The main thread raises
 | OI-1 | Does Ze become an IRAC as well as an IRAS, or is declining the client role the recorded answer? Section 4 says implementations are not required to support requests for temporary IP addresses | A CP producer in the initiator build path, an initiator-side CFG_REPLY consumer, and an operator leaf. About 1.5 days |
 | OI-2 | Confirm that ignoring CFG_SET is the recorded answer, so `3.15.1-5`, `-6` and `-7` are discharged by that choice rather than by absence | An attribute-acceptance model Ze has no use for, plus a CFG_ACK builder. About 0.5 day, for an exchange with no defined use |
 | OI-3 | Does Ze answer a `SUPPORTED_ATTRIBUTES` query as responder? Answering is strictly more compliance and needs no permission. Ask only to decline | About 0.5 day. Attribute type 14 is not a declared constant |
-| OI-4 | Does Section 3.15.4 gain checklist rows, or is that the extraction sign-off's business? | Extraction work. The behavior gets implemented either way |
+| OI-4 | Does Section 3.15.4 gain checklist rows, or is that the extraction sign-off's business? | **Answered 2026-08-02: this spec's business.** Extraction cannot take it |
+
+**OI-4 is answered, and the answer moves the work here.** The RFC 7296 extraction
+sign-off walked Section 3.15.4 on 2026-08-02 and found that it states the
+`INTERNAL_ADDRESS_FAILURE` obligation in indicative prose, with no capitalised
+RFC 2119 keyword. The extractor derives no site there, so the sign-off has nothing to
+map. `unsourced-ids` cannot carry it either: that field may only name a requirement id
+that already exists in `rfc/short/rfc7296.md`, and none does.
+
+So the obligation is real, is unextracted, and is invisible to every gate. Only a
+checklist row makes it visible, and the row cannot be written before the behavior it
+gates exists. This spec owns both.
 
 ## Required Reading
 

@@ -7,7 +7,7 @@
 | Depends | - |
 | Phase | - |
 | Deferral shard | `plan/deferrals/rfcgate-1b-rfc7296-pilot.md` |
-| Updated | 2026-07-30 |
+| Updated | 2026-08-02 |
 
 Part of the `rfcgate` spec set; the umbrella is `plan/spec-rfcgate-0-umbrella.md`.
 This spec is phase 8 of `plan/spec-rfcgate-1-extraction.md`, separated out of it by
@@ -926,6 +926,8 @@ checks a reviewer runs against the diff.
 | Correct the Section Index but not the id | Renumber `RFC7296-1.3.3-1` to `RFC7296-1.3.2-N` | Blocked three ways: `check_id_allocation` forbids reuse, `check_retired_requirements` forbids disappearance, and two tests already tag the id. `parse_checklist_line` also validates that an id's section segment matches its `(§X.Y)` citation, so the citation must stay `(§1.3.3)` too |
 | Carry Appendix A in the spec | Reference `tmp/rfcgate-1-rfc7296-walk.md`; write a separate committed data file | `tmp/` is gitignored, so the walk output would be lost at the first clean. A separate data file was not created because this spec's authoring scope is one file. The rows are data, not code, so `ai/rules/spec-no-code.md` is satisfied |
 | Build the driven-clock seam rather than sleep | Wall-clock sleeps in the timeout and rate-limit tests | `ai/rules/fix-dont-record.md`: a test that waits a duration instead of a condition is a broken test, and the load-sensitivity would surface later as a phantom flake |
+| Land the sign-off before closing this spec | Close on the 200 landed rows and defer `rfc/extraction/rfc7296.json` to a successor spec, which the closure documents had already recorded as Skipped under D-2 | Owner ruling 2026-08-02. The sign-off is the pilot's subject, not a deliverable beside it: this spec exists to prove the artifact format against the worst-measured input in the corpus, so a closure without it would have shipped the extraction and dropped the thing being piloted. It also cost the argument nothing to test, because the walk immediately found four MUSTs (D-10) and one machinery gap (D-9) that a deferral would have hidden behind a green gate |
+| Add a sixth exclusion kind, `relocated-to-spec` | Implement the Configuration payload and IPComp features first, so the 12 sites map to real summary rows; force `binds-another-role` onto them; leave them unclassified and abandon the sign-off | Owner ruling 2026-08-02. The first alternative makes a machinery gate wait on two unrelated protocol features. The second is a lie the gate would have accepted, asserting Ze plays no IRAS or IPComp role while two specs exist to implement exactly those roles. The kind is not a pointer but a tripwire: `make ze-rfc-check` re-reads the destination spec on every run and refuses the sign-off if the spec is gone, has dropped the reserved id, or if `rfc/short/rfc7296.md` has taken the id back |
 
 ## Known Limitations
 - **`RFC7296-1.3.3-1` continues to cite §1.3.3 while its obligation lives at §1.3.2**
@@ -2393,3 +2395,341 @@ not a lost obligation.
 **§4 is untouched and still correctly ordered.** `4-4` was NOT landed, so the mark stays
 at 1 and `plan/spec-ipsec-remote-access.md` can still take `4-2` and `4-3` in order. Land
 those before WP-10's `4-4`.
+
+## Implementation Summary
+
+### What Was Implemented
+
+- **`rfc/short/rfc7296.md` grew from 23 rows to 227**, 222 of them gated (179 MUST + 43
+  MUST NOT) and 5 SHOULD-level. Each gated row carries a positive and a negative
+  `RFC requirement:` tag; the tag scan finds **574 rfc7296 tags across 75 files**. The
+  last four rows were added on 2026-08-02 by the sign-off walk, not by the plan.
+- **`rfc/extraction/rfc7296.json` is signed off** (2026-08-02, register `rfc2119`,
+  `source-sha a6f1a101b818977b`): 261 derived sites in 104 sections, 230 mapped and 31
+  excluded (12 `duplicate-of`, 12 `relocated-to-spec`, 6 `not-a-requirement`, 1
+  `binds-another-role`), 91 sections walked and 13 skipped, 26 `unsourced-ids`.
+  `make ze-rfc-extraction-status` reports `signed: 3`, `relocated: 12`, and rfc7296 is
+  absent from the `unsigned` list of 165.
+- **A sixth exclusion kind, `relocated-to-spec`, was added to
+  `scripts/dev/rfc_requirements.py`** so a site moved by owner ruling D-1 can say
+  "extracted, owed by a named spec" without asserting that nobody is bound. D-9.
+- **Zero annotations survive.**
+  `grep -cE "\{(gap|not-applicable|single-polarity|partial)[},:]" rfc/short/rfc7296.md`
+  returns 0, so the three pre-existing annotations on `RFC7296-3.3-1` (`:469`),
+  `RFC7296-2.9-1` (`:474`) and `RFC7296-1.4-1` (`:491`) are all cleared by landed behavior.
+- **New engine producers:** `cookie.go`, `sa_init_retry.go`, `notify_error.go`,
+  `notify_invalid_msgid.go`, `delete.go`, `bypass.go`, `msgid.go`, `ts_narrow.go`,
+  `transport_mode.go`, `certurl.go`, `certbundle.go`, `cert_payload.go`, `remote_id.go`.
+- **Dataplane:** `espform.go` / `espform_linux.go` (the raw IPPROTO_ESP reader that serves
+  the second ESP form), `policy_owner.go` (the ownership guard), `xfrm_linux.go`
+  (`XfrmPolicyUpdate` upsert), `transport/encap_linux.go`.
+- **EAP:** `eap/eap_tls.go`, `eap/peer.go`, `eap/eap_mschapv2.go`.
+- **Functional tests added:** `test/ipsec/ipsec-cookie-challenge.ci`,
+  `ipsec-cookie-threshold-tolerates.ci`, `ipsec-error-notify-no-loop.ci`,
+  `ipsec-traffic-selector-config.ci`, `test/parse/ipsec-psk-hex.ci`.
+- **Interop scenarios added:** `12-invalid-ke-retry`, `18-cookie-challenge`, `06-eap-tls13`.
+  Scenarios 04, 05, 07, 09 and 11 were fixed from false-pass to real green.
+
+### Bugs Found/Fixed
+
+| Bug | Now covered by |
+|-----|----------------|
+| `handleDeletePayload` never read `del.SPIs`, so a peer Delete left the Child SA installed | `TestDelPeerDeleteClosesTheDesignatedChildSA`, `TestDelUnknownSPIClosesNothing` (`engine/rfc7296_delete_test.go`) |
+| Nothing cleared an IKE SA's keys on close | `SA.forgetKeys`, tagged `RFC7296-2.12-1` |
+| `encodeIKEID` returned `[]byte(id)` unexamined, so a terminator octet reached the wire | `RFC7296-3.5-5` pair (`engine/remote_id.go`, `ipsec/validate.go`) |
+| `espProposalMatches` and `wireProposalsToIKE` collapsed repeated transforms of one type to the last, so a key length from one transform was compared beside another transform's id | `engine/rfc7296_transform_alternatives_test.go` |
+| `cleanupChild` removed only the live Child SA, leaking a superseded pair's XFRM state | `engine/child_policy_survival_test.go` |
+| RFC 7427 sent a bare OID where an `AlgorithmIdentifier` is a SEQUENCE | `eap`/`engine` auth tests; found only against strongSwan |
+| RFC 2759 Success Response is one OpCode octet; ze demanded four | `eap/eap_mschapv2.go`; found only against strongSwan |
+| The EAP-TLS authenticator discarded its closing flight, and the MSK fell back to `sha256(TLSUnique)` | `eap/eap_tls.go`, `eap/eap_tls_regression_test.go`, scenario `06-eap-tls13` |
+| `dh-group` accepted 1..31 with no implementability gate while only 14, 19 and 20 exist | `TestIKESuitePolicyRejectsAnUnhonourableSuite` row 3 |
+| `storeRemoteCerts` accepted an unbounded chain | `TestCcnOverlongChainKillsTheSAOnBothRoles` |
+| `errSADead` returned above the only writer of `RetransmitCount`, collapsing the reconnect backoff from 60s to 1s | round-3 review fix, `engine/fsm.go` |
+
+### Documentation Updates
+
+- `docs/features/rfc-status.md:229` -- the RFC 7296 row is re-authored end to end, with a
+  source anchor per claim (`engine/msgid.go`, `engine/notify_error.go`, `engine/cookie.go`,
+  `engine/ts_narrow.go`, `engine/transport_mode.go`, `dataplane/espform.go`,
+  `dataplane/xfrm_linux.go`). Its Remaining column now states "No MUST gap remains gated".
+- `ai/RFC-REQUIREMENTS.md` regenerated by `make ze-rfc-index`.
+- **`rfc/enrolled.txt:167` was re-authored** (D-8) to the measured position: 227 rows, 222
+  gated (179 MUST + 43 MUST NOT), 574 tagged tests across 75 files, zero annotations, the
+  two relocated obligation sets named with their destination specs, and the four rows the
+  sign-off walk added. **Its last clause is now false**: it reads "rfc/extraction/rfc7296.json
+  is not signed off, so this stem stays grandfathered", and the artifact signed off on
+  2026-08-02. The bound is now the walk, not the 222 rows. That clause is prose no gate
+  reads (`rfc_requirements.py` keys on the stem alone), so it is a disclosure defect and not
+  a red. This closure phase edits only `.md` files while a review holds hashes over the code
+  files, so the one-line correction to `rfc/enrolled.txt` is owed and is reported, not made.
+- **One sentence inside the signed artifact lags its own classification.** The `reason` on
+  section `1.3.3` still reads "No row in rfc/short/rfc7296.md states that obligation, so site
+  1.3.3:1 is left unclassified for the owner to rule on", and site `1.3.3:1` is now `mapped`
+  to `RFC7296-1.3.3-2`, the row the walk added. A `reason` is free text no check reads, so
+  the artifact stays valid, but it contradicts its own site. Third correction owed outside
+  `.md`.
+- **`rfc/extraction/README.md` gained the `relocated-to-spec` contract**: the kind's row in
+  the closed set, its six refusal conditions, why a closing spec turns the site red on
+  purpose, and why a relocation counts as an exclusion for the ratchet while being published
+  apart.
+- `make ze-doc-test` was NOT run in this phase. This closure ran as a documentation-only
+  agent with verification explicitly out of scope; the review gate artifact recorded on
+  2026-08-02 is the evidence that stands.
+
+### Deviations from Plan
+
+| # | Planned | Landed | Why |
+|---|---------|--------|-----|
+| D-1 | 237 rows | 223 rows, then 227 with D-10 | Owner ruling 2026-07-31 split WP-9 to `plan/spec-ipsec-remote-access.md` (11 rows) and moved WP-11/IPComp whole to `plan/spec-ipsec-ipcomp.md` (4 rows). Both are recorded in the shard, both stay gated in their destination. The sign-off records 12 `relocated-to-spec` sites, not 15: the artifact counts keyword-visible SITES and the ruling moved ROWS. Section 2.22 carries two sites for four IPComp rows, so `RFC7296-2.22-3` and `-2.22-4` are reserved in `plan/spec-ipsec-ipcomp.md` and named nowhere in the artifact. `unsourced-ids` does not catch them either, because reverse arithmetic runs over ids the summary still DECLARES and these left it. A relocated obligation with no keyword site of its own is visible only in its destination spec |
+| D-2 | `rfc/extraction/rfc7296.json` signed off | **Done 2026-08-02.** The artifact is a valid sign-off: 261 sites, 104 sections, nothing unclassified, `make ze-rfc-check` exit 0 | Landed on the owner ruling of 2026-08-02 rather than deferred to a successor spec. R-13's constraint held throughout: the skeleton stayed out of the tree until it was fully classified, so no commit ever saw the 385 gate errors an unsigned skeleton produces |
+| D-3 | Five `TestRealTree` wiring cases | **Landed 2026-08-02**, all five, green. `grep -c "def test_rfc7296" scripts/dev/rfc_requirements_test.py` returns 5 | R-12 is closed the way its own Resolution 2 says: they land in the commit that turns them green, so neither verify branch ever sees a red Python test. One case was written conditional on `rfc/extraction/rfc7296.json` existing, and D-2 landed the artifact hours later, so it now takes its strong branch: rfc7296 must be a VALID sign-off. Six mutations were run to prove all five discriminate |
+| D-4 | Every TDD-plan unit test name | Every name was changed during implementation | The files landed under a per-package prefix convention (`TestMid*`, `TestDel*`, `TestCke*`, `TestErr*`, `TestRtx*`). Same coverage, different identifiers. Verified name by name below |
+| D-5 | Seven new `.ci` tests | Two landed (`ipsec-cookie-challenge.ci`, `ipsec-psk-hex.ci`), three more landed under other names, two are absent (`ipsec-dpd-probe-encrypted.ci`, `ipsec-peer-delete-child.ci`) | Their obligations are proven by unit tests that drive the real handler over a real UDP socket. The `.ci` carriers were not written |
+| D-6 | Nine interop scenarios 12..20 | Two landed (12, 18) plus a new `06-eap-tls13` | 14 moved with WP-9, 20 moved with IPComp, 19 is blocked and rehomed, 13/15/16/17 were not written |
+| D-7 | AC-17 Section Index correction | **Done 2026-08-02.** The Section Index and the CREATE_CHILD_SA exchange table both now match `rfc/full/rfc7296.txt:847` and `:882` | The two locators this row previously cited (`:845`, `:880`) were off by two: they name the blank line and the "Section 2.18 also covers" line, not the headings. Corrected above. `RFC7296-1.3.3-1` keeps its id and citation |
+| D-8 | AC-16 both documents | **Done 2026-08-02.** `docs/features/rfc-status.md:229` was already accurate and stays untouched; the `rfc/enrolled.txt` descriptor is re-authored against the measured position | The rfc-status row was re-read before being left alone: its Remaining cell says "No MUST gap remains gated in `rfc/short/rfc7296.md`", which is what 0 annotations means. The descriptor's closing "not signed off" clause was overtaken by D-2 hours later and is now false; see Documentation Updates |
+| D-9 | Five exclusion kinds, the closed set the machinery shipped with | **Six.** `relocated-to-spec` was added to `scripts/dev/rfc_requirements.py`, with two authored fields, `relocated-to` and `reserved-id` | Owner ruling 2026-08-02. D-1 moved 12 sites into `plan/spec-ipsec-remote-access.md` (10) and `plan/spec-ipsec-ipcomp.md` (2), and no existing kind could record that without asserting something false: `binds-another-role` would have claimed Ze plays no IRAS or IPComp role while two specs exist to implement exactly those roles. The kind fails closed, refusing the sign-off unless the named spec exists AND still names the reserved id, and refusing while `rfc/short/rfc7296.md` still declares that id. 22 tests, 16 mutations, none survived |
+| D-10 | The 214 obligations Appendix A enumerated | **218 extracted.** The sign-off walk found four MUSTs no earlier pass had seen, and each landed with a mutation-verified tagged pair before the artifact was signed | Scope grew during closure, and this is the pilot's own result rather than a plan miss. `RFC7296-3.2-5` and `-3.2-6` are the Critical-bit SENDER obligations of §3.2, `RFC7296-1.3.3-2` requires REKEY_SA in a CREATE_CHILD_SA that replaces an ESP or AH SA, and `RFC7296-4-5` is the four-message IKE_SA_INIT and IKE_AUTH capability of §4. No gate in the repo could have asked for any of the four: every gate judges what a summary already lists |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-10 assumed the RFC 7296 errata add no obligation absent from the local source | Literally true, but two errata make Appendix A wrong at a row: verified erratum 6940 corrects text quoted by `RFC7296-3.10-3`, and held erratum 5056 contradicts how `RFC7296-1.7-1` reads | Phase 1 fetched the errata page (2026-07-30) | Appendix A's preamble records both; A-10 is marked **broken** |
+| approach | A `//go:debug tlsunsafeekm=1` was written into `cmd/ze/main.go` so EAP-TLS over TLS 1.2 without RFC 7627 could export keying material | A process-wide GODEBUG weakens the export rule for every user to suit one peer version | Owner ruling | Removed. Ze ships fail-closed and the interop lab opts in per scenario |
+| assumption | AC-18's grep `\{gap\}` was believed to prove zero annotations | Every annotation on disk is written `{gap: <reason>}`, so the pattern had a closing brace where the file has a colon. **AC-18 passed by finding zero of something it could not see** | Re-read of the criterion during the WP-2 residual pass | Pattern corrected to `\{(gap\|not-applicable\|single-polarity\|partial)[},:]`; the corrected run found one survivor, which was then closed |
+| approach | The `errSADead` exit was placed early in the reconnect path | It returned above the only writer of `RetransmitCount`, collapsing the backoff from 60s to 1s, so an auth-refusing peer drew a fresh IKE_SA_INIT and Diffie-Hellman every second | Review round 3 | Fixed in the same round. Recorded because a fix that creates a worse defect than it closes is the shape reviews exist for |
+| approach | Scenario `06-eap-tls13` was added (commit `1963345b4`) as a fourth PKI-carrying interop scenario, and nothing else was touched | `test/ipsec-interop/lab_test.py` `TestScenarioPKIFixtures` spells its totals out, so it still asserted 3 scenarios and 9 PKI leaves. Adding the scenario turned it red | Found while closing, not by a suite run in the adding session | Corrected to 4 and 12. The spelled-out totals are deliberate (a scenario that silently stops carrying PKI material must red), so the lesson is that adding a scenario costs one edit to the guard, not that the guard should derive its counts |
+| escalation | Five tests were found that no input could make fail (an interop byte-counter regex, a 255-transform block, an attribute-count fixture, scenario 03's `except (AssertionError, Exception)`, and a PKI assertion whose regex skipped its own loop body) | Each reported green whether or not the behavior it named was present | Reviews, not suite runs. No suite run found one of them | The remaining instances of the shape are homed in `plan/spec-fixit-ike-test-discrimination.md` |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Extract the 214 unextracted MUST-level obligations into `rfc/short/rfc7296.md` | Changed | `rfc/short/rfc7296.md` (227 rows, was 23) | 204 landed here, four of them found by the sign-off walk rather than by Appendix A (D-10). 15 moved to `plan/spec-ipsec-remote-access.md` and `plan/spec-ipsec-ipcomp.md` by owner ruling 2026-07-31, still gated at their destination |
+| Implement the 108 that were not implemented at all | Changed | `internal/component/ike/**` | Delivered inside the landed rows. The rows that needed a feature Ze does not have (Configuration payload, IPComp) moved with their packages |
+| Prove every landed row in both polarities with a tagged test | Done | 574 `RFC requirement: RFC7296-*` tags across 75 files | 222 gated rows, all two-polarity, zero annotations. Measured through the scanner (`_collect_for_check`), not by grep: two prose mentions of a tag id in `engine/certurl_test.go` are not tags and the scanner does not count them |
+| Sign off `rfc/extraction/rfc7296.json` | Done | `rfc/extraction/rfc7296.json`, signed 2026-08-02 | 261 sites in 104 sections, nothing unclassified: 230 mapped, 31 excluded (12 `duplicate-of`, 12 `relocated-to-spec`, 6 `not-a-requirement`, 1 `binds-another-role`), 91 walked, 13 skipped, 26 `unsourced-ids`. `make ze-rfc-extraction-status` reports `signed: 3` and `relocated: 12`, with rfc7296 absent from the 165-stem `unsigned` list. The pilot's stated purpose is met: the artifact format survived the worst-measured input in the corpus, and it found four MUSTs on the way (D-10) |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `rfc/short/rfc7296.md:548` and `:549` carry `RFC7296-2.2-1` and `-2.2-2`, both citing `(§2.2)` | |
+| AC-2 | Changed | 227 rows, not 237 | D-1 moved 15 out and D-10 added four the walk found. Every landed row parses and every id's section segment matches its citation, which `parse_checklist_line` enforces at every commit |
+| AC-3 | Done | The three formerly-annotated ids are still present at `:469`, `:474`, `:491` with their original text | `check_retired_requirements` and `check_coverage_ratchet` ran green on every landing commit |
+| AC-4 | Done | Zero annotations across the whole summary | |
+| AC-5 | Done | `rfc/extraction/rfc7296.json` validates: `make ze-rfc-check` exits 0, every one of the 261 derived sites is `mapped` or `excluded` with a closed-set kind and a reason, every one of the 104 sections is `walked` or `skipped`, and the register is the derived `rfc2119` | The AC's premise moved under it and R-14 predicted the move: the corpus now holds five artifacts and three VALID sign-offs, not "exactly one". What the AC asserts still holds at the live figures. 165 enrolled stems stay unsigned and unaccused, so grandfathering remains the majority position, which is the claim that carries the meaning. D-2 |
+| AC-6 | Done | The `implemented-and-testable` rows landed with tagged pairs and no production change; `RFC7296-3.5-2/-3/-4` are the recorded examples | |
+| AC-7 | Changed | The `implemented-untested` rows landed. The driven-clock seam landed; the interop half landed as scenarios 12 and 18 rather than the nine planned | D-6 |
+| AC-8 | Done | The 18 `uncertain` rows are resolved in the "Phase 3" section of this spec, each with the `file:line` that resolved it | |
+| AC-9 | Changed | Landed inside the 200 rows | The rows requiring an absent feature moved with owner approval, not silently. D-1 |
+| AC-10 | Done | Each work package landed as its own commit run with `ze-rfc-check` green | |
+| AC-11 | Done | `TestMidOutboundCounterFreezesAtTheCeiling`, `TestMidInboundCounterFreezesAtTheCeiling`, `TestMidNearExhaustionRekeysTheIKESA` (`engine/rfc7296_msgid_test.go:58`, `:226`, `:126`) | |
+| AC-12 | Done | `TestDpdProbeIsEncrypted` (`engine/rfc7296_dpd_test.go:70`); I-bit pair tagged `RFC7296-3.1-13` at `engine/rfc7296_wp2_test.go:266` and `:283` | |
+| AC-13 | Done | `TestDelPeerDeleteClosesTheDesignatedChildSA` (`:64`) and `TestDelUnknownSPIClosesNothing` (`:85`) | The negative half is the AC's second sentence, asserted directly |
+| AC-14 | Done | `engine/rfc7296_kegroup_test.go` (`RFC7296-1.2-5`) plus `test/ipsec-interop/scenarios/12-invalid-ke-retry/` | |
+| AC-15 | Done | `engine/ts_narrow_test.go` (`TestNarrowingIncludesFirstChoice:94`, `TestNarrowingEmptySetIsRefused:178`) and `engine/rfc7296_transport_test.go` | The `15-ts-narrowing` interop scenario was not written; the config surface landed as `test/ipsec/ipsec-traffic-selector-config.ci` |
+| AC-16 | Changed | Both documents re-authored. `rfc/enrolled.txt` rfc7296 descriptor now states 227 rows / 222 gated (179 MUST + 43 MUST NOT), all MET and proven in both polarities by 574 tagged tests across 75 files, zero annotations, the four rows the sign-off walk added, and the two obligation sets gated in `plan/spec-ipsec-remote-access.md` and `plan/spec-ipsec-ipcomp.md`. `docs/features/rfc-status.md:229` was already accurate and is untouched | Figures measured, not asserted: `rfc_coverage` returns `RFCCoverage(rfc='rfc7296', gated=222, both=222, one=0, annotated=0, missing=0, nightly_only=0)`. The rfc-status Remaining cell reads "No MUST gap remains gated in `rfc/short/rfc7296.md`", which agrees with 0 annotations, so `check_gap_count_agreement` stays green. **One clause is stale and is why this row is Changed rather than Done:** the descriptor closes by saying `rfc/extraction/rfc7296.json` is not signed off, and it signed off later the same day. The correction is one clause in a non-`.md` file this documentation-only phase does not edit. D-8 landed, the clause is owed |
+| AC-17 | Done | `rfc/short/rfc7296.md` Section Index now reads §1.3.2 "Rekeying IKE SAs" and §1.3.3 "Rekeying Child SAs", matching `rfc/full/rfc7296.txt:847` and `:882`. The CREATE_CHILD_SA exchange table was swapped the same way: the `Rekey Child SA` row cites 1.3.3 and the `Rekey IKE SA` row cites 1.3.2 | `RFC7296-1.3.3-1` keeps its id and its `(§1.3.3)` citation, as R-7 requires. The discrepancy was already in Known Limitations; a three-line note under the Section Index now states it in the summary too, so the file no longer contradicts itself on its face. That note shifts every later requirement's line number, so `make ze-rfc-index` was re-run. D-7 closed |
+| AC-18 | Done | The corrected pattern returns nothing | The original pattern was vacuous, which is the Mistake Log row above |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestMidOutboundCounterFreezesAtTheCeiling` | Done | `engine/rfc7296_msgid_test.go:58` | Only planned name that landed verbatim, with its sibling below |
+| `TestMidInboundCounterFreezesAtTheCeiling` | Done | `engine/rfc7296_msgid_test.go:226` | |
+| `TestRetransmitReusesOriginalMessageID` | Changed | `engine/rfc7296_retransmit_test.go:144` `TestRtxEachSideRemembersWhatItSent` | Renamed under the `TestRtx*` prefix |
+| `TestRetransmitIsBitwiseIdentical` | Changed | `engine/rfc7296_retransmit_test.go:207` `TestRtxResponderReplaysCachedResponseOnlyForDuplicate` | |
+| `TestDPDProbeIsEncrypted` | Changed | `engine/rfc7296_dpd_test.go:70` `TestDpdProbeIsEncrypted` | Case only |
+| `TestDPDProbeIBitFollowsRole` | Changed | `engine/rfc7296_wp2_test.go:266`, `:283` | Landed as a tagged pair on `RFC7296-3.1-13` |
+| `TestDeleteRemovesNamedChildSA` | Changed | `engine/rfc7296_delete_test.go:64`, `:85` | Split into a positive and a negative test |
+| `TestInitiatorRetriesOnInvalidKEPayload` | Changed | `engine/rfc7296_kegroup_test.go` | |
+| `TestCookieRoundTrip` | Changed | `engine/rfc7296_cookie_test.go:61`, `:104`, `:143` | Split three ways under `TestCke*` |
+| `TestOutOfSAErrorHandling` | Changed | `engine/rfc7296_errornotify_test.go:33`, `:127`, `:174` | Split under `TestErr*` |
+| `TestTransformAttributeValidation` | Changed | `wire/rfc7296_sa_test.go:132`-`:161` | Tagged `RFC7296-3.3.5-1`, `-2` in both polarities |
+| `TestProposalNumberingAndSPISize` | Changed | `wire/rfc7296_sa_test.go`, `engine/rfc7296_spisize_test.go` | |
+| `TestTrafficSelectorNarrowing` | Changed | `engine/ts_narrow_test.go:94`, `:178`, `:202` | |
+| `TestConfigurationPayloadExchange` | Changed | `engine/rfc7296_cp_test.go:93`, `:143`, `:186` | Proves the non-participation Section 4 permits; the sending half moved with WP-9 |
+| `TestHexPSKDecoding` | Changed | `ipsec/rfc7296_test.go:42`, `:89` | Tagged `RFC7296-2.15-3` |
+| `TestRealTree.test_rfc7296_signoff_is_valid_and_the_rest_stay_grandfathered` | Done | `scripts/dev/rfc_requirements_test.py`, class `TestRealTree` | Now on its live branch: the artifact exists, so the case asserts it is a VALID sign-off, which is the strong form. That is the R-13 move it catches, and R-13 measured the alternative at 385 gate errors. Discrimination proven: planting an unsigned skeleton reds it. The grandfather half no longer names rfc7296, because a signed stem is signed; what it asserts instead is that unsigned stems stay the MAJORITY (165 against 3), which is the claim "grandfathering is scope, not an allowlist" actually makes |
+| `TestRealTree.test_rfc7296_summary_carries_the_section_2_2_requirements` | Done | same class | Asserts `RFC7296-2.2-1` and `-2.2-2` are present, gated, unannotated, cite `(§2.2)` and are proven both ways. Deleting `2.2-1` from a copied summary reds it |
+| `TestRealTree.test_rfc7296_every_gated_row_is_proven_in_both_polarities` | Done | same class | A gated-row FLOOR, every row two-polarity, zero annotations anywhere in the file. This is the OR-1 catch umbrella R-9 says no gate makes: `{gap}` is a legal annotation, so nothing else refuses a newly extracted MUST absorbed into one. Two mutations red it: adding a `{gap: ...}` to a row, and adding a gated row nothing proves. **The floor is stale and loose:** `GATED_FLOOR = 218` (`scripts/dev/rfc_requirements_test.py:10786`) while the tree carries 222, so four rows could disappear without reding it. Not a red, and the one-digit correction is owed in a `.py` file this documentation-only phase does not edit |
+| `TestRealTree.test_rfc7296_ids_are_neither_retired_nor_demoted` | Done | same class | Drives `check_retired_requirements` and `check_coverage_ratchet` from the RECORDED pre-pilot baseline (the 23 ids at `9551e66f4^`) rather than from HEAD, which has moved past the re-authoring the two ratchets were written to police. Deleting `RFC7296-2.7-1` from a copied summary reds it |
+| `TestRealTree.test_rfc7296_ledger_is_fresh_after_the_pilot` | Done | same class | `check_ledger_fresh` over the real tree, plus three ids that must appear in `ai/RFC-REQUIREMENTS.md`. Changing one tag id under the ledger reds it |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `rfc/extraction/rfc7296.json` | Done | 149K, signed 2026-08-02, 261 sites and 104 sections all classified. D-2 |
+| `plan/deferrals/rfcgate-1b-rfc7296-pilot.md` | Done | 59 rows, deleted by commit B |
+| `internal/component/ike/engine/cookie.go`, `cookie_test.go` | Done | 15K and 13K |
+| `internal/component/ike/engine/notify_error.go`, `notify_error_test.go` | Done | 18K and 24K |
+| `internal/component/ike/engine/cp.go`, `cp_test.go` | Changed | No `cp.go` producer: Ze takes no IRAC role, which Section 4 permits. The consumer-side proof is `engine/rfc7296_cp_test.go`; the producer moved to `plan/spec-ipsec-remote-access.md` |
+| `test/ipsec/ipsec-cookie-challenge.ci` | Done | 4.5K |
+| `test/parse/ipsec-psk-hex.ci` | Done | 1.3K |
+| `test/ipsec/ipsec-dpd-probe-encrypted.ci`, `ipsec-peer-delete-child.ci`, `ipsec-msgid-exhaustion.ci`, `ipsec-ts-narrowing.ci`, `ipsec-remote-access-cp.ci` | Changed | Two are absent with no substitute (D-5); msgid, TS narrowing and remote-access landed as unit tests or moved with WP-9 |
+| `test/ipsec-interop/scenarios/12-invalid-ke-retry/` .. `20-ipcomp/` | Changed | 12 and 18 landed, plus a new `06-eap-tls13`. D-6 |
+| The driven-clock seam for `maintainSA` | Done | Used by the timeout and rate-limit rows; no wall-clock sleep was added |
+
+### Audit Summary
+Counts derived by parsing the Status column of the four tables above, not typed, and
+re-derived from scratch after AC-5 landed rather than adjusted by arithmetic on the old
+figures. That is not a formality: an earlier pass carried figures that were wrong in three
+of four cells, and only re-parsing found it.
+
+- **Total items:** 4 Task requirements + 18 ACs + 20 TDD tests + 10 file groups = 52
+- **Done:** 30 (2 Task requirements, 14 ACs, 7 TDD tests, 7 file groups)
+- **Partial:** 0
+- **Skipped:** 0. The three Skipped rows of the previous pass were one open owner decision, D-2, and it closed on 2026-08-02: Task requirement 4, AC-5 and the `rfc/extraction/rfc7296.json` file row are all Done
+- **Changed:** 22 (recorded in Deviations D-1 .. D-10). AC-16 moved from Done to Changed in the same pass. Its two documents landed, and one clause of the `rfc/enrolled.txt` descriptor was overtaken by the sign-off hours later
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Close the 92% extraction blind spot in `rfc/short/rfc7296.md` | data | 227 rows, from 23 at the spec's start. 15 further obligations are gated at two named sibling specs, and the sign-off names each of them by its reserved id |
+| Every extracted obligation proven in BOTH polarities, with no annotation | data + gate | `rfc_coverage` returns `gated=222, both=222, one=0, annotated=0, missing=0` over 574 `RFC requirement: RFC7296-*` tags in 75 files. `make ze-rfc-check` is the continuous enforcer: a row without both polarities reds it |
+| Ze's IKEv2 interoperates with strongSwan | interop | 13 scenario directories exist (`ls test/ipsec-interop/scenarios/`). The implementing session's own measurement, carried into the learned summary: **eight green**, with 04, 05, 07, 09, 11 and 18 fixed from false-pass or red, plus a new `06-eap-tls13` that needs no GODEBUG. 04 and 06 are the EAP-TLS pair that had **never** interoperated before this spec while their suite was green. `08-responder-eap-mschapv2` and `10-clear-reestablish` are RED, measured pre-existing on 2026-08-02, and both are homed in the deferral shard. The run itself was not repeated in this closure phase |
+| Message ID exhaustion closes or rekeys the SA rather than wrapping | functional/unit | `TestMidOutboundCounterFreezesAtTheCeiling`, `TestMidInboundCounterFreezesAtTheCeiling`, `TestMidNearExhaustionRekeysTheIKESA` (`engine/rfc7296_msgid_test.go`) |
+| A peer can tear down one Child SA and Ze stops forwarding into it | unit over the real handler | `TestDelPeerDeleteClosesTheDesignatedChildSA` (`engine/rfc7296_delete_test.go:64`), negative half `TestDelUnknownSPIClosesNothing` (`:85`) |
+| Traffic selectors are narrowed to operator policy, never widened | unit + functional | `engine/ts_narrow_test.go` (`:94`, `:178`, `:202`), config surface at `test/ipsec/ipsec-traffic-selector-config.ci` |
+| Bound the extraction mechanically with a signed `rfc/extraction/rfc7296.json` | gate + data | Signed 2026-08-02 and re-checked by `make ze-rfc-check` (exit 0) on every run, against the derived inventory rather than against itself: 261 sites in 104 sections, 230 mapped, 31 excluded with a closed-set kind and a reason each, 91 walked, 13 skipped, 26 `unsourced-ids`. `make ze-rfc-extraction-status` reports `signed: 3` and rfc7296 outside the `unsigned` list. The bound is what it claims to be and no more: sites the extractor can SEE, with the residual published in `unsourced-ids` rather than claimed away |
+| Prove the sign-off format survives the worst-measured input in the corpus | data | It found four MUSTs no gate could have asked for (`RFC7296-3.2-5`, `-3.2-6`, `-1.3.3-2`, `-4-5`, D-10), and it forced one machinery change, the `relocated-to-spec` kind (D-9). A format that only ratified the summary it was given would have produced neither |
+
+## Deferrals Resolved
+
+59 rows in `plan/deferrals/rfcgate-1b-rfc7296-pilot.md`, counted with
+`grep -c "^| 2026-"`. Every destination was checked with `ls` on 2026-08-02 and every one
+exists. Grouped by destination; the count in each row is exact.
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| `RFC7296-3.13.1-3` OPAQUE port encoding lands as encoder-proven (1 row) | done | Landed as `RFC7296-3.13.1-3`, `engine/ts_narrow_test.go` `TestPortEncodingFollowsSection3131` |
+| `RFC7296-2.23-10` and `-2.23-11` receive both ESP forms (1 row) | done | Landed with pairs in `engine/rfc7296_natt_bothforms_test.go` |
+| The dead `ze_has_xfrm` helper in scenario 02 (1 row) | done | Removed in commit `1963345b4`, verified absent from the live file |
+| WP-9 Configuration payload and remote access: `2.19-2`, `-3`, `-5`, `-6`, `3.15.1-1`, `-3`, `-4`, `4-2`, `4-3`, `1.7-1`, and the Section 4 id-allocation order (11 rows) | deferred | `plan/spec-ipsec-remote-access.md` |
+| WP-11 IPComp: `2.22-1` .. `-4` (4 rows) | deferred | `plan/spec-ipsec-ipcomp.md` |
+| VPP: ECN on VPP (`2.24-1`, `-2`), UDP encapsulation, and `InstallPolicy` ignoring `Action`/`Priority` (4 rows) | deferred | `plan/spec-fixit-vpp-ipsec-inoperable.md` |
+| Test-discrimination backlog: the MSCHAPv2 one-octet guard, the `pendingRekey.clear()` defer, ESP assertions in scenarios 04 and 06, the loopback-xfrm probe constraint, `RFC5216-2.1.3-1`, the espform receiver tag, `TestEAPTLSProcessRefusesUnboundedPeerBuffer`, the `writeESPForm` oracle, `samePolicySelector`'s three terms, the 3-arg `RemovePolicy` seam, and the QEMU boot timeout (11 rows) | deferred | `plan/spec-fixit-ike-test-discrimination.md` |
+| Child SA rekey policy: the spec's own nine residual items, the three responder rollback sites, `samePolicySelector` orientation, install/remove identity mismatch, `resolvePendingAfterOwnerLoop`, the superseded arm of `closeDesignatedChildSAs`, the pending-child Delete arm, and two Child SAs differing only in `Mode` (8 rows) | deferred | `plan/spec-fixit-child-sa-rekey-policy.md` |
+| Resource lifetime: `RemoveSA` leaking an ESP form entry, `p.Run` leaking four node-wide bypass policies, and the unpaired initiator `SAUp` (3 rows) | deferred | `plan/spec-fixit-ike-resource-lifetime-leaks.md` |
+| ESP dual-form receive: the platform-limit lift, and its phase 5 / AC-4 disclosure gap (2 rows) | deferred | `plan/spec-ipsec-esp-dual-form-receive.md` |
+| Responder retransmit: defect 2 of the NAT-T port float spec, and interop scenario `08-responder-eap-mschapv2` red as its measured symptom (2 rows) | deferred | `plan/spec-fixit-ike-responder-natt-port-float.md` |
+| Unrun interop trees: the `l2tp_ppp`/`pppoe` runner-module question, and giving `make ze-qemu-integration-test` an automated caller (2 rows) | deferred | `plan/spec-rfcgate-2-deferred-unrun-interop-trees.md` |
+| The IKE_AUTH error piggyback of Section 2.21.2 (1 row) | deferred | `plan/spec-ipsec-auth-piggyback.md` |
+| The XFRM port-mask defect that keeps OPAQUE unprogrammable, plus its upstream patch (1 row) | deferred | `plan/spec-ipsec-opaque-selector-port-mask.md` |
+| Interop scenario `10-clear-reestablish` red because no SSH credential is provisioned (1 row) | deferred | `plan/spec-fixit-ipsec-interop-cli-credentials.md` |
+| The two strongSwan 5.9.14 `write_certificate_authorities` defects, and the upstream report (1 row) | deferred | `plan/spec-fixit-strongswan-tls13-certreq-authorities.md` |
+| `.golangci.yml` `build-tags` hiding 68 `integration`-tagged Go files from `make ze-lint` (1 row) | deferred | `plan/spec-fixit-lint-blind-to-integration-tag.md` |
+| `RFC2661-24.10-1`: an SCCRQ with Assigned Tunnel ID 0 is dropped in silence (1 row) | deferred | `plan/spec-fixit-l2tp-sccrq-tunnel-id-zero.md` |
+| The refused-CHILD-REKEY end-to-end proof: `test/ipsec/ipsec-child-rekey-no-proposal.ci` and `test/ipsec-interop/scenarios/19-error-notifications/` (2 rows) | deferred | **Rehomed at closure** to `plan/spec-rfcgate-1b-rfc7296-pilot-deferred-child-rekey-refusal-proof.md`, created 2026-08-02. Both rows had named this pilot, whose shard is deleted by commit B, so the work would have been lost |
+| The source-ADDRESS half of `RFC7296-2.11-3` on a multi-homed host (1 row) | deferred | **Rehomed at closure** to `plan/spec-rfcgate-1b-rfc7296-pilot-deferred-ike-source-address.md`, created 2026-08-02. Same reason |
+
+Three findings the shard records as IN SCOPE and FIXED inside the pilot (the `dh-group`
+implementability gate, the unbounded certificate chain, and the missing traffic-selector
+config surface) are not deferrals and carry no row.
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/rfcgate-1b-rfc7296-pilot-5f02ca42-5e01-481a-bd32-1d8e5029c764.md` |
+| `review_gate.py check` | clean (2 code files, hashes match) |
+| Reviewer lenses used | Round 5, scoped to `policyOwners.deleteThenRelease` and `TestPolicyOwnerHoldsTheSelectorAcrossTheKernelDelete`: deadlock and lock-order analysis, the ENOENT branch, the bypass early return, test honesty by mutation, and lock hold time |
+
+Rounds 1 to 4 are recorded in this spec's "Four review rounds" section: 13, 9, 6 and 5
+confirmed findings, all fixed. Round 5 is the artifact above.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | A teardown carried the IKE_AUTH Message ID, so a conforming peer replayed its cached response and never saw the Delete | `engine/delete.go`, `engine/msgid.go` | Round 2: the teardown takes a fresh Message ID; the test now asserts what reached the wire, not that a call happened |
+| 2 | BLOCKER | INVALID_SYNTAX was sent while Ze kept an SA that Section 2.21.3 makes fatal to both ends | `engine/notify_error.go` | Round 2: `engine/rfc7296_invalid_syntax_fatal_test.go` |
+| 3 | BLOCKER | `errSADead` returned above the only writer of `RetransmitCount`, collapsing the reconnect backoff from 60s to 1s | `engine/fsm.go` | Round 3 |
+| 4 | BLOCKER | Two interop `check.py` files wrapped their ESP assertion in `except (AssertionError, Exception)`, one calling `log_pass` in the handler | `test/ipsec-interop/scenarios/03`, `04` | Round 1: both swallows removed, which is what exposed the EAP-TLS defects |
+| 5 | ISSUE | `SupportedHashNames` was written by the supervising session, was correct, and was gated by nothing | `internal/component/ike/ipsec/` | Round 4: reverting it left the suite green, so a test was added |
+| 6 | ISSUE | Five tests could not fail for any input (byte-counter regex, 255-transform block, attribute-count fixture, scenario 03 check, PKI base64 assertion) | various | Rounds 1 to 4; the residual instances are homed in `plan/spec-fixit-ike-test-discrimination.md` |
+| 7 | ISSUE | `policyOwners` release could strip a surviving pair's policy across a kernel delete | `dataplane/policy_owner.go` | Round 5: the lock spans owner-check, delete and record-drop; mutation-proven 20 of 20 runs at package scope |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/ike/engine/cookie.go` | yes | `ls -la` -> 15K, 2026-07-31 20:12 |
+| `internal/component/ike/engine/cookie_test.go` | yes | `ls -la` -> 13K, 2026-07-31 20:14 |
+| `internal/component/ike/engine/notify_error.go` | yes | `ls -la` -> 18K, 2026-08-01 19:44 |
+| `internal/component/ike/engine/notify_error_test.go` | yes | `ls -la` -> 24K, 2026-07-31 23:37 |
+| `internal/component/ike/dataplane/policy_owner.go` | yes | untracked in `git status --porcelain`; pinned by SHA in the review artifact |
+| `test/ipsec/ipsec-cookie-challenge.ci` | yes | `ls -la` -> 4.5K, 2026-07-31 20:32 |
+| `test/parse/ipsec-psk-hex.ci` | yes | `ls -la` -> 1.3K, 2026-07-31 23:07 |
+| `test/ipsec-interop/scenarios/12-invalid-ke-retry/` | yes | `ls test/ipsec-interop/scenarios/` |
+| `test/ipsec-interop/scenarios/18-cookie-challenge/` | yes | `ls test/ipsec-interop/scenarios/` |
+| `rfc/extraction/rfc7296.json` | yes | `ls -la rfc/extraction/` -> 149K, 2026-08-02 19:55, beside rfc1035, rfc3765, rfc4486, rfc5301. D-2 |
+| `internal/component/ike/engine/cp.go` | **no** | `ls` -> No such file. Changed, see Files from Plan |
+| `test/ipsec/ipsec-dpd-probe-encrypted.ci`, `ipsec-peer-delete-child.ci` | **no** | `ls test/ipsec/` lists 12 files, neither among them. D-5 |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | `RFC7296-2.2-1` and `-2.2-2` present, citing `(§2.2)` | `grep -n "RFC7296-2\.2-1\]\|RFC7296-2\.2-2\]" rfc/short/rfc7296.md` -> `:548`, `:549`, both ending `(§2.2)` |
+| AC-2 | 237 rows | `grep -c "^- \[ \] \[RFC7296-"` -> **227** (222 gated, 5 SHOULD). Changed, D-1 and D-10 |
+| AC-3 | the pre-existing ids survive | `grep -n "RFC7296-3\.3-1\]\|RFC7296-2\.9-1\]\|RFC7296-1\.4-1\]"` -> `:469`, `:474`, `:491`, all three present |
+| AC-4 / AC-18 | zero annotations | `grep -cE "\{(gap\|not-applicable\|single-polarity\|partial)[},:]" rfc/short/rfc7296.md` -> **0** |
+| AC-5 | the sign-off validates | `make ze-rfc-extraction-status` -> `"signed": 3`, `"relocated": 12`, `"enrolled": 168`, `"backlog": 165`, and rfc7296 absent from `"unsigned"`. `signed-by-register` reads `rfc2119: 2, manual-walk: 1, prose: 0`. **Met** |
+| AC-11 | the counters freeze at the ceiling | `grep -n "^func TestMid" engine/rfc7296_msgid_test.go` -> `:58`, `:126`, `:226`, `:289`, `:394`, `:474` |
+| AC-12 | the I bit follows the original-initiator role | `grep -rn "RFC requirement: RFC7296-3.1-13" internal/` -> `engine/rfc7296_wp2_test.go:266` positive, `:283` negative |
+| AC-13 | a Delete removes the named Child SA and only that one | `grep -n "^func Test" engine/rfc7296_delete_test.go` -> `TestDelPeerDeleteClosesTheDesignatedChildSA:64`, `TestDelUnknownSPIClosesNothing:85` |
+| AC-14 | the initiator retries under the named group | `grep -rln "RFC requirement: RFC7296-1.2-5" internal/` -> `engine/rfc7296_kegroup_test.go` |
+| AC-15 | narrowing, and TS_UNACCEPTABLE on an empty result | `grep -rln "RFC requirement: RFC7296-2.9-2\|RFC7296-2.9.2-" internal/` -> `engine/ts_narrow_test.go`, `engine/rfc7296_transport_test.go` |
+| AC-16 | both documents describe the real position | `rfc/enrolled.txt` rfc7296 descriptor re-authored to 227 rows / 222 gated / 222 two-polarity / 0 annotations, measured by `rfc_coverage`. `docs/features/rfc-status.md:229` re-read and left as is: its Remaining cell already says "No MUST gap remains gated". **Met but for one clause**: the descriptor still calls the extraction artifact unsigned, which the same day's sign-off made false |
+| AC-17 | the Section Index matches the RFC | `grep -n "1\.3\.2\|1\.3\.3" rfc/short/rfc7296.md` -> the index now labels §1.3.2 "Rekeying IKE SAs" and §1.3.3 "Rekeying Child SAs", and the exchange table cites 1.3.3 for Rekey Child SA and 1.3.2 for Rekey IKE SA. `awk 'NR==847||NR==882' rfc/full/rfc7296.txt` -> "1.3.2.  Rekeying IKE SAs with the CREATE_CHILD_SA Exchange" and "1.3.3.  Rekeying Child SAs with the CREATE_CHILD_SA Exchange". **Met** |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `make ze-rfc-check` -> `check_extraction_signoff` over `rfc/extraction/rfc7296.json` | `TestRealTree.test_rfc7296_signoff_is_valid_and_the_rest_stay_grandfathered` | yes. The artifact exists, so the case takes its strong branch: rfc7296 must be in the VALID signed set, and `violations` must be empty for the whole directory. Reds on an unsigned skeleton, and reds if unsigned stems stop being the majority |
+| `make ze-rfc-check` -> `parse_checklist_line` over the summary, then gated-coverage evaluation | `TestRealTree.test_rfc7296_every_gated_row_is_proven_in_both_polarities` | yes. 222 gated rows, all two-polarity, zero annotations. Reds on a `{gap: ...}` and on an unproven gated row. Its disappearance floor still reads 218 |
+| `make ze-rfc-index` -> the tag scan into `ai/RFC-REQUIREMENTS.md` | `TestRealTree.test_rfc7296_ledger_is_fresh_after_the_pilot` | yes. `check_ledger_fresh` over the real tree; reds when a tag id moves under the ledger |
+| An inbound datagram whose Message ID has wrapped -> `advanceMsgID` / `advanceExpectedMsgID` | `TestMidInboundCounterFreezesAtTheCeiling` (`engine/rfc7296_msgid_test.go:226`) | yes. Read: it drives the counter to `math.MaxUint32` and asserts neither counter returns to 0 |
+| A DPD probe from an established SA -> `sendDPD` through `buildEncryptedMessageEx` | `test/ipsec/ipsec-dpd-probe-encrypted.ci` | **NO .ci.** Covered by `TestDpdProbeIsEncrypted` (`engine/rfc7296_dpd_test.go:70`), which decrypts the emitted probe rather than inspecting the builder |
+| An inbound Delete naming the live Child SA -> `handleDeletePayload` reading `del.SPIs` | `test/ipsec/ipsec-peer-delete-child.ci` | **NO .ci.** Covered by `engine/rfc7296_delete_test.go:64`, which drives the real handler |
+| An IKE_SA_INIT response carrying INVALID_KE_PAYLOAD -> the initiator retry path | `test/ipsec-interop/scenarios/12-invalid-ke-retry` | yes. Directory exists and the scenario is in the green set |
+| A peer CFG_REQUEST in the first IKE_AUTH -> a `wire.PayloadCP` production consumer | `test/ipsec-interop/scenarios/14-remote-access-cp` | **NO.** Moved with WP-9 to `plan/spec-ipsec-remote-access.md` by owner ruling 2026-07-31 |
+| `ze doctor --json` over a hex PSK -> the hex decode path | `test/parse/ipsec-psk-hex.ci` | yes. File exists (1.3K); the decode is tagged `RFC7296-2.15-3` in `ipsec/rfc7296_test.go` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Phase 1 re-walk, 2026-07-30: 214 rows, 63/25/18/108, 168 MUST + 46 MUST NOT, 0 parse errors |
+| A-2 | confirmed | 63+25+18+108 = 214 with no overlap and no id outside the set |
+| A-3 | confirmed | 2026-07-30: `make ze-rfc-check` exit 0 with rfc7296 named nowhere in the output. It stopped being load-bearing on 2026-08-02: the sign-off landed (D-2), so rfc7296 is signed rather than grandfathered, and the assumption now protects only the 165 stems that still have no artifact |
+| A-4 | confirmed | The generated skeleton carried every derived field and left all 261 sites and 104 sections null |
+| A-5 | confirmed | 0 collisions, 0 internal duplicates, 0 ordinals at or below a high-water mark |
+| A-6 | confirmed | `derive_inventory("rfc7296", 18)` returns register `rfc2119`, 261 sites, 104 sections, source-sha `a6f1a101b818977b` |
+| A-7 | confirmed | All 18 `uncertain` rows resolved by reading their producing paths; each is recorded with the `file:line` that resolved it in this spec's "Phase 3" section |
+| A-8 | confirmed | No existing tagged test's behavior changed. The `rfc-tagged-test` hook fired on no landing commit, and the three formerly-annotated ids kept their text (`:469`, `:474`, `:491`) |
+| A-9 | confirmed | The `implemented-and-testable` rows landed with tagged pairs and no production change. `RFC7296-3.5-2/-3/-4` are the recorded instances |
+| A-10 | **broken** | Two errata make Appendix A wrong at a row (6940 verified, 5056 held). Mistake Log row 1; Appendix A's preamble carries both |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Row 9 (RFC behavior newly proven) -> `docs/features/rfc-status.md:229` | The row cites `engine/notify_error.go`, `engine/cookie.go`, `engine/ts_narrow.go`, `engine/transport_mode.go`, `dataplane/espform.go`, `dataplane/xfrm_linux.go`. All exist; `ls -la` sizes 18K, 15K, 27K, 7.7K and the two dataplane files are in `git status` | yes |
+| Row 9 -> the `rfc/enrolled.txt` rfc7296 descriptor | Re-authored 2026-08-02 to the measured position: 227 rows, 222 gated, 222 two-polarity, 0 annotations, the four rows the sign-off walk added, and the two obligation sets gated in their destination specs | partly. Every figure is right and the closing clause is not: it says the extraction artifact is unsigned, and the sign-off landed the same day |
+| Row 9 -> the summary's Section Index | `rfc/short/rfc7296.md` now agrees with `rfc/full/rfc7296.txt:847` and `:882`, and carries a note that `RFC7296-1.3.3-1` quotes a §1.3.2 obligation under a §1.3.3 citation | yes |
+| Row 1 (new user-facing feature) -> `docs/features.md` | Remote-access IPsec moved out with WP-9, so no feature row is owed by this spec. Transport mode is disclosed in the rfc-status row instead | N-A |
+| Rows 2, 3 (config syntax, CLI) | New leaves landed (`certificate-count`, `hash-and-url`, `traffic-selector`, `cookie-threshold`, `remote-id-type`, hex `psk`) and are described in the rfc-status row. `docs/guide/configuration.md` and `docs/guide/command-reference.md` were **not** re-read in this phase | not verified |
+| Row 10 (test infrastructure) -> `docs/functional-tests.md` | Three interop scenarios and five `.ci` tests were added. The doc was **not** re-read in this phase | not verified |
+| Row 16 (existing source anchors over changed files) | `docs/features/rfc-status.md:229` previously anchored `engine/child.go:351` and `engine/inbound.go:270-276`; both files changed and the row is re-authored | yes |
+
+## Core Insight
+
+**A green compliance gate is bounded by what somebody wrote down, and a green test suite is
+bounded by what can make it fail.** The pilot found both bounds at once. `make ze-rfc-check`
+answered honestly over 8% of RFC 7296's MUST surface while its readers assumed 100%. Five
+tagged tests answered honestly over inputs that could not occur. And five protocol defects
+survived a green suite because both ends of every test were Ze: EAP-TLS had never once
+interoperated. The three failures share a shape. Each measured something real and reported
+it as an answer to a larger question nobody had checked it could reach.

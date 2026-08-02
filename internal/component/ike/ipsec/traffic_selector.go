@@ -1,4 +1,4 @@
-// Design: plan/handover/03-design-wp7.md -- operator traffic-selector policy for IKEv2 narrowing
+// Design: plan/learned/1313-rfcgate-1b-rfc7296-pilot.md -- operator traffic-selector policy for IKEv2 narrowing
 // Related: validate.go -- the ValidateTrafficSelectors entry in the OnConfigVerify chain
 // Related: config.go -- parseSiteToSitePeer, which fills these types from the config tree
 // RFC: rfc/short/rfc7296.md -- Traffic Selector negotiation (Section 2.9), port encoding (Section 3.13.1)

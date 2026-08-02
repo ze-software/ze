@@ -309,6 +309,34 @@ type SPParams struct {
 	// protect policy black-holes the traffic it was meant to let through.
 	Action SPAction
 
+	// Owner names who this policy's selector belongs to, so a backend can tell one
+	// installer's re-install from a DIFFERENT installer's takeover.
+	//
+	// The kernel cannot make that distinction. A policy's whole identity there is its
+	// selector, its direction, its mark and its if_id, and IKE leaves mark unset and
+	// if_id 0 unless an XFRM interface is configured. Two site-to-site peers that both
+	// negotiate 0.0.0.0/0 therefore describe the SAME kernel policy, and the backend
+	// upserts (see xfrmBackend.InstallPolicy), so the second peer to establish would
+	// silently capture the first peer's traffic into its own tunnel and either peer's
+	// teardown would blackhole the survivor.
+	//
+	// A per-peer kernel MARK does not fix it. The kernel's packet-matching predicate
+	// is (flowi_mark & pol->mark.m) == pol->mark.v, so a value with no mask matches
+	// nothing at all and a value with a mask matches only packets something else has
+	// already marked. Nothing in ze marks them, so a marked policy forwards nothing.
+	// Two identical 0.0.0.0/0 selectors are also ambiguous by construction: even if
+	// they coexisted, the kernel could not tell which tunnel a packet belongs to.
+	//
+	// So the second install is REFUSED instead, which is what the kernel did through
+	// EEXIST before the upsert landed. Ownership is what separates the refusal from
+	// the rekey: a rekey re-installs an IDENTICAL selector under the SAME owner and
+	// must still upsert (ai/rules/exact-or-reject.md).
+	//
+	// An empty Owner is the historical, unowned policy. It collides only with another
+	// empty one, so a caller that never sets it installs exactly what it installed
+	// before this field existed.
+	Owner string
+
 	// Priority ranks this policy against every other policy whose selector also
 	// matches. LOWER VALUE MEANS HIGHER PRECEDENCE. Use PriorityIKEBypass or
 	// PriorityChildSA; a bare 0 ties with every other unset policy and the winner is
