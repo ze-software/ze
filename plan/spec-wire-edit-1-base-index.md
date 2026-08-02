@@ -533,3 +533,167 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] Learned summary written to `plan/learned/NNN-wire-edit-1-base-index.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-wire-edit-1-base-index.md` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+- `internal/core/bgp/attribute/span.go`: `Span` (6 bytes: offset, length, code, hdrLen), `SpanIndex` with an 8-entry inline array, a 32-byte presence bitset, a heap spill past 8, and one eager builder `SpanIndex.build`.
+- `attribute.NewAttributesWire` builds the index at construction and stores `indexErr`. The lazy build and `sync.RWMutex` are gone; a `sync.Mutex` guards the parsed-value side table used only by the text, JSON and show paths.
+- `Session.publishBase` (`internal/component/bgp/reactor/session_validation.go`) calls `WireUpdate.Attrs` as the LAST action of `enforceRFC7606`, after the RFC 7606 Section 3.g strip and after `ApplyAttrDiscard`. That ordering is what makes A-6 harmless.
+- `AttributesWire.CarryOver` reuses an index across a byte-identical rebuild, falling back to a full rebuild on a length mismatch.
+- `ze_bgp_update_span_spill_total` on `reactorMetrics`, labelled by peer.
+
+### Bugs Found/Fixed
+
+- The pooled `SpanIndex` discarded its spill slice on every rebuild, so a spilled UPDATE re-allocated on each reuse. Fixed in `f1f746fb6`; covered by `TestSpanIndexReuseKeepsSpillCapacity` and `TestSpanIndexErrorPathKeepsCapacityAndReadsEmpty`.
+- The old builder papered over a 16-bit bound with a `//nolint:gosec`. The eager builder fails closed with `ErrAttrSectionTooLarge`; `TestSpanIndexRejectsOversizeSection`.
+
+### Documentation Updates
+
+- `docs/architecture/wire/attributes.md` -- the span index, the inline/spill boundary and the immutability boundary.
+- `docs/architecture/memory/lifetime-contracts.md` -- contract A gains the rule that an index of offsets shares its base's lifetime boundary.
+- `make ze-doc-test` result recorded in Pre-Commit Verification below.
+
+### Deviations from Plan
+
+D-1 to D-6 are recorded in full in "Deviations from the design (2026-08-01, implementation)" above and are not repeated here.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-6 assumed the bytes the RFC 7606 walk indexes are the bytes that get published, so the index could be emitted from that walk | Two branches rebuild or mutate the attribute array AFTER the walk: the Section 3.g keep-first strip wraps a NEW `WireUpdate`, and `ApplyAttrDiscard` overwrites a type code in place | A research pass on 2026-08-01 read `enforceRFC7606` past the validator call | The index moved to `NewAttributesWire` and publication moved to the end of `enforceRFC7606`. A-1 was superseded by the same correction |
+| approach | A-1's plan to fold the index into the RFC 7606 walk, and its before/after receive benchmark | There is no fold, so there is no before/after delta to measure. The net walk count is unchanged and the win is one fewer heap allocation per UPDATE | Fell out of A-6 | `BenchmarkReceivePathIndexBuild` was not written; `TestSpanIndexZeroAllocUpToEight` asserts the real change directly |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Build the attribute index exactly once, eagerly, before publication | Changed | `attribute.NewAttributesWire`, `Session.publishBase` | Built at construction rather than inside the RFC 7606 walk (D-1, A-6) |
+| Publish it as part of an immutable base | Done | `attribute.AttributesWire`, `wireu.WireUpdate.Attrs` under `attrsOnce` | No new base type (D-2) |
+| Retire the `sync.RWMutex` | Done | `internal/core/bgp/attribute/wire.go` | AC-5 grep is empty |
+| Move parsed values to a side table | Done | `AttributesWire.parseAtLocked` under `parseMu` | Four writers collapsed to one |
+| No emitted byte changes | Done | existing `test/plugin/` corpus unedited | The child is pure addition on the wire |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestSpanIndexMatchesAttributesWire`, `FuzzSpanIndexMatchesIterator` (`internal/core/bgp/attribute/span_test.go`) | Oracle is an independent `AttrIterator`, not the retired lazy builder |
+| AC-2 | Done | `TestSpanIndexRejectsDuplicateCode`, `TestRFC7606VerdictsUnchangedByEagerIndex` | Nine verdict classes pinned by action, error-ness and emitted payload hex |
+| AC-3 | Done | `TestSpanIndexRejectsTruncatedAttribute`, `TestRFC7606VerdictsUnchangedByEagerIndex` | |
+| AC-4 | Done | `TestBaseImmutableAfterPublication` (`internal/component/bgp/wireu/base_test.go`), `make ze-race-reactor` | 16 concurrent readers under `-race` |
+| AC-5 | Done | `grep -n "sync.RWMutex" internal/core/bgp/attribute/wire.go` returns nothing | |
+| AC-6 | Changed | `grep AttrFind internal/component/bgp/reactor/session_validation.go` returns nothing; `test/plugin/prefixsid-ebgp-discard-single-walk.ci` | The second walk was already deleted by `8e67a9b03` before this child started (D-5). The umbrella's unconditional claim is also wrong: that walk was always gated on `!isIBGP && !AcceptSRv6PrefixSID` |
+| AC-7 | Done | `TestSnapshotCarriesSpanIndex`, `TestSnapshotOfEmptyAndMalformedUpdates` | Zero allocations on the snapshot's first `Attrs()` |
+| AC-8 | Done | `TestSpanIndexZeroAllocUpToEight` | |
+| AC-9 | Done | `make ze-test-bgp`, `make ze-functional-test` | No `.ci` expectation edited by this child |
+| AC-10 | Changed | superseded with A-1 | No fold into the walk means no receive-path before/after delta. The measurable change is one fewer heap allocation, asserted by AC-8 |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every unit row in the TDD table | Done | `span_test.go`, `session_span_index_test.go`, `base_test.go` | Each row's Status column is already filled in the table above |
+| `BenchmarkReceivePathIndexBuild` | Skipped | -- | Superseded with A-1; recorded in the Mistake Log |
+| four functional rows | Done | `test/plugin/` | Existing files, unedited, still green |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/core/bgp/attribute/span.go` | Done | |
+| `internal/core/bgp/attribute/span_test.go` | Done | |
+| `internal/component/bgp/wireu/base.go` | Changed | Not created. D-2: the base is `WireUpdate` + `AttributesWire`; a parallel type would be a second read surface over the same bytes |
+| `internal/component/bgp/wireu/base_test.go` | Done | |
+
+### Audit Summary
+- **Total items:** 22
+- **Done:** 18
+- **Partial:** 0
+- **Skipped:** 1 (`BenchmarkReceivePathIndexBuild`, superseded with A-1)
+- **Changed:** 3 (AC-6, AC-10, `wireu/base.go`) -- each recorded in Deviations
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Build the attribute index exactly once instead of three times | functional + unit | `TestReceivePathPublishesSpanIndex`: a first `Attrs()` after `enforceRFC7606` costs zero allocations, which holds only if the base was already published |
+| The index is correct for the bytes actually published | unit | `TestStripRebuildIndexMatchesPublished` and `TestInPlaceDiscardPrecedesIndexBuild` cover both post-walk mutation branches; both fail if `Attrs` is called earlier |
+| The forward path takes no lock on any attribute read | unit + race | `TestBaseImmutableAfterPublication` (16 readers, `-race`); `BenchmarkAttributeReadNoLock`; AC-5 grep empty |
+| No emitted byte changes | functional | `make ze-functional-test` green with no `.ci` expectation edited by this child |
+| One fewer heap allocation per received UPDATE | unit | `TestSpanIndexZeroAllocUpToEight` |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none -- `plan/deferrals/spec-wire-edit-1-base-index.md` was never created | done | `ls plan/deferrals/ \| grep wire-edit-1` returns nothing; this child deferred no work |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/wire-edit-1-base-index-<session-id>.md` |
+| `review_gate.py check` | clean |
+| Reviewer lenses used | correctness/wire/lifetime; tests/security/coverage (two independent agents over `bbd53bf22^..b1fa7ab1e`, 2026-08-02) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The pooled `SpanIndex` discarded its spill slice on every rebuild, so a spilled UPDATE re-allocated on each reuse | `internal/core/bgp/attribute/span.go` `SpanIndex.reset` | `f1f746fb6`, with `TestSpanIndexReuseKeepsSpillCapacity` and `TestSpanIndexErrorPathKeepsCapacityAndReadsEmpty` |
+| 2 | ISSUE | The read-buffer leak tests were vacuous at the early-release ORDERING invariant: every assertion was `before == after` over zero borrows | `internal/component/bgp/reactor/forward_readbuf_leak_test.go` | `f1f746fb6`, `TestForwardAdoptedHandleHeldUntilLastWrite` over an IBGP destination on a 2-byte send context |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/core/bgp/attribute/span.go` | Yes | `grep -n "^func \|^type " internal/core/bgp/attribute/span.go` lists `Span`, `SpanIndex`, `BuildSpanIndex`, `Rebuild`, `reset`, `build`, `add`, `has`, `mark`, `Len`, `Spilled`, `Has`, `At`, `Find`, `findIndex` |
+| `internal/core/bgp/attribute/span_test.go` | Yes | holds `TestSpanIndexMatchesAttributesWire` and 9 further `Test`/`Fuzz`/`Benchmark` functions |
+| `internal/component/bgp/wireu/base_test.go` | Yes | holds `TestBaseImmutableAfterPublication`, `TestSnapshotCarriesSpanIndex`, `TestSnapshotOfEmptyAndMalformedUpdates`, `TestAPIBuiltBaseAnswersHas` |
+| `test/plugin/bgp-rs-fastpath-ebgp-shared.ci` | Yes | `ls test/plugin/bgp-rs-fastpath-ebgp-shared.ci` |
+| `test/plugin/bgp-rs-fastpath-ibgp-identity.ci` | Yes | `ls test/plugin/bgp-rs-fastpath-ibgp-identity.ci` |
+| `internal/component/bgp/wireu/base.go` | No | Deliberate (D-2). `ls internal/component/bgp/wireu/base.go` returns "No such file"; the base is `WireUpdate` + `AttributesWire` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | spans match an independent oracle | `grep -rl "func TestSpanIndexMatchesAttributesWire(" internal/` -> `internal/core/bgp/attribute/span_test.go`; `make ze-test-core` green |
+| AC-4 | no lock on any forward read | `grep -rl "func TestBaseImmutableAfterPublication(" internal/` -> `internal/component/bgp/wireu/base_test.go`; `make ze-test-bgp` green |
+| AC-5 | the mutex is gone | `grep -n "sync.RWMutex" internal/core/bgp/attribute/wire.go` prints nothing (re-run 2026-08-02) |
+| AC-6 | the PrefixSID lookup does not walk twice | `grep -n "AttrFind" internal/component/bgp/reactor/session_validation.go` prints nothing (re-run 2026-08-02) |
+| AC-8 | zero heap allocations at or below 8 spans | `grep -rl "func TestSpanIndexZeroAllocUpToEight(" internal/` -> `internal/core/bgp/attribute/span_test.go`; `make ze-test-core` green |
+| AC-9 | the functional corpus is unedited | `git diff --name-only bbd53bf22^..bbd53bf22 -- test/` prints nothing |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| A peer sends any UPDATE carrying path attributes | `internal/component/bgp/reactor/session_span_index_test.go` `TestReceivePathPublishesSpanIndex` | Yes -- read: it runs `enforceRFC7606` and asserts the first `Attrs()` allocates nothing, so the base must already be published |
+| A consumer calls `Has` for an absent attribute | `internal/core/bgp/attribute/span_test.go` `TestPresenceBitsetAnswersHasWithoutScan` | Yes -- read: asserts the answer with no walk and no allocation |
+| eBGP forward unchanged from a same-context peer | `test/plugin/bgp-rs-fastpath-ebgp-shared.ci` | Yes -- read: pins the shared fast-path wire by hex; unedited by this child |
+| iBGP identity forward | `test/plugin/bgp-rs-fastpath-ibgp-identity.ci` | Yes -- read: pins an identical forward; unedited by this child |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | broken (superseded by A-6) | The index is not emitted from the RFC 7606 walk. Net walk count unchanged; the real gain is one heap allocation, asserted by `TestSpanIndexZeroAllocUpToEight`. Mistake Log row filed |
+| A-2 | confirmed | Writer set enumerated and closed (five writers, four collapsed into `parseAtLocked`); `make ze-race-reactor` 0 races over 20 iterations; `TestBaseImmutableAfterPublication` under `-race` |
+| A-3 | confirmed | `docs/architecture/wire/attributes.md` "Real-World Attribute Count Distribution": 112M MRT routes, 99.9% at or below 8 attributes, maximum 10. `ze_bgp_update_span_spill_total` makes it answerable live |
+| A-4 | confirmed | `parsed` was unexported and reachable only from `Get`, `All`, `ForEach`; the package's own `wire_test.go` passes unedited |
+| A-5 | confirmed, stronger than assumed | Building in `NewAttributesWire` makes every rail eager with no rail-side call; `TestAPIBuiltBaseAnswersHas` |
+| A-6 | broken | The published base is not always the array the validator walked. Resolved by ORDERING, not by rebuilding; `TestStripRebuildIndexMatchesPublished` and `TestInPlaceDiscardPrecedesIndexBuild` fail if `Attrs` is called earlier |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| #12 internal architecture: the span index | `docs/architecture/wire/attributes.md` checked against `internal/core/bgp/attribute/span.go` `SpanIndex` -- inline capacity 8, spill past it, 6-byte `Span` | Yes |
+| #12 internal architecture: the offset-borrow rule | `docs/architecture/memory/lifetime-contracts.md` checked against `AttributesWire.CarryOver`, which requires byte-identical contents and rebuilds on a length mismatch | Yes |
+| #14 Prometheus counters: the spill counter | `ze_bgp_update_span_spill_total` on `reactorMetrics` (`internal/component/bgp/reactor/reactor_metrics.go`), per-peer label | Yes |
+| #1-#11, #13, #15, #17 answered No | This child emits no changed byte and adds no config, command, RPC, plugin, family or capability surface; `git diff --name-only bbd53bf22^..bbd53bf22` touches no `.yang` and no `cmd/` | Yes |
+| #16 stale source anchors | `grep -rn "wire.go\|iterator.go\|wire_update.go\|session_validation.go" docs/` reviewed; the two architecture pages above are the anchors that named the changed files, and both were updated | Yes |
+
+## Core Insight
+
+The mutex was never protecting shared mutable state the design wanted. It was protecting laziness. Removing the laziness removed the reason for the lock, and the only remaining writer -- the parsed-value cache -- turned out to belong to the show and JSON paths, not to the forward path at all.
