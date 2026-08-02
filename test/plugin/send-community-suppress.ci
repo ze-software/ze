@@ -1,0 +1,229 @@
+# Test: `session { community { send ... } }` reaches the wire
+# VALIDATES: spec-fixit-send-community-suppress-ignored AC-1, AC-2 -- a peer
+#   configured `send none` receives the route with NO community attribute, and a
+#   peer configured `send standard` still receives the standard one.
+# PREVENTS: the live fail-open this spec fixes. genericCommunityHandler
+#   (plugins/filter_community/handler.go) scanned its operations for AttrModSet
+#   alone, so the AttrModSuppress that applyFactsSendCommunity records for codes
+#   8, 16 and 32 was consumed and thrown away: every source value was retained,
+#   the length stayed non-zero, and the attribute was re-emitted intact. Every
+#   peer, both forward rails, for any `send` value other than `all`.
+#
+# Two destinations, one source, so the SAME received UPDATE produces two
+# different wires. A single-destination test would pass against a daemon that
+# stripped communities unconditionally.
+#
+# The stripped expectation is byte-identical to community-strip.ci's, which is
+# the point: `send none` and an egress `community { strip }` must converge on the
+# same wire. That file passes today and is the working spelling this one copies.
+
+option=env:var=ze.log.bgp.filter.community:value=info
+
+# Source peer (ASN 65001) on 127.0.0.1.
+stdin=source:terminator=EOF_SOURCE
+option=tcp_connections:value=1
+option=timeout:value=20s
+# linger for the same reason community-strip.ci carries it: the source must
+# outlive BOTH destination assertions. Without it the source closes as soon as
+# its own End-of-RIB matches, ze reads that as session-down and withdraws the
+# route, and a destination's assertion then races a withdraw.
+option=linger:value=true
+# UPDATE with COMMUNITY 65000:200: ORIGIN=IGP, AS_PATH=[65001],
+#   NEXT_HOP=1.1.1.1, COMMUNITY=65000:200 (0xFDE800C8), NLRI=10.0.0.0/24.
+# Attrs: ORIGIN(4) + AS_PATH(9) + NEXT_HOP(7) + COMMUNITY(7) = 27 = 0x1B
+# Total: 16+2+1+2+2+27+4 = 54 = 0x36
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001B4001010040020602010000FDE940030401010101C00804FDE800C8180A0000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_SOURCE
+
+# Destination A (ASN 65002) on 127.0.0.2 -- `send none`.
+# Expect ORIGIN + AS_PATH[65000,65001] + NEXT_HOP + NLRI, and NO community.
+# Attrs: ORIGIN(4) + AS_PATH(13, one prepend) + NEXT_HOP(7) = 24 = 0x18
+# Total: 16+2+1+2+2+24+4 = 51 = 0x33
+# LOCAL_PREF is absent because this is an eBGP session, not because of the strip.
+stdin=dest-none:terminator=EOF_DEST_NONE
+option=tcp_connections:value=1
+option=timeout:value=20s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
+EOF_DEST_NONE
+
+# Destination B (ASN 65003) on 127.0.0.3 -- `send standard`.
+# The standard community survives, with its ORIGINAL three-byte header: the
+# operations this peer records name codes 16 and 32, which the route does not
+# carry, so code 8 is never planned and is copied verbatim.
+# Attrs: 24 + COMMUNITY(7) = 31 = 0x1F
+# Total: 16+2+1+2+2+31+4 = 58 = 0x3A
+stdin=dest-standard:terminator=EOF_DEST_STD
+option=tcp_connections:value=1
+option=timeout:value=20s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A020000001F4001010040020A02020000FDE80000FDE940030401010101C00804FDE800C8180A0000
+EOF_DEST_STD
+
+tmpfs=test-sendcomm.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Keep the daemon alive while both destination peers prove their wire.
+
+The expect=bgp rules on the two destinations are the authoritative assertions.
+This observer exists to own `request shutdown` and to fail loudly if a
+destination was never sent a real UPDATE -- an absence assertion is satisfied
+just as well by a daemon that never got as far as forwarding.
+"""
+import json
+import sys
+from ze_api import API, runtime_fail, result_text_data
+
+
+def peer_got_route(result):
+    """True once this peer has been sent an UPDATE that is not its own EOR.
+
+    updates-sent counts every UPDATE written to the peer, End-of-RIB included,
+    so the DIFFERENCE against eor-sent is the forwarded route. Not gated on
+    state == established: a check-mode ze-peer without linger closes the moment
+    its expect=bgp rule matches, so requiring established would be unsatisfiable
+    in exactly the run that passed (community-strip.ci makes the same note).
+    """
+    if result.get('status') != 'done':
+        return False
+    data = result_text_data(result, '{}')
+    try:
+        parsed = json.loads(data) if isinstance(data, str) else data
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return False
+    if not isinstance(parsed, dict):
+        return False
+    peers = parsed.get('peers', {})
+    if not isinstance(peers, dict):
+        return False
+    for row in peers.values():
+        if isinstance(row, dict) and row.get('updates-sent', 0) - row.get('eor-sent', 0) >= 1:
+            return True
+    return False
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # quiesce first so the bounded poll behind it is a safety net rather than the
+    # mechanism: every dispatch_until attempt is a full engine RPC, and a long
+    # poll on a starved daemon outlasts the test budget and turns a run whose
+    # wire assertions already passed into an opaque timeout.
+    api.quiesce()
+    for name in ('dest-none-peer', 'dest-standard-peer'):
+        result = api.dispatch_until(
+            f'show bgp peer {name} detail', peer_got_route, attempts=24,
+        )
+        if not peer_got_route(result):
+            detail = result_text_data(result)
+            print(f'FAIL: {name} detail: {detail}', file=sys.stderr)
+            sys.stderr.flush()
+            runtime_fail(f'{name} was never sent the forwarded route')
+        print(f'OK: {name} was sent the forwarded route', file=sys.stderr)
+
+    api.dispatch('request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-sendcomm {
+		run ./test-sendcomm.run
+		encoder json
+	}
+}
+bgp {
+	peer source-peer {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+
+		process test-sendcomm {
+			receive [ update state ]
+		}
+	}
+
+	peer dest-none-peer {
+		connection {
+			remote {
+				ip 127.0.0.2
+			}
+			local {
+				ip 127.0.0.2
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			community {
+				send none
+			}
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+
+	peer dest-standard-peer {
+		connection {
+			remote {
+				ip 127.0.0.3
+			}
+			local {
+				ip 127.0.0.3
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65003
+			}
+			router-id 1.2.3.4
+			community {
+				send standard
+			}
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=dest-none
+cmd=background:seq=3:exec=ze-peer --bind 127.0.0.3 --port $PORT:stdin=dest-standard
+cmd=foreground:seq=4:exec=ze --plugin ze.bgp-filter-community --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=treat-as-withdraw
+reject=stderr:pattern=ZE-OBSERVER-FAIL

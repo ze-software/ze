@@ -45,12 +45,33 @@ func extCommunityAttrModHandler(p *filterapi.AttrPlan) {
 func genericCommunityHandler(code attribute.AttributeCode, valueSize int, p *filterapi.AttrPlan) {
 	ops := p.Ops()
 
-	// Set intentionally overrides all prior Remove/Add ops. Last Set wins.
-	setIdx := -1
-	for i := range ops {
-		if ops[i].Action == filterapi.AttrModSet {
-			setIdx = i
-		}
+	// Set and Suppress both override all prior Remove/Add ops, and the LAST of
+	// the two wins -- the same rule filterapi.LastSetOrSuppress applies to every
+	// generically handled attribute code.
+	//
+	// Reading Set alone here was a live fail-open, not a missing feature. A lone
+	// Suppress left setIdx at -1, no Remove named any value, so every source
+	// value was retained below, the length was non-zero and the attribute was
+	// re-emitted intact. The suppression was consumed and thrown away in
+	// silence. That is the whole of `session { community { send ... } }` for any
+	// value other than `all`: both forward rails call applyFactsSendCommunity
+	// (reactor/peer_forward_facts.go), which records exactly this operation for
+	// codes 8, 16 and 32, and every one of them was ignored. A peer configured
+	// to receive no communities received all of them.
+	//
+	// The Suppress-aware genericAttrSetHandler never covered for it: reactor's
+	// genericAttrCodes omits the three community codes precisely BECAUSE this
+	// file registers handlers for them.
+	setIdx, suppress := filterapi.LastSetOrSuppress(ops)
+	if setIdx >= 0 && suppress {
+		// Unconditional, and deliberately ahead of the empty-buffer check
+		// below. Every producer today records Suppress with a nil Buf, which
+		// would ALSO reach the empty-Set drop, so relying on that would make
+		// this branch look redundant while quietly re-overloading "empty Set"
+		// as the spelling of suppression -- the exact ambiguity AttrModSuppress
+		// exists to remove. The ACTION decides, never the buffer length.
+		p.Drop() // Attribute removed from the UPDATE entirely.
+		return
 	}
 	if setIdx >= 0 {
 		if len(ops[setIdx].Buf) == 0 {

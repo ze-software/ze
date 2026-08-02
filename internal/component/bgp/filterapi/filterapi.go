@@ -327,6 +327,40 @@ const (
 	AttrModSuppress              // Remove entire attribute from UPDATE (handler writes nothing)
 )
 
+// LastSetOrSuppress returns the index of the last AttrModSet or AttrModSuppress
+// operation and whether that last one was a Suppress. Last wins, which is the
+// rule a filter chain's ordering depends on: a later stage must be able to
+// override an earlier stage's decision in either direction.
+//
+// It lives here, in the package every handler already imports, because it is a
+// CONTRACT between producers and handlers rather than any one handler's private
+// logic. Six handlers used to decide "last op wins" independently and FOUR of
+// them silently forgot AttrModSuppress: the community handler
+// (filter_community) scanned for Set alone, so a `session { community { send
+// none } }` peer received every community anyway; OTC (role), CLUSTER_LIST and
+// ORIGINATOR_ID (reactor/filter_delta_handlers.go) had the same blind spot. Only
+// genericAttrSetHandler and aspathHandler read the action. A single fold cannot
+// disagree with itself.
+//
+// mpReachNextHopHandler still ignores Suppress, deliberately and with its reason
+// written down: suppressing MP_REACH_NLRI would strip the route, which is a
+// withdraw, and that is expressed through ModAccumulator.SetWithdraw instead.
+//
+// idx is -1 when the operations contain neither action, which means the handler
+// should fall back to its own Add/Remove/Prepend logic, or keep the source.
+func LastSetOrSuppress(ops []AttrOp) (idx int, suppress bool) {
+	idx = -1
+	for i := range ops {
+		switch ops[i].Action {
+		case AttrModSet:
+			idx, suppress = i, false
+		case AttrModSuppress:
+			idx, suppress = i, true
+		}
+	}
+	return idx, suppress
+}
+
 // Filter stage constants define coarse ordering classes for the filter pipeline.
 // Filters are sorted by stage first, then by priority within a stage, then by name.
 // Gaps between values allow inserting new stages without renumbering.

@@ -2243,3 +2243,52 @@ func TestOTCNotStampedWithoutReachableNLRI(t *testing.T) {
 			"RFC 9234 Section 5: no route is received, so the payload is not rewritten")
 	})
 }
+
+// VALIDATES: spec-fixit-send-community-suppress-ignored AC-6, AC-7 --
+// otcAttrModHandler no longer ignores AttrModSuppress. With a source OTC the
+// suppression is refused, because RFC 9234 Section 5 requires a set OTC to be
+// preserved unchanged; with no source OTC it prevents the attribute being
+// created.
+// PREVENTS: the blind spot that shipped a fail-open in the community handler.
+// Reading AttrModSet alone consumed a Suppress operation and re-emitted the
+// attribute in silence, so the next producer to suppress code 35 would have
+// rediscovered the same defect rather than seeing a line naming the refusal.
+func TestOTCSuppressRefusedAndPreserved(t *testing.T) {
+	otc := buildOTCAttr(65001)
+
+	t.Run("present-source-is-preserved-unchanged", func(t *testing.T) {
+		ops := []filterapi.AttrOp{
+			{Code: otcAttrCode, Action: filterapi.AttrModSuppress},
+		}
+		out, ok := planOTCBytes(otc[:], ops)
+		require.True(t, ok,
+			"RFC 9234 Section 5: a set OTC attribute MUST be preserved unchanged, so the plan must not drop it")
+		assert.Equal(t, otc[:], out,
+			"the preserved attribute is byte-identical to the source")
+	})
+
+	t.Run("absent-source-is-not-created", func(t *testing.T) {
+		var asn [otcAttrLen]byte
+		binary.BigEndian.PutUint32(asn[:], 65002)
+		ops := []filterapi.AttrOp{
+			{Code: otcAttrCode, Action: filterapi.AttrModSet, Buf: asn[:]},
+			{Code: otcAttrCode, Action: filterapi.AttrModSuppress},
+		}
+		_, ok := planOTCBytes(nil, ops)
+		assert.False(t, ok,
+			"nothing is yet set, so the later Suppress overrides the Set and no OTC is emitted")
+	})
+
+	t.Run("set-after-suppress-still-creates", func(t *testing.T) {
+		var asn [otcAttrLen]byte
+		binary.BigEndian.PutUint32(asn[:], 65002)
+		ops := []filterapi.AttrOp{
+			{Code: otcAttrCode, Action: filterapi.AttrModSuppress},
+			{Code: otcAttrCode, Action: filterapi.AttrModSet, Buf: asn[:]},
+		}
+		out, ok := planOTCBytes(nil, ops)
+		require.True(t, ok, "the later Set must win over the earlier Suppress")
+		want := buildOTCAttr(65002)
+		assert.Equal(t, want[:], out)
+	})
+}

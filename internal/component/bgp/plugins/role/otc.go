@@ -737,11 +737,43 @@ func OTCEgressFilter(src, dest filterapi.PeerFilterInfo, payload []byte, meta ma
 // RFC 9234 Section 5: "Once the OTC Attribute has been set, it MUST be preserved unchanged."
 // If the source already has OTC it is kept unchanged and the set op is ignored.
 func otcAttrModHandler(p *filterapi.AttrPlan) {
+	_, suppress := filterapi.LastSetOrSuppress(p.Ops())
+
 	// OTC already present in source: preserve unchanged.
+	//
+	// A Suppress operation is REFUSED here rather than honored, and that is a
+	// deliberate asymmetry with every other handler. RFC 9234 Section 5:
+	// "Once the OTC Attribute has been set, it MUST be preserved unchanged."
+	// Removing the attribute is a change, so honoring the suppression would
+	// break a gated MUST (RFC9234-5-6).
+	//
+	// But it is refused OUT LOUD. Reading Set alone, as this handler used to,
+	// discarded a Suppress operation in exactly the silence that let the same
+	// blind spot in the community handler ship a fail-open: the operation was
+	// consumed, the attribute re-emitted, and nothing said so. A guard that
+	// neither denies nor speaks does not exist (ai/rules/fail-closed-guards.md).
+	//
+	// No production producer emits Suppress for code 35 today, so this branch is
+	// latent. It exists so the producer that eventually does gets a line naming
+	// the refusal instead of rediscovering the silence.
 	if p.Source() != nil {
+		if suppress {
+			logger().Warn("OTC suppression refused: RFC 9234 Section 5 requires a set OTC attribute to be preserved unchanged",
+				"attribute-code", otcAttrCode)
+		}
 		p.KeepAll()
 		return
 	}
+
+	// OTC absent. A Suppress means the attribute must not be created, so it
+	// overrides any Set that came before it -- the ordinary last-wins rule,
+	// which the RFC preservation clause above does not reach because there is
+	// nothing yet to preserve.
+	if suppress {
+		p.Drop()
+		return
+	}
+
 	// OTC absent: create from the first set op's value bytes.
 	for i, op := range p.Ops() {
 		if op.Action != filterapi.AttrModSet || len(op.Buf) != otcAttrLen {

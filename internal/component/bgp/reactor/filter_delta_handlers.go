@@ -12,20 +12,14 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
-// lastSetOrSuppress returns the index of the last Set or Suppress operation and
-// whether it was a Suppress. Last wins, which is the rule every handler here
-// already followed and which the ordering of a filter chain depends on.
+// lastSetOrSuppress is the package-local spelling of filterapi.LastSetOrSuppress.
+//
+// The fold moved to filterapi so the community and OTC handlers, which live in
+// plugin packages and cannot see this one, apply the SAME rule instead of each
+// re-deriving it. Two of the three re-derivations had already lost the Suppress
+// case (see the filterapi doc comment).
 func lastSetOrSuppress(ops []filterapi.AttrOp) (idx int, suppress bool) {
-	idx = -1
-	for i := range ops {
-		switch ops[i].Action {
-		case filterapi.AttrModSet:
-			idx, suppress = i, false
-		case filterapi.AttrModSuppress:
-			idx, suppress = i, true
-		}
-	}
-	return idx, suppress
+	return filterapi.LastSetOrSuppress(ops)
 }
 
 // keepOrDrop finishes a plan that has no modification to make: the source
@@ -103,10 +97,35 @@ var genericAttrCodes = []struct {
 // the existing value is kept unchanged (the original originator is preserved).
 func originatorIDHandler() filterapi.AttrModHandler {
 	return func(p *filterapi.AttrPlan) {
+		// One fold, read by both branches below: this runs once per destination
+		// per route, so the scan is not repeated.
+		_, suppress := filterapi.LastSetOrSuppress(p.Ops())
+
 		// RFC 4456 Section 8: "the ORIGINATOR_ID SHOULD NOT be changed" by a
 		// reflector that finds one already present.
+		//
+		// A Suppress operation is REFUSED here rather than honored, for the same
+		// reason as OTC (plugins/role/otc.go): RFC4456-8-4 is a gated MUST, the
+		// ORIGINATOR_ID value "MUST be preserved unchanged through the
+		// reflection chain", and removing the attribute is a change.
+		//
+		// But it is refused OUT LOUD. Reading Set alone discarded the operation
+		// in silence, which is precisely how the community handler shipped a
+		// live fail-open: consumed, ignored, re-emitted, nothing said
+		// (ai/rules/fail-closed-guards.md). No producer suppresses code 9 today.
 		if p.Source() != nil {
+			if suppress {
+				fwdLogger().Warn("ORIGINATOR_ID suppression refused: RFC 4456 Section 8 requires the value to be preserved unchanged through the reflection chain",
+					"attribute-code", int(attribute.AttrOriginatorID))
+			}
 			p.KeepAll()
+			return
+		}
+		// Absent source: a Suppress means the attribute must not be created. The
+		// preservation clause above does not reach here, because there is
+		// nothing yet to preserve.
+		if suppress {
+			p.Drop()
 			return
 		}
 		for i, op := range p.Ops() {
@@ -142,6 +161,20 @@ func clusterListHandler() filterapi.AttrModHandler {
 			case ops[i].Action == filterapi.AttrModPrepend && len(ops[i].Buf) == 4:
 				prepends++
 			}
+		}
+
+		// Suppress removes the attribute outright, and it beats a prepend the
+		// same way it does in aspathHandler below: the last Set-or-Suppress
+		// decides whether the attribute exists at all, and a prepend only shapes
+		// one that does. Without this branch a lone Suppress left setIdx at -1
+		// and prepends at 0, so keepOrDrop re-emitted the source CLUSTER_LIST
+		// and the operation was discarded in silence -- the same fail-open the
+		// community handler shipped for `session { community { send ... } }`.
+		// CLUSTER_LIST is Optional Non-transitive, so removing it is legal and
+		// no RFC 4456 preservation clause applies to the LIST itself.
+		if sIdx, suppress := filterapi.LastSetOrSuppress(ops); sIdx >= 0 && suppress {
+			p.Drop()
+			return
 		}
 
 		// Set overrides everything.
