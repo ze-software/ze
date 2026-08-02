@@ -216,6 +216,15 @@ Additional findings (2026-07-10 research pass, all read firsthand):
 | AC-10 (added 2026-07-10) | ppp BuildRA after the encoder extraction | byte-identical output to the pre-extraction encoding for the BNG fixed config (parity unit test) |
 | AC-11 (added 2026-07-10) | `make ze-iface-resolution-check` over the new code | passes with zero new allowlist entries in `scripts/checks/iface_resolution.go` |
 | AC-12 (added 2026-07-10) | RAs sent (periodic or solicited) | `ze_iface_ra_sent_total` / `ze_iface_ra_solicited_total` counters increment |
+| AC-13 (added 2026-08-01) | router lifetime configured as `0` | config verify ACCEPTS it and the sender emits RAs carrying Router Lifetime 0 (RFC 4861 section 4.2: the sender is not a default router, and the rest of the RA still applies) |
+| AC-14 (added 2026-08-01) | RDNSS lifetime configured as `0` | config verify ACCEPTS it and the RDNSS option carries lifetime 0 (RFC 8106 section 5.1: the resolver address must no longer be used) |
+
+AC-13 and AC-14 constrain AC-6: `0` is a meaningful protocol value for both
+lifetimes, so it is NOT an "invalid lifetime" and the validator must not reject
+it. Added from the VyOS July 2026 comparison, where T9084 fixed exactly this
+defect: a CLI constraint of `1-7200` on `name-server-lifetime` banned the `0`
+their own value help documented. Design the ranges as a union that admits `0`
+alongside the live range, and cover `0` in the boundary tests.
 
 ## End-to-End User Stories (MANDATORY for new features)
 
