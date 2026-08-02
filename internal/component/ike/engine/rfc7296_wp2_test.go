@@ -144,14 +144,17 @@ func allZero(b []byte) bool {
 // RFC 7296 Section 2.16 -- the EAP shared key generates the AUTH of messages 7 and 8
 // ---------------------------------------------------------------------------
 
-// VALIDATES: the AUTH payload of the post-EAP exchange is derived from the EAP MSK, and
-// an AUTH derived from a DIFFERENT MSK does not verify against it.
-// PREVENTS: an EAP exchange whose AUTH is keyed by anything other than the shared key
-// the method produced, which would let a peer that never completed EAP be accepted.
-// RFC requirement: RFC7296-2.16-12 positive -- RFC 7296 Section 2.16: "For EAP methods
-// that create a shared key as a side effect of authentication, that shared key MUST be
-// used by both the initiator and responder to generate AUTH payloads in messages 7 and 8
-// using the syntax for shared secrets specified in Section 2.15".
+// rfc-test-change-approved: 2026-08-01 Thomas approved re-pointing RFC7296-2.16 tags at the
+// message-7/8 producer after a review found the tagged tests did not gate. The three tests
+// below exercise ComputeAuthFromMSK, the PRIMITIVE. A mutation keying computeEAPAuth (the
+// producer of the AUTH payloads of messages 7 and 8) from a constant instead of sa.EAPMSK
+// left all three PASSING, while three untagged tests caught it. The tags now sit on
+// rfc7296_eapauth_producer_test.go, which drives computeEAPAuth and the real EAP handshake.
+// These tests keep their value as primitive coverage and stay, untagged.
+
+// VALIDATES: the AUTH primitive is derived from the EAP MSK, and an AUTH derived from a
+// DIFFERENT MSK does not verify against it.
+// PREVENTS: a shared-secret AUTH primitive that ignores its key argument.
 func TestWp2EAPSharedKeyGeneratesAUTH(t *testing.T) {
 	var msk [64]byte
 	for i := range msk {
@@ -171,9 +174,11 @@ func TestWp2EAPSharedKeyGeneratesAUTH(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7296-2.16-12 negative -- an AUTH computed from a DIFFERENT shared
-// key is refused, and so is one over different signed octets. The verification is
-// therefore bound to the EAP key rather than accepting any well-formed AUTH.
+// rfc-test-change-approved: 2026-08-01 Thomas approved re-pointing RFC7296-2.16 tags at the
+// message-7/8 producer; see the note above TestWp2EAPSharedKeyGeneratesAUTH.
+//
+// VALIDATES: an AUTH computed from a DIFFERENT shared key is refused, and so is one over
+// different signed octets. The primitive is therefore bound to both its inputs.
 func TestWp2EAPAUTHRejectsAnotherKey(t *testing.T) {
 	var mine, theirs [64]byte
 	for i := range mine {
@@ -199,15 +204,12 @@ func TestWp2EAPAUTHRejectsAnotherKey(t *testing.T) {
 	}
 }
 
-// VALIDATES: the EAP AUTH exchange follows the Success message. The responder stores the
-// MSK only once the method has succeeded, so no AUTH can be derived before Success.
-// PREVENTS: an AUTH exchange keyed from a half-finished EAP method.
-// RFC requirement: RFC7296-2.16-13 positive -- RFC 7296 Section 2.16: "Following such an
-// extended exchange, the EAP AUTH payloads MUST be included in the two messages
-// following the one containing the EAP Success message." The MSK that keys those two
-// AUTH payloads exists only after Success, which is what orders them.
-// RFC requirement: RFC7296-2.16-13 negative -- an SA whose EAP never succeeded holds a
-// zero MSK, and the AUTH path refuses to run from it.
+// rfc-test-change-approved: 2026-08-01 Thomas approved re-pointing RFC7296-2.16 tags at the
+// message-7/8 producer; see the note above TestWp2EAPSharedKeyGeneratesAUTH.
+//
+// VALIDATES: the AUTH primitive's output tracks the MSK an SA holds, so an SA that has not
+// yet been given one cannot produce the same AUTH as one that has.
+// PREVENTS: an AUTH primitive whose output is independent of the SA's stored MSK.
 func TestWp2EAPAUTHFollowsSuccess(t *testing.T) {
 	_, sa, _ := establishPSK(t)
 

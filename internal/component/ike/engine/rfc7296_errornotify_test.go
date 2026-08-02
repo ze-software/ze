@@ -623,8 +623,28 @@ func TestErrRefusedIKERekeyIsAnswered(t *testing.T) {
 	if len(types) != 1 || types[0] != wire.NotifyInvalidSyntax {
 		t.Errorf("the answer carries notifies %v, want exactly INVALID_SYNTAX", types)
 	}
-	if resp.State != StateEstablished {
-		t.Errorf("the IKE SA is %v after refusing one rekey, want it still established", resp.State)
+	// rfc-test-change-approved: 2026-08-01 Thomas approved splitting this assertion by
+	// notify type, after the RFC text was put beside it. It asserted StateEstablished for
+	// BOTH failure classes, which is right for one and forbidden for the other.
+	//
+	// RFC 7296 Section 2.21.3 (rfc/full/rfc7296.txt:3339-3345): "If a peer parsing a
+	// request notices that it is badly formatted (after it has passed the message
+	// authentication code checks and window checks) and it returns an INVALID_SYNTAX
+	// notification, then this error notification is considered fatal in both peers,
+	// meaning that the IKE SA is deleted without needing an explicit Delete payload."
+	// Section 2.21.2 (:3239-3242) lists INVALID_SYNTAX among the errors that "lead to a
+	// deletion of the IKE SA without requiring an explicit INFORMATIONAL exchange".
+	//
+	// This request passed the MAC and window checks and drew INVALID_SYNTAX, so the SA
+	// MUST be gone. Ze kept it and stayed half-open against a peer that had already
+	// discarded it, until DPD noticed.
+	//
+	// The blanket assertion is not merely relaxed. NO_PROPOSAL_CHOSEN keeps the SA up,
+	// and that half is pinned below, so the test now discriminates the two classes the
+	// tagged requirement is actually about instead of expecting one answer for both.
+	if resp.State != StateDead {
+		t.Errorf("the IKE SA is %v after INVALID_SYNTAX, want StateDead: "+
+			"RFC 7296 Section 2.21.3 makes that notification fatal in both peers", resp.State)
 	}
 
 	// Negative. notifyForRefusal separates the two failure classes rather than

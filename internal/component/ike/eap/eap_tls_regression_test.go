@@ -193,10 +193,13 @@ func TestVerifyServerChain(t *testing.T) {
 
 // TestDeriveTLSMSKFailsClosedOnIncompleteHandshake pins the fail-closed guard: on
 // a tlsConn whose handshake did not complete (e.g. the authenticator's cert was
-// rejected, which still sets tlsDone), deriveTLSMSK must return an all-zero MSK
-// and must NOT panic. crypto/tls' ExportKeyingMaterial panics on an incomplete
-// handshake, so without the cs.HandshakeComplete guard this test panics; the
-// all-zero result is an invalid key that cannot yield a passing EAP-Success.
+// rejected, which still sets tlsDone), deriveTLSMSK must report an error and must
+// NOT panic. crypto/tls' ExportKeyingMaterial panics on an incomplete handshake,
+// so without the cs.HandshakeComplete guard this test panics.
+//
+// The error is the load-bearing half. A zero MSK returned with no error is a
+// valid-looking answer the caller cannot tell from a real key, so the caller
+// authenticates over 64 zero octets instead of refusing.
 func TestDeriveTLSMSKFailsClosedOnIncompleteHandshake(t *testing.T) {
 	// A freshly wrapped tls.Client has HandshakeComplete == false (no handshake
 	// was ever driven), the same observable state as a failed handshake. The
@@ -205,7 +208,10 @@ func TestDeriveTLSMSKFailsClosedOnIncompleteHandshake(t *testing.T) {
 		tlsConn: tls.Client(newEAPTLSTransport(), &tls.Config{MinVersion: tls.VersionTLS12}),
 	}
 
-	msk := ps.deriveTLSMSK() // must not panic (the fail-closed guard)
+	msk, err := ps.deriveTLSMSK() // must not panic (the fail-closed guard)
+	if err == nil {
+		t.Fatal("incomplete handshake must report an error, not a usable MSK")
+	}
 	if msk != ([64]byte{}) {
 		t.Fatalf("incomplete handshake must yield an all-zero MSK, got %x", msk)
 	}

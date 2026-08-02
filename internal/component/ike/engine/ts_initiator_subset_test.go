@@ -180,6 +180,41 @@ func TestTisTransportModeAnswerIsNotRefusedByPolicyPrefixes(t *testing.T) {
 	}
 }
 
+// VALIDATES: an answer this node can neither decode nor program is REFUSED, and the refusal
+// says which. The SA is not established with no negotiated selector at all.
+//
+// PREVENTS: the fail-open guard this test exists for. Both exits returned nil, which skipped
+// checkAnswerWithin AND left NegotiatedPairs unset, so the caller read success over an
+// answer that was neither checked nor adopted (ai/rules/fail-closed-guards.md).
+func TestTisUndecodableAnswerIsRefusedRatherThanIgnored(t *testing.T) {
+	sa := tisInitiator(t, tisPeer(t))
+
+	// TS payloads carrying no selector at all: present on the wire, empty after decoding.
+	empty := &wire.PayloadTS{}
+	err := recordInitiatorSelectors(sa, empty, empty)
+	if err == nil {
+		t.Fatal("an answer carrying no decodable selector was accepted, so the SA would " +
+			"establish with no negotiated traffic selector and nothing would say so")
+	}
+	if !errors.Is(err, errTSUnusable) {
+		t.Errorf("the refusal is %v, want errTSUnusable", err)
+	}
+	if sa.NegotiatedPairs != nil {
+		t.Error("the refused answer still left negotiated pairs on the SA")
+	}
+
+	// The discriminator: a decodable, programmable, narrowed answer is adopted through the
+	// same function, so the refusal above is about the answer and not unconditional.
+	ok := tisInitiator(t, tisPeer(t))
+	if err := recordInitiatorSelectors(ok,
+		tsPayload(t, wire.PayloadTypeTSi, "10.1.1.0/24"),
+		tsPayload(t, wire.PayloadTypeTSr, "10.2.1.0/24")); err != nil {
+		t.Errorf("a narrowed answer was refused: %v", err)
+	} else if len(ok.NegotiatedPairs) == 0 {
+		t.Error("a narrowed answer was accepted but recorded no negotiated pair")
+	}
+}
+
 // VALIDATES: the refusal reaches the production entry point and DELETES the SA, rather than
 // being a return value nobody reads.
 // PREVENTS: the check existing but not being wired. adoptAuthResponseNegotiation is what
@@ -188,19 +223,26 @@ func TestTisWidenedAnswerTearsTheSADown(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	sa := tisInitiator(t, tisPeer(t))
 
-	if adoptAuthResponseNegotiation(sa, false,
+	adopted, notify := adoptAuthResponseNegotiation(sa, false,
 		tsPayload(t, wire.PayloadTypeTSi, "0.0.0.0/0"),
-		tsPayload(t, wire.PayloadTypeTSr, "0.0.0.0/0"), log) {
+		tsPayload(t, wire.PayloadTypeTSr, "0.0.0.0/0"), log)
+	if adopted {
 		t.Fatal("a widened answer was adopted, so the initiator would establish an SA " +
 			"carrying traffic the responder chose")
+	}
+	// RFC 7296 Section 2.9 names the notification the peer is owed for an answer this node
+	// will not accept. A teardown that reports nothing leaves the peer holding a live SA.
+	if notify != wire.NotifyTSUnacceptable {
+		t.Errorf("the widened answer tore the SA down with notify %d, want TS_UNACCEPTABLE (%d)",
+			notify, wire.NotifyTSUnacceptable)
 	}
 
 	// The discriminator: a narrowed answer is adopted through the same entry point, so the
 	// teardown above is a decision about that answer.
 	ok := tisInitiator(t, tisPeer(t))
-	if !adoptAuthResponseNegotiation(ok, false,
+	if adopted, _ := adoptAuthResponseNegotiation(ok, false,
 		tsPayload(t, wire.PayloadTypeTSi, "10.1.1.0/24"),
-		tsPayload(t, wire.PayloadTypeTSr, "10.2.1.0/24"), log) {
+		tsPayload(t, wire.PayloadTypeTSr, "10.2.1.0/24"), log); !adopted {
 		t.Error("a narrowed answer tore the SA down; the check is unconditional")
 	}
 }

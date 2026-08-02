@@ -127,3 +127,41 @@ jobs:
 
       - name: make ze-interop-test
         run: make ze-interop-test
+
+  # The 12 strongSwan/IPsec scenarios had the same problem the BGP tree had above:
+  # a runner (`make ze-ipsec-interop-test`) and no automated caller, so
+  # rfc_requirements.py CARRIERS refused an `RFC requirement:` tag there as tier
+  # `unrun`. This job is what earns that tree its tier
+  # (plan/spec-rfcgate-2-deferred-unrun-interop-trees.md AC-1, AC-2).
+  #
+  # Its own job for the same two reasons the BGP one is: a Docker-lab failure must
+  # not be attributed to another suite, and jobBlocks reads `continue-on-error` as
+  # a DIRECT job key.
+  #
+  # setup-go is REQUIRED here and is not boilerplate copied from the siblings.
+  # Unlike the BGP lab, which builds ze inside Docker, test/ipsec-interop/run.py
+  # build_images() cross-compiles ze on the HOST (`CGO_ENABLED=0 GOOS=linux go
+  # build` into the gitignored test/ipsec-interop/ze-linux) and the Dockerfile then
+  # COPYs the result. Without a host toolchain this job fails at image build, which
+  # would read as a scenario failure.
+  #
+  # The lab runs `--privileged` containers (it programs XFRM state). That is the
+  # same posture the BGP job already has with `--cap-add NET_ADMIN`: a hosted
+  # ephemeral runner against repo-controlled Dockerfiles.
+  #
+  # Advisory like its siblings, so this is nightly evidence and never a merge gate.
+  ipsec-interop:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+
+      - name: make ze-ipsec-interop-test
+        run: make ze-ipsec-interop-test

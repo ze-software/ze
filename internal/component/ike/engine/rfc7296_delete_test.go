@@ -146,50 +146,143 @@ func TestDelIKEDeleteDrawsAnEmptyResponse(t *testing.T) {
 	}
 }
 
+// test-relax: the two dropped assertions ("the outgoing SA is gone once the request is
+// processed", "the incoming SA is still installed until the response") described a state no
+// production path reaches, and the code arms that produced it were unreachable and are now
+// removed. They are replaced, not weakened: the sequence below is the real one, and the
+// record's lifetime is asserted where the ordering used to be.
+//
+// rfc-test-change-approved: 2026-08-01 Thomas approved re-pointing RFC7296-1.4.1-7 at a
+// state production can reach. The previous version recorded a Delete and left the pair
+// INSTALLED, then asserted the two halves went in the section's order. No production path
+// reaches that state: the one caller that issues a Delete (inbound.go, make-before-break
+// rekey) removes both halves synchronously right after sending, so every record is already
+// fully removed before a crossing request can be processed.
+
 // VALIDATES: when the peer's Delete crosses one ze already sent for the same pair, the
 // response carries no Delete payload for that pair.
 // PREVENTS: the duplicate deletion RFC 7296 Section 1.4.1 warns about, where both ends
 // answer each other's Delete with a Delete and one of them lands on a reused SPI.
-// RFC requirement: RFC7296-1.4.1-7 positive -- RFC 7296 Section 1.4.1: "If a node
-// receives a delete request for SAs for which it has already issued a delete request, it
-// MUST delete the outgoing SAs while processing the request and the incoming SAs while
-// processing the response." The same paragraph: "In that case, the responses MUST NOT
-// include Delete payloads for the deleted SAs". Both halves are checked here: the
-// outgoing SA is gone once the request is processed, and the response is bare.
+// RFC requirement: RFC7296-1.4.1-7 positive -- RFC 7296 Section 1.4.1: "If a node receives
+// a delete request for SAs for which it has already issued a delete request, it MUST delete
+// the outgoing SAs while processing the request and the incoming SAs while processing the
+// response", and "In that case, the responses MUST NOT include Delete payloads for the
+// deleted SAs". Ze removes BOTH halves before it sends its own Delete, so both are already
+// gone when each of the section's two events arrives, which satisfies the ordering strictly
+// earlier. This drives that production sequence and asserts the bare response.
 func TestDelCrossingDeleteAnswersWithoutAPairedDelete(t *testing.T) {
 	log := slogutil.DiscardLogger()
 	f := delSession(t)
 
-	// Ze issues its own Delete for the pair first, and holds it installed. This is the
-	// state the crossing case is defined over.
+	// The production sequence, in the order inbound.go runs it: record, send, remove.
 	f.ps.recordOwnDelete(f.child)
 	f.ps.sendDeleteESP(f.local, f.myTr, f.child.InboundSPI, log)
 	if rtxRecv(t, f.peerTr) == nil {
 		t.Fatal("ze's own Delete never reached the peer, so no crossing can be observed")
 	}
 	f.local.releaseRequestWindow()
-	if f.dp.wasRemoved(f.child.OutboundSPI) {
-		t.Fatal("the pair was already removed, so the ordering below cannot be observed")
+	removeChildSA(f.child, f.dp, log)
+	if !f.dp.wasRemoved(f.child.InboundSPI) || !f.dp.wasRemoved(f.child.OutboundSPI) {
+		t.Fatal("the production sequence left a half installed, so this fixture is not that state")
 	}
 
+	// The peer's Delete for the same pair crosses ours.
 	inner, _ := f.inbound(t, espDeletePayload([]uint32{f.child.OutboundSPI}))
 
 	if dels := lcyDeletes(inner); len(dels) != 0 {
 		t.Errorf("the crossing response carries %d Delete payloads, want none", len(dels))
 	}
-	if !f.dp.wasRemoved(f.child.OutboundSPI) {
-		t.Error("the outgoing SA is still installed after the crossing request was processed")
-	}
-	if f.dp.wasRemoved(f.child.InboundSPI) {
-		t.Error("the incoming SA went while processing the REQUEST; Section 1.4.1 puts it on the response")
-	}
 
-	// The second half of the ordering: the incoming SA goes when ze processes the
-	// response to its own Delete.
+	// The record is spent by the response to ze's own Delete, so a LATER Delete naming the
+	// same SPI is answered normally rather than swallowed as another crossing.
 	respMsg := &wire.Message{Header: wire.Header{MessageID: f.local.ExpectedMsgID}}
 	f.ps.handleInformationalOwned(f.local, respMsg, nil, true, f.myTr, f.dp, log)
-	if !f.dp.wasRemoved(f.child.InboundSPI) {
-		t.Error("the incoming SA is still installed after the response was processed")
+	if len(f.ps.deleteRequested) != 0 {
+		t.Error("the crossing record outlived the response to ze's own Delete")
+	}
+}
+
+// rfc-test-change-approved: 2026-08-01 Thomas approved adding evidence that a malformed
+// Delete draws INVALID_SYNTAX, after a review found a Delete whose ESP SPI Size breaks RFC
+// 7296 Section 3.11 drew an EMPTY response. The two tests below are NEW evidence; no
+// existing tagged test is altered by them.
+
+// delNotifies returns every Notify payload in a decrypted chain.
+func delNotifies(inner []wire.PayloadEntry) []*wire.PayloadNotify {
+	var out []*wire.PayloadNotify
+	for i := range inner {
+		if n, ok := inner[i].Payload.(*wire.PayloadNotify); ok {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// VALIDATES: a Delete payload whose ESP SPI Size is not the four octets RFC 7296 Section
+// 3.11 fixes draws an INVALID_SYNTAX notification, and closes nothing.
+//
+// PREVENTS: the defect this test exists for. deleteSPIs returned no SPI for such a payload,
+// so the loop closed nothing, `paired` stayed empty, and the peer received an EMPTY
+// INFORMATIONAL response. An empty response is what a SUCCESSFUL Delete of nothing looks
+// like, so a peer with a broken encoder was told its request was fine.
+//
+// RFC requirement: RFC7296-3.11-2 negative -- RFC 7296 Section 3.11: the SPI Size "MUST be
+// zero for IKE (SPI is in message header) or four for AH and ESP". A payload declaring any
+// other size for ESP is refused rather than parsed.
+// RFC requirement: RFC7296-2.21.3-1 positive -- RFC 7296 Section 2.21.3: "After the IKE SA
+// is authenticated, all requests having errors MUST result in a response notifying the
+// other end of the error." The malformed Delete is such a request, and the response names
+// the error.
+func TestDelMalformedSPISizeDrawsInvalidSyntax(t *testing.T) {
+	f := delSession(t)
+
+	// Three octets per SPI is not a size RFC 7296 Section 3.11 permits for ESP.
+	bad := &wire.PayloadDelete{
+		ProtocolID: wire.ProtocolESP,
+		SPISize:    3,
+		NumSPIs:    1,
+		SPIs:       []byte{0xde, 0xad, 0xbe},
+	}
+	inner, out := f.inbound(t, bad)
+
+	notifies := delNotifies(inner)
+	if len(notifies) != 1 {
+		t.Fatalf("the malformed Delete drew %d Notify payloads, want exactly 1; an empty "+
+			"response tells the peer its request succeeded", len(notifies))
+	}
+	if notifies[0].NotifyMsgType != wire.NotifyInvalidSyntax {
+		t.Errorf("the malformed Delete drew notify %d, want INVALID_SYNTAX (%d)",
+			notifies[0].NotifyMsgType, wire.NotifyInvalidSyntax)
+	}
+	if dels := lcyDeletes(inner); len(dels) != 0 {
+		t.Errorf("the refusal carried %d Delete payloads, want none", len(dels))
+	}
+	// Nothing was closed, so the tunnel stays up.
+	if f.dp.wasRemoved(f.child.InboundSPI) || f.dp.wasRemoved(f.child.OutboundSPI) {
+		t.Error("a malformed Delete removed the live Child SA")
+	}
+	if out.reestablish {
+		t.Error("a malformed Delete took the tunnel down")
+	}
+}
+
+// RFC requirement: RFC7296-3.11-2 positive -- the WELL-FORMED size is accepted through the
+// same handler, so the refusal above is the size being checked and not a handler that
+// refuses every Delete. RFC 7296 Section 3.11 fixes four octets for ESP, and a four-octet
+// payload closes the pair it designates.
+func TestDelWellFormedSPISizeIsAccepted(t *testing.T) {
+	f := delSession(t)
+
+	inner, out := f.inbound(t, espDeletePayload([]uint32{f.child.OutboundSPI}))
+
+	if notifies := delNotifies(inner); len(notifies) != 0 {
+		t.Errorf("a well-formed Delete drew %d Notify payloads, want none", len(notifies))
+	}
+	if !f.dp.wasRemoved(f.child.OutboundSPI) {
+		t.Error("a well-formed Delete closed nothing")
+	}
+	if !out.reestablish {
+		t.Error("closing the pair that carries the tunnel did not take the tunnel-down exit")
 	}
 }
 

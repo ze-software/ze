@@ -52,15 +52,6 @@ def wait_ze_xfrm_policy(remote_prefix, timeout=30):
     raise AssertionError("Ze XFRM policy for %s not found" % remote_prefix)
 
 
-def ze_has_xfrm():
-    """Check if XFRM is available in the Ze container."""
-    try:
-        output = docker_exec_quiet(ZE_CONTAINER, ["ip", "xfrm", "state"])
-        return "XFRM" not in output or "not supported" not in output.lower()
-    except Exception:
-        return False
-
-
 def check():
     swan = StrongSwan()
     frr = FRR()
@@ -73,15 +64,16 @@ def check():
     swan.wait_sa_established("ze")
     swan.wait_child_sa()
 
-    # 3. XFRM state: always check strongSwan, skip Ze on platforms without XFRM.
+    # 3. XFRM state and policy on BOTH ends.
+    #
+    # These two assertions used to sit inside `except (AssertionError, Exception)`, so the
+    # scenario passed whether or not Ze programmed anything. Its "expected on Docker for
+    # Mac" reason is stale: scenario 01-psk-site-to-site runs in this same lab with the
+    # Ze-side XFRM SA present and ESP counters advancing on both peers, measured
+    # 2026-08-01.
     wait_xfrm_sa(SWAN_CONTAINER)
-    try:
-        wait_xfrm_sa(ZE_CONTAINER)
-        wait_ze_xfrm_policy(REMOTE_SITE)
-    except (AssertionError, AssertionError, Exception):
-        log_info(
-            "XFRM not available on Ze (expected on Docker for Mac), skipping ESP checks"
-        )
+    wait_xfrm_sa(ZE_CONTAINER)
+    wait_ze_xfrm_policy(REMOTE_SITE)
 
     # 4. FRR received the route via BGP redistribute.
     frr.wait_route(REMOTE_SITE, timeout=30)

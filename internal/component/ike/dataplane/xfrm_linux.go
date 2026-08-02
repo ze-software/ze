@@ -8,20 +8,86 @@ package dataplane
 import (
 	"fmt"
 	"net"
+	"net/netip"
 
 	"github.com/vishvananda/netlink"
+
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
-type xfrmBackend struct{}
+type xfrmBackend struct {
+	// espForms serves the ESP wire form the installed state refuses. One XFRM state
+	// binds one form, and RFC 7296 Section 2.23 requires both to be received, so an
+	// inbound state that asks for both is registered here as well as with the kernel.
+	espForms *espFormReceiver
+}
 
 func newXFRMBackend() (Dataplane, error) {
-	return &xfrmBackend{}, nil
+	return &xfrmBackend{espForms: newESPFormReceiver(slogutil.Logger("ike.dataplane"))}, nil
 }
 
 func (b *xfrmBackend) InstallSA(p SAParams) error {
+	state, err := xfrmStateFromParams(p)
+	if err != nil {
+		return err
+	}
+	if err := netlink.XfrmStateAdd(state); err != nil {
+		return fmt.Errorf("xfrm: state add spi=%d: %w", p.SPI, err)
+	}
+
+	// RFC 7296 Section 2.23 MUST (rfc/full/rfc7296.txt:3544-3548): both ESP forms are
+	// received at any time. The state above serves the form its template selects. When
+	// the caller asks for both, the other form is served beside the kernel.
+	//
+	// Only a TEMPLATED state needs the help. A template-free state already accepts bare
+	// ESP natively, and the encapsulated form reaching it is refused by the kernel
+	// before any userspace reader can see it (MEASURED:
+	// TestEncapEncapsulatedESPHiddenFromUserspaceWhenSocketDecapsulates). RFC 3948
+	// Section 2.1 makes that combination unreachable from a conforming peer: the
+	// ESP-in-UDP ports "MUST be the same as that used by IKE traffic" and RFC 7296
+	// forbids encapsulation on port 500, so a peer that encapsulates ESP runs its IKE on
+	// port 4500 and its SA is templated here.
+	if p.AcceptBothESPForms && p.UDPEncap {
+		peer, okPeer := netip.AddrFromSlice(p.Src.To4())
+		local, okLocal := netip.AddrFromSlice(p.Dst.To4())
+		if !okPeer || !okLocal {
+			// IPv6 ESP-in-UDP is not served by this receiver. Refusing the install is
+			// the honest answer: an SA that silently receives one form only carries no
+			// traffic when the peer picks the other (ai/rules/exact-or-reject.md).
+			return fmt.Errorf("xfrm: spi=%d asks to receive both ESP forms, which this backend serves for IPv4 only (src=%v dst=%v)", p.SPI, p.Src, p.Dst)
+		}
+		if err := b.espForms.Watch(p.SPI, peer, local); err != nil {
+			// The state is already in the kernel, and this install is about to be
+			// reported as failed. Leaving it behind would strand a state no caller
+			// believes exists, and the next install of the same SPI would answer
+			// "file exists" for a reason nobody could see.
+			if delErr := netlink.XfrmStateDel(state); delErr != nil {
+				b.espForms.logger().Debug("xfrm: remove state after the ESP form receiver refused",
+					"spi", p.SPI, "error", delErr)
+			}
+			return fmt.Errorf("xfrm: spi=%d cannot receive both ESP forms, so it was not installed: %w", p.SPI, err)
+		}
+	}
+	return nil
+}
+
+// xfrmStateFromParams maps one Child SA description onto the netlink state this backend
+// hands the kernel. It is the whole of what ze controls about an installed SA, so it is
+// also the whole of what ze could use to change the kernel's ECN behavior.
+//
+// RFC 7296 Section 2.24 MUST: tunnel encapsulators and decapsulators "MUST support the ECN
+// full-functionality option for tunnels", and MUST implement the processing "to prevent
+// discarding of ECN congestion indications". Linux copies the congestion indication on
+// decapsulation UNLESS XFRM_STATE_NOECN is set in the state's flags. Nothing below sets a
+// flag, and netlink.XfrmState carries no general flags field to set one through, so the
+// kernel default stands for every SA ze installs.
+//
+// It is split out of InstallSA so the mapping can be driven without a netlink socket: the
+// tests that prove Section 2.24 call THIS, not a type literal.
+func xfrmStateFromParams(p SAParams) (*netlink.XfrmState, error) {
 	mode, ok := kernelXFRMMode(p.Mode)
 	if !ok {
-		return fmt.Errorf("xfrm: state add spi=%d: unknown mode %d, want ModeTransport (%d) or ModeTunnel (%d)",
+		return nil, fmt.Errorf("xfrm: state add spi=%d: unknown mode %d, want ModeTransport (%d) or ModeTunnel (%d)",
 			p.SPI, p.Mode, ModeTransport, ModeTunnel)
 	}
 	state := &netlink.XfrmState{
@@ -84,10 +150,7 @@ func (b *xfrmBackend) InstallSA(p SAParams) error {
 		}
 	}
 
-	if err := netlink.XfrmStateAdd(state); err != nil {
-		return fmt.Errorf("xfrm: state add spi=%d: %w", p.SPI, err)
-	}
-	return nil
+	return state, nil
 }
 
 func (b *xfrmBackend) RemoveSA(spi uint32, dst net.IP, proto uint8) error {
@@ -99,6 +162,10 @@ func (b *xfrmBackend) RemoveSA(spi uint32, dst net.IP, proto uint8) error {
 	if err := netlink.XfrmStateDel(state); err != nil {
 		return fmt.Errorf("xfrm: state del spi=%d: %w", spi, err)
 	}
+	// The state is gone, so nothing must re-present bare ESP for it any more. Forget is
+	// a no-op for an SPI that was never watched, and releases the raw sockets once the
+	// last watched SA is removed.
+	b.espForms.Forget(spi)
 	return nil
 }
 
@@ -107,8 +174,36 @@ func (b *xfrmBackend) InstallPolicy(p SPParams) error {
 	if err != nil {
 		return fmt.Errorf("xfrm: policy add: %w", err)
 	}
-	if err := netlink.XfrmPolicyAdd(pol); err != nil {
-		return fmt.Errorf("xfrm: policy add: %w", err)
+	// EVERY policy is UPSERTED, never exclusively added.
+	//
+	// XfrmPolicyAdd sends XFRM_MSG_NEWPOLICY, which the kernel inserts exclusively,
+	// so a second install of one selector answers EEXIST. That exclusivity is wrong
+	// for both kinds of policy this backend installs, for the same underlying
+	// reason: a selector is not owned by one installer.
+	//
+	// A Child SA rekey re-installs an IDENTICAL selector. newRekeyedChild
+	// (engine/rekey.go) inherits TSLocal, TSRemote, IfID, ReqID and Mode from the
+	// retired pair, so the replacement's policies match the retired pair's in every
+	// field xfrmPolicyFromParams sets. Under NEWPOLICY the replacement's install
+	// failed with EEXIST on every make-before-break rekey, the rekey response was
+	// abandoned, and the tunnel died at the Child SA's hard lifetime. MEASURED
+	// against strongSwan: "child-sa: install inbound policy: xfrm: policy add: file
+	// exists", once per second until "child-sa: hard lifetime expired".
+	//
+	// The IKE bypass is peer-independent by design: every peer installs the same
+	// four policies, so peer B's install would fail on peer A's.
+	//
+	// XfrmPolicyUpdate sends XFRM_MSG_UPDPOLICY, and the kernel derives exclusivity
+	// from the message TYPE rather than from NLM_F_EXCL (net/xfrm/xfrm_user.c,
+	// xfrm_add_policy: excl = nlmsg_type == XFRM_MSG_NEWPOLICY), so the update
+	// replaces. strongSwan installs every policy the same way, and for the same
+	// reason.
+	//
+	// This is idempotent AND safer than swallowing EEXIST: swallowing would leave ze
+	// believing it installed a policy when a DIFFERENT one occupied that selector,
+	// which is a guard that fails open (ai/rules/fail-closed-guards.md).
+	if err := netlink.XfrmPolicyUpdate(pol); err != nil {
+		return fmt.Errorf("xfrm: policy update: %w", err)
 	}
 	return nil
 }
@@ -147,6 +242,38 @@ func (b *xfrmBackend) RemovePolicyParams(p SPParams) error {
 // tunnelEndpoints rejects an absent pair, so a 0.0.0.0 template never reaches the
 // kernel. Such a template matched no state and the tunnel forwarded nothing.
 func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
+	// A BYPASS carries no template at all, so it is built before every check below.
+	// Those checks all validate the template: the mode the template names, and the
+	// tunnel endpoints the kernel resolves the template to a state through. A policy
+	// with no template resolves to no state by design, so applying them here would
+	// reject a correct bypass for lacking fields it must not carry.
+	//
+	// XFRM_POLICY_ALLOW plus an empty Tmpls IS the SPD "BYPASS" disposition of RFC
+	// 4301 Section 4.4.1. netlink omits the XFRMA_TMPL attribute entirely when Tmpls
+	// is empty (vendor xfrm_policy_linux.go, xfrmPolicyAddOrUpdate), which is what
+	// makes it a bypass rather than a protect policy with an empty template list.
+	if p.Action == SPActionBypass {
+		srcPort, err := xfrmSelectorPort("source", p.SrcPort)
+		if err != nil {
+			return nil, err
+		}
+		dstPort, err := xfrmSelectorPort("destination", p.DstPort)
+		if err != nil {
+			return nil, err
+		}
+		return &netlink.XfrmPolicy{
+			Src:      p.Src,
+			Dst:      p.Dst,
+			Dir:      netlink.Dir(p.Dir - 1),
+			Proto:    netlink.Proto(p.UpperProto),
+			SrcPort:  srcPort,
+			DstPort:  dstPort,
+			Ifindex:  p.IfIndex,
+			Priority: p.Priority,
+			Action:   netlink.XFRM_POLICY_ALLOW,
+			Ifid:     int(p.IfID),
+		}, nil
+	}
 	mode, ok := kernelXFRMMode(p.Mode)
 	if !ok {
 		return nil, fmt.Errorf("unknown mode %d, want ModeTransport (%d) or ModeTunnel (%d)",
@@ -165,13 +292,14 @@ func xfrmPolicyFromParams(p SPParams) (*netlink.XfrmPolicy, error) {
 		return nil, err
 	}
 	return &netlink.XfrmPolicy{
-		Src:     p.Src,
-		Dst:     p.Dst,
-		Dir:     netlink.Dir(p.Dir - 1),
-		Proto:   netlink.Proto(p.UpperProto), // upper-layer selector (0 = any, 89 = OSPF)
-		SrcPort: srcPort,
-		DstPort: dstPort,
-		Ifindex: p.IfIndex, // RFC 4552 §6 interface-based selector (0 = node-wide)
+		Src:      p.Src,
+		Dst:      p.Dst,
+		Dir:      netlink.Dir(p.Dir - 1),
+		Proto:    netlink.Proto(p.UpperProto), // upper-layer selector (0 = any, 89 = OSPF)
+		SrcPort:  srcPort,
+		DstPort:  dstPort,
+		Ifindex:  p.IfIndex, // RFC 4552 §6 interface-based selector (0 = node-wide)
+		Priority: p.Priority,
 		Tmpls: []netlink.XfrmPolicyTmpl{{
 			// Src/Dst are the outer tunnel-header addresses, not the selector above.
 			// They stay nil in transport mode, where the kernel leaves them unused.
@@ -238,7 +366,7 @@ func (b *xfrmBackend) ListSAs(ifID uint32) ([]SAInfo, error) {
 	return out, nil
 }
 
-func (b *xfrmBackend) Close() error { return nil }
+func (b *xfrmBackend) Close() error { return b.espForms.Close() }
 
 func xfrmEncName(algo string) string {
 	switch algo {

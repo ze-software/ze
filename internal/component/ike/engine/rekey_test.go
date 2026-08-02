@@ -279,3 +279,64 @@ func TestRekeyPreservesAddresses(t *testing.T) {
 		t.Errorf("ifID = %d, want 42", newChild.IfID)
 	}
 }
+
+// VALIDATES: a rekeyed Child SA still receives BOTH ESP forms, and still sends the form
+// the NAT verdict calls for.
+// PREVENTS: a tunnel narrowing back to one ESP form at its first rekey. newRekeyedChild
+// copies fields from the old child by hand, so a field it forgets is silently lost and the
+// failure appears only after the first rekey interval -- long after any test that watched
+// the initial exchange.
+func TestRekeyKeepsBothESPFormAcceptance(t *testing.T) {
+	sa := testSA()
+	sa.NATDetected = true
+	sa.floatToNATTPort()
+	dp := &mockDP{}
+	log := slogutil.DiscardLogger()
+
+	old, err := createFirstChildSA(sa, testESPGroup(), "10.0.0.1", "10.0.0.2", 42, dp, log)
+	if err != nil {
+		t.Fatalf("createFirstChildSA: %v", err)
+	}
+
+	pending := &pendingRekey{
+		kind:          rekeyChild,
+		localNonce:    make([]byte, nonceLen),
+		newInboundSPI: 0x55667788,
+		oldChild:      old,
+	}
+	inner := []wire.PayloadEntry{
+		{Payload: espSAPayload(0x99AABBCC)},
+		{Payload: &wire.PayloadNonce{NonceData: make([]byte, nonceLen)}},
+	}
+	if _, err := applyChildRekeyResponse(sa, pending, inner, dp, log); err != nil {
+		t.Fatalf("applyChildRekeyResponse: %v", err)
+	}
+
+	// The rekey installs a fresh pair after the original pair, so the replacement SAs are
+	// the last two the dataplane was handed.
+	if len(dp.sas) < 4 {
+		t.Fatalf("installed %d SAs, want the original pair and the rekeyed pair", len(dp.sas))
+	}
+	var sawInbound bool
+	for i := len(dp.sas) - 2; i < len(dp.sas); i++ {
+		p := dp.sas[i]
+		if p.Dst.String() != "10.0.0.1" {
+			// The outbound replacement. A NAT was detected, so RFC 7296 Section 2.23
+			// makes encapsulation mandatory on it.
+			if !p.UDPEncap {
+				t.Errorf("rekeyed outbound spi %d: no UDP encapsulation with a NAT detected", p.SPI)
+			}
+			continue
+		}
+		sawInbound = true
+		if !p.AcceptBothESPForms {
+			t.Errorf("rekeyed inbound spi %d: accepts one ESP form only; the tunnel narrowed at its first rekey", p.SPI)
+		}
+		if !p.UDPEncap {
+			t.Errorf("rekeyed inbound spi %d: lost the encapsulation template a NAT-traversing tunnel needs", p.SPI)
+		}
+	}
+	if !sawInbound {
+		t.Fatal("no rekeyed inbound SA was installed; every assertion above was vacuous")
+	}
+}

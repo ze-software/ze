@@ -164,7 +164,10 @@ func resolveCertPayloads(sa *SA, certs []*wire.PayloadCERT, log *slog.Logger) ([
 			// back therefore reaches x509 by the path an inline CERT payload takes.
 			der, cached := lookupHashAndURL(hash)
 			if !cached {
-				certURLFetches.start(c.CertData, sa.PeerCfg.Auth.CertificateURLAllow, log)
+				// The peer name scopes the fetcher's failure record. Both the URL and the
+				// allow-list that can refuse it belong to THIS peer, so its failures must
+				// not suppress another peer's lookup of the same object (certurl.go).
+				certURLFetches.start(sa.PeerName, c.CertData, sa.PeerCfg.Auth.CertificateURLAllow, log)
 				pending = true
 				continue
 			}

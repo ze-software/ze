@@ -43,6 +43,12 @@ func newMSCHAPv2Method(config MethodConfig) *mschapv2Method {
 
 func (m *mschapv2Method) Type() uint8 { return TypeMSCHAPv2 }
 
+// Close releases the method's resources. MS-CHAPv2 runs entirely inside
+// Process, so it holds no goroutine and no connection, and this does nothing.
+// The method still declares it, because Method requires every implementation to
+// answer the question rather than leave the caller to know which ones need it.
+func (m *mschapv2Method) Close() {}
+
 // Start sends the MS-CHAPv2 Challenge wrapped in EAP type 26.
 // RFC 2759 Section 4: Challenge packet (Code 1).
 func (m *mschapv2Method) Start(identifier uint8) *Packet {
@@ -77,8 +83,11 @@ func (m *mschapv2Method) Process(response *Packet) MethodResult {
 	if response.Type != TypeMSCHAPv2 {
 		return MethodResult{Err: ErrMethodFailed}
 	}
-	if len(response.TypeData) < 4 {
-		return MethodResult{Err: ErrMethodFailed}
+	// One octet is the floor for every shape: the OpCode. A per-shape length is
+	// checked where that shape is parsed. A blanket four-octet floor here refused
+	// the Success Response, which carries no other field (see below).
+	if len(response.TypeData) == 0 {
+		return MethodResult{Err: fmt.Errorf("eap-mschapv2: empty response")}
 	}
 
 	opCode := response.TypeData[0]
@@ -90,6 +99,19 @@ func (m *mschapv2Method) Process(response *Packet) MethodResult {
 		}
 		return m.handleResponse(response.TypeData)
 	case mschapv2StateResponse:
+		// RFC 2759 Section 5: the peer's Success Response packet is a SINGLE
+		// octet, the OpCode 3. It has no MS-ID, no MS-Length and no Message
+		// field, so the four-octet floor this used to sit behind rejected a
+		// conformant peer outright.
+		//
+		// Ze's own peer sends four octets (handleMSCHAPv2Success in peer.go
+		// appends an MS-ID and a length), which is why every Ze-to-Ze test passed
+		// over this. strongSwan sends the one octet the RFC describes, so the
+		// authenticator answered its successful authentication with an
+		// EAP-Failure.
+		if opCode != mschapv2OpSuccess {
+			return MethodResult{Err: fmt.Errorf("eap-mschapv2: expected Success opcode %d in the acknowledgement, got %d", mschapv2OpSuccess, opCode)}
+		}
 		return m.handleSuccessAck()
 	default:
 		return MethodResult{Err: ErrMethodFailed}

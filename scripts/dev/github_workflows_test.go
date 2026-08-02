@@ -25,11 +25,15 @@ package main
 // stripped before matching so a commented-out command cannot satisfy a check.
 
 import (
+	"context"
+	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 const workflowsDir = ".github/workflows"
@@ -591,5 +595,115 @@ func TestValidationIsNotOnWoodpecker(t *testing.T) {
 		if len(m) > 0 {
 			t.Errorf(".woodpecker pipelines still present (%v); validation moved to %s and must not run on Codeberg", m, workflowsDir)
 		}
+	}
+}
+
+// TestEvidenceNightlyRunsIpsecInterop
+//
+// VALIDATES: the nightly invokes `make ze-ipsec-interop-test` by name, from its
+// OWN advisory job, and that the job sets up Go
+// (plan/spec-rfcgate-2-deferred-unrun-interop-trees.md AC-1).
+// PREVENTS: the 12 strongSwan scenarios going back to having no automated caller.
+// That is the condition under which rfc_requirements.py refuses an
+// `RFC requirement:` tag in the tree as tier `unrun`, so deleting this job now
+// DOWNGRADES the carrier rather than passing unnoticed.
+//
+// setup-go is asserted, not assumed boilerplate: test/ipsec-interop/run.py
+// build_images() cross-compiles ze on the HOST before Docker COPYs it, so without
+// a host toolchain the job dies at image build and reads as a scenario failure.
+func TestEvidenceNightlyRunsIpsecInterop(t *testing.T) {
+	targets := makeTargetsInWorkflow(t, "evidence-nightly.yml")
+	if !slices.Contains(targets, "ze-ipsec-interop-test") {
+		t.Errorf("evidence-nightly.yml must run `make ze-ipsec-interop-test`; targets found: %v", targets)
+	}
+	jobs := jobBlocks(t, "evidence-nightly.yml")
+	var found *jobBlock
+	for i, j := range jobs {
+		if j.name == "ipsec-interop" {
+			found = &jobs[i]
+			break
+		}
+	}
+	if found == nil {
+		names := make([]string, 0, len(jobs))
+		for _, j := range jobs {
+			names = append(names, j.name)
+		}
+		t.Fatalf("evidence-nightly.yml has no `ipsec-interop` job; jobs found: %v", names)
+	}
+	if !found.advisory {
+		t.Error("the ipsec-interop job must carry job-level `continue-on-error: true`: it ships advisory-first, " +
+			"like every other job in this workflow")
+	}
+	if !strings.Contains(workflowFile(t, "evidence-nightly.yml"), "actions/setup-go") {
+		t.Error("evidence-nightly.yml must set up Go: test/ipsec-interop/run.py cross-compiles ze on the host " +
+			"before Docker COPYs it, so the ipsec-interop job needs a host toolchain")
+	}
+}
+
+// TestWorkflowTargetExtractorsAgree
+//
+// VALIDATES: the Go parseMakeTargets above and the Python make_targets_in
+// (scripts/dev/rfc_requirements.py) return the same make targets for every
+// workflow file, and agree on which workflows are scheduled
+// (plan/spec-rfcgate-2-deferred-unrun-interop-trees.md AC-7).
+// PREVENTS: the two extractors drifting. The Python one decides the interop
+// evidence tier from whether a SCHEDULED workflow names a tree's runner; if it
+// saw a target this one does not (or missed one it does), the gate would believe
+// in a caller CI does not have -- silently, and in the green direction.
+func TestWorkflowTargetExtractorsAgree(t *testing.T) {
+	root := repoRoot(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "python3", "rfc_requirements.py", "--workflow-targets")
+	cmd.Dir = filepath.Join(root, "scripts", "dev")
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("running rfc_requirements.py --workflow-targets: %v", err)
+	}
+	var got map[string]struct {
+		Targets   []string `json:"targets"`
+		Scheduled bool     `json:"scheduled"`
+	}
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatalf("decoding --workflow-targets output: %v\n%s", err, out)
+	}
+	if len(got) == 0 {
+		t.Fatal("the Python reader found no workflow files; this test must not pass vacuously")
+	}
+	entries, err := os.ReadDir(filepath.Join(root, workflowsDir))
+	if err != nil {
+		t.Fatalf("read %s: %v", workflowsDir, err)
+	}
+	seen := 0
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasSuffix(name, ".yml") && !strings.HasSuffix(name, ".yaml") {
+			continue
+		}
+		seen++
+		py, ok := got[name]
+		if !ok {
+			t.Errorf("the Python reader did not report %s; it decides the interop tier and must see every workflow", name)
+			continue
+		}
+		want := parseMakeTargets(workflowFile(t, name))
+		if want == nil {
+			want = []string{}
+		}
+		pyTargets := py.Targets
+		if pyTargets == nil {
+			pyTargets = []string{}
+		}
+		if !slices.Equal(want, pyTargets) {
+			t.Errorf("%s: extractors disagree.\n  Go:     %v\n  Python: %v", name, want, pyTargets)
+		}
+		wantScheduled := strings.Contains(onBlock(t, name), "schedule")
+		if wantScheduled != py.Scheduled {
+			t.Errorf("%s: schedule classification disagrees: Go says %v, Python says %v", name, wantScheduled, py.Scheduled)
+		}
+	}
+	if seen != len(got) {
+		t.Errorf("workflow file count disagrees: Go saw %d, Python reported %d", seen, len(got))
 	}
 }

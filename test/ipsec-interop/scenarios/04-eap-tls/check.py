@@ -28,13 +28,15 @@ def check():
     swan.wait_sa_established("ze")
     swan.wait_child_sa()
 
-    # 2. XFRM state if available.
+    # 2. XFRM state on BOTH ends.
+    #
+    # This assertion used to sit inside `except (AssertionError, Exception): log_pass(...)`.
+    # That handler caught the AssertionError the check raises when ESP is BROKEN and then
+    # logged a pass, so the scenario reported success whatever the dataplane did. Its
+    # "expected on Docker for Mac" reason is also stale: scenario 01-psk-site-to-site runs
+    # in this same lab with the Ze-side XFRM SA present and ESP counters advancing on both
+    # peers, measured 2026-08-01.
     wait_xfrm_sa(SWAN_CONTAINER)
-    try:
-        wait_xfrm_sa(ZE_CONTAINER)
-    except (AssertionError, Exception):
-        log_pass(
-            "XFRM not available on Ze (expected on Docker for Mac), skipping ESP checks"
-        )
+    wait_xfrm_sa(ZE_CONTAINER)
 
     log_pass("EAP-TLS tunnel established with certificate authentication")

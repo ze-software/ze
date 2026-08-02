@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/crypto"
+	"github.com/ze-software/ze/internal/component/ike/eap"
 	"github.com/ze-software/ze/internal/component/ike/ipsec"
 	"github.com/ze-software/ze/internal/component/ike/transport"
 	"github.com/ze-software/ze/internal/component/ike/wire"
@@ -249,7 +250,11 @@ type SA struct {
 	nattSocket *transport.UDPTransport
 
 	// EAP state (RFC 7296 Section 2.16).
-	EAPSession any // *eap.Session, stored as any to avoid import cycle
+	// EAPSession holds *eap.Session on the responder (the authenticator) and
+	// *eap.PeerSession on the initiator (the peer). closeEAPSession recovers
+	// whichever shape is present. Typed any so neither role's concrete type
+	// appears in the SA declaration.
+	EAPSession any
 	EAPMSK     [64]byte
 
 	// InitialContact records that the peer's first IKE_AUTH carried an INITIAL_CONTACT
@@ -594,7 +599,32 @@ func (sa *SA) forgetKeys() {
 	if sa.LocalDH != nil {
 		sa.LocalDH.Clear()
 	}
+	sa.closeEAPSession()
 	clear(sa.EAPMSK[:])
 	sa.LocalNonce = nil
 	sa.RemoteNonce = nil
+}
+
+// closeEAPSession ends whatever EAP exchange this SA carried.
+//
+// It belongs on the close path for two reasons. An EAP-TLS exchange runs its TLS
+// engine on a goroutine parked in a read that only this call releases, so an SA
+// that ends mid-exchange strands that goroutine; and the goroutine holds a live
+// tls.Conn, so erasing EAPMSK beside a surviving connection would forget the
+// derived key while leaving the material that derives it, which is the wider
+// clause of Section 2.12 above.
+//
+// This runs only where the SA is already over. Calling it during a live exchange
+// would fail the handshake, but every caller of forgetKeys has just erased
+// SK_d and the DH private value, so no exchange can continue past this point.
+//
+// The field is typed any (see the SA declaration), so the two session shapes are
+// recovered by assertion. Both Close methods are idempotent and nil-safe.
+func (sa *SA) closeEAPSession() {
+	switch s := sa.EAPSession.(type) {
+	case *eap.Session:
+		s.Close()
+	case *eap.PeerSession:
+		s.Close()
+	}
 }

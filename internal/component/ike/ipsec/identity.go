@@ -47,6 +47,28 @@ func ParseRemoteIDType(s string) (uint8, bool) {
 	return t, ok
 }
 
+// remoteIDIsTerminatorFree reports whether a configured remote-id-type names an identity
+// type whose value RFC 7296 Section 3.5 requires to be free of terminator octets.
+//
+// The section states the prohibition for ID_FQDN ("The string MUST NOT contain any
+// terminators (e.g., NULL, CR, etc.)") and repeats it for ID_RFC822_ADDR. It states it for
+// no other type: ID_KEY_ID is "an opaque octet stream", ID_DER_ASN1_DN and ID_DER_ASN1_GN
+// are binary DER encodings, and the address types are fixed-width octets. A control octet
+// in any of those is content, not a terminator.
+//
+// An UNSET type (0) is treated as constrained. remote-id-type is optional, and an operator
+// who omits it is matching a peer that asserts one of the string types in every ordinary
+// configuration. Reading unset as unconstrained would silently drop the check for every
+// peer that never sets the leaf, which is most of them (ai/rules/fail-closed-guards.md).
+func remoteIDIsTerminatorFree(idType uint8) bool {
+	switch idType {
+	case 0, wire.IDTypeFQDN, wire.IDTypeRFC822Addr:
+		return true
+	default:
+		return false
+	}
+}
+
 // IDTerminator reports the first terminator octet in an IKE identity string, and
 // whether the string holds one at all.
 //

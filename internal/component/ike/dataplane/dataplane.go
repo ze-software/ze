@@ -48,6 +48,53 @@ const (
 	kernelModeTunnel    uint8 = 1 // XFRM_MODE_TUNNEL
 )
 
+// SPAction is what a Security Policy DOES with the traffic its selector matches.
+//
+// The zero value is SPActionProtect on purpose, and that choice is the fail-closed
+// one (ai/rules/fail-closed-guards.md). This enumeration is the exception to the
+// 1-based convention Mode and SADir follow above, and the reason is the direction
+// each mistake fails in. An unset Mode made the kernel protect traffic in the WRONG
+// mode, silently, so zero had to be invalid there. An unset Action gives the
+// RESTRICTIVE behavior: the traffic is handed to IPsec. A caller who forgets this
+// field gets a policy that protects, never one that lets traffic out in the clear.
+type SPAction uint8
+
+const (
+	// SPActionProtect hands matching traffic to the IPsec transform named by the
+	// policy template. This is XFRM_POLICY_ALLOW WITH a template.
+	SPActionProtect SPAction = 0
+	// SPActionBypass lets matching traffic pass unprotected. This is
+	// XFRM_POLICY_ALLOW with NO template, the SPD "BYPASS" disposition of RFC 4301
+	// Section 4.4.1. A bypass policy carries no template, so it needs no mode, no
+	// tunnel endpoints and no reqid.
+	SPActionBypass SPAction = 1
+)
+
+// Security Policy priorities.
+//
+// LOWER VALUE MEANS HIGHER PRECEDENCE. The kernel keeps each policy chain sorted by
+// priority ascending and takes the first match (net/xfrm/xfrm_policy.c,
+// xfrm_policy_insert and xfrm_policy_lookup_bytype). At EQUAL priority the ordering
+// falls back to insertion order, which is why neither of these is left at zero: a
+// tie between the IKE bypass and a Child SA policy would be resolved by whichever
+// was installed last.
+//
+// Every policy this package installs for IKE carries one of these two. Before they
+// existed both landed at priority 0, so no bypass could outrank a Child SA policy
+// whose selector had already captured the IKE endpoints.
+//
+// The gap between them is deliberate room. Nothing occupies it today.
+const (
+	// PriorityIKEBypass ranks the IKE control-plane bypass ahead of every negotiated
+	// Child SA policy. IKE is what BUILDS the Child SA, so a Child SA policy that
+	// captured IKE would prevent its own renegotiation, its own rekey and its own
+	// teardown.
+	PriorityIKEBypass = 100
+	// PriorityChildSA ranks a negotiated Child SA policy. It is deliberately worse
+	// than PriorityIKEBypass and deliberately non-zero.
+	PriorityChildSA = 2000
+)
+
 // kernelXFRMMode converts a Ze dataplane mode to the kernel XFRM mode number.
 // The second result is false for an unknown mode. The caller MUST then reject
 // the install. The function never defaults. A wrong mode number is silent. The
@@ -203,6 +250,21 @@ type SAParams struct {
 	UDPEncap      bool
 	UDPEncapSPort uint16
 	UDPEncapDPort uint16
+
+	// AcceptBothESPForms asks the backend to receive BOTH ESP wire forms on this state,
+	// rather than only the one UDPEncap selects. It is meaningful on an INBOUND state
+	// alone, because it describes what the device accepts and never what it sends.
+	//
+	// RFC 7296 Section 2.23: "all devices MUST be able to receive and process both
+	// UDP-encapsulated ESP and non-UDP-encapsulated ESP packets at any time"
+	// (rfc/full/rfc7296.txt:3544-3548). One Linux XFRM state binds exactly one form, so
+	// a backend serves the second form beside the kernel rather than through it.
+	//
+	// A backend that cannot receive both forms MUST reject the install rather than
+	// report success (ai/rules/exact-or-reject.md). An SA installed for one form only
+	// silently drops the other, which is the quietest failure this subsystem has: the
+	// tunnel establishes and carries no traffic.
+	AcceptBothESPForms bool
 }
 
 // PortMatch is the port half of a policy selector, as the kernel expresses it: a value
@@ -239,6 +301,19 @@ type SPParams struct {
 	Mode  uint8 // ModeTransport = 1, ModeTunnel = 2
 	IfID  uint32
 	ReqID uint32
+
+	// Action is what the policy does with matching traffic. The zero value protects
+	// it (see SPAction). SPActionBypass installs a template-free policy, and a
+	// backend that cannot express one MUST reject the install rather than fall back
+	// to protecting (ai/rules/exact-or-reject.md): a bypass silently downgraded to a
+	// protect policy black-holes the traffic it was meant to let through.
+	Action SPAction
+
+	// Priority ranks this policy against every other policy whose selector also
+	// matches. LOWER VALUE MEANS HIGHER PRECEDENCE. Use PriorityIKEBypass or
+	// PriorityChildSA; a bare 0 ties with every other unset policy and the winner is
+	// then decided by installation order.
+	Priority int
 
 	// SrcPort and DstPort narrow the policy selector to a port. The zero value of each
 	// matches every port, so a caller that never sets them installs the same policy it

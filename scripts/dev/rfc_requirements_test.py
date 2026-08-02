@@ -721,18 +721,22 @@ class TestUnrunCarrierRefused(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.root, True)
 
     def test_tag_in_unrun_carrier_is_refused(self):
-        _write(self.root, "test/ipsec-interop/scenarios/01-psk/check.py", _PY_TAG)
+        # test/l2tp-interop/, not test/ipsec-interop/: the ipsec tree gained a scheduled
+        # caller (evidence-nightly.yml `ipsec-interop`) and its tier is now DERIVED as
+        # nightly, so it is no longer an example of a carrier nothing executes. The l2tp
+        # lab still has no scheduled runner. Same assertion, current example.
+        _write(self.root, "test/l2tp-interop/scenarios/01-lac/check.py", _PY_TAG)
         with self.assertRaises(R.ParseError) as cm:
             R.scan_tree(self.root)
         msg = str(cm.exception)
-        self.assertIn("test/ipsec-interop/scenarios/01-psk/check.py", msg)
-        self.assertIn("interop-ipsec", msg)
-        self.assertIn("make ze-ipsec-interop-test", msg)
-        self.assertIn("automated pipeline", msg)
+        self.assertIn("test/l2tp-interop/scenarios/01-lac/check.py", msg)
+        self.assertIn("interop-l2tp", msg)
+        self.assertIn("make ze-deployment-l2tp-ppp-docker-test", msg)
+        self.assertIn("SCHEDULED workflow", msg)
 
     def test_unrun_carrier_without_a_tag_is_silent(self):
         """Discriminates from 'always raises': the refusal is about the TAG, not the tree."""
-        _write(self.root, "test/ipsec-interop/scenarios/01-psk/check.py", "x = 1\n")
+        _write(self.root, "test/l2tp-interop/scenarios/01-lac/check.py", "x = 1\n")
         self.assertEqual(R.scan_tree(self.root), [])
 
     def test_unclassified_scenario_check_is_refused_too(self):
@@ -798,7 +802,9 @@ class TestFilterAgreement(unittest.TestCase):
     def test_baseline_declines_the_unrun_carrier(self):
         """The tree REFUSES an unrun tag, so the baseline must not credit one either --
         otherwise the ratchet demands evidence the tree is forbidden to supply."""
-        fixture = {"test/ipsec-interop/scenarios/01-psk/check.py": _PY_TAG}
+        # l2tp, not ipsec: the ipsec tree now has a scheduled caller and derives a nightly
+        # tier, so it no longer demonstrates an unrun carrier.
+        fixture = {"test/l2tp-interop/scenarios/01-lac/check.py": _PY_TAG}
         with _patched(subprocess=_FakeGit(fixture)):
             self.assertEqual(R._git_baseline_tag_polarities(), {})
 
@@ -5652,6 +5658,174 @@ class TestCITierIsEarnedNotAssumed(unittest.TestCase):
             self.assertIn(f"pipeline: {c.pipeline}", msg, c.name)
 
 
+_SCHEDULED_WF = """\
+name: evidence-nightly
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+jobs:
+  interop:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: make ze-interop-test
+        run: make ze-interop-test
+
+  ipsec-interop:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: make ze-ipsec-interop-test
+        run: make ze-ipsec-interop-test
+"""
+
+_PUSH_ONLY_WF = """\
+name: verify
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - run: make ze-ipsec-interop-test
+"""
+
+
+@contextlib.contextmanager
+def _workflows(**files):
+    """A scratch .github/workflows/ holding the named files, each given a .yml suffix."""
+    with _scratch() as root:
+        d = os.path.join(root, ".github", "workflows")
+        os.makedirs(d)
+        for name, body in files.items():
+            with open(os.path.join(d, f"{name}.yml"), "w", encoding="utf-8") as fh:
+                fh.write(body)
+        yield d
+
+
+class TestInteropTierIsDerivedFromWorkflows(unittest.TestCase):
+    """The interop tier used to be four literals: `interop-bgp` asserted `nightly` and the
+    other three asserted `unrun`, and NOTHING tied either claim to a pipeline. Deleting the
+    nightly interop job changed no byte of CARRIERS, so the gate would have kept crediting
+    `interop/nightly` to a job that no longer existed.
+    """
+
+    def test_scheduled_workflow_targets_reads_make_targets(self):
+        with _workflows(nightly=_SCHEDULED_WF) as d:
+            found = R.scheduled_workflow_targets(d)
+        self.assertIn("ze-interop-test", found)
+        self.assertIn("ze-ipsec-interop-test", found)
+        self.assertEqual(found["ze-ipsec-interop-test"], "nightly.yml")
+
+    def test_scheduled_workflow_targets_ignores_push_only_workflow(self):
+        """A target named ONLY by a push/pull_request workflow grants no nightly tier.
+        Discriminates from 'any mention of the target counts'."""
+        with _workflows(verify=_PUSH_ONLY_WF) as d:
+            self.assertEqual(R.scheduled_workflow_targets(d), {})
+
+    def test_scheduled_workflow_targets_ignores_comments(self):
+        """Matches stripComments on the Go side: a commented-out command is not a caller."""
+        body = _SCHEDULED_WF.replace(
+            "        run: make ze-ipsec-interop-test",
+            "        # run: make ze-ipsec-interop-test",
+        )
+        with _workflows(nightly=body) as d:
+            found = R.scheduled_workflow_targets(d)
+        self.assertIn("ze-interop-test", found)
+        self.assertNotIn("ze-ipsec-interop-test", found)
+
+    def test_scheduled_workflow_targets_fails_closed_when_unreadable(self):
+        """The unsafe direction is answering 'everything runs': that would upgrade every
+        carrier on an error. An unreadable directory raises instead
+        (ai/rules/fail-closed-guards.md)."""
+        with _scratch() as root:
+            with self.assertRaises(R.ParseError):
+                R.scheduled_workflow_targets(os.path.join(root, "nope"))
+
+    def test_scheduled_workflow_targets_fails_closed_when_empty(self):
+        with _workflows() as d:
+            with self.assertRaises(R.ParseError):
+                R.scheduled_workflow_targets(d)
+
+    def test_ipsec_interop_carrier_earns_nightly_when_wired(self):
+        c = R.carrier_for("test/ipsec-interop/scenarios/04-eap-tls/check.py")
+        self.assertIsNotNone(c)
+        self.assertEqual(c.name, "interop-ipsec")
+        self.assertEqual(c.tier, R.TIER_NIGHTLY)
+        self.assertEqual(c.label, "interop/nightly")
+
+    def test_interop_carrier_falls_to_unrun_without_a_scheduled_caller(self):
+        """The same tree resolves `unrun` when no scheduled workflow names its runner, and
+        the refusal names the runner so the fix is actionable."""
+        rows = R._interop_carriers("/check.py", {})
+        by_name = {c.name: c for c in rows}
+        for name in ("interop-bgp", "interop-ipsec", "interop-l2tp", "interop-pppoe"):
+            self.assertEqual(by_name[name].tier, R.TIER_UNRUN, name)
+        tag = R.Tag(
+            rid="RFC7296-1-1",
+            polarity="positive",
+            file="test/ipsec-interop/scenarios/x/check.py",
+            line=3,
+        )
+        msg = str(R._refuse_unrun(by_name["interop-ipsec"], tag))
+        self.assertIn("make ze-ipsec-interop-test", msg)
+        self.assertIn("nothing executes automatically", msg)
+
+    def test_l2tp_and_pppoe_stay_unrun_today(self):
+        """Their labs need host kernel modules that no scheduled runner is confirmed to
+        provide, so no workflow names their runners and the tier derivation refuses them.
+        The pin is on the DERIVATION's answer, not on a literal."""
+        for rel in (
+            "test/l2tp-interop/scenarios/x/check.py",
+            "test/pppoe-interop/scenarios/x/check.py",
+        ):
+            self.assertEqual(R.carrier_for(rel).tier, R.TIER_UNRUN, rel)
+
+    def test_deleting_the_interop_job_downgrades_the_bgp_carrier(self):
+        """AC-6. Today this deletion changes nothing; after the derivation it takes the
+        tier away, which is what makes the ratchet see a LOSS."""
+        body = _SCHEDULED_WF.split("  ipsec-interop:")[0].replace(
+            "        run: make ze-interop-test", "        run: echo nothing"
+        )
+        with _workflows(nightly=body) as d:
+            found = R.scheduled_workflow_targets(d)
+        self.assertNotIn("ze-interop-test", found)
+        self.assertEqual(
+            {c.name: c.tier for c in R._interop_carriers("/check.py", found)}["interop-bgp"],
+            R.TIER_UNRUN,
+        )
+
+    def test_head_carriers_read_head_workflows(self):
+        """_build_head_carriers must label from HEAD's workflow set. Labelling both sides
+        with today's table would make a job deletion symmetric, so evidence that stopped
+        running would read as a wash rather than a loss."""
+        head = {c.name: c for c in R._head_carriers() if c.kind == "interop"}
+        self.assertTrue(head, "no interop rows in the HEAD table")
+        # Every HEAD interop row must be justified by HEAD's own workflows, not by today's.
+        sources = R._head_workflow_sources()
+        if sources is None:
+            self.skipTest("HEAD workflows unreadable (shallow checkout or no git)")
+        scheduled = R._scheduled_targets_from(sources)
+        for name, prefix, target in R.INTEROP_TREES:
+            want = R.TIER_NIGHTLY if scheduled.get(target) else R.TIER_UNRUN
+            self.assertEqual(head[name].tier, want, name)
+
+    def test_no_interop_tier_literal_survives(self):
+        """`ai/rules/derive-not-hardcode.md`: the workflow reader is the ONLY place an
+        interop tier is decided. INTEROP_TREES carries the path and the runner; a tier
+        constant beside them would be the literal coming back."""
+        for row in R.INTEROP_TREES:
+            self.assertEqual(len(row), 3, row)
+            self.assertNotIn(R.TIER_NIGHTLY, row)
+            self.assertNotIn(R.TIER_UNRUN, row)
+
+
 class TestTierMatchesPipelineReality(unittest.TestCase):
     """F4: the tier table is a claim about OTHER files, so it is pinned to their text.
 
@@ -9205,18 +9379,19 @@ class TestGapCountAgreementRealFile(unittest.TestCase):
         """The discriminating half: a parser that matched NOTHING would also report zero
         violations above, so the count of rows it judges is asserted too.
 
-        59, not the 60 measured on 2026-07-30. rfc7296 left the judged population when its
-        last MUST gap was closed: the row now spells no number at all, because the check
-        reads One..Ninety-nine and has no word for zero. A stem that drops out this way is
-        the intended direction of travel, so the constant follows the page."""
+        58, not the 60 measured on 2026-07-30. rfc7296 and rfc3101 left the
+        judged population when their last MUST gap closed. Their rows now spell
+        no number, because the check reads One..Ninety-nine and has no word for
+        zero. A stem that drops out this way is the intended direction of travel."""
         rows = _status_rows()
         judged = [
             stem
             for stem, row in rows.items()
             if R.spelled_gap_count(row["remaining"]) is not None
         ]
-        self.assertEqual(len(judged), 59, sorted(judged))
+        self.assertEqual(len(judged), 58, sorted(judged))
         self.assertNotIn("rfc7296", judged)
+        self.assertNotIn("rfc3101", judged)
 
     def test_the_unjudged_rows_are_the_seven_the_docstring_names(self):
         """The coverage limit check_gap_count_agreement states, MEASURED rather than remembered.

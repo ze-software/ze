@@ -96,6 +96,20 @@ func (b *vppBackend) InstallSA(p SAParams) error {
 		},
 	}
 
+	// SAParams.AcceptBothESPForms needs no work here, and that is MEASURED rather than
+	// assumed. VPP's inbound lookup is encapsulation-BLIND: ipsec_tun_in.c
+	// ipsec_tun_protect_input_inline picks the ESP offset per packet from the wire and
+	// then keys ipsec4_tunnel_mk_key on the peer address and SPI alone, and
+	// ipsec_tun.c ipsec_tun_register_nodes points IP protocol 50 AND UDP port 4500 at the
+	// same node unconditionally. ONE VPP SA therefore receives both ESP forms already,
+	// where Linux XFRM binds one state to one form.
+	//
+	// So this backend does NOT refuse the capability under ai/rules/exact-or-reject.md:
+	// it can express what the caller asked for. It refuses everything else instead. Every
+	// message this backend declares carries CRC "00000000", so GoVPP fails identifier
+	// resolution and no SA is installed at all
+	// (plan/spec-fixit-vpp-ipsec-inoperable.md owns that defect).
+
 	reply := &ipsecSAAddDelReply{}
 	if err := b.ch.SendRequest(req).ReceiveReply(reply); err != nil {
 		return fmt.Errorf("vpp: ipsec sa add spi=%d: %w", p.SPI, err)

@@ -193,6 +193,12 @@ func encapKernelVerdict(t *testing.T, spi uint32, encapsulated bool) string {
 // It carries no RFC requirement tag on purpose. It records what the kernel does. It
 // does not assert that Ze meets an obligation.
 func TestEncapKernelBindsOneESPFormPerState(t *testing.T) {
+	// One namespace probe per PROCESS. See encapOwnProcess for the measurement: a second
+	// probe in the same binary reads a namespace where its datagrams never reach XFRM, so
+	// every counter stays still. Nothing below changes; the body runs in the child.
+	if !encapOwnProcess(t) {
+		return
+	}
 	encapNetns(t)
 
 	encapAddState(t, encapSPIBare, false)

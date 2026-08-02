@@ -247,6 +247,11 @@ func runEngine(conn net.Conn) int {
 	if err := dataplane.Load(ikeDataplaneName()); err != nil {
 		log.Warn("ike: dataplane load failed, SA installation disabled", "error", err)
 	}
+	// Exempt ze's own IKE traffic from IPsec BEFORE any peer can negotiate a Child
+	// SA. A negotiated selector that covers the peer's IKE address would otherwise
+	// capture the exchange that maintains the very tunnel it belongs to
+	// (installIKEBypass, bypass.go).
+	installIKEBypass(dataplane.Get(), log)
 
 	p := sdk.NewWithConn("ike", conn)
 	defer closeSDK(p)
@@ -472,6 +477,10 @@ func runEngine(conn net.Conn) int {
 		}
 	}
 	_ = ipPool
+	// The IKE bypass outlives every peer on purpose, so it is released here rather
+	// than in removeChildSA (installIKEBypass, child.go). This runs after every peer
+	// has stopped, so nothing is left that still needs the exemption.
+	removeIKEBypass(dataplane.Get(), log)
 	if err := dataplane.CloseBackend(); err != nil {
 		log.Warn("ike: dataplane close error", "error", err)
 	}
@@ -825,6 +834,17 @@ func dispatchInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logge
 // never assume the second cause. An empty address with a nil error means the
 // interface is present and has no IPv4 address.
 func resolveInterfaceAddr(name string) (string, error) {
+	// EnsureBackend FIRST. iface.Addresses fails with "iface: no backend loaded" unless
+	// something has loaded one, and a peer configured with `interface eth0` and no
+	// `interfaces` block loads none. OnConfigure only WARNs on that error, so
+	// peer.LocalAddress stayed empty and createFirstChildSA (child.go) then rejected
+	// net.ParseIP("") on every retry. The tunnel installed no Child SA at all, and the
+	// interop lab showed strongSwan's XFRM SA present beside none of ze's, for as long
+	// as an `except (AssertionError, Exception)` in the scenario reported that as a pass.
+	//
+	// This is the guard ospf (plugins/ospf/interface_addr.go) and static already apply
+	// before their own iface.Addresses lookups. IKE was the caller without it.
+	_ = iface.EnsureBackend()
 	addrs, err := iface.Addresses(name)
 	if err != nil {
 		return "", err

@@ -28,9 +28,23 @@ var (
 	errAuthFailed     = errors.New("ike: authentication failed")
 	errTimeout        = errors.New("ike: retransmit timeout")
 	errInvalidMessage = errors.New("ike: invalid message")
+	// errSADead reports that the handshake was abandoned by a handler on the dispatch
+	// goroutine, so the initiator loop stops retransmitting rather than resending the
+	// request of an SA that no longer exists.
+	errSADead = errors.New("ike: handshake abandoned")
 	// errSAExpired reports a refusal to protect a message with an IKE SA whose
 	// negotiated lifetime has run out (RFC 7296 Section 2.8).
 	errSAExpired = errors.New("ike: security association lifetime expired")
+	// errSADeletedByPeer reports that the peer deleted an ESTABLISHED IKE SA, so the
+	// owner loop gave it up.
+	//
+	// It exists to be NON-NIL. PeerSession.run (reconcile.go) reads a nil return as a
+	// clean shutdown and ends the session goroutine for good, which is right for the
+	// operator `clear` path: that one deletes the peer from activePeersMap and calls
+	// reEstablish to build a fresh session. Nothing rebuilds after a peer's Delete, so
+	// returning nil there left the tunnel down until the next config apply. Returning an
+	// error takes the reconnect path the RFC 7296 Section 4 fallback already uses.
+	errSADeletedByPeer = errors.New("ike: peer deleted the IKE SA")
 )
 
 const (
@@ -52,20 +66,33 @@ const (
 var afterFunc = time.After
 
 // reconnectDelay computes exponential backoff for peer reconnection.
+//
+// It backs off on how hard this peer has been to establish with, and it reads TWO measures
+// of that, taking whichever is larger.
+//
+// ps.connectFailures counts the cycles that ended with no established SA since the last one
+// that established. It is the measure that always applies. Both establishment points clear
+// it, so a tunnel that came up and later went down retries at reconnectBase against a peer
+// that has just proven it is reachable.
+//
+// sa.RetransmitCount is the second measure, and it is a FLOOR rather than the answer. It
+// records the transport retransmissions the LAST cycle spent, so a peer that answered only
+// after six repeats keeps the delay it earned instead of restarting the ramp. It cannot be
+// the only input: handleSAInitResponse zeroes it before IKE_AUTH, and an IKE_AUTH the peer
+// refuses returns through errSADead before the branch that raises it, so an authentication
+// failure reads zero there. That read gave reconnectBase, and ze answered a peer that
+// refuses authentication with a fresh IKE_SA_INIT and a fresh Diffie-Hellman every second,
+// indefinitely, which is a denial of service ze inflicts on its own CPU and on the peer.
 func reconnectDelay(ps *PeerSession) time.Duration {
-	if ps.sa == nil {
-		return reconnectBase
+	attempt := ps.connectFailures
+	if ps.sa != nil && ps.sa.RetransmitCount > attempt {
+		attempt = ps.sa.RetransmitCount
 	}
-	attempt := ps.sa.RetransmitCount
 	if attempt <= 0 {
 		return reconnectBase
 	}
 	shift := min(attempt-1, 6)
-	d := reconnectBase * time.Duration(1<<uint(shift))
-	if d > reconnectMaxDelay {
-		return reconnectMaxDelay
-	}
-	return d
+	return min(reconnectBase*time.Duration(1<<uint(shift)), reconnectMaxDelay)
 }
 
 // runOnce executes a single IKE SA lifecycle for a peer session.
@@ -104,6 +131,20 @@ func (ps *PeerSession) runInitiator(
 	// and sa.sendPath needs that socket in hand at the moment the verdict lands.
 	sa.bindSockets(tr, ps.natt)
 	ps.setSA(sa)
+
+	// RFC 7296 Section 2.12 MUST: a closed connection forgets its keys and
+	// everything that could recompute them. Every OTHER way an SA ends reaches
+	// forgetKeys already (runEstablished's defer for an adopted SA, the StateDead
+	// and reap branches of runResponder for a failed responder handshake), but a
+	// failed INITIATOR handshake reached none of them: errSADead, errTimeout and
+	// errStopped all returned from the loop below with the partial handshake's
+	// SKEYSEED inputs still on the SA. It also strands the EAP-TLS engine
+	// goroutine, which closeEAPSession releases.
+	//
+	// Registered BEFORE the removal below so it runs AFTER it: defers unwind
+	// last-first, and the SA must leave the table before its keys are erased, or
+	// a packet still being dispatched would decrypt against a zeroed key.
+	defer sa.forgetKeys()
 
 	// RFC 7296 Section 2.6: initiator inserts SA with zero responder SPI initially.
 	table.Insert(sa)
@@ -148,6 +189,16 @@ func (ps *PeerSession) runInitiator(
 		if ps.stopped() {
 			return errStopped
 		}
+		// The handshake handlers run on the dispatch goroutine and mark a failed SA
+		// StateDead. Without this exit the loop kept RETRANSMITTING the request of a
+		// handshake that had already been abandoned, up to maxRetransmissions times,
+		// and only then gave up with errTimeout. Every one of those retransmissions is
+		// a message the peer must process for an SA this node has already deleted, and
+		// the delay before the reconnect attempt was the whole retransmit schedule
+		// rather than the reconnect backoff.
+		if sa.State == StateDead {
+			return errSADead
+		}
 
 		timeout := time.Until(sa.RetransmitTime)
 		if timeout <= 0 {
@@ -173,6 +224,12 @@ func (ps *PeerSession) runInitiator(
 		case <-afterFunc(timeout):
 		}
 	}
+
+	// The handshake succeeded, so whatever it cost to get here is spent. reconnectDelay
+	// reads both fields after the cycle ends, and neither may carry the cost of a
+	// handshake that worked into the backoff of the cycle that follows it.
+	sa.RetransmitCount = 0
+	ps.connectFailures = 0
 
 	log.Info("ike: SA established", "peer", ps.peerName,
 		"ispi", SPIHex(sa.InitiatorSPI), "rspi", SPIHex(sa.ResponderSPI))
@@ -209,6 +266,19 @@ func (ps *PeerSession) runResponder(
 	ps.responderBusy.Store(false)
 	log.Debug("ike: responder ready", "peer", ps.peerName)
 
+	// RFC 7296 Section 2.12 MUST, for the one exit the switch below cannot reach:
+	// the stopCh return abandons whatever half-open handshake is published at that
+	// instant, and its SA never passes through the StateDead or reap branches that
+	// erase the others. A peer parked mid-EAP when the operator reconfigures is
+	// exactly that case, and it also strands the EAP-TLS engine goroutine, which
+	// closeEAPSession releases.
+	//
+	// The SA is read inside the closure, not as a deferred receiver: a receiver
+	// expression is evaluated where the defer is written, which here is before any
+	// SA exists. forgetKeys is nil-safe, so a session that never accepted one is
+	// a no-op.
+	defer func() { ps.getSA().forgetKeys() }()
+
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 
@@ -228,6 +298,9 @@ func (ps *PeerSession) runResponder(
 		case StateEstablished:
 			log.Info("ike: responder SA established", "peer", ps.peerName,
 				"ispi", SPIHex(sa.InitiatorSPI), "rspi", SPIHex(sa.ResponderSPI))
+			// The second of the two establishment points reconnectDelay's counter is
+			// cleared at. The first is in runInitiator.
+			ps.connectFailures = 0
 			if bus != nil {
 				if _, emitErr := SAUp.Emit(bus, &SAEvent{
 					PeerName:      sa.PeerName,
@@ -764,7 +837,13 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 	// The mode and the selectors the responder answered with are adopted HERE, after
 	// verifyRemoteAuth, so an unauthenticated message can neither tear this SA down nor
 	// choose the traffic it protects (transport_mode.go).
-	if !adoptAuthResponseNegotiation(sa, transportAccepted, respTSi, respTSr, log) {
+	//
+	// The AUTH above has already verified, so this SA is AUTHENTICATED and RFC 7296
+	// Section 2.21.2 applies: an error the initiator finds while processing the response
+	// is reported in a separate INFORMATIONAL, and neither error below is in the closed
+	// set that deletes an SA without a Delete payload. Both therefore SEND before dying.
+	if ok, notify := adoptAuthResponseNegotiation(sa, transportAccepted, respTSi, respTSr, log); !ok {
+		sendIKESATeardown(sa, tr, notify, log)
 		sa.State = StateDead
 		return
 	}
@@ -775,6 +854,9 @@ func handleAuthResponse(sa *SA, msg *wire.Message, rawMsg []byte, _ *SATable, tr
 	if childOffer != nil {
 		if _, err := verifyAcceptedOffer(childOffer, sa.IKEGroup, sa.ESPGroup); err != nil {
 			log.Warn("ike: IKE_AUTH accepted offer rejected", "peer", sa.PeerName, "error", err)
+			// Same Section 2.21.2 obligation as the negotiation teardown above. The
+			// responder accepted an offer ze never made, so NO_PROPOSAL_CHOSEN names it.
+			sendIKESATeardown(sa, tr, wire.NotifyNoProposalChosen, log)
 			sa.State = StateDead
 			return
 		}

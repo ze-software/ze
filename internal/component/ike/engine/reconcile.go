@@ -125,6 +125,23 @@ type PeerSession struct {
 	// the maintainSA loop.
 	pendingIKESwap *SA
 
+	// connectFailures counts the reconnect cycles that have ended WITHOUT the SA
+	// reaching StateEstablished, since the last cycle that did. reconnectDelay (fsm.go)
+	// backs off on it.
+	//
+	// It exists because sa.RetransmitCount cannot answer that question. That counter
+	// records TRANSPORT retransmissions inside one cycle, and a handshake abandoned for a
+	// PROTOCOL reason spends none: handleSAInitResponse zeroes it before IKE_AUTH, and the
+	// errSADead exit in runInitiator returns before the branch that raises it. An IKE_AUTH
+	// the peer refuses therefore read as zero difficulty and drew reconnectBase, so ze
+	// re-ran IKE_SA_INIT and a fresh Diffie-Hellman every second for as long as the refusal
+	// lasted.
+	//
+	// Written by the session goroutine only: run increments it, and each of the two
+	// establishment points clears it. reconnectDelay is called from run alone, so it needs
+	// no lock.
+	connectFailures int
+
 	stopCh   chan struct{}
 	done     chan struct{}
 	stopOnce sync.Once
@@ -438,6 +455,13 @@ func (ps *PeerSession) run(
 		if err == nil || ps.stopped() {
 			return
 		}
+
+		// This cycle ended without an established SA, or it established and then lost the
+		// SA. Either way the next attempt is a retry, and reconnectDelay backs off on how
+		// many of them have run since the last success. A cycle that DID establish cleared
+		// the count on its way through, so a tunnel that came up and later went down still
+		// retries at reconnectBase.
+		ps.connectFailures++
 
 		delay := reconnectDelay(ps)
 		log.Info("ike: peer session ended, reconnecting",

@@ -5,7 +5,6 @@ package eap
 
 import (
 	"context"
-	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/binary"
@@ -53,27 +52,63 @@ func (f *tlsFragmenter) reassemble(typeData []byte) error {
 		}
 		totalLen := int(binary.BigEndian.Uint32(typeData[1:5]))
 		if totalLen > eapTLSMaxReassembly {
-			return fmt.Errorf("eap-tls: TLS message too large (%d bytes)", totalLen)
-		}
-		f.inExpected = totalLen
-		// Reuse existing buffer if capacity is sufficient.
-		if cap(f.inBuf) >= totalLen {
-			f.inBuf = f.inBuf[:0]
-		} else {
-			f.inBuf = make([]byte, 0, totalLen)
+			return fmt.Errorf("eap-tls: TLS message too large (%d bytes, limit %d)", totalLen, eapTLSMaxReassembly)
 		}
 		off = 5
+
+		// RFC 5216 Section 2.1.5 REQUIRES the L flag on the first fragment and
+		// permits it on the others, so a conformant peer can repeat it on every
+		// fragment. Only the first one starts a message. Resetting the buffer on
+		// each L kept the last fragment alone, reported no error, and handed
+		// crypto/tls a truncated record.
+		switch {
+		case len(f.inBuf) > 0 && totalLen != f.inExpected:
+			return fmt.Errorf("eap-tls: fragment re-declares length %d, but this message declared %d", totalLen, f.inExpected)
+		case len(f.inBuf) == 0:
+			f.inExpected = totalLen
+			// Reuse existing buffer if capacity is sufficient.
+			if cap(f.inBuf) >= totalLen {
+				f.inBuf = f.inBuf[:0]
+			} else {
+				f.inBuf = make([]byte, 0, totalLen)
+			}
+		}
 	}
 
 	if off < len(typeData) {
+		// Bound the buffer BEFORE it grows, whatever the peer declared. This
+		// ceiling used to live inside the L-flag branch above, so a peer that
+		// never set L left inExpected at 0, skipped the check, and grew this
+		// buffer without any limit. EAP-TLS runs before the peer is
+		// authenticated, so the octets arrive from an unauthenticated party
+		// (ai/rules/fail-closed-guards.md). Checking after the append would
+		// still let each fragment overshoot by its own length.
+		grown := len(f.inBuf) + len(typeData) - off
+		if grown > eapTLSMaxReassembly {
+			return fmt.Errorf("eap-tls: TLS message too large (%d bytes, limit %d)", grown, eapTLSMaxReassembly)
+		}
+		if f.inExpected > 0 && grown > f.inExpected {
+			return fmt.Errorf("eap-tls: reassembled data (%d bytes) exceeds declared length (%d bytes)", grown, f.inExpected)
+		}
 		f.inBuf = append(f.inBuf, typeData[off:]...)
 	}
 
-	if f.inExpected > 0 && len(f.inBuf) > f.inExpected {
-		return fmt.Errorf("eap-tls: reassembled data (%d bytes) exceeds declared length (%d bytes)", len(f.inBuf), f.inExpected)
-	}
-
 	return nil
+}
+
+// reassemblyComplete reports whether every declared octet has arrived.
+//
+// A peer signals the end of a fragmented message by clearing the M flag, but
+// that says only "I have stopped sending", never "you have it all". Feeding a
+// short buffer to crypto/tls produces the opaque "local error: tls: error
+// decoding message" several layers away from the cause, so the caller checks
+// this before it drains (ai/rules/fail-closed-guards.md).
+//
+// A message that declared no length has nothing to check against and is
+// reported complete: RFC 5216 Section 2.1.5 requires the L flag only when a
+// message is fragmented.
+func (f *tlsFragmenter) reassemblyComplete() bool {
+	return f.inExpected == 0 || len(f.inBuf) == f.inExpected
 }
 
 // drainReassembled returns the reassembled inbound data and resets length tracking.
@@ -130,6 +165,63 @@ func (f *tlsFragmenter) nextFragment() []byte {
 	return td
 }
 
+// EAP-TLS key derivation labels. The label and the exporter inputs depend on the
+// negotiated TLS version, so a single label is wrong for one of them.
+//
+// RFC 5216 Section 2.3 (TLS 1.2 and below):
+//
+//	MSK = TLS-PRF(master_secret, "client EAP encryption",
+//	              client.random || server.random)[0..63]
+//
+// RFC 9190 Section 2.3 (TLS 1.3) replaces it, because TLS 1.3 has no
+// master_secret to run the old PRF over:
+//
+//	Key_Material = TLS-Exporter("EXPORTER_EAP_TLS_Key_Material", Type-Code, 128)
+//	MSK          = Key_Material[0..63]
+const (
+	eapTLSLabelRFC5216 = "client EAP encryption"
+	eapTLSLabelRFC9190 = "EXPORTER_EAP_TLS_Key_Material"
+
+	// eapTLSKeyMaterialLen is the RFC 9190 export length: 64 octets of MSK
+	// followed by 64 of EMSK. Ze uses the MSK half.
+	eapTLSKeyMaterialLen = 128
+)
+
+// eapTLSTypeCode is the EAP-TLS method type, used verbatim as the RFC 9190
+// exporter context.
+var eapTLSTypeCode = []byte{TypeTLS}
+
+// exportEAPTLSMSK derives the EAP-TLS MSK from a completed TLS connection,
+// choosing the derivation the negotiated TLS version defines.
+//
+// It returns an error rather than a zero MSK when the key cannot be exported. An
+// all-zero MSK is a valid-looking answer the caller cannot tell from a real key:
+// ze would compute its IKEv2 AUTH payload (RFC 7296 Section 2.16) over 64 zero
+// octets, and two ends that both failed this way would agree on zeros and
+// authenticate nothing (ai/rules/fail-closed-guards.md).
+func exportEAPTLSMSK(cs tls.ConnectionState) ([64]byte, error) {
+	var msk [64]byte
+	if !cs.HandshakeComplete {
+		return msk, errors.New("eap-tls: TLS handshake did not complete, so no MSK exists")
+	}
+
+	if cs.Version >= tls.VersionTLS13 {
+		material, err := cs.ExportKeyingMaterial(eapTLSLabelRFC9190, eapTLSTypeCode, eapTLSKeyMaterialLen)
+		if err != nil {
+			return msk, fmt.Errorf("eap-tls: export key material (RFC 9190 Section 2.3): %w", err)
+		}
+		copy(msk[:], material[:64])
+		return msk, nil
+	}
+
+	exported, err := cs.ExportKeyingMaterial(eapTLSLabelRFC5216, nil, 64)
+	if err != nil {
+		return msk, fmt.Errorf("eap-tls: export MSK (RFC 5216 Section 2.3): %w", err)
+	}
+	copy(msk[:], exported)
+	return msk, nil
+}
+
 type tlsState uint8
 
 const (
@@ -145,6 +237,12 @@ type tlsMethod struct {
 	conn       *tls.Conn
 	transport  *eapTLSTransport
 	handshaked atomic.Bool
+
+	// started publishes the transport to Close, which runs on the session's
+	// owner goroutine while Start and Process run on the dispatch goroutine.
+	// Start assigns transport BEFORE it stores this, so a Close that reads true
+	// is guaranteed to see the assignment.
+	started atomic.Bool
 }
 
 func newTLSMethod(config MethodConfig) (*tlsMethod, error) {
@@ -179,6 +277,11 @@ func (m *tlsMethod) Type() uint8 { return TypeTLS }
 // RFC 5216 Section 2.1: server initiates with EAP-Request/EAP-TLS with S flag.
 func (m *tlsMethod) Start(identifier uint8) *Packet {
 	m.transport = newEAPTLSTransport()
+	// Publish the transport BEFORE the goroutine exists. Close reads this flag
+	// from the session's owner goroutine, and a Close that observed a started
+	// method with no transport yet would return without releasing the goroutine
+	// this line is about to start.
+	m.started.Store(true)
 	m.state = tlsStateHandshake
 
 	go m.runTLSServer()
@@ -219,17 +322,42 @@ func (m *tlsMethod) Process(response *Packet) MethodResult {
 		}
 	}
 
+	// The peer cleared the M flag, so it has stopped sending. Refuse a message
+	// that is shorter than the length it declared rather than passing the short
+	// buffer to crypto/tls.
+	if !m.reassemblyComplete() {
+		return MethodResult{Err: fmt.Errorf("eap-tls: peer ended a TLS message after %d of %d declared bytes", len(m.inBuf), m.inExpected)}
+	}
+
 	// All fragments received. Feed reassembled data to TLS.
 	if data := m.drainReassembled(); len(data) > 0 {
 		m.transport.feedPeerData(data)
 	}
 
-	// Read TLS engine output.
-	serverData := m.transport.readServerData()
+	// Read TLS engine output, waiting for the engine to settle so the whole
+	// flight goes out in one EAP message.
+	serverData := m.transport.waitServerData()
 
 	if m.handshaked.Load() {
+		// Send the engine's closing flight before concluding. Go's TLS 1.2
+		// server writes ChangeCipherSpec and Finished and only THEN returns from
+		// HandshakeContext, so those octets are produced in the very round that
+		// sets handshaked. Returning Done here dropped the server Finished, the
+		// peer waited for it forever, and its MSK stayed zero while ours did
+		// not: the two IKEv2 AUTH payloads (RFC 7296 Section 2.16) were then
+		// computed over keys the ends did not share. The peer side documents the
+		// same ordering in handleTLSRequest; this is its mirror.
+		if len(serverData) > 0 {
+			m.startSending(serverData)
+			return MethodResult{
+				Response: &Packet{Code: CodeRequest, Type: TypeTLS, TypeData: m.nextFragment()},
+			}
+		}
 		m.state = tlsStateDone
-		msk := m.deriveMSK()
+		msk, err := m.deriveMSK()
+		if err != nil {
+			return MethodResult{Err: err}
+		}
 		return MethodResult{MSK: msk, Done: true}
 	}
 
@@ -246,6 +374,24 @@ func (m *tlsMethod) Process(response *Packet) MethodResult {
 	}
 }
 
+// Close releases the TLS engine goroutine Start launched.
+//
+// runTLSServer parks in eapTLSTransport.Read whenever it has consumed every
+// octet the peer sent, and Read returns from that park only after the transport
+// is closed. Every exchange that ends before the handshake completes therefore
+// strands that goroutine, along with the tls.Conn and the handshake secrets it
+// holds. The peer chooses when to stop answering, and it is unauthenticated
+// until the exchange finishes, so the count is the peer's to pick.
+//
+// Idempotent: eapTLSTransport.Close only sets a flag under its mutex. Safe
+// before Start, when there is no transport and no goroutine to release.
+func (m *tlsMethod) Close() {
+	if !m.started.Load() {
+		return
+	}
+	m.transport.shutdown()
+}
+
 func (m *tlsMethod) runTLSServer() {
 	m.conn = tls.Server(m.transport, m.tlsConfig)
 	err := m.conn.HandshakeContext(context.Background())
@@ -253,30 +399,25 @@ func (m *tlsMethod) runTLSServer() {
 		m.transport.setError(err)
 		return
 	}
+	// Publish the outcome BEFORE the wakeup: handshakeFinished releases a
+	// waiter in Process, which reads handshaked to decide the method is done.
 	m.handshaked.Store(true)
+	m.transport.handshakeFinished()
 }
 
-// deriveMSK derives the MSK from the TLS connection.
-// RFC 5216 Section 2.3: MSK = TLS-PRF(master_secret, "client EAP encryption",
-// client.random || server.random)[0..63].
-func (m *tlsMethod) deriveMSK() [64]byte {
-	var msk [64]byte
+// deriveMSK derives the authenticator's MSK from the completed TLS connection.
+//
+// A failed export is an error, never a substitute key. This used to fall back to
+// sha256(TLSUnique), which no other implementation computes: the peer derives the
+// RFC 5216 MSK, the two keys disagree, and the IKEv2 AUTH payload built from them
+// (RFC 7296 Section 2.16) fails to verify with no usable reason. A locally
+// invented key is indistinguishable from a real one at the call site, which is
+// what makes it dangerous (ai/rules/fail-closed-guards.md).
+func (m *tlsMethod) deriveMSK() ([64]byte, error) {
 	if m.conn == nil {
-		return msk
+		return [64]byte{}, errors.New("eap-tls: no TLS connection to derive the MSK from")
 	}
-	cs := m.conn.ConnectionState()
-	exported, err := cs.ExportKeyingMaterial("client EAP encryption", nil, 64)
-	if err == nil {
-		copy(msk[:], exported)
-		return msk
-	}
-	// Fallback: hash session state for a deterministic key.
-	h := sha256.New()
-	h.Write(cs.TLSUnique)
-	sum := h.Sum(nil)
-	copy(msk[:32], sum)
-	copy(msk[32:], sum)
-	return msk
+	return exportEAPTLSMSK(m.conn.ConnectionState())
 }
 
 // notifyCh sends a non-blocking signal on a buffered channel.
@@ -295,41 +436,112 @@ func notifyCh(ch chan struct{}) {
 	}
 }
 
+// eapTLSSettleBackstop bounds waitServerData against a TLS engine that neither
+// reads, writes, nor returns. It is a BACKSTOP, never the primary signal: the
+// engine settles in microseconds through readIdle, finished, closed or err, so a
+// fire here means the engine is wedged and the caller is better served by the
+// empty answer than by a blocked IKE exchange.
+const eapTLSSettleBackstop = 2 * time.Second
+
 // eapTLSTransport implements net.Conn for piping TLS through EAP packets.
+//
+// It carries a wakeup in each direction. peerCh wakes the TLS engine when EAP
+// delivers peer bytes. serverCh wakes the EAP side when the engine produces
+// bytes or stops producing them. Both are needed: the EAP side must send the
+// engine's whole flight in one EAP message, and it cannot know the flight is
+// complete from a buffer snapshot, because an empty buffer reads the same
+// whether the engine has finished writing or has not started.
 type eapTLSTransport struct {
 	mu        sync.Mutex
 	peerBuf   []byte
 	serverBuf []byte
 	peerCh    chan struct{}
+	serverCh  chan struct{}
 	err       error
 	closed    bool
+
+	// readIdle records that the TLS engine is parked in Read with no input
+	// available. The engine writes its whole flight before it reads again, so
+	// readIdle is the signal that the flight is complete.
+	readIdle bool
+
+	// finished records that the TLS engine goroutine has returned. It produces
+	// no further output, so a waiter must stop waiting for any.
+	finished bool
 }
 
 func newEAPTLSTransport() *eapTLSTransport {
 	return &eapTLSTransport{
-		peerCh: make(chan struct{}, 1),
+		peerCh:   make(chan struct{}, 1),
+		serverCh: make(chan struct{}, 1),
 	}
 }
 
 func (t *eapTLSTransport) feedPeerData(data []byte) {
 	t.mu.Lock()
 	t.peerBuf = append(t.peerBuf, data...)
+	// Input is available, so the engine is no longer idle. Clearing this here
+	// rather than in Read closes a race: the engine clears it only once it is
+	// scheduled, and a waiter that ran first would read the stale idle set by
+	// the previous park and return before the engine answered.
+	t.readIdle = false
 	t.mu.Unlock()
 	notifyCh(t.peerCh)
 }
 
-func (t *eapTLSTransport) readServerData() []byte {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	data := t.serverBuf
-	t.serverBuf = nil
-	return data
+// waitServerData blocks until the TLS engine settles, then returns everything it
+// produced. The engine has settled when it parks in Read with no input, when its
+// goroutine has returned, when the transport is closed, or when it failed.
+//
+// A snapshot of serverBuf cannot answer this question. Reading it without the
+// wait returns an empty slice while the engine is still building the flight,
+// which the EAP layer then sends as a bare fragment ACK. RFC 5216 Section 2.1.5
+// permits that ACK only in answer to a message carrying the M flag, so a peer
+// refuses it and the method fails before any TLS record crosses.
+func (t *eapTLSTransport) waitServerData() []byte {
+	backstop := time.NewTimer(eapTLSSettleBackstop)
+	defer backstop.Stop()
+
+	for {
+		t.mu.Lock()
+		if t.readIdle || t.finished || t.closed || t.err != nil {
+			data := t.serverBuf
+			t.serverBuf = nil
+			t.mu.Unlock()
+			return data
+		}
+		t.mu.Unlock()
+
+		select {
+		case <-t.serverCh:
+		case <-backstop.C:
+			t.mu.Lock()
+			data := t.serverBuf
+			t.serverBuf = nil
+			t.mu.Unlock()
+			return data
+		}
+	}
 }
 
+// setError records a failed TLS handshake. The engine goroutine returns on this
+// path, so it also marks the engine finished.
 func (t *eapTLSTransport) setError(err error) {
 	t.mu.Lock()
 	t.err = err
+	t.finished = true
 	t.mu.Unlock()
+	notifyCh(t.serverCh)
+}
+
+// handshakeFinished marks the TLS engine goroutine as returned. The caller MUST
+// publish the handshake outcome (the tlsDone / handshaked flag) BEFORE it calls
+// this: the call is the wakeup that lets a waiter observe the outcome.
+func (t *eapTLSTransport) handshakeFinished() {
+	t.mu.Lock()
+	t.finished = true
+	t.mu.Unlock()
+	notifyCh(t.serverCh)
 }
 
 // Read implements net.Conn.Read (called by TLS to read peer data).
@@ -339,14 +551,21 @@ func (t *eapTLSTransport) Read(p []byte) (int, error) {
 		if len(t.peerBuf) > 0 {
 			n := copy(p, t.peerBuf)
 			t.peerBuf = t.peerBuf[n:]
+			t.readIdle = false
 			t.mu.Unlock()
 			return n, nil
 		}
 		if t.closed {
+			t.readIdle = false
 			t.mu.Unlock()
 			return 0, io.EOF
 		}
+		// The engine is about to block with no input, so it has written
+		// everything it can for this flight. Publish that before releasing the
+		// lock, then wake the EAP side.
+		t.readIdle = true
 		t.mu.Unlock()
+		notifyCh(t.serverCh)
 		<-t.peerCh
 	}
 }
@@ -354,17 +573,32 @@ func (t *eapTLSTransport) Read(p []byte) (int, error) {
 // Write implements net.Conn.Write (called by TLS to send server data).
 func (t *eapTLSTransport) Write(p []byte) (int, error) {
 	t.mu.Lock()
-	defer t.mu.Unlock()
 	t.serverBuf = append(t.serverBuf, p...)
+	t.mu.Unlock()
+	notifyCh(t.serverCh)
 	return len(p), nil
 }
 
-// Close implements net.Conn.Close.
-func (t *eapTLSTransport) Close() error {
+// shutdown releases the TLS engine goroutine and every waiter on this
+// transport. Read answers io.EOF once closed is set, and the two wakeups below
+// are what lets a parked reader or waiter observe it.
+//
+// It cannot fail, so it returns nothing: the net.Conn Close below exists only
+// to satisfy the interface, and an error return there would make every internal
+// caller either check a value that is always nil or suppress it.
+//
+// Idempotent. Safe to call from any goroutine, and safe to call more than once.
+func (t *eapTLSTransport) shutdown() {
 	t.mu.Lock()
 	t.closed = true
 	t.mu.Unlock()
 	notifyCh(t.peerCh)
+	notifyCh(t.serverCh)
+}
+
+// Close implements net.Conn.Close.
+func (t *eapTLSTransport) Close() error {
+	t.shutdown()
 	return nil
 }
 

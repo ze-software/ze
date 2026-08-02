@@ -167,9 +167,10 @@ func (r *hsResult) peerState() tls.ConnectionState {
 
 // runEAPTLSHandshake drives a full EAP-TLS exchange between a freshly created
 // authenticator Session (from serverCfg) and the supplied peer, returning the
-// observed outcome. A short per-round pause lets the two background TLS
-// goroutines produce their output between EAP rounds; the peer's own
-// maxEAPRounds cap guarantees termination even when the handshake fails.
+// observed outcome. It needs no per-round pause: each side waits for its own TLS
+// engine to settle before it answers, so every round carries real data rather
+// than an empty polling ACK. The peer's maxEAPRounds cap guarantees termination
+// even when the handshake fails.
 func runEAPTLSHandshake(t *testing.T, serverCfg MethodConfig, peer *PeerSession) *hsResult {
 	t.Helper()
 
@@ -177,6 +178,16 @@ func runEAPTLSHandshake(t *testing.T, serverCfg MethodConfig, peer *PeerSession)
 	if err != nil {
 		t.Fatalf("create authenticator session: %v", err)
 	}
+	// Release both sides' TLS engine goroutines when the test ends. Every failure
+	// case this harness drives (untrusted client chain, untrusted server chain, no
+	// trust anchor) leaves the handshake incomplete, and an incomplete handshake
+	// parks a goroutine in eapTLSTransport.Read on each side until something
+	// closes the transport. No assertion changes: this only frees what the test
+	// already finished with.
+	t.Cleanup(func() {
+		sess.Close()
+		peer.Close()
+	})
 	method, ok := sess.method.(*tlsMethod)
 	if !ok {
 		t.Fatalf("authenticator method is %T, want *tlsMethod", sess.method)
@@ -215,11 +226,6 @@ func runEAPTLSHandshake(t *testing.T, serverCfg MethodConfig, peer *PeerSession)
 			break
 		}
 		req = next
-
-		// Give the authenticator and peer TLS handshake goroutines time to
-		// consume the freshly delivered flight and emit the next one, so the
-		// exchange advances on real data instead of empty polling ACKs.
-		time.Sleep(time.Millisecond)
 	}
 	return res
 }

@@ -150,6 +150,23 @@ func buildErrorNotifyResponse(sa *SA, msgID uint32, exchange uint8, notifyType u
 // It then sends them to the configured peer.
 //
 // The three-step tail repeats at each refusal site, so it lives here once.
+//
+// INVALID_SYNTAX ALSO ENDS THIS NODE'S OWN SA, and that is the fourth step.
+// RFC 7296 Section 2.21.3 (rfc/full/rfc7296.txt:3341-3345): when a peer returns an
+// INVALID_SYNTAX notification, "this error notification is considered fatal in both
+// peers, meaning that the IKE SA is deleted without needing an explicit Delete payload."
+// The peer discards the SA on receipt, so a node that sends one and keeps its own half is
+// encrypting to nobody until dead-peer detection notices.
+//
+// The rule is attached to the notify TYPE, not to a call site, so it lives at the one
+// authenticated-path emitter rather than at each refusal. Every site reaches it:
+// respondInnerParseError, the malformed-Delete pre-scan, and the two rekey refusals
+// notifyForRefusal maps to INVALID_SYNTAX (inbound.go).
+//
+// UNSUPPORTED_CRITICAL_PAYLOAD is deliberately NOT fatal here. Section 2.21.2 puts it in
+// the set that deletes an SA without a Delete payload only "in an IKE_AUTH exchange, or in
+// the INFORMATIONAL exchange immediately following it". Section 2.21.3, which governs an
+// authenticated SA, names INVALID_SYNTAX alone.
 func (ps *PeerSession) respondError(
 	sa *SA, msgID uint32, exchange uint8, notifyType uint16, data []byte,
 	tr *transport.UDPTransport, log *slog.Logger,
@@ -166,6 +183,15 @@ func (ps *PeerSession) respondError(
 	countErrorNotifySent(notifyType, true)
 	log.Info("ike: answered a refused request with an error notify", "peer", ps.peerName,
 		"notify", wire.NotifyTypeName(notifyType), "msgid", msgID)
+	// After the send, so the peer still receives the notification that tells it to do the
+	// same. cacheResponse above keeps the bytes, so a retransmission of the same request is
+	// still answered until the owner loop reads StateDead on its next tick
+	// (established.go). Every caller runs on that loop's goroutine, so this needs no lock.
+	if notifyType == wire.NotifyInvalidSyntax {
+		sa.State = StateDead
+		log.Warn("ike: answered with INVALID_SYNTAX, which deletes the IKE SA at both ends",
+			"peer", ps.peerName, "msgid", msgID)
+	}
 }
 
 // errMalformedRequest marks a request Ze refused because the message itself was wrong.

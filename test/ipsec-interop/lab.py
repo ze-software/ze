@@ -186,6 +186,31 @@ def ze_log_contains(needle):
     return needle in logs
 
 
+def wait_swan_log(needle, timeout=None):
+    """Poll strongSwan's log until it contains needle.
+
+    The peer-side companion of wait_ze_log. It exists because a one-shot
+    docker_logs_all(SWAN_CONTAINER) races charon: check() runs as soon as the
+    containers are up, so a needle describing the FIRST exchange is usually not
+    written yet, and the scenario fails on timing rather than on behaviour.
+
+    Scenarios 05 and 09 each hand-rolled this loop. New assertions on the peer's
+    log use this instead of copying it a third time.
+    """
+    if timeout is None:
+        timeout = SESSION_TIMEOUT
+    log_info("waiting for strongSwan log: '%s' (timeout %ds)..." % (needle, timeout))
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        logs = docker_logs_all(SWAN_CONTAINER)
+        if needle in logs:
+            log_pass("strongSwan log contains: %s" % needle)
+            return
+        time.sleep(2)  # poll interval; the loop returns as soon as the needle appears
+    log_fail("strongSwan log missing: '%s' within %ds" % (needle, timeout))
+    raise AssertionError("strongSwan log missing: %s" % needle)
+
+
 def ze_xfrm_state():
     """Return XFRM SA state from Ze container."""
     return docker_exec_quiet(ZE_CONTAINER, ["ip", "xfrm", "state"])
@@ -671,6 +696,22 @@ class Scenario:
                 "%s:/etc/swanctl/conf.d/interop.conf:ro"
                 % os.path.abspath(swanctl_conf),
             ]
+
+            # A scenario MAY supply charon daemon settings, the way it already
+            # supplies swanctl connection settings above. /etc/strongswan.conf
+            # ends with `include strongswan.d/*.conf`, so a file dropped here is
+            # read after the shipped charon.conf and overrides it.
+            #
+            # Scenario 04 needs this because charon's own default caps EAP-TLS at
+            # TLS 1.2 (`# version_max = 1.2`, /etc/strongswan.d/charon.conf), and
+            # a peer that never offers 1.3 cannot be used to prove ze speaks it.
+            strongswan_conf = os.path.join(self.scenario_dir, "strongswan.conf")
+            if os.path.isfile(strongswan_conf):
+                swan_volumes.append(
+                    "%s:/etc/strongswan.d/99-interop.conf:ro"
+                    % os.path.abspath(strongswan_conf)
+                )
+
             if pki_dir:
                 swan_volumes.extend(
                     [
@@ -716,18 +757,40 @@ class Scenario:
             "%s:/etc/ze/ze.conf:ro" % os.path.abspath(ze_conf),
         ]
 
+        ze_env = [
+            "-e",
+            "ZE_STORAGE_BLOB=false",
+            "-e",
+            "ZE_LOG_LEVEL=debug",
+        ]
+
+        # A scenario MAY add environment variables for the ze container by
+        # listing KEY=VALUE lines in a `ze-env` file beside its ze.conf.
+        #
+        # This used to be one unconditional GODEBUG=tlsunsafeekm=1 applied to
+        # every scenario. Only 04-eap-tls needs it, and setting it lab-wide made
+        # the weakening invisible and unprovable: no scenario could show that ze
+        # authenticates without it. Per-scenario, a run that does not name it
+        # genuinely runs without it.
+        ze_env_file = os.path.join(self.scenario_dir, "ze-env")
+        if os.path.isfile(ze_env_file):
+            with open(ze_env_file, encoding="utf-8") as fh:
+                for line in fh:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    if "=" not in line:
+                        raise RuntimeError(
+                            "ze-env line in %s is not KEY=VALUE: %r" % (self.name, line)
+                        )
+                    ze_env.extend(["-e", line])
+
         docker_run(
             ZE_CONTAINER,
             "ze-ipsec-interop",
             ZE_IP,
             volumes=ze_volumes,
-            extra_args=[
-                "--privileged",
-                "-e",
-                "ZE_STORAGE_BLOB=false",
-                "-e",
-                "ZE_LOG_LEVEL=debug",
-            ],
+            extra_args=["--privileged"] + ze_env,
             # `start <config>`: the bare `ze <config>` launch form was removed from the CLI,
             # and the image ENTRYPOINT is `tini -- ze`, so the old cmd died with "unknown
             # command". Same defect as test/interop/interop.py. The first pass fixed only

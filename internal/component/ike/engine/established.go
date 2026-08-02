@@ -55,6 +55,23 @@ func (ps *PeerSession) runEstablished(
 	// Registered AFTER the store above, so it runs BEFORE it: defers unwind last-first.
 	defer func() { ps.ownedSA.Load().forgetKeys() }()
 
+	// The same close, for the one holder forgetKeys cannot reach. A rekey this
+	// session started and never got an answer to keeps its Diffie-Hellman private
+	// value in ps.pendingRekey, which lives on the SESSION rather than on the SA, so
+	// erasing the SA above leaves it behind. It is exactly "something that could
+	// recompute the keys" in Section 2.12's sense: it is the private half of the
+	// exchange that would have derived the replacement SA's SKEYSEED.
+	//
+	// Safe to touch here, and only here. pendingRekey is owned without a lock by the
+	// maintainSA goroutine (reconcile.go), and this defer runs after maintainSA has
+	// returned. Every path that ENDS an exchange normally already clears it
+	// (inbound.go, serviceRekeyRetransmit); this covers the paths that end the
+	// SESSION with an exchange still outstanding.
+	defer func() {
+		ps.pendingRekey.clear()
+		ps.pendingRekey = nil
+	}()
+
 	ifID := resolveIfID(peer)
 
 	var child *ChildSA
@@ -252,7 +269,14 @@ func (ps *PeerSession) maintainSA(
 			if sa.State == StateDead {
 				log.Info("ike: SA marked dead by peer", "peer", ps.peerName)
 				ps.cleanupChild(dp, bus, log)
-				return nil
+				// NON-NIL ON PURPOSE. PeerSession.run (reconcile.go) reads a nil
+				// return as a clean shutdown and ends the session goroutine, so this
+				// path used to leave the tunnel down until the next config apply. The
+				// operator `clear` above returns nil correctly, because
+				// TerminateAllSAs deletes the peer and calls reEstablish to rebuild
+				// it. A peer's Delete rebuilds nothing, so the reconnect has to come
+				// from here. This is the exit the Section 4 fallback already takes.
+				return errSADeletedByPeer
 			}
 
 			if dpd != nil && dpd.timedOut(now) {
@@ -503,6 +527,11 @@ func (ps *PeerSession) serviceRekeyRetransmit(sa *SA, tr *transport.UDPTransport
 		log.Warn("ike: rekey unanswered, tearing down", "peer", ps.peerName)
 		// The exchange is over, so free the request window it held (RFC 7296 §2.3).
 		sa.releaseRequestWindow()
+		// RFC 7296 Section 2.12: an abandoned IKE rekey still holds the DH private
+		// value it generated for the request. Dropping the pointer leaves it in
+		// memory for the garbage collector to move around; clear() zeroes it, which
+		// is what every other path that ends a pendingRekey does (inbound.go).
+		p.clear()
 		ps.pendingRekey = nil
 		ps.cleanupChild(dp, bus, log)
 		return errTimeout
@@ -582,7 +611,9 @@ func (ps *PeerSession) cleanupChild(dp dataplane.Dataplane, bus ze.EventBus, log
 	// that XFRM state behind, because the removal below reaches only the live pair.
 	if old := ps.supersededChild; old != nil {
 		ps.supersededChild = nil
-		removeChildSA(old, dp, log)
+		// The live pair below still answers to these policies, so they survive this
+		// call and are removed by the one after it -- once, in total.
+		removeChildSAExcept(old, ps.getChildSA(), dp, log)
 	}
 	child := ps.getChildSA()
 	if child != nil {

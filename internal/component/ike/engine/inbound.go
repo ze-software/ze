@@ -308,8 +308,9 @@ func (ps *PeerSession) handleCreateChildSAOwned(sa *SA, msg *wire.Message, inner
 			// 1.4.1's crossing case rather than answered with a duplicate.
 			ps.recordOwnDelete(old)
 			ps.sendDeleteESP(sa, tr, old.InboundSPI, log)
-			removeChildSA(old, dp, log)
-			ps.markOwnDeleteRemoved(old)
+			// newChild is already the live pair and shares these policies, so only the
+			// retired states go.
+			removeChildSAExcept(old, newChild, dp, log)
 			ps.pendingRekey = nil
 			log.Info("child-sa: rekeyed via CREATE_CHILD_SA", "peer", ps.peerName,
 				"old-in", old.InboundSPI, "new-in", newChild.InboundSPI)
@@ -485,6 +486,27 @@ func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner
 	var out ownedOutcome
 	var paired []uint32
 	ikeDeleted := false
+	// RFC 7296 Section 2.21.3: "After the IKE SA is authenticated, all requests having
+	// errors MUST result in a response notifying the other end of the error." A Delete
+	// payload whose SPI Size breaks Section 3.11 is such an error, and it is checked over
+	// the WHOLE chain before anything is closed: a malformed payload makes the request
+	// malformed, and Section 2.21.2 has a malformed request "rejected in their entirety".
+	// Answering it with the empty response an unresolvable SPI list produces would tell the
+	// peer its Delete succeeded.
+	if !isResponse {
+		for i := range inner {
+			del, ok := inner[i].Payload.(*wire.PayloadDelete)
+			if !ok || !deleteMalformed(del) {
+				continue
+			}
+			log.Warn("ike: peer Delete payload is malformed, answering INVALID_SYNTAX",
+				"peer", ps.peerName, "protocol", del.ProtocolID,
+				"spi-size", del.SPISize, "num-spis", del.NumSPIs)
+			ps.respondError(sa, msg.Header.MessageID, wire.ExchangeInformational,
+				wire.NotifyInvalidSyntax, nil, tr, log)
+			return out
+		}
+	}
 	for i := range inner {
 		del, ok := inner[i].Payload.(*wire.PayloadDelete)
 		if !ok {
@@ -511,7 +533,7 @@ func (ps *PeerSession) handleInformationalOwned(sa *SA, msg *wire.Message, inner
 		// RFC 7296 Section 1.4.1 puts the second half of the crossing case here:
 		// a node that issued a Delete request deletes
 		// "the incoming SAs while processing the response".
-		ps.finishOwnDeletes(dp, log)
+		ps.finishOwnDeletes()
 		return out
 	}
 	// RFC 7296 §1.4: every INFORMATIONAL request (DPD probe or Delete) is answered.

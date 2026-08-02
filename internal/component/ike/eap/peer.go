@@ -65,6 +65,10 @@ type PeerSession struct {
 	tlsTransport *eapTLSTransport
 	tlsStarted   atomic.Bool
 	tlsDone      atomic.Bool
+
+	// tlsErr holds the TLS handshake goroutine's error, so a failure reports its
+	// cause rather than only the "no MSK" consequence.
+	tlsErr atomic.Pointer[error]
 }
 
 type peerState uint8
@@ -127,6 +131,29 @@ func (ps *PeerSession) Process(request *Packet) PeerResult {
 
 // Succeeded reports whether the exchange completed successfully.
 func (ps *PeerSession) Succeeded() bool { return ps.state == peerStateDone }
+
+// Close releases every resource the peer session holds.
+//
+// The caller MUST call it once the exchange has ended, for ANY reason: an
+// EAP-Success, an EAP-Failure, a refused method, or an authenticator that
+// stopped answering. The EAP-TLS client runs its TLS engine on a goroutine
+// parked in eapTLSTransport.Read, and only closing the transport releases it,
+// so an exchange that ends without this call strands that goroutine together
+// with the tls.Conn and the handshake secrets it holds.
+//
+// The guard reads tlsStarted rather than the pointer, because startTLSClient
+// runs on the engine's dispatch goroutine while this runs on the session's
+// owner goroutine. startTLSClient assigns tlsTransport BEFORE it stores that
+// flag, so a load that sees true also sees the assignment.
+//
+// Idempotent, and safe on an MS-CHAPv2 session or on one whose TLS client never
+// started.
+func (ps *PeerSession) Close() {
+	if ps == nil || !ps.tlsStarted.Load() {
+		return
+	}
+	ps.tlsTransport.shutdown()
+}
 
 func (ps *PeerSession) handleRequest(req *Packet) PeerResult {
 	switch ps.state {
@@ -303,25 +330,47 @@ func (ps *PeerSession) handleTLSRequest(req *Packet) PeerResult {
 		}
 	}
 
+	// The authenticator cleared the M flag, so it has stopped sending. Refuse a
+	// message shorter than the length it declared rather than passing the short
+	// buffer to crypto/tls, which reports it as the opaque "local error: tls:
+	// error decoding message" with no mention of the missing octets.
+	if !ps.reassemblyComplete() {
+		return PeerResult{Err: fmt.Errorf("eap-tls: authenticator ended a TLS message after %d of %d declared bytes", len(ps.inBuf), ps.inExpected)}
+	}
+
 	// All fragments received. Feed to TLS engine.
 	if data := ps.drainReassembled(); len(data) > 0 {
 		ps.tlsTransport.feedPeerData(data)
 	}
 
-	// If the TLS handshake has completed, capture the MSK now so it is ready
-	// when the authenticator sends EAP-Success. Completion does NOT end the EAP
-	// exchange here: with TLS 1.3 the peer produces its final flight (client
-	// Certificate/CertificateVerify/Finished) at the same instant the handshake
-	// completes, and that flight must still be sent to the authenticator via
-	// readAndSendTLS below. The EAP layer only concludes on the EAP-Success the
-	// authenticator sends after it has verified that flight (handled in Process,
+	result := ps.readAndSendTLS(req.Identifier)
+
+	// Capture the MSK once the handshake has completed, so it is ready when the
+	// authenticator sends EAP-Success.
+	//
+	// This is read AFTER readAndSendTLS, never before: the data just fed is what
+	// completes the handshake, and readAndSendTLS waits for the engine to settle,
+	// so the round that finishes the handshake is the round whose wait observes
+	// it. Reading tlsDone before the wait sees the previous round's value, and
+	// the MSK is then still zero when EAP-Success arrives.
+	//
+	// Completion does NOT end the EAP exchange here: with TLS 1.3 the peer
+	// produces its final flight (client Certificate/CertificateVerify/Finished)
+	// at the same instant the handshake completes, and readAndSendTLS above has
+	// just sent that flight. The EAP layer only concludes on the EAP-Success the
+	// authenticator sends after it has verified the flight (handled in Process,
 	// CodeSuccess). Returning Done here would drop the unsent flight and stall
 	// the authenticator forever.
 	if ps.tlsDone.Load() {
-		ps.msk = ps.deriveTLSMSK()
+		msk, err := ps.deriveTLSMSK()
+		if err != nil {
+			ps.state = peerStateFailed
+			return PeerResult{Err: err}
+		}
+		ps.msk = msk
 	}
 
-	return ps.readAndSendTLS(req.Identifier)
+	return result
 }
 
 // verifyServerChain returns a tls.Config.VerifyPeerCertificate callback that
@@ -395,16 +444,32 @@ func (ps *PeerSession) startTLSClient() error {
 	ps.tlsStarted.Store(true)
 
 	go func() {
-		_ = ps.tlsConn.HandshakeContext(context.Background())
+		// Keep the handshake error. Discarding it left every TLS failure
+		// (rejected certificate, unsupported version, bad record) reported as
+		// the same downstream symptom, "no MSK exists", which names the
+		// consequence and not the cause.
+		if err := ps.tlsConn.HandshakeContext(context.Background()); err != nil {
+			ps.tlsErr.Store(&err)
+		}
+		// Publish the outcome BEFORE the wakeup: handshakeFinished releases a
+		// waiter in readAndSendTLS, and handleTLSRequest reads tlsDone straight
+		// after that wait to decide whether to capture the MSK.
 		ps.tlsDone.Store(true)
+		ps.tlsTransport.handshakeFinished()
 	}()
 
 	return nil
 }
 
 // readAndSendTLS reads TLS engine output and sends it (possibly fragmented).
+//
+// It WAITS for the engine to settle. A snapshot taken before the engine has
+// written its flight yields an empty slice, which the branch below sends as a
+// bare fragment ACK: RFC 5216 Section 2.1.5 permits that only in answer to a
+// message carrying the M flag, so an authenticator refuses it and the method
+// fails before the ClientHello ever crosses.
 func (ps *PeerSession) readAndSendTLS(identifier uint8) PeerResult {
-	clientData := ps.tlsTransport.readServerData()
+	clientData := ps.tlsTransport.waitServerData()
 
 	if len(clientData) == 0 {
 		return PeerResult{
@@ -428,22 +493,20 @@ func (ps *PeerSession) readAndSendTLS(identifier uint8) PeerResult {
 	}
 }
 
-func (ps *PeerSession) deriveTLSMSK() [64]byte {
-	var msk [64]byte
+// deriveTLSMSK derives the peer's EAP-TLS MSK from the completed TLS connection.
+//
+// tlsDone is also set when the TLS handshake FAILED (e.g. the authenticator's
+// certificate was rejected), and ExportKeyingMaterial panics on a connection
+// whose handshake did not complete, so exportEAPTLSMSK guards on it and reports
+// an error rather than returning a zero MSK that reads as a real key.
+func (ps *PeerSession) deriveTLSMSK() ([64]byte, error) {
 	if ps.tlsConn == nil {
-		return msk
+		return [64]byte{}, errors.New("eap-tls: no TLS connection to derive the MSK from")
 	}
-	cs := ps.tlsConn.ConnectionState()
-	// Fail closed: tlsDone is also set when the TLS handshake FAILED (e.g. the
-	// authenticator's certificate was rejected). ExportKeyingMaterial panics on
-	// a connection whose handshake did not complete, so guard on it and return
-	// an all-zero MSK -- an invalid key that cannot yield a passing EAP-Success.
-	if !cs.HandshakeComplete {
-		return msk
+	// Report the handshake's own error when it has one. It names the cause; the
+	// missing MSK is only the consequence.
+	if err := ps.tlsErr.Load(); err != nil {
+		return [64]byte{}, fmt.Errorf("eap-tls: TLS handshake failed: %w", *err)
 	}
-	exported, err := cs.ExportKeyingMaterial("client EAP encryption", nil, 64)
-	if err == nil {
-		copy(msk[:], exported)
-	}
-	return msk
+	return exportEAPTLSMSK(ps.tlsConn.ConnectionState())
 }

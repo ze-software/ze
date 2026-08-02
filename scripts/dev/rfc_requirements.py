@@ -729,6 +729,204 @@ def functional_suites(path: str = FUNCTIONAL_MK) -> Tuple[str, ...]:
     return names
 
 
+# The workflow half of the discipline `functional_suites` applies to the .ci tier. An
+# interop tree's tier is a claim about whether CI runs its runner, and until 2026-08-01
+# that claim was four literals: deleting the `interop` job from evidence-nightly.yml
+# changed NOTHING here, so `interop-bgp` would have kept advertising `interop/nightly` for
+# a pipeline that no longer existed. Reading the workflows is what turns a job deletion
+# into a tier DOWNGRADE instead of a wash (ai/rules/derive-not-hardcode.md).
+WORKFLOWS_DIR = os.path.join(PROJECT_DIR, ".github", "workflows")
+_WORKFLOW_SUFFIXES = (".yml", ".yaml")
+
+# Command prefixes that sit BEFORE `make` and are not part of it, and the make flags that
+# consume a SEPARATE following argument (so that argument is not a target). Both lists are
+# ports of parseMakeTargets (scripts/dev/github_workflows_test.go). Two extractors that
+# disagree would let this gate believe in a caller CI does not have, so
+# TestWorkflowTargetExtractorsAgree pins them against every workflow file rather than
+# trusting this comment to keep them in step.
+_CMD_WRAPPERS = ("sudo", "env", "then", "do")
+_MAKE_FLAGS_WITH_ARG = ("-C", "-f", "-j", "-l", "-o", "-W")
+
+
+def _strip_yaml_comments(src: str) -> str:
+    """`#` line comments removed, so a commented-out command can never grant a tier."""
+    return "\n".join(ln.split("#", 1)[0] for ln in src.split("\n"))
+
+
+def make_targets_in(src: str) -> Tuple[str, ...]:
+    """Every make target a workflow body invokes, one bare word after `make` per entry.
+
+    Models shell command LINES, not a shell: `$(MAKE)`, `bash -c "..."`, backticks and
+    subshells are not parsed. Covered: every target on a line (not only the first),
+    surrounding quotes, `&&`/`;`/`||`/`|` chains, wrappers and `VAR=` assignments before
+    `make`, and the flags that take a separate argument.
+    """
+    out: List[str] = []
+    for ln in src.split("\n"):
+        cmd = ln.strip()
+        if cmd.startswith("- "):
+            cmd = cmd[2:]
+        # `- "make ze-integration-test"` is a quoted YAML scalar, not a different command.
+        cmd = cmd.strip("\"'")
+        for sep in ("&&", ";", "||", "|"):
+            cmd = cmd.replace(sep, "\x00")
+        for frag in cmd.split("\x00"):
+            fields = frag.split()
+            if fields and fields[0] == "-":
+                fields = fields[1:]
+            # `run: make ...` -- the YAML command key is not part of the command.
+            if fields and fields[0] == "run:":
+                fields = fields[1:]
+            while fields and (
+                fields[0] in _CMD_WRAPPERS
+                or fields[0].startswith("-")
+                or "=" in fields[0]
+            ):
+                fields = fields[1:]
+            if len(fields) < 2 or fields[0] != "make":
+                continue
+            args = fields[1:]
+            i = 0
+            while i < len(args):
+                a = args[i]
+                if a in _MAKE_FLAGS_WITH_ARG:
+                    i += 2  # the flag AND its separate argument
+                    continue
+                if not a.startswith("-") and "=" not in a:
+                    out.append(
+                        a
+                    )  # EVERY bare word is a target: `make a b` invokes both
+                i += 1
+    return tuple(out)
+
+
+def _top_level_block(src: str, key: str) -> Optional[str]:
+    """The indented body of a top-level `key:` line, or None when there is no such block.
+
+    Port of topLevelBlockBody (github_workflows_test.go). Scoping the trigger test to the
+    `on:` block is what keeps it honest: a step command containing the word `schedule`
+    would satisfy a whole-file substring test.
+    """
+    lines = src.split("\n")
+    for i, ln in enumerate(lines):
+        if ln.rstrip(" \t") != key:
+            continue
+        body: List[str] = []
+        for nxt in lines[i + 1 :]:
+            if not nxt.strip():
+                body.append(nxt)
+                continue
+            if not nxt.startswith((" ", "\t")):
+                break  # back to column 0: the block ended
+            body.append(nxt)
+        return "\n".join(body)
+    return None
+
+
+def _is_scheduled(src: str) -> bool:
+    """True when a workflow's own `on:` trigger includes `schedule`.
+
+    Answers NO for anything it cannot classify (no `on:` block, an inline form it does not
+    recognize). That direction is the safe one: an unclassified workflow grants no tier,
+    which refuses tags rather than crediting evidence to a pipeline nobody confirmed
+    (ai/rules/fail-closed-guards.md).
+    """
+    block = _top_level_block(src, "on:")
+    if block is not None:
+        return "schedule" in block
+    for ln in src.split("\n"):
+        if ln.startswith("on:"):
+            return "schedule" in ln[len("on:") :]
+    return False
+
+
+def _scheduled_targets_from(sources: Dict[str, str]) -> Dict[str, str]:
+    """make target -> the scheduled workflow that runs it. The pure core, so the tree and
+    the HEAD table share one notion of "CI runs this"."""
+    out: Dict[str, str] = {}
+    for name in sorted(sources):
+        src = _strip_yaml_comments(sources[name])
+        if not _is_scheduled(src):
+            continue
+        for target in make_targets_in(src):
+            out.setdefault(target, name)
+    return out
+
+
+def _read_workflow_sources(path: str) -> Dict[str, str]:
+    """Every workflow file's text, keyed by basename. Raises ParseError, never returns {}."""
+    try:
+        names = sorted(n for n in os.listdir(path) if n.endswith(_WORKFLOW_SUFFIXES))
+    except OSError as exc:
+        raise ParseError(
+            f"{path}: cannot read the workflow directory, so which make targets CI runs on "
+            f"a schedule is unknown. The interop evidence tier is derived from that set, "
+            f"and a gate that answers 'everything runs' in this state would credit "
+            f"evidence to a pipeline nobody confirmed: {exc}"
+        ) from exc
+    if not names:
+        raise ParseError(
+            f"{path}: no *.yml/*.yaml workflow files found, so no scheduled pipeline can "
+            f"be confirmed and no interop carrier can justify a tier"
+        )
+    sources: Dict[str, str] = {}
+    for name in names:
+        try:
+            with open(os.path.join(path, name), encoding="utf-8") as fh:
+                sources[name] = fh.read()
+        except OSError as exc:
+            raise ParseError(f"{path}/{name}: cannot read the workflow: {exc}") from exc
+    return sources
+
+
+def scheduled_workflow_targets(path: str = WORKFLOWS_DIR) -> Dict[str, str]:
+    """make target -> the scheduled workflow file that invokes it.
+
+    Fails closed. An unreadable or empty workflow directory means we do not know what CI
+    runs, and answering "everything" there is the exact zero-that-looks-like-an-answer this
+    module refuses elsewhere (ai/rules/fail-closed-guards.md).
+    """
+    return _scheduled_targets_from(_read_workflow_sources(path))
+
+
+# One row per interop tree: its path prefix and the make target that executes it. The TIER
+# is not here, because the tier is not a property of the tree -- it is a property of
+# whether CI runs that target, which _interop_carriers reads from the workflows.
+INTEROP_TREES: Tuple[Tuple[str, str, str], ...] = (
+    ("interop-bgp", "test/interop/scenarios/", "ze-interop-test"),
+    ("interop-ipsec", "test/ipsec-interop/", "ze-ipsec-interop-test"),
+    ("interop-l2tp", "test/l2tp-interop/", "ze-deployment-l2tp-ppp-docker-test"),
+    ("interop-pppoe", "test/pppoe-interop/", "ze-deployment-pppoe-accel-docker-test"),
+)
+
+
+def _interop_carriers(suffix: str, scheduled: Dict[str, str]) -> Tuple["Carrier", ...]:
+    """One row per interop tree, tier DERIVED from whether a scheduled workflow names its
+    runner. A tree nobody schedules resolves `unrun` and its tags stay refused, which is
+    the same answer the four literals used to assert -- but now it is measured.
+
+    `suffix` is a parameter for the same reason `_suite_carriers` takes one: CARRIERS stays
+    the ONE place a carrier suffix is spelled, which TestCarrierTable enforces mechanically.
+    """
+    return tuple(
+        Carrier(
+            name,
+            "interop",
+            TIER_NIGHTLY if scheduled.get(target) else TIER_UNRUN,
+            prefix,
+            suffix,
+            "python",
+            f"make {target}",
+            (
+                f".github/workflows/{scheduled[target]} (advisory)"
+                if scheduled.get(target)
+                else "no automated caller"
+            ),
+        )
+        for name, prefix, target in INTEROP_TREES
+    )
+
+
 def _suite_carriers(
     kind: str,
     suffix: str,
@@ -858,50 +1056,13 @@ CARRIERS: Tuple[Carrier, ...] = (
         "no ze-verify stage walks this directory",
         "no automated caller; only test/" + EDITOR_SUITE + "/ is walked for .et",
     ),
-    Carrier(
-        "interop-bgp",
-        "interop",
-        TIER_NIGHTLY,
-        "test/interop/scenarios/",
-        "/check.py",
-        "python",
-        "make ze-interop-test",
-        ".github/workflows/evidence-nightly.yml (advisory)",
-    ),
-    # The other three interop trees have runners but NO automated caller, so a tag in
-    # them would be evidence nothing executes. Declared rather than omitted: an omitted
-    # tree falls to the catch-all with a vaguer message, and naming the runner is what
-    # makes the error actionable. Wiring them into CI is tracked in the deferral shard.
-    Carrier(
-        "interop-ipsec",
-        "interop",
-        TIER_UNRUN,
-        "test/ipsec-interop/",
-        "/check.py",
-        "python",
-        "make ze-ipsec-interop-test",
-        "no automated caller",
-    ),
-    Carrier(
-        "interop-l2tp",
-        "interop",
-        TIER_UNRUN,
-        "test/l2tp-interop/",
-        "/check.py",
-        "python",
-        "the L2TP interop runner",
-        "no automated caller",
-    ),
-    Carrier(
-        "interop-pppoe",
-        "interop",
-        TIER_UNRUN,
-        "test/pppoe-interop/",
-        "/check.py",
-        "python",
-        "make ze-deployment-pppoe-accel-docker-test",
-        "no automated caller",
-    ),
+    # One row per interop tree, and NOT a tier literal in sight. Each tree's tier is read
+    # from whether a scheduled workflow names its runner, so wiring a tree into the nightly
+    # grants it `interop/nightly` and DELETING that job takes the tier away again. As four
+    # literals this table asserted `interop-bgp` was nightly and the other three were unrun;
+    # both halves of that claim were unchecked, and removing the job would have changed
+    # neither (ai/rules/derive-not-hardcode.md).
+    *_interop_carriers("/check.py", scheduled_workflow_targets()),
     # Catch-all. test/stress/scenarios/ and test/l2tp-scale/ also hold check.py files, and
     # any future tree will too. Refusing a tag there by DEFAULT is the fail-closed shape:
     # a carrier whose pipeline nobody has declared is exactly the case where silence would
@@ -958,11 +1119,11 @@ def _refuse_unrun(carrier: Carrier, tag: Tag) -> ParseError:
         f"'{carrier.name}', which nothing executes automatically "
         f"(runner: {carrier.runner}; pipeline: {carrier.pipeline}). "
         f"A tag is only evidence if something runs the test, so this "
-        f"one is refused rather than counted. Fix it by adding that suite to an automated "
-        f"pipeline (the BGP interop tree's own advisory job in "
-        f".github/workflows/evidence-nightly.yml is the pattern) and giving its carrier a "
-        f"real tier in CARRIERS -- or bind the requirement to a .ci instead, which runs "
-        f"inside ze-verify on every push"
+        f"one is refused rather than counted. Fix it by adding that runner to a SCHEDULED "
+        f"workflow (the interop jobs in .github/workflows/evidence-nightly.yml are the "
+        f"pattern); an interop carrier's tier is derived from that set, so the job is the "
+        f"whole fix and CARRIERS needs no edit -- or bind the requirement to a .ci instead, "
+        f"which runs inside ze-verify on every push"
     )
 
 
@@ -1710,8 +1871,8 @@ def _head_carriers() -> Tuple[Carrier, ...]:
     return _HEAD_CARRIERS_CACHE
 
 
-def _build_head_carriers() -> Tuple[Carrier, ...]:
-    """The uncached read. HEAD's suite list swapped into today's table shape."""
+def _head_functional_suites() -> Optional[Tuple[str, ...]]:
+    """HEAD's `all_suites=` list, or None when HEAD cannot be read."""
     try:
         proc = subprocess.run(
             ["git", "show", f"HEAD:{os.path.relpath(FUNCTIONAL_MK, PROJECT_DIR)}"],
@@ -1721,21 +1882,99 @@ def _build_head_carriers() -> Tuple[Carrier, ...]:
             check=False,
         )
     except OSError:
-        return CARRIERS
+        return None
     if proc.returncode != 0:
-        return CARRIERS
+        return None
     m = _ALL_SUITES_RE.search(proc.stdout)
     if not m:
-        return CARRIERS
+        return None
     head_suites = tuple(n for n in m.group("names").split() if n)
-    if not head_suites:
+    return head_suites or None
+
+
+def _head_workflow_sources() -> Optional[Dict[str, str]]:
+    """HEAD's workflow files, keyed by basename, or None when HEAD cannot be read.
+
+    One `git ls-tree` plus one `git show` per workflow file -- a handful of processes, run
+    once and cached in _HEAD_CARRIERS_CACHE. There is no single-command way to get both the
+    names and the contents, and `git cat-file --batch` would trade that for parsing a binary
+    framing (ai/rules/no-fork-loops.md is about per-file forks in an unbounded loop).
+    """
+    rel = os.path.relpath(WORKFLOWS_DIR, PROJECT_DIR)
+    try:
+        listing = subprocess.run(
+            ["git", "ls-tree", "--name-only", f"HEAD:{rel}"],
+            cwd=PROJECT_DIR,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError:
+        return None
+    if listing.returncode != 0:
+        return None
+    names = [n for n in listing.stdout.split() if n.endswith(_WORKFLOW_SUFFIXES)]
+    if not names:
+        return None
+    out: Dict[str, str] = {}
+    for name in names:
+        try:
+            proc = subprocess.run(
+                ["git", "show", f"HEAD:{rel}/{name}"],
+                cwd=PROJECT_DIR,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except OSError:
+            return None
+        if proc.returncode != 0:
+            return None
+        out[name] = proc.stdout
+    return out
+
+
+def _build_head_carriers() -> Tuple[Carrier, ...]:
+    """The uncached read. HEAD's suite list AND HEAD's scheduled workflows, swapped into
+    today's table shape.
+
+    The workflow half matters for the same reason the suite half does. Labelling both sides
+    with today's table makes a DOWNGRADE symmetric and therefore invisible: delete the
+    `interop` job and every interop tag is relabelled `unrun` on both sides at once, so the
+    evidence ratchet sees a wash where a tree stopped being executed. Reading HEAD's own
+    workflows is what makes that a LOSS.
+    """
+    head_suites = _head_functional_suites()
+    head_workflows = _head_workflow_sources()
+    suites_now = functional_suites()
+    scheduled_now = scheduled_workflow_targets()
+    # Fall back to today's value for whichever half HEAD cannot supply (no git, shallow
+    # checkout, a fresh repo with no commit). Same degradation `_git_baseline_tags` takes:
+    # with no baseline there is nothing to compare, so the ratchet reports nothing either
+    # way, and that is stated rather than silent.
+    suites = head_suites if head_suites is not None else suites_now
+    scheduled = (
+        _scheduled_targets_from(head_workflows)
+        if head_workflows is not None
+        else scheduled_now
+    )
+    if suites == suites_now and scheduled == scheduled_now:
         return CARRIERS
-    if head_suites == functional_suites():
-        return CARRIERS
-    # Only the derived rows differ; every declared row is identical by construction. The
-    # shapes (suffix, reader, runner, stage text) are READ OFF today's derived rows rather
-    # than re-spelled, so CARRIERS stays the one place an extension is written down.
-    out: List[Carrier] = [c for c in CARRIERS if not c.derived]
+    # Every other declared row is identical by construction. The interop rows are rebuilt
+    # from HEAD's scheduled set and substituted BY NAME, which keeps their position ahead of
+    # the `scenario-check` catch-all that must stay last.
+    # The suffix is READ OFF today's interop rows, never re-spelled here, so CARRIERS stays
+    # the one place a carrier shape is written down (TestCarrierTable enforces that).
+    interop_suffix = next(c.suffix for c in CARRIERS if c.kind == "interop")
+    head_interop = {c.name: c for c in _interop_carriers(interop_suffix, scheduled)}
+    out: List[Carrier] = [
+        head_interop.get(c.name, c) for c in CARRIERS if not c.derived
+    ]
+    if suites == suites_now:
+        # Only the workflow half moved: today's derived suite rows are already correct.
+        return tuple([c for c in CARRIERS if c.derived] + out)
+    # The shapes (suffix, reader, runner, stage text) are READ OFF today's derived rows
+    # rather than re-spelled, so CARRIERS stays the one place an extension is written down.
     shapes: Dict[str, Carrier] = {}
     for c in CARRIERS:
         if c.derived:
@@ -1744,7 +1983,7 @@ def _build_head_carriers() -> Tuple[Carrier, ...]:
     for kind, shape in shapes.items():
         # Only test/editor/ is walked for .et, so the editor shape covers exactly the
         # suite of that name; every other shape covers each suite directory.
-        covered = [s for s in head_suites if kind != EDITOR_SUITE or s == EDITOR_SUITE]
+        covered = [s for s in suites if kind != EDITOR_SUITE or s == EDITOR_SUITE]
         stage = shape.pipeline.rsplit(",", 1)[0]
         rebuilt.extend(
             shape._replace(
@@ -2628,7 +2867,7 @@ def check_unproven_support(
     What the fourth fact does NOT establish, stated rather than implied: a `prose` grade is not
     proof the classifications were right. It bounds the escape to documents whose obligations
     are not written in the register the corpus is normally read in; judging the exclusions
-    themselves is /ze-rfc-audit's job, and ai/rules/rfc-compliance.md:53 voided every
+    themselves is /ze-rfc-audit's job, and ai/rules/rfc-compliance.md:56 voided every
     annotation as authority.
 
     Scoped to stems that HAVE a summary. 19 rows on the page name an RFC with no
@@ -2763,7 +3002,7 @@ def check_gap_count_agreement(
     own: Area is an editorial label, Implemented coverage is source-anchored prose, and
     Status is a product judgement. A COUNT is a fact about how many annotations exist -- it
     is never a claim that their classifications are right, which matters because
-    ai/rules/rfc-compliance.md:53 voided every annotation as authority. Deriving the
+    ai/rules/rfc-compliance.md:56 voided every annotation as authority. Deriving the
     Remaining TEXT from those classifications would launder a void judgement into generated
     prose; cross-checking their number does not.
 
@@ -6772,10 +7011,37 @@ def run_selftest() -> int:
     return res.returncode
 
 
+def run_workflow_targets() -> int:
+    """Per-workflow make targets and schedule flag, as JSON.
+
+    Exists for ONE consumer: TestWorkflowTargetExtractorsAgree
+    (scripts/dev/github_workflows_test.go), which compares this against the Go
+    parseMakeTargets over the same files. Two extractors that disagree would let the tier
+    derivation believe in a caller CI does not have, so the agreement is pinned by a test
+    rather than by the comment that says they are ports of each other.
+    """
+    try:
+        sources = _read_workflow_sources(WORKFLOWS_DIR)
+    except ParseError as exc:
+        print(f"{RED}{BOLD}rfc-requirements: cannot run{RESET}: {exc}")
+        return 2
+    out = {
+        name: {
+            "targets": list(make_targets_in(_strip_yaml_comments(src))),
+            "scheduled": _is_scheduled(_strip_yaml_comments(src)),
+        }
+        for name, src in sources.items()
+    }
+    print(json.dumps(out, indent=2, sort_keys=True))
+    return 0
+
+
 def main(argv: Sequence[str]) -> int:
     args = list(argv[1:])
     if "--selftest" in args:
         return run_selftest()
+    if "--workflow-targets" in args:
+        return run_workflow_targets()
     if "--write" in args:
         return run_write()
     if "--check-fresh" in args:

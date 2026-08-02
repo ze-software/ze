@@ -64,6 +64,7 @@ ze-fuzz-test:
 	$(GO_TEST) -fuzz=^FuzzParseLocalPref$$ -fuzztime=10s -timeout=60s ./internal/core/bgp/attribute
 	$(GO_TEST) -fuzz=^FuzzParseMED$$ -fuzztime=10s -timeout=60s ./internal/core/bgp/attribute
 	$(GO_TEST) -fuzz=^FuzzParseOrigin$$ -fuzztime=10s -timeout=60s ./internal/core/bgp/attribute
+	$(GO_TEST) -fuzz=^FuzzSpanIndexMatchesIterator$$ -fuzztime=10s -timeout=60s ./internal/core/bgp/attribute
 	$(GO_TEST) -fuzz=^FuzzParseLabelStack$$ -fuzztime=10s -timeout=60s ./internal/core/bgp/nlri
 	$(GO_TEST) -fuzz=^FuzzParseRDString$$ -fuzztime=10s -timeout=60s ./internal/core/bgp/nlri
 	$(GO_TEST) -fuzz=^FuzzParseRouteDistinguisher$$ -fuzztime=10s -timeout=60s ./internal/core/bgp/nlri

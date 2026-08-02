@@ -717,6 +717,10 @@ func decryptSKPayload(sa *SA, rawMsg []byte, skPayload *wire.PayloadSK) ([]byte,
 }
 
 // OID constants for ASN.1 AlgorithmIdentifier (RFC 7427 Appendix A).
+//
+// These are the BARE OID encodings. They are the match keys hashFromAlgID
+// compares against, after it has pulled the OID out of whichever form the peer
+// sent. What Ze EMITS is the wrapped form built below, never one of these.
 var (
 	oidSHA256WithRSA, _ = asn1.Marshal(asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11})
 	oidSHA384WithRSA, _ = asn1.Marshal(asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 12})
@@ -725,23 +729,73 @@ var (
 	oidECDSASHA384, _   = asn1.Marshal(asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 3})
 )
 
+// rsaAlgorithmIdentifier and ecAlgorithmIdentifier are the two DER shapes of
+// RFC 5280 Section 4.1.1.2 AlgorithmIdentifier that IKEv2 signature auth uses.
+// They differ only in the parameters field, and the difference is required
+// rather than cosmetic: RFC 4055 Section 5 says the parameters of an
+// RSASSA-PKCS1-v1_5 algorithm MUST be present and MUST be NULL, and RFC 5758
+// Section 3.2 says the parameters of ecdsa-with-SHA256 and ecdsa-with-SHA384
+// MUST be absent.
+type rsaAlgorithmIdentifier struct {
+	Algorithm  asn1.ObjectIdentifier
+	Parameters asn1.RawValue
+}
+
+type ecAlgorithmIdentifier struct {
+	Algorithm asn1.ObjectIdentifier
+}
+
+// AlgorithmIdentifier encodings Ze emits in the AUTH payload.
+//
+// RFC 7427 Section 3 defines the Authentication Data as an ASN.1 Length octet,
+// then an "ASN.1 AlgorithmIdentifier object", then the signature. An
+// AlgorithmIdentifier is a SEQUENCE that wraps the OID, so the bare OID Ze used
+// to emit was not one: strongSwan parses that field as ASN.1 and refuses the
+// payload with "digital signature authentication payload invalid", which failed
+// every certificate-authenticated exchange against it.
+var (
+	algIDSHA256WithRSA = algorithmIdentifierRSA(asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11})
+	algIDSHA384WithRSA = algorithmIdentifierRSA(asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 12})
+	algIDSHA512WithRSA = algorithmIdentifierRSA(asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 13})
+	algIDECDSASHA256   = algorithmIdentifierEC(asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 2})
+	algIDECDSASHA384   = algorithmIdentifierEC(asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 3})
+)
+
+// algorithmIdentifierRSA encodes SEQUENCE { OID, NULL }.
+func algorithmIdentifierRSA(oid asn1.ObjectIdentifier) []byte {
+	der, err := asn1.Marshal(rsaAlgorithmIdentifier{Algorithm: oid, Parameters: asn1.NullRawValue})
+	if err != nil {
+		panic("BUG: cannot DER-encode a constant RSA signature AlgorithmIdentifier")
+	}
+	return der
+}
+
+// algorithmIdentifierEC encodes SEQUENCE { OID }.
+func algorithmIdentifierEC(oid asn1.ObjectIdentifier) []byte {
+	der, err := asn1.Marshal(ecAlgorithmIdentifier{Algorithm: oid})
+	if err != nil {
+		panic("BUG: cannot DER-encode a constant ECDSA signature AlgorithmIdentifier")
+	}
+	return der
+}
+
 func selectSignatureAlgorithm(key crypto.PrivateKey, remoteHashAlgos []uint16) (algID []byte, h crypto.Hash, err error) {
 	switch k := key.(type) {
 	case *rsa.PrivateKey:
 		_ = k
 		if containsHashAlgo(remoteHashAlgos, 4) {
-			return oidSHA512WithRSA, crypto.SHA512, nil
+			return algIDSHA512WithRSA, crypto.SHA512, nil
 		}
 		if containsHashAlgo(remoteHashAlgos, 3) {
-			return oidSHA384WithRSA, crypto.SHA384, nil
+			return algIDSHA384WithRSA, crypto.SHA384, nil
 		}
-		return oidSHA256WithRSA, crypto.SHA256, nil
+		return algIDSHA256WithRSA, crypto.SHA256, nil
 	case *ecdsa.PrivateKey:
 		switch k.Curve {
 		case elliptic.P384():
-			return oidECDSASHA384, crypto.SHA384, nil
+			return algIDECDSASHA384, crypto.SHA384, nil
 		default:
-			return oidECDSASHA256, crypto.SHA256, nil
+			return algIDECDSASHA256, crypto.SHA256, nil
 		}
 	}
 	return nil, 0, errUnsupportedKey

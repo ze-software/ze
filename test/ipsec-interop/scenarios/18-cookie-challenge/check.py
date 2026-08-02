@@ -32,7 +32,7 @@ from lab import (
     docker_exec_quiet,
     log_pass,
     wait_xfrm_sa,
-    docker_logs_all,
+    wait_swan_log,
     xfrm_sa_bytes_by_spi,
 )
 
@@ -49,13 +49,19 @@ def check():
     #    RFC 7296 Section 2.6 requires the cookie to be "the first payload, and all
     #    other payloads unchanged". strongSwan prints the payload chain in wire order,
     #    so "N(COOKIE) SA KE No" IS that ordering assertion against a real peer.
-    swan_logs = docker_logs_all(SWAN_CONTAINER)
-    if "parsed IKE_SA_INIT response 0 [ N(COOKIE) ]" not in swan_logs:
+    #    Both needles are WAITED for, not read once. check() runs as soon as the
+    #    containers are up, so a single docker_logs_all here races charon's very
+    #    first exchange and the scenario fails on timing rather than on behaviour.
+    try:
+        wait_swan_log("parsed IKE_SA_INIT response 0 [ N(COOKIE) ]")
+    except AssertionError:
         raise AssertionError(
             "strongSwan never parsed a COOKIE notification from Ze, so the responder "
             "did not challenge; check cookie-threshold and the gate in tryResponderSAInit"
         )
-    if "generating IKE_SA_INIT request 0 [ N(COOKIE) SA KE No" not in swan_logs:
+    try:
+        wait_swan_log("generating IKE_SA_INIT request 0 [ N(COOKIE) SA KE No")
+    except AssertionError:
         raise AssertionError(
             "strongSwan did not rebuild its IKE_SA_INIT with the COOKIE as the FIRST "
             "payload followed by SA, KE and No; Ze's cookie is not usable by a real peer"

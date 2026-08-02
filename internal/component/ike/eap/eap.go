@@ -106,6 +106,13 @@ type Method interface {
 
 	// Process handles an EAP-Response from the peer and returns the next action.
 	Process(response *Packet) MethodResult
+
+	// Close releases every resource the method holds. The caller MUST call it
+	// once the exchange has ended, for ANY reason: success, failure, refusal or
+	// abandonment. A method that starts a goroutine leaks it otherwise.
+	//
+	// Close is idempotent and safe on a method that was never started.
+	Close()
 }
 
 // Session manages a single EAP exchange (authenticator side).
@@ -186,6 +193,24 @@ func (s *Session) Process(response *Packet) *Packet {
 	default:
 		return nil
 	}
+}
+
+// Close releases every resource the exchange holds.
+//
+// The caller MUST call it once the exchange has ended, for ANY reason: an
+// EAP-Success, an EAP-Failure, a refused method, or a peer that stopped
+// answering. EAP-TLS runs its TLS engine on a goroutine parked in a read that
+// only this call can release, so an exchange that ends without it leaks that
+// goroutine and the TLS keys it holds. The peer decides how many exchanges
+// start and how many of them it abandons, and it is unauthenticated while it
+// does so, which is what makes the omission reachable from the network.
+//
+// Close is idempotent and safe on a session whose method never started.
+func (s *Session) Close() {
+	if s == nil || s.method == nil {
+		return
+	}
+	s.method.Close()
 }
 
 // Identity returns the peer identity extracted from the EAP-Response/Identity.

@@ -100,18 +100,28 @@ func decideResponderTransportMode(sa *SA) {
 // adoptAuthResponseNegotiation records what the responder answered on the initiator's
 // IKE_AUTH: the Child SA mode, and the narrowed traffic selectors.
 //
-// It returns false when the SA must be torn down, which happens only when the peer
-// declined a transport-mode request the operator marked required (RFC 7296 Section
-// 1.3.1's "the initiator MUST delete the SA").
+// It returns ok=false when the SA must be torn down, and the notify type the peer is owed
+// for that teardown (0 when no error notification applies).
+//
+// THE CALLER MUST TELL THE PEER. RFC 7296 Section 2.21.2 lets the initiator report an error
+// it found in a response "in a separate INFORMATIONAL exchange", and it closes the set of
+// notifications that delete an SA WITHOUT a Delete payload: UNSUPPORTED_CRITICAL_PAYLOAD,
+// INVALID_SYNTAX and AUTHENTICATION_FAILED. Neither teardown below is in that set, so both
+// owe the peer an INFORMATIONAL carrying a Delete payload (sendIKESATeardown, delete.go).
+// Setting State to StateDead and sending nothing leaves the peer encrypting to a node that
+// has no SA.
 //
 // Every caller runs it AFTER the response's AUTH is verified. An unauthenticated message
 // must be unable to tear the SA down by omitting a notification, and must be unable to
 // choose the traffic the SA protects by naming its own selectors.
-func adoptAuthResponseNegotiation(sa *SA, transportAccepted bool, tsi, tsr *wire.PayloadTS, log *slog.Logger) bool {
+func adoptAuthResponseNegotiation(sa *SA, transportAccepted bool, tsi, tsr *wire.PayloadTS, log *slog.Logger) (ok bool, notify uint16) {
 	if recordInitiatorTransportMode(sa, transportAccepted) {
 		log.Warn("ike: peer declined transport mode and transport-required is set, deleting the SA",
 			"peer", sa.PeerName)
-		return false
+		// RFC 7296 Section 1.3.1: "If this is unacceptable to the initiator, the initiator
+		// MUST delete the SA." The peer broke nothing -- it declined an option, which the
+		// section permits -- so the Delete carries no error notification.
+		return false, 0
 	}
 	// RFC 7296 Section 2.9: the responder's TS payloads carry the NARROWED selectors, and
 	// they are what this side installs, so both ends program the same traffic. Narrowing is
@@ -121,10 +131,12 @@ func adoptAuthResponseNegotiation(sa *SA, transportAccepted bool, tsi, tsr *wire
 		if err := recordInitiatorSelectors(sa, tsi, tsr); err != nil {
 			log.Warn("ike: the responder widened the traffic selectors, deleting the SA",
 				"peer", sa.PeerName, "error", err)
-			return false
+			// RFC 7296 Section 2.9 names the notification for a traffic-selector answer
+			// this node will not accept: TS_UNACCEPTABLE.
+			return false, wire.NotifyTSUnacceptable
 		}
 	}
-	return true
+	return true, 0
 }
 
 // recordInitiatorTransportMode reads the responder's answer to a transport-mode request

@@ -19,18 +19,22 @@ import (
 //
 // RFC 7296 Section 1.4.1 splits the removal across two events when the peer deletes the
 // same pair at the same time: the outgoing half goes "while processing the request", the
-// incoming half "while processing the response". outgoingGone records that the first of
-// the two already happened, so the second removes only what is left.
-// removed records that the caller tore the whole pair down itself, right after sending
-// the Delete. The make-before-break rekey does exactly that: the replacement pair is
-// already carrying traffic, so the retired one is of no further use and nothing is
-// gained by holding it to the schedule below. Both halves are therefore already gone
-// before any crossing request can arrive, which is what the section asks for, and the
-// record survives only to suppress the duplicate Delete payload the section forbids.
+// incoming half "while processing the response".
+//
+// ZE REMOVES BOTH HALVES EARLIER THAN THAT, and the record exists for the section's OTHER
+// obligation. The one path that issues a Delete is the make-before-break rekey
+// (inbound.go): the replacement pair is already carrying traffic, so it sends the Delete
+// and tears the retired pair down immediately, on the same goroutine, before any crossing
+// request can be processed. Removing sooner than the section's two events satisfies them
+// by the time each arrives, and it is why the retired pair cannot be leaked when the
+// response never comes.
+//
+// So the ordering fields this struct used to carry could not be reached: every record was
+// already fully removed. What is left is the fact the section's other MUST turns on --
+// that this node HAS an unanswered Delete outstanding for the pair -- which is what
+// suppresses the duplicate Delete payload the section forbids in the response.
 type pendingDelete struct {
-	child        *ChildSA
-	outgoingGone bool
-	removed      bool
+	child *ChildSA
 }
 
 // sendDeleteIKE sends an INFORMATIONAL Delete for the IKE SA (best-effort). RFC
@@ -91,6 +95,86 @@ func (ps *PeerSession) sendDeleteESP(sa *SA, tr *transport.UDPTransport, spi uin
 	sendRaw(sa, tr, msg, log)
 }
 
+// sendIKESATeardown ends an AUTHENTICATED IKE SA that this node is abandoning because it
+// found an error while processing the IKE_AUTH response, and TELLS the peer.
+//
+// RFC 7296 Section 2.21.2 (rfc/full/rfc7296.txt:3286-3289): "If the error occurs on the
+// initiator, the notification MAY be returned in a separate INFORMATIONAL exchange, usually
+// with no other payloads. This is an exception for the general rule of not starting new
+// exchanges based on errors in responses."
+//
+// THE DELETE PAYLOAD IS NOT OPTIONAL HERE, and that is the whole reason this function
+// exists. The same section (rfc/full/rfc7296.txt:3317-3321) closes the set:
+// "the UNSUPPORTED_CRITICAL_PAYLOAD, INVALID_SYNTAX, and AUTHENTICATION_FAILED
+// notifications are the only ones to cause the IKE SA to be deleted or not created, without
+// a Delete payload."
+// TS_UNACCEPTABLE and NO_PROPOSAL_CHOSEN are not in that set, so a bare notify would leave
+// the peer holding an SA it believes is live. Both payloads therefore go in one
+// INFORMATIONAL: the notify says WHY, and the Delete is what actually ends the SA.
+//
+// Before this existed, the initiator set State to StateDead and sent nothing at all. The
+// peer kept both SAs and went on encrypting to a node that had none, and the log line
+// claimed the SA was being deleted.
+//
+// notifyType 0 sends the Delete alone, for a teardown that is nobody's error: RFC 7296
+// Section 1.3.1's "the initiator MUST delete the SA" after a declined transport-mode
+// request is a policy decision, not a protocol violation by the peer.
+//
+// Best-effort, like every other Delete: a held request window drops it rather than delaying
+// a teardown, and the peer then learns of the loss through its own dead-peer detection.
+func sendIKESATeardown(sa *SA, tr *transport.UDPTransport, notifyType uint16, log *slog.Logger) {
+	if tr == nil || sa == nil {
+		return
+	}
+	// RFC 7296 Section 2.21.2 puts this exchange on an AUTHENTICATED SA, so the message is
+	// encrypted under the SK keys the exchange just established. An SA with no keys never
+	// reached that point and has nothing to say.
+	if sa.SKKeys == nil {
+		log.Debug("ike: teardown notify skipped, the SA has no keys", "peer", sa.PeerName)
+		return
+	}
+	// RFC 7296 Section 2.2: this INFORMATIONAL is a NEW REQUEST, so it MUST carry a
+	// Message ID that no earlier request on this SA has spent.
+	//
+	// IT ADVANCES BEFORE IT BUILDS, which is the opposite of every established-path sender
+	// above. Both callers sit in handleAuthResponse (fsm.go), where NextMsgID still holds
+	// the id of the IKE_AUTH REQUEST the response answers: handleSAInitResponse set it to
+	// 1, and the only advance past it runs at the end of handleAuthResponse, on the
+	// success path, AFTER both teardown arms. Building at NextMsgID therefore re-sent id 1.
+	// Ze's own responder cached its IKE_AUTH response under that id
+	// (finishResponderEstablish -> cacheResponse), so classifyInbound (msgid.go) read the
+	// teardown as inboundRetransmit and REPLAYED the cached IKE_AUTH response. The Delete
+	// was never processed and the peer kept the SA, which is the exact outcome this
+	// function exists to prevent. The EAP senders in fsm.go advance first for this reason.
+	//
+	// An SA at the 32-bit ceiling has no id left to spend. advanceMsgID marks it exhausted
+	// rather than wrapping, and reserveRequestWindow below then refuses, so the teardown is
+	// dropped instead of reusing an id (RFC 7296 Section 2.2).
+	sa.advanceMsgID()
+	if !sa.reserveRequestWindow() {
+		log.Debug("ike: teardown notify dropped, a request is outstanding", "peer", sa.PeerName)
+		return
+	}
+	payloads := make([]wire.PayloadEntry, 0, 2)
+	if notifyType != 0 {
+		payloads = append(payloads, wire.PayloadEntry{Payload: &wire.PayloadNotify{
+			ProtocolID:    wire.ProtocolIKE,
+			NotifyMsgType: notifyType,
+		}})
+	}
+	payloads = append(payloads, wire.PayloadEntry{Payload: &wire.PayloadDelete{ProtocolID: wire.ProtocolIKE}})
+
+	msg, err := buildEncryptedMessageEx(sa, payloads, sa.NextMsgID, wire.ExchangeInformational, initiatorFlag(sa))
+	if err != nil {
+		log.Debug("ike: teardown notify build failed", "peer", sa.PeerName, "error", err)
+		sa.releaseRequestWindow()
+		return
+	}
+	log.Info("ike: telling the peer the SA is being deleted",
+		"peer", sa.PeerName, "notify", wire.NotifyTypeName(notifyType))
+	sendRaw(sa, tr, msg, log)
+}
+
 // recordOwnDelete notes that this node has an unanswered Delete request outstanding for
 // a Child SA pair. RFC 7296 Section 1.4.1's crossing case turns on exactly that fact.
 func (ps *PeerSession) recordOwnDelete(child *ChildSA) {
@@ -116,15 +200,14 @@ func (ps *PeerSession) recordOwnDelete(child *ChildSA) {
 //
 // The peer names the pair by the SPI of its own inbound SA, which is this node's
 // OUTBOUND SPI, so that is what the record is matched on.
-func (ps *PeerSession) crossOwnDelete(spi uint32, dp dataplane.Dataplane, log *slog.Logger) bool {
+// It touches no dataplane state. The pair was already removed, both halves, by the caller
+// that issued the Delete (see pendingDelete). The section's ordering MUST is met by that
+// earlier removal; what is answered here is its "the responses MUST NOT include Delete
+// payloads for the deleted SAs".
+func (ps *PeerSession) crossOwnDelete(spi uint32, log *slog.Logger) bool {
 	for i := range ps.deleteRequested {
-		p := &ps.deleteRequested[i]
-		if !childNamedBy(p.child, spi) {
+		if !childNamedBy(ps.deleteRequested[i].child, spi) {
 			continue
-		}
-		if !p.removed && !p.outgoingGone {
-			removeChildSAOutgoing(p.child, dp, log)
-			p.outgoingGone = true
 		}
 		log.Info("child-sa: peer delete crossed our own, answering without a Delete payload",
 			"peer", ps.peerName, "out-spi", spi)
@@ -133,39 +216,16 @@ func (ps *PeerSession) crossOwnDelete(spi uint32, dp dataplane.Dataplane, log *s
 	return false
 }
 
-// finishOwnDeletes completes every Delete this node issued, once the INFORMATIONAL
+// finishOwnDeletes closes out every Delete this node issued, once the INFORMATIONAL
 // response arrives.
 //
-// RFC 7296 Section 1.4.1 puts the second half of the crossing case here: the node
-// deletes "the incoming SAs while processing the response". A pair the peer never
-// crossed still has both halves installed at this point, so the whole pair goes.
-func (ps *PeerSession) finishOwnDeletes(dp dataplane.Dataplane, log *slog.Logger) {
-	for i := range ps.deleteRequested {
-		p := &ps.deleteRequested[i]
-		switch {
-		case p.child == nil || p.removed:
-			// The caller already tore the pair down. Nothing is installed to remove.
-		case p.outgoingGone:
-			removeChildSAIncoming(p.child, dp, log)
-			p.child.Clear()
-		default:
-			removeChildSA(p.child, dp, log)
-		}
-	}
+// RFC 7296 Section 1.4.1 puts the second half of the crossing case here: the node deletes
+// "the incoming SAs while processing the response". Nothing is installed to remove by this
+// point, because the caller that issued the Delete removed both halves before sending it
+// (see pendingDelete). What ends here is the RECORD, so a later peer Delete naming the same
+// SPI is answered normally rather than treated as crossing an exchange that is over.
+func (ps *PeerSession) finishOwnDeletes() {
 	ps.deleteRequested = nil
-}
-
-// markOwnDeleteRemoved records that the caller tore the pair down itself, right after
-// sendDeleteESP. Nothing is left installed, so the crossing case and the response both
-// skip the dataplane while the record still suppresses the duplicate Delete payload RFC
-// 7296 Section 1.4.1 forbids.
-func (ps *PeerSession) markOwnDeleteRemoved(child *ChildSA) {
-	for i := range ps.deleteRequested {
-		if ps.deleteRequested[i].child == child {
-			ps.deleteRequested[i].removed = true
-			return
-		}
-	}
 }
 
 // abandonOwnDeletes drops every outstanding Delete record without touching the
@@ -192,11 +252,48 @@ func espDeletePayload(spis []uint32) *wire.PayloadDelete {
 	}
 }
 
+// deleteMalformed reports whether a Delete payload violates the SPI Size RFC 7296 Section
+// 3.11 fixes for its protocol, or names a count its SPI field cannot hold.
+//
+// RFC 7296 Section 3.11 (rfc/full/rfc7296.txt): the SPI Size "MUST be zero for IKE (SPI is
+// in message header) or four for AH and ESP". A payload that breaks this is not a request
+// naming SAs ze failed to find. It is a MALFORMED request, and Section 2.21.3 requires an
+// answer that says so: "After the IKE SA is authenticated, all requests having errors MUST
+// result in a response notifying the other end of the error."
+//
+// Before this existed, deleteSPIs returned no SPI for such a payload, closeDesignatedChildSAs
+// looped over nothing, and the peer got an EMPTY INFORMATIONAL response. That reads as
+// "your Delete succeeded and closed nothing", which is the one answer the section forbids.
+func deleteMalformed(del *wire.PayloadDelete) bool {
+	switch del.ProtocolID {
+	case wire.ProtocolIKE:
+		return del.SPISize != 0
+	case wire.ProtocolESP, wire.ProtocolAH:
+		if del.SPISize != 4 {
+			return true
+		}
+		// The declared count must be backed by the octets actually carried, or the
+		// payload names SAs it did not send. NO WIRE PAYLOAD REACHES THIS ARM:
+		// PayloadDelete.ReadFrom (wire/payload_delete.go) returns ErrTruncated unless the
+		// datagram holds NumSPIs*SPISize octets, and it copies exactly that many. It is
+		// kept as the fail-closed backstop for a payload built in process and for a future
+		// decoder that relaxes the check, because deleteSPIs below would otherwise silently
+		// resolve fewer SPIs than the peer named (ai/rules/fail-closed-guards.md).
+		return len(del.SPIs) < 4*int(del.NumSPIs)
+	default:
+		// RFC 7296 Section 3.11 assigns Protocol ID from the Security Protocol
+		// Identifiers registry; a value naming none of the three protocols ze speaks
+		// designates nothing it could close.
+		return true
+	}
+}
+
 // deleteSPIs decodes the SPI list a Delete payload carries.
 //
 // RFC 7296 Section 3.11 gives ESP and AH an SPI Size of four octets, and IKE a size of
 // zero. Any other size names nothing this node can resolve to an SA, so it decodes to no
-// SPI at all rather than to a misaligned guess.
+// SPI at all rather than to a misaligned guess. deleteMalformed above rejects such a
+// payload before it reaches here, so this is the second line rather than the only one.
 func deleteSPIs(del *wire.PayloadDelete) []uint32 {
 	if del.SPISize != 4 {
 		return nil
@@ -255,7 +352,7 @@ func (ps *PeerSession) handleDeletePayload(sa *SA, del *wire.PayloadDelete, dp d
 //	          the "paired SAs going in the other direction" the section asks for.
 func (ps *PeerSession) closeDesignatedChildSAs(del *wire.PayloadDelete, dp dataplane.Dataplane, log *slog.Logger) (paired []uint32, sessionChildDown bool) {
 	for _, spi := range deleteSPIs(del) {
-		if ps.crossOwnDelete(spi, dp, log) {
+		if ps.crossOwnDelete(spi, log) {
 			continue
 		}
 		switch child := ps.getChildSA(); {
@@ -264,7 +361,9 @@ func (ps *PeerSession) closeDesignatedChildSAs(del *wire.PayloadDelete, dp datap
 			// already carrying traffic, so the session stays up.
 			old := ps.supersededChild
 			ps.supersededChild = nil
-			removeChildSA(old, dp, log)
+			// The live pair shares this pair's policies (make-before-break), so the
+			// retirement takes only the states with it.
+			removeChildSAExcept(old, child, dp, log)
 			paired = append(paired, old.InboundSPI)
 		case childNamedBy(child, spi):
 			// The pair carrying this session's traffic. RFC 7296 Section 1.4.1 puts the

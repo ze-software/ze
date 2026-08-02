@@ -3,6 +3,8 @@ package ipsec
 import (
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/ike/wire"
 )
 
 // vidPeer builds one peer carrying the given identities.
@@ -15,6 +17,79 @@ func vidPeer(localID, remoteID string) *IPsecConfig {
 			}},
 		},
 	}
+}
+
+// vidPeerTyped builds one peer whose remote-id is pinned to an RFC 7296 Section 3.5 type.
+func vidPeerTyped(remoteID string, idType uint8) *IPsecConfig {
+	cfg := vidPeer("", remoteID)
+	peer := cfg.Peers["branch"]
+	peer.Auth.RemoteIDType = idType
+	cfg.Peers["branch"] = peer
+	return cfg
+}
+
+// VALIDATES: the commit-time terminator check applies to the ID types RFC 7296 Section 3.5
+// constrains, and to those alone. A remote-id pinned to ID_KEY_ID or ID_DER_ASN1_DN commits
+// with a control octet in it; the same value pinned to ID_FQDN or ID_RFC822_ADDR does not.
+//
+// PREVENTS: the two gates over one obligation disagreeing. refuseIDTerminators
+// (engine/remote_id.go) gates on ID_FQDN and ID_RFC822_ADDR, as the section does, while
+// this one applied the string rule to EVERY type. A key-id holding 0x00 was therefore
+// refused at commit and accepted on the wire.
+//
+// RFC 7296 Section 3.5: the prohibition is stated for ID_FQDN ("The string MUST NOT contain
+// any terminators (e.g., NULL, CR, etc.)") and repeated for ID_RFC822_ADDR. ID_KEY_ID is
+// "an opaque octet stream" and ID_DER_ASN1_DN is a "binary" DER encoding, so neither has a
+// terminator to forbid.
+func TestVidTerminatorCheckFollowsTheIDType(t *testing.T) {
+	const withNUL = "branch\x00spoof"
+
+	// Binary and opaque types: a control octet is content, so the config commits.
+	for _, tc := range []struct {
+		name   string
+		idType uint8
+	}{
+		{"key-id", wire.IDTypeKeyID},
+		{"der-asn1-dn", wire.IDTypeDERASN1DN},
+	} {
+		t.Run(tc.name+" commits", func(t *testing.T) {
+			if err := vidPeerTyped(withNUL, tc.idType).ValidateIdentities(); err != nil {
+				t.Errorf("a remote-id pinned to %s was refused for holding a control octet, "+
+					"but RFC 7296 Section 3.5 gives that type no terminator rule: %v", tc.name, err)
+			}
+		})
+	}
+
+	// String types: the prohibition applies, and the refusal still names everything.
+	for _, tc := range []struct {
+		name   string
+		idType uint8
+	}{
+		{"fqdn", wire.IDTypeFQDN},
+		{"rfc822-address", wire.IDTypeRFC822Addr},
+		{"unset", 0},
+	} {
+		t.Run(tc.name+" is refused", func(t *testing.T) {
+			err := vidPeerTyped(withNUL, tc.idType).ValidateIdentities()
+			if err == nil {
+				t.Fatalf("a remote-id pinned to %s holding a NUL was accepted, and RFC 7296 "+
+					"Section 3.5 forbids a terminator in that string", tc.name)
+			}
+			for _, want := range []string{"branch", "remote-id"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("the refusal %q does not name %q", err, want)
+				}
+			}
+		})
+	}
+
+	// local-id keeps the check unconditionally: encodeIKEID sends it as an address or as
+	// ID_FQDN, and never as an opaque or binary type.
+	t.Run("local-id is always checked", func(t *testing.T) {
+		if err := vidPeer(withNUL, "").ValidateIdentities(); err == nil {
+			t.Error("a local-id holding a NUL was accepted; ze would send it as ID_FQDN verbatim")
+		}
+	})
 }
 
 // VALIDATES: a distinguished-name LOCAL-id is refused at verify, and the refusal names

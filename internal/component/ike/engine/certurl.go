@@ -78,6 +78,16 @@ const (
 	// for maximum-size objects. The entry bound binds first for ordinary ones.
 	certURLCacheMaxEntries = 64
 	certURLCacheMaxBytes   = 4 << 20
+
+	// certURLFailBackoff is how long a failed hash-and-url lookup is remembered before
+	// another attempt is made for the same hash.
+	//
+	// It bounds what a peer's retransmissions can spend. maxRetransmissions is 7 and the
+	// retransmit schedule backs off exponentially from retransmitBase, so a whole
+	// handshake's worth of repeats falls inside this window and costs ONE outbound GET
+	// rather than one per retransmission. It is deliberately shorter than a reconnect
+	// cycle, so an operator who fixes the certificate server is not made to wait.
+	certURLFailBackoff = 30 * time.Second
 )
 
 var (
@@ -217,11 +227,47 @@ func resetCertURLCache() {
 type certURLFetcher struct {
 	mu      sync.Mutex
 	pending map[string]struct{}
+	// failed records when a lookup last failed, so a repeat is not attempted again until
+	// certURLFailBackoff has passed.
+	//
+	// WITHOUT THIS THE RETRANSMIT IS THE ATTACK. A miss drops the IKE_AUTH, the peer
+	// retransmits it (RFC 7296 Section 2.1), and the retransmission re-enters start.
+	// On success the cache answers the repeat. On FAILURE nothing was cached and the
+	// worker had already removed its own pending key, so every retransmission launched a
+	// fresh outbound GET to a host the unauthenticated peer chose. The peer controls both
+	// the destination and the repeat rate, and the retransmit schedule multiplies it.
+	//
+	// Before the fetch moved off the dispatch goroutine the SA simply died after one
+	// attempt, so the repeat did not exist. Bounding it here restores that ceiling
+	// without putting the stall back.
+	//
+	// THE KEY CARRIES THE PEER, and the object cache above deliberately does not. The two
+	// records answer different questions. A cached object is content-addressed and its
+	// bytes hash to its own key, so it is equally true for every peer. A FAILURE is a fact
+	// about one peer's attempt: the URL and the allow-list that refused it are both that
+	// peer's. Keyed on the hash alone, any peer that completes IKE_SA_INIT could name a
+	// victim's certificate hash beside a URL its own allow-list rejects, record the
+	// failure, and suppress the victim's legitimate lookup for certURLFailBackoff,
+	// renewably. The backoff exists to bound ONE peer's retransmissions, so it is scoped to
+	// the peer whose retransmissions it bounds.
+	failed map[certURLFailure]time.Time
 }
 
-var certURLFetches = certURLFetcher{pending: make(map[string]struct{})}
+// certURLFailure names one peer's failed lookup of one object.
+//
+// A struct key rather than a joined string: the peer name is operator-chosen text and the
+// hash is arbitrary octets, so no separator is safe against a peer name that contains it.
+type certURLFailure struct {
+	peer string
+	hash string
+}
 
-// start begins a background lookup for one Hash and URL payload.
+var certURLFetches = certURLFetcher{
+	pending: make(map[string]struct{}),
+	failed:  make(map[certURLFailure]time.Time),
+}
+
+// start begins a background lookup for one Hash and URL payload, on behalf of one peer.
 //
 // It refuses a second worker for an object a worker already holds, so a storm of repeats
 // cannot multiply goroutines. It refuses any worker at all past certURLMaxPending.
@@ -229,17 +275,35 @@ var certURLFetches = certURLFetcher{pending: make(map[string]struct{})}
 // Both refusals are silent, and each costs the peer one more repeat of its message. The
 // miss stays explicit at the caller, which returns errCertURLPending in either case
 // (ai/rules/fail-closed-guards.md).
-func (f *certURLFetcher) start(data []byte, allow []netip.Prefix, log *slog.Logger) {
+//
+// The two records it consults are scoped differently on purpose. The pending set is keyed
+// on the hash alone, so two peers naming the same object share ONE fetch, which is the
+// deduplication the content-addressed cache is built around. The failure record is keyed
+// on the peer as well, so one peer's failure can never suppress another's lookup
+// (certURLFailure, above).
+func (f *certURLFetcher) start(peer string, data []byte, allow []netip.Prefix, log *slog.Logger) {
 	hash, _, err := splitHashAndURL(data)
 	if err != nil {
 		return
 	}
 	key := string(hash)
+	failKey := certURLFailure{peer: peer, hash: key}
 
 	f.mu.Lock()
 	if _, running := f.pending[key]; running {
 		f.mu.Unlock()
 		return
+	}
+	// A lookup this peer just failed is not retried until the backoff expires. The peer
+	// retransmits its IKE_AUTH on its own schedule, and without this every retransmission
+	// is another outbound GET to a destination it chose.
+	if until, ok := f.failed[failKey]; ok {
+		if time.Now().Before(until) {
+			f.mu.Unlock()
+			log.Debug("ike: hash-and-url lookup recently failed, not retrying yet", "peer", peer)
+			return
+		}
+		delete(f.failed, failKey)
 	}
 	if len(f.pending) >= certURLMaxPending {
 		f.mu.Unlock()
@@ -255,18 +319,37 @@ func (f *certURLFetcher) start(data []byte, allow []netip.Prefix, log *slog.Logg
 	copy(payload, data)
 
 	go func() {
-		defer func() {
-			f.mu.Lock()
-			delete(f.pending, key)
-			f.mu.Unlock()
-		}()
 		// context.Background rather than a per-message context: the message that named
 		// this object is already dropped, so no caller waits on the result. The bound
 		// that matters is certURLTimeout, which fetchHashAndURL applies itself.
-		if _, err := fetchHashAndURL(context.Background(), payload, allow); err != nil {
+		_, err := fetchHashAndURL(context.Background(), payload, allow)
+		f.mu.Lock()
+		delete(f.pending, key)
+		if err != nil {
+			// The failure is recorded BEFORE the pending key is released to the next
+			// caller, in one critical section, so a retransmission that arrives between
+			// the two cannot slip through and start a second GET.
+			f.noteFailureLocked(failKey)
+		}
+		f.mu.Unlock()
+		if err != nil {
 			log.Debug("ike: background hash-and-url lookup failed", "error", err)
 		}
 	}()
+}
+
+// noteFailureLocked records a failed lookup for the backoff, and bounds the record set.
+//
+// Half of the key is a hash the PEER chose, so the failure map is attacker-sized exactly
+// like the cache above it. certURLCacheMaxEntries is the same bound the cache uses; past it
+// the whole set is dropped rather than evicted one entry at a time. Dropping is safe
+// because the map is an optimisation: losing it costs one more GET per hash, which is the
+// behavior that existed before this record did. The caller must hold f.mu.
+func (f *certURLFetcher) noteFailureLocked(key certURLFailure) {
+	if len(f.failed) >= certURLCacheMaxEntries {
+		clear(f.failed)
+	}
+	f.failed[key] = time.Now().Add(certURLFailBackoff)
 }
 
 // inFlight reports how many background lookups are running. Only tests read it.

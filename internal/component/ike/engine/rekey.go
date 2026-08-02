@@ -344,7 +344,10 @@ func respondChildRekey(sa *SA, inner []wire.PayloadEntry, old *ChildSA, msgID ui
 	resp, err := buildEncryptedMessageEx(sa, inner2, msgID, wire.ExchangeCreateChildSA, initiatorFlag(sa)|wire.FlagResponse)
 	if err != nil {
 		if dp != nil {
-			removeChildSA(child, dp, log)
+			// Rolling the replacement back. `old` is still live and shares these
+			// policies, so removing them here would break the tunnel this rekey was
+			// meant to preserve.
+			removeChildSAExcept(child, old, dp, log)
 		}
 		return nil, nil, err
 	}

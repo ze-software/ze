@@ -102,12 +102,31 @@ type ChildSA struct {
 	// The same section also lets either side encapsulate
 	// "irrespective of the choice made by the other side",
 	// so a peer can encapsulate with no NAT present. A peer that does runs its IKE on
-	// port 4500 too, so the IKE SA's own port is the signal. That is localPort.
+	// port 4500 too, so the IKE SA's own port is the signal. That is localPort. It is
+	// also how ze meets RFC7296-2.23-11 MUST (rfc/full/rfc7296.txt:3624):
+	// "Implementations MUST process received UDP-encapsulated ESP packets even when
+	// no NAT was detected" -- the floated port is what puts the ESP-in-UDP template on
+	// the INBOUND state.
 	//
 	// In production the second implies the first, because every site that sets
 	// NATDetected also floats the SA. They are kept separate because they answer
 	// different questions, and merging them is the defect
 	// plan/spec-fixit-ike-responder-natt-port-float.md records.
+	//
+	// KNOWN INTEROP CONFLICT, unresolved and NOT to be "fixed" by deleting the
+	// localPort disjunct. strongSwan 5.9.14 moves IKE to 4500 after IKE_SA_INIT with
+	// no NAT present, which RFC 7296 Section 2.23 permits
+	// (rfc/full/rfc7296.txt:3538), and then installs ESP states with NO encapsulation.
+	// ze floats, encapsulates, and the peer's kernel drops every packet. MEASURED:
+	// ze's outbound state carries "encap type espinudp" with oseq 0x4 while
+	// strongSwan's carries no encap line and counts XfrmInStateMismatch 4. Interop
+	// scenarios 07-responder-psk and 18-cookie-challenge fail on exactly this.
+	//
+	// Dropping the disjunct trades RFC7296-2.23-11 for that interop, and splitting the
+	// flag per direction does not help: a Linux XFRM inbound state accepts exactly ONE
+	// ESP form, so an encapsulated-receive state refuses the bare ESP strongSwan
+	// sends. The real fix is dual-form receive, owned by
+	// plan/spec-ipsec-esp-dual-form-receive.md. Awaiting an owner decision.
 	UDPEncap bool
 
 	// LocalIsInitiator is true when this side sent Ni for this Child SA's KEYMAT
@@ -338,24 +357,37 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 	// MUST NOT be done on port 500." Both ports below are the NAT-T constant, and the
 	// branch runs only for a floated SA, so no path here can encapsulate on port 500.
 	//
-	// KERNEL CONSTRAINT, and it bounds what this can achieve. On Linux XFRM one inbound
-	// state accepts exactly ONE of the two ESP forms.
+	// KERNEL CONSTRAINT, and the receive path now works around it rather than accepting
+	// it. On Linux XFRM one inbound state accepts exactly ONE of the two ESP forms.
 	//
 	// MEASURED: a state carrying an ESP-in-UDP template rejects bare ESP with
 	// XfrmInStateMismatch, and a state without one rejects encapsulated ESP the same
 	// way. TestEncapKernelBindsOneESPFormPerState records that truth table. It installs
 	// its two states on two DISTINCT SPIs.
 	//
-	// REASONED, and not measured: two states on one SPI do not help either. The state
-	// lookup is keyed on destination, SPI, protocol and family, so it returns the first
-	// match and the mismatch check then drops the packet. No test installs two states on
-	// one SPI. plan/spec-ipsec-esp-dual-form-receive.md carries this as an assumption to
-	// validate, and it owns the work of lifting the constraint.
+	// MEASURED, and it was previously only REASONED: two states on one SPI do not help,
+	// and the mechanism is not the one the old comment gave. The second state cannot be
+	// INSTALLED at all. TestEncapTwoStatesOneSPI records "file exists" both with
+	// identical addresses and with a differing source, because the uniqueness key and
+	// the lookup key are the same tuple.
+	//
+	// The template below therefore states which form the KERNEL serves directly. The
+	// other form is served beside it, through AcceptBothESPForms, so this SA meets
+	// RFC 7296 Section 2.23 "at any time" WITHIN one Child SA and not only across SAs.
 	if child.UDPEncap {
 		inbound.UDPEncap = true
 		inbound.UDPEncapSPort = transport.NATTPort
 		inbound.UDPEncapDPort = transport.NATTPort
 	}
+
+	// RFC 7296 Section 2.23 MUST (rfc/full/rfc7296.txt:3544-3548): "all devices MUST be
+	// able to receive and process both UDP-encapsulated ESP and non-UDP-encapsulated ESP
+	// packets at any time". The obligation binds because Ze exchanges NAT_DETECTION_*_IP
+	// payloads in IKE_SA_INIT, so NAT-T is supported and the antecedent is true.
+	//
+	// It is set on the INBOUND state only. Reception is what the MUST governs; the form
+	// Ze SENDS is a separate decision taken below.
+	inbound.AcceptBothESPForms = true
 
 	if err := dp.InstallSA(inbound); err != nil {
 		return fmt.Errorf("child-sa: install inbound: %w", err)
@@ -379,7 +411,27 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		IsAEAD:    isAEAD,
 	}
 
-	if child.UDPEncap {
+	// The SEND form follows the NAT VERDICT, and nothing else.
+	//
+	// RFC 7296 Section 2.23 (rfc/full/rfc7296.txt:3550-3551): "if a NAT is detected, both
+	// devices MUST use UDP encapsulation for ESP". With no NAT the same paragraph leaves
+	// the choice open: "Either side can decide whether or not to use UDP encapsulation
+	// for ESP irrespective of the choice made by the other side" (:3548-3550), and
+	// "sending ESP with UDP encapsulation is not required" on port 4500 (:3542-3543).
+	//
+	// The PORT is deliberately not a term here, and that is the fix for a measured
+	// interop failure. strongSwan floats to port 4500 whenever the peer supports NAT-T,
+	// even with no NAT present, because MOBIKE asks it to (ike_natd.c process_i, with
+	// mobike defaulting to yes). Its ESP then stays BARE, because COND_NAT_ANY is false.
+	// Reading that float as an encapsulation signal made Ze encapsulate toward a peer
+	// that expects bare ESP, and scenario 07-responder-psk recorded the result: the
+	// tunnel established and strongSwan accepted no ESP at all.
+	//
+	// child.UDPEncap still carries the port term, and the inbound template above still
+	// uses it. That asymmetry is deliberate: Ze RECEIVES the encapsulated form on any
+	// floated SA, which is what RFC7296-2.23-11 requires, while SENDING the form the NAT
+	// verdict calls for.
+	if child.NATDetected {
 		outbound.UDPEncap = true
 		outbound.UDPEncapSPort = transport.NATTPort
 		outbound.UDPEncapDPort = transport.NATTPort
@@ -407,14 +459,25 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		outTunnelSrc, outTunnelDst = nil, nil
 	}
 
+	// The policies below can capture ze's own IKE traffic whenever the negotiated
+	// selector covers the two addresses IKE runs between, which the ordinary
+	// 0.0.0.0/0 site-to-site selector always does. The exemption that stops it is
+	// installed once, at engine start, and it outlives every Child SA: see
+	// installIKEBypass in bypass.go for why it is not installed here.
 	if err := dp.InstallPolicy(dataplane.SPParams{
-		Src:        child.TSRemote,
-		Dst:        child.TSLocal,
-		Dir:        dataplane.SADirIn,
+		Src: child.TSRemote,
+		Dst: child.TSLocal,
+		Dir: dataplane.SADirIn,
+		// Stated rather than left to the zero value. SPActionProtect IS zero, chosen so a
+		// caller who forgets the field protects traffic instead of passing it in the
+		// clear (dataplane.go). Naming it here says the choice was made, and it keeps the
+		// contrast with the IKE bypass (bypass.go) legible at both call sites.
+		Action:     dataplane.SPActionProtect,
 		Proto:      protoESP,
 		Mode:       mode,
 		IfID:       child.IfID,
 		ReqID:      child.ReqID,
+		Priority:   dataplane.PriorityChildSA,
 		UpperProto: selectorProto(child),
 		SrcPort:    selectorPort(child, false),
 		DstPort:    selectorPort(child, true),
@@ -430,10 +493,12 @@ func installChildSA(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.Datapla
 		Src:        child.TSLocal,
 		Dst:        child.TSRemote,
 		Dir:        dataplane.SADirOut,
+		Action:     dataplane.SPActionProtect,
 		Proto:      protoESP,
 		Mode:       mode,
 		IfID:       child.IfID,
 		ReqID:      child.ReqID,
+		Priority:   dataplane.PriorityChildSA,
 		UpperProto: selectorProto(child),
 		SrcPort:    selectorPort(child, true),
 		DstPort:    selectorPort(child, false),
@@ -470,15 +535,62 @@ func installChildTolerant(child *ChildSA, prop ipsec.ESPProposal, dp dataplane.D
 	return nil
 }
 
-// removeChildSA tears down an installed Child SA from the dataplane.
+// samePolicySelector reports whether two Child SAs answer to the SAME pair of kernel
+// policies.
+//
+// It compares exactly the fields installChildSA feeds into SPParams, because the
+// kernel identifies a policy by its whole selector and by nothing else: the traffic
+// selectors, the XFRM if_id, and the upper-layer protocol and ports the negotiated
+// selector narrows to. The SPIs are deliberately absent -- they identify STATES, and
+// a rekey replaces states while leaving the selector alone.
+func samePolicySelector(a, b *ChildSA) bool {
+	if a == nil || b == nil || a.TSLocal == nil || a.TSRemote == nil || b.TSLocal == nil || b.TSRemote == nil {
+		return false
+	}
+	return a.TSLocal.String() == b.TSLocal.String() &&
+		a.TSRemote.String() == b.TSRemote.String() &&
+		a.IfID == b.IfID &&
+		selectorProto(a) == selectorProto(b) &&
+		selectorPort(a, true) == selectorPort(b, true) &&
+		selectorPort(a, false) == selectorPort(b, false)
+}
+
+// removeChildSA tears down an installed Child SA from the dataplane, states and
+// policies both. Use it when nothing else needs the selector.
 func removeChildSA(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
+	removeChildSAExcept(child, nil, dp, log)
+}
+
+// removeChildSAExcept tears down a Child SA, keeping its POLICIES when keep still
+// answers to them.
+//
+// A make-before-break rekey puts two Child SAs on one pair of policies.
+// newRekeyedChild (rekey.go) inherits TSLocal, TSRemote, IfID, ReqID and Mode from
+// the retired pair, so the replacement's install upserts the SAME selector rather
+// than adding a second one (xfrmBackend.InstallPolicy). The kernel then holds
+// exactly one policy per direction, shared by both pairs.
+//
+// Removing the retired pair therefore removed the LIVE pair's policy, and the tunnel
+// stopped forwarding at the moment a rekey SUCCEEDED. MEASURED against strongSwan:
+// interop scenario 05 reported "no ESP traffic after the rekey" with both Child SAs
+// installed and healthy, because the peer's Delete for the old SPI took the
+// survivor's policy with it.
+//
+// The states are always removed: they are keyed by SPI and are never shared.
+//
+// keep is nil when the whole tunnel is going away, and then the policies go too. At
+// session teardown the retired pair is passed keep = the live child, so its policy
+// survives the first call and is removed by the second -- once, in total.
+func removeChildSAExcept(child, keep *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
 	if dp == nil || child == nil {
 		return
 	}
-	removeChildSAOutgoing(child, dp, log)
-	removeChildSAIncoming(child, dp, log)
+	dropPolicy := !samePolicySelector(child, keep)
+	removeChildSAOutgoing(child, dp, log, dropPolicy)
+	removeChildSAIncoming(child, dp, log, dropPolicy)
 	child.Clear()
-	log.Info("child-sa: removed", "in-spi", child.InboundSPI, "out-spi", child.OutboundSPI)
+	log.Info("child-sa: removed", "in-spi", child.InboundSPI, "out-spi", child.OutboundSPI,
+		"policies-removed", dropPolicy)
 }
 
 // removeChildSAOutgoing removes the half of a Child SA pair this node SENDS on.
@@ -486,12 +598,14 @@ func removeChildSA(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
 // RFC 7296 Section 1.4.1 needs the two halves separable: in the crossing case a node
 // deletes "the outgoing SAs while processing the request and the incoming SAs while
 // processing the response". Callers that close a whole pair use removeChildSA above.
-func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
+func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger, dropPolicy bool) {
 	if dp == nil || child == nil {
 		return
 	}
-	if err := dp.RemovePolicy(child.TSLocal, child.TSRemote, dataplane.SADirOut); err != nil {
-		log.Debug("child-sa: remove outbound policy", "error", err)
+	if dropPolicy {
+		if err := dp.RemovePolicy(child.TSLocal, child.TSRemote, dataplane.SADirOut); err != nil {
+			log.Debug("child-sa: remove outbound policy", "error", err)
+		}
 	}
 	if err := dp.RemoveSA(child.OutboundSPI, child.RemoteAddr, protoESP); err != nil {
 		log.Debug("child-sa: remove outbound SA", "error", err)
@@ -500,12 +614,14 @@ func removeChildSAOutgoing(child *ChildSA, dp dataplane.Dataplane, log *slog.Log
 
 // removeChildSAIncoming removes the half of a Child SA pair this node RECEIVES on.
 // The companion of removeChildSAOutgoing above.
-func removeChildSAIncoming(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger) {
+func removeChildSAIncoming(child *ChildSA, dp dataplane.Dataplane, log *slog.Logger, dropPolicy bool) {
 	if dp == nil || child == nil {
 		return
 	}
-	if err := dp.RemovePolicy(child.TSRemote, child.TSLocal, dataplane.SADirIn); err != nil {
-		log.Debug("child-sa: remove inbound policy", "error", err)
+	if dropPolicy {
+		if err := dp.RemovePolicy(child.TSRemote, child.TSLocal, dataplane.SADirIn); err != nil {
+			log.Debug("child-sa: remove inbound policy", "error", err)
+		}
 	}
 	if err := dp.RemoveSA(child.InboundSPI, child.LocalAddr, protoESP); err != nil {
 		log.Debug("child-sa: remove inbound SA", "error", err)

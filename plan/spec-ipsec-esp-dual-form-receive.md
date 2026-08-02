@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol |
-| Depends | - |
-| Phase | - |
+| Depends | - (both owner decisions answered 2026-08-02, see "Owner decisions, 2026-08-02") |
+| Phase | 4/5 |
 | Deferral shard | `plan/deferrals/ipsec-esp-dual-form-receive.md` |
-| Updated | 2026-08-01 |
+| Updated | 2026-08-02 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -270,12 +270,13 @@ a current one. Answer route C by reading the 6.19.11 receive path, and record th
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | Two XFRM states on ONE SPI do not let both forms through | Asserted in prose at `encap_integration_linux_test.go:189-191` and `child.go:345-346`. **No test case installs two states on one SPI.** The probe uses two distinct SPIs (`:198-199`) | A cheap route exists that nobody costed, and route A is unnecessary | Extend the probe with a two-states-on-one-SPI case. Phase 1 | unvalidated |
+| A-1 | Two XFRM states on ONE SPI do not let both forms through | Asserted in prose at `encap_integration_linux_test.go:189-191` and `child.go:345-346`. **No test case installs two states on one SPI.** The probe uses two distinct SPIs (`:198-199`) | A cheap route exists that nobody costed, and route A is unnecessary | Extend the probe with a two-states-on-one-SPI case. Phase 1 | **confirmed** (2026-08-02), and the REASONED mechanism was wrong |
 | A-2 | The encapsulation decision reads the NAT verdict as well as the port | `child.go:249` is `sa.NATDetected \|\| sa.localPort == transport.NATTPort`, a disjunction. The comment at `child.go:329-330` says the port replaces the verdict, which OVERSTATES the code | Prose in the pilot spec, the rfc-status row and this spec describe code that does not exist | Read `child.go:249`. The spec author did this on 2026-08-01 | **confirmed** (2026-08-01) |
-| A-3 | Re-injected bare ESP reaches the same XFRM state as a natively bare datagram | Not established. The probe sends bare ESP from a raw socket (`encap_integration_linux_test.go:149`) and it is accepted, but it never re-injects a stripped datagram | Route A fails and the leading candidate is gone | Extend the probe: strip a UDP-encapsulated datagram in userspace, re-inject, assert the template-free state accepts it. Phase 1 | unvalidated |
-| A-4 | A real peer changes ESP form on an established SA | Not established. RFC 7296 permits it (`rfc/full/rfc7296.txt:3548-3550`). No interop scenario exercises it, and no scenario sets any encapsulation option | The work is theoretical, and its priority drops. It does NOT become unnecessary, because the MUST binds regardless | Drive strongSwan through a form change on one SA. Phase 1 | unvalidated |
-| A-5 | Linux 6.19.11 has no encapsulation-aware state lookup | Not established. The appliance ships 6.19.11 (`_build/upstream-url.txt`) and the probe measures a mismatch. The probe ran on the QEMU Alpine kernel, and not on the appliance kernel | Route C is the cheapest answer and the other three are unnecessary | Read the 6.19.11 XFRM receive path, then rerun the probe on the appliance kernel. Phase 1 | unvalidated |
-| A-6 | VPP's inbound SA lookup is encapsulation-aware | Not established in-repo. VPP carries `IPSEC_API_SAD_FLAG_UDP_ENCAP = 16` and a per-entry UDP port pair (`gokrazy/modcache/go.fd.io/govpp@v0.13.0/binapi/ipsec_types/ipsec_types.ba.go:182`), which says the flag exists and not what the lookup does | Route B cannot deliver the capability either, and the drift argument changes | Read VPP's own C source for the ESP receive node. Phase 1 | unvalidated |
+| A-3 | Re-injected bare ESP reaches the same XFRM state as a natively bare datagram | Not established. The probe sends bare ESP from a raw socket (`encap_integration_linux_test.go:149`) and it is accepted, but it never re-injects a stripped datagram | Route A fails and the leading candidate is gone | Extend the probe: strip a UDP-encapsulated datagram in userspace, re-inject, assert the template-free state accepts it. Phase 1 | **confirmed** (2026-08-02) |
+| A-4 | A real peer changes ESP form on an established SA | Not established. RFC 7296 permits it (`rfc/full/rfc7296.txt:3548-3550`). No interop scenario exercises it, and no scenario sets any encapsulation option | The work is theoretical, and its priority drops. It does NOT become unnecessary, because the MUST binds regardless | Drive strongSwan through a form change on one SA. Phase 1 | **confirmed**, and it is NOT the forcing case |
+| A-7 | One netns probe per test BINARY is all the harness supports | Discovered 2026-08-02. Every `encapNetns` test passes alone. Run together, the FIRST passes and every later one reads a namespace where its packets never reach XFRM, so no counter moves | The QEMU integration target goes red whenever the package holds more than one namespace probe, and the failure reads as a product defect rather than a harness one | Run the pre-existing probe with `-count=2` in one process. Phase 1 | see Phase 1 Evidence |
+| A-5 | Linux 6.19.11 has no encapsulation-aware state lookup | Not established. The appliance ships 6.19.11 (`_build/upstream-url.txt`) and the probe measures a mismatch. The probe ran on the QEMU Alpine kernel, and not on the appliance kernel | Route C is the cheapest answer and the other three are unnecessary | Read the 6.19.11 XFRM receive path, then rerun the probe on the appliance kernel. Phase 1 | **confirmed** (2026-08-02) |
+| A-6 | VPP's inbound SA lookup is encapsulation-aware | Not established in-repo. VPP carries `IPSEC_API_SAD_FLAG_UDP_ENCAP = 16` and a per-entry UDP port pair (`gokrazy/modcache/go.fd.io/govpp@v0.13.0/binapi/ipsec_types/ipsec_types.ba.go:182`), which says the flag exists and not what the lookup does | Route B cannot deliver the capability either, and the drift argument changes | Read VPP's own C source for the ESP receive node. Phase 1 | **confirmed** (2026-08-02), by the opposite mechanism to the one the wording expects |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -530,6 +531,164 @@ choice. Phase 2 is the wiring phase the template asks for.
 | Every route is measured impossible | STOP. Report the four measurements to the owner. Do NOT write a `{gap}`, because writing one IS the decision (`ai/rules/rfc-compliance.md`) |
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
+## Phase 1 Evidence (2026-08-02)
+
+Every route is answered. Nothing below is argued from a comment.
+
+### The forcing case, measured
+
+`tmp/dualform/baseline-07.log`. Scenario `07-responder-psk` is RED on
+`strongSwan accepted no ESP from Ze the responder`. In the same log strongSwan sends
+IKE_SA_INIT from `172.28.0.3[500]` with `N(NATD_S_IP) N(NATD_D_IP)`, finds no NAT, and
+then sends IKE_AUTH from `172.28.0.3[4500]`.
+
+strongSwan's own source says why, and it is not a misconfiguration.
+`ike_natd.c` `process_i` floats the ports when
+`has_condition(COND_NAT_ANY) || (peer_cfg->use_mobike(peer_cfg) && supports_extension(EXT_NATT))`,
+commented "if the peer supports NAT-T, we switch to port 4500 even if no NAT is
+detected". `mobike` defaults to `yes`. `COND_NAT_ANY` stays FALSE, so the ESP form
+stays bare (`child_create.c:1776`).
+
+**Ze's root cause is the second term of `child.go:268`,
+`sa.NATDetected || sa.localPort == transport.NATTPort`.** A port float is a MOBIKE
+artifact. Ze reads it as an encapsulation signal and encapsulates in BOTH directions,
+because `installChildSA` applies that one boolean to the inbound and the outbound state
+together.
+
+### Route verdicts
+
+| Route | Verdict | Evidence |
+|-------|---------|----------|
+| A. Userspace demultiplex | **VIABLE, and the only one buildable today** | `TestEncapReinjectedBareESPAccepted` re-injected a userspace-read datagram with the peer's source preserved and the template-free state took it: `XfrmInStateProtoError`. The kernel already hands those datagrams to userspace when the socket carries no encap type (`net/ipv4/xfrm4_input.c:91-94`, `if (!encap_type) return 1;`) |
+| B. VPP | **Capable, and blocked** | VPP's inbound lookup is encapsulation-BLIND, keyed on peer address and SPI (`ipsec_tun_in.c` `ipsec_tun_protect_input_inline`, which picks the ESP offset per packet from the wire and then keys `ipsec4_tunnel_mk_key`). `ipsec_tun.c` `ipsec_tun_register_nodes` points proto-50 AND UDP/4500 at the same node unconditionally. So ONE VPP SA takes both forms. Ze cannot use it: `plan/spec-fixit-vpp-ipsec-inoperable.md` establishes the backend installs no SA at all |
+| C. A newer kernel | **CLOSED** | Linux 6.19.11 `net/xfrm/xfrm_input.c:634` is `if ((x->encap ? x->encap->encap_type : 0) != encap_type)`. It is SYMMETRIC, so a template-free state demands `encap_type == 0`. Byte-identical at v6.6 and v6.12. No wildcard encap type exists, and `xfrm_state.c:2233-2237` REFUSES to add, remove, or change an encap template on a live state (`-EINVAL`) |
+| D. No peer does this | **REJECTED, and it answers a different question** | strongSwan DOES change form on a live SA, through `kernel_netlink_ipsec.c` `update_sa`, which deletes and re-adds the state (`:2514`, `:2528`) and restores the replay counter by hand. It is driven by MOBIKE (`ike_mobike.c:543-545`). But the measured red is an ESTABLISHMENT-time disagreement, not a mid-SA change |
+
+### The kernel limit, now measured rather than reasoned
+
+`TestEncapTwoStatesOneSPI` (QEMU, Alpine aarch64): a second state on one SPI is refused
+with `file exists` BOTH with identical addresses AND with a differing source. The prose in
+`child.go` and in the sibling probe said the lookup "returns the first match and the
+mismatch check then drops the packet". That mechanism is wrong. The second state cannot be
+installed at all, because the uniqueness key and the lookup key are the same tuple.
+
+### A-7, a harness defect this work exposed
+
+The QEMU package supports exactly ONE namespace probe per test BINARY. Run alone, all
+three probes pass. Run together, the first passes and every later one reports that no
+counter moved. It is not caused by the new probes: the PRE-EXISTING
+`TestEncapKernelBindsOneESPFormPerState` under `-count=2` passes its first iteration and
+fails its second, with no new code involved. `make ze-qemu-integration-test` runs the whole
+package, so this must be fixed or the target reads red for a product reason that does not
+exist.
+
+### What Phase 2 is blocked on
+
+Phase 1 is complete and the route is chosen. Implementation cannot start, because both
+changes the route needs alter the behaviour of TAGGED RFC tests, and
+`ai/rules/testing.md` gives that authorization to the owner alone. `// test-relax:` does
+NOT satisfy `c_rfc_tagged_test`; only
+`// rfc-test-change-approved: <date> <what the user approved>` does, and only the user may
+write it. This spec's own Goal Gates already require the authorization in writing BEFORE
+the edit.
+
+**Decision 1: authorize the tagged-test edits.** Both live in
+`internal/component/ike/engine/rfc7296_natt_bothforms_test.go`.
+
+| Test | Tag | Why the chosen route changes it |
+|------|-----|--------------------------------|
+| `TestBfmEncapsulatedESPAcceptedWithoutNAT` | `RFC7296-2.23-11 positive` | It asserts EVERY SA carries `UDPEncap` when the SA floated with no NAT. That is exactly the case where ze must now SEND bare, so the outbound half of the assertion has to become a receive-side assertion |
+| `TestBfmOneFormPerChildSA` | `RFC7296-2.23-10 negative` | It asserts `inbound.UDPEncap == outbound.UDPEncap`, which is the limit this spec lifts. It becomes the assertion that the SA accepts BOTH forms inbound while sending one |
+
+Neither row is deleted and neither requirement loses a polarity. Both get STRONGER: the
+positive stops asserting a template and starts asserting that both forms are received, and
+the negative stops pinning a limit and starts pinning the dual-form property.
+
+**Decision 2: how far dual-form reception goes under NAT.** Route A costs a userspace hop
+for every encapsulated ESP datagram, because the kernel only hands those to userspace when
+the socket carries no encap type.
+
+| Option | Compliance | Cost |
+|--------|-----------|------|
+| Inbound state always template-free | Both forms at any time, unconditionally | Under NAT every ESP packet crosses userspace, and NAT is the common deployment |
+| Inbound template follows the NAT verdict, userspace covers the other form | Both forms whenever no NAT is detected, which is `-2.23-11` exactly | Kernel fast path everywhere. Under NAT the bare form is not received, and RFC 7296 (`rfc/full/rfc7296.txt:3550-3551`) requires both devices to encapsulate there |
+
+`ai/rules/rfc-compliance.md` reserves this for Thomas, because the second option is
+narrower than full compliance even though the RFC arguably excludes the case it drops.
+
+## Owner decisions, 2026-08-02
+
+Both blocking questions are answered, and one of them is answered by measurement rather
+than by choice.
+
+**Decision 1, the tagged-test edits: AUTHORIZED.** Both tests carry
+`// rfc-test-change-approved: 2026-08-02` and both now assert MORE than before. Neither row
+is deleted and neither polarity is lost.
+
+**Decision 2, how far dual-form reception goes under NAT: RECEIVE BOTH FORMS ALWAYS.** The
+governing text is `rfc/full/rfc7296.txt:3545-3551`. The condition is NAT-T being SUPPORTED,
+not a NAT being FOUND, and the words are "at any time". So reception accepts both forms
+whenever NAT-T is supported, and only TRANSMISSION follows the NAT verdict.
+
+## Phase 2 Evidence (2026-08-02)
+
+### The per-SA hybrid is NOT buildable, and that is measured
+
+The intended design was the kernel fast path for the EXPECTED form per SA, with userspace
+catching the unexpected one. Its two halves ask ONE per-socket option for opposite
+settings, and Ze holds ONE port-4500 socket for every SA.
+
+| Measurement | Result | What it decides |
+|-------------|--------|-----------------|
+| M1 `TestEncapBareESPVisibleToUserspaceWhenStateIsTemplated` | `XfrmInStateMismatch`, and a raw `IPPROTO_ESP` reader saw the datagram: **true** | The under-NAT half WORKS. `ip_protocol_deliver_rcu` calls `raw_local_deliver` before the protocol handler, so userspace sees what XFRM refused |
+| M2 `TestEncapEncapsulatedESPHiddenFromUserspaceWhenSocketDecapsulates` | `XfrmInStateMismatch`, userspace read: **false** (`i/o timeout`) | The no-NAT half FAILS while `UDP_ENCAP` is set. The kernel consumes the datagram before any reader sees it |
+| A-3 `TestEncapReinjectedBareESPAccepted` (phase 1) | `XfrmInStateProtoError` | The same half WORKS when `UDP_ENCAP` is clear |
+
+M2 and A-3 disagree only on the socket option, so serving both halves per SA would need
+`UDP_ENCAP` on and off at once. It is one option on one socket. The choice is therefore
+GLOBAL, and only which form the kernel serves is per SA.
+
+### The design as built
+
+| Decision | Value | Why |
+|----------|-------|-----|
+| `UDP_ENCAP` on the port-4500 socket | stays SET | Keeps the kernel fast path for the encapsulated form, which is every packet of the common NAT deployment |
+| Inbound XFRM template | `NATDetected \|\| floated`, unchanged | The kernel serves the form the peer most likely sends, and `-2.23-11` needs a template on a floated no-NAT SA |
+| Second inbound form | served beside the kernel | A raw `IPPROTO_ESP` reader takes the refused bare datagram and re-presents it through port 4500, where the kernel strips it and hands XFRM the type the template wants |
+| Outbound encapsulation | `NATDetected` ONLY | RFC 7296 makes encapsulation mandatory under NAT and free otherwise. The port float is a MOBIKE artifact, not an encapsulation signal |
+| Cost containment | the reader runs only while a TEMPLATED state exists | A deployment whose SAs are all template-free holds no raw socket, so the bare fast path pays nothing |
+
+`TestEncapOneStateAcceptsBothForms` proves the whole path against a real kernel: ONE state,
+ONE SPI, encapsulated on the kernel fast path and bare re-presented, both reaching the
+crypto check, with the no-state control still raising `XfrmInNoStates`.
+
+### The one cell that stays unreachable, and why no conforming peer reaches it
+
+A template-free inbound state cannot receive the encapsulated form (M2). No conforming peer
+produces that combination. RFC 3948 Section 2.1 requires the ESP-in-UDP ports to equal the
+IKE ports, and RFC 7296 Section 2.23 forbids encapsulation on port 500
+(`rfc/full/rfc7296.txt:3543`). A peer that encapsulates ESP therefore runs its IKE on port
+4500, and every SA on port 4500 is templated here. This is an argument from two RFCs, not a
+measurement, and it is recorded as such.
+
+### Mutation evidence
+
+`TestEncapOneStateAcceptsBothForms` gates. Mutating the re-presented UDP destination port
+to 4501 (`go -overlay`, tree untouched) turns it RED with "expected exactly one counter to
+move, got []". Mutating the source address to the local endpoint left it GREEN, which is a
+real finding: `__xfrm_state_lookup` keys on destination, SPI, protocol and family, so the
+SOURCE is not part of the match. The comment in `espform.go` was corrected to claim only
+what the probe proves.
+
+### A defect this work introduced, found by `-count=2` and fixed
+
+`(*espFormReceiver).Forget` panicked on a nil receiver. `xfrmBackend` is built as a bare
+`&xfrmBackend{}` literal in ten places, which leaves the receiver nil, and `RemoveSA` and
+`Close` reach it on a production path. The methods now define the nil case: `Watch` FAILS
+CLOSED with `errNoESPFormReceiver`, and the teardown methods are no-ops.
+`TestESPFormReceiverNilIsFailClosed` pins it. `InstallSA` also removes the state it just
+added when the receiver refuses, rather than stranding one.
+
 ## Design Insights
 
 - **A comment that asserts a measurement is not a measurement.** `child.go:345-346` and
@@ -549,8 +708,34 @@ choice. Phase 2 is the wiring phase the template asks for.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| **Route A is chosen for the receive path** (2026-08-02) | B, C, D, and route E | C is closed by the kernel: the encapsulation check is symmetric, there is no wildcard type, and a live state's template cannot be changed. B is capable but its backend installs nothing and is gated on another spec. D answers a different question, because strongSwan's own float is a MOBIKE artifact and the measured red is at establishment. A is the only route buildable today, and A-3 measured its one unproven mechanism working: a userspace-read datagram re-injected with the peer's source preserved reached the template-free state |
+| **The forcing case needs a SECOND change beside route A** (2026-08-02) | Treat this spec as receive-only | The measured red is ze's SEND form. `child.go:268` treats a port float as an encapsulation signal, so ze encapsulates toward a peer that expects bare. Route A alone fixes what ze ACCEPTS and leaves what ze SENDS wrong, so scenario 07 would stay red. The outbound form must follow the NAT verdict rather than the port |
 | Phase 1 is evidence, and it precedes wiring | Start with route A immediately | Four routes are open and none is measured. Committing to a seam before A-1, A-3 and A-5 are answered risks building a seam that a cheaper route makes unnecessary |
 | The spec exists even though Ze is conformant as bounded | Close the question with the landed rows | The owner's step two. A landed limit that nobody owns becomes permanent, and `ai/rules/no-parking.md` names that failure |
+
+## Acceptance Criteria status (2026-08-02)
+
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-1 | met | `TestEncapOneStateAcceptsBothForms`, row 3: the re-presented bare datagram raises `XfrmInStateProtoError` |
+| AC-2 | met | same test, row 1: the encapsulated form raises `XfrmInStateProtoError` on the SAME state and SPI |
+| AC-3 | met | same test, final control: an SPI with no state raises `XfrmInNoStates` |
+| AC-4 | **not proven end to end** | No `.ci` drives a form change on an established SA. Scenario `07-responder-psk` proves the establishment-time disagreement is fixed, which is the measured red. The mid-SA change is untested |
+| AC-5 | not applicable, by measurement | VPP CAN receive both forms on one SA, so there is nothing to refuse. Recorded in `vpp.go` with the VPP source read. Its backend installs no SA at all, which `plan/spec-fixit-vpp-ipsec-inoperable.md` owns |
+| AC-6 | met | A-1 to A-6 are `confirmed`, each with a named test or source read |
+| AC-7 | met | Key Design Decisions records route A and every rejected route with its measured cost |
+
+## What is NOT done
+
+Stated plainly rather than left to be discovered (`ai/rules/no-partial-completion.md`).
+
+| Item | State |
+|------|-------|
+| `test/ipsec/ipsec-esp-form-change.ci` | NOT written. AC-4 has no functional proof |
+| `test/ipsec-interop/scenarios/23-esp-form-change/` | NOT written. A strongSwan-driven mid-SA form change is unproven |
+| `test/ipsec/ipsec-esp-encap-no-nat.ci`, `ipsec-esp-form-vpp-reject.ci` | NOT written |
+| `ai/RFC-REQUIREMENTS.md` regeneration | NOT run. `make ze-rfc-index` is REQUIRED after moving or renaming a tagged test, and one test was renamed. The main thread directed that the ledger not be regenerated while it is stale from another session |
+| Throughput of the re-presented form | Not measured. R-1 stands for the bare form on a templated SA |
 
 ## Known Limitations
 - Route B cannot be attempted until `plan/spec-fixit-vpp-ipsec-inoperable.md` closes. That

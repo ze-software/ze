@@ -90,17 +90,33 @@ func (c *IPsecConfig) ValidateIdentities() error {
 		// RFC 7296 Section 3.5 MUST NOT: "The ID_FQDN and ID_RFC822_ADDR strings MUST
 		// NOT contain any terminators (e.g., NULL, CR, etc.)."
 		//
-		// Both leaves are checked, and the refusal lands at COMMIT rather than at
-		// encode time. encodeIKEID would put local-id on the wire verbatim, and a
-		// silent repair there would send an identity the operator never wrote
-		// (ai/rules/exact-or-reject.md). remote-id is checked for the same reason from
-		// the other direction: a conformant peer can never assert a value holding a
-		// terminator, so such a remote-id matches nothing and the tunnel would fail
-		// authentication with no stated cause.
-		for _, id := range []struct{ leaf, value string }{
-			{"local-id", auth.LocalID},
-			{"remote-id", auth.RemoteID},
-		} {
+		// THE CHECK IS PER ID TYPE, because the prohibition is. Section 3.5 states it
+		// for ID_FQDN and repeats it for ID_RFC822_ADDR, and those two alone. ID_KEY_ID
+		// is "an opaque octet stream", and ID_DER_ASN1_DN is "the binary Distinguished
+		// Encoding Rules (DER) encoding" -- binary forms in which a control octet is
+		// ordinary content, not a terminator.
+		//
+		// Applying the string rule to every type refused at COMMIT a key-id the wire
+		// path accepts on receipt (refuseIDTerminators, engine/remote_id.go, gates on
+		// the same two types). Two gates over one obligation disagreeing means one of
+		// them is wrong, and Section 3.5 says which: the config gate was.
+		//
+		// local-id needs no type test. encodeIKEID (engine/auth.go) derives the type ze
+		// SENDS from the value's shape, and it has exactly two branches: an IP address,
+		// or ID_FQDN. So a local-id is always one of the two types the prohibition
+		// covers, or an address in which a terminator cannot appear.
+		//
+		// Both refusals land at COMMIT rather than at encode time. encodeIKEID would put
+		// local-id on the wire verbatim, and a silent repair there would send an identity
+		// the operator never wrote (ai/rules/exact-or-reject.md). remote-id is checked
+		// for the same reason from the other direction: a conformant peer can never
+		// assert an ID_FQDN or ID_RFC822_ADDR holding a terminator, so such a remote-id
+		// matches nothing and the tunnel would fail authentication with no stated cause.
+		checked := []struct{ leaf, value string }{{"local-id", auth.LocalID}}
+		if remoteIDIsTerminatorFree(auth.RemoteIDType) {
+			checked = append(checked, struct{ leaf, value string }{"remote-id", auth.RemoteID})
+		}
+		for _, id := range checked {
 			if c, found := IDTerminator(id.value); found {
 				return fmt.Errorf(
 					"ipsec peer %q: %s %q contains the terminator octet %#02x, and RFC 7296 "+

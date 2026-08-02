@@ -9,10 +9,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/ike/wire"
+	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 // cuaStalledServer returns a server that accepts a request and never answers it. The
@@ -46,6 +48,104 @@ func cuaPeer(t *testing.T, srvURL string, hash []byte) (*SA, *wire.PayloadCERT) 
 	return sa, &wire.PayloadCERT{
 		CertEncoding: wire.CertEncodingHashURL,
 		CertData:     wpcHashAndURL(hash, srvURL),
+	}
+}
+
+// cuaCountingServer returns a server that refuses every request, and a function reporting
+// how many requests it has answered.
+func cuaCountingServer(t *testing.T) (*httptest.Server, func() int) {
+	t.Helper()
+	var mu sync.Mutex
+	hits := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		mu.Lock()
+		hits++
+		mu.Unlock()
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(srv.Close)
+	return srv, func() int {
+		mu.Lock()
+		defer mu.Unlock()
+		return hits
+	}
+}
+
+// cuaWaitIdle waits for every background lookup to finish.
+func cuaWaitIdle(t *testing.T) {
+	t.Helper()
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if certURLFetches.inFlight() == 0 {
+			return
+		}
+		// Poll interval; the loop returns as soon as the pending set empties.
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("the background hash-and-url lookups never finished")
+}
+
+// VALIDATES: a hash-and-url lookup that FAILED is not retried for every retransmission of
+// the message that named it. The peer's repeats cost one outbound GET, not one each.
+//
+// PREVENTS: the defect this test exists for. On failure nothing is cached and the worker
+// removed its own pending key, so each retransmitted IKE_AUTH re-entered start and launched
+// a fresh GET to a host the UNAUTHENTICATED peer chose. The peer controlled the destination
+// and, through the retransmit schedule, the rate. Before the fetch moved off the dispatch
+// goroutine the SA died after one attempt, so this repeat did not exist; the bound restores
+// that ceiling without putting the goroutine stall back.
+func TestCuaFailedLookupIsNotRetriedOnEveryRetransmission(t *testing.T) {
+	srv, hits := cuaCountingServer(t)
+
+	certURLFetches.mu.Lock()
+	clear(certURLFetches.failed)
+	certURLFetches.mu.Unlock()
+
+	hash := sha1.Sum([]byte("retransmitted-object")) //nolint:gosec // RFC 7296 Section 3.6 object id
+	sa, cert := cuaPeer(t, srv.URL, hash[:])
+
+	// The first delivery starts a worker, which fails against the refusing server.
+	certURLFetches.start(sa.PeerName, cert.CertData, sa.PeerCfg.Auth.CertificateURLAllow, slogutil.DiscardLogger())
+	cuaWaitIdle(t)
+	if got := hits(); got != 1 {
+		t.Fatalf("the first delivery made %d requests, want exactly 1", got)
+	}
+
+	// Five retransmissions of the same message. Each re-enters start. Same peer, so the
+	// backoff record applies.
+	for range 5 {
+		certURLFetches.start(sa.PeerName, cert.CertData, sa.PeerCfg.Auth.CertificateURLAllow, slogutil.DiscardLogger())
+	}
+	cuaWaitIdle(t)
+
+	if got := hits(); got != 1 {
+		t.Errorf("five retransmissions after a failed lookup made %d requests in total, want 1; "+
+			"the peer chooses both the destination and the repeat rate", got)
+	}
+}
+
+// VALIDATES: the backoff record cannot itself be grown without bound by a peer naming
+// endless distinct hashes.
+//
+// The key is a hash the PEER chose, so the failure map is attacker-sized exactly like the
+// object cache. It is bounded by the same constant, and past it the set is dropped rather
+// than evicted one entry at a time: the map is an optimisation, and losing it costs one
+// more GET per hash, which is the behavior that existed before it.
+func TestCuaFailureRecordIsBounded(t *testing.T) {
+	certURLFetches.mu.Lock()
+	clear(certURLFetches.failed)
+	for i := range certURLCacheMaxEntries * 3 {
+		certURLFetches.noteFailureLocked(certURLFailure{peer: "ze", hash: string(rune(i)) + "-distinct-hash"})
+	}
+	got := len(certURLFetches.failed)
+	certURLFetches.mu.Unlock()
+
+	if got > certURLCacheMaxEntries {
+		t.Errorf("the failure record holds %d entries after 3x the bound, want at most %d",
+			got, certURLCacheMaxEntries)
+	}
+	if got == 0 {
+		t.Error("the failure record is empty, so the backoff above records nothing at all")
 	}
 }
 

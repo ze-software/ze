@@ -47,6 +47,7 @@ it is the historical record of a false positive that is gone.
 | `validate-spec.sh` Current Behavior citation regex | 1 (2026-07-16) | Active | [F2](#f2-validate-specsh-rejects-the-citation-form-the-rules-mandate) |
 | `validate-spec.sh` RFC-existence check dead (regex typo) | 1 (2026-07-22) | Active | [F11](#f11-validate-specsh-rfc-existence-check-is-dead-code-regex-typo) |
 | `spec-closure-check.py` slice-scoped learned false-positive | 1 (2026-07-22) | Active | [F12](#f12-spec-closure-checkpy-high-confidence-signal-misfires-on-slice-scoped-learned-summaries) |
+| `spec-closure-check.py` cannot enforce umbrella closure at the last child | 1 (2026-08-02) | Active | [F21](#f21-spec-closure-checkpy-cannot-enforce-umbrella-closure-at-the-last-child) |
 | `pretool-writeedit.py` `_rfc_tagged_change_err` traps its own author | 1 (2026-07-31) | Active | [F20](#f20-_rfc_tagged_change_err-traps-its-own-author-on-a-draft-that-has-never-compiled) |
 | `commit_helper.py create` leaks a `ze` daemon and stalls | 6+ (2026-07-26) | Active | [F15](#f15-commit_helperpy-create-leaks-a-ze-daemon-and-stalls-forever) |
 | `GOCACHE` relocation is make-scoped (disk exhaustion) | 1 (2026-07-26) | Active | [F16](#f16-gocache-relocation-is-make-scoped-so-the-recommended-workflow-bypasses-it) |
@@ -1446,6 +1447,15 @@ and never compiles. A tag in a file that fails `go vet` is not evidence.
    to compile proves nothing, so nothing can be weakened by editing it.
 2. Make `check_coverage_ratchet` refuse a tag whose file does not compile. It is
    the difference between a green gate and a green gate that means something.
+
+### F21: `spec-closure-check.py` cannot enforce umbrella closure at the last child
+
+**Friction:** Child-by-child closure can leave a delivered umbrella marked `in-progress`.
+**Pattern:** The checker excludes every umbrella from its high-confidence closure signal.
+**Impact:** The umbrella stays open until a manual audit notices the contradiction.
+**Rule decision:** No new rule. The closure workflow already assigns this transition to the final child.
+**Proposed fix:** Treat an exact umbrella summary plus closed children as a high-confidence signal.
+<!-- source: scripts/dev/spec-closure-check.py -- SpecReport.completed_not_closed, SpecReport.needs_verification -->
 
 ---
 

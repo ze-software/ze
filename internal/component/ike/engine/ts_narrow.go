@@ -531,6 +531,11 @@ func narrowChildSelectors(sa *SA, tsi, tsr *wire.PayloadTS, floor []tsPair) erro
 // the traffic Ze forwards.
 var errTSWidened = errors.New("ike: the responder answered with traffic selectors wider than the proposal")
 
+// errTSUnusable marks an answer this node could neither read nor program. It is separate
+// from errTSWidened because it accuses the peer of nothing: the answer may be perfectly
+// legal and simply outside what this backend can express.
+var errTSUnusable = errors.New("ike: the responder's traffic selectors cannot be adopted")
+
 // recordInitiatorSelectors stores the selectors a responder answered with. It first makes
 // sure the answer widened nothing.
 //
@@ -571,8 +576,20 @@ var errTSWidened = errors.New("ike: the responder answered with traffic selector
 func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS) error {
 	iSels := wireToSelectors(tsi.TrafficSelectors)
 	rSels := wireToSelectors(tsr.TrafficSelectors)
+	// A GUARD MUST DENY OR SAY SOMETHING (ai/rules/fail-closed-guards.md). Both exits
+	// below used to `return nil`, which skipped checkAnswerWithin AND left
+	// NegotiatedPairs unset: the answer was neither checked nor adopted, and the caller
+	// read success. The SA then went up with no negotiated selector at all, and the
+	// endpoint-only fallback programmed a narrower tunnel than either end agreed while
+	// nothing said so.
+	//
+	// Refusing is the conformant answer, not merely the safe one. RFC 7296 Section 2.9
+	// gives the responder one legal move, to narrow, and an answer this node cannot read
+	// or cannot program is not a narrowing it can adopt. Installing the proposal instead
+	// would program traffic the responder never agreed to (ai/rules/exact-or-reject.md).
 	if len(iSels) == 0 || len(rSels) == 0 {
-		return nil
+		return fmt.Errorf("%w: the responder answered with %d TSi and %d TSr selectors this node could not decode",
+			errTSUnusable, len(iSels), len(rSels))
 	}
 	pairs := make([]tsPair, 0, len(iSels))
 	for i := range iSels {
@@ -582,7 +599,8 @@ func recordInitiatorSelectors(sa *SA, tsi, tsr *wire.PayloadTS) error {
 		}
 	}
 	if len(pairs) == 0 {
-		return nil
+		return fmt.Errorf("%w: none of the %d answered selector pairs is programmable",
+			errTSUnusable, len(iSels))
 	}
 	ceiling, what := sa.ProposedChildPairs, "the proposal ze sent"
 	if len(ceiling) == 0 {
