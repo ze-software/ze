@@ -6,6 +6,7 @@
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
+| Deferral shard | `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md` |
 | Updated | 2026-08-02 |
 
 Deferral holder created at the closure of `plan/spec-wire-edit-5-fanout-dedup.md` on 2026-08-02
@@ -14,24 +15,51 @@ was removed by its closure commit, so the work below lives here.
 
 ## Task
 
-A `reject=bgp:` directive written inside a `stdin=peer` block of a `.ci` test is
-a SILENT NO-OP. Neither the runner's peer-block parser nor the peer expectation
+A `reject=` directive written inside a `stdin=peer` block of a `.ci` test is a
+SILENT NO-OP. Neither the runner's peer-block parser nor the peer expectation
 reader consumes it, so the line parses into nothing while reading as a guard: the
 test appears to check a negative it never checks.
 
-Three live sites carry one today:
+**The diagnosis is WIDER than first recorded (re-verified 2026-08-02).** There
+are two separate defects, and the second one is the reason the first is invisible.
 
-| Site |
-|------|
-| `test/plugin/rfc7606-54-discard-unrecognized-nlri.ci` |
-| `test/plugin/filter-family-export-flowspec.ci` |
-| `test/plugin/logging-level-filter.ci` |
+| # | Defect | Evidence |
+|---|--------|----------|
+| 1 | `reject=bgp:` does not exist as a directive ANYWHERE. `parseReject` (`internal/test/runner/record_parse.go`) handles `stderr`, `syslog` and `stdout`, and its `default` returns `unknown reject type %q`. There is no `bgp` case. | read on 2026-08-02 |
+| 2 | Inside a `stdin=peer` block the line never reaches `parseReject`. `consumes` (`internal/test/peer/expect.go`) returns true only for `expect=bgp` and for `action=` of type notification, send, rewrite, close, sighup or sigterm. `reject` is false, and `ConsumesLine`'s own doc comment names `reject=` as a runner-only directive. | read on 2026-08-02 |
+
+Defect 2 MASKS defect 1. A `reject=bgp:` line outside a peer block would be a
+hard parse error today. Every site that carries one carries it inside a peer
+block, which is exactly why nobody has seen the error.
+
+Three live sites carry a dropped `reject=` today, and they are not all the same
+shape:
+
+| Site | Directive | Which defect |
+|------|-----------|--------------|
+| `test/plugin/rfc7606-54-discard-unrecognized-nlri.ci` | `reject=bgp:conn=2:pattern=6304DEADBEEF` | 1 and 2 |
+| `test/plugin/filter-family-export-flowspec.ci` | `reject=bgp:conn=1:pattern=01180A010003` | 1 and 2 |
+| `test/plugin/logging-level-filter.ci` | `reject=stderr:pattern=level=DEBUG` | 2 only: the type is real, the POSITION is wrong |
+
+The third site is the sharpest illustration. The same file carries a comment
+explaining that `option=env` "must live OUTSIDE the stdin=peer block" because the
+runner consumes it, and then places a runner-consumed `reject=stderr:` inside the
+block anyway. The author knew the rule and the file still shipped a dead line,
+because nothing said so.
 
 The fix is a runner GUARD that hard-errors on `reject=` inside a peer block,
 matching the precedent already in place for `option=env:`, plus an audit of the
 three sites once the guard fires. Patching the three call sites alone would leave
 the next one silent, which is the failure this spec exists to stop
 (`ai/rules/fail-closed-guards.md`).
+
+Whether `reject=bgp:` should EXIST is a second question this spec must answer.
+The two sites that use it want to assert that a peer never received given bytes.
+That is a real assertion with no directive behind it. **`plan/spec-wire-edit-5-fanout-dedup.md`
+recorded AC-1 and AC-2 as inexpressible with today's directives for this exact
+reason**, so the choice is either to implement `reject=bgp:` in ze-peer or to
+state that a negative wire assertion is out of the harness's reach and record how
+those ACs are proven instead.
 
 Found by an independent review of the wire-edit children on 2026-08-02. No RFC
 claim rests on the dead lines: at each site the surrounding `expect=bgp:` framing
@@ -48,8 +76,8 @@ assertion still proves the behavior in the observed framing.
 
 **Source files read:** (re-read at design time; verify before trusting)
 
-- [ ] `internal/test/runner/record_parse.go` (the peer-block loop that already refuses `option=env:`)
-- [ ] `internal/test/peer/expect.go` (the peer expectation reader)
+- [ ] `internal/test/runner/record_parse.go` - `parseReject` handles stderr, syslog and stdout; its `default` returns `unknown reject type`. The peer-block loop above it already refuses `option=env:`
+- [ ] `internal/test/peer/expect.go` - `consumes` and `ConsumesLine`; both answer false for `reject`, and the doc comment says so deliberately
 
 **Behavior to preserve:** every currently-passing `.ci` must keep passing once the guard fires; a site that genuinely wants a rejection assertion gets one that works, not a deleted line.
 
@@ -76,7 +104,9 @@ A `.ci` file containing `reject=` between `stdin=peer:` and its terminator.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The three known sites are the only ones; a tree-wide scan finds no fourth. | Review scan of 2026-08-02 over `test/**/*.ci`. | The audit list grows; the guard is unchanged. | (fill during design) | unvalidated |
+| A-1 | The three known sites are the only ones; a tree-wide scan finds no fourth. | Review scan of 2026-08-02 over `test/**/*.ci`, re-run the same day: two `reject=bgp:` and one `reject=stderr:` inside a peer block. | The audit list grows; the guard is unchanged. | grep the corpus again immediately before implementing | unvalidated |
+| A-2 | No currently-green `.ci` depends on a `reject=` inside a peer block being ignored. | The directive asserts a negative, so dropping it can only ever have widened what passes. | A test goes red on the guard and must be fixed, not exempted. | run the full functional suite once the guard fires | unvalidated |
+| A-3 | A negative wire assertion is implementable in ze-peer. | `expect=bgp:` already matches wire bytes per connection, so the machinery for comparison exists. | AC-4 takes its second branch and the two sites are rewritten around a positive assertion. | read `internal/test/peer/expect.go` before choosing the branch | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -96,6 +126,8 @@ A `.ci` file containing `reject=` between `stdin=peer:` and its terminator.
 | AC-1 | A `.ci` with `reject=` inside a `stdin=peer` block | The runner refuses the file with an error naming the directive and the line |
 | AC-2 | The three known sites | Each either carries a working rejection assertion or has the dead line removed with a stated reason |
 | AC-3 | The whole `.ci` corpus | No other site carries a silently dropped directive |
+| AC-4 | A `reject=bgp:` line anywhere | Either ze-peer implements it and a fixture proves it fails when the rejected bytes ARE sent, or the directive is documented as unavailable and the two sites using it are rewritten |
+| AC-5 | `plan/spec-wire-edit-5-fanout-dedup.md`'s AC-1 and AC-2 | Recorded as either now expressible (with the test that proves them) or permanently out of the harness's reach (with the reason), in `plan/learned/1321-wire-edit-5-fanout-dedup.md` |
 
 ## 🧪 TDD Test Plan
 
@@ -119,6 +151,15 @@ A `.ci` file containing `reject=` between `stdin=peer:` and its terminator.
 ## Implementation Steps
 
 1. (fill during design)
+
+### Critical Review Checklist
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Both defects addressed: the missing `bgp` reject type AND the peer-block drop. Fixing only the second leaves `reject=bgp:` a hard parse error waiting for the first author who writes it outside a block |
+| Correctness | The guard names the directive and the line, and it fires at PARSE time, before any process starts (`ai/rules/error-messages.md`) |
+| Rule: `ai/rules/fail-closed-guards.md` | A directive that neither denies nor speaks does not exist. `consumes` and the peer-block loop stay one decision, as the doc comment demands |
+| Rule: `ai/rules/no-test-deletion.md` | A dead line is removed only with a stated reason. It is never removed to quiet the new guard |
+| Registration over hardcoding | The guard derives its accepted directive set from the parser, not from a second hand-written list that can drift from `consumes` |
 
 ## Checklist
 
