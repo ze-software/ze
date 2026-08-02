@@ -513,3 +513,172 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] Learned summary written to `plan/learned/NNN-wire-edit-5-fanout-dedup.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-wire-edit-5-fanout-dedup.md` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+- `internal/component/bgp/filterapi/fingerprint.go`: a self-delimiting digest over every field of the edit set that can change output bytes, plus the full equality check the digest only hints at.
+- `internal/component/bgp/reactor/forward_dedup.go`: `fwdDedupTable`, keyed on `fwdDedupIdentity` (the digest AND the base identity). A destination whose plan matches an earlier one in the same forward call reuses that plan and copies the bytes into its OWN per-peer pool buffer.
+- An empty edit set short-circuits before any digest is computed, so the zero-copy passthrough is untouched.
+
+### Bugs Found/Fixed
+
+- **The dedup identity's base half was unproven.** `fwdDedupTable.begin` guards with `e.fp != fp || e.id != id`, and the whole reactor suite stayed green with `|| e.id != id` removed. Reachable through `exportWireOverride`: a destination with a filter-supplied wire override and a sibling without one share a policy group, so their digests are IDENTICAL over DIFFERENT bases. Closed by `TestDifferentBaseSameEditSetNeverShares` in `bd1f3d873`.
+
+### Documentation Updates
+
+- `docs/architecture/wire/attributes.md` -- the edit-set digest and the equality contract.
+
+### Deviations from Plan
+
+The "Deviation: the rebuild is shared, the BUFFER is not" section above is the
+governing one and is not repeated here. In short: `BenchmarkFanoutRebuildOnly`
+measures the rebuild at 416 ns and a flat copy of its result at 2.1 ns, so
+sharing the PLAN and copying per destination keeps 99.5% of the win while leaving
+the one-buffer-one-item ownership model exactly as it was at HEAD. A-4, A-5 and
+R-3 do not arise.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-4 and A-5 assumed a shared materialisation referenced by several forward items, and the spec spent half its Blast Radius making that safe | A measurement taken before any of it was written says the shared BUFFER is worth 0.5% of the win. Sharing the plan and copying per destination is 99.5% of it, with no lifetime change at all | `BenchmarkFanoutRebuildOnly`, run before implementation | The design was cut down rather than mitigated: R-3 is removed by construction, and `TestSharedBufferOwnedByExactlyOneItem` pins that no two items ever hold one buffer |
+| approach | The dedup identity was implemented with a base half and tested only with one base | Removing `\|\| e.id != id` left the entire reactor suite green: the base half was decorative as far as the tests were concerned | An independent review mutated the guard | `TestDifferentBaseSameEditSetNeverShares` drives `forwardUpdateCore` end to end with a raw export override on one of two same-group destinations |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Fingerprint the edit set, upstream of the copy | Done | `filterapi/fingerprint.go` | |
+| Confirm every hint with full equality | Done | `fwdDedupTable.begin` | The digest never decides alone |
+| One materialisation per policy group | Done | `reactor/forward_dedup.go` | `TestFanoutMaterializesOncePerGroup` |
+| Never share across bases | Done | `fwdDedupIdentity` | `TestDifferentBaseSameEditSetNeverShares` |
+| Replace the route-server four-slot cache without a silent cap | Done | `reactor/forward_rs.go` | No cap remains to be silent about |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestFanoutMaterializesOncePerGroup` | G materialisations for G groups |
+| AC-2 | Done | `TestSharedMaterializationBytesIdentical` | |
+| AC-3 | Done | `TestFingerprintDiffersForEveryField`, `TestFingerprintSeparatesEmptyRewriteFromAbsent`, `TestDifferentBaseSameEditSetNeverShares` | Every single field, plus the base |
+| AC-4 | Done | `TestCollisionRejectedByEquality`, `TestCollisionInTableDoesNotShare` | |
+| AC-5 | Done | `TestFingerprintDiffersForEveryField`, `TestFingerprintRefusesUnmeasurableGenerator` | A field hashed but not compared, or compared but not hashed, is a test failure |
+| AC-6 | Done | `TestReflectorClustersNeverShare` | |
+| AC-7 | Done | `TestEmptyEditSetSkipsFingerprint`, `TestEmptyEditSetSkipsDedup` | |
+| AC-8 | Changed | `TestSharedBufferOwnedByExactlyOneItem` | Re-read as its GOAL and proven more strongly: there is no shared buffer at all, so out-of-order release cannot double-return one |
+| AC-9 | Done | `buildFwdBody` still runs per destination over that destination's own bytes | Splitting is unchanged |
+| AC-10 | Done | `TestGroupsDisabledNoDedup` | |
+| AC-11 | **NOT met at (2,2)** | `BenchmarkFanoutDedup`, interleaved A/B, medians of 6 | +3.3% at fan-out 2 in 2 groups, against -28.6% at (100,2). No adaptive threshold was added on purpose: any cutoff L silently disables sharing for G >= L, which `ai/rules/no-parking.md` and the umbrella both ban. **Needs Thomas's sign-off** |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| the eight fingerprint tests | Done | `filterapi/fingerprint_test.go` | |
+| the seven dedup tests | Done | `reactor/forward_dedup_test.go` | including `TestDifferentBaseSameEditSetNeverShares` |
+| `BenchmarkFanoutDedup` and friends | Done | `reactor/forward_dedup_bench_test.go` | three benchmarks: dedup, floor, rebuild-only |
+| `test/plugin/wire-edit-fanout-dedup.ci` | **Skipped** | `test/draft/plugin/wire-edit-fanout-dedup.ci` (gitignored) | Unfinished; two fixture blockers in its header. Homed in `plan/spec-wire-edit-5-fanout-dedup-deferred-fanout-ci.md` |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/filterapi/fingerprint.go` + `_test.go` | Done | |
+| `internal/component/bgp/reactor/forward_dedup.go` + `_test.go` + `_bench_test.go` | Done | |
+| `test/plugin/wire-edit-fanout-dedup.ci` | Skipped | homed |
+
+### Audit Summary
+- **Total items:** 19
+- **Done:** 16
+- **Partial:** 1 (AC-11, needs Thomas's sign-off)
+- **Skipped:** 1 (the `.ci`, homed)
+- **Changed:** 1 (AC-8, proven more strongly than written)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| One materialisation per policy group, not per destination | unit | `TestFanoutMaterializesOncePerGroup`: G materialisations for G groups |
+| No destination ever receives another destination's wire | unit, mutation-verified | `TestDifferentBaseSameEditSetNeverShares` drives `forwardUpdateCore` end to end; removing `\|\| e.id != id` makes the plain peer's wire carry the other peer's override MED (`80 04 04 00 00 00 aa`), printed in the failure |
+| A collision never decides sharing | unit | `TestCollisionRejectedByEquality`, `TestCollisionInTableDoesNotShare` |
+| The zero-copy passthrough is untouched | unit + functional | `TestEmptyEditSetSkipsFingerprint`; existing `test/plugin/bgp-rs-fastpath-ebgp-shared.ci` |
+| It pays from a fan-out of two upward | benchmark | Interleaved A/B, medians of 6, ns per destination: (2,1) -10.5%, (10,2) -14.4%, (100,2) -28.6%. And it does NOT pay where every destination is its own group: (2,2) +3.3%, (100,100) +2.8%. Allocations per operation identical in both arms at every point |
+| Buffer ownership is unchanged | unit | `TestSharedBufferOwnedByExactlyOneItem` |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| `reject=bgp:` inside a `stdin=peer` block is a silent no-op; three live sites; the fix is a runner guard plus an audit | deferred | `plan/spec-fixit-ci-peer-block-silent-directives.md`, created 2026-08-02 with the full task and the three sites |
+| `test/plugin/wire-edit-fanout-dedup.ci` is unfinished and gitignored, so there is no socket-level proof | deferred | `plan/spec-wire-edit-5-fanout-dedup-deferred-fanout-ci.md`, created 2026-08-02 (the original Destination was this spec, which closure removes) |
+| AC-11 is not met at fan-out 2 with 2 groups: +3.3% | deferred | `plan/spec-wire-edit-5-fanout-dedup-deferred-small-fanout-regression.md`, created 2026-08-02, carrying the full measurement table and the ban on a silent threshold |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/wire-edit-5-fanout-dedup-<session-id>.md` |
+| `review_gate.py check` | clean |
+| Reviewer lenses used | correctness/wire/lifetime; tests/security/coverage (two agents over `bbd53bf22^..b1fa7ab1e`, 2026-08-02) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The dedup identity's base half was entirely unproven: removing `\|\| e.id != id` left the whole reactor suite green | `reactor/forward_dedup.go` `fwdDedupTable.begin` | `bd1f3d873`, `TestDifferentBaseSameEditSetNeverShares` |
+| 2 | ISSUE | `forward_readbuf_leak_test.go` was vacuous at the early-release ordering invariant | `reactor/forward_readbuf_leak_test.go` | `f1f746fb6`, `TestForwardAdoptedHandleHeldUntilLastWrite` |
+| 3 | NOTE (recorded, not fixed) | `reject=bgp:` inside a peer block is a silent no-op at three sites | `internal/test/runner`, `internal/test/peer/expect.go` | Homed in `plan/spec-fixit-ci-peer-block-silent-directives.md`; it is a harness defect, not a fan-out defect, and no RFC claim rests on the dead lines |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/filterapi/fingerprint.go` | Yes | `ls`; `fingerprint_test.go` holds 8 `Test` functions |
+| `internal/component/bgp/reactor/forward_dedup.go` | Yes | `ls`; `forward_dedup_test.go` holds 7 `Test` functions |
+| `internal/component/bgp/reactor/forward_dedup_bench_test.go` | Yes | `BenchmarkFanoutDedup`, `BenchmarkFanoutFloor`, `BenchmarkFanoutRebuildOnly` |
+| `test/plugin/wire-edit-fanout-dedup.ci` | No | Unfinished, in gitignored `test/draft/plugin/`. `ls test/plugin/wire-edit-fanout-dedup.ci` returns "no matches found" |
+| `test/plugin/bgp-rs-fastpath-ebgp-shared.ci` | Yes | `ls test/plugin/bgp-rs-fastpath-ebgp-shared.ci` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | G materialisations for G groups | `grep -n "func TestFanoutMaterializesOncePerGroup" internal/component/bgp/reactor/forward_dedup_test.go`; `make ze-test-bgp` green |
+| AC-3 | no sharing across a different base | `grep -n "func TestDifferentBaseSameEditSetNeverShares" internal/component/bgp/reactor/forward_dedup_test.go` |
+| AC-4 | a collision never shares | `grep -n "func TestCollisionRejectedByEquality" internal/component/bgp/filterapi/fingerprint_test.go` |
+| AC-7 | an empty edit set skips the digest | `grep -n "func TestEmptyEditSetSkipsFingerprint" internal/component/bgp/filterapi/fingerprint_test.go` |
+| AC-10 | groups disabled is identical | `grep -n "func TestGroupsDisabledNoDedup" internal/component/bgp/reactor/forward_dedup_test.go` |
+| AC-11 | NOT met at (2,2) | `BenchmarkFanoutDedup` numbers recorded on A-1 above; +3.3% at (2,2), -28.6% at (100,2) |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| One route to peers in two policy groups | `test/draft/plugin/wire-edit-fanout-dedup.ci` (unfinished) | **No** -- the socket-level proof is missing and homed. The behaviour is proven at the Go level by `TestFanoutMaterializesOncePerGroup` and, for the leak this exists to prevent, by `TestDifferentBaseSameEditSetNeverShares` driving `forwardUpdateCore` end to end |
+| Reflector clients in two clusters | `TestReflectorClustersNeverShare` | Yes -- read: the two clients' edit sets differ in CLUSTER_LIST, and the test asserts no sharing rather than trusting it |
+| RS clients with different community policies | `test/plugin/bgp-rs-community-strip-multi.ci` | Yes -- read: unedited by this child, still green |
+| A route forwarded unchanged to a same-context peer | `test/plugin/bgp-rs-fastpath-ebgp-shared.ci` | Yes -- read: pins the zero-copy passthrough by hex; the empty edit set short-circuits before any digest |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed, with one exception | It pays from a fan-out of two WITHIN ONE GROUP. Where every destination is its own group it costs about 3%. Full table on the assumption row above; the exception is AC-11 and is homed |
+| A-2 | confirmed | The facts-driven producers read per-peer settings a group shares by construction, so a group's destinations produce equal edit sets. `TestFanoutMaterializesOncePerGroup` is that property measured; `TestReflectorClustersNeverShare` is its converse |
+| A-3 | confirmed by construction, then by mutation | Every field is hashed and compared from one explicit list, so a field added to one and not the other is a test failure (`TestFingerprintDiffersForEveryField`, `TestFingerprintRefusesUnmeasurableGenerator`). The base is part of the identity, and `TestDifferentBaseSameEditSetNeverShares` is the mutation-verified proof that it is load-bearing |
+| A-4 | **broken, and the design changed rather than the assumption being rescued** | No buffer is shared, so releasing one correctly without per-peer indices does not arise. `TestSharedBufferOwnedByExactlyOneItem` pins that no two forward items ever hold one buffer |
+| A-5 | **broken, same reason** | `buildFwdBody` still runs per destination over that destination's own bytes, so splitting a shared materialisation does not arise |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Wire format: the edit-set digest and equality contract | `docs/architecture/wire/attributes.md` checked against `fingerprint.go` and `fwdDedupTable.begin` -- the digest is a hint, equality decides | Yes |
+| RFC 4456 Section 8: cross-cluster sharing is forbidden | `TestReflectorClustersNeverShare` plus the CLUSTER_LIST field in the equality list | Yes |
+| RFC 7947 Section 2.2.2: RS clients differ | The AS-path intent and community slots are equality fields; `test/plugin/bgp-rs-community-strip-multi.ci` unedited | Yes |
+| Categories answered No | `b1fa7ab1e` and `bd1f3d873` add no config leaf, no CLI command, no plugin, no capability, no new metric | Yes |
+
+## Core Insight
+
+Measure the thing you are about to make safe. Half this spec was written to make
+a shared buffer safe across several forward items; one benchmark, run before any
+of that code, showed the shared buffer was worth 0.5% of the available win. The
+design got smaller and the lifetime model stayed exactly as it was.
