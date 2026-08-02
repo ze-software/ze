@@ -652,3 +652,205 @@ the site it moves from:
 - [ ] Learned summary written to `plan/learned/NNN-wire-edit-0-umbrella.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-wire-edit-0-umbrella.md` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+Five children, each independently landed and independently revertible:
+
+| Child | Commit | What landed |
+|-------|--------|-------------|
+| 1 base-index | `bbd53bf22`, `f1f746fb6` | eager attribute span index, immutable base, `sync.RWMutex` retired |
+| 2 edit-apply | `a1aec5e6c` | the edit set: slots, fragments, arena, exact size, one-pass merge writer |
+| 3 aspath-fold | `ddf04953a`, `e2037e598` | AS_PATH family as generate slots; the second payload copy deleted |
+| 4 api-origin | `ddf04953a`, `e2037e598` | one encoder for both announce rails; `Builder.WriteTo` retired |
+| 5 fanout-dedup | `b1fa7ab1e`, `bd1f3d873` | one materialisation per policy group |
+
+### Bugs Found/Fixed
+
+Four live defects surfaced while translating code the redesign touched. None was
+in scope when the umbrella was written:
+
+| Defect | RFC | Closed by |
+|--------|-----|-----------|
+| The overflow branch forwarded the route UNMODIFIED, leaking what the policy existed to strip | -- | child 2 |
+| AGGREGATOR was destroyed on every same-width slow-path prepend | 4271 | child 3 |
+| `clearTombstoneTransitive` fired on one prepend path of three | draft-mangin-idr-attr-tombstone-00 5.3 | child 3 |
+| LOCAL_PREF reached eBGP peers on the batch announce rail | 4271 5.1.5 | child 4 |
+
+RFC 7606 Section 5.4 (discard unrecognized NLRI) also landed inside child 2's
+commit, under its own spec.
+
+### Documentation Updates
+
+`docs/architecture/wire/attributes.md`, `docs/architecture/memory/lifetime-contracts.md`, `docs/features/rfc-status.md`, `rfc/short/rfc7606.md`, `ai/RFC-REQUIREMENTS.md`.
+
+### Deviations from Plan
+
+| # | Plan said | What happened | Why |
+|---|-----------|---------------|-----|
+| D-1 | AC-1: byte-identical output for every existing transform | Two goldens moved | Merge-insert changes attribute ORDER by design. `set-local-pref-and-add-med` now emits MED before LOCAL_PREF, and a derived AS4_PATH or AS4_AGGREGATOR lands at its ascending position instead of after every source attribute. RFC 4271 Section 5 orders attributes ascending on emission, so the previous order was the defect. **Thomas approved this on 2026-08-01.** AC-1 cannot hold as written and is recorded Changed, not Done |
+| D-2 | A-2: the span index is emitted from the RFC 7606 walk | It is built in `NewAttributesWire` and published last | Child 1's A-6: the walk reads pre-strip, pre-tombstone bytes |
+| D-3 | Child 5 shares a materialisation across forward items | It shares the PLAN; each destination copies into its own buffer | 416 ns rebuild against a 2.1 ns copy. The shared buffer was worth 0.5% of the win and half the risk budget |
+| D-4 | AC-8: G materialisations for G groups, unconditionally good | True, and it costs about 3% where every destination is its own group | Child 5's AC-11. No adaptive threshold was added: any cutoff silently disables sharing above it |
+| D-5 | AC-2's copy reduction proven by the perf baseline | Proven by a purpose-built fan-out benchmark instead | `ze-perf-bench` is a single-peer 100k-route convergence run. It has no fan-out, so it provably cannot measure a per-destination loop. This was stated up front as R-6 on child 5, and it is why child 5 needed its own benchmark rather than a baseline delta |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | AC-1 promised byte-identical output for every transform, and R-4 said merge-insert applies "only when a new attribute is added" as though that made the output identical | Merge-insert IS a byte change whenever a new attribute is added, because the added attribute lands somewhere different. R-4 correctly bounded the blast radius and was read as denying it | The golden corpus moved two rows | Thomas approved the change on 2026-08-01; recorded as D-1 rather than reverted |
+| assumption | A-2 (the index folds into the RFC 7606 walk) and A-5 (dedup pays from a fan-out of two) | A-2 is unsound: two branches change the bytes after the walk. A-5 holds only within one policy group | Child 1's A-6 research; child 5's interleaved A/B benchmark | Both corrected in the child that owned them, and both recorded there |
+| approach | The umbrella scoped this as a representation redesign | Four live wire defects were sitting inside the code it translated | Enumerating branches to translate them | Each fixed in the child that found it, each with a test named after the branch |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| One shared attribute index instead of five scanners | Done | child 1 | |
+| Deferred edits over an immutable base | Done | child 2 | |
+| The AS-path family inside the same model | Done | child 3 | |
+| One encoder for both origins | Done | child 4 | |
+| Fan-out sharing upstream of the copy | Done | child 5 | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | **Changed** | the golden corpora of children 2 and 3 | Byte identity CANNOT hold as written: merge-insert changes attribute order by design. Two goldens moved, both for that reason. Thomas approved 2026-08-01 |
+| AC-2 | Done | child 3: read-pool borrow deltas, 2 copies to 1 per destination (3 to 1 on the route-server rail) | |
+| AC-3 | Done | child 2: `TestModifyPathZeroAlloc` | |
+| AC-4 | Done | child 2: `test/plugin/modify-oversize-suppress.ci` | |
+| AC-5 | Done | child 2: `TestMergeInsertAscendingOrder`; child 4: `test/plugin/wire-edit-api-origin-order.ci` | Both rails and the forward-modify path |
+| AC-6 | Done | child 2: `TestFragmentListNoIntermediateCopy` | |
+| AC-7 | Done | child 2: `TestCommunityRemoveZeroAllocAndCorrect` | |
+| AC-8 | Done | child 5: `TestFanoutMaterializesOncePerGroup` | G materialisations for G groups |
+| AC-9 | Changed | child 4: `BenchmarkAPIOriginVsForward` | Encoder cost matches; the announce carries one extra allocation, its `*message.Update` return |
+| AC-10 | Done | child 1: `TestBaseImmutableAfterPublication`, `make ze-race-reactor` | |
+| AC-11 | Done | child 3: `TestASPathSlotRSClientSkipsPrepend`; existing route-server corpus | RFC 7947 Section 2.2.2 and RFC 6793 Section 4.2.2 both hold |
+| AC-12 | Done | child 5: `buildFwdBody` still runs per destination; existing split tests | Identical-pointer fast return preserved |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| every child's unit and functional plan | Done | see each child's own audit | children 1 to 5 |
+| the golden byte-identity harness | Changed | `goldenModifyCorpus` (child 2), the AS-path matrix (child 3) | Not a single file; each child owns the corpus for the transforms it moved |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| the five child specs | Done | all five implemented and closed 2026-08-02 |
+
+### Audit Summary
+- **Total items:** 19
+- **Done:** 15
+- **Partial:** 0 at umbrella level (children 3 and 5 each carry one, both homed and both flagged for Thomas)
+- **Skipped:** 0
+- **Changed:** 4 (AC-1, AC-9, the golden harness, D-3)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| One attribute index, built once, read without a lock | unit + race | child 1: `TestReceivePathPublishesSpanIndex`, `TestBaseImmutableAfterPublication`, `make ze-race-reactor` 0 races over 20 iterations |
+| Deferred edits with an exact size, so the fail-open overflow branch can be deleted | functional | child 2: `test/plugin/modify-oversize-suppress.ci`, body placed exactly on the RFC 8654 ceiling |
+| One payload copy per destination instead of two | benchmark | child 3: read-pool borrow deltas, 2 to 1 (3 to 1 on the route-server rail) |
+| One encoder for both origins | grep + unit | child 4: `Builder.WriteTo` gone; `TestAnnounceRailsAgreeByteForByte` |
+| Fan-out sharing upstream of the copy | benchmark | child 5: -14.4% at (10,2), -28.6% at (100,2), interleaved A/B, medians of 6 |
+| Attributes reach the wire in ascending type-code order | functional | child 4: `test/plugin/wire-edit-api-origin-order.ci`, full message asserted by hex |
+| No peer receives another peer's wire | unit, mutation-verified | child 5: `TestDifferentBaseSameEditSetNeverShares`; removing the base half of the identity makes the failure print the other peer's MED |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| none -- `plan/deferrals/spec-wire-edit-0-umbrella.md` was never created | done | `ls plan/deferrals/ \| grep wire-edit-0` returns nothing. The children's rows are resolved in their own specs and re-homed to six new specs created 2026-08-02 |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/wire-edit-0-umbrella-<session-id>.md` |
+| `review_gate.py check` | clean |
+| Reviewer lenses used | correctness/wire/lifetime; tests/security/coverage (two agents over `bbd53bf22^..b1fa7ab1e`, 2026-08-02). Ten categories clean, four findings raised, all fixed |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | BLOCKER | The dedup identity's base half was unproven: removing it left the suite green | child 5, `fwdDedupTable.begin` | `bd1f3d873` |
+| 2 | ISSUE | The pooled `SpanIndex` discarded its spill on every rebuild | child 1, `SpanIndex.reset` | `f1f746fb6` |
+| 3 | ISSUE | The read-buffer leak tests were vacuous at the early-release ordering | child 1/3, `forward_readbuf_leak_test.go` | `f1f746fb6` |
+| 4 | NOTE | `reject=bgp:` inside a `stdin=peer` block is a silent no-op at three sites | `internal/test/runner` | Homed in `plan/spec-fixit-ci-peer-block-silent-directives.md`; a harness defect, not a wire-edit defect |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `plan/learned/1317-wire-edit-1-base-index.md` | Yes | written at closure |
+| `plan/learned/1318-wire-edit-2-edit-apply.md` | Yes | written at closure |
+| `plan/learned/1319-wire-edit-3-aspath-fold.md` | Yes | written at closure |
+| `plan/learned/1320-wire-edit-4-api-origin.md` | Yes | written at closure |
+| `plan/learned/1321-wire-edit-5-fanout-dedup.md` | Yes | written at closure |
+| the five child specs | No | each removed by its own closure commit B on 2026-08-02, preserved in git history by its commit A |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | byte identity does NOT hold, by design | `grep -n "set-local-pref-and-add-med" internal/component/bgp/reactor/forward_modify_failure_test.go` -> one moved golden; child 3's AC-1 records the AS4 ordering change. Thomas approved 2026-08-01 |
+| AC-5 | ascending order on both rails | `test/plugin/wire-edit-api-origin-order.ci` asserts the full message hex |
+| AC-8 | G materialisations for G groups | `grep -n "func TestFanoutMaterializesOncePerGroup" internal/component/bgp/reactor/forward_dedup_test.go` |
+| AC-10 | no data race, index never written after publication | `grep -n "func TestBaseImmutableAfterPublication" internal/component/bgp/wireu/base_test.go`; `make ze-test-bgp` green |
+| AC-2 | one payload copy per destination | child 3's borrow-delta measurement; `BenchmarkFanoutRebuildOnly` decomposes what remains at 416 ns rebuild against 2.1 ns copy |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| eBGP peer with next-hop-self and a community tag | `test/plugin/nexthop-self.ci`, `test/plugin/community-tag.ci` | Yes -- read: both drive a real session and pin the modified wire. The planned `wire-edit-single-materialise.ci` was not created; the "once" half is `TestModifyPathZeroAlloc` |
+| Route reflector forwards to a client | `test/plugin/wire-edit-api-origin-order.ci` | Yes -- read: the RR codes 9 and 10 append into ascending order anyway and cannot discriminate merge-insert; the announce case can and does |
+| API announce with communities and local-preference | `test/plugin/wire-edit-api-origin-order.ci` | Yes -- read: exact hex, injected 2,3,5 before the caller's 8,32 |
+| One route fanned out to peers in two policy groups | `test/draft/plugin/wire-edit-fanout-dedup.ci` (unfinished) | **No** -- homed in `plan/spec-wire-edit-5-fanout-dedup-deferred-fanout-ci.md`. Go-level coverage is mutation-verified |
+| Received UPDATE forwarded unchanged | `test/plugin/bgp-rs-fastpath-ebgp-shared.ci` | Yes -- read: pins the zero-copy passthrough by hex |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Every edit producer migrated to a slot kind; the terminal raw override survives unchanged for the inexpressible case (child 2's A-1) |
+| A-2 | **broken** | The RFC 7606 walk reads bytes two later branches change. The index is built at construction and published last (child 1's A-6) |
+| A-3 | confirmed | `sync.RWMutex` gone; `make ze-race-reactor` 0 races over 20 iterations (child 1's A-2) |
+| A-4 | confirmed for the tested corpus, not for a traffic histogram | `EditSet.Spilled()` reports slot, fragment and arena spill separately so the census is answerable live; no fixture in the suite spills (child 2's A-3) |
+| A-5 | confirmed, with one exception | Dedup pays from a fan-out of two WITHIN ONE GROUP: -10.5% at (2,1), -28.6% at (100,2). Where every destination is its own group it costs about 3% (child 5's A-1 and AC-11) |
+| A-6 | confirmed | The handler contract change reached the registered handlers, the internal generics, and three RFC-tagged test call sites. No out-of-tree break (child 2's A-2) |
+| A-7 | confirmed, and it is now stronger than an assumption | `ze-perf-bench` is a single-peer 100k-route convergence run with no fan-out, so it provably CANNOT measure the per-destination loop this umbrella changes. That is why child 5 needed its own fan-out benchmark, and why a flat baseline is not evidence either way |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Wire format: the base, the edit set, the writer | `docs/architecture/wire/attributes.md` checked against `SpanIndex`, `EditSet`, `announceAttrs.emit` | Yes |
+| Memory: base-fragment and adopted-handle lifetimes | `docs/architecture/memory/lifetime-contracts.md` checked against `fragmentSource` and `adoptFwdHandle` | Yes |
+| RFC status: 4271 Section 5.1.5, 7606 Section 5.4 | `docs/features/rfc-status.md` rows, both updated with the producing sites | Yes |
+| Agent discovery | `ai/RFC-REQUIREMENTS.md` regenerated for the re-tagged call sites | Yes |
+| Categories answered No | The five children add no config leaf, no CLI command, no plugin, no capability, no family | Yes |
+
+## Core Insight
+
+The deferred-edit model was already half-built and undeclared. `mpReachNextHopHandler`
+wrote base bytes, then new bytes, then base bytes, by hand, because the accumulator
+had no word for a fragment list. Giving it that word is what let exact sizing
+delete a fail-open branch, let the AS-path family stop being a second pass, let
+both announce rails stop being two encoders, and let fan-out sharing move upstream
+of the copy. One missing vocabulary word cost four separate structural workarounds
+and hid four live wire defects.
+
+## Known Limitations
+
+- **`ze-perf-bench` cannot measure this work.** It is a single-peer 100k-route convergence run with almost no fan-out, so it provably cannot see a per-destination loop. Child 5 needed its own fan-out benchmark for exactly this reason. A flat baseline is not evidence that the umbrella did nothing.
+- **AC-1's byte identity does not hold, and could not.** Merge-insert changes attribute order whenever a new attribute is added. Two goldens moved for that reason and Thomas approved it on 2026-08-01. Any FUTURE golden that moves for a reason other than merge-insert ordering is a stop-and-report.
+- Fan-out dedup costs about 3% where every destination is its own policy group. No threshold hides it (`plan/spec-wire-edit-5-fanout-dedup-deferred-small-fanout-regression.md`).
+- The unreachable eBGP wire cache is dead but not deleted (`plan/spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal.md`).
+- The socket-level fan-out `.ci` is unfinished (`plan/spec-wire-edit-5-fanout-dedup-deferred-fanout-ci.md`).
+- The filter IPC representation is unchanged; external plugins still exchange text (`plan/spec-filter-wire-0-umbrella.md`).
+- Splitting still runs after materialisation, on every rail.
