@@ -14,7 +14,7 @@ that no past task description in `plan/` would surface
 Every other rule is named in `ai/rules/TRIGGERS.md`. Read its file when its
 trigger matches.
 
-Rules: 11 of 98. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
+Rules: 12 of 98. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
 
 ---
 
@@ -266,6 +266,42 @@ If a file should be deleted but this rule requires permission, ask the user dire
 
 ---
 
+## No Fabrication
+`ai/rules/no-fabrication.md`
+**When:** when stating what code does, or recommending work premised on a behavioral claim — **Severity:** blocking — **Related:** detail-budget, critical-review
+
+## Directives
+State only what the source explicitly says or does.
+## Rule
+If the source material does not contain the information needed to answer the question, say so.
+## Behavioral claims and recommendations
+A claim about what code *does* at runtime is not verified until you have read the code that produces the behavior.
+## Mechanical check
+Before answering a factual question about file content:
+1. Can I point to the text that states the answer? If yes, answer.
+2. If no: "The file doesn't say. [what's missing]."
+1. Name the single keystone fact the claim depends on (e.g. "a session-down yields `err == nil`").
+2. Read the function that *produces* that fact (returns or sets the value), not only the one that consumes it.
+3. If I have read only the consumer, label it a hypothesis, not a finding, and verify before recommending any action.
+## Banned
+| Pattern | Why |
+|---------|-----|
+| Inferring status from position in a list | The file may not encode status by position |
+| Inferring done/not-done without explicit markers | Fabrication dressed as analysis |
+| Presenting interpretation as fact | The user asked what the file says, not what you think |
+| Guessing what the user meant and presenting the guess as a conclusion | Say you don't know, ask |
+| Inferring a function's return value or behavior from its caller | Read the producer of the value, not the consumer |
+| Citing a code comment as the project's design intent | A comment is its author's belief, not a decision record; read `plan/deferrals/`, `plan/learned/`, specs |
+| Inferring a foreign system's semantics from a generated binding stub | The stub documents a field's existence, not what the system does with it; read that system's source (e.g. VPP's C, vendored at `third_party/vpp-linux-cp/`, not `binapi/*.ba.go`) |
+| Recommending work premised on an unverified behavioral claim | The premise is itself a claim; trace it to source first |
+| Treating a coherent narrative as verified | A self-consistent story is a hypothesis until the keystone fact is read |
+## Mechanical backstop
+The `design-without-lsp` check in `.claude/hooks/pretool-writeedit.py` blocks writing a `plan/spec-*.md` or `plan/design-*.md` file unless this session has investigated implementation source (read a `.go` under...
+
+<!-- always-on: no past task would surface it -->
+
+---
+
 ## No Layering
 `ai/rules/no-layering.md`
 **When:** when replacing X with Y — **Severity:** blocking
@@ -448,6 +484,7 @@ Rules that disagree almost always disagree about one thing: whether to keep goin
 **Stopping at a phase boundary is NOT asking permission.** `no-asking` bans "would you like me to...?" before work you were already asked to do. It does not ban ending a phase, reporting the result, and letting the operator choose the next model or session. Rung 4 and rung 5 only look like a conflict if you read `no-asking` as "never stop".
 **When a higher rung forces a question, the question is HOW, never WHETHER.** "Which way do you want this fixed" is always legitimate. "May I skip it", "may I drop the test", "shall I defer this" are banned at every rung (`no-parking.md`).
 **Deferral versus parking, settled by one question: does the goal this work exists to achieve still hold if I leave this?** If yes, it is separable future work: home it per `deferral-tracking.md`. If no, it is parking with a polite name: fix it now (`no-parking.md`).
+**Closing comes first, and the same question decides the ORDER as well as the verdict: a defect the goal does NOT depend on is fixed AFTER the work in hand is closed, never on the way to closing it.** `no-parking.md` makes you the owner of a defect you walked into, and it does not make you its owner this minute. Name it, home it per `deferral-tracking.md`, close, then fix it. Work that was finished but never landed is the most expensive failure this repo has, and an unrelated fix folded into a closing commit is its usual cause: it costs the commit its single focus and the review its scope, and it restarts the gates that were already green.
 **Recording versus fixing, settled by one question: did I try to reproduce it and fail?** Only a failure whose mechanism you actively tried and could not reproduce may be written down instead of fixed. Anything deterministic, structural, or load-explained gets fixed (`fix-dont-record.md`).
 **A rule's own subject matter is never overridden by this ladder.** The ladder decides stop/ask/delegate/continue. It does not license writing `fmt.Sprintf` on a hot path because you were in a hurry, and it does not exempt you from `no-fabrication` at any rung.
 **If the ladder genuinely does not resolve a conflict, say so in one or two sentences, name both rules, state the reading you are taking, and proceed under it** -- unless the conflict sits on rung 1 or 2, where you stop instead. Silently picking a side and not mentioning it is the failure this clause exists to prevent.
