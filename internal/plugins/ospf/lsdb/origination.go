@@ -60,7 +60,7 @@ func (d *LSDB) OriginateFromTopology(router types.RouterID, maxMetric bool) int 
 	activeAreas := make([]types.AreaID, 0, len(byArea))
 	for area, ifaces := range byArea {
 		areas = append(areas, area)
-		if areaHasAdvertisedLinks(ifaces) {
+		if AreaHasAdvertisedLinks(ifaces) {
 			activeAreas = append(activeAreas, area)
 		}
 	}
@@ -149,7 +149,9 @@ func (d *LSDB) OriginateRouter(in OriginInput) (packet.LSAHeader, bool) {
 	return d.installOriginated(in.AreaID, packet.LSA{Header: h, Router: &body}, key, purge)
 }
 
-func areaHasAdvertisedLinks(ifaces []InterfaceInfo) bool {
+// AreaHasAdvertisedLinks reports whether an area has a live or passive
+// interface, or a Full virtual link, that contributes to its Router-LSA.
+func AreaHasAdvertisedLinks(ifaces []InterfaceInfo) bool {
 	for idx := range ifaces {
 		if ifaces[idx].NetworkType == NetworkVirtual {
 			// RFC 2328 section 15 / RFC 5340 section 3.5: a virtual link makes its area (the

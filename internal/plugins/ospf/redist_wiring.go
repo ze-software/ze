@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"sort"
 
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 	ospfredistribute "github.com/ze-software/ze/internal/plugins/ospf/redistribute"
@@ -95,7 +96,7 @@ type nssaAttachment struct {
 // AS-wide directly. canType5 is true when the router has a normal/backbone attachment
 // (it can flood Type 5 into a non-stub/non-NSSA area) OR has no NSSA attachment at all
 // (plain ASBR behavior, preserved for routers with no NSSA areas).
-func (e *engine) externalScope() (nssas []nssaAttachment, canType5 bool) {
+func (e *engine) externalScope() ([]nssaAttachment, bool) {
 	e.mu.Lock()
 	cfg := e.cfg
 	running := make([]interfaceConfig, 0, len(e.running))
@@ -103,15 +104,28 @@ func (e *engine) externalScope() (nssas []nssaAttachment, canType5 bool) {
 		running = append(running, ic)
 	}
 	e.mu.Unlock()
+	return e.externalScopeFor(cfg, running, nil)
+}
+
+func (e *engine) externalScopeFor(cfg ospfConfig, running []interfaceConfig, activeIfaces map[string]bool) (nssas []nssaAttachment, canType5 bool) {
+	sort.Slice(running, func(i, j int) bool { return running[i].Name < running[j].Name })
 	attachedNormal := false
-	seen := make(map[types.AreaID]bool, len(running))
+	seen := make(map[types.AreaID]int, len(running))
 	for _, ic := range running {
+		if activeIfaces != nil && !activeIfaces[ic.Name] {
+			continue
+		}
 		switch areaTypeFor(cfg, ic.AreaID) {
 		case areaTypeNSSA:
-			if !seen[ic.AreaID] {
-				seen[ic.AreaID] = true
-				nssas = append(nssas, nssaAttachment{area: ic.AreaID, fa: interfaceIPv4Address(ic.Name)})
+			fa := e.nssaIPv4Address(ic.Name)
+			if idx, ok := seen[ic.AreaID]; ok {
+				if nssas[idx].fa == ([4]byte{}) && fa != ([4]byte{}) {
+					nssas[idx].fa = fa
+				}
+				continue
 			}
+			seen[ic.AreaID] = len(nssas)
+			nssas = append(nssas, nssaAttachment{area: ic.AreaID, fa: fa})
 		case areaTypeStub:
 			// stub areas carry no externals
 		default:
@@ -119,6 +133,13 @@ func (e *engine) externalScope() (nssas []nssaAttachment, canType5 bool) {
 		}
 	}
 	return nssas, attachedNormal || len(nssas) == 0
+}
+
+func (e *engine) nssaIPv4Address(name string) [4]byte {
+	if e.ipv4Address != nil {
+		return e.ipv4Address(name)
+	}
+	return interfaceIPv4Address(name)
 }
 
 // WithdrawExternal implements ospfredistribute.ExternalInjector: MaxAge-purge the

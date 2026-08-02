@@ -18,7 +18,7 @@ import (
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
-func type7LSA(t *testing.T, network, adv string, type2 bool, metric uint32, fwd string, propagate bool) packet.LSA {
+func type7LSA(t *testing.T, network, mask, adv string, metric uint32, propagate bool) packet.LSA {
 	t.Helper()
 	var opts types.Options
 	if propagate {
@@ -33,10 +33,10 @@ func type7LSA(t *testing.T, network, adv string, type2 bool, metric uint32, fwd 
 			Sequence:          types.InitialSequenceNumber,
 		},
 		External: &packet.ExternalLSA{
-			NetworkMask:    testIP(t, "255.255.255.0"),
-			ExternalType2:  type2,
+			NetworkMask:    testIP(t, mask),
+			ExternalType2:  true,
 			Metric:         metric,
-			ForwardingAddr: testIP(t, fwd),
+			ForwardingAddr: testIP(t, "192.168.0.5"),
 		},
 	}
 }
@@ -48,8 +48,8 @@ func TestOSPFNSSAPreference(t *testing.T) {
 
 	db := ospflsdb.New(nil)
 	require.True(t, db.Install(types.BackboneArea, externalLSA(t, "10.40.0.0", "2.2.2.2", true, 1, fa)), "Type 5")
-	require.True(t, db.Install(nssa, type7LSA(t, "10.40.0.0", "3.3.3.3", true, 100, fa, true)), "Type 7 P=1")
-	require.True(t, db.Install(nssa, type7LSA(t, "10.40.0.0", "4.4.4.4", true, 1, fa, false)), "Type 7 P=0")
+	require.True(t, db.Install(nssa, type7LSA(t, "10.40.0.0", "255.255.255.0", "3.3.3.3", 100, true)), "Type 7 P=1")
+	require.True(t, db.Install(nssa, type7LSA(t, "10.40.0.0", "255.255.255.0", "4.4.4.4", 1, false)), "Type 7 P=0")
 
 	routeTable := []RouteEntry{{Prefix: netip.MustParsePrefix("192.168.0.0/24"), Metric: 3, Type: RouteIntraArea, NextHops: []NextHop{{Addr: netip.MustParseAddr("10.0.0.9")}}}}
 
@@ -57,4 +57,63 @@ func TestOSPFNSSAPreference(t *testing.T) {
 	require.Len(t, routes, 1, "one winning external route for the shared prefix")
 	assert.Equal(t, netip.MustParsePrefix("10.40.0.0/24"), routes[0].Prefix)
 	assert.Equal(t, testRID(t, "3.3.3.3"), routes[0].Origin, "the Type 7 P=1 wins over the Type 5 and the lower-cost Type 7 P=0 (RFC 3101 sec 2.5)")
+}
+
+// TestOSPFNSSABorderRouterDefaultPBit verifies the P-bit install gate for a
+// Type-7 default received by an NSSA border router.
+func TestOSPFNSSABorderRouterDefaultPBit(t *testing.T) {
+	root := testRID(t, "1.1.1.1")
+	nssa := areaID(t, "0.0.0.5")
+	routeTable := []RouteEntry{{
+		Prefix:   netip.MustParsePrefix("192.168.0.0/24"),
+		Metric:   3,
+		Type:     RouteIntraArea,
+		NextHops: []NextHop{{Addr: netip.MustParseAddr("10.0.0.9")}},
+	}}
+
+	t.Run("P-bit set", func(t *testing.T) {
+		db := ospflsdb.New(nil)
+		require.True(t, db.Install(nssa, type7LSA(t, "0.0.0.0", "0.0.0.0", "3.3.3.3", 10, true)))
+
+		// RFC requirement: RFC3101-2.4-4 positive -- an NSSA border router
+		// can install a received Type-7 default whose P-bit is set.
+		// RFC requirement: RFC3101-2.5-1 negative -- a regular NSSA does
+		// not suppress Type-7 defaults when summary import is enabled.
+		routes := ComputeExternal(ExternalInput{
+			Source: db, Root: root, Routes: routeTable,
+			NSSAAreas: []types.AreaID{nssa}, NSSABorderRouter: true, MaxPaths: 8,
+		})
+		require.Len(t, routes, 1)
+		assert.Equal(t, netip.MustParsePrefix("0.0.0.0/0"), routes[0].Prefix)
+	})
+
+	t.Run("summary import suppressed", func(t *testing.T) {
+		db := ospflsdb.New(nil)
+		require.True(t, db.Install(nssa, type7LSA(t, "0.0.0.0", "0.0.0.0", "3.3.3.3", 10, true)))
+
+		// RFC requirement: RFC3101-2.5-1 positive -- an NSSA border router
+		// ignores Type-7 defaults when summary import is suppressed.
+		routes := ComputeExternal(ExternalInput{
+			Source: db, Root: root, Routes: routeTable,
+			NSSAAreas: []types.AreaID{nssa}, NSSABorderRouter: true,
+			NSSAPolicies: map[types.AreaID]AreaSummaryPolicy{
+				nssa: {Type: AreaTypeNSSA, NoSummary: true},
+			},
+			MaxPaths: 8,
+		})
+		assert.Empty(t, routes)
+	})
+
+	t.Run("P-bit clear", func(t *testing.T) {
+		db := ospflsdb.New(nil)
+		require.True(t, db.Install(nssa, type7LSA(t, "0.0.0.0", "0.0.0.0", "3.3.3.3", 10, false)))
+
+		// RFC requirement: RFC3101-2.4-4 negative -- an NSSA border router
+		// does not install a received Type-7 default whose P-bit is clear.
+		routes := ComputeExternal(ExternalInput{
+			Source: db, Root: root, Routes: routeTable,
+			NSSAAreas: []types.AreaID{nssa}, NSSABorderRouter: true, MaxPaths: 8,
+		})
+		assert.Empty(t, routes)
+	})
 }

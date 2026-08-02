@@ -15,13 +15,15 @@ import (
 // received Type 5 LSAs, run AFTER the intra/inter-area route table is resolved (the
 // ASBR and forwarding-address lookups resolve against it).
 type ExternalInput struct {
-	Source        Source
-	Root          types.RouterID
-	BorderRouters []BorderRouterEntry // ASBR reachability (router-id -> cost + next-hops), from ComputeInterArea
-	Routes        []RouteEntry        // resolved intra + inter route table, for forwarding-address resolution
-	Resolver      InterfaceResolver
-	MaxPaths      int
-	NSSAAreas     []types.AreaID // attached NSSA areas whose Type 7 LSAs also yield externals (RFC 3101)
+	Source           Source
+	Root             types.RouterID
+	BorderRouters    []BorderRouterEntry // ASBR reachability (router-id -> cost + next-hops), from ComputeInterArea
+	Routes           []RouteEntry        // resolved intra + inter route table, for forwarding-address resolution
+	Resolver         InterfaceResolver
+	MaxPaths         int
+	NSSAAreas        []types.AreaID                     // attached NSSA areas whose Type 7 LSAs also yield externals (RFC 3101)
+	NSSAPolicies     map[types.AreaID]AreaSummaryPolicy // per-NSSA summary-import policy
+	NSSABorderRouter bool                               // the calculating router is an ABR attached to an NSSA
 }
 
 type asbrReach struct {
@@ -111,6 +113,19 @@ func ComputeExternalWith(in ExternalInput, read ExternalReader) []RouteEntry {
 				continue
 			}
 			if rec, ok := read(area, h); ok {
+				if in.NSSABorderRouter && rec.Prefix.Bits() == 0 {
+					// RFC requirement: RFC3101-2.4-4 -- an NSSA border
+					// router MUST reject a P-clear Type-7 default.
+					if rec.Pref == prefType7P0 {
+						continue
+					}
+					// RFC requirement: RFC3101-2.5-1 -- an NSSA border
+					// router MUST reject Type-7 defaults when it suppresses
+					// summary-route import.
+					if in.NSSAPolicies[area].NoSummary {
+						continue
+					}
+				}
 				if cand, ok := in.externalCandidateFrom(area, rec, reach, maxPaths); ok {
 					keepBestExternal(best, cand, maxPaths)
 				}

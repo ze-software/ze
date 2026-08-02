@@ -107,10 +107,18 @@ A stub area (`area-type stub`) carries no AS-External information: the E-bit is 
 <!-- source: internal/plugins/ospf/lsdb/flooding.go -- shouldDropByArea, eligibleInterface -->
 <!-- source: internal/plugins/ospf/iface/iface.go -- validateHelloLocked E/N-bit match -->
 
-An NSSA (`area-type nssa`, RFC 3101) is stub-like but permits local external redistribution. The N-bit must match between neighbours (the E-bit stays clear as in a stub). An NSSA ASBR originates Type 7/NSSA LSAs for the routes it redistributes; in OSPFv3 the P-bit lives in the prefix options and a non-zero IPv6 forwarding address is carried in the external body. A router that cannot inject a Type 5 directly (no normal-area attachment) sets the P-bit so its Type 7 is translatable; one that can originate a Type 5 directly clears it. The ABR may also originate a Type 7 default (`nssa { default-originate true }`).
+An NSSA (`area-type nssa`, RFC 3101) is stub-like but permits local external redistribution. The N-bit must match between neighbors. The E-bit stays clear. An NSSA ASBR originates Type 7 LSAs for redistributed routes.
 <!-- source: internal/plugins/ospf/lsdb/nssa.go -- OriginateNSSA, PurgeNSSA -->
 <!-- source: internal/plugins/ospf/origination_v6_nssa.go -- v6OriginateNSSALSA -->
+
+In OSPFv2, every NSSA border router originates a default into each directly attached NSSA. A regular NSSA gets a P-clear Type 7 default. A no-summary NSSA gets a Type 3 default. OSPFv3 does not yet originate this default correctly: see the RFC 3101 row in `docs/features/rfc-status.md`. In both address families the border router rejects received Type 7 defaults when the P-bit is clear or summary import is disabled.
 <!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults -->
+<!-- source: internal/plugins/ospf/spf/area_type.go -- applyAreaTypePolicy -->
+<!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternalWith -->
+
+An internal NSSA router can originate a P-set default with `nssa { default-originate true }` when it has a usable forwarding address.
+<!-- source: internal/plugins/ospf/nssa.go -- applyNSSADefaults -->
+<!-- source: internal/plugins/ospf/lsdb/nssa.go -- OriginateNSSA -->
 
 Among the ABRs attached to an NSSA, exactly one is elected the Type 7 to Type 5 translator (RFC 3101 §3.5): the translator-candidate ABR with the highest Router ID. Each ABR whose role is not `never` advertises the Nt-bit in its Router-LSA to stand as a candidate; a `never` ABR clears the Nt-bit and is excluded from the election, so it cannot wedge translation off for a willing lower-Router-ID candidate. The role is configurable per area (`nssa { translate-role candidate|always|never }`), sticky across a `stability-interval`. The elected translator re-originates each P=1, non-zero-FA Type 7 as a Type 5 onto the backbone (P cleared, Advertising Router set to the translator, forwarding address / metric / tag preserved), counted by `ze_ospf_nssa_translations_total{area}`. A non-elected ABR does not translate, so no duplicate Type 5 reaches the backbone. When the same external prefix is known via a Type 7 (P=1), a Type 5, and a Type 7 (P=0), the external route computation prefers them in that order (RFC 3101 §2.5) ahead of the §16.4 cost.
 <!-- source: internal/plugins/ospf/nssa.go -- electNSSATranslator, translateNSSA, translatorEffective -->

@@ -1,9 +1,7 @@
-// VALIDATES: spec-ospf-14 AC-14 (RFC 3101 §2.3: a totally-stubby/no-summary NSSA ABR MUST
-// auto-originate a Type 7 default even without `default-originate`, while a regular NSSA stays
-// operator-gated) and AC-16 (RFC 3101 §3.6: the engine suppresses and withdraws its translation
-// when a strictly-higher-Router-ID translator already advertises an equivalent Type 5).
-// PREVENTS: a totally-stubby NSSA's internal routers blackholing externals for lack of a default,
-// and two overlapping translators injecting duplicate Type 5 LSAs for one network.
+// VALIDATES: RFC 3101 Section 2.4 default origination for every attached NSSA,
+// plus spec-ospf-14 AC-16 translator suppression by a higher-Router-ID Type 5.
+// PREVENTS: regular NSSAs missing their required border-router default and
+// overlapping translators injecting duplicate Type 5 LSAs.
 package ospf
 
 import (
@@ -12,25 +10,99 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	ospfiface "github.com/ze-software/ze/internal/plugins/ospf/iface"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
 )
 
-func TestOSPFNSSATotallyStubbyAutoDefault(t *testing.T) {
+// TestOSPFNSSABorderRouterDefaultsEveryArea verifies the Type-7 half of
+// the mandatory NSSA border-router default behavior.
+func TestOSPFNSSABorderRouterDefaultsEveryArea(t *testing.T) {
 	eng, _ := newRedistEngine(t, `{"ospf":{"router-id":"10.0.10.9","areas":{"area":{"0.0.0.0":{"area-id":"0.0.0.0"},"0.0.0.5":{"area-id":"0.0.0.5","area-type":"nssa","no-summary":"true"},"0.0.0.6":{"area-id":"0.0.0.6","area-type":"nssa"}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.0"},"eth1":{"area":"0.0.0.5"},"eth2":{"area":"0.0.0.6"}}}}}`)
 	self := ridOf("10.0.10.9")
-	stubby := types.AreaID{0, 0, 0, 5}  // totally-stubby NSSA (no-summary)
-	regular := types.AreaID{0, 0, 0, 6} // regular NSSA, no default-originate
+	stubby := types.AreaID{0, 0, 0, 5}
+	regular := types.AreaID{0, 0, 0, 6}
 	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: types.BackboneArea}
 	eng.running["eth1"] = interfaceConfig{Name: "eth1", AreaID: stubby}
 	eng.running["eth2"] = interfaceConfig{Name: "eth2", AreaID: regular}
 
 	eng.applyNSSADefaults()
 
-	// RFC 3101 §2.3: a totally-stubby (no-summary) NSSA ABR MUST auto-originate the Type 7
-	// default (0.0.0.0/0) even without `default-originate` -- the only Type 7 originated here.
-	assert.Equal(t, 1, selfNSSACount(eng, stubby, self), "totally-stubby NSSA auto-originates a Type 7 default")
-	// A regular NSSA without `default-originate` originates no default.
-	assert.Equal(t, 0, selfNSSACount(eng, regular, self), "regular NSSA without default-originate originates no default")
+	assert.Equal(t, 0, selfNSSACount(eng, stubby, self), "no-summary NSSA uses a Type-3 default")
+	// RFC requirement: RFC3101-2.4-5 positive -- a regular NSSA receives
+	// a default-destination LSA without an operator gate.
+	require.Equal(t, 1, selfNSSACount(eng, regular, self))
+	key := types.LSAKey{Type: types.LSTypeNSSA, AdvertisingRouter: self}
+	lsa, ok := eng.lsdb.LookupLSA(regular, key)
+	require.True(t, ok)
+	// RFC requirement: RFC3101-2.4-4 positive -- an NSSA border router
+	// clears the P-bit on its Type-7 default.
+	assert.False(t, lsa.Header.Options.Has(types.OptionNP))
+}
+
+// TestOSPFNSSAInternalRouterOriginatesNoBorderDefault verifies that the
+// border-router requirement does not make an internal NSSA router originate it.
+func TestOSPFNSSAInternalRouterOriginatesNoBorderDefault(t *testing.T) {
+	eng, _ := newRedistEngine(t, `{"ospf":{"router-id":"10.0.10.9","areas":{"area":{"0.0.0.6":{"area-id":"0.0.0.6","area-type":"nssa"}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.6"}}}}}`)
+	self := ridOf("10.0.10.9")
+	nssa := types.AreaID{0, 0, 0, 6}
+	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: nssa}
+
+	eng.applyNSSADefaults()
+
+	// RFC requirement: RFC3101-2.4-5 negative -- a router that is not an
+	// NSSA border router does not originate the border-router default.
+	assert.Equal(t, 0, selfNSSACount(eng, nssa, self), "internal NSSA router originates no border default")
+}
+
+func TestOSPFNSSANonBackboneMultiAreaRouterIsNotABR(t *testing.T) {
+	eng, _ := newRedistEngine(t, `{"ospf":{"router-id":"10.0.10.9","areas":{"area":{"0.0.0.1":{"area-id":"0.0.0.1"},"0.0.0.6":{"area-id":"0.0.0.6","area-type":"nssa"}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.1"},"eth1":{"area":"0.0.0.6"}}}}}`)
+	self := ridOf("10.0.10.9")
+	nssa := types.AreaID{0, 0, 0, 6}
+	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: types.AreaID{0, 0, 0, 1}}
+	eng.running["eth1"] = interfaceConfig{Name: "eth1", AreaID: nssa}
+
+	eng.applyNSSADefaults()
+
+	assert.Equal(t, 0, selfNSSACount(eng, nssa, self), "two non-backbone areas do not make an ABR")
+}
+
+func TestOSPFNSSADefaultWithdrawnFromRemovedArea(t *testing.T) {
+	eng, _ := newRedistEngine(t, `{"ospf":{"router-id":"10.0.10.9","areas":{"area":{"0.0.0.0":{"area-id":"0.0.0.0"},"0.0.0.6":{"area-id":"0.0.0.6","area-type":"nssa"}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.0"},"eth1":{"area":"0.0.0.6"}}}}}`)
+	self := ridOf("10.0.10.9")
+	nssa := types.AreaID{0, 0, 0, 6}
+	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: types.BackboneArea}
+	eng.running["eth1"] = interfaceConfig{Name: "eth1", AreaID: nssa}
+	eng.applyNSSADefaults()
+	require.Equal(t, 1, selfNSSACount(eng, nssa, self))
+
+	cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.10.9","areas":{"area":{"0.0.0.0":{"area-id":"0.0.0.0"}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.0"}}}}}`), nil)
+	require.NoError(t, err)
+	eng.setConfig(cfg)
+	delete(eng.running, "eth1")
+	eng.applyNSSADefaults()
+
+	assert.Equal(t, 0, selfNSSACount(eng, nssa, self), "removed NSSA default is withdrawn")
+	assert.False(t, eng.lsdb.SelfIsASBR(self), "removed default no longer marks self as ASBR")
+}
+
+func TestOSPFNSSABackboneDownWithdrawsBorderDefault(t *testing.T) {
+	eng, _ := newRedistEngine(t, `{"ospf":{"router-id":"10.0.10.9","areas":{"area":{"0.0.0.0":{"area-id":"0.0.0.0"},"0.0.0.6":{"area-id":"0.0.0.6","area-type":"nssa"}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.0"},"eth1":{"area":"0.0.0.6"}}}}}`)
+	self := ridOf("10.0.10.9")
+	nssa := types.AreaID{0, 0, 0, 6}
+	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: types.BackboneArea}
+	eng.running["eth1"] = interfaceConfig{Name: "eth1", AreaID: nssa}
+	eng.applyNSSADefaults()
+	require.Equal(t, 1, selfNSSACount(eng, nssa, self))
+
+	down := ospfiface.New(ospfiface.Config{
+		Name: "eth0", RouterID: self, AreaID: types.BackboneArea,
+		NetworkType: ospfiface.NetworkPointToPoint,
+	}, &rfc5340Sender{}, ospfiface.NopMetrics())
+	t.Cleanup(down.Stop)
+	eng.interfaces["eth0"] = down
+	eng.applyNSSADefaults()
+
+	assert.Equal(t, 0, selfNSSACount(eng, nssa, self), "inactive backbone removes the ABR default")
 }
 
 func TestOSPFNSSAHigherRIDType5Suppresses(t *testing.T) {

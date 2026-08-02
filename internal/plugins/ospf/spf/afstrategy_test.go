@@ -17,13 +17,14 @@ import (
 // Computer drove, proving Run routes graph-decode + prefix attachment through the
 // injected AFPrefixStrategy (so a v6 strategy can replace it).
 type recordingStrategy struct {
-	inner     v4Strategy
-	graph     bool
-	routes    bool
-	interArea bool
-	external  bool
-	summaries bool
-	nextHop   bool
+	inner         v4Strategy
+	graph         bool
+	routes        bool
+	interArea     bool
+	external      bool
+	externalInput ExternalInput
+	summaries     bool
+	nextHop       bool
 }
 
 func (s *recordingStrategy) BuildGraph(src Source, area types.AreaID) *Graph {
@@ -43,6 +44,7 @@ func (s *recordingStrategy) ComputeInterArea(in InterAreaInput) ([]RouteEntry, [
 
 func (s *recordingStrategy) ComputeExternal(in ExternalInput) []RouteEntry {
 	s.external = true
+	s.externalInput = in
 	return s.inner.ComputeExternal(in)
 }
 
@@ -78,12 +80,15 @@ func TestOSPFAFPrefixStrategyV4(t *testing.T) {
 	//    route output is unchanged (the v4 delegation is behavior-identical).
 	rec := &recordingStrategy{}
 	loc2 := locrib.NewRIB()
-	c2 := NewComputer(Config{Source: baseP2PSource(t, area), Root: testRID(t, "1.1.1.1"), Areas: []types.AreaID{area}, Installer: NewInstaller(loc2), Strategy: rec})
+	c2 := NewComputer(Config{Source: baseP2PSource(t, area), Root: testRID(t, "1.1.1.1"), Areas: []types.AreaID{area}, AreaConfigs: []AreaConfig{{AreaID: area, AreaType: AreaTypeNSSA, NoSummary: true}}, Installer: NewInstaller(loc2), Strategy: rec})
 	delta2 := c2.Run()
 	if len(delta2.Added) != 1 || delta2.Added[0].Prefix != pfx {
 		t.Fatalf("injected v4 strategy delta = %+v, want added %s", delta2, pfx)
 	}
 	if !rec.graph || !rec.routes || !rec.interArea || !rec.external || !rec.summaries || !rec.nextHop {
 		t.Fatalf("Computer did not route all SPF stages through the strategy: %+v", *rec)
+	}
+	if !rec.externalInput.NSSAPolicies[area].NoSummary {
+		t.Fatal("Computer did not pass the NSSA summary-import policy to external calculation")
 	}
 }

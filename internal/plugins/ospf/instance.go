@@ -138,7 +138,14 @@ type engine struct {
 	// which runs from both the reconcile (config-apply) goroutine and the retransmit
 	// tick: without it two passes could interleave their read-compute-write of the
 	// translations / translator-grace maps and double-originate or lose a withdraw.
-	nssaMu         sync.Mutex
+	nssaMu sync.Mutex
+	// nssaDefaultAreas tracks the areas where applyNSSADefaults owns a
+	// self-originated default. It lets reconciliation withdraw defaults from
+	// areas removed from config. Guarded by nssaMu.
+	nssaDefaultAreas map[types.AreaID]struct{}
+	// ipv4Address is the live forwarding-address lookup. Tests replace it with
+	// a deterministic lookup. A nil value uses interfaceIPv4Address.
+	ipv4Address    func(string) [4]byte
 	sink           *eventSink
 	receiveOnce    sync.Once
 	retransmitOnce sync.Once
@@ -832,7 +839,7 @@ func (e *engine) reconcile(newCfg ospfConfig) reconcileResult {
 	// originates immediately, the conditional form against the current Loc-RIB, and a
 	// removed/disabled rule withdraws. Live RIB changes are handled by watchDefaultRoute.
 	e.applyDefaultInformation()
-	// Re-evaluate per-NSSA `default-originate` (Type 7 default) against the new config.
+	// Reconcile mandatory ABR and configured internal-router Type 7 defaults.
 	e.applyNSSADefaults()
 	// Re-run translator election + Type 7 -> Type 5 translation (role/attachment change).
 	e.translateNSSA(time.Now())

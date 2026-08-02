@@ -494,7 +494,7 @@ func (c *Computer) Run() RouteDelta {
 			nssaAreas = append(nssaAreas, area)
 		}
 	}
-	external := c.strategy.ComputeExternal(ExternalInput{Source: c.src, Root: root, BorderRouters: border, Routes: internal, Resolver: c.resolver, MaxPaths: maxPaths, NSSAAreas: nssaAreas})
+	external := c.strategy.ComputeExternal(ExternalInput{Source: c.src, Root: root, BorderRouters: border, Routes: internal, Resolver: c.resolver, MaxPaths: maxPaths, NSSAAreas: nssaAreas, NSSAPolicies: areaPolicies, NSSABorderRouter: IsABR(activeAreas)})
 	selected := selectBestRoutes(append(internal, external...), maxPaths)
 	// spec-ospf-ext-14: retain every candidate route (raw intra/inter + external, before
 	// the per-prefix collapse) so the read-only explain view can show what each winner beat.

@@ -17,19 +17,18 @@ const (
 type AreaSummaryPolicy struct {
 	Type        string // normal | stub | nssa
 	NoSummary   bool   // totally-stubby / totally-NSSA: suppress Type 3 except the default
-	DefaultCost uint32 // metric for the injected Type 3 default (stub only)
+	DefaultCost uint32 // metric for the injected Type 3 default
 }
 
 func (p AreaSummaryPolicy) isStubOrNSSA() bool {
 	return p.Type == AreaTypeStub || p.Type == AreaTypeNSSA
 }
 
-// applyAreaTypePolicy rewrites the desired Type 3/4 set for a stub/NSSA destination
-// area (RFC 2328 sec 3.6): Type 4 ASBR-Summaries are never injected into a stub/NSSA
-// area; a totally-stubby/NSSA area (no-summary) suppresses every Type 3 except the
-// injected default; a stub area always gets exactly one Type 3 default (0.0.0.0/0) at
-// default-cost. An NSSA default is a Type 7 (handled by the NSSA originator), so this
-// injects a Type 3 default for stub areas only. A normal area is returned unchanged.
+// applyAreaTypePolicy rewrites the desired Type-3/4 set for a stub or NSSA
+// destination area. Type-4 ASBR summaries never enter these areas. A no-summary
+// area suppresses every Type-3 except its default. Stub areas and no-summary
+// NSSAs get one Type-3 default at default-cost. A regular NSSA gets its default
+// from the Type-7 originator.
 func applyAreaTypePolicy(desired []summaryDesired, p AreaSummaryPolicy) []summaryDesired {
 	if !p.isStubOrNSSA() {
 		return desired
@@ -44,7 +43,7 @@ func applyAreaTypePolicy(desired []summaryDesired, p AreaSummaryPolicy) []summar
 		}
 		out = append(out, d)
 	}
-	if p.Type == AreaTypeStub {
+	if p.Type == AreaTypeStub || p.Type == AreaTypeNSSA && p.NoSummary {
 		out = append(out, summaryDesired{
 			Type:   types.LSTypeSummaryNetwork,
 			LSID:   types.LinkStateID([4]byte{}),

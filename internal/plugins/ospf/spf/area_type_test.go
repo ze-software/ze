@@ -1,8 +1,7 @@
-// VALIDATES: spec-ospf-11 RFC 2328 sec 3.6 -- a stub area ABR injects exactly one
-// Type 3 default (0.0.0.0/0) at default-cost and no Type 4 ASBR-Summary; a totally-
-// stubby area (no-summary) suppresses every Type 3 EXCEPT that default.
-// PREVENTS: regressions where a stub area leaks Type 4, gets no default, or a
-// totally-stubby area still floods inter-area Type 3 summaries.
+// VALIDATES: RFC 2328 Section 3.6 and RFC 3101 Section 2.7 default
+// origination. A stub or no-summary NSSA gets one Type-3 default at
+// default-cost. A no-summary area suppresses every other Type-3 and all Type-4s.
+// PREVENTS: missing defaults and summary leakage into stub or NSSA areas.
 package spf
 
 import (
@@ -74,28 +73,76 @@ func TestOSPFTotallyStubbyOnlyDefault(t *testing.T) {
 	assert.False(t, ok, "no-summary suppresses every inter-area Type 3 except the default")
 }
 
-// TestOSPFNSSAType3SummaryImport pins RFC 3101 sec 2.7: a regular NSSA (summary import is the
-// default) still imports inter-area Type-3 summary-LSAs, while a no-summary (totally-)NSSA
-// suppresses them. A Type-4 ASBR-summary is never imported into an NSSA in either case.
+// TestOSPFNSSAType3SummaryImport pins RFC 3101 Section 2.7 summary import
+// and no-summary default behavior.
 func TestOSPFNSSAType3SummaryImport(t *testing.T) {
 	root := testRID(t, "1.1.1.1")
 	type3 := summaryDesired{Type: types.LSTypeSummaryNetwork, LSID: testLSID(t, "10.10.0.0"), Mask: [4]byte{255, 255, 0, 0}, Metric: 7}
 	type4 := summaryDesired{Type: types.LSTypeSummaryASBR, LSID: types.LinkStateID(root), Metric: 3}
+	defaultRoute := summaryDesired{Type: types.LSTypeSummaryNetwork, Metric: 9}
 	desired := []summaryDesired{type3, type4}
 
-	// Regular NSSA: summary import is the default, so the inter-area Type-3 survives; the
-	// Type-4 ASBR-summary is dropped.
-	// RFC requirement: RFC3101-2.7-1 positive -- a regular NSSA imports the inter-area Type-3
-	// summary-LSA (the ABR keeps it in the desired set it originates into the NSSA).
+	// RFC requirement: RFC3101-2.7-1 positive -- a regular NSSA imports
+	// inter-area Type-3 summary-LSAs and drops Type-4 ASBR summaries.
 	imported := applyAreaTypePolicy(desired, AreaSummaryPolicy{Type: AreaTypeNSSA})
-	assert.True(t, slices.Contains(imported, type3), "a regular NSSA imports the inter-area Type-3 summary")
-	assert.False(t, slices.Contains(imported, type4), "a Type-4 ASBR-summary is not imported into an NSSA")
+	assert.True(t, slices.Contains(imported, type3), "regular NSSA imports the inter-area Type-3 summary")
+	assert.False(t, slices.Contains(imported, type4), "NSSA drops the Type-4 ASBR summary")
+	// RFC requirement: RFC3101-2.7-2 negative -- a regular NSSA does not
+	// receive the no-summary Type-3 default.
+	assert.False(t, slices.Contains(imported, defaultRoute), "regular NSSA gets no Type-3 default")
 
-	// No-summary (totally-)NSSA: the inter-area Type-3 is suppressed (and the Type-4 is still
-	// dropped).
-	// RFC requirement: RFC3101-2.7-1 negative -- a no-summary (totally-)NSSA suppresses the
-	// inter-area Type-3 summary-LSA (import is off), and still drops the Type-4 ASBR-summary.
-	suppressed := applyAreaTypePolicy(desired, AreaSummaryPolicy{Type: AreaTypeNSSA, NoSummary: true})
-	assert.False(t, slices.Contains(suppressed, type3), "a no-summary NSSA suppresses the inter-area Type-3 summary")
-	assert.False(t, slices.Contains(suppressed, type4), "a Type-4 ASBR-summary is not imported into a no-summary NSSA")
+	// RFC requirement: RFC3101-2.7-1 negative -- a no-summary NSSA
+	// suppresses imported inter-area Type-3 and Type-4 summaries.
+	suppressed := applyAreaTypePolicy(desired, AreaSummaryPolicy{Type: AreaTypeNSSA, NoSummary: true, DefaultCost: 9})
+	assert.False(t, slices.Contains(suppressed, type3), "no-summary NSSA suppresses the inter-area Type-3 summary")
+	assert.False(t, slices.Contains(suppressed, type4), "no-summary NSSA drops the Type-4 ASBR summary")
+	// RFC requirement: RFC3101-2.7-2 positive -- an ABR originates a
+	// Type-3 default when summary import is disabled.
+	// RFC requirement: RFC3101-2.4-5 positive -- the no-summary NSSA still
+	// receives the required default-destination LSA.
+	assert.True(t, slices.Contains(suppressed, defaultRoute), "no-summary NSSA gets a Type-3 default")
+}
+
+func TestOSPFNSSANoSummaryDefaultInjection(t *testing.T) {
+	root := testRID(t, "1.1.1.1")
+	backbone := types.BackboneArea
+	nssa := areaID(t, "0.0.0.5")
+	results := map[types.AreaID]*Result{backbone: resultWithStub(backbone, root, "10.10.0.0", 7)}
+
+	t.Run("no-summary", func(t *testing.T) {
+		db := ospflsdb.New(nil)
+		OriginateSummaries(SummaryInput{
+			Sink: db, Root: root, Areas: []types.AreaID{backbone, nssa},
+			Results: results,
+			Policies: map[types.AreaID]AreaSummaryPolicy{
+				nssa: {Type: AreaTypeNSSA, NoSummary: true, DefaultCost: 11},
+			},
+		})
+
+		// RFC requirement: RFC3101-2.7-2 positive -- an ABR
+		// originates a Type-3 default when summary import is disabled.
+		// RFC requirement: RFC3101-2.4-5 positive -- the no-summary
+		// NSSA receives the required default-destination LSA.
+		lsa, ok := db.LookupLSA(nssa, summaryDefaultKey(root))
+		require.True(t, ok)
+		body, err := lsa.DecodeSummary()
+		require.NoError(t, err)
+		assert.Equal(t, uint32(11), body.Metric)
+	})
+
+	t.Run("regular", func(t *testing.T) {
+		db := ospflsdb.New(nil)
+		OriginateSummaries(SummaryInput{
+			Sink: db, Root: root, Areas: []types.AreaID{backbone, nssa},
+			Results: results,
+			Policies: map[types.AreaID]AreaSummaryPolicy{
+				nssa: {Type: AreaTypeNSSA, DefaultCost: 11},
+			},
+		})
+
+		// RFC requirement: RFC3101-2.7-2 negative -- a regular
+		// NSSA gets no Type-3 default.
+		_, ok := db.LookupLSA(nssa, summaryDefaultKey(root))
+		assert.False(t, ok)
+	})
 }

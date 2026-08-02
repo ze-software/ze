@@ -130,6 +130,40 @@ func selfNSSACount(eng *engine, area types.AreaID, router types.RouterID) int {
 	return count
 }
 
+func TestExternalScopeSelectsDeterministicNonZeroNSSAFA(t *testing.T) {
+	eng, _ := newRedistEngine(t, `{"ospf":{"router-id":"10.0.3.1","areas":{"area":{"0.0.0.5":{"area-id":"0.0.0.5","area-type":"nssa"}}}}}`)
+	nssa := types.AreaID{0, 0, 0, 5}
+	eng.ipv4Address = func(name string) [4]byte {
+		switch name {
+		case "eth0":
+			return ip4Of("192.0.2.1")
+		case "eth1":
+			return ip4Of("192.0.2.2")
+		default:
+			return [4]byte{}
+		}
+	}
+	running := []interfaceConfig{
+		{Name: "eth2", AreaID: nssa},
+		{Name: "eth0", AreaID: nssa},
+		{Name: "eth1", AreaID: nssa},
+	}
+	first, _ := eng.externalScopeFor(eng.cfg, running, nil)
+	second, _ := eng.externalScopeFor(eng.cfg, []interfaceConfig{
+		{Name: "eth1", AreaID: nssa},
+		{Name: "eth0", AreaID: nssa},
+		{Name: "eth2", AreaID: nssa},
+	}, nil)
+	live, _ := eng.externalScopeFor(eng.cfg, running, map[string]bool{"eth1": true})
+
+	require.Len(t, first, 1)
+	require.Len(t, second, 1)
+	require.Len(t, live, 1)
+	assert.Equal(t, ip4Of("192.0.2.1"), first[0].fa)
+	assert.Equal(t, first[0].fa, second[0].fa, "map iteration order does not change the selected FA")
+	assert.Equal(t, ip4Of("192.0.2.2"), live[0].fa, "down interface FA is not selected")
+}
+
 func TestEngineInjectExternalConfiguredParams(t *testing.T) {
 	eng, rid := newRedistEngine(t, `{"ospf":{"router-id":"10.0.0.1","redistribute":{"connected":{"source":"connected","metric":"33","metric-type":"type-1","tag":"7"}}}}`)
 
@@ -195,27 +229,40 @@ func TestEngineInjectExternalNSSAandBackbone(t *testing.T) {
 	assert.Equal(t, 1, selfNSSACount(eng, nssa, rid), "Type 7 into the NSSA")
 }
 
-func TestEngineNSSADefaultOriginate(t *testing.T) {
-	eng, rid := newRedistEngine(t, `{"ospf":{"router-id":"10.0.5.1","areas":{"area":{"0.0.0.0":{"area-id":"0.0.0.0"},"0.0.0.5":{"area-id":"0.0.0.5","area-type":"nssa","default-cost":"7","nssa":{"default-originate":true}}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.0"},"eth1":{"area":"0.0.0.5"}}}}}`)
+// TestEngineNSSAInternalDefaultOriginate verifies the operator-controlled
+// P-set Type-7 default for an internal NSSA router with a usable address.
+func TestEngineNSSAInternalDefaultOriginate(t *testing.T) {
+	eng, rid := newRedistEngine(t, `{"ospf":{"router-id":"10.0.5.1","areas":{"area":{"0.0.0.5":{"area-id":"0.0.0.5","area-type":"nssa","default-cost":"7","nssa":{"default-originate":true}}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.5"}}}}}`)
 	nssa := types.AreaID{0, 0, 0, 5}
-	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: types.BackboneArea}
-	eng.running["eth1"] = interfaceConfig{Name: "eth1", AreaID: nssa}
+	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: nssa}
+	eng.ipv4Address = func(string) [4]byte { return ip4Of("192.0.2.1") }
 
 	eng.applyNSSADefaults()
-	key := types.LSAKey{Type: types.LSTypeNSSA, LinkStateID: types.LinkStateID([4]byte{}), AdvertisingRouter: rid}
+	key := types.LSAKey{Type: types.LSTypeNSSA, AdvertisingRouter: rid}
 	lsa, ok := eng.lsdb.LookupLSA(nssa, key)
-	require.True(t, ok, "NSSA ABR originates a Type 7 default")
-	assert.False(t, lsa.Header.Options.Has(types.OptionNP), "an ABR-originated NSSA default is not translated (P=0)")
+	require.True(t, ok, "internal NSSA router originates a configured Type-7 default")
 	body, err := lsa.DecodeExternal()
 	require.NoError(t, err)
-	assert.Equal(t, uint32(7), body.Metric, "default at the area default-cost")
+	assert.Equal(t, uint32(7), body.Metric, "default uses the area default-cost")
+	assert.Equal(t, ip4Of("192.0.2.1"), body.ForwardingAddr)
+	assert.True(t, lsa.Header.Options.Has(types.OptionNP), "usable forwarding address permits P-bit")
 
-	// Disabling default-originate withdraws the Type 7 default.
-	offCfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.5.1","areas":{"area":{"0.0.0.0":{"area-id":"0.0.0.0"},"0.0.0.5":{"area-id":"0.0.0.5","area-type":"nssa"}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.0"},"eth1":{"area":"0.0.0.5"}}}}}`), nil)
+	offCfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.5.1","areas":{"area":{"0.0.0.5":{"area-id":"0.0.0.5","area-type":"nssa"}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.5"}}}}}`), nil)
 	require.NoError(t, err)
 	eng.setConfig(offCfg)
 	eng.applyNSSADefaults()
-	assert.Equal(t, 0, selfNSSACount(eng, nssa, rid), "NSSA default withdrawn when default-originate is off")
+	assert.Equal(t, 0, selfNSSACount(eng, nssa, rid), "disabled default-originate withdraws the default")
+}
+
+func TestEngineNSSAInternalDefaultRequiresForwardingAddress(t *testing.T) {
+	eng, rid := newRedistEngine(t, `{"ospf":{"router-id":"10.0.5.1","areas":{"area":{"0.0.0.5":{"area-id":"0.0.0.5","area-type":"nssa","nssa":{"default-originate":true}}}},"interfaces":{"interface":{"eth0":{"area":"0.0.0.5"}}}}}`)
+	nssa := types.AreaID{0, 0, 0, 5}
+	eng.running["eth0"] = interfaceConfig{Name: "eth0", AreaID: nssa}
+	eng.ipv4Address = func(string) [4]byte { return [4]byte{} }
+
+	eng.applyNSSADefaults()
+
+	assert.Equal(t, 0, selfNSSACount(eng, nssa, rid), "zero forwarding address suppresses the P-set default")
 }
 
 func TestEngineWithdrawExternal(t *testing.T) {

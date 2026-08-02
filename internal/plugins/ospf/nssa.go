@@ -11,6 +11,8 @@ import (
 	"maps"
 	"time"
 
+	ospfspf "github.com/ze-software/ze/internal/plugins/ospf/spf"
+
 	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
 	"github.com/ze-software/ze/internal/plugins/ospf/packet"
 	"github.com/ze-software/ze/internal/plugins/ospf/types"
@@ -51,52 +53,82 @@ func (e *engine) translatorEffective(area types.AreaID, elected bool, now time.T
 	return st.active
 }
 
-// applyNSSADefaults originates or withdraws the per-area NSSA Type 7 default route
-// (0.0.0.0/0) according to each attached NSSA's `default-originate` config. RFC 3101
-// sec 2.3: an NSSA ABR may inject a Type 7 default so internal routers reach external
-// destinations via the ABR; it carries P=0 (a default is never translated to Type 5)
-// and the area `default-cost` as its metric. Only an ABR (a router that can reach the
-// backbone) originates it. The redistribute path routes 0.0.0.0/0 to the Type 5
-// coordinator, so the NSSA Type 7 default has a single owner here and is purged freely
-// when the condition lapses.
+// applyNSSADefaults reconciles the per-area NSSA default route. RFC 3101
+// Section 2.4 requires an NSSA border router to originate a default into every
+// directly attached NSSA. A regular NSSA gets a P-clear Type-7 default. The
+// summary originator gives a no-summary NSSA its required Type-3 default.
+// An internal NSSA router originates a P-set Type-7 default only when
+// `default-originate` is enabled and a non-zero forwarding address is usable.
 func (e *engine) applyNSSADefaults() {
 	e.nssaMu.Lock()
 	defer e.nssaMu.Unlock()
 	e.mu.Lock()
 	cfg := e.cfg
 	db := e.lsdb
+	running := make([]interfaceConfig, 0, len(e.running))
+	for _, ic := range e.running {
+		running = append(running, ic)
+	}
 	e.mu.Unlock()
 	if db == nil || cfg.RouterID == (types.RouterID{}) {
 		return
 	}
-	nssas, isABR := e.externalScope()
+	topology := e.lsdbTopology()
+	byArea := make(map[types.AreaID][]ospflsdb.InterfaceInfo)
+	activeIfaces := make(map[string]bool, len(topology))
+	for idx := range topology {
+		iface := topology[idx]
+		byArea[iface.AreaID] = append(byArea[iface.AreaID], iface)
+		if ospflsdb.AreaHasAdvertisedLinks(topology[idx : idx+1]) {
+			activeIfaces[iface.Name] = true
+		}
+	}
+	activeAreas := make([]types.AreaID, 0, len(byArea))
+	active := make(map[types.AreaID]bool, len(byArea))
+	for area, ifaces := range byArea {
+		if ospflsdb.AreaHasAdvertisedLinks(ifaces) {
+			activeAreas = append(activeAreas, area)
+			active[area] = true
+		}
+	}
+	nssas, _ := e.externalScopeFor(cfg, running, activeIfaces)
+	isABR := ospfspf.IsABR(activeAreas)
 	attached := make(map[types.AreaID]bool, len(nssas))
 	faByArea := make(map[types.AreaID][4]byte, len(nssas))
 	for _, n := range nssas {
-		attached[n.area] = true
+		attached[n.area] = active[n.area]
 		faByArea[n.area] = n.fa
 	}
+	desired := make(map[types.AreaID]struct{}, len(nssas))
 	changed := false
 	for _, a := range cfg.Areas {
 		if a.AreaType != areaTypeNSSA || !attached[a.AreaID] {
 			continue
 		}
-		// RFC 3101 §2.3: a totally-stubby NSSA (no Summary-LSAs imported) leaves its internal
-		// routers with no other path to AS-external destinations, so its ABR MUST originate a
-		// Type 7 default automatically. For a regular NSSA the Type 7 default stays operator-
-		// configurable (`default-originate`). The forwarding address is this ABR's intra-NSSA
-		// interface address (RFC 3101 §2.3): a Type 7 with a zero FA is not usable for an
-		// internal router's route calculation, so the default needs the same non-zero FA as
-		// the redistributed Type 7s.
-		if isABR && (a.NoSummary || a.NSSADefaultOriginate) {
-			fa := faByArea[a.AreaID]
-			if _, c := db.OriginateNSSA(a.AreaID, cfg.RouterID, [4]byte{}, [4]byte{}, false, a.DefaultCost, fa, 0, false); c {
+		fa := faByArea[a.AreaID]
+		wantType7 := isABR && !a.NoSummary
+		if !isABR && a.NSSADefaultOriginate && fa != ([4]byte{}) {
+			wantType7 = true
+		}
+		if wantType7 {
+			desired[a.AreaID] = struct{}{}
+			// RFC requirement: RFC3101-2.4-5 -- an NSSA border router
+			// MUST originate a default into every attached regular NSSA.
+			// RFC requirement: RFC3101-2.4-2 -- a P-set Type-7 LSA
+			// MUST carry a non-zero forwarding address.
+			if _, c := db.OriginateNSSA(a.AreaID, cfg.RouterID, [4]byte{}, [4]byte{}, false, a.DefaultCost, fa, 0, !isABR); c {
 				changed = true
 			}
 		} else if db.PurgeNSSA(a.AreaID, cfg.RouterID, [4]byte{}) {
 			changed = true
 		}
 	}
+	for area := range e.nssaDefaultAreas {
+		if _, keep := desired[area]; !keep && db.PurgeNSSA(area, cfg.RouterID, [4]byte{}) {
+			changed = true
+		}
+	}
+	e.nssaDefaultAreas = desired
 	if changed {
 		e.originateSelfLSAs()
 		e.refreshExternalMetrics(db, cfg.RouterID)

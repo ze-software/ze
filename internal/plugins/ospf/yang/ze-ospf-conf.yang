@@ -432,7 +432,7 @@ module ze-ospf-conf {
                     default "normal";
                     description "Area type; semantics land in the stub/NSSA spec.";
                 }
-                leaf no-summary { type boolean; default false; description "Suppress Type 3 summaries in totally-stubby or totally-NSSA areas."; }
+                leaf no-summary { type boolean; default false; description "Suppress Type 3 summaries other than the required default in totally-stubby or totally-NSSA areas."; }
                 leaf default-cost { type uint32 { range "0..16777215"; } default 1; description "Default summary metric for stub/NSSA areas."; }
                 container nssa {
                     description "NSSA-specific configuration (applies when area-type is nssa).";
@@ -451,7 +451,7 @@ module ze-ospf-conf {
                         default 40;
                         description "Hysteresis before a newly elected translator stops translating after losing the role (RFC 3101 section 3.5).";
                     }
-                    leaf default-originate { type boolean; default false; description "Originate a Type 7 default route (0.0.0.0/0) into the NSSA."; }
+                    leaf default-originate { type boolean; default false; description "On an internal NSSA router, originate a Type 7 default route into the NSSA. An NSSA border router always originates the required default."; }
                 }
                 container authentication {
                     description "Area-level authentication defaults.";
