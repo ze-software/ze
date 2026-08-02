@@ -80,8 +80,9 @@ flowchart TB
   Machine, Neighbor State Machine, LSDB flooding/aging, intra-area SPF, ABR
   Summary-LSA origination, and inter-area route computation. SPF reads the LSDB,
   resolves next-hops, inserts `locrib.Path` values into the shared Loc-RIB, and
-  lets sysrib/fibkernel own kernel FIB programming. Later OSPF children fill
-  redistribution, auth, and rendered CLI state.
+  lets sysrib/fibkernel own kernel FIB programming. SPF deltas use
+  `redistevents` only for redistribution. Imported routes take the reverse
+  redistribution path and originate Type 5 or Type 7 LSAs.
 <!-- source: internal/plugins/ospf/register.go -- registerOSPF and runOSPFEngine -->
 <!-- source: internal/plugins/ospf/config.go -- parseOSPFConfig and validateConfig -->
 <!-- source: internal/plugins/ospf/iface/iface.go -- Interface, ReceiveHello, runElectionLocked -->
@@ -93,6 +94,8 @@ flowchart TB
 <!-- source: internal/plugins/ospf/spf/install.go -- Installer Apply -->
 <!-- source: internal/plugins/ospf/spf/interarea.go -- ComputeInterArea -->
 <!-- source: internal/plugins/ospf/spf/summary.go -- OriginateSummaries -->
+<!-- source: internal/plugins/ospf/redistribute/source.go -- Source.OnSPFChange and emitDelta -->
+<!-- source: internal/plugins/ospf/redist_wiring.go -- engine.InjectExternal -->
 - **OSPF raw IPv4 transport** uses per-interface Linux `AF_INET/SOCK_RAW` sockets for protocol 89, opened through the shared iface resolver so logical names, `os-name`, and MAC selectors bind to the intended kernel device. The receive socket joins `224.0.0.5` (`AllSPFRouters`) at startup; the ISM asks the transport to join or leave `224.0.0.6` (`AllDRouters`) when this router becomes or stops being DR or BDR. The transmit socket owns TTL 1, per-interface source selection, and multicast loop suppression, so the engine sees only raw OSPF payload bytes plus source and interface identity.
 <!-- source: internal/plugins/ospf/transport/backend_linux.go -- OpenInterface, readLoop, Send -->
 <!-- source: internal/plugins/ospf/transport/transport.go -- Transport, RawPacket, StripIPv4Header -->

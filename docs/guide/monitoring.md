@@ -318,6 +318,21 @@ Host metrics are refreshed on a configurable interval (default 60 seconds). Linu
 | `ze_bgp_overflow_items` | gauge | `peer` | Items in per-destination overflow buffer |
 | `ze_bgp_overflow_ratio` | gauge | `source` | Per-source overflow ratio: overflowed / (forwarded + overflowed) |
 
+#### Attribute Index
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_bgp_update_span_spill_total` | counter | `peer` | Received UPDATEs whose attribute count exceeded the inline span capacity |
+
+Ze indexes the path attributes of every received UPDATE once, on the receive
+goroutine, and holds the first 8 spans inline. A 9th attribute puts the remainder
+on the heap and increments this counter. A public-internet corpus of 112M routes
+has a maximum of 10 attributes and 99.9% at 8 or fewer, so a steady rate here
+means either an unusual peer or an attribute set worth raising the inline size
+for.
+<!-- source: internal/core/bgp/attribute/span.go -- SpanInline -->
+<!-- source: internal/component/bgp/reactor/session_validation.go -- publishBase -->
+
 #### Egress Modification Failures
 
 | Metric | Type | Labels | Description |

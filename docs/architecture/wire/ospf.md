@@ -48,6 +48,15 @@ layer can sign the packet.
 The packet checksum covers the full OSPF packet except header bytes 16..23, the
 Authentication field. The checksum field is zero while computing.
 
+### Authentication pipeline
+
+OSPFv2 signs all five outgoing packet types at the transport signer. It verifies
+each received packet in the dispatcher before an ISM, NSM, or LSDB handler runs.
+The signer rewrites AuType and checksum framing before it applies the configured
+RFC 5709 or RFC 7474 digest and replay sequence.
+<!-- source: internal/plugins/ospf/auth_wiring.go -- installAuthHooks, signPacket, verifyPacket -->
+<!-- source: internal/plugins/ospf/dispatcher.go -- dispatcher.dispatch -->
+
 ## LSA framing
 
 `DecodeLSA` reads the 20-byte LSA header and uses the Length field to retain the

@@ -9,7 +9,7 @@ comes from the `// Package` doc comment, else the plugin registry
 `Registered` is the name the package registers under, where it has a
 register.go. Design docs per file: `ai/DOCS-TO-CODE.md`.
 
-Total: 618 packages, 615 described, 3 TODO
+Total: 619 packages, 616 described, 3 TODO
 
 
 ## `cmd/ze/`
@@ -417,6 +417,7 @@ Total: 618 packages, 615 described, 3 TODO
 | `internal/core/bgp/msgtype` | owns the BGP message-type code (the 1-octet Type field of the RFC 4271 header) and its RFC-defined values |  |
 | `internal/core/bgp/nlri` | implements BGP Network Layer Reachability Information types and iterators |  |
 | `internal/core/bgp/nlri/nlrisplit` | holds a registry of family-specific NLRI splitters |  |
+| `internal/core/bgp/nlri/nlritype` | holds a registry of per-family NLRI route-type recognizers |  |
 | `internal/core/bgp/ribevents` | defines the (bgp-rib, ...) event constants and typed event handles: the best-path change contract between the BGP RIB and everything downstream of it |  |
 | `internal/core/bgp/routeaction` | owns the typed route-action vocabulary shared by the BGP engine and the always-on route consumers (sysrib, the FIB backends, the best-change event contract) |  |
 | `internal/core/bgp/wire` | provides zero-allocation buffer writing for BGP message encoding |  |

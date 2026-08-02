@@ -46,6 +46,27 @@ Reference implementation: osvbng commit db1a5fb (per-pool DHCPv4 + DHCPv6 vendor
 options) uses `{tag, encoding: ascii|hex, value}` per v4 pool with exactly this
 denylist approach.
 
+### Added 2026-08-01 (VyOS July 2026 comparison)
+
+Two findings, both read from `internal/plugins/dhcpserver/handler.go` and its
+YANG rather than inferred:
+
+- **Option 26 (interface-mtu, RFC 2132) is absent from Ze entirely.** It has no
+  entry in the option constant block in `handler.go`, no YANG leaf, and no emit
+  path, so Ze cannot hand an MTU to a DHCP client at all. Arbitrary-option
+  support as designed above covers it, and no separate spec is needed. VyOS
+  T9093 widened their own option-26 validator from 9000 to 16000 because 9216
+  jumbo fabrics were rejected. If this spec instead adds a named leaf for option
+  26, give it the full 16-bit range and not a 9000 cap. Ze's interface `mtu` leaf
+  is already `range "68..16000"` (`ze-iface-conf.yang`), so the two would then
+  agree.
+- **`lease-time` is capped below the protocol, and this is in scope here.** The
+  YANG declares `range "60..604800"` (7 days) and `parseSubnet` re-checks the
+  same bound in Go. RFC 2132 section 9.2 makes option 51 a full `uint32`, and
+  `0xFFFFFFFF` means an infinite lease. Ze can express neither a lease longer
+  than 7 days nor an infinite one. This is the same defect class T9093 fixed: a
+  validator narrower than the protocol it validates.
+
 ## Required Reading
 
 ### Architecture Docs

@@ -104,14 +104,19 @@ other lock held. Entry points are `registerOSPF` (`register.go:75`, plugin regis
     def at `lsdb/origination.go:681`), and for each segment where this router is DR, `OriginateNetwork`
     emits the Type 2 Network-LSA. `installOriginated` (`lsdb/origination.go:734`) floods the new
     instance the same way a received LSA is flooded.
-11. **Retransmission until acked.** `RetransmitTick` (`lsdb/flooding.go:506`), driven every second from
+11. **Opaque carrier.** `registerOpaqueConsumer` (`opaque_registry.go:136`) assigns
+    one package-local consumer to each Opaque Type. The self-LSA pass pulls
+    desired LSAs through `originateOpaqueLSAs` (`opaque.go:147`).
+    Newer received LSAs reach `deliverOpaque` (`opaque.go:114`) outside the LSDB
+    lock with the Type-11 originator-reachability result.
+12. **Retransmission until acked.** `RetransmitTick` (`lsdb/flooding.go:506`), driven every second from
     the engine's shared timer goroutine (`instance.go:727`), resends every queued
     (interface,neighbor) retransmit entry whose RxmtInterval has elapsed (RFC 2328 §13.5, first resend
     waits a full interval because `queueRetransmit` stamps `last` at queue time,
     `lsdb/flooding.go:465`); `ReceiveAck` (`lsdb/flooding.go:248`) clears matching entries, and once
     every retransmit list has acked a MaxAge purge, `deletePurgedIfAcked` (`lsdb/flooding.go:784`)
     removes the LSA from its store.
-12. **SPF trigger -> Dijkstra.** `TriggerArea` (`spf/computer.go:372`) marks the area dirty and arms an
+13. **SPF trigger -> Dijkstra.** `TriggerArea` (`spf/computer.go:372`) marks the area dirty and arms an
     exponential-backoff `AfterFunc` (delay/hold/max-hold, `spf/computer.go:400` -> `bumpDelayLocked`) so
     a burst of LSDB changes coalesces into one `Computer.Run` (`spf/computer.go:419`). `Run` rebuilds
     each configured area's transit graph via the `AFPrefixStrategy` seam (`spf/afstrategy.go:30`
@@ -119,7 +124,7 @@ other lock held. Entry points are `registerOSPF` (`register.go:75`, plugin regis
     `spf/graph.go:70`), runs Dijkstra (`computeWithNextHop`, `spf/spf.go:156`, RFC 2328 §16.1 stage 1
     over router + transit-network vertices only, relaxation in `spf/spf.go:251`), then `BuildRoutes`
     (`spf/route.go:150`) attaches stub-network/transit-network prefixes to reached vertices (stage 2).
-13. **Inter-area + external + selection.** `Run` computes inter-area routes via
+14. **Inter-area + external + selection.** `Run` computes inter-area routes via
     `strategy.ComputeInterArea` (`spf/computer.go:471`, Type 3 Summary-LSAs, RFC 2328 §16.2), an RFC
     2328 §16.3 transit-area re-examination pass for virtual links (`spf/computer.go:477` ->
     `transitAreaPass`), selects the best intra/inter-area candidate per prefix (`spf/route.go:227`
@@ -127,7 +132,7 @@ other lock held. Entry points are `registerOSPF` (`register.go:75`, plugin regis
     resolved ASBRs (`spf/computer.go:497` -> `strategy.ComputeExternal`, RFC 2328 §16.4), and re-selects
     (`spf/computer.go:498`). When fast-reroute is enabled, `attachAllBackups`
     (`spf/computer.go:508`) attaches a per-primary RFC 5286 LFA or TI-LFA backup before install.
-14. **Install into Loc-RIB.** `Installer.Apply` (`spf/install.go:114`), called under the Computer's lock
+15. **Install into Loc-RIB.** `Installer.Apply` (`spf/install.go:114`), called under the Computer's lock
     (`spf/computer.go:528`), diffs the new selected set against the previously installed one
     (`spf/route.go:331` `DiffRoutes`) and calls `insert`/`remove` per prefix (`spf/install.go:139`,
     `spf/install.go:183`): `insert` writes one `locrib.Path` per equal-cost next-hop with
@@ -137,6 +142,13 @@ other lock held. Entry points are `registerOSPF` (`register.go:75`, plugin regis
     (outside this digest); OSPF never touches the kernel FIB directly. `SetPostRun`
     (`spf_wiring.go:49`, `e.srInstallFromRoutes`) fires after `Apply` so Segment Routing MPLS labels
     ride an already-installed IP route (spec-ospf-ext-5 R-8).
+16. **Debug and introspection.** OSPFv2 detail views use consumer-owned typed
+    decoders with a generic fallback (`decode_view.go:53`, `decode_view.go:158`).
+    OSPFv3 registers its base decoders separately (`decode_view_v3.go:76`).
+    `ExplainSnapshot` reads the last SPF result (`spf/explain.go:48`). Crafted-LSA
+    injection requires the off-by-default runtime gate and reuses the existing
+    v2 or v3 origination seams (`debug_enable.go:25`, `inject.go:69`,
+    `inject_v3.go:46`).
 
 ## Key files
 | File | Role |

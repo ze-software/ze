@@ -20,13 +20,17 @@ capabilities so a same-context forward stays a raw byte passthrough.
    `body` is a slice into the read-pool buffer, `ctxID` the recv `EncodingContext`. RFC 7606
    validation runs before any plugin dispatch.
 2. **Lazy sections.** First accessor triggers `WireUpdate.ensureParsed` →
-   `wire.ParseUpdateSections` (`internal/component/bgp/wireu/wire_update.go:70`,
+   `wire.ParseUpdateSections` (`internal/component/bgp/wireu/wire_update.go:75`,
    `internal/core/bgp/wire/update_sections.go:56`), which stores only offsets. `Withdrawn`/
    `Attrs`/`NLRI` return zero-copy sub-slices of the payload (`update_sections.go:123,137,151`).
 3. **Attribute index.** `WireUpdate.Attrs` builds `attribute.NewAttributesWire(attrBytes, ctxID)`
-   once (`wire_update.go:96,106`); the type index is built lazily under lock on first
-   `Get`/`GetRaw`/`Has` (`internal/core/bgp/attribute/wire.go:291`). `GetRaw` returns a slice
-   into `packed`, no parse, no copy (`attribute/wire.go:181`).
+   once (`wire_update.go:108,119`); that constructor walks the section eagerly and stores one
+   6-byte `Span` per attribute plus a 256-bit presence set (`attribute/span.go:81`), so the
+   index is immutable and `Has`/`GetRaw`/`Count` take no lock at all
+   (`internal/core/bgp/attribute/wire.go:127,155`). `GetRaw` returns a slice into `packed`, no
+   parse, no copy. Only `Get`/`All`/`ForEach` lock, and only to fill the parsed-value side
+   table (`attribute/wire.go:229`). The receive path publishes the base after every branch
+   that rewrites the body (`reactor/session_validation.go`, `publishBase`).
 4. **Pool dedup (RIB store side).** `storage.ParseAttributes` iterates the attr wire with
    `attribute.NewAttrIterator` and interns each value into its per-type pool
    (`pool.Origin.Intern(value)`, …), bundling the 12 non-AS_PATH handles and keeping AS_PATH
@@ -57,7 +61,7 @@ capabilities so a same-context forward stays a raw byte passthrough.
    The `fwdPool` per-peer worker then writes the wire bytes to the peer's buffered TCP writer
    (`internal/component/bgp/reactor/forward_pool.go:321`). Context re-encode at the attribute
    layer is `AttributesWire.PackFor(destCtxID)`, returns `packed` unchanged when IDs match,
-   else one-alloc `packWithContext` (`attribute/wire.go:271,362`).
+   else one-alloc `packWithContext` (`attribute/wire.go:213,274`).
 
 ## Key files
 | File | Role |
@@ -65,7 +69,7 @@ capabilities so a same-context forward stays a raw byte passthrough.
 | `internal/component/bgp/wireu/wire_update.go` | `WireUpdate` lazy parse, zero-copy section/MP accessors, `Snapshot`, `IsEOR` |
 | `internal/core/bgp/wire/update_sections.go` | `ParseUpdateSections` → offset-only `UpdateSections`; `Withdrawn/Attrs/NLRI` return sub-slices |
 | `internal/core/bgp/wire/writer.go` | `BufWriter.WriteTo(buf,off) int` + `CheckedBufWriter` (`Len`); `SessionBuffer` scratch helpers |
-| `internal/core/bgp/attribute/wire.go` | `AttributesWire` lazy index (packed NOT owned); `GetRaw` zero-copy; `PackFor`/`packWithContext` re-encode |
+| `internal/core/bgp/attribute/wire.go` | `AttributesWire` eager span index, lazy VALUES (packed NOT owned); lock-free `Has`/`GetRaw`; `PackFor`/`packWithContext` re-encode |
 | `internal/core/bgp/attribute/attribute.go` | `WriteAttrToWithLen` / `WriteAttrToWithContext`, header+value into caller buffer |
 | `internal/core/bgp/context/context.go` | `EncodingContext` (ASN4/AddPath/ExtendedMessage); `WireWriter.WriteTo(buf,off,ctx)` interface |
 | `internal/core/bgp/context/registry.go` | `ContextID uint16`, global `Registry`, hash-dedup; ID 0 = invalid/default |
@@ -81,10 +85,10 @@ capabilities so a same-context forward stays a raw byte passthrough.
 
 ## Invariants & gotchas
 - **Nothing in the parse chain owns its bytes.** `AttributesWire.packed` is explicitly NOT
-  owned (`attribute/wire.go:33`); `WireUpdate` references the pooled read buffer. Every accessor slice
+  owned (`attribute/wire.go:29`); `WireUpdate` references the pooled read buffer. Every accessor slice
   (`Withdrawn`/`Attrs`/`NLRI`/`GetRaw`) is read-only ("do not modify"). Holding a `WireUpdate`
   past the read buffer's return to the pool clobbers the data, call `Snapshot()` to take an
-  owned copy for fire-and-forget delivery (`wire_update.go:170`; `memory-architecture.md`
+  owned copy for fire-and-forget delivery (`wire_update.go:226`; `memory-architecture.md`
   "Holding WireUpdate past readBuf return").
 - **`ContextID` is the zero-copy forward key.** Same source/dest ID ⇒ the wire bytes are
   already valid for the recipient (ADD-PATH framing and ASN4 width are baked into the ID), so
@@ -108,7 +112,7 @@ capabilities so a same-context forward stays a raw byte passthrough.
   are banned and enforced by the `encoding-alloc` hook (`ai/rules/buffer-first.md:30`). `make`
   stays legal for pool `New`, session buffers, result copies to callers, JSON, and tests, e.g.
   `expandASPath2to4`/`packWithContext` allocate because they produce a fresh pool-input copy
-  (`attrparse.go:235`, `attribute/wire.go:362`). Length fields use skip-and-backfill (`message/update.go:140`).
+  (`attrparse.go:235`, `attribute/wire.go:274`). Length fields use skip-and-backfill (`message/update.go:140`).
 - **Pool dedup + refcount.** `attrpool.Pool` is content-hash sharded (`shardOf`), each shard
   owning its own lock, double buffer, and `map[string]Handle` dedup index whose keys point
   into the buffer (zero-copy). `Intern` returns the existing `Handle` and bumps slot+buffer

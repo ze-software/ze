@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 303 design docs, 3170 files
+Total: 306 design docs, 3188 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -942,6 +942,7 @@ Total: 303 design docs, 3170 files
 | `internal/component/bgp/plugins/rs/server_withdrawal.go` | withdrawal tracking for route server |
 | `internal/component/bgp/plugins/rs/worker.go` | route server plugin |
 | `internal/component/bgp/plugins/softver/softver.go` | software-version capability plugin |
+| `internal/component/bgp/reactor/announce_build.go` | one exactly-sized one-pass writer for every announce rail |
 | `internal/component/bgp/reactor/api_sync.go` | API process synchronization |
 | `internal/component/bgp/reactor/config.go` | config tree parsing (PeersFromTree) |
 | `internal/component/bgp/reactor/config_capabilities.go` | BGP capability parsing from config tree |
@@ -956,7 +957,7 @@ Total: 303 design docs, 3170 files
 | `internal/component/bgp/reactor/filter_delta_handlers_test.go` | tests for mpReachNextHopHandler |
 | `internal/component/bgp/reactor/filter_delta_test.go` | policy filter wire-level dirty tracking tests |
 | `internal/component/bgp/reactor/filter_format.go` | policy filter chain |
-| `internal/component/bgp/reactor/forward_build.go` | progressive build for egress attribute modification |
+| `internal/component/bgp/reactor/forward_build.go` | exactly-sized one-pass rebuild for egress attribute modification |
 | `internal/component/bgp/reactor/forward_modify_failure.go` | progressive build for egress attribute modification |
 | `internal/component/bgp/reactor/forward_pool.go` | per-peer forward worker pool |
 | `internal/component/bgp/reactor/forward_pool_barrier.go` | forward pool barrier for deterministic flush |
@@ -998,6 +999,7 @@ Total: 303 design docs, 3170 files
 | `internal/component/bgp/reactor/session_prefix.go` | prefix limit enforcement (RFC 4486) |
 | `internal/component/bgp/reactor/session_read.go` | BGP message read loop |
 | `internal/component/bgp/reactor/session_validation.go` | RFC 7606 UPDATE validation |
+| `internal/component/bgp/reactor/session_validation_nlritype.go` | RFC 7606 UPDATE validation |
 | `internal/component/bgp/reactor/session_write.go` | wire write primitives and Send* methods |
 | `internal/component/bgp/reactor/signal.go` | OS signal handling |
 | `internal/component/bgp/redistribute/bgp.go` | BGP redistribute source registration |
@@ -1684,8 +1686,12 @@ Total: 303 design docs, 3170 files
 
 | File | Topic |
 |------|-------|
+| `internal/component/bgp/filterapi/editset.go` | the fragment model and the header size class |
+| `internal/component/bgp/wireu/aspath_aggregator_probe_test.go` | AGGREGATOR survival across an AS_PATH prepend |
 | `internal/component/bgp/wireu/aspath_as4.go` | AS4_PATH construction for OLD-speaker peers |
 | `internal/component/bgp/wireu/aspath_rewrite.go` | AS-PATH rewriting for EBGP forwarding |
+| `internal/component/bgp/wireu/aspath_slot.go` | the AS-path family as generate slots |
+| `internal/component/bgp/wireu/aspath_slot_test.go` | the AS-path family as generate slots |
 | `internal/component/bgp/wireu/aspath_transcode.go` | AS-PATH wire encoding |
 | `internal/component/bgp/wireu/tombstone.go` | ATTR_TOMBSTONE wire marker |
 | `internal/core/bgp/attribute/aigp.go` | path attribute encoding |
@@ -1702,6 +1708,7 @@ Total: 303 design docs, 3170 files
 | `internal/core/bgp/attribute/opaque.go` | path attribute encoding |
 | `internal/core/bgp/attribute/origin.go` | path attribute encoding |
 | `internal/core/bgp/attribute/simple.go` | path attribute encoding |
+| `internal/core/bgp/attribute/span.go` | path attribute span index |
 | `internal/core/bgp/attribute/text.go` | path attribute encoding |
 | `internal/core/bgp/attribute/text_append.go` | path attribute encoding |
 | `internal/core/bgp/attribute/tunnel_encap.go` | path attribute encoding |
@@ -1778,6 +1785,7 @@ Total: 303 design docs, 3170 files
 | `internal/component/bgp/message/notification.go` | BGP message types |
 | `internal/component/bgp/message/open.go` | BGP message types |
 | `internal/component/bgp/message/rfc7606.go` | BGP message types |
+| `internal/component/bgp/message/rfc7606_mpnlri.go` | BGP message types |
 | `internal/component/bgp/message/rfc7606_optional_attrs.go` | BGP message types |
 | `internal/component/bgp/message/routerefresh.go` | BGP message types |
 | `internal/component/bgp/message/update.go` | BGP message types |
@@ -3244,11 +3252,13 @@ Total: 303 design docs, 3170 files
 |------|-------|
 | `internal/component/ike/dataplane/dataplane.go` | dataplane abstraction for SA/SP installation |
 | `internal/component/ike/dataplane/noop.go` | dataplane backend registry |
+| `internal/component/ike/dataplane/policy_owner.go` | XFRM netlink backend |
 | `internal/component/ike/dataplane/rfc7296_ecn_linux_test.go` | XFRM netlink backend |
 | `internal/component/ike/dataplane/rfc7296_ecn_test.go` | XFRM netlink backend |
 | `internal/component/ike/dataplane/vpp.go` | VPP dataplane backend |
 | `internal/component/ike/dataplane/xfrm_linux.go` | XFRM netlink backend |
 | `internal/component/ike/dataplane/xfrm_other.go` | non-Linux dataplane stub |
+| `internal/component/ike/engine/bypass.go` | IKE control-plane bypass policies |
 | `internal/component/ike/engine/child.go` | Child SA creation and teardown |
 | `internal/component/ike/engine/delete.go` | Child SA teardown over INFORMATIONAL |
 | `internal/component/ike/engine/dpd.go` | Dead Peer Detection |
@@ -3265,6 +3275,7 @@ Total: 303 design docs, 3170 files
 | `internal/component/ike/eap/eap_mschapv2_test.go` | EAP-MSCHAPv2 handler tests |
 | `internal/component/ike/eap/eap_test.go` | EAP framework tests |
 | `internal/component/ike/eap/eap_tls.go` | EAP-TLS method handler |
+| `internal/component/ike/eap/eap_tls_failure_report_test.go` | EAP-TLS authenticator failure reporting |
 | `internal/component/ike/eap/md4.go` | MD4 for MS-CHAPv2 NtPasswordHash |
 | `internal/component/ike/eap/mschapv2.go` | MS-CHAPv2 crypto primitives |
 | `internal/component/ike/eap/mschapv2_test.go` | MS-CHAPv2 crypto tests |
@@ -3369,6 +3380,7 @@ Total: 303 design docs, 3170 files
 
 | File | Topic |
 |------|-------|
+| `internal/component/ike/eap/eap_tls_fragment_guard_test.go` | EAP-TLS fragment reassembly guards |
 | `internal/component/ike/eap/eap_tls_handshake_test.go` | EAP-TLS in-memory handshake harness |
 | `internal/component/ike/eap/eap_tls_regression_test.go` | EAP-TLS transport + peer fixes |
 | `internal/component/ike/eap/eap_tls_trust_anchor_test.go` | EAP-TLS trust anchor handling |
@@ -4194,6 +4206,11 @@ Total: 303 design docs, 3170 files
 
 - `internal/component/iface/resolve_integration_linux_test.go` -- resolver os-name remapping.
 
+## `plan/spec-ipsec-esp-dual-form-receive.md`
+
+- `internal/component/ike/dataplane/espform.go` -- one Child SA receives both ESP forms
+- `internal/component/ike/dataplane/espform_linux.go` -- one Child SA receives both ESP forms
+
 ## `plan/spec-isis-10-auth.md`
 
 | File | Topic |
@@ -4398,6 +4415,11 @@ Total: 303 design docs, 3170 files
 - `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go` -- VLAN QoS wire-level lab tests
 - `internal/plugins/iface/netlink/vlanqoslab_tci_test.go` -- 802.1Q TCI decode/build helpers
 
+## `plan/spec-wire-edit-5-fanout-dedup.md`
+
+- `internal/component/bgp/filterapi/fingerprint.go` -- fingerprint the edit set, confirm by equality
+- `internal/component/bgp/reactor/forward_dedup.go` -- one materialization per policy group
+
 ## `rfc/short/rfc5880.md`
 
 | File | Topic |
@@ -4461,6 +4483,11 @@ Total: 303 design docs, 3170 files
 ## `rfc/short/rfc7296.md`
 
 - `internal/component/ike/engine/rfc7296_eapauth_test.go` -- Section 2.16, EAP responder authentication
+
+## `rfc/short/rfc7606.md`
+
+- `internal/component/bgp/plugins/nlri/evpn/rfc7606.go` -- Section 5.4, typed NLRI
+- `internal/core/bgp/nlri/nlritype/nlritype.go` -- Section 5.4, typed NLRI
 
 ## `rfc/short/rfc9069.md`
 

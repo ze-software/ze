@@ -382,6 +382,43 @@ option=open:value=drop-capability:code=2
 option=open:value=add-capability:code=73:hex=067A652D626770
 ```
 
+### UPDATE Behaviors
+
+Routes ze-peer sends after the OPEN handshake, before it starts matching
+expectations.
+
+| Value | Keys | Description |
+|-------|------|-------------|
+| `send-default-route` | none | Send one UPDATE for `0.0.0.0/0` |
+| `send-route` | `prefix`, `origin-as`, `next-hop`, and optionally `as-path`, `as-set`, `originator-id`, `cluster-list`, `label` | Send one UPDATE for one prefix. Repeat the line for more |
+| `send-bulk` | `prefix`, `count`, `next-hop`, `origin-as`, and optionally `max-msg`, `eor` | Generate `count` sequential prefixes from `prefix` and send them as whole BGP messages |
+<!-- source: internal/test/peer/expect.go -- parseOptionConfig "update"; parseBulkSpec -->
+
+**Generating one oversize UPDATE (`max-msg`):**
+
+```
+option=update:value=send-bulk:prefix=10.0.0.0/24:count=16373:next-hop=10.0.0.1:origin-as=65001:max-msg=65535
+```
+
+`max-msg` caps one generated message, header included. It defaults to the RFC
+4271 limit of 4096, and accepts 23 to 65535. Raise it to 65535 when the session
+negotiates the Extended Message capability (RFC 8654), which ze advertises when
+the peer carries `capability { extended-message enable }`. Prefixes that do not
+fit one message spill into the next, so the example above is exactly one 65535
+byte message: a 65516 byte body, the largest BGP permits.
+
+Use it whenever a test needs an UPDATE too large to write as a hex literal. A
+max-size message is 131070 hex characters, which is past the 64 KiB line limit
+of both `.ci` scanners and past what a reviewer can check. It is also the only
+way to hand the daemon a single oversize body: splitting the same prefixes
+across several standard messages is a different input, because the daemon
+decides per message.
+
+A malformed key fails the test load rather than sending nothing. That is
+deliberate: a spec that silently degraded to `count=0` would let a test asserting
+a route was NOT forwarded pass because no route was ever offered.
+<!-- source: internal/test/peer/inject.go -- InjectSpec.MaxMsgLen, buildV4Unicast -->
+
 ## Commands
 
 ```
