@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 898 summaries
+Total: 899 summaries
 
 ## 400-499
 
@@ -957,3 +957,4 @@ Total: 898 summaries
 | 1322 | wire-edit-0-umbrella | `plan/learned/1322-wire-edit-0-umbrella.md` |
 | 1323 | Rule-coverage: always-on rules leave the measured population | `plan/learned/1323-rule-coverage-always-on-exclusion.md` |
 | 1324 | Poll Loop Gate | `plan/learned/1324-poll-loop-gate.md` |
+| 1325 | The review loop had no terminating state | `plan/learned/1325-review-loop-bounded-scope.md` |

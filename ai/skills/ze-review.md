@@ -176,9 +176,9 @@ phase itself.
 
 | False positive | Why discard |
 |----------------|-------------|
-| Pre-existing issue (present before this diff) | Not introduced by these changes |
+| Pre-existing issue the goal does NOT depend on | Not introduced by these changes. If the goal depends on that path, "pre-existing" never excuses it: the test is dependency, never causation (`ai/rules/critical-review.md`, "Bounding the loop") |
 | Linter/compiler-catchable (imports, types, formatting) | `make ze-lint` catches these separately |
-| Issue on unmodified lines | Out of scope for this review |
+| Issue on unmodified lines, when the goal does not depend on it | This review does not cover it. Never discard an always-in-scope class this way (`ai/rules/critical-review.md`, "Bounding the loop", which owns the list). An absence sits on no changed line, so this row would otherwise swallow every one of them |
 | Intentional behavioral change clearly related to the broader diff | Not a bug, it is the point |
 | General quality concern not tied to a specific bug | Too vague to act on |
 | Contradicts a project rule but has an explicit override comment in code | Intentional exception |
@@ -290,11 +290,22 @@ does or comparing systems, read the implementation. Treat any existing
 documentation as potentially stale. When multiple subsystems need verification,
 spawn parallel agents to read each one.
 
-**Fresh eyes on every pass.** Each review must examine the full diff, not just
-the delta since the last review. Stacking reviews that only look at "what
-changed since last review" produces diminishing returns. The best pattern is
-alternating: implement, then full review with a different critical lens
-(logic and security on one pass, performance and completeness on the next).
+**Fresh eyes on the FIRST pass.** Round 1 examines the full diff. A fresh lens
+each round beats re-running one lens: logic and security on one pass,
+performance and completeness on the next.
+
+**Later rounds shrink, they do not repeat.** Round N+1 examines only the fixes
+round N made and what those fixes touched. A full-diff pass every round never
+converges, because a diff of any size always yields something new. The agent
+is then unable to close work that is genuinely finished. A finding
+outside the round's scope is still fixed when the goal this work exists to
+achieve depends on it, when you are unsure whether it does, or when it belongs
+to the always-in-scope classes. What those classes are, what happens to
+everything else, and why none of it is parking are settled in ONE place:
+`ai/rules/critical-review.md` "Bounding the loop". Do not restate the list or
+the tests here. A second copy is how the corrected rule and the defective one
+end up one hop apart, and an enumeration that falls short by one class reads as
+permission to home the class it omitted.
 
 ## Rules
 
@@ -302,4 +313,4 @@ alternating: implement, then full review with a different critical lens
 - Do NOT check spec completeness -- that is `/ze-review-spec`.
 - After the user reviews your list, they will tell you which to fix.
 - **Regression test required per fix:** When fixing an issue found by this review, add a test that would have caught the problem during development. The issue exists because a test was missing; the fix is incomplete without one. If a regression test is genuinely impossible (e.g., the finding is a naming convention violation), note why in the fix. Otherwise, no test = not fixed.
-- No cap on review passes. Run a fresh pass whenever the code has changed since the last one, and keep running passes until a pass finds nothing. "I already reviewed this" is not a reason to stop -- fixes introduce new code, new code needs review.
+- No cap on the NUMBER of review passes, a hard bound on each one's SCOPE. Run a fresh pass whenever the code has changed since the last one, over the fixes that changed it. Stop when a pass finds nothing within its own scope. "I already reviewed this" is not a reason to stop. "A full re-read of the whole diff found something unrelated" is not a reason to continue (`ai/rules/critical-review.md`, "Bounding the loop").

@@ -53,4 +53,4 @@ phase itself.
 - Do NOT fix anything. Report findings only.
 - Do NOT review code quality, edge cases, or security -- that is `/ze-review`.
 - After the user reviews your list, they will tell you which to fix.
-- No cap on review passes. Keep running fresh passes until one finds nothing. Fixes can break spec alignment; every change deserves a new pass.
+- No cap on the NUMBER of passes, a hard bound on each one's SCOPE. Fixes can break spec alignment, so every change earns a fresh pass, over the fixes that changed it: round 1 the whole spec, round N+1 only round N's fixes. Stop when a pass finds no BLOCKER and no ISSUE within its own scope (`ai/rules/critical-review.md`, "Bounding the loop").

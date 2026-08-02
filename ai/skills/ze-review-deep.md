@@ -64,7 +64,16 @@ Then run the deterministic test-relaxation audit and keep its output for the Tes
 
 ### 2. Select agents
 
-If the user's argument names specific agents (keywords: security, concurrency, error, test, logic, data, api, rules, docs/documentation, performance/perf/alloc, completeness/feature), run only those. Otherwise, present this menu and **wait for the user to choose**:
+Three lenses is this skill's floor on round 1. `ai/rules/critical-review.md`,
+"State the review effort before you spend it", sets two as the universal floor
+and three or more for an "audit this" ask. This skill is what that ask reaches.
+Round 1 is the only pass that ever sees the whole diff, so its lens count is the
+whole change's coverage. If the user names fewer, run those AND enough lenses of
+your own choosing to reach three, in the same message. Then say which you added
+and why. Spawning fewer plus a note that more are owed is still a round below
+the floor, and the gate cannot be called clean from it.
+
+If the user's argument names specific agents (keywords: security, concurrency, error, test, logic, data, api, rules, docs/documentation, performance/perf/alloc, completeness/feature), run those. Otherwise, present this menu and **wait for the user to choose**:
 
 ```
 Which review agents should I run?
@@ -550,11 +559,16 @@ the actual implementation, not rely on documentation or comments. Treat docs
 as potentially stale. Every capability claim in the report must cite a source
 file and line.
 
-**Fresh eyes on every pass.** Each review pass examines the full diff, not
-just the delta since the last review. The most effective pattern is alternating:
-implement, then full review with one critical lens; fix findings, then another
-full review with a different lens. Stacking reviews that only scope to "what
-changed since the last review" produces diminishing coverage.
+**Fresh eyes, and a fresh LENS, on every pass. A fresh full diff only on the
+first.** Round 1 examines the whole diff. This skill is the one an "audit this"
+ask reaches, so it earns three lenses or more there. Later rounds change the
+lens but shrink the scope. Round N+1 covers only round N's fixes and what
+they touched. Re-reading the whole diff every round never stops, because a
+diff of any size always yields something new, and the deep review is where that
+bites hardest. A finding outside the round's scope is still fixed when the goal
+depends on it, when you are unsure whether it does, or when it is one of the
+eight always-in-scope classes: `ai/rules/critical-review.md`, "Bounding the
+loop", governs, and it is the only place those tests are written.
 
 ## Rules
 
@@ -565,4 +579,4 @@ changed since the last review" produces diminishing coverage.
 - Each agent runs in the background -- launch all selected agents simultaneously.
 - If an agent finds nothing, that's fine -- report "clean" for that category.
 - If an agent times out, report "timed out" -- do not block the review.
-- False positive filter: discard findings on unmodified lines, linter-catchable issues, and intentional changes clearly visible in the diff.
+- False positive filter: discard linter-catchable issues and intentional changes clearly visible in the diff. Discard a finding on unmodified lines ONLY when the goal does not depend on it, and it is not one of the eight always-in-scope classes (`ai/rules/critical-review.md`, "Bounding the loop"). Those classes are never NOTEs. An unqualified unmodified-lines filter deletes exactly what they are. An absence sits on no changed line, so it would discard this skill's own "what DOESN'T exist" lens in full.

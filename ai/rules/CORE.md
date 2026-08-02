@@ -14,7 +14,7 @@ that no past task description in `plan/` would surface
 Every other rule is named in `ai/rules/TRIGGERS.md`. Read its file when its
 trigger matches.
 
-Rules: 12 of 98. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
+Rules: 11 of 98. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
 
 ---
 
@@ -263,42 +263,6 @@ Writing down the excuses so they become identifiable:
 If a file should be deleted but this rule requires permission, ask the user directly.
 
 <!-- always-on: precedence rung 1/2 -->
-
----
-
-## No Fabrication
-`ai/rules/no-fabrication.md`
-**When:** when stating what code does, or recommending work premised on a behavioral claim — **Severity:** blocking — **Related:** detail-budget, critical-review
-
-## Directives
-State only what the source explicitly says or does.
-## Rule
-If the source material does not contain the information needed to answer the question, say so.
-## Behavioral claims and recommendations
-A claim about what code *does* at runtime is not verified until you have read the code that produces the behavior.
-## Mechanical check
-Before answering a factual question about file content:
-1. Can I point to the text that states the answer? If yes, answer.
-2. If no: "The file doesn't say. [what's missing]."
-1. Name the single keystone fact the claim depends on (e.g. "a session-down yields `err == nil`").
-2. Read the function that *produces* that fact (returns or sets the value), not only the one that consumes it.
-3. If I have read only the consumer, label it a hypothesis, not a finding, and verify before recommending any action.
-## Banned
-| Pattern | Why |
-|---------|-----|
-| Inferring status from position in a list | The file may not encode status by position |
-| Inferring done/not-done without explicit markers | Fabrication dressed as analysis |
-| Presenting interpretation as fact | The user asked what the file says, not what you think |
-| Guessing what the user meant and presenting the guess as a conclusion | Say you don't know, ask |
-| Inferring a function's return value or behavior from its caller | Read the producer of the value, not the consumer |
-| Citing a code comment as the project's design intent | A comment is its author's belief, not a decision record; read `plan/deferrals/`, `plan/learned/`, specs |
-| Inferring a foreign system's semantics from a generated binding stub | The stub documents a field's existence, not what the system does with it; read that system's source (e.g. VPP's C, vendored at `third_party/vpp-linux-cp/`, not `binapi/*.ba.go`) |
-| Recommending work premised on an unverified behavioral claim | The premise is itself a claim; trace it to source first |
-| Treating a coherent narrative as verified | A self-consistent story is a hypothesis until the keystone fact is read |
-## Mechanical backstop
-The `design-without-lsp` check in `.claude/hooks/pretool-writeedit.py` blocks writing a `plan/spec-*.md` or `plan/design-*.md` file unless this session has investigated implementation source (read a `.go` under...
-
-<!-- always-on: no past task would surface it -->
 
 ---
 

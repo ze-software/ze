@@ -2,6 +2,7 @@
 
 **When:** before closing a spec, or claiming any substantive change is done
 **Severity:** blocking
+**Related:** no-parking, deferral-tracking, model-selection, quality
 
 ## Directives
 
@@ -35,13 +36,31 @@ reviewers caught on the same diff minutes later.
 3. **Verify the reviewers too.** A reviewer can be wrong. Before acting on a
    finding, reproduce it (an empirical check beats an argument — a `.ci` exit
    assertion that "should fire" either fires or does not; run it).
-4. **Looped to zero.** Every fix is new code that needs a fresh pass. Re-review
-   until a pass finds nothing. No cap on passes.
+4. **Looped to zero over a SHRINKING scope.** Every fix is new code and earns a fresh pass. Each pass reviews less than the one before it. There is no cap on the NUMBER of passes, and a hard bound on what each one covers. See "Bounding the loop" below.
 5. **Evidenced by an artifact, not narrated.** Record the pass with
    `scripts/dev/review_gate.py record` → `tmp/review/<spec-stem>-<session-id>.md`
    (session-scoped, so concurrent same-spec sessions never clobber each other). It pins the
    SHA-256 of every code/test file the reviewers examined. The spec's Review Gate
    section pastes the reviewers' actual findings and each fix.
+
+## Bounding the loop
+
+- **Round 1 reviews the whole diff. Round N+1 reviews ONLY the fixes round N made, plus what those fixes touched.** By default, a finding outside that scope does not re-open the round. Three bullets below override that default. Each override costs another pass (step 4). The overrides are: the goal depends on it, you are unsure whether it does, or it belongs to the always-in-scope list.
+- **The loop ends when a round finds no BLOCKER and no ISSUE inside its OWN scope, AND no always-in-scope finding anywhere.** Both halves are required. The scope half alone lets an unconditional class satisfy the end condition by surfacing outside the round. A NOTE never re-opens a round, wherever it was found (`ai/rules/planning.md`, Review Gate). An always-in-scope finding is NEVER a NOTE, and its severity floor is ISSUE. Severity is the reviewer's own call. Without that floor, tagging one down is the cheapest exit from a list whose purpose is to have no exits.
+- **The loop never required a round that finds nothing anywhere.** On a diff of any size, a full-diff pass always finds something. That reading has no state in which it stops, so finished work cannot close.
+- **A finding outside the round's scope is fixed in this round when the goal this work exists to achieve depends on it. It is homed otherwise.** That is `ai/rules/no-parking.md`'s question unchanged. The test is DEPENDENCY, never causation. A defect this change did not introduce is in scope the moment the work depends on that path, which is what "pre-existing" never excuses.
+- **If you are unsure whether the goal depends on it, you are on the fix-it side.** `ai/rules/no-parking.md` sets that tie-break and this bound does not soften it. Over-fixing costs some work. Homing a real blocker ships something that does not do what it claims. A rule that licenses closure is where an unsure call must fall towards fixing.
+- **Eight classes are ALWAYS in scope, whatever round surfaces them and whoever caused them: an unwired symbol, a vacuous test, an acceptance criterion with no test, a user-facing behavior with no functional test, Linux-only code with no QEMU test, a removed guard, a newly added guard that fails open, and any RFC or interop non-conformance.** Each one passes a "no wrong result, no red gate" screen because its failure mode is silence. Nothing is wrong on the surface. The path is never exercised.
+- **Where the round's scope and that list disagree, the list wins and the loop takes another pass.** The scope bound is a rung-3 instrument (`ai/rules/rule-precedence.md`). Conformance owed outside this repo sits on rung 2. Nothing about bounding a review loop CAN retire an RFC or interop obligation (`ai/rules/rfc-compliance.md`, `ai/rules/interop-and-goal-validation.md`).
+- **Each class has its own authority.** Step 2 above covers wiring, removed-guard, logic and vacuous-test findings. `ai/rules/no-partial-completion.md` covers an untested acceptance criterion, `ai/rules/functional-test-gate.md` user-facing behavior, `ai/rules/qemu-testing.md` Linux-only code, and `ai/rules/fail-closed-guards.md` a guard that fails open.
+- **The home is a destination spec that OUTLIVES this closure, never this spec's own deferral shard.** Closure `git rm`s `plan/deferrals/<stem>.md` (`ai/rules/deferral-tracking.md`), so a row written there minutes before closing is deleted with it. Name a `plan/spec-*.md` that exists on disk.
+- **Two readings, and the one that governs.** "Fresh eyes on every pass, the full diff each time" asks a pass to see the whole change. "Loop until a pass finds nothing" asks the loop to converge. Applied to every round at once they contradict, and the agent that tries to satisfy both cannot close its work. Round 1 owns the whole-diff reading. Rounds 2 and later own convergence.
+- **Write the round's scope down BEFORE the round runs, in the spec's Review Gate section.** Unwritten, "what those fixes touched" is chosen after the findings are known, and shrinks to whatever produces a clean round. Written first, it holds when the reviewer is tired, invested, or wrong about severity. It includes the sibling call sites of every changed function (`ai/rules/quality.md`, question 8), not only the edited hunks.
+
+## State the review effort before you spend it
+
+- **Name the pass count and the lenses BEFORE the first agent is spawned, so the operator can stop you.** An unannounced fan-out is a decision taken on the operator's behalf.
+- **Match the effort to the ask ABOVE the floor step 1 sets, never below it: two lenses on round 1 always, three or more when the ask is "audit this" or "be thorough".** Round 1 is the only pass that ever sees the whole diff. Its lens count IS the whole change's coverage, and is never cut to one. Effort is chosen from the request, never from how interesting the code turned out to be.
 
 ## The review model
 

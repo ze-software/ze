@@ -250,6 +250,14 @@ is severity BLOCKER or ISSUE (anything above NOTE), fix it and re-run the
 review. Loop until the review returns only NOTEs (or nothing). Paste the
 final clean review output into the spec. NOTE-only findings do NOT block.
 
+**Each round reviews less than the last, and the loop is required to end.**
+Round 1 covers the whole diff. Round N+1 covers only round N's fixes. A gate
+that cannot stop is a gate that gets bypassed. One place settles what happens
+to a finding outside the round's scope, which classes are always in scope, and
+where a homed finding goes: `ai/rules/critical-review.md`, "Bounding the loop".
+Do not restate those tests here. A second copy is how the corrected rule and
+the defective one become one hop apart.
+
 ## Spec Closure (BLOCKING)
 
 **A spec that passes its Review Gate is not done until it is deleted from `plan/`.**

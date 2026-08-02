@@ -9,7 +9,7 @@ already loaded in full (`ai/rules/CORE.md`) and needs no read; every other
 rule's body is one Read away, and `ai/rules/CONDENSED.md` holds all of them in
 one file when several apply at once.
 
-Rules: 98 (70 blocking, 28 advisory). Always-on: 12.
+Rules: 98 (70 blocking, 28 advisory). Always-on: 11.
 
 | Rule | Severity | When to read it |
 |------|----------|-----------------|
@@ -74,7 +74,7 @@ Rules: 98 (70 blocking, 28 advisory). Always-on: 12.
 | `ai/rules/naming.md` | advisory | naming anything in Ze (identifiers, files, commands, config) |
 | `ai/rules/never-destroy-work.md` | blocking, always-on | before deleting, reverting, or overwriting any file holding uncommitted or user-visible work |
 | `ai/rules/no-asking.md` | advisory | when you are about to ask permission instead of finishing the work |
-| `ai/rules/no-fabrication.md` | blocking, always-on | when stating what code does, or recommending work premised on a behavioral claim |
+| `ai/rules/no-fabrication.md` | blocking | when stating what code does, or recommending work premised on a behavioral claim |
 | `ai/rules/no-fork-loops.md` | blocking | writing a shell loop, or any Bash command that could fork one process per file |
 | `ai/rules/no-layering.md` | blocking, always-on | when replacing X with Y |
 | `ai/rules/no-parking.md` | blocking | when a defect blocks a goal the current work exists to achieve |
