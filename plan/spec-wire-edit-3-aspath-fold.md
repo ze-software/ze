@@ -479,3 +479,170 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] Learned summary written to `plan/learned/NNN-wire-edit-3-aspath-fold.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-wire-edit-3-aspath-fold.md` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+- `internal/component/bgp/wireu/aspath_slot.go`: `ASPathIntent` (ordered prepend ASNs, transcode target, RS-client and remove-private flags) and `ASPathEdit.Record`, which registers AS_PATH, AS4_PATH, AGGREGATOR and AS4_AGGREGATOR as generate slots on the edit set from child 2.
+- Five generators implement the size-then-write contract: `asPathShiftGen`, `asPathEncodeGen`, `as4PathGen`, `aggregatorGen`, `as4AggregatorGen`. `tryShift` is the same-width fast path.
+- The RFC 6793 derivations stay inside the resolver: no producer mentions AS4_PATH or AS_TRANS.
+- The second full payload copy is gone. A destination with a policy now takes one materialisation, not two (three on the route-server rail).
+
+### Bugs Found/Fixed
+
+Two live defects, both pre-existing and both found while translating the slow path:
+
+- **AGGREGATOR was destroyed on every same-width slow-path prepend.** Fixed; `TestPrependKeepsValidAggregatorOnEveryPath` and `TestTranscodeNoOpLeavesAggregatorAlone`.
+- **`clearTombstoneTransitive` fired on only one of three prepend paths.** Fixed; `TestTombstoneTransitiveClearedOnEveryPrependPath`.
+
+### Documentation Updates
+
+- `docs/architecture/wire/attributes.md` -- the generate slot and the AS4 derivation ownership.
+- The RFC Documentation table above now points at `aspath_slot.go` rather than `aspath_rewrite.go`.
+
+### Deviations from Plan
+
+| # | Plan said | What was built | Why |
+|---|-----------|----------------|-----|
+| D-1 | AC-1 byte-identical for every matrix cell | Byte-identical except AS4 ORDERING | A derived AS4_PATH (17) or AS4_AGGREGATOR (18) used to be appended after every source attribute. The one-pass writer merge-inserts it at its ascending position, so a base carrying LARGE_COMMUNITY (32) or OTC (35) reaches the wire in a different byte order with identical content. RFC 4271 Section 5 orders attributes ascending on emission, and Thomas approved this on 2026-08-01 |
+| D-2 | AC-9: the eBGP wire slots are gone | They are unreachable but NOT deleted | `EBGPWire`, `ebgpSlotASN4`, `ebgpSlotASN2` and `ebgpWireSlot` have zero non-test callers, so they are dead code with no behavioural effect. The deletion touches read-pool lifetimes in `recent_cache.go`, which is child 3's own R-2 and R-3 area, and wants an implementation phase rather than a closure-time edit. Homed in `plan/spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal.md` |
+| D-3 | AC-9: `adoptFwdHandle` is gone | It survives, with one production caller | Deliberate. It is the correct mechanism for the one remaining borrow (a cross-context transcode buffer), and child 1's `TestForwardAdoptedHandleHeldUntilLastWrite` now proves its release ordering rather than asserting it vacuously |
+| D-4 | `test/plugin/wire-edit-asn4-transcode-single-copy.ci` | `test/plugin/asn4-transcode-pooled-buffer.ci` | The existing file already drives the transcode through a real session; it was extended rather than duplicated |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | The AS-path slow path was assumed to be correct and only in need of translation | Two of its branches were wrong: AGGREGATOR was destroyed on a same-width prepend, and the tombstone transitive clear fired on one path of three | Writing the per-path matrix test forced every branch to be enumerated | Both fixed in `ddf04953a`, each with a test named after the branch it covers |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| AS_PATH becomes a generate slot on the edit set | Done | `wireu/aspath_slot.go` `ASPathEdit.Record` | |
+| One resolver owns AS_PATH, AS4_PATH, AGGREGATOR, AS4_AGGREGATOR | Done | `recordPrepend`, `recordTranscode`, `recordAS4Path`, `recordAggregator` | |
+| Ordered prepend intent rather than pre-encoded bytes | Done | `ASPathIntent` | The destination's ASN width is resolved inside the slot |
+| Delete the second payload copy | Done | `reactor_api_forward.go` | AC-2 |
+| Delete the eBGP wire caches | Partial | `received_update.go` | D-2: unreachable, not deleted |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Changed | the AS-path transform matrix in `internal/component/bgp/wireu/aspath_slot_test.go` | Byte-identical except AS4 ordering (D-1), approved by Thomas 2026-08-01 |
+| AC-2 | Done | read-pool borrow deltas measured per destination: 2 copies to 1 on the general rail, 3 to 1 on the route-server rail | |
+| AC-3 | Done | `TestASPathSlotDerivesAS4Path`, `TestASPathSlotSuppressesAS4PathWhenNotObliged` | One writer pass |
+| AC-4 | Done | `TestASPathSlotRSClientSkipsPrepend`; existing route-server `.ci` corpus | Transcode still applies |
+| AC-5 | Done | `TestASPathSlotDerivesAggregatorASTrans` | Merge-inserted at ascending positions |
+| AC-6 | Done | `TestASPathSlotInsertsWhenAbsent` | |
+| AC-7 | Done | `TestASPathSlotDiscardsMalformedAS4Path` | |
+| AC-8 | Done | `TestTombstoneTransitiveClearedOnEveryPrependPath` | This is where the one-of-three defect was found |
+| AC-9 | **Partial** | `grep -rn "\.EBGPWire(" internal/ cmd/ pkg/` returns test files only; `adoptFwdHandle` has one production caller at `reactor_api_forward.go:743` | D-2 and D-3. NOT met as written. Homed in `plan/spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal.md`. **Needs Thomas's sign-off** (`ai/rules/no-partial-completion.md`) |
+| AC-10 | Done | `TestASPathSlotRefusesTruncatedPayload`, `TestASPathSlotEmptyPrependIsRefused`; the `modifyFailure` suppression path | Never forwarded with an unmodified path |
+| AC-11 | Done | `TestASPathSlotDualOrder` | RFC 7705 Section 3.3 order preserved |
+| AC-12 | Done | the AS-override plus prepend row of the matrix test | Call sequence preserved verbatim |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| the AS-path transform matrix | Done | `wireu/aspath_slot_test.go`, 10 `Test` functions | |
+| the two defect regressions | Done | `wireu/aspath_aggregator_probe_test.go`, 4 `Test` functions | Added, not planned |
+| the fan-out benchmark for A-3 | Changed | `BenchmarkFanoutDedup`, `BenchmarkFanoutFloor`, `BenchmarkFanoutRebuildOnly` | Child 5 owns the measurement; A-3 is resolved from its numbers |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/component/bgp/wireu/aspath_slot.go` + `_test.go` | Done | |
+| `test/plugin/wire-edit-asn4-transcode-single-copy.ci` | Changed | D-4: `test/plugin/asn4-transcode-pooled-buffer.ci` extended instead |
+| every "Files to Modify" row | Done | see the diff of `ddf04953a` and `e2037e598` |
+
+### Audit Summary
+- **Total items:** 21
+- **Done:** 16
+- **Partial:** 1 (AC-9, needs Thomas's sign-off)
+- **Skipped:** 0
+- **Changed:** 4 (D-1 to D-4)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Remove the second full payload copy every eBGP destination with a policy pays | benchmark | Read-pool borrow deltas per destination: 2 to 1 on the general rail, 3 to 1 on the route-server rail. `BenchmarkFanoutRebuildOnly` decomposes what remains: 416 ns rebuild against 2.1 ns copy |
+| The two rewrite mechanisms compose | unit | `ASPathEdit.Record` registers into the same `EditSet` child 2 built; `TestASPathSlotShiftPrependIsExact` and the transform matrix pass through one writer |
+| RFC 6793 derivations stay with the resolver | unit | `TestASPathSlotDerivesAS4Path`, `TestASPathSlotDerivesAggregatorASTrans`; no producer names AS4_PATH |
+| RFC 7947 route-server transparency survives | functional | existing route-server `.ci` corpus, unedited; `TestASPathSlotRSClientSkipsPrepend` |
+| Two live wire defects closed | unit | `TestPrependKeepsValidAggregatorOnEveryPath`, `TestTombstoneTransitiveClearedOnEveryPrependPath` |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| AC-9: the unreachable eBGP wire cache (`EBGPWire`, `ebgpSlotASN4`, `ebgpSlotASN2`, `ebgpWireSlot`, and their release branches in `recent_cache.go`) is not deleted | deferred | `plan/spec-wire-edit-3-aspath-fold-deferred-ebgp-wire-cache-removal.md`, created 2026-08-02 and carrying the full task |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/wire-edit-3-aspath-fold-<session-id>.md` |
+| `review_gate.py check` | clean |
+| Reviewer lenses used | correctness/wire/lifetime; tests/security/coverage (two agents over `bbd53bf22^..b1fa7ab1e`, 2026-08-02) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The read-buffer leak tests asserted `before == after` over zero borrows, so the adopted-handle release ordering this child's deletions depend on was untested | `reactor/forward_readbuf_leak_test.go` | `f1f746fb6`, `TestForwardAdoptedHandleHeldUntilLastWrite` over an IBGP destination on a 2-byte send context |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `internal/component/bgp/wireu/aspath_slot.go` | Yes | `grep -n "^func \|^type "` lists `ASPathIntent`, `ASPathEdit`, `Record`, `recordPrepend`, `recordTranscode`, `recordAS4Path`, `recordAggregator`, `tryShift` and five generators |
+| `internal/component/bgp/wireu/aspath_slot_test.go` | Yes | 10 `Test` functions |
+| `internal/component/bgp/wireu/aspath_aggregator_probe_test.go` | Yes | 4 `Test` functions |
+| `test/plugin/asn4-transcode-pooled-buffer.ci` | Yes | `ls test/plugin/asn4-transcode-pooled-buffer.ci` |
+| `test/plugin/bgp-rs-relay-aspath-transparency.ci` | Yes | `ls test/plugin/bgp-rs-relay-aspath-transparency.ci` |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-3 | AS_TRANS plus AS4_PATH from one pass | `grep -n "func TestASPathSlotDerivesAS4Path" internal/component/bgp/wireu/aspath_slot_test.go`; `make ze-test-bgp` green |
+| AC-4 | RS clients keep their AS_PATH | `grep -n "func TestASPathSlotRSClientSkipsPrepend" internal/component/bgp/wireu/aspath_slot_test.go` |
+| AC-8 | the tombstone clear fires on every prepend path | `grep -n "func TestTombstoneTransitiveClearedOnEveryPrependPath" internal/component/bgp/wireu/aspath_aggregator_probe_test.go` |
+| AC-9 | NOT met | `grep -rn "\.EBGPWire(" internal/ cmd/ pkg/` -> test files only; `grep -rn "adoptFwdHandle" internal/ \| grep -v _test` -> one call site, `reactor_api_forward.go:743` |
+| AC-11 | dual-AS order | `grep -n "func TestASPathSlotDualOrder" internal/component/bgp/wireu/aspath_slot_test.go` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| eBGP forward with an export policy | `test/plugin/nexthop-self.ci` | Yes -- read: real session, modified wire pinned. The "one materialisation" half is the borrow-delta measurement (D-3 of child 2 applies here too) |
+| Four-octet path to a two-octet speaker | `test/plugin/asn4-transcode-pooled-buffer.ci` | Yes -- read: drives the transcode through a real session and asserts the emitted wire |
+| RS client that is a two-octet speaker | `test/plugin/bgp-rs-relay-aspath-transparency.ci` | Yes -- read: asserts the relayed AS_PATH is untouched for an RS client |
+| eBGP with local-as dual mode | `test/plugin/bgp-rs-fastpath-ibgp-identity.ci` | Yes -- read: identity forward unchanged; the ordering itself is `TestASPathSlotDualOrder` |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | Every AS-path transform reduces to `ASPathIntent`: ordered prepend ASNs, a transcode target, RS-client and remove-private flags. The override at `reactor_api_forward.go` maps to the ordered prepend list; no producer needed a terminal raw override |
+| A-2 | confirmed | The derivation lives in `recordAS4Path` and `recordAggregator`, inside the resolver. `TestASPathSlotDerivesAS4Path` records only a prepend and still gets AS4_PATH when the path requires it |
+| A-3 | confirmed with a caveat | Deleting the caches does not regress fan-out where a policy group is shared: `BenchmarkFanoutDedup` shows -14.4% at (10,2) and -28.6% at (100,2) once child 5 lands. Where every destination is its own group the digest costs about 3%, which is child 5's AC-11 and is homed there |
+| A-4 | **broken** | An intermediate variant DOES survive: the cross-context transcode buffer, adopted at `reactor_api_forward.go:743`. `adoptFwdHandle` is correctly kept (D-3), and its release ordering is now proven rather than assumed. The unreachable eBGP slots are the part that should have gone and did not (D-2) |
+| A-5 | confirmed, and it exposed a defect | The tombstone clear rides on the resolver. It also turned out to have been firing on one prepend path of three before this child; `TestTombstoneTransitiveClearedOnEveryPrependPath` now covers all three |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Wire format: the generate slot | `docs/architecture/wire/attributes.md` checked against `asPathEncodeGen.GenLen`/`GenWrite`, the size-then-write pair | Yes |
+| RFC 6793 Section 4.2.2 site moved | The RFC Documentation table above points at `aspath_slot.go`; `grep -n "AS4Path" internal/component/bgp/wireu/aspath_slot.go` confirms the derivation is there | Yes |
+| RFC 7947 Section 2.2.2 site | `TestASPathSlotRSClientSkipsPrepend` plus the RS-client gate in `reactor_api_forward.go` | Yes |
+| Categories answered No | `ddf04953a` and `e2037e598` touch no `.yang`, no CLI command, no plugin registration | Yes |
+
+## Core Insight
+
+Two caches existed here purely to amortise a copy. Deleting the copy deleted the
+reason for both, which is a larger simplification than the copy saving itself --
+and translating the slow path branch by branch is what surfaced two live wire
+defects that had survived because no test enumerated the branches.
