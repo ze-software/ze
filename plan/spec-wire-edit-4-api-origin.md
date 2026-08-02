@@ -480,3 +480,170 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 - [ ] Learned summary written to `plan/learned/NNN-wire-edit-4-api-origin.md`
 - [ ] **Commit A:** code + tests + docs + spec + learned summary
 - [ ] **Commit B:** `git rm plan/spec-wire-edit-4-api-origin.md` only (commit A preserves the spec in history)
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+
+- An API-originated route is an edit set over an empty base. `announceAttrs.emit` is the one writer both announce rails call, and it takes the NLRI region bound as an explicit argument rather than inferring it from the buffer length.
+- `attribute.Builder` keeps its setter chain and gains `AppendAttributes`; its emission half is gone. `Builder.WriteTo` and `CheckedWriteTo` are deleted, and `Build` is reimplemented over `AppendAttributes` plus `WriteAttrTo`.
+- `findAttrInsertPosition` and `insertAttrOrdered` are gone from the batch rail: the shared writer's merge-insert does the ordering for both rails.
+- The AS_PATH resolver from child 3 is shared, so RFC 6793 derivation exists once.
+
+### Bugs Found/Fixed
+
+- **RFC 4271 Section 5.1.5 violation.** LOCAL_PREF reached eBGP peers on the batch rail. Fixed in `e2037e598`; `TestAnnounceStripsLocalPrefTowardExternalPeer` proves no attribute type 5 reaches an external peer on either rail, and `TestAnnounceRailsAgreeByteForByte` proves both rails agree afterwards.
+- The two rails could emit one route as two byte strings, chosen by whether the destination peer had finished its initial sync. The batch rail copied the caller's block verbatim and APPENDED (1,8,32,2,3,5) while the queued rail merge-inserted (1,2,3,5,8,32). `test/plugin/wire-edit-api-origin-order.ci` pins the correct form end to end.
+
+### Documentation Updates
+
+- `docs/features/rfc-status.md` -- the RFC 4271 Section 5.1.5 row, with a source anchor to the strip site.
+- `docs/architecture/wire/attributes.md` -- one writer for both origins.
+
+### Deviations from Plan
+
+| # | Plan said | What was built | Why |
+|---|-----------|----------------|-----|
+| D-1 | AC-2: within benchmark noise | Within noise for the encoder, plus one extra allocation on the announce | The announce returns a `*message.Update` that the forward path has no equivalent of. Recorded on A-3 rather than hidden |
+| D-2 | interop scenario as a gate | Not reached | Deferred and homed in `plan/spec-wire-edit-4-api-origin-deferred-bird-interop.md`. The property is covered by unit tests over both rails and by a `.ci` that pins the exact wire bytes through the daemon |
+| D-3 | `bgp_announce_dropped_oversize_total` | Not reached | The drop and its named log line are implemented and tested (`TestAnnounceOversizeDropsWithNamedLog`); only the metric surface is missing. Homed in `plan/spec-wire-edit-4-api-origin-deferred-oversize-metric.md` |
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Convergence was scoped as "remove an encoder", with A-2 asserting the rails already agreed on every covered case | They agreed on every case the tests covered, and disagreed on one nobody had a test for: LOCAL_PREF toward an external peer, an RFC 4271 Section 5.1.5 MUST | Writing the shared writer forced both rails through one path, and the strip had to be decided once | Fixed in `e2037e598` with a test on each rail plus a byte-agreement test |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| An API route is an edit set over an empty base | Done | `reactor/reactor_api_batch.go` `announceAttrs` | `TestAnnounceBuilderModeIsEditSetOverEmptyBase` |
+| One writer for both rails | Done | `announceAttrs.emit` | `TestAnnounceRailsAgreeByteForByte` |
+| The region bound is an explicit argument | Done | `announceAttrs.emit` `dst` | `TestQueuedRailNLRIRegionIntact` |
+| Retire the `Builder` emission half | Done | `internal/core/bgp/attribute/builder.go` | AC-7 |
+| Share the AS_PATH resolver | Done | `TestAnnounceAS4PathFromSharedResolver` | |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestAnnounceRailsAgreeByteForByte`, `TestAnnounceBatchRail_AscendingTypeCodeOrder`, `TestAnnounceQueuedRail_AscendingTypeCodeOrder` | |
+| AC-2 | Changed | `BenchmarkAPIOriginVsForward` | Encoder cost matches; the announce carries one extra allocation, its `*message.Update` return (D-1) |
+| AC-3 | Done | `TestAnnounceRailsPreserveUnlistedAttributes` | |
+| AC-4 | Done | `TestAnnounceAS4PathFromSharedResolver` | Derived by child 3's resolver, not by a rail-local insertion |
+| AC-5 | Done | `TestAnnounceOversizeDropsWithNamedLog` | Dropped with a named log line, never truncated. The counter is deferred (D-3) |
+| AC-6 | Done | `TestQueuedRailNLRIRegionIntact` | Walks the boundary |
+| AC-7 | Done | `grep -n "func (b \*Builder) WriteTo" internal/core/bgp/attribute/builder.go` returns nothing | |
+| AC-8 | Done | `grep -rn "findAttrInsertPosition\|insertAttrOrdered" internal/` returns nothing | |
+| AC-9 | Done | `TestAnnounceRailsPreserveUnlistedAttributes`, plus existing `test/plugin/ddos-flowspec-announce.ci` | The raw-wire escape hatch is unchanged |
+| AC-10 | Done | `make ze-functional-test`; `test/encode/` corpus | One `.ci` was ADDED (`wire-edit-api-origin-order`); none was edited |
+| AC-11 | Done | `TestAnnounceStripsLocalPrefTowardExternalPeer` + `TestAnnounceRailsAgreeByteForByte` | RFC 4271 Section 5.1.5 |
+| AC-12 | Done | the internal-peer row of `TestAnnounceStripsLocalPrefTowardExternalPeer` | The strip is confined to external peers |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| the rail order and preserve pairs | Done | `reactor/reactor_api_batch_attr_order_test.go` | 7 `Test` functions |
+| the origin-vs-forward benchmark | Done | `reactor/reactor_api_origin_bench_test.go` | `BenchmarkAPIOriginVsForward`, `BenchmarkAnnounceRails` |
+| the queued-rail region test | Done | `reactor/reactor_api_origin_test.go` `TestQueuedRailNLRIRegionIntact` | |
+| the two interop scenarios | Skipped | -- | D-2, homed |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `test/plugin/wire-edit-api-origin-order.ci` | Done | |
+| `internal/component/bgp/reactor/reactor_api_origin_test.go` + `_bench_test.go` | Done | |
+| every "Files to Modify" row | Done | see the diffs of `ddf04953a` and `e2037e598` |
+
+### Audit Summary
+- **Total items:** 21
+- **Done:** 18
+- **Partial:** 0
+- **Skipped:** 2 (the two interop scenarios, D-2)
+- **Changed:** 1 (AC-2, D-1)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| One announce reaches the wire as one byte string, whatever rail runs | functional + unit | `test/plugin/wire-edit-api-origin-order.ci` pins the full message hex; `TestAnnounceRailsAgreeByteForByte` holds both rails against each other |
+| The second attribute encoder is gone | grep | `grep -n "func (b \*Builder) WriteTo" internal/core/bgp/attribute/builder.go` empty; `grep -rn "findAttrInsertPosition\|insertAttrOrdered" internal/` empty |
+| An announce that cannot fit is dropped, never truncated | unit | `TestAnnounceOversizeDropsWithNamedLog`, both rails, route named in the log |
+| The queued rail's NLRI is never overwritten by attributes | unit | `TestQueuedRailNLRIRegionIntact` walks the region boundary |
+| RFC 4271 Section 5.1.5 holds on both rails | unit | `TestAnnounceStripsLocalPrefTowardExternalPeer`; no attribute type 5 toward an external peer, value preserved toward an internal one |
+
+## Deferrals Resolved
+
+| Row (from the deferral shard) | Final Status | Destination or evidence |
+|-------------------------------|--------------|-------------------------|
+| The `NN-wire-edit-api-origin` interop scenario: a real BIRD peer accepts an API-originated route and installs the attributes in the expected order | deferred | `plan/spec-wire-edit-4-api-origin-deferred-bird-interop.md`, created 2026-08-02 (the original Destination was this spec, which closure removes) |
+| The `bgp_announce_dropped_oversize_total` counter, so an AC-5 oversize drop is observable as a metric | deferred | `plan/spec-wire-edit-4-api-origin-deferred-oversize-metric.md`, created 2026-08-02 (same re-homing) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/wire-edit-4-api-origin-<session-id>.md` |
+| `review_gate.py check` | clean |
+| Reviewer lenses used | correctness/wire/lifetime; tests/security/coverage (two agents over `bbd53bf22^..b1fa7ab1e`, 2026-08-02) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | The oversize suppression `.ci` had stopped covering the code it was written for | `test/plugin/modify-oversize-suppress.ci`, `internal/test/peer/` | `ea6a4bbda`, which re-derives the ceiling by exact byte arithmetic instead of guessing the policy's added bytes |
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| `test/plugin/wire-edit-api-origin-order.ci` | Yes | `ls test/plugin/wire-edit-api-origin-order.ci`; header quotes RFC 4271 Section 5 and asserts one hex message |
+| `internal/component/bgp/reactor/reactor_api_origin_test.go` | Yes | 6 `Test` functions |
+| `internal/component/bgp/reactor/reactor_api_origin_bench_test.go` | Yes | `BenchmarkAPIOriginVsForward`, `BenchmarkAnnounceRails` |
+| `internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go` | Yes | 7 `Test` functions including `TestAnnounceRailsAgreeByteForByte` |
+| `test/plugin/ddos-flowspec-announce.ci` | Yes | `ls test/plugin/ddos-flowspec-announce.ci`, unedited |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-7 | the Builder emission half is gone | `grep -n "func (b \*Builder) WriteTo" internal/core/bgp/attribute/builder.go` prints nothing (re-run 2026-08-02) |
+| AC-8 | the batch rail's ordering machinery is gone | `grep -rn "findAttrInsertPosition\|insertAttrOrdered" internal/` prints nothing (re-run 2026-08-02) |
+| AC-11 | no LOCAL_PREF toward an external peer | `grep -n "func TestAnnounceStripsLocalPrefTowardExternalPeer" internal/component/bgp/reactor/reactor_api_origin_test.go`; `make ze-test-bgp` green |
+| AC-6 | the NLRI region survives a full attribute region | `grep -n "func TestQueuedRailNLRIRegionIntact" internal/component/bgp/reactor/reactor_api_origin_test.go` |
+| AC-1 | both rails agree | `grep -n "func TestAnnounceRailsAgreeByteForByte" internal/component/bgp/reactor/reactor_api_batch_attr_order_test.go` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| An operator announces a route with communities and local-preference | `test/plugin/wire-edit-api-origin-order.ci` | Yes -- read: a plugin sends one `peer * update text ...` and the peer expectation is the whole message hex, with the injected 2,3,5 before the caller's 8,32 |
+| The same route injected during initial-sync drain | `TestAnnounceRailsAgreeByteForByte` | Yes -- read: drives both rails over the same input and compares bytes |
+| An operator announces a flowspec rule | `test/plugin/ddos-flowspec-announce.ci` | Yes -- read: the pinned MP_REACH-plus-EXTENDED_COMMUNITY expectation is unchanged by this child |
+| An announce carrying an unnamed attribute | `TestAnnounceRailsPreserveUnlistedAttributes` | Yes -- read: the attribute survives at its ascending position on both rails |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-1 | confirmed | `AppendAttributes` covers every `Builder` setter; `TestBuilderAppendAttributesMatchesBuild` holds `Build` against it |
+| A-2 | confirmed with a correction | Both rail tests were green before any edit (`tmp/wire4/baseline.log`), so convergence regressed nothing they covered. They did NOT cover LOCAL_PREF toward an external peer, where the rails were both wrong against RFC 4271 Section 5.1.5. Convergence therefore also fixed a live defect, which is a wider blast radius than A-2 assumed, and it is recorded in the Mistake Log |
+| A-3 | confirmed with a caveat | The encoder cost matches; the announce carries one extra allocation, its `*message.Update` return value, which the forward path has no equivalent of |
+| A-4 | confirmed | `Builder.WriteTo` and `CheckedWriteTo` had no caller outside `Build`; `Build` is kept and reimplemented over `AppendAttributes` plus `WriteAttrTo`, so no compatibility shim was needed |
+| A-5 | confirmed | `announceAttrs.emit` takes the region as `dst`; `TestQueuedRailNLRIRegionIntact` walks the boundary |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| RFC status: RFC 4271 Section 5.1.5 | `docs/features/rfc-status.md` row checked against the strip in the announce path; proven by `TestAnnounceStripsLocalPrefTowardExternalPeer` | Yes |
+| Wire format: one writer for both origins | `docs/architecture/wire/attributes.md` checked against `announceAttrs.emit`, the single emission site | Yes |
+| API/RPC docs | The `update text` command surface is unchanged; only the bytes it produces moved | Yes |
+| Categories answered No | `ddf04953a` and `e2037e598` add no config leaf, no CLI command, no plugin, no capability | Yes |
+
+## Core Insight
+
+Ordering machinery added to one rail is a symptom, not a fix. The batch rail had
+`findAttrInsertPosition` and `insertAttrOrdered` because it was the rail that
+diverged; the queued rail had none because it happened to be right. Making one
+writer removed the asymmetry -- and forced a single answer to a question neither
+rail had been asked, which is how the RFC 4271 Section 5.1.5 violation surfaced.
