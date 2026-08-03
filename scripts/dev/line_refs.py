@@ -8,10 +8,18 @@ to cite the file and the symbol, and to give a line number only when the line
 IS the fact. This tool makes the corpus agree with that rule, and
 `c_line_number_ref` in `.claude/hooks/pretool-writeedit.py` keeps new ones out.
 
-Two forms are removed:
+Three forms are removed:
 
     path-form   internal/x/y.go:412   ->  internal/x/y.go
     bare-form   (`:232-239`)          ->  removed, with its punctuation
+    anchor-form https://.../f.c#L755  ->  https://.../f.c
+
+NAME THE SYMBOL BEFORE RUNNING THIS OVER FORGE PERMALINKS. Two citations into
+one external file collapse into the same link once their anchors go, and the
+reader loses the distinction the anchor was carrying. Put the function in the
+link text first, then sweep. `docs/research/` and
+`docs/architecture/congestion-industry.md` cite FRR, BIRD, GoBGP and OpenBSD
+this way.
 
 A fenced code block is skipped. A line number inside quoted tool output is the
 fact being quoted, not a citation.
@@ -28,10 +36,18 @@ import re
 import sys
 
 # A path with one or more `:N` / `:N-N` suffixes. Only the suffix is dropped.
+# The extension list covers other projects' languages too: this corpus cites
+# FRR, BIRD, GoBGP and OpenBSD source, and a half-covered list left one document
+# with `fsm.go` stripped beside `bgp_packet.c:755` untouched.
 PATH_REF = re.compile(
-    r"([A-Za-z0-9_./-]*\.(?:go|py|sh|md|mk|yang|ci|et|json|txt))"
+    r"([A-Za-z0-9_./-]*\.(?:go|py|sh|md|mk|yang|ci|et|json|txt"
+    r"|c|h|cc|cpp|rs|java|ts|js))"
     r"((?::\d+(?:-\d+)?)+)"
 )
+
+# A forge permalink's line anchor: `#L1903`, `#L1712-1716`, `#L12L20`. The URL
+# still resolves to the file without it, and the symbol is what a reader needs.
+LINE_ANCHOR = re.compile(r"#L\d+(?:[-L]\d+)?")
 
 # A published RFC text never changes, so a line number into one is a stable
 # fact rather than a citation that rots. `rfc/full/rfc7296.txt:5110` keeps its
@@ -103,6 +119,8 @@ def strip(text: str) -> tuple[str, int, int]:
             return m.group(1)
 
         line = PATH_REF.sub(keep_stable, line)
+        line, hits = LINE_ANCHOR.subn("", line)
+        n_path += hits
         for pattern in BARE_FORMS:
             line, hits = pattern.subn("", line)
             n_bare += hits

@@ -2089,9 +2089,16 @@ def c_ci_sleep_justification(ctx):
 # block, where the number is quoted output rather than a citation, and
 # rfc/full/*.txt, because a published RFC never changes.
 _LINE_REF = re.compile(
-    r"(?<![A-Za-z0-9_])([A-Za-z0-9_./-]*\.(?:go|py|sh|md|mk|yang|ci|et|json|txt))"
+    r"(?<![A-Za-z0-9_])([A-Za-z0-9_./-]*\.(?:go|py|sh|md|mk|yang|ci|et|json|txt"
+    r"|c|h|cc|cpp|rs|java|ts|js))"
     r":\d+(?:-\d+)?"
 )
+
+# A forge permalink's line anchor, `#L1903` or `#L1712-1716`. Same defect as a
+# bare line number, and it survived the first sweep: this corpus cites FRR,
+# BIRD, GoBGP and OpenBSD that way. The URL resolves to the file without it, and
+# the citation should name the SYMBOL.
+_LINE_ANCHOR = re.compile(r"https?://\S*?(#L\d+(?:[-L]\d+)?)")
 _LINE_REF_PROSE = (".md",)
 # The harness passes an absolute path, so each root is matched with its leading
 # separator. The bare form is accepted too, so a relative path from a test or a
@@ -2136,6 +2143,8 @@ def c_line_number_ref(ctx):
             if m.group(1).startswith("rfc/full/"):
                 continue
             bad.append((n, m.group(0)))
+        for m in _LINE_ANCHOR.finditer(line):
+            bad.append((n, m.group(1)))
     if not bad:
         return None
     detail = "\n".join(f"  +{n}: {ref}" for n, ref in bad[:4])
@@ -2143,6 +2152,10 @@ def c_line_number_ref(ctx):
         "\n  Cite the file and the SYMBOL, not the line: `session.go`, `handleOpen()`.\n"
         "  A line number is right only when the line itself IS the fact, and then it\n"
         "  belongs in a fenced block as quoted output. See ai/rules/writing.md.\n"
+        "  A forge permalink is the same case: link the file and NAME the function,\n"
+        "  [bgp_io.c `bgp_write`](https://.../bgp_io.c), never a bare #L anchor.\n"
+        "  Name the symbol BEFORE dropping an anchor. Two citations into one file\n"
+        "  collapse into the same link once their anchors go.\n"
         "  Sweep an existing file with: scripts/dev/line_refs.py --apply"
     )
     return (

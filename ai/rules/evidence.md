@@ -56,6 +56,12 @@ Verification and citation are two decisions, and this rule owns the first.
 
 **A line number is correct only when the line IS the fact, and then it belongs in a fenced block as quoted output, never in prose.**
 
+**A citation into another project names the file and the SYMBOL too, and a forge permalink's `#L` anchor is a line number wearing a URL.** Link the file at a pinned tag and put the function in the link text: `[bgp_io.c \`bgp_write\`](https://.../bgp_io.c)`. `c_line_number_ref` in `.claude/hooks/pretool-writeedit.py` refuses a bare anchor.
+
+**A pinned tag does NOT make a line number safe. Measured 2026-08-03: four BIRD anchors in `docs/architecture/congestion-industry.md` pointed at unrelated code at the v3.2.0 tag they named, and a GoBGP anchor was off by six lines.** They were written against a different version and never re-read, so the citation was wrong from the day the dependency moved and nothing could detect it.
+
+**Name the symbol BEFORE removing a location, never after.** Two citations into one file collapse into the same link once their anchors go, and the distinction the anchor carried is lost with no way to recover it.
+
 A pasted line number proves nothing about what you read, and it goes stale at the
 next edit (`ai/rules/writing.md`). Line-number citations were stripped from
 the whole corpus on 2026-08-03, and `c_line_number_ref` in

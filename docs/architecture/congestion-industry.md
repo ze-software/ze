@@ -34,7 +34,7 @@ documentation review of three commercial/vendor implementations.
 | TCP_NODELAY + IP_TOS | `internal/component/bgp/reactor/session_connection.go` -- connectionEstablished() |
 | Write deadline | `internal/component/bgp/reactor/session_write.go` -- writeMessage() |
 | Send Hold Timer (RFC 9687) | `internal/component/bgp/reactor/session_write.go` -- sendHoldTimer methods |
-| Hold timer congestion ext. | `internal/component/bgp/reactor/session.go` -- OnHoldTimerExpires callback |
+| Hold timer expiry (RFC 4271 Event 10) | `internal/component/bgp/reactor/session.go` -- OnHoldTimerExpires callback |
 | Forward pool batch writes | `internal/component/bgp/reactor/forward_pool.go` -- fwdBatchHandler() |
 | NOTIFICATION Error Code 8 | `internal/component/bgp/message/notification.go` -- NotifySendHoldTimerExpired |
 
@@ -64,7 +64,7 @@ causes permanent RIB divergence with no recovery mechanism.
 *Sources: BIRD [bgp.c](https://gitlab.nic.cz/labs/bird/-/blob/v3.2.0/proto/bgp/bgp.c), GoBGP [sockopt_linux.go](https://github.com/osrg/gobgp/blob/v4.3.0/internal/pkg/netutils/sockopt_linux.go), RustBGPd [event.rs](https://github.com/osrg/rustybgp/blob/d2a3ab4/daemon/src/event.rs), FRR [bgp_network.c](https://github.com/FRRouting/frr/blob/frr-10.5.3/bgpd/bgp_network.c)*
 
 **TCP_NODELAY:** Disables Nagle's algorithm. Ze sets it on all BGP connections.
-FRR only sets it before sending NOTIFICATION ([bgp_packet.c:755](https://github.com/FRRouting/frr/blob/frr-10.5.3/bgpd/bgp_packet.c#L755))
+FRR only sets it before sending NOTIFICATION ([bgp_packet.c `bgp_write_notify`](https://github.com/FRRouting/frr/blob/frr-10.5.3/bgpd/bgp_packet.c))
 to force immediate delivery of error messages. BIRD, GoBGP, and RustBGPd do not
 set it at all.
 
@@ -77,7 +77,7 @@ is the standard marking for network control traffic including routing protocols.
 Tells network devices to prioritize BGP traffic over regular data. Under network
 congestion, routers with QoS policies preferentially forward BGP packets, reducing
 hold timer expiry risk from packet loss. BIRD sets `IP_PREC_INTERNET_CONTROL`
-on all BGP sockets ([bgp.c:229](https://gitlab.nic.cz/labs/bird/-/blob/v3.2.0/proto/bgp/bgp.c#L229), [bgp.c:1827](https://gitlab.nic.cz/labs/bird/-/blob/v3.2.0/proto/bgp/bgp.c#L1827)).
+on all BGP sockets ([bgp.c `bgp_listen_open`](https://gitlab.nic.cz/labs/bird/-/blob/v3.2.0/proto/bgp/bgp.c), [bgp.c `bgp_connect`](https://gitlab.nic.cz/labs/bird/-/blob/v3.2.0/proto/bgp/bgp.c)).
 
 ## Outgoing Queue Architecture
 
@@ -116,11 +116,11 @@ UPDATE), but the channel queue from table threads is not deduped.
 | Write deadline | N/A (non-blocking) | 1s handshake, none ESTABLISHED | None | Send Hold Timer check on enqueue | Send Hold Timer (holdtime) | None | 30s forward, 10-30s control |
 | Write failure | Retry on POLLOUT | Fatal (kills peer) | Fatal (kills task) | EAGAIN retry, else TCP_fatal_error | EPIPE/EIO: EVNT_CON_FATAL | KEEPALIVEs fatal, UPDATEs ignored | Logged, triggers FSM |
 
-*Sources: BIRD [io.c](https://gitlab.nic.cz/labs/bird/-/blob/v3.2.0/sysdep/unix/io.c) (sk_send), GoBGP [fsm.go:1734](https://github.com/osrg/gobgp/blob/v4.3.0/pkg/server/fsm.go#L1734), RustBGPd [event.rs:3731](https://github.com/osrg/rustybgp/blob/d2a3ab4/daemon/src/event.rs#L3731), FRR [bgp_io.c:321](https://github.com/FRRouting/frr/blob/frr-10.5.3/bgpd/bgp_io.c#L321) (bgp_write, writev)*
+*Sources: BIRD [io.c `sk_send`](https://gitlab.nic.cz/labs/bird/-/blob/v3.2.0/sysdep/unix/io.c), GoBGP [fsm.go `fsmHandler.sendMessageloop`](https://github.com/osrg/gobgp/blob/v4.3.0/pkg/server/fsm.go), RustBGPd [event.rs `Handler::run`](https://github.com/osrg/rustybgp/blob/d2a3ab4/daemon/src/event.rs), FRR [bgp_io.c `bgp_write`](https://github.com/FRRouting/frr/blob/frr-10.5.3/bgpd/bgp_io.c)*
 
 **FRR writev():** Packs up to `wpkt_quanta` (default 64) messages into an iovec
 array and sends them in a single `writev()` syscall
-([bgp_io.c:365](https://github.com/FRRouting/frr/blob/frr-10.5.3/bgpd/bgp_io.c#L365)).
+([bgp_io.c `bgp_write`](https://github.com/FRRouting/frr/blob/frr-10.5.3/bgpd/bgp_io.c)).
 Handles partial writes by adjusting stream positions and retrying. Configurable
 via CLI: `write-quanta (1-64)`.
 
@@ -200,7 +200,7 @@ written for the configured duration, the session is torn down.
 | bio-rd | **No** | - | Stuck unix.Write blocks FSM goroutine forever |
 | Ze | **Yes** | max(8min, 2x holdTime) | Try NOTIFICATION Code 8, then close |
 
-*Sources: BIRD [bgp.c:1741](https://gitlab.nic.cz/labs/bird/-/blob/v3.2.0/proto/bgp/bgp.c#L1741) (bgp_send_hold_timeout), FRR [bgp_packet.c:109](https://github.com/FRRouting/frr/blob/frr-10.5.3/bgpd/bgp_packet.c#L109) (bgp_packet_add), ze `session_write.go` (sendHoldTimerExpired)*
+*Sources: BIRD [bgp.c `bgp_send_hold_timeout`](https://gitlab.nic.cz/labs/bird/-/blob/v3.2.0/proto/bgp/bgp.c), FRR [bgp_packet.c `bgp_packet_add`](https://github.com/FRRouting/frr/blob/frr-10.5.3/bgpd/bgp_packet.c), ze `session_write.go` (sendHoldTimerExpired)*
 
 **FRR's approach is unique:** no separate timer. `bgp_packet_add()` checks
 `last_sendq_ok` (timestamp of last empty output queue) on every packet enqueue.
@@ -211,15 +211,15 @@ periodically.
 **GoBGP and RustBGPd lack Send Hold Timer protection.**
 
 GoBGP clears the write deadline on entering ESTABLISHED
-([fsm.go:1903](https://github.com/osrg/gobgp/blob/v4.3.0/pkg/server/fsm.go#L1903):
+([fsm.go `fsmHandler.established`](https://github.com/osrg/gobgp/blob/v4.3.0/pkg/server/fsm.go):
 `SetWriteDeadline(time.Time{})`). A blocked `conn.Write()` in the send goroutine
-([fsm.go:1734](https://github.com/osrg/gobgp/blob/v4.3.0/pkg/server/fsm.go#L1734))
+([fsm.go `fsmHandler.sendMessageloop`](https://github.com/osrg/gobgp/blob/v4.3.0/pkg/server/fsm.go))
 hangs indefinitely. The inbound hold timer still runs in a separate goroutine and
 will eventually close the connection if the remote also stops sending -- but there
 is no detection of outbound-only stalls (the case where we receive but cannot send).
 
 RustBGPd is more vulnerable: `write_all().await`
-([event.rs:3704](https://github.com/osrg/rustybgp/blob/d2a3ab4/daemon/src/event.rs#L3704))
+([event.rs `Handler::run`](https://github.com/osrg/rustybgp/blob/d2a3ab4/daemon/src/event.rs))
 suspends the entire `select_biased!` event loop for that peer. While blocked on
 write, the keepalive timer, holdtime check, and management channel in the same
 select loop cannot fire. The peer task is completely unresponsive until TCP either
@@ -233,15 +233,33 @@ Extend the timer instead of tearing down.
 
 | Implementation | Technique |
 |---------------|-----------|
-| BIRD | `sk_rx_ready()` (poll with zero timeout). If data pending, extend by 10 seconds only. |
-| Ze | Atomic `recentRead` flag set by read loop. If true, reset to full hold duration. Difference from BIRD: ze resets the full timer rather than adding a fixed 10s extension, so under sustained CPU congestion BIRD's timer erodes while ze's does not. |
+| BIRD | `sk_rx_ready()` (poll with zero timeout). If data is pending, extend by 10 seconds only. |
+| Ze | Not implemented. A hold timer expiry always stops the session. |
 | Others | Not implemented |
 
-*Source: BIRD [bgp.c:1712-1716](https://gitlab.nic.cz/labs/bird/-/blob/v3.2.0/proto/bgp/bgp.c#L1712-1716)*
+*Source: BIRD [bgp.c `bgp_hold_timeout`](https://gitlab.nic.cz/labs/bird/-/blob/v3.2.0/proto/bgp/bgp.c)*
 
-This prevents false hold timer expirations when the event loop is overloaded
-processing a burst of UPDATEs from other peers. The extension is safe because
-receiving data proves the peer is alive.
+BIRD uses the extension to prevent a false hold timer expiry when the event loop
+is overloaded with a burst of UPDATEs from other peers. Data from the peer proves
+the peer is alive.
+
+**Ze does not do this, by decision.** Ze granted one bounded reprieve of the same
+kind until 2026-08-03. Thomas removed it in favor of full conformance with
+RFC 4271 Section 8.2.2, Event 10. That action list gives one answer to a hold
+timer expiry:
+
+- send a NOTIFICATION message with the error code Hold Timer Expired (code 4),
+- set the ConnectRetryTimer to zero,
+- release all BGP resources,
+- drop the TCP connection,
+- change the state to Idle.
+
+The reprieve also doubled worst-case dead-peer detection, because ze stopped the
+session on the second expiry. Detection now costs one hold time. The accepted
+cost is that a CPU-congested ze drops sessions that the reprieve kept.
+
+<!-- source: internal/component/bgp/reactor/session.go -- OnHoldTimerExpires callback -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- sendNotificationWithin -->
 
 ## Backpressure Mechanisms
 
@@ -253,7 +271,7 @@ receiving data proves the peer is alive.
 | Write throttling | None | None | None | Stops generating UPDATEs at outq_limit | XOFF signal pauses RDE route generation | None | N/A (pool-based) |
 | Session teardown | Hold timer only | Write failure (fatal) | Write failure (fatal) | Send Hold Timer (2x holdtime) | Send Hold Timer (holdtime). GR-aware. | KEEPALIVE failure only | GR-aware teardown |
 
-*Sources: FRR [bgp_io.c:171](https://github.com/FRRouting/frr/blob/frr-10.5.3/bgpd/bgp_io.c#L171) (inq_limit check), [bgp_packet.c:471](https://github.com/FRRouting/frr/blob/frr-10.5.3/bgpd/bgp_packet.c#L471) (outq_limit check)*
+*Sources: FRR [bgp_io.c `read_ibuf_work`](https://github.com/FRRouting/frr/blob/frr-10.5.3/bgpd/bgp_io.c) (inq_limit check), [bgp_packet.c `bgp_generate_updgrp_packets`](https://github.com/FRRouting/frr/blob/frr-10.5.3/bgpd/bgp_packet.c) (outq_limit check)*
 
 **FRR and OpenBGPd are the only open-source BGP daemons with real backpressure.**
 
@@ -266,7 +284,7 @@ OpenBGPd implements XOFF/XON flow control between the session process and the
 route decision engine (RDE). When the per-peer write buffer exceeds 2000 bytes
 (`SESS_MSG_HIGH_MARK`), an XOFF signal pauses route generation. When it drops
 below 500 bytes (`SESS_MSG_LOW_MARK`), XON resumes it
-([session.c:407-427](https://github.com/openbsd/src/blob/master/usr.sbin/bgpd/session.c#L407)).
+([session.c `session_main`](https://github.com/openbsd/src/blob/master/usr.sbin/bgpd/session.c)).
 
 BIRD, GoBGP, and RustBGPd all use unbounded queues and rely solely on TCP flow
 control.
@@ -291,7 +309,7 @@ pool denial plus teardown rather than directly pausing source reads.
 | TX budget | 1024 messages per event cycle | 2048 attribute records per iteration | 64 messages per writev (configurable 1-64) | 25 (MSG_PROCESS_LIMIT) | None (ticker-based batching) | 1024 items per drain batch by default (`ze.fwd.batch.limit`) |
 | fast_rx during handshake | Yes (priority reads for OPEN/KEEPALIVE) | No | No | No | No | No |
 
-*Source: BIRD [packets.c:3063](https://gitlab.nic.cz/labs/bird/-/blob/v3.2.0/proto/bgp/packets.c#L3063) (bgp_get_channel_to_send)*
+*Source: BIRD [packets.c `bgp_get_channel_to_send`](https://gitlab.nic.cz/labs/bird/-/blob/v3.2.0/proto/bgp/packets.c)*
 
 **BIRD's fast_rx:** During OPEN/OPENCONFIRM, sockets are marked `fast_rx=1` and get
 priority processing (up to 4 reads per poll cycle). On entering ESTABLISHED, fast_rx
@@ -304,7 +322,7 @@ is cleared and the socket shares the event loop fairly with other protocols.
 | TCP_NODELAY (all traffic) | Ze, OpenBGPd, bio-rd (FRR: NOTIFICATION only) | **Done** |
 | IP_TOS DSCP | BIRD, GoBGP, FRR, OpenBGPd | **Done** |
 | Send Hold Timer (RFC 9687) | BIRD, FRR, OpenBGPd (GR-aware) | **Done** |
-| Hold timer congestion extension | BIRD only | **Done** |
+| Hold timer congestion extension | BIRD only | **Not implemented, by decision** (RFC 4271 Section 8.2.2 Event 10 conformance) |
 | Write deadline on control messages | No implementation does this explicitly | **Done** |
 | Buffer pooling + bufio batching | No implementation does both | **Done** (existing) |
 | Route superseding | BIRD, FRR | **Done** (overflow raw-body superseding) |
