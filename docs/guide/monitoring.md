@@ -297,6 +297,41 @@ Host metrics are refreshed on a configurable interval (default 60 seconds). Linu
 | `ze_peer_messages_received_total` | counter | `peer`, `type` | Messages received (type: update, keepalive, open, notification, refresh, eor) |
 | `ze_peer_messages_sent_total` | counter | `peer`, `type` | Messages sent (type: update, keepalive, open, notification, refresh, eor) |
 
+#### Session Lifecycle
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_peer_sessions_established_total` | counter | `peer` | Times the session reached Established |
+| `ze_peer_session_flaps_total` | counter | `peer` | Sessions dropped from Established |
+| `ze_peer_state_transitions_total` | counter | `peer`, `from`, `to` | Peer FSM state transitions |
+| `ze_peer_notifications_sent_total` | counter | `peer`, `code`, `subcode` | NOTIFICATION messages sent |
+| `ze_peer_notifications_received_total` | counter | `peer`, `code`, `subcode` | NOTIFICATION messages received |
+| `ze_peer_session_duration_seconds` | gauge | `peer` | Seconds since the session established |
+| `ze_bgp_open_in_established_total` | counter | `peer` | OPEN messages refused because the connection was already in Established or OpenConfirm |
+| `ze_bgp_connect_retry_counter` | gauge | `peer` | RFC 4271 ConnectRetryCounter: times this peer has tried to establish a session since the last operator start or stop |
+
+A non-zero `ze_bgp_open_in_established_total` names a peer that tried to
+re-negotiate mid-session. Ze answers it with a Cease and closes the connection.
+
+`ze_bgp_connect_retry_counter` is RFC 4271 Section 8.1.1 mandatory session
+attribute 2, "the number of times a BGP peer has tried to establish a peer
+session". The BGP FSM raises it by one on each teardown RFC 4271 Section 8.2.2
+gives an increment clause: a hold-timer expiry, a header or OPEN error, a
+NOTIFICATION, an UPDATE error, a mid-session TCP failure, and any event the
+state does not expect. Two events set it back to zero, and only these two: the
+operator starts the peer, and the operator stops it. A reconnect does not,
+which is what makes the value a history rather than a flag.
+
+It is a GAUGE, not a counter. Those operator resets make the value go down, and
+a Prometheus counter that goes down reads as a counter reset to `rate()`. Use
+the value directly, not a rate: it already IS a count.
+
+Read the same number per peer with `show bgp peer <address> detail`, field
+`connect-retry-counter`.
+<!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
+<!-- source: internal/component/bgp/reactor/session_handlers.go -- handleOpen -->
+<!-- source: internal/component/bgp/fsm/connect_retry_counter.go -- ConnectRetryCounter -->
+
 #### Startup and Connection Timing
 
 | Metric | Type | Labels | Description |

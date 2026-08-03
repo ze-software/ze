@@ -1,5 +1,7 @@
 // Design: docs/architecture/behavior/fsm.md — BGP finite state machine
 // RFC: rfc/short/rfc4271.md — finite state machine (Section 8)
+// Related: connect_retry_counter.go -- RFC 4271 §8.1.1 ConnectRetryCounter, the
+// per-peer session attribute the handlers below increment and reset
 //
 // Package fsm implements the BGP Finite State Machine per RFC 4271 Section 8.
 //
@@ -11,8 +13,15 @@
 //     for simplicity.
 //
 //  2. Missing optional session attributes (RFC 4271 Section 8.1.1):
-//     DelayOpen, DampPeerOscillations, TrackTcpState, and related timers
-//     are not implemented. This is permitted per RFC 4271 Section 8.2.1.3.
+//     DelayOpen, TrackTcpState, and related timers are not implemented. This
+//     is permitted per RFC 4271 Section 8.2.1.3. The MANDATORY attributes of
+//     Section 8.1.1 are all present: State, ConnectRetryCounter (see
+//     connect_retry_counter.go), ConnectRetryTimer, HoldTimer and
+//     KeepaliveTimer (timer.go; the ConnectRetryTimer is the peer reconnect
+//     loop, see ARCHITECTURAL NOTES below). DampPeerOscillations is expressed
+//     as that same loop's exponential backoff, which is why Event 6
+//     (AutomaticStart_with_DampPeerOscillations) is implemented while Events 3
+//     to 5 and 7 are not.
 //
 //  3. Missing NOTIFICATION message sending:
 //     RFC requires sending NOTIFICATION messages on various error conditions
@@ -79,6 +88,13 @@ type FSM struct {
 	callback StateCallback // Called on state change
 	timers   *Timers       // RFC 4271 §8.2.2 HoldTimer owned by FSM; nil in tests
 
+	// crc is RFC 4271 §8.1.1 mandatory session attribute 2, the
+	// ConnectRetryCounter. It is owned by the PEER and shared with every
+	// Session's FSM, because ze rebuilds the FSM once per connection cycle
+	// (see ConnectRetryCounter's doc comment). nil is legal and counts
+	// nothing; every mutation below goes through the nil-safe methods.
+	crc *ConnectRetryCounter
+
 	// pending is the FIFO queue of state transitions whose callback has not yet run.
 	// Appended under mu by change() in Event order; drained in that order by the first
 	// enqueuer that finds no active drainer (draining==false). See change() for the
@@ -141,6 +157,22 @@ func (f *FSM) SetTimers(t *Timers) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.timers = t
+}
+
+// SetConnectRetryCounter wires the peer's RFC 4271 §8.1.1 ConnectRetryCounter
+// into this FSM, so the §8.2.2 handlers can apply that section's "increments
+// the ConnectRetryCounter by 1" and "sets the ConnectRetryCounter to zero"
+// clauses.
+//
+// The counter is owned by the caller and MUST outlive this FSM: ze builds one
+// FSM per connection cycle while the counter counts cycles, so passing a
+// counter this FSM owns would defeat it (see ConnectRetryCounter). Callers set
+// it before the session leaves Idle. Passing nil leaves the FSM counting
+// nothing, which is what every pure-FSM test wants.
+func (f *FSM) SetConnectRetryCounter(c *ConnectRetryCounter) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.crc = c
 }
 
 // SetPassive sets passive mode (listen only).
@@ -272,15 +304,45 @@ func (f *FSM) handleIdle(event Event) {
 		//
 		// With PassiveTcpEstablishment (Event 4/5): "listens for a connection
 		// that may be initiated by the remote peer, and changes its state to Active."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "sets ConnectRetryCounter to zero" —
+		// listed for Event 1/3 (the Connect branch) and again, in the same
+		// words, for Event 4/5 (the Active branch), so both branches below
+		// reset. An operator restarting a peer is telling ze the retry history
+		// no longer applies.
+		f.crc.Reset()
 		if f.passive {
 			f.change(StateActive)
 		} else {
 			f.change(StateConnect)
 		}
-	case EventManualStop:
-		// RFC 4271 Section 8.2.2: Event 2 (ManualStop)
+
+	case EventAutomaticStartWithDampPeerOscillations:
+		// RFC 4271 Section 8.2.2: Event 6, which the Idle text lists among the
+		// three damping events and gives NO action list: "Upon receiving these
+		// 3 events, the local system will use these events to prevent peer
+		// oscillations. The method of preventing persistent peer oscillation
+		// is outside the scope of this document."
+		//
+		// The state change is the same as Event 1's. The ConnectRetryCounter
+		// reset is NOT: no clause asks for one, and a damped retry that zeroed
+		// the counter would erase the very history the counter records. This
+		// is the event ze's reconnect loop fires on every cycle after the
+		// operator's first (peer_run.go, runOnce).
+		if f.passive {
+			f.change(StateActive)
+		} else {
+			f.change(StateConnect)
+		}
+
+	case EventManualStop, EventAutomaticStop:
+		// RFC 4271 Section 8.2.2: Events 2 and 8
 		// "The ManualStop event (Event 2) and AutomaticStop (Event 8) event
 		// are ignored in the Idle state."
+		//
+		// Ignored means the ConnectRetryCounter is untouched by BOTH. Event 2
+		// zeroes it in every other state and Event 8 increments it, and here
+		// neither happens: there is no connection to stop.
 	default:
 		// RFC 4271 Section 8.2.2: "Any other event (Events 9-12, 15-28) received
 		// in the Idle state does not cause change in the state of the local system."
@@ -298,14 +360,31 @@ func (f *FSM) handleIdle(event Event) {
 // Handles connection events to transition to OpenSent or Idle state.
 func (f *FSM) handleConnect(event Event) error {
 	switch event { //nolint:exhaustive // Only specific events are handled in CONNECT state per RFC 4271.
-	case EventManualStart:
+	case EventManualStart, EventAutomaticStartWithDampPeerOscillations:
 		// RFC 4271 Section 8.2.2: "The start events (Events 1, 3-7) are
-		// ignored in the Connect state."
+		// ignored in the Connect state." Ignored means the counter is not
+		// touched either: the clause list is empty.
+
+	case EventAutomaticStop, EventOpenCollisionDump:
+		// RFC 4271 Section 8.2.2: Events 8 and 23 are both named in the
+		// Connect state's "In response to any other events (Events 8, 10-11,
+		// 13, 19, 23, 25-28)" clause, which ends "increments the
+		// ConnectRetryCounter by 1 ... and changes its state to Idle".
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		// Written as its own arm rather than left to the default because the
+		// default returns ErrFSMError, and this clause asks for no
+		// Finite State Machine Error NOTIFICATION.
+		f.crc.Increment()
+		f.change(StateIdle)
 
 	case EventManualStop:
 		// RFC 4271 Section 8.2.2: Event 2 (ManualStop)
 		// "drops the TCP connection, releases all BGP resources, sets
 		// ConnectRetryCounter to zero... and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "sets ConnectRetryCounter to zero".
+		f.crc.Reset()
 		f.change(StateIdle)
 
 	case EventConnectRetryTimerExpires:
@@ -332,9 +411,27 @@ func (f *FSM) handleConnect(event Event) error {
 		// RFC 4271 Section 8.2.2: Events 21, 22, 24, 25
 		// "releases all BGP resources, drops the TCP connection, increments
 		// the ConnectRetryCounter by 1... and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by
+		// 1". All four events increment in the Connect state, which is why
+		// they share one arm here: Events 21/22 have that clause in their own
+		// paragraph, Event 24 has it in the DelayOpenTimer-is-not-running
+		// branch (ze runs no DelayOpenTimer, so that branch is the only one
+		// reachable), and Event 25 falls under "In response to any other
+		// events (Events 8, 10-11, 13, 19, 23, 25-28)", which lists it too.
+		// Contrast handleOpenSent and handleOpenConfirm, where Event 24 is
+		// deliberately split out because its clause list there has NO counter
+		// line.
+		f.crc.Increment()
 		f.change(StateIdle)
 
-	default: // RFC 4271 Section 8.2.2: "any other event" → Idle (FSM Error)
+	default:
+		// RFC 4271 Section 8.2.2: "In response to any other events (Events 8,
+		// 10-11, 13, 19, 23, 25-28), the local system: ... increments the
+		// ConnectRetryCounter by 1 ... and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
 		f.change(StateIdle)
 		return ErrFSMError
 	}
@@ -349,14 +446,28 @@ func (f *FSM) handleConnect(event Event) error {
 // Handles connection events for passive mode peers.
 func (f *FSM) handleActive(event Event) error {
 	switch event { //nolint:exhaustive // Only specific events are handled in ACTIVE state per RFC 4271.
-	case EventManualStart:
+	case EventManualStart, EventAutomaticStartWithDampPeerOscillations:
 		// RFC 4271 Section 8.2.2: "The start events (Events 1, 3-7) are
-		// ignored in the Active state."
+		// ignored in the Active state." Ignored means the counter is not
+		// touched either: the clause list is empty.
+
+	case EventAutomaticStop, EventOpenCollisionDump:
+		// RFC 4271 Section 8.2.2: Events 8 and 23 are both named in the Active
+		// state's "In response to any other event (Events 8, 10-11, 13, 19,
+		// 23, 25-28)" clause, which ends "increments the ConnectRetryCounter
+		// by one ... and changes its state to Idle".
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by one".
+		f.crc.Increment()
+		f.change(StateIdle)
 
 	case EventManualStop:
 		// RFC 4271 Section 8.2.2: Event 2 (ManualStop)
 		// "releases all BGP resources... drops the TCP connection, sets
 		// ConnectRetryCounter to zero... and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "sets ConnectRetryCounter to zero".
+		f.crc.Reset()
 		f.change(StateIdle)
 
 	case EventTCPConnectionConfirmed:
@@ -368,14 +479,23 @@ func (f *FSM) handleActive(event Event) error {
 
 	case EventTCPConnectionFails:
 		// RFC 4271 Section 8.2.2: Event 18 (TcpConnectionFails)
-		// "restarts the ConnectRetryTimer... releases all BGP resources,
-		// drops the TCP connection... and changes its state to Idle."
+		// "restarts the ConnectRetryTimer... releases all BGP resource,
+		// increments the ConnectRetryCounter by 1... and changes its state
+		// to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by
+		// 1". Active is one of the three states where Event 18 carries this
+		// clause; the Connect state's Event 18 paragraph deliberately does
+		// not, and handleConnect matches that.
+		f.crc.Increment()
 		f.change(StateIdle)
 
 	case EventConnectRetryTimerExpires:
 		// RFC 4271 Section 8.2.2: Event 9 (ConnectRetryTimer_Expires)
 		// "restarts the ConnectRetryTimer... initiates a TCP connection to
 		// the other BGP peer... and changes its state to Connect."
+		// No ConnectRetryCounter clause: a retry the timer schedules is not
+		// yet an attempt that failed.
 		if !f.passive {
 			f.change(StateConnect)
 		}
@@ -383,10 +503,24 @@ func (f *FSM) handleActive(event Event) error {
 	case EventBGPHeaderErr, EventBGPOpenMsgErr, EventNotifMsgVerErr, EventNotifMsg:
 		// RFC 4271 Section 8.2.2: Events 21, 22, 24, 25
 		// "sets the ConnectRetryTimer to zero, releases all BGP resources,
-		// drops the TCP connection... and changes its state to Idle."
+		// drops the TCP connection, increments the ConnectRetryCounter by
+		// 1... and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by
+		// 1". As in handleConnect, all four events increment in this state:
+		// 21/22 in their own paragraph, 24 in the DelayOpenTimer-not-running
+		// branch, 25 under "any other event (Events 8, 10-11, 13, 19, 23,
+		// 25-28)".
+		f.crc.Increment()
 		f.change(StateIdle)
 
-	default: // RFC 4271 Section 8.2.2: "any other event" → Idle (FSM Error)
+	default:
+		// RFC 4271 Section 8.2.2: "In response to any other event (Events 8,
+		// 10-11, 13, 19, 23, 25-28), the local system: ... increments the
+		// ConnectRetryCounter by one ... and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by one".
+		f.crc.Increment()
 		f.change(StateIdle)
 		return ErrFSMError
 	}
@@ -405,6 +539,32 @@ func (f *FSM) handleOpenSent(event Event) error {
 		// "sends the NOTIFICATION with a Cease, sets the ConnectRetryTimer
 		// to zero, releases all BGP resources, drops the TCP connection,
 		// sets the ConnectRetryCounter to zero, and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "sets the ConnectRetryCounter to zero".
+		f.crc.Reset()
+		f.change(StateIdle)
+
+	case EventAutomaticStop:
+		// RFC 4271 Section 8.2.2: Event 8 (AutomaticStop) in OpenSent
+		// "sends the NOTIFICATION with a Cease, sets the ConnectRetryTimer to
+		// zero, releases all the BGP resources, drops the TCP connection,
+		// increments the ConnectRetryCounter by 1... and changes its state to
+		// Idle."
+		//
+		// That list differs from Event 2's above by exactly one line, and this
+		// is the line: the operator did not ask, so the retry history stands.
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
+		f.change(StateIdle)
+
+	case EventOpenCollisionDump:
+		// RFC 4271 Section 8.2.2: Event 23 (OpenCollisionDump) in OpenSent
+		// "sends a NOTIFICATION with a Cease, sets the ConnectRetryTimer to
+		// zero, releases all BGP resources, drops the TCP connection,
+		// increments the ConnectRetryCounter by 1... and changes its state to
+		// Idle."
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
 		f.change(StateIdle)
 
 	case EventBGPOpen:
@@ -412,32 +572,79 @@ func (f *FSM) handleOpenSent(event Event) error {
 		// "resets the DelayOpenTimer to zero, sets the BGP ConnectRetryTimer
 		// to zero, sends a KEEPALIVE message... sets the HoldTimer according
 		// to the negotiated value... changes its state to OpenConfirm."
+		// No ConnectRetryCounter clause: the attempt is succeeding.
 		f.change(StateOpenConfirm)
 
 	case EventHoldTimerExpires:
 		// RFC 4271 Section 8.2.2: Event 10 (HoldTimer_Expires)
 		// "sends a NOTIFICATION message with the error code Hold Timer Expired,
 		// sets the ConnectRetryTimer to zero, releases all BGP resources,
-		// drops the TCP connection... and changes its state to Idle."
+		// drops the TCP connection, increments the ConnectRetryCounter...
+		// and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter".
+		// The OpenSent paragraph is the one place the RFC writes the clause
+		// without "by 1"; OpenConfirm and Established spell it out, and the
+		// counter is an integer count, so the step is one.
+		f.crc.Increment()
 		f.change(StateIdle)
 
-	case EventBGPHeaderErr, EventBGPOpenMsgErr, EventNotifMsgVerErr, EventNotifMsg:
-		// RFC 4271 Section 8.2.2: Events 21, 22, 24, 25
+	case EventBGPHeaderErr, EventBGPOpenMsgErr:
+		// RFC 4271 Section 8.2.2: Events 21, 22
 		// "sends a NOTIFICATION message with the appropriate error code,
 		// sets the ConnectRetryTimer to zero, releases all BGP resources,
-		// drops the TCP connection... and changes its state to Idle."
+		// drops the TCP connection, increments the ConnectRetryCounter by
+		// 1... and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
+		f.change(StateIdle)
+
+	case EventNotifMsgVerErr:
+		// RFC 4271 Section 8.2.2: Event 24 (NotifMsgVerErr) in OpenSent
+		// "sets the ConnectRetryTimer to zero, releases all BGP resources,
+		// drops the TCP connection, and changes its state to Idle."
+		//
+		// Deliberately its OWN arm, and deliberately WITHOUT a counter
+		// mutation: that four-item list is the whole clause, and it is the
+		// only teardown paragraph in OpenSent with no ConnectRetryCounter
+		// line. A version mismatch is a permanent disagreement about the
+		// protocol, not a retry that failed. OpenConfirm reads the same way;
+		// Connect, Active and Established all DO increment on Event 24, and
+		// their handlers say so.
+		f.change(StateIdle)
+
+	case EventNotifMsg:
+		// RFC 4271 Section 8.2.2: Event 25 in OpenSent falls under "In
+		// response to any other event (Events 9, 11-13, 20, 25-28), the local
+		// system: ... increments the ConnectRetryCounter by 1 ... and changes
+		// its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		// Handled explicitly rather than left to the default arm because the
+		// RFC does not call Event 25 in OpenSent a Finite State Machine Error,
+		// and ze's default arm returns ErrFSMError.
+		f.crc.Increment()
 		f.change(StateIdle)
 
 	case EventTCPConnectionFails:
 		// RFC 4271 Section 8.2.2: Event 18 (TcpConnectionFails)
 		// "closes the BGP connection, restarts the ConnectRetryTimer,
 		// continues to listen for a connection... and changes its state to Active."
+		// No ConnectRetryCounter clause in this paragraph, so none here.
 		//
 		// VIOLATION: RFC specifies transition to Active, but this implementation
 		// transitions to Idle for simplicity. See VIOLATIONS section in file header.
 		f.change(StateIdle)
 
-	default: // RFC 4271 Section 8.2.2: "any other event" → Idle (FSM Error)
+	default:
+		// RFC 4271 Section 8.2.2: "In response to any other event (Events 9,
+		// 11-13, 20, 25-28), the local system: sends the NOTIFICATION with the
+		// Error Code Finite State Machine Error, ... increments the
+		// ConnectRetryCounter by 1 ... and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
 		f.change(StateIdle)
 		return ErrFSMError
 	}
@@ -456,11 +663,39 @@ func (f *FSM) handleOpenConfirm(event Event) error {
 		// "sends the NOTIFICATION message with a Cease, releases all BGP
 		// resources, drops the TCP connection, sets the ConnectRetryCounter
 		// to zero, sets the ConnectRetryTimer to zero, and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "sets the ConnectRetryCounter to zero".
+		f.crc.Reset()
+		f.change(StateIdle)
+
+	case EventAutomaticStop:
+		// RFC 4271 Section 8.2.2: Event 8 (AutomaticStop) in OpenConfirm
+		// "sends the NOTIFICATION message with a Cease, sets the
+		// ConnectRetryTimer to zero, releases all BGP resources, drops the TCP
+		// connection, increments the ConnectRetryCounter by 1... and changes
+		// its state to Idle."
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
+		f.change(StateIdle)
+
+	case EventOpenCollisionDump:
+		// RFC 4271 Section 8.2.2: Event 23 (OpenCollisionDump) in OpenConfirm
+		// "sends a NOTIFICATION with a Cease, sets the ConnectRetryTimer to
+		// zero, releases all BGP resources, drops the TCP connection,
+		// increments the ConnectRetryCounter by 1... and changes its state to
+		// Idle."
+		//
+		// This is the arm ze's collision resolution reaches: the losing
+		// session's CloseWithNotification (reactor/session_connection.go)
+		// fires this event after sending Cease / Connection Collision.
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
 		f.change(StateIdle)
 
 	case EventKeepaliveMsg:
 		// RFC 4271 Section 8.2.2: Event 26 (KeepAliveMsg)
 		// "restarts the HoldTimer and changes its state to Established."
+		// No ConnectRetryCounter clause: the attempt succeeded.
 		if f.timers != nil {
 			f.timers.ResetHoldTimer()
 		}
@@ -470,34 +705,72 @@ func (f *FSM) handleOpenConfirm(event Event) error {
 		// RFC 4271 Section 8.2.2: Event 10 (HoldTimer_Expires)
 		// "sends the NOTIFICATION message with the Error Code Hold Timer
 		// Expired, sets the ConnectRetryTimer to zero, releases all BGP
-		// resources, drops the TCP connection... and changes its state to Idle."
+		// resources, drops the TCP connection, increments the
+		// ConnectRetryCounter by 1... and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
 		f.change(StateIdle)
 
-	case EventNotifMsg, EventNotifMsgVerErr:
-		// RFC 4271 Section 8.2.2: Events 24, 25 (NotifMsgVerErr, NotifMsg)
+	case EventNotifMsg:
+		// RFC 4271 Section 8.2.2: Event 25 (NotifMsg), sharing a paragraph
+		// with Event 18: "sets the ConnectRetryTimer to zero, releases all BGP
+		// resources, drops the TCP connection, increments the
+		// ConnectRetryCounter by 1... and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
+		f.change(StateIdle)
+
+	case EventNotifMsgVerErr:
+		// RFC 4271 Section 8.2.2: Event 24 (NotifMsgVerErr) in OpenConfirm
 		// "sets the ConnectRetryTimer to zero, releases all BGP resources,
 		// drops the TCP connection, and changes its state to Idle."
+		//
+		// Split out from Event 25 above for the same reason as in
+		// handleOpenSent: this four-item list is the whole clause and carries
+		// NO ConnectRetryCounter line, while every other teardown in this
+		// state increments. Grouping the two events, as ze did before, made
+		// one of them wrong whichever way the arm was written.
 		f.change(StateIdle)
 
 	case EventBGPHeaderErr, EventBGPOpenMsgErr:
 		// RFC 4271 Section 8.2.2: Events 21, 22 (BGPHeaderErr, BGPOpenMsgErr)
 		// "sends a NOTIFICATION message with the appropriate error code,
 		// sets the ConnectRetryTimer to zero, releases all BGP resources,
-		// drops the TCP connection... and changes its state to Idle."
+		// drops the TCP connection, increments the ConnectRetryCounter by
+		// 1... and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
 		f.change(StateIdle)
 
 	case EventTCPConnectionFails:
 		// RFC 4271 Section 8.2.2: Event 18 (TcpConnectionFails)
 		// "sets the ConnectRetryTimer to zero, releases all BGP resources,
-		// drops the TCP connection... and changes its state to Idle."
+		// drops the TCP connection, increments the ConnectRetryCounter by
+		// 1... and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
 		f.change(StateIdle)
 
 	case EventKeepaliveTimerExpires:
 		// RFC 4271 Section 8.2.2: Event 11 (KeepaliveTimer_Expires)
 		// "sends a KEEPALIVE message" and remains in OpenConfirm.
 		// Sending is handled externally by the session timer callback.
+		// No state change and no ConnectRetryCounter clause.
 
-	default: // RFC 4271 Section 8.2.2: "any other event" → Idle (FSM Error)
+	default:
+		// RFC 4271 Section 8.2.2: "In response to any other event (Events 9,
+		// 12-13, 20, 27-28), the local system: sends a NOTIFICATION with a
+		// code of Finite State Machine Error, ... increments the
+		// ConnectRetryCounter by 1 ... and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		// Event 19 (BGPOpen) also lands here, and the RFC agrees on the
+		// counter: its OpenConfirm collision-drop clause increments too.
+		f.crc.Increment()
 		f.change(StateIdle)
 		return ErrFSMError
 	}
@@ -518,6 +791,29 @@ func (f *FSM) handleEstablished(event Event) error {
 		// ConnectRetryTimer to zero, deletes all routes associated with
 		// this connection, releases BGP resources, drops the TCP connection,
 		// sets the ConnectRetryCounter to zero, and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "sets the ConnectRetryCounter to zero".
+		f.crc.Reset()
+		f.change(StateIdle)
+
+	case EventAutomaticStop:
+		// RFC 4271 Section 8.2.2: Event 8 (AutomaticStop) in Established
+		// "sends a NOTIFICATION with a Cease, sets the ConnectRetryTimer to
+		// zero, deletes all routes associated with this connection, releases
+		// all BGP resources, drops the TCP connection, increments the
+		// ConnectRetryCounter by 1... and changes its state to Idle."
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
+		f.change(StateIdle)
+
+	case EventOpenCollisionDump:
+		// RFC 4271 Section 8.2.2: Event 23 (OpenCollisionDump) in Established
+		// "sends a NOTIFICATION with a Cease, sets the ConnectRetryTimer to
+		// zero, deletes all routes associated with this connection, releases
+		// all BGP resources, drops the TCP connection, increments the
+		// ConnectRetryCounter by 1... and changes its state to Idle."
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
 		f.change(StateIdle)
 
 	case EventKeepaliveMsg:
@@ -549,14 +845,27 @@ func (f *FSM) handleEstablished(event Event) error {
 		// RFC 4271 Section 8.2.2: Event 10 (HoldTimer_Expires)
 		// "sends a NOTIFICATION message with the Error Code Hold Timer Expired,
 		// sets the ConnectRetryTimer to zero, releases all BGP resources,
-		// drops the TCP connection... and changes its state to Idle."
+		// drops the TCP connection, increments the ConnectRetryCounter by
+		// 1... and changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
 		f.change(StateIdle)
 
 	case EventNotifMsg, EventNotifMsgVerErr:
 		// RFC 4271 Section 8.2.2: Events 24, 25 (NotifMsgVerErr, NotifMsg)
 		// "sets the ConnectRetryTimer to zero, deletes all routes associated
 		// with this connection, releases all the BGP resources, drops the
-		// TCP connection... changes its state to Idle."
+		// TCP connection, increments the ConnectRetryCounter by 1...
+		// changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		// Established is the one state where Event 24 shares the clause with
+		// Event 25 and DOES increment ("If the local system receives a
+		// NOTIFICATION message (Event 24 or Event 25) or a TcpConnectionFails
+		// (Event 18)"), which is why the two events stay grouped here and are
+		// split apart in handleOpenSent and handleOpenConfirm.
+		f.crc.Increment()
 		f.change(StateIdle)
 
 	case EventUpdateMsgErr:
@@ -564,20 +873,33 @@ func (f *FSM) handleEstablished(event Event) error {
 		// "sends a NOTIFICATION message with an Update error, sets the
 		// ConnectRetryTimer to zero, deletes all routes associated with
 		// this connection, releases all BGP resources, drops the TCP
-		// connection... and changes its state to Idle."
+		// connection, increments the ConnectRetryCounter by 1... and
+		// changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
 		f.change(StateIdle)
 
 	case EventBGPHeaderErr:
-		// RFC 4271 Section 8.2.2: Event 21 (BGPHeaderErr)
+		// RFC 4271 Section 8.2.2: Event 21 (BGPHeaderErr) is one of the
+		// Established state's "any other event (Events 9, 12-13, 20-22)":
 		// "sends a NOTIFICATION message with the Error Code Finite State
-		// Machine Error... and changes its state to Idle."
+		// Machine Error, ... increments the ConnectRetryCounter by 1 ... and
+		// changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
 		f.change(StateIdle)
 
 	case EventTCPConnectionFails:
 		// RFC 4271 Section 8.2.2: Event 18 (TcpConnectionFails)
 		// "sets the ConnectRetryTimer to zero, deletes all routes associated
 		// with this connection, releases all the BGP resources, drops the
-		// TCP connection... changes its state to Idle."
+		// TCP connection, increments the ConnectRetryCounter by 1...
+		// changes its state to Idle."
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by 1".
+		f.crc.Increment()
 		f.change(StateIdle)
 
 	default: // RFC 4271 Section 8.2.2: "any other event" → Idle (FSM Error)
@@ -599,6 +921,22 @@ func (f *FSM) handleEstablished(event Event) error {
 		// routes it through collision detection, whose termination action is
 		// "sends a NOTIFICATION with a Cease". Landing in this default arm is
 		// how the state reaches Idle; it is not a claim that the wire code is 5.
+		//
+		// RFC 4271 Section 8.2.2 MUST: "increments the ConnectRetryCounter by
+		// 1", from "In response to any other event (Events 9, 12-13, 20-22)".
+		// Event 19 (BGPOpen) reaches this arm without being in that list, and
+		// the RFC agrees on the counter anyway: an Established BGPOpen is
+		// routed to the Event 23 collision-drop clause, which increments too.
+		//
+		// Event 17 (TcpConnectionConfirmed) also reaches this arm, and there
+		// the RFC asks for no teardown at all ("the second connection SHALL be
+		// tracked until it sends an OPEN message"). That divergence is in the
+		// STATE transition and predates this counter, which only follows where
+		// the transition already goes. It is unreachable in production: a
+		// Session drives one connection, and connectionEstablished
+		// (reactor/session_connection.go) fires Event 17 once, out of Connect
+		// or Active.
+		f.crc.Increment()
 		f.change(StateIdle)
 		return ErrFSMError
 	}

@@ -199,6 +199,7 @@ func (p *Peer) sendInitialRoutes() {
 	// processed here in FIFO order.
 	var teardownSubcode uint8
 	var teardownMsg string
+	teardownAutomatic := false
 	hasTeardown := false
 
 	// Pre-compute max message size for size checking in PeerOpAnnounce
@@ -214,6 +215,7 @@ func (p *Peer) sendInitialRoutes() {
 		case PeerOpTeardown:
 			teardownSubcode = op.Subcode
 			teardownMsg = op.Message
+			teardownAutomatic = op.Automatic
 			hasTeardown = true
 			processed++
 
@@ -314,7 +316,7 @@ func (p *Peer) sendInitialRoutes() {
 			// still shows Established, the new connection is rejected by collision check.
 			// The FSM callback will also set this, but may fire too late.
 			p.setState(PeerStateConnecting)
-			if err := session.Teardown(teardownSubcode, teardownMsg); err != nil {
+			if err := sessionTeardown(session, teardownSubcode, teardownMsg, teardownAutomatic); err != nil {
 				routesLogger().Debug("teardown error", "peer", addr, "error", err)
 			}
 		}

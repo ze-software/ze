@@ -37,12 +37,13 @@ Idle).
 
 | Event | Produced by | FSM reaction | Wire side effect | Next state |
 |-------|-------------|--------------|------------------|------------|
-| `EventManualStart` | duplicate `Session.Start()` call | ignored (RFC 4271) | none | `Connect` |
-| `EventManualStop` | `Session.Close/Teardown/CloseWithNotification` | cleanup in caller | optional Cease NOTIFICATION in caller | `Idle` |
+| `EventManualStart` / `EventAutomaticStartWithDampPeerOscillations` | duplicate `Session.Start()` / `StartDamped()` call | ignored (RFC 4271) | none | `Connect` |
+| `EventManualStop` | `Session.Close` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | optional Cease NOTIFICATION in caller | `Idle` |
+| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.TeardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
 | `EventConnectRetryTimerExpires` | not generated in production | no-op comment (reconnect handled externally) | none | `Connect` |
 | `EventTCPConnectionConfirmed` | `Session.connectionEstablished` after successful `dialer.DialContext` | log transition | OPEN sent immediately after transition | `OpenSent` |
 | `EventTCPConnectionFails` | `Session.Connect` dial error path | cleanup in caller | none | `Idle` |
-| `EventBGPHeaderErr` / `EventBGPOpenMsgErr` / `EventNotifMsgVerErr` / `EventNotifMsg` | message decode error paths | log transition | NOTIFICATION in caller | `Idle` |
+| `EventBGPHeaderErr` / `EventBGPOpenMsgErr` / `EventNotifMsgVerErr` / `EventNotifMsg` | message decode error paths | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
 | any other event | unexpected | log transition | none | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleConnect -->

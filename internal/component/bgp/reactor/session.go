@@ -180,13 +180,6 @@ var (
 // sendHoldTimerMin is the minimum Send Hold Timer duration per RFC 9687.
 const sendHoldTimerMin = 8 * time.Minute
 
-// holdGraceExtension is the bounded reprieve granted to a hold expiry that
-// arrives while the read loop has recently seen traffic: the daemon is
-// CPU-congested, not the peer. One grace window only -- the next expiry with no
-// intervening read tears the session down (RFC 4271 Section 8.2.2 Event 10).
-// Clamped to the negotiated hold time by GraceRearmHoldTimer.
-const holdGraceExtension = 10 * time.Second
-
 // Session manages a single BGP peer connection.
 //
 // It integrates the FSM, timers, and message I/O to drive the BGP
@@ -230,7 +223,6 @@ type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawB
 //	tearingDown   — set by Teardown to block Accept races
 //	paused        — fast-path pause check for the read loop
 //	closeReason   — first close reason wins (CompareAndSwap from nil)
-//	recentRead    — read loop signals "data arrived" to hold-timer callback
 type Session struct {
 	mu sync.RWMutex
 
@@ -393,13 +385,6 @@ type Session struct {
 	// Receives the negotiated hold time and keepalive in seconds.
 	onNegotiated func(holdSec, keepaliveSec uint32)
 
-	// recentRead is set to true by the read loop on every successful message read.
-	// The hold timer callback checks and clears it: if true, the daemon is
-	// CPU-congested (data arrived but wasn't processed in time), so the hold
-	// timer is extended instead of tearing down. Atomic for thread safety
-	// between read goroutine and timer goroutine.
-	recentRead atomic.Bool
-
 	// Send Hold Timer (RFC 9687): detects when the local side cannot send.
 	// sendHoldDeadline stores the UnixNano of the next expiry; 0 = not running.
 	// Updated atomically on every write (zero-alloc hot path). A single timer
@@ -460,23 +445,64 @@ func NewSession(settings *PeerSettings) *Session {
 
 	// Wire up timer callbacks.
 	s.timers.OnHoldTimerExpires(func() {
-		// BIRD technique: if data was recently read, the daemon is
-		// CPU-congested (busy processing other peers' UPDATEs), not the
-		// remote peer. Extend hold timer by 10s instead of tearing down.
-		// The remote peer IS sending data -- we just haven't processed it yet.
-		if s.recentRead.Swap(false) {
-			sessionLogger().Info("hold timer extended: recent read activity (CPU congestion)",
-				"peer", s.settings.Address,
-			)
-			// GraceRearmHoldTimer, NOT ResetHoldTimer. fireHold has already
-			// cleared holdRunning before invoking this callback, and
-			// ResetHoldTimer early-returns on !holdRunning -- so calling it here
-			// re-armed nothing and left the session with NO hold timer, silently
-			// disabling dead-peer detection for the rest of its life. The grace
-			// path is the one re-arm that is allowed to run post-expiry; it is
-			// generation-checked, so a racing StopAll still wins.
-			s.timers.GraceRearmHoldTimer(holdGraceExtension)
-			return
+		// RFC 4271 Section 8.2.2, HoldTimer_Expires (Event 10), in every state
+		// that can have the timer armed (OpenSent, OpenConfirm, Established).
+		// The action list is identical in all three, and every clause of it is
+		// satisfied from this callback or from the exit it triggers:
+		//
+		//   "sends a NOTIFICATION message with the error code Hold Timer
+		//   Expired"    -> sendNotificationWithin below (RFC4271-8.2.2-1)
+		//   "sets the ConnectRetryTimer to zero"
+		//               -> Timers.StopAll (RFC4271-8.2.2-2)
+		//   "releases all BGP resources"
+		//               -> the same StopAll, plus the route withdrawal the
+		//                  Established->Idle transition drives (RFC4271-8.2.2-3)
+		//   "drops the TCP connection"
+		//               -> closeConn (RFC4271-8.2.2-4)
+		//   "changes its state to Idle"
+		//               -> logFSMEvent below (RFC4271-8.2.2-5)
+		//
+		// The last four each have TWO producers on this path, which is why a
+		// mutation has to remove both to turn their tests red. This callback
+		// only signals errChan; the cancel goroutine then closes the connection,
+		// which unblocks the read loop, and handleConnectionClose (session_read.go)
+		// does StopAll + FSM event + closeConn. Run's own exit defers repeat all
+		// three, so an exit that never reaches handleConnectionClose is covered
+		// too. Every one of them is idempotent.
+		//
+		// There is NO reprieve. Ze used to grant one bounded grace window when
+		// the read loop had seen traffic since the timer was armed (a BIRD
+		// technique for CPU congestion), tearing down only on the next expiry.
+		// That deviated from this action list and doubled worst-case dead-peer
+		// detection, and Thomas ruled it removed on 2026-08-03 in favor of full
+		// conformance, accepting that a congested daemon now drops sessions it
+		// used to keep.
+		//
+		// The peer is silent, not necessarily gone: an operator on the far side
+		// reads code 4 and knows its keepalives stopped arriving, where a bare
+		// FIN says nothing.
+		//
+		// It has to happen HERE, on the timer goroutine, because the teardown
+		// itself is asynchronous: this branch only signals errChan, and the
+		// cancel goroutine (below) closes the connection. Leaving the send to
+		// that goroutine would mean writing to a socket it is about to close.
+		// Same shape as the RFC 9687 Send Hold Timer path
+		// (session_write.go, sendHoldTimerExpired): read conn under s.mu, drop
+		// the lock, then send -- logNotifyErr takes s.writeMu, which the lock
+		// hierarchy above orders AFTER s.mu.
+		//
+		// Subcode 0: RFC 4271 Section 6 -- "If no Error Subcode is specified,
+		// then a zero MUST be used". Hold Timer Expired defines none.
+		s.mu.RLock()
+		conn := s.conn
+		s.mu.RUnlock()
+		if conn != nil {
+			if err := s.sendNotificationWithin(conn, message.NotifyHoldTimerExpired, 0, nil,
+				holdExpiryNotifyDeadline); err != nil {
+				sessionLogger().Debug("hold timer expired: notification send failed",
+					"peer", s.settings.Address, "error", err,
+				)
+			}
 		}
 
 		s.mu.Lock()
@@ -760,8 +786,30 @@ func (s *Session) collisionPeerAS() uint32 {
 }
 
 // Start triggers the ManualStart event to begin the connection process.
+//
+// RFC 4271 Section 8.2.2, Idle + Event 1: this also sets the
+// ConnectRetryCounter to zero. Only the operator's start belongs here; the
+// peer reconnect loop uses StartDamped for every later cycle, so a retry does
+// not erase the retry history (peer_run.go, runOnce).
 func (s *Session) Start() error {
 	return s.fsm.Event(fsm.EventManualStart)
+}
+
+// StartDamped triggers RFC 4271 Event 6
+// (AutomaticStart_with_DampPeerOscillations) to begin a connection cycle that
+// the peer-level exponential backoff already delayed. It reaches Connect (or
+// Active, when passive) exactly as Start does, and deliberately leaves the
+// ConnectRetryCounter alone: §8.2.2 gives Event 6 no action list.
+func (s *Session) StartDamped() error {
+	return s.fsm.Event(fsm.EventAutomaticStartWithDampPeerOscillations)
+}
+
+// SetConnectRetryCounter hands the peer's RFC 4271 §8.1.1 ConnectRetryCounter
+// to this session's FSM, so the §8.2.2 handlers can apply that section's
+// increment and zero clauses to a value that outlives the session. Call it
+// before Start.
+func (s *Session) SetConnectRetryCounter(c *fsm.ConnectRetryCounter) {
+	s.fsm.SetConnectRetryCounter(c)
 }
 
 // Stop triggers the ManualStop event.

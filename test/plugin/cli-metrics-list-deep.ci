@@ -85,6 +85,8 @@ def main():
                 'ze_peer_notifications_sent_total',
                 'ze_peer_notifications_received_total',
                 'ze_peer_session_duration_seconds',
+                # RFC 4271 8.1.1 ConnectRetryCounter
+                'ze_bgp_connect_retry_counter',
                 # Forward pool (Phase 2)
                 'ze_forward_congestion_events_total',
                 'ze_forward_congestion_resumed_total',

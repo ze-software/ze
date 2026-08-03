@@ -127,7 +127,10 @@ func (p *Peer) runBFDSubscriber(
 					"bfd-diag", change.Diag.String())
 				// RFC 9384: Cease subcode 10 is reserved for
 				// "BFD Down". Hold timer is bypassed.
-				if err := p.Teardown(message.NotifyCeaseBFDDown, "BFD detected forwarding path down"); err != nil {
+				// RFC 4271 Event 8 (AutomaticStop): the local system, not the operator,
+				// decided to stop this peer, so the ConnectRetryCounter must count the
+				// attempt rather than be zeroed (fsm/connect_retry_counter.go).
+				if err := p.TeardownAutomatic(message.NotifyCeaseBFDDown, "BFD detected forwarding path down"); err != nil {
 					peerLogger().Debug("bfd-driven teardown failed",
 						"peer", p.settings.Address, "err", err)
 				}

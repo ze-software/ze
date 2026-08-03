@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/grmarker"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 
@@ -115,6 +116,23 @@ type PeerOp struct {
 	NLRI    nlri.NLRI  // For PeerOpWithdraw
 	Subcode uint8      // For PeerOpTeardown
 	Message string     // For PeerOpTeardown: RFC 8203 shutdown communication
+
+	// Automatic is set when the LOCAL SYSTEM chose this teardown rather than
+	// the operator, so draining it raises RFC 4271 Event 8 (AutomaticStop)
+	// instead of Event 2 (ManualStop). It has to survive the queue: the two
+	// events differ on the ConnectRetryCounter (§8.2.2), and a teardown that
+	// waited for End-of-RIB is not thereby an operator's decision.
+	Automatic bool // For PeerOpTeardown
+}
+
+// sessionTeardown routes a teardown to the Session method whose RFC 4271 stop
+// event matches its origin. One call site would otherwise have to repeat the
+// if/else at every drain point (peer_initial_sync.go has two).
+func sessionTeardown(session *Session, subcode uint8, shutdownMsg string, automatic bool) error {
+	if automatic {
+		return session.TeardownAutomatic(subcode, shutdownMsg)
+	}
+	return session.Teardown(subcode, shutdownMsg)
 }
 
 // DefaultOpQueueSize is the default maximum number of operations that can be
@@ -201,6 +219,22 @@ type Peer struct {
 	// prefixTeardownCount tracks consecutive prefix-limit teardowns for exponential backoff.
 	// Reset when a session stays established (successful Run return).
 	prefixTeardownCount uint32
+
+	// connectRetryCounter is RFC 4271 §8.1.1 mandatory session attribute 2:
+	// "the number of times a BGP peer has tried to establish a peer session".
+	// The FSM §8.2.2 handlers own every mutation; the Peer owns the VALUE,
+	// because runOnce builds a new Session and a new FSM per cycle and the
+	// counter has to outlive them to count them (see fsm.ConnectRetryCounter).
+	// runOnce hands it to each cycle's FSM.
+	connectRetryCounter fsm.ConnectRetryCounter
+
+	// operatorStarted is false until StartWithContext has handed the first
+	// connection cycle its RFC 4271 Event 1 (ManualStart). Later cycles get
+	// Event 6 (AutomaticStart_with_DampPeerOscillations) instead, so the
+	// §8.2.2 "sets ConnectRetryCounter to zero" clause on Event 1 fires when
+	// the operator starts the peer and not on every damped retry. Reset by
+	// StartWithContext so stopping and restarting a peer is a fresh start.
+	operatorStarted atomic.Bool
 
 	// Active prefix-threshold and prefix-stale warnings live on the report bus
 	// (internal/core/report). Producer-side dedup uses Session.prefixCounts.warned;
@@ -1027,8 +1061,26 @@ func (p *Peer) StartWithContext(ctx context.Context) {
 	p.ctx, p.cancel = context.WithCancel(ctx)
 	p.mu.Unlock()
 
+	// The next connection cycle is the operator's start, so runOnce fires
+	// RFC 4271 Event 1 (ManualStart) for it and Event 6 for every cycle after.
+	// Event 1's §8.2.2 clause zeroes the ConnectRetryCounter, which is what an
+	// operator starting (or restarting) a peer means.
+	p.operatorStarted.Store(false)
+
 	p.wg.Add(1)
 	go p.run()
+}
+
+// ConnectRetryCounter returns RFC 4271 §8.1.1 mandatory session attribute 2:
+// "the number of times a BGP peer has tried to establish a peer session".
+//
+// It counts across connection cycles, not within one: the FSM §8.2.2 handlers
+// raise it on every teardown the RFC gives a "increments the
+// ConnectRetryCounter" clause and zero it on an operator start or stop. Read
+// by Stats (peer_stats.go), which carries it to `show bgp peer <ip> detail`
+// and to the ze_bgp_connect_retry_counter gauge.
+func (p *Peer) ConnectRetryCounter() uint32 {
+	return p.connectRetryCounter.Load()
 }
 
 // Stop signals the peer to stop.
@@ -1054,6 +1106,20 @@ var ErrOpQueueFull = errors.New("operation queue full")
 // EOR can be sent before NOTIFICATION. If not connected, also queues.
 // Returns ErrOpQueueFull if the teardown could not be queued.
 func (p *Peer) Teardown(subcode uint8, shutdownMsg string) error {
+	return p.teardown(subcode, shutdownMsg, false)
+}
+
+// TeardownAutomatic is Teardown for a stop the LOCAL SYSTEM chose rather than
+// the operator, so it raises RFC 4271 Event 8 (AutomaticStop) instead of Event
+// 2 (ManualStop). §8.2.2 has Event 8 increment the ConnectRetryCounter where
+// Event 2 zeroes it, and a peer torn down because BFD went down or the forward
+// pool ran out of room has just failed an attempt, not been told to forget the
+// ones before it. Everything else matches Teardown, queuing included.
+func (p *Peer) TeardownAutomatic(subcode uint8, shutdownMsg string) error {
+	return p.teardown(subcode, shutdownMsg, true)
+}
+
+func (p *Peer) teardown(subcode uint8, shutdownMsg string, automatic bool) error {
 	p.mu.Lock()
 	session := p.session
 
@@ -1062,7 +1128,7 @@ func (p *Peer) Teardown(subcode uint8, shutdownMsg string) error {
 	// BGP protocol sequencing: routes + EOR + NOTIFICATION.
 	if p.sendingInitialRoutes.Load() != 0 {
 		if len(p.opQueue) < p.opQueueMax {
-			p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg})
+			p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg, Automatic: automatic})
 			p.mu.Unlock()
 			return nil
 		}
@@ -1073,7 +1139,7 @@ func (p *Peer) Teardown(subcode uint8, shutdownMsg string) error {
 
 	if session != nil {
 		p.mu.Unlock()
-		if err := session.Teardown(subcode, shutdownMsg); err != nil {
+		if err := sessionTeardown(session, subcode, shutdownMsg, automatic); err != nil {
 			peerLogger().Debug("teardown error", "peer", p.settings.Address, "error", err)
 		}
 		// Set state after teardown - there's a brief race window where
@@ -1085,7 +1151,7 @@ func (p *Peer) Teardown(subcode uint8, shutdownMsg string) error {
 
 	// No active session - queue teardown to maintain operation order
 	if len(p.opQueue) < p.opQueueMax {
-		p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg})
+		p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg, Automatic: automatic})
 		p.mu.Unlock()
 		return nil
 	}

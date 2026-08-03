@@ -784,3 +784,292 @@ func TestRFC4271ConformantOpenSendsNoOpenError(t *testing.T) {
 		off += int(hdr.Length)
 	}
 }
+
+// rfc-test-change-approved: 2026-08-03 -- Thomas ruled for full RFC 4271
+// Section 8.2.2 Event 10 conformance and ordered the hold-timer grace removed.
+// The helper's `graced` parameter selected a branch that no longer exists.
+// test-relax: the "a graced expiry re-arms and a fatal one does not"
+// precondition asserted the REMOVED grace branch. Its replacement is stronger:
+// every expiry must now leave the timer disarmed, which is asserted on the one
+// remaining path rather than on one of two.
+//
+// rfc4271HoldExpiry arms a real Session's hold timer on a net.Pipe and advances
+// the clock by `advance` through the production OnHoldTimerExpires closure that
+// NewSession installs, returning what the peer saw on the wire.
+//
+// An advance shorter than the hold time fires no expiry, which is how the
+// negative polarity below distinguishes "ze writes code 4 when the timer
+// expires" from "ze writes code 4 whenever a timer is armed".
+func rfc4271HoldExpiry(t *testing.T, hold, advance time.Duration) <-chan []byte {
+	t.Helper()
+
+	s, fc := newHoldExpirySession(t, hold)
+	// The drain must be running before the clock advances: net.Pipe is
+	// unbuffered, the callback runs synchronously inside fc.Add, and its write
+	// would otherwise block the test goroutine that is driving it.
+	_, wire, _ := pipeSession(t, s)
+
+	s.timers.StartHoldTimer()
+	require.True(t, s.timers.IsHoldTimerRunning(), "precondition: hold timer armed")
+
+	fc.Add(advance)
+
+	require.Equal(t, advance < hold, s.timers.IsHoldTimerRunning(),
+		"RFC 4271 Section 8.2.2 Event 10: the timer stays armed until it expires, "+
+			"and the expiry tears the session down rather than re-arming")
+	return wire
+}
+
+// RFC requirement: RFC4271-8.2.2-1 positive -- Event 10 (HoldTimer_Expires) has
+// the local system "send the NOTIFICATION message with the error code Hold
+// Timer Expired" as the FIRST of its actions, before it "drops the TCP
+// connection". The production hold-expiry callback writes it.
+func TestRFC4271HoldTimerExpirySendsNotification(t *testing.T) {
+	const hold = 3 * time.Second
+
+	// rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
+	// removed for full RFC 4271 Section 8.2.2 Event 10 conformance. The helper's
+	// boolean selected graced/fatal; with no grace there is one path, so the
+	// argument is now the clock advance. Advancing by a full hold time fires the
+	// expiry this positive polarity is about. The assertion is untouched.
+	wire := rfc4271HoldExpiry(t, hold, hold)
+
+	select {
+	case chunk := <-wire:
+		require.Len(t, chunk, message.HeaderLen+2,
+			"a NOTIFICATION with no Data is 21 octets")
+		hdr, err := message.ParseHeader(chunk[:message.HeaderLen])
+		require.NoError(t, err)
+		require.Equal(t, msgtype.TypeNOTIFICATION, hdr.Type)
+		require.Equal(t, uint8(message.NotifyHoldTimerExpired), chunk[message.HeaderLen],
+			"RFC 4271 Section 6: Error Code 4, Hold Timer Expired")
+		// RFC 4271 Section 6: "If no Error Subcode is specified, then a zero
+		// MUST be used." Hold Timer Expired specifies none.
+		require.Equal(t, uint8(0), chunk[message.HeaderLen+1],
+			"RFC 4271 Section 6: subcode MUST be zero when none is specified")
+	case <-time.After(runExitDeadline):
+		t.Fatal("the hold timer expired and the peer was told nothing: " +
+			"RFC 4271 Section 8.2.2 Event 10 requires a Hold Timer Expired NOTIFICATION " +
+			"before the connection is dropped, so the peer sees a bare FIN with no reason")
+	}
+}
+
+// rfc-test-change-approved: 2026-08-03 -- Thomas ruled for full RFC 4271
+// Section 8.2.2 Event 10 conformance and ordered the hold-timer grace removed.
+// This test was TestRFC4271GracedHoldExpirySendsNoNotification and asserted
+// that a GRACED expiry stays silent, which pinned the deviation. It is inverted
+// rather than deleted (ai/rules/testing.md): the negative polarity now
+// keys on an expiry that has not happened yet, which is the only condition
+// under which ze may stay silent.
+// test-relax: the graced-expiry assertion covered a REMOVED branch. The
+// replacement is a strictly harder bar -- it fails if ze writes code 4 at any
+// point before the hold time is up, where the old one only checked one branch.
+//
+// RFC requirement: RFC4271-8.2.2-1 negative -- the code-4 NOTIFICATION belongs
+// to the hold timer EXPIRING, not to a hold timer merely being armed. A session
+// whose peer has been quiet for less than the negotiated hold time has not
+// reached Event 10, so the peer must be told nothing: it is still inside the
+// time the protocol gives it, and a Hold Timer Expired sent there would end a
+// session the RFC action list never reached.
+func TestRFC4271HoldTimerNotYetExpiredSendsNoNotification(t *testing.T) {
+	const hold = 3 * time.Second
+
+	// One millisecond short of the hold time: the timer is armed, the peer is
+	// silent, and Event 10 has NOT fired.
+	wire := rfc4271HoldExpiry(t, hold, hold-time.Millisecond)
+
+	// Any callback that ran did so synchronously inside fc.Add, so anything it
+	// wrote is already queued; the window only absorbs drain-goroutine
+	// scheduling.
+	select {
+	case chunk := <-wire:
+		t.Fatalf("ze wrote %d octets to a peer whose hold timer has not expired: "+
+			"the Hold Timer Expired NOTIFICATION must be bound to Event 10, not "+
+			"sent while the peer is still within its negotiated hold time", len(chunk))
+	case <-time.After(250 * time.Millisecond):
+	}
+}
+
+// event10Established drives a real Session to Established over a net.Pipe with
+// Run executing, then puts every resource RFC 4271 Section 8.2.2 Event 10 names
+// into the state where its clearing is observable.
+//
+// The ConnectRetryTimer is armed deliberately. Ze has no production caller for
+// StartConnectRetryTimer, so the timer is always already zero and an assertion
+// that it is zero after Event 10 would be vacuous: it would pass with the whole
+// teardown deleted. Arming it first makes the assertion measure the mechanism
+// that does the zeroing (Run's exit StopAll) rather than a constant.
+//
+// hold is shortened AFTER the handshake because RFC 4271 Section 4.2 floors a
+// negotiated hold time at three seconds, and these tests do not need to spend
+// that. SetHoldTime + ResetHoldTimer is the same pair negotiateWith uses.
+func event10Established(t *testing.T, hold time.Duration) (*Session, <-chan error, <-chan error, <-chan []byte) {
+	t.Helper()
+
+	session, client, wire, drainErr := establishedOpenSent(t)
+
+	runResult := make(chan error, 1)
+	go func() { runResult <- session.Run(t.Context()) }()
+
+	// test-relax: the require.NotNil on session.Conn() written a moment ago in
+	// this same un-run helper is replaced, not dropped -- the client end from
+	// establishedOpenSent is the correct handle for the peer side, and the
+	// Established assertion below is a strictly stronger precondition.
+	//
+	// Run owns the socket now, so the peer's OPEN and KEEPALIVE go on the wire
+	// and are consumed by the production read loop rather than by a test calling
+	// ReadAndProcess. net.Pipe is synchronous, so each write needs its own
+	// goroutine: it does not return until Run has read the bytes. They must also
+	// be SEQUENCED -- two concurrent writers on one pipe interleave their bytes
+	// and ze reads a corrupt header.
+	go func() { _, _ = client.Write(peerOpenBytes()) }()
+	require.Eventually(t, func() bool { return session.State() == fsm.StateOpenConfirm },
+		runExitDeadline, 5*time.Millisecond,
+		"precondition: ze did not reach OpenConfirm, so the peer OPEN was not accepted")
+
+	go func() { _, _ = client.Write(message.PackTo(message.NewKeepalive(), nil)) }()
+	require.Eventually(t, func() bool { return session.State() == fsm.StateEstablished },
+		runExitDeadline, 5*time.Millisecond,
+		"precondition: the session never reached Established, so Event 10 has nothing to tear down")
+
+	session.timers.StartConnectRetryTimer()
+	require.True(t, session.timers.IsConnectRetryTimerRunning(),
+		"precondition: ConnectRetryTimer must be armed for its zeroing to be observable")
+	require.True(t, session.timers.IsKeepaliveTimerRunning(),
+		"precondition: the KeepaliveTimer must be running for its release to be observable")
+
+	session.timers.SetHoldTime(hold)
+	session.timers.ResetHoldTimer()
+
+	return session, runResult, drainErr, wire
+}
+
+// TestRFC4271HoldExpiryRunsTheEvent10ActionList proves that a hold expiry runs
+// the WHOLE of the Event 10 action list, not only its first clause.
+//
+// VALIDATES: RFC 4271 Section 8.2.2, HoldTimer_Expires (Event 10). The
+// NOTIFICATION clause has its own coverage above; this covers the four that
+// follow it, all of which ze satisfies through the exit Run performs once the
+// callback has signaled it.
+//
+// PREVENTS: a teardown that tells the peer why and then leaks everything else --
+// a keepalive chain still writing to a dead session, a connect-retry timer
+// firing against a connection that no longer exists, a half-open socket, and an
+// FSM still reading Established so the routes learned over it are never
+// withdrawn.
+//
+// RFC requirement: RFC4271-8.2.2-2 positive -- Run's exit calls
+// Timers.StopAll, whose stopConnectRetryTimerLocked zeroes the ConnectRetryTimer
+// (internal/component/bgp/fsm/timer.go, StopAll).
+// RFC requirement: RFC4271-8.2.2-3 positive -- the same StopAll releases the
+// BGP resources the session holds, of which the KeepaliveTimer is the
+// externally visible one: it stops writing KEEPALIVEs.
+// RFC requirement: RFC4271-8.2.2-4 positive -- the cancel goroutine woken by
+// the errChan signal closes the connection, backed by Run's own defer
+// s.closeConn (internal/component/bgp/reactor/session.go, Run).
+// RFC requirement: RFC4271-8.2.2-5 positive -- the callback's
+// logFSMEvent(EventHoldTimerExpires) drives the FSM to Idle from every state
+// that can hold an armed hold timer (internal/component/bgp/fsm/fsm.go).
+func TestRFC4271HoldExpiryRunsTheEvent10ActionList(t *testing.T) {
+	session, runResult, drainErr, wire := event10Established(t, 300*time.Millisecond)
+
+	select {
+	case <-runResult:
+	case <-time.After(runExitDeadline):
+		t.Fatal("RFC 4271 Section 8.2.2 Event 10: the hold timer expired and Run " +
+			"never returned, so none of the action list ran")
+	}
+
+	assert.False(t, session.timers.IsConnectRetryTimerRunning(),
+		"RFC4271-8.2.2-2: Event 10 sets the ConnectRetryTimer to zero; a timer left "+
+			"armed here fires against a connection that no longer exists")
+	assert.False(t, session.timers.IsKeepaliveTimerRunning(),
+		"RFC4271-8.2.2-3: Event 10 releases all BGP resources; a KeepaliveTimer left "+
+			"running keeps writing KEEPALIVEs to a session torn down for silence")
+	assert.False(t, session.timers.IsHoldTimerRunning(),
+		"RFC4271-8.2.2-3: the hold timer is a BGP resource too, and this expiry is final")
+	assert.Equal(t, fsm.StateIdle, session.State(),
+		"RFC4271-8.2.2-5: Event 10 changes the state to Idle, which is what withdraws "+
+			"the routes learned over this connection")
+	requireConnClosed(t, drainErr) // RFC4271-8.2.2-4: drops the TCP connection
+
+	// rfc-test-change-approved: 2026-08-03 -- Thomas ordered Event 10's COMPLETE
+	// action list extracted and proven. This block is ADDED, not relaxed: it
+	// strengthens the new RFC4271-8.2.2-2..-5 test by also pinning the ORDER the
+	// action list gives, and no existing assertion is touched.
+	//
+	// The action list is ORDERED: the NOTIFICATION is its first item and the
+	// connection drop its fourth, so the peer must have been told before the
+	// socket went away. Reading it off the same capture that just proved the
+	// close is what ties the two together.
+	sent := collectWire(wire)
+	var sawHoldExpired bool
+	for off := 0; off+message.HeaderLen+2 <= len(sent); {
+		hdr, err := message.ParseHeader(sent[off : off+message.HeaderLen])
+		if err != nil || hdr.Length < message.HeaderLen {
+			break
+		}
+		if hdr.Type == msgtype.TypeNOTIFICATION &&
+			sent[off+message.HeaderLen] == uint8(message.NotifyHoldTimerExpired) {
+			sawHoldExpired = true
+		}
+		off += int(hdr.Length)
+	}
+	assert.True(t, sawHoldExpired,
+		"RFC 4271 Section 8.2.2 Event 10 lists the Hold Timer Expired NOTIFICATION "+
+			"BEFORE it drops the TCP connection, so the peer must have read one off "+
+			"this connection before it closed")
+}
+
+// TestRFC4271NoHoldExpiryLeavesTheSessionIntact is the negative polarity for
+// all four clauses at once: none of the Event 10 actions may run until Event 10
+// has actually fired.
+//
+// VALIDATES: RFC 4271 Section 8.2.2 -- the action list is bound to
+// HoldTimer_Expires. An Established session inside its negotiated hold time
+// keeps its timers, its socket and its state.
+//
+// PREVENTS: reading the positive test as satisfied by an implementation that
+// tears sessions down unconditionally. Every assertion below is the exact
+// inverse of one above, on a session that differs only in whether the hold
+// timer has expired.
+//
+// RFC requirement: RFC4271-8.2.2-2 negative -- the ConnectRetryTimer is zeroed
+// BY the expiry: an armed one survives while the session is up.
+// RFC requirement: RFC4271-8.2.2-3 negative -- BGP resources are released BY
+// the expiry: the KeepaliveTimer keeps running while the session is up, which
+// is what keeps the peer's own hold timer fed.
+// RFC requirement: RFC4271-8.2.2-4 negative -- the TCP connection is dropped BY
+// the expiry, not by establishment.
+// RFC requirement: RFC4271-8.2.2-5 negative -- the state changes to Idle BY the
+// expiry; before it the session is Established.
+func TestRFC4271NoHoldExpiryLeavesTheSessionIntact(t *testing.T) {
+	// A hold time far longer than this test runs: the timer is armed and will
+	// not fire, which is the only difference from the positive case.
+	session, runResult, drainErr, _ := event10Established(t, 10*time.Minute)
+
+	select {
+	case err := <-runResult:
+		t.Fatalf("Run returned (%v) with the hold timer still armed: nothing may "+
+			"tear an Established session down before its hold time is up", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+
+	assert.True(t, session.timers.IsConnectRetryTimerRunning(),
+		"RFC4271-8.2.2-2 negative: the ConnectRetryTimer is zeroed by Event 10, "+
+			"so an armed one must survive a session that has not expired")
+	assert.True(t, session.timers.IsKeepaliveTimerRunning(),
+		"RFC4271-8.2.2-3 negative: BGP resources are released by Event 10, so the "+
+			"KeepaliveTimer must still be running on a live session")
+	assert.True(t, session.timers.IsHoldTimerRunning(),
+		"RFC4271-8.2.2-3 negative: the hold timer is armed and has not expired")
+	assert.Equal(t, fsm.StateEstablished, session.State(),
+		"RFC4271-8.2.2-5 negative: the state changes to Idle on Event 10, not before")
+
+	select {
+	case err := <-drainErr:
+		t.Fatalf("the connection closed (%v) with the hold timer still armed: "+
+			"RFC4271-8.2.2-4 drops it on Event 10, not on establishment", err)
+	default:
+	}
+}

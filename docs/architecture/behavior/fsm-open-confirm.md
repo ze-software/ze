@@ -43,12 +43,14 @@ OPEN from a competing socket.
 
 | Event | Produced by | FSM reaction | Wire side effect | Next state |
 |-------|-------------|--------------|------------------|------------|
-| `EventManualStop` | `Session.Close/Teardown/CloseWithNotification` | cleanup in caller | Cease NOTIFICATION in caller | `Idle` |
+| `EventManualStop` | `Session.Close` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION in caller | `Idle` |
+| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.TeardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
 | `EventKeepaliveMsg` | `handleKeepalive` on received KEEPALIVE | log transition | nothing additional from the FSM | `Established` |
-| `EventHoldTimerExpires` | hold-timer callback in `Session.newSession` | cleanup in caller | NOTIFICATION in caller | `Idle` |
-| `EventNotifMsg` / `EventNotifMsgVerErr` | `handleNotification` | cleanup in caller | none | `Idle` |
-| `EventBGPHeaderErr` / `EventBGPOpenMsgErr` | `session_read.readAndProcessMessage` / `handleOpen` | log transition | NOTIFICATION in caller | `Idle` |
-| `EventTCPConnectionFails` | `handleConnectionClose` on EOF / reset | cleanup in caller | none | `Idle` |
+| `EventHoldTimerExpires` | hold-timer callback in `Session.newSession` | cleanup in caller; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
+| `EventNotifMsg` | `handleNotification` | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
+| `EventNotifMsgVerErr` | `handleNotification` | cleanup in caller; ConnectRetryCounter untouched (RFC 4271 8.2.2 gives Event 24 no counter clause in this state) | none | `Idle` |
+| `EventBGPHeaderErr` / `EventBGPOpenMsgErr` | `session_read.readAndProcessMessage` / `handleOpen` | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
+| `EventTCPConnectionFails` | `handleConnectionClose` on EOF / reset | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
 | `EventKeepaliveTimerExpires` | keepalive-timer callback in `Session.newSession` | stay (FSM no-op) | KEEPALIVE sent from callback | `OpenConfirm` |
 | any other event | unexpected | log transition | none | `Idle` |
 

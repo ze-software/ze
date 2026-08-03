@@ -270,7 +270,10 @@ func congestionTeardownPeer(peers func(netip.AddrPort) *Peer) func(netip.AddrPor
 			}
 		} else {
 			// Non-GR: send NOTIFICATION Cease/OutOfResources (subcode 8).
-			_ = peer.Teardown(message.NotifyCeaseOutOfResources, "")
+			// RFC 4271 Event 8 (AutomaticStop): ze ran out of forwarding room and
+			// chose to drop the peer. That is a failed attempt for the
+			// ConnectRetryCounter, not an operator stop.
+			_ = peer.TeardownAutomatic(message.NotifyCeaseOutOfResources, "")
 		}
 	}
 }

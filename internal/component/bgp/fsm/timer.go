@@ -84,12 +84,8 @@ type Timers struct {
 	// stop of a live hold timer, so a fired closure that captured an older
 	// generation can detect that the timer was stopped or re-armed after it
 	// fired and decline to touch shared state (the ABA seed described in the
-	// fixit-bgp-session-fsm-lifecycle spec, A-2). holdFireGen records the
-	// generation of the fire currently running its callback; GraceRearmHoldTimer
-	// re-arms only while holdFireGen == holdGen, i.e. nothing (notably StopAll)
-	// intervened during the callback (R-3).
-	holdGen     uint64
-	holdFireGen uint64
+	// fixit-bgp-session-fsm-lifecycle spec, A-2).
+	holdGen uint64
 }
 
 // NewTimers creates a new timer manager with default values.
@@ -196,10 +192,11 @@ func (t *Timers) StartHoldTimer() {
 }
 
 // armHoldTimerLocked (re)arms the hold timer for duration d. It is the single
-// place a hold timer's AfterFunc is created; StartHoldTimer, ResetHoldTimer and
-// GraceRearmHoldTimer all funnel through it so the generation guard and the
-// fire path stay in one spot (collapsing the previously duplicated closures).
-// The caller must hold t.mu.
+// place a hold timer's AfterFunc is created; StartHoldTimer and ResetHoldTimer
+// both funnel through it so the generation guard and the fire path stay in one
+// spot (collapsing the previously duplicated closures). Those two are the ONLY
+// re-arm paths: nothing re-arms after an expiry, because RFC 4271 Section 8.2.2
+// Event 10 tears the session down on the first one. The caller must hold t.mu.
 func (t *Timers) armHoldTimerLocked(d time.Duration) {
 	if d <= 0 {
 		// Self-enforcing invariant: never schedule a non-positive AfterFunc.
@@ -227,7 +224,6 @@ func (t *Timers) fireHold(gen uint64) {
 		return // stale: timer was stopped or re-armed after it fired
 	}
 	t.holdRunning = false
-	t.holdFireGen = gen // marks the window in which GraceRearmHoldTimer may re-arm
 	cb := t.onHoldExpires
 	t.mu.Unlock()
 
@@ -258,54 +254,6 @@ func (t *Timers) ResetHoldTimer() {
 	}
 
 	t.armHoldTimerLocked(t.holdTime)
-}
-
-// GraceRearmHoldTimer re-arms the hold timer for a bounded grace window from
-// within the hold-expiry callback, without requiring holdRunning (the fire path
-// has already cleared it). This is the ONLY re-arm path that runs after a hold
-// timer has expired; ordinary KEEPALIVE/UPDATE restarts go through
-// ResetHoldTimer, whose !holdRunning guard deliberately keeps late FSM events
-// from resurrecting a torn-down session's timer.
-//
-// It is generation-checked: it re-arms only if no Stop/arm intervened since the
-// expiry that is currently running its callback (holdFireGen == holdGen). A
-// racing StopAll therefore wins and the timer is not resurrected on a dead
-// session (spec R-3). d is clamped to holdTime. holdTime == 0 stays disabled
-// (RFC 4271 Section 4.4). Intended to be called only from the hold-expiry
-// callback.
-//
-// The grace re-arm is a deliberate, documented divergence from RFC 4271
-// Section 8.2.2 Event 10 (which mandates immediate teardown on HoldTimer expiry):
-// it lets a session that saw recent read activity survive one expiry under CPU
-// congestion, matching BIRD-style implementations, rather than dropping a peer
-// that is merely slow. The next expiry with no intervening traffic still tears
-// the session down.
-func (t *Timers) GraceRearmHoldTimer(d time.Duration) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-
-	if t.holdTime == 0 {
-		return // RFC 4271 Section 4.4: hold time 0 disables the timer
-	}
-	// holdFireGen is 0 until a real expiry fires (arm always bumps holdGen to
-	// >= 1 before capturing it), so holdFireGen == 0 means GraceRearmHoldTimer
-	// was called outside an expiry callback — refuse. A non-zero holdFireGen
-	// that no longer equals holdGen means a Stop/arm (e.g. a concurrent StopAll)
-	// intervened after this expiry fired — refuse, so the timer is not
-	// resurrected on a torn-down session (spec R-3).
-	if t.holdFireGen == 0 || t.holdFireGen != t.holdGen {
-		return
-	}
-	if d > t.holdTime {
-		d = t.holdTime // clamp: never extend beyond the negotiated hold time
-	}
-	if d <= 0 {
-		// A non-positive grace window means "do not extend": leave the timer
-		// disarmed (the fire already cleared holdRunning). Deliberate no-op, not
-		// a re-arm. Unreachable with the fixed 10 s production caller.
-		return
-	}
-	t.armHoldTimerLocked(d)
 }
 
 // StopHoldTimer stops the hold timer.

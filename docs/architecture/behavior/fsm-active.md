@@ -33,12 +33,13 @@ be called from the reactor's inbound connection plumbing. Accept runs
 
 | Event | Produced by | FSM reaction | Wire side effect | Next state |
 |-------|-------------|--------------|------------------|------------|
-| `EventManualStart` | duplicate `Session.Start()` call | ignored (RFC 4271) | none | `Active` |
-| `EventManualStop` | `Session.Close/Teardown/CloseWithNotification` | cleanup in caller | Cease NOTIFICATION in caller if conn exists | `Idle` |
+| `EventManualStart` / `EventAutomaticStartWithDampPeerOscillations` | duplicate `Session.Start()` / `StartDamped()` call | ignored (RFC 4271) | none | `Active` |
+| `EventManualStop` | `Session.Close` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION in caller if conn exists | `Idle` |
+| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.TeardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
 | `EventTCPConnectionConfirmed` | `Session.connectionEstablished` after `Accept` | log transition | OPEN sent immediately after transition | `OpenSent` |
-| `EventTCPConnectionFails` | inbound connection setup error | cleanup in caller | none | `Idle` |
+| `EventTCPConnectionFails` | inbound connection setup error | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
 | `EventConnectRetryTimerExpires` | not generated in production | passive check: if not passive, go to Connect | none | `Connect` or `Active` |
-| `EventBGPHeaderErr` / `EventBGPOpenMsgErr` / `EventNotifMsgVerErr` / `EventNotifMsg` | message decode error paths | log transition | NOTIFICATION in caller | `Idle` |
+| `EventBGPHeaderErr` / `EventBGPOpenMsgErr` / `EventNotifMsgVerErr` / `EventNotifMsg` | message decode error paths | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
 | any other event | unexpected | log transition | none | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleActive -->

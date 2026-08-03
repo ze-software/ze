@@ -358,6 +358,42 @@ func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 	close(blocker)
 }
 
+// TestUpdatePeriodicMetrics_PublishesConnectRetryCounter verifies the RFC 4271
+// Section 8.1.1 ConnectRetryCounter reaches Prometheus with its real value.
+//
+// VALIDATES: updatePeriodicMetrics reads Peer.ConnectRetryCounter and writes it
+// to ze_bgp_connect_retry_counter under the peer's label.
+//
+// PREVENTS: The gauge being registered and never written, which reads on a
+// dashboard as "this peer has never retried" for every peer forever. A
+// registration-only test cannot tell that apart from a working gauge.
+func TestUpdatePeriodicMetrics_PublishesConnectRetryCounter(t *testing.T) {
+	reg := newSpyRegistry()
+	settings := NewPeerSettings(mustParseAddr("192.0.2.7"), 65000, 65001, 0x01010101)
+	peer := NewPeer(settings)
+	for range 5 {
+		peer.connectRetryCounter.Increment()
+	}
+
+	r := &Reactor{
+		attrModHandlers: attrModHandlersWithDefaults(),
+		rmetrics:        initReactorMetrics(reg, "test", "1.2.3.4", "65000"),
+		clock:           clock.RealClock{},
+		startTime:       time.Now().Add(-5 * time.Second),
+		recentUpdates:   NewRecentUpdateCache(100),
+		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+	}
+
+	r.updatePeriodicMetrics()
+
+	vec := reg.gaugeVec("ze_bgp_connect_retry_counter")
+	require.NotNil(t, vec, "ze_bgp_connect_retry_counter should be registered")
+	g := vec.get(peer.peerAddrLabel())
+	require.NotNil(t, g, "the gauge should have been written for this peer")
+	assert.Equal(t, 5.0, g.Value(),
+		"the gauge must carry the peer's ConnectRetryCounter, not a constant")
+}
+
 // TestMetricNames_MatchRegistration verifies that initReactorMetrics registers
 // all expected Prometheus metric names, including overflow-specific ones.
 //
@@ -387,6 +423,7 @@ func TestMetricNames_MatchRegistration(t *testing.T) {
 		"ze_bgp_overflow_items",
 		"ze_bgp_overflow_ratio",
 		"ze_peer_session_duration_seconds",
+		"ze_bgp_connect_retry_counter",
 		"ze_bgp_prefix_count",
 		"ze_bgp_prefix_maximum",
 		"ze_bgp_prefix_warning",
@@ -430,6 +467,12 @@ func TestMetricNames_MatchRegistration(t *testing.T) {
 		"ze_wire_write_errors_total",
 		"ze_bgp_prefix_maximum_exceeded_total",
 		"ze_bgp_prefix_teardown_total",
+		// test-relax: ze_bgp_hold_expiry_graced_total is REMOVED along with the
+		// hold-timer grace branch that was its only producer (Thomas, 2026-08-03,
+		// full RFC 4271 Section 8.2.2 Event 10 conformance). With no reprieve to
+		// count it could only read zero, which an operator would misread as "no
+		// congestion" rather than "not measured".
+		"ze_bgp_open_in_established_total",
 	}
 	for _, name := range expectedCounterVecs {
 		reg.mu.Lock()

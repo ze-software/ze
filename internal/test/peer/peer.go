@@ -120,6 +120,23 @@ type Config struct {
 	// and withdraws the peer's routes -- racing any forwarding still in
 	// flight toward other peers (option=linger:value=true).
 	Linger bool
+	// Silent stops the AUTOMATIC KEEPALIVE reply a check peer otherwise writes
+	// for every message it receives (replyKeepalive, called from the check-mode
+	// arm of runMessageLoop). The peer holds the TCP connection open and keeps
+	// reading and matching expectations (option=silent:value=true).
+	//
+	// Needed because ze sends its own KEEPALIVEs every hold/3 seconds and each
+	// automatic reply resets ze's receive hold timer, so a "the peer went
+	// quiet" scenario is otherwise unexpressible and ze's dead-peer detection
+	// can never be reached from a .ci. Going quiet WITHOUT closing the socket
+	// is the whole distinction the receive hold timer exists to detect: a FIN
+	// is a different event (handleConnectionClose) on a different code path.
+	//
+	// It is not a global mute, and the name should not be read as one. The OPEN
+	// handshake still writes, so do action=send and action=notification, and so
+	// does the post-completion KEEPALIVE loop of option=linger -- silent with
+	// linger is not silent. Sink and echo are separate modes and ignore it.
+	Silent bool
 	// IPv6: bind to IPv6 instead of IPv4
 	IPv6 bool
 	// Decode: decode messages to human-readable format in output
@@ -397,6 +414,24 @@ func (p *Peer) pauseForSignal() {
 	time.Sleep(500 * time.Millisecond)
 }
 
+// replyKeepalive answers a received message with a KEEPALIVE, which is what
+// keeps a check peer's session alive for the length of its script.
+//
+// A silent peer (option=silent) answers nothing, so ze's receive hold timer is
+// never reset and its dead-peer detection is reachable from a .ci.
+//
+// A write error is reported and not returned: the remote closing mid-exchange
+// is a normal outcome here, and the caller detects it on its next read, where
+// the EOF/reset arm already decides whether the exchange had completed.
+func (p *Peer) replyKeepalive(conn net.Conn) {
+	if p.config.Silent {
+		return
+	}
+	if _, err := conn.Write(KeepaliveMsg()); err != nil {
+		p.printf("keepalive reply failed: %v\n", err)
+	}
+}
+
 func (p *Peer) printf(format string, args ...any) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -609,7 +644,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
 		}
 
 		// Check mode: try to match message against expectations
-		_, _ = conn.Write(KeepaliveMsg())
+		p.replyKeepalive(conn)
 
 		matched, silentAccept := p.checker.ExpectedOrKeepalive(msg)
 		if silentAccept {

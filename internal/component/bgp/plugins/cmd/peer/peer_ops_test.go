@@ -43,6 +43,42 @@ func TestHandlerPeerDetailAllPeers(t *testing.T) {
 	assert.Contains(t, peer1, "keepalives-received")
 }
 
+// TestHandlerPeerDetailReportsConnectRetryCounter verifies the operator can
+// read RFC 4271 Section 8.1.1's ConnectRetryCounter off `show bgp peer <ip>
+// detail`.
+//
+// VALIDATES: The row carries `connect-retry-counter`, and it carries the value
+// the reactor reported rather than a zero placeholder.
+//
+// PREVENTS: The counter being implemented in the FSM and never surfaced, which
+// is dead state: nothing outside the FSM would read it and nothing would notice
+// if it stopped counting.
+func TestHandlerPeerDetailReportsConnectRetryCounter(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{{
+			Address:             netip.MustParseAddr("192.0.2.1"),
+			PeerAS:              65001,
+			State:               plugin.PeerStateConnecting,
+			ConnectRetryCounter: 17,
+		}},
+	}
+	ctx := newTestContext(reactor)
+
+	resp, err := HandleBgpPeerDetail(ctx, nil)
+	require.NoError(t, err)
+
+	data, ok := resp.Data.(plugin.Map)
+	require.True(t, ok)
+	peers, ok := data["peers"].(map[string]any)
+	require.True(t, ok)
+	row, ok := peers["192.0.2.1"].(map[string]any)
+	require.True(t, ok, "peer 192.0.2.1 not found")
+
+	require.Contains(t, row, "connect-retry-counter")
+	assert.Equal(t, uint32(17), row["connect-retry-counter"],
+		"the row must carry the reactor's value, not a constant")
+}
+
 // TestHandlerPeerDetailFilterByIP verifies peer detail filters by specific IP.
 //
 // VALIDATES: Peer selector filters to matching peer only.

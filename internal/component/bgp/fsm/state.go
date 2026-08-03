@@ -81,8 +81,12 @@ func (s State) String() string {
 // Events 16-18 are mandatory TCP events (Section 8.1.4).
 // Events 19, 21-22, 24-28 are mandatory message events (Section 8.1.5).
 //
-// This implementation includes mandatory events. Optional events
-// (3-8, 12-15, 20, 23) are not implemented.
+// This implementation includes every mandatory event, plus three optional
+// ones the ConnectRetryCounter needs in order to be right: Event 6
+// (AutomaticStart_with_DampPeerOscillations) for a damped retry, Event 8
+// (AutomaticStop) for a teardown the system chose, and Event 23
+// (OpenCollisionDump) for a connection lost to collision resolution. The
+// remaining optional events (3-5, 7, 12-15, 20) are not implemented.
 type Event int
 
 // FSM events per RFC 4271 Section 8.1.
@@ -150,6 +154,50 @@ const (
 	// EventUpdateMsgErr: RFC 4271 Section 8.1.5 Event 28 (Mandatory)
 	// An invalid UPDATE message is received.
 	EventUpdateMsgErr
+
+	// EventAutomaticStartWithDampPeerOscillations: RFC 4271 Section 8.1.2
+	// Event 6 (Optional) — AutomaticStart_with_DampPeerOscillations.
+	//
+	// The system, not the operator, restarts a connection attempt after a
+	// damping delay. Ze's damping is the exponential backoff in the peer
+	// reconnect loop (internal/component/bgp/reactor/peer_run.go, run), which
+	// stands in for the RFC's ConnectRetryTimer.
+	//
+	// It exists so the retry cycle is distinguishable from Event 1. RFC 4271
+	// Section 8.2.2 makes Event 1 in Idle "set ConnectRetryCounter to zero",
+	// and ze fires a start event once per connection cycle because each cycle
+	// builds a new FSM. Firing Event 1 there would zero the counter on every
+	// retry and leave it structurally incapable of counting one. The RFC gives
+	// Events 6 and 7 no action list at all ("The method of preventing
+	// persistent peer oscillation is outside the scope of this document"), and
+	// in particular no ConnectRetryCounter clause, which is exactly the
+	// semantics a damped retry needs.
+	EventAutomaticStartWithDampPeerOscillations
+
+	// EventAutomaticStop: RFC 4271 Section 8.1.2 Event 8 (Optional)
+	// The local system, not the operator, stops the BGP connection. The RFC's
+	// own example is a prefix maximum being exceeded; ze also raises it for a
+	// BFD session going down (reactor/peer_bfd.go) and for a forward-pool
+	// out-of-resources teardown (reactor/forward_pool_congestion.go).
+	//
+	// It is distinct from EventManualStop for one reason that shows: RFC 4271
+	// Section 8.2.2 makes Event 2 set the ConnectRetryCounter to zero and
+	// Event 8 increment it. A daemon that stopped a peer because the peer was
+	// unreachable has just recorded a failed attempt, not been told by an
+	// operator to forget the ones before it.
+	EventAutomaticStop
+
+	// EventOpenCollisionDump: RFC 4271 Section 8.1.5 Event 23 (Optional)
+	// A connection collision (Section 6.8) was resolved against this
+	// connection and it must be closed. Ze raises it from
+	// Session.CloseWithNotification, whose only caller is the collision
+	// resolution in reactor/peer_connection.go.
+	//
+	// Like Event 8 it exists so the ConnectRetryCounter is right: RFC 4271
+	// Section 8.2.2 lists "increments the ConnectRetryCounter by 1" in the
+	// Event 23 action list of OpenSent, OpenConfirm and Established, where
+	// Event 2 would have zeroed it.
+	EventOpenCollisionDump
 )
 
 var eventNames = map[Event]string{
@@ -168,6 +216,10 @@ var eventNames = map[Event]string{
 	EventKeepaliveMsg:             "KeepaliveMsg",
 	EventUpdateMsg:                "UpdateMsg",
 	EventUpdateMsgErr:             "UpdateMsgErr",
+
+	EventAutomaticStartWithDampPeerOscillations: "AutomaticStartWithDampPeerOscillations",
+	EventAutomaticStop:                          "AutomaticStop",
+	EventOpenCollisionDump:                      "OpenCollisionDump",
 }
 
 // String returns a human-readable event name.

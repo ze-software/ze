@@ -43,15 +43,16 @@ The state-change callback in `peer_run.go`:
 
 | Event | Produced by | FSM reaction | Wire side effect | Next state |
 |-------|-------------|--------------|------------------|------------|
-| `EventManualStop` | `Session.Close/Teardown/CloseWithNotification` | cleanup in caller | Cease NOTIFICATION in caller | `Idle` |
+| `EventManualStop` | `Session.Close` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION in caller | `Idle` |
+| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.TeardownAutomatic` (BFD down, out of resources) / `Session.CloseWithNotification` (collision) | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
 | `EventKeepaliveMsg` | `handleKeepalive` | stay (hold timer reset in caller) | none | `Established` |
 | `EventKeepaliveTimerExpires` | `OnKeepaliveTimerExpires` callback | stay | KEEPALIVE sent from callback body | `Established` |
 | `EventUpdateMsg` | `handleUpdate` after RFC 7606 + prefix-limit checks | stay (FSM no-op) | UPDATE forwarded to plugins and peers in caller | `Established` |
-| `EventHoldTimerExpires` | hold-timer callback (after congestion extension check) | cleanup in caller | NOTIFICATION (HoldTimerExpired) in caller | `Idle` |
-| `EventNotifMsg` / `EventNotifMsgVerErr` | `handleNotification` | cleanup in caller | none | `Idle` |
-| `EventUpdateMsgErr` | `processMessage` / RFC 7606 session-reset path | cleanup in caller | NOTIFICATION (Update error) in caller | `Idle` |
-| `EventBGPHeaderErr` | `readAndProcessMessage` / `handleUnknownType` | cleanup in caller | NOTIFICATION in caller | `Idle` |
-| `EventTCPConnectionFails` | `handleConnectionClose` | cleanup in caller | none | `Idle` |
+| `EventHoldTimerExpires` | hold-timer callback | cleanup in caller; **increments ConnectRetryCounter** | NOTIFICATION (HoldTimerExpired) from the callback | `Idle` |
+| `EventNotifMsg` / `EventNotifMsgVerErr` | `handleNotification` | cleanup in caller; **increments ConnectRetryCounter** (Established is the one state whose Event 24 clause carries the counter line) | none | `Idle` |
+| `EventUpdateMsgErr` | `processMessage` / RFC 7606 session-reset path | cleanup in caller; **increments ConnectRetryCounter** | NOTIFICATION (Update error) in caller | `Idle` |
+| `EventBGPHeaderErr` | `readAndProcessMessage` / `handleUnknownType` | cleanup in caller; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
+| `EventTCPConnectionFails` | `handleConnectionClose` | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
 | any other event | unexpected | log transition | none | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleEstablished -->
@@ -97,7 +98,7 @@ runbook).
 
 | Timer | Status | Reset/fired by |
 |-------|--------|-----------------|
-| HoldTimer | **running** (negotiated value) | reset inside the FSM when `EventKeepaliveMsg` or `EventUpdateMsg` fires (RFC 4271 §8.2.2 Events 26, 27); fires `EventHoldTimerExpires` on expiry (subject to congestion extension) |
+| HoldTimer | **running** (negotiated value) | reset inside the FSM when `EventKeepaliveMsg` or `EventUpdateMsg` fires (RFC 4271 §8.2.2 Events 26, 27); fires `EventHoldTimerExpires` on expiry |
 | KeepaliveTimer | **running** (hold/3) | periodic refire; callback sends KEEPALIVE and fires `EventKeepaliveTimerExpires` |
 | SendHoldTimer (RFC 9687) | **running** | reset on every successful write to the peer; fires teardown if we cannot send for too long |
 | ConnectRetryTimer | not running | not used in production |
@@ -106,14 +107,13 @@ runbook).
 <!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires, OnKeepaliveTimerExpires -->
 <!-- source: internal/component/bgp/reactor/session_write.go — startSendHoldTimer, stopSendHoldTimer -->
 
-### Hold timer congestion extension
+### Hold timer expiry
 
-Same behavior as described in the OpenSent runbook: if `recentRead` is
-true when the hold timer fires, it is reset instead of teardown. This
-lets a CPU-congested daemon survive temporary processing lag without
-dropping healthy sessions.
+Same behavior as described in the OpenSent runbook: a hold timer expiry
+always stops the session, per RFC 4271 Section 8.2.2, Event 10. Ze
+grants no reprieve to a CPU-congested daemon.
 
-<!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires recentRead.Swap -->
+<!-- source: internal/component/bgp/reactor/session.go -- OnHoldTimerExpires callback -->
 
 ## Wire side effects
 
@@ -133,10 +133,10 @@ dropping healthy sessions.
   NOTIFICATION.
 - **On `EventKeepaliveTimerExpires`:** the callback fires the FSM event
   then calls `sendKeepalive(conn)`.
-- **On `EventHoldTimerExpires` (after congestion check):** the callback
-  fires the FSM event and signals `errChan` with `ErrHoldTimerExpired`.
-  The session Run loop observes and tears down, which sends the
-  NOTIFICATION.
+- **On `EventHoldTimerExpires`:** the callback sends NOTIFICATION code 4
+  (Hold Timer Expired, subcode 0), fires the FSM event, and signals
+  `errChan` with `ErrHoldTimerExpired`. The session Run loop observes
+  the error and starts the teardown.
   <!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires signals errChan -->
 
 ## Code map
@@ -167,7 +167,6 @@ dropping healthy sessions.
   the session's `OnKeepaliveTimerExpires` callback body; the FSM handler
   is documentation.
   <!-- source: internal/component/bgp/reactor/session.go — OnKeepaliveTimerExpires -->
-- **Hold timer congestion extension** is a ze-specific extension.
 
 ## Compatibility notes
 

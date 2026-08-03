@@ -399,6 +399,13 @@ func (s *Session) Close() error {
 
 // CloseWithNotification closes the session with a specific NOTIFICATION.
 // RFC 4271 §6.8: Used for collision detection to close with Cease/Connection Collision.
+//
+// It fires RFC 4271 Event 23 (OpenCollisionDump), not Event 2 (ManualStop),
+// because the collision resolution is the local system's decision and not the
+// operator's. The two events reach Idle alike; they differ on the
+// ConnectRetryCounter, which §8.2.2 has Event 23 INCREMENT and Event 2 zero
+// (fsm/connect_retry_counter.go). A connection lost to a collision is an
+// attempt that failed, so zeroing there would erase a real retry history.
 func (s *Session) CloseWithNotification(code message.NotifyErrorCode, subcode uint8) error {
 	s.timers.StopAll()
 
@@ -411,7 +418,7 @@ func (s *Session) CloseWithNotification(code message.NotifyErrorCode, subcode ui
 	}
 
 	s.closeConn()
-	s.logFSMEvent(fsm.EventManualStop)
+	s.logFSMEvent(fsm.EventOpenCollisionDump)
 
 	return nil
 }
@@ -423,6 +430,25 @@ func (s *Session) CloseWithNotification(code message.NotifyErrorCode, subcode ui
 // If shutdownMsg is non-empty and subcode is 2 or 4, it is included per RFC 8203.
 // If shutdownMsg is empty, the subcode name is used as a default message.
 func (s *Session) Teardown(subcode uint8, shutdownMsg string) error {
+	return s.teardown(subcode, shutdownMsg, fsm.EventManualStop)
+}
+
+// TeardownAutomatic is Teardown for a stop the LOCAL SYSTEM chose rather than
+// the operator: a BFD session going down (peer_bfd.go), a forward-pool
+// out-of-resources drop (forward_pool_congestion.go).
+//
+// It differs from Teardown in the FSM event alone, and that difference is
+// RFC 4271 §8.2.2's: Event 8 (AutomaticStop) increments the
+// ConnectRetryCounter where Event 2 (ManualStop) zeroes it. §8.1.2 defines
+// Event 8 as "Local system automatically stops the BGP connection", and gives
+// a prefix maximum as its example. Everything else about the teardown -- the
+// Cease NOTIFICATION, the RFC 8203 shutdown communication, the close reason,
+// the errChan signal -- is identical.
+func (s *Session) TeardownAutomatic(subcode uint8, shutdownMsg string) error {
+	return s.teardown(subcode, shutdownMsg, fsm.EventAutomaticStop)
+}
+
+func (s *Session) teardown(subcode uint8, shutdownMsg string, stopEvent fsm.Event) error {
 	// Mark session as tearing down to prevent accepting new connections
 	s.tearingDown.Store(true)
 
@@ -454,7 +480,7 @@ func (s *Session) Teardown(subcode uint8, shutdownMsg string) error {
 	// as a teardown (not just a connection reset) after ReadFull returns error.
 	s.setCloseReason(ErrTeardown)
 	s.closeConn()
-	s.logFSMEvent(fsm.EventManualStop)
+	s.logFSMEvent(stopEvent)
 
 	// Signal errChan so the cancel goroutine in Run() exits cleanly.
 	// Non-blocking: channel may be full if cancel goroutine already consumed

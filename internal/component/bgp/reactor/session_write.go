@@ -22,6 +22,18 @@ import (
 // controlWriteDeadlineMin is the minimum write deadline for control messages.
 const controlWriteDeadlineMin = 10 * time.Second
 
+// holdExpiryNotifyDeadline bounds the write of the RFC 4271 Section 8.2.2
+// Event 10 NOTIFICATION (session.go, the OnHoldTimerExpires callback).
+//
+// The obligation is to send it, not to wait for a peer that will not read it.
+// controlWriteDeadlineMin above would let a peer whose receive window is shut
+// hold the teardown open for ten seconds ON TOP of the hold time, delaying the
+// one thing the hold timer exists to do, for a peer that has already been
+// silent for a full hold time and is now refusing bytes as well. One second is
+// far beyond what a healthy socket needs for 21 octets, so conformance is
+// unaffected wherever the peer can receive at all.
+const holdExpiryNotifyDeadline = time.Second
+
 // sendKeepalive sends a KEEPALIVE message.
 func (s *Session) sendKeepalive(conn net.Conn) error {
 	return s.writeMessage(conn, message.NewKeepalive())
@@ -48,12 +60,18 @@ func notifySubcodeValue(code message.NotifyErrorCode, subcode uint8) any {
 // sendNotification sends a NOTIFICATION message.
 // Increments the notification counter only after a successful write.
 func (s *Session) sendNotification(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte) error {
+	return s.sendNotificationWithin(conn, code, subcode, data, s.controlWriteDeadline())
+}
+
+// sendNotificationWithin is sendNotification with a caller-chosen write
+// deadline. See writeMessageWithin.
+func (s *Session) sendNotificationWithin(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte, deadline time.Duration) error {
 	notif := &message.Notification{
 		ErrorCode:    code,
 		ErrorSubcode: subcode,
 		Data:         data,
 	}
-	err := s.writeMessage(conn, notif)
+	err := s.writeMessageWithin(conn, notif, deadline)
 	if err == nil {
 		// A NOTIFICATION is the only wire signal that ZE, rather than the peer or the
 		// network, ended this session -- and it produced a counter, a Prometheus label and
@@ -84,6 +102,15 @@ func (s *Session) sendNotification(conn net.Conn, code message.NotifyErrorCode, 
 // Always flushes immediately -- used for KEEPALIVE, OPEN, NOTIFICATION.
 // Sets a write deadline to prevent indefinite blocking on stuck TCP.
 func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
+	return s.writeMessageWithin(conn, msg, s.controlWriteDeadline())
+}
+
+// writeMessageWithin is writeMessage with the write deadline chosen by the
+// caller. Only a caller whose own deadline is tighter than the control-message
+// budget needs it: the hold-expiry NOTIFICATION, which must not hold a teardown
+// open for the ten seconds controlWriteDeadline allows a peer to accept 21
+// octets (holdExpiryNotifyDeadline, session.go).
+func (s *Session) writeMessageWithin(conn net.Conn, msg message.Message, deadline time.Duration) error {
 	if conn == nil {
 		return ErrNotConnected
 	}
@@ -94,7 +121,6 @@ func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 	// Set write deadline to prevent indefinite blocking on stuck TCP.
 	// Without this, a stuck connection holds writeMu forever, preventing
 	// the forward worker from detecting the failure and triggering teardown.
-	deadline := s.controlWriteDeadline()
 	if err := conn.SetWriteDeadline(s.clock.Now().Add(deadline)); err != nil {
 		return err
 	}

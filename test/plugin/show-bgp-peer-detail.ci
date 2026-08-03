@@ -81,6 +81,10 @@ def main():
             errors.append('missing connections-dropped')
         if 'flap-count' not in peer:
             errors.append('missing flap-count')
+        # RFC 4271 8.1.1 mandatory session attribute 2. Presence only: an
+        # established peer has made no failed attempt, so the value is 0 here.
+        if 'connect-retry-counter' not in peer:
+            errors.append('missing connect-retry-counter')
 
         # Backward compat: flat fields must still exist
         for field in ('updates-received', 'updates-sent', 'keepalives-received', 'keepalives-sent', 'eor-received', 'eor-sent'):

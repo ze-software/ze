@@ -9,9 +9,20 @@ import (
 	"github.com/ze-software/ze/internal/test/sim"
 )
 
-// graceExtension mirrors the fixed 10 s grace window the reactor's grace branch
-// passes to GraceRearmHoldTimer (spec Q-1). Scaled down here for fast tests.
-const testGraceExtension = 10 * time.Millisecond
+// rfc-test-change-approved: 2026-08-03 -- Thomas ruled for full RFC 4271
+// Section 8.2.2 Event 10 conformance and ordered the hold-timer grace removed:
+// a hold expiry now always tears the session down, with no reprieve. The tests
+// in this file that PINNED the grace are therefore wrong and are inverted to
+// assert its absence, per ai/rules/testing.md. He accepted the stated
+// cost: a CPU-congested daemon will now drop sessions it used to keep. This
+// supersedes spec Q-1 (2026-07-17), which settled only the grace DURATION and
+// predates the 2026-07-27 void date in ai/rules/rfc-compliance.md.
+//
+// testNoGraceWindow is the window these tests advance the clock by AFTER a hold
+// expiry to prove no reprieve of any size was granted. It is deliberately
+// larger than the hold times used here, so a re-introduced grace would fire a
+// second expiry inside it and turn the assertions red.
+const testNoGraceWindow = 10 * time.Millisecond
 
 // TestTimersCreation verifies timer initialization.
 //
@@ -443,50 +454,53 @@ func newFakeTimers(hold time.Duration) (*Timers, *sim.FakeClock) {
 	return t, fc
 }
 
-// TestHoldTimerRearmsAfterGracedExpiry verifies AC-1/AC-2 of the
-// fixit-bgp-session-fsm-lifecycle spec: a hold expiry taken via the grace branch
-// re-arms the timer (so dead-peer detection survives the first graced expiry),
-// and a subsequent expiry with no intervening grace tears the session down.
+// rfc-test-change-approved: 2026-08-03 -- Thomas ruled for full RFC 4271
+// Section 8.2.2 Event 10 conformance: the hold-timer grace is removed and the
+// FIRST expiry always tears the session down. This test previously asserted the
+// opposite (a graced expiry re-armed) and is inverted rather than deleted.
+// test-relax: the two assertions dropped here ("hold timer must still be armed
+// after a graced expiry" and "session tears down on the NEXT expiry") assert a
+// REMOVED feature -- the grace re-arm and GraceRearmHoldTimer are both gone.
+// They are replaced by the stronger opposite: nothing re-arms after an expiry,
+// checked across a window larger than the reprieve that used to exist.
 //
-// VALIDATES: AC-1 (survives first graced expiry, tears down on next) and AC-2
-// (hold timer is still armed after a graced expiry).
+// TestHoldTimerNeverRearmsAfterExpiry is the timer-level half of RFC 4271
+// Section 8.2.2 Event 10: HoldTimer_Expires has no branch that keeps the
+// session. The expiry fires once, the timer stays disarmed, and no further
+// expiry can be produced no matter how far the clock advances.
 //
-// PREVENTS: Regressing to the pre-fix behavior where the first graced expiry
-// permanently disabled dead-peer detection for the session's life.
-func TestHoldTimerRearmsAfterGracedExpiry(t *testing.T) {
+// VALIDATES: RFC 4271 Section 8.2.2 Event 10 -- the action list runs on the
+// first expiry, so the timer must not re-arm itself behind the callback.
+//
+// PREVENTS: re-introducing the reprieve. Ze used to grant one 10 s grace window
+// when the read loop had recently seen traffic, tearing down only on the NEXT
+// expiry, which doubled worst-case dead-peer detection and deviated from the
+// Event 10 action list. A restored grace fires a second expiry inside
+// testNoGraceWindow and turns the fireCount assertions red.
+func TestHoldTimerNeverRearmsAfterExpiry(t *testing.T) {
 	const hold = 90 * time.Millisecond
 	timers, fc := newFakeTimers(hold)
 
 	var fireCount int
-	timers.OnHoldTimerExpires(func() {
-		fireCount++
-		if fireCount == 1 {
-			// First expiry: model the grace branch (recent read activity) that
-			// re-arms for the bounded grace window instead of tearing down.
-			timers.GraceRearmHoldTimer(testGraceExtension)
-		}
-		// Second expiry: model the teardown decision (no re-arm).
-	})
+	timers.OnHoldTimerExpires(func() { fireCount++ })
 
 	timers.StartHoldTimer()
 	require.True(t, timers.IsHoldTimerRunning())
 
-	// First expiry → grace re-arm.
 	fc.Add(hold)
-	require.Equal(t, 1, fireCount, "first hold expiry should have fired")
-	require.True(t, timers.IsHoldTimerRunning(),
-		"AC-2: hold timer must still be armed after a graced expiry")
-
-	// Grace window has NOT elapsed yet: no second fire.
-	fc.Add(testGraceExtension - time.Millisecond)
-	require.Equal(t, 1, fireCount, "grace window not yet elapsed")
-	require.True(t, timers.IsHoldTimerRunning())
-
-	// Grace window elapses → second expiry → teardown (no re-arm).
-	fc.Add(2 * time.Millisecond)
-	require.Equal(t, 2, fireCount, "AC-1: session tears down on the next expiry")
+	require.Equal(t, 1, fireCount, "the hold timer must fire once at holdTime")
 	require.False(t, timers.IsHoldTimerRunning(),
-		"AC-1: hold timer is not re-armed after the teardown expiry")
+		"RFC 4271 Section 8.2.2 Event 10: the expiry tears the session down, so "+
+			"the hold timer must be left disarmed, not re-armed for a reprieve")
+
+	// No reprieve of ANY size: advance well past both the old 10 s grace window
+	// (scaled) and a full further hold time. Nothing may fire again.
+	fc.Add(testNoGraceWindow)
+	require.Equal(t, 1, fireCount, "no grace window may follow a hold expiry")
+	fc.Add(hold)
+	require.Equal(t, 1, fireCount,
+		"a hold expiry is final: the timer must not re-arm for another hold time")
+	require.False(t, timers.IsHoldTimerRunning())
 }
 
 // TestHoldTimerGenerationGuard verifies A-2/R-3 of the spec: a stale fired
@@ -518,20 +532,29 @@ func TestHoldTimerGenerationGuard(t *testing.T) {
 			"stale fired closure must not disarm a freshly armed timer")
 	})
 
-	t.Run("grace re-arm no-ops after StopAll", func(t *testing.T) {
+	// rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
+	// removed for full RFC 4271 Section 8.2.2 Event 10 conformance.
+	// test-relax: this subtest asserted that GraceRearmHoldTimer LOSES a race
+	// with StopAll. That function is deleted, so the race it guarded cannot be
+	// expressed. The property that still matters -- an expiry callback cannot
+	// resurrect the timer -- is asserted directly below against the only re-arm
+	// entry point left.
+	t.Run("no re-arm entry point survives an expiry", func(t *testing.T) {
 		timers, fc := newFakeTimers(90 * time.Millisecond)
 		timers.OnHoldTimerExpires(func() {
-			// A concurrent teardown stops all timers during the callback, then
-			// the grace branch attempts to re-arm. The re-arm must lose.
-			timers.StopAll()
-			timers.GraceRearmHoldTimer(testGraceExtension)
+			// The expiry callback is where the grace used to re-arm. Every
+			// remaining re-arm path must refuse from here: fireHold has already
+			// cleared holdRunning, and ResetHoldTimer's !holdRunning guard is
+			// what keeps a late FSM event from resurrecting a dying session.
+			timers.ResetHoldTimer()
 		})
 
 		timers.StartHoldTimer()
-		fc.Add(90 * time.Millisecond) // fire → callback stops then tries to re-arm
+		fc.Add(90 * time.Millisecond)
 
 		require.False(t, timers.IsHoldTimerRunning(),
-			"grace re-arm must not resurrect a timer torn down by StopAll (R-3)")
+			"RFC 4271 Section 8.2.2 Event 10: nothing called from the expiry "+
+				"callback may re-arm the hold timer and keep the session alive")
 	})
 }
 
@@ -557,11 +580,11 @@ func TestResetHoldTimerStillNoOpsAfterStop(t *testing.T) {
 	require.False(t, timers.IsHoldTimerRunning(),
 		"ResetHoldTimer must not re-arm after StopAll")
 
-	// GraceRearmHoldTimer must likewise refuse (no fire ever occurred, so the
-	// generation window is closed).
-	timers.GraceRearmHoldTimer(testGraceExtension)
-	require.False(t, timers.IsHoldTimerRunning(),
-		"GraceRearmHoldTimer must not re-arm a stopped timer")
+	// rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
+	// removed for full RFC 4271 Section 8.2.2 Event 10 conformance.
+	// test-relax: the GraceRearmHoldTimer assertion here covered a REMOVED
+	// function. ResetHoldTimer above is now the only re-arm entry point and is
+	// already asserted to refuse; nothing else can re-arm a stopped timer.
 
 	fc.Add(200 * time.Millisecond)
 	require.Equal(t, 0, fired, "no expiry should fire after a deliberate stop")
@@ -583,46 +606,59 @@ func TestHoldTimeZeroStaysDisabled(t *testing.T) {
 	timers.StartHoldTimer()
 	require.False(t, timers.IsHoldTimerRunning())
 
-	// Grace re-arm must also stay disabled at hold time 0.
-	timers.GraceRearmHoldTimer(testGraceExtension)
+	// rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
+	// removed for full RFC 4271 Section 8.2.2 Event 10 conformance.
+	// test-relax: the grace-re-arm-at-hold-time-0 assertion covered a REMOVED
+	// function. ResetHoldTimer is now the only re-arm entry point; its own
+	// holdTime == 0 guard is asserted here instead, which is the clause RFC 4271
+	// Section 4.4 actually binds.
+	timers.ResetHoldTimer()
 	require.False(t, timers.IsHoldTimerRunning())
 
 	fc.Add(1 * time.Second)
 	require.Equal(t, 0, fired, "no hold timer may fire when hold time is 0")
 }
 
-// TestGraceRearmClampsToHoldTime verifies the D-2 boundary: the grace extension
-// is clamped to holdTime, so a requested window larger than holdTime never
-// extends dead-peer detection beyond the negotiated hold time.
+// rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
+// removed for full RFC 4271 Section 8.2.2 Event 10 conformance. This test
+// previously pinned the grace window's clamp to holdTime; the window itself no
+// longer exists, so it is inverted to assert that dead-peer detection completes
+// in ONE hold time rather than being bounded at two.
+// test-relax: the clamp assertions covered a REMOVED function
+// (GraceRearmHoldTimer). The boundary they protected -- worst-case dead-peer
+// detection -- is asserted directly here instead, and is now tighter.
 //
-// VALIDATES: boundary — grace extension clamped to holdTime (D-2).
+// TestHoldExpiryIsFinalAtOneHoldTime is the boundary this file owes RFC 4271
+// Section 8.2.2 Event 10: the whole dead-peer detection budget is ONE hold time.
 //
-// PREVENTS: A grace window > holdTime doubling worst-case dead-peer detection.
-func TestGraceRearmClampsToHoldTime(t *testing.T) {
+// VALIDATES: worst-case dead-peer detection equals holdTime. Nothing fires
+// before it, the expiry lands on it, and nothing extends past it.
+//
+// PREVENTS: the reprieve returning in any form. Ze used to re-arm for
+// min(10 s, holdTime) after the first expiry, so a silent peer survived up to
+// TWO hold times. That behavior fires a second expiry at 2×holdTime, inside
+// the window this test advances through, and the fireCount assertion catches it.
+func TestHoldExpiryIsFinalAtOneHoldTime(t *testing.T) {
 	const hold = 20 * time.Millisecond
 	timers, fc := newFakeTimers(hold)
 
 	var fireCount int
-	timers.OnHoldTimerExpires(func() {
-		fireCount++
-		if fireCount == 1 {
-			// Request a grace window far larger than holdTime; it must clamp.
-			timers.GraceRearmHoldTimer(10 * hold)
-		}
-	})
+	timers.OnHoldTimerExpires(func() { fireCount++ })
 
 	timers.StartHoldTimer()
-	fc.Add(hold) // first expiry → grace re-arm clamped to holdTime (20ms)
-	require.Equal(t, 1, fireCount)
-	require.True(t, timers.IsHoldTimerRunning())
 
-	// Just before holdTime elapses again: no second fire (proves it re-armed to
-	// at least holdTime, not something tiny).
+	// Nothing fires early: the budget is a full hold time, not less.
 	fc.Add(hold - time.Millisecond)
-	require.Equal(t, 1, fireCount, "clamped window must be at least... just under holdTime here")
+	require.Equal(t, 0, fireCount, "the hold timer must not fire before holdTime")
 
-	// At holdTime the clamped window elapses → second fire.
-	fc.Add(2 * time.Millisecond)
-	require.Equal(t, 2, fireCount,
-		"clamped grace window must equal holdTime, firing at holdTime not 10×holdTime")
+	// The expiry lands at holdTime and is final.
+	fc.Add(time.Millisecond)
+	require.Equal(t, 1, fireCount, "the hold timer must fire at holdTime")
+	require.False(t, timers.IsHoldTimerRunning())
+
+	// Ten further hold times: a re-armed grace of any size would fire in here.
+	fc.Add(10 * hold)
+	require.Equal(t, 1, fireCount,
+		"dead-peer detection completes in ONE hold time: no second expiry may "+
+			"follow, which is what a grace re-arm would produce")
 }

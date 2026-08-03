@@ -87,6 +87,9 @@ func TestEventConstants(t *testing.T) {
 		EventKeepaliveMsg,
 		EventUpdateMsg,
 		EventUpdateMsgErr,
+		EventAutomaticStartWithDampPeerOscillations,
+		EventAutomaticStop,
+		EventOpenCollisionDump,
 	}
 
 	seen := make(map[Event]bool)
@@ -106,6 +109,10 @@ func TestEventString(t *testing.T) {
 	require.Equal(t, "ManualStop", EventManualStop.String())
 	require.Equal(t, "HoldTimerExpires", EventHoldTimerExpires.String())
 	require.Equal(t, "BGPOpen", EventBGPOpen.String())
+	require.Equal(t, "AutomaticStartWithDampPeerOscillations",
+		EventAutomaticStartWithDampPeerOscillations.String())
+	require.Equal(t, "AutomaticStop", EventAutomaticStop.String())
+	require.Equal(t, "OpenCollisionDump", EventOpenCollisionDump.String())
 	require.Equal(t, "UNKNOWN(255)", Event(255).String())
 }
 
@@ -353,6 +360,14 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{"Idle_KeepaliveMsg", StateIdle, false, EventKeepaliveMsg, StateIdle},
 		{"Idle_UpdateMsg", StateIdle, false, EventUpdateMsg, StateIdle},
 		{"Idle_UpdateMsgErr", StateIdle, false, EventUpdateMsgErr, StateIdle},
+		// RFC 4271 Section 8.2.2 Event 6: same branch choice as Event 1, and
+		// deliberately no ConnectRetryCounter reset (rfc4271_connect_retry_test.go).
+		{"Idle_DampedStart_active", StateIdle, false, EventAutomaticStartWithDampPeerOscillations, StateConnect},
+		{"Idle_DampedStart_passive", StateIdle, true, EventAutomaticStartWithDampPeerOscillations, StateActive},
+		// RFC 4271 Section 8.2.2: Event 8 is ignored in Idle beside Event 2;
+		// Event 23 falls to the same do-nothing default arm.
+		{"Idle_AutomaticStop", StateIdle, false, EventAutomaticStop, StateIdle},
+		{"Idle_OpenCollisionDump", StateIdle, false, EventOpenCollisionDump, StateIdle},
 
 		// === CONNECT state ===
 		// RFC 4271 Section 8.2.2: Start events ignored, TCPConfirmed → OpenSent,
@@ -372,6 +387,9 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{"Connect_KeepaliveMsg", StateConnect, false, EventKeepaliveMsg, StateIdle},
 		{"Connect_UpdateMsg", StateConnect, false, EventUpdateMsg, StateIdle},
 		{"Connect_UpdateMsgErr", StateConnect, false, EventUpdateMsgErr, StateIdle},
+		{"Connect_DampedStart", StateConnect, false, EventAutomaticStartWithDampPeerOscillations, StateConnect},
+		{"Connect_AutomaticStop", StateConnect, false, EventAutomaticStop, StateIdle},
+		{"Connect_OpenCollisionDump", StateConnect, false, EventOpenCollisionDump, StateIdle},
 
 		// === ACTIVE state ===
 		// RFC 4271 Section 8.2.2: Start events ignored, TCPConfirmed → OpenSent,
@@ -393,6 +411,9 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{"Active_KeepaliveMsg", StateActive, false, EventKeepaliveMsg, StateIdle},
 		{"Active_UpdateMsg", StateActive, false, EventUpdateMsg, StateIdle},
 		{"Active_UpdateMsgErr", StateActive, false, EventUpdateMsgErr, StateIdle},
+		{"Active_DampedStart", StateActive, false, EventAutomaticStartWithDampPeerOscillations, StateActive},
+		{"Active_AutomaticStop", StateActive, false, EventAutomaticStop, StateIdle},
+		{"Active_OpenCollisionDump", StateActive, false, EventOpenCollisionDump, StateIdle},
 
 		// === OPENSENT state ===
 		// RFC 4271 Section 8.2.2: BGPOpen → OpenConfirm, HoldTimer/errors → Idle,
@@ -412,6 +433,9 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{"OpenSent_KeepaliveMsg", StateOpenSent, false, EventKeepaliveMsg, StateIdle},
 		{"OpenSent_UpdateMsg", StateOpenSent, false, EventUpdateMsg, StateIdle},
 		{"OpenSent_UpdateMsgErr", StateOpenSent, false, EventUpdateMsgErr, StateIdle},
+		{"OpenSent_DampedStart", StateOpenSent, false, EventAutomaticStartWithDampPeerOscillations, StateIdle},
+		{"OpenSent_AutomaticStop", StateOpenSent, false, EventAutomaticStop, StateIdle},
+		{"OpenSent_OpenCollisionDump", StateOpenSent, false, EventOpenCollisionDump, StateIdle},
 
 		// === OPENCONFIRM state ===
 		// RFC 4271 Section 8.2.2: KeepaliveMsg → Established, HoldTimer/errors → Idle,
@@ -431,6 +455,9 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{"OpenConfirm_KeepaliveMsg", StateOpenConfirm, false, EventKeepaliveMsg, StateEstablished},
 		{"OpenConfirm_UpdateMsg", StateOpenConfirm, false, EventUpdateMsg, StateIdle},
 		{"OpenConfirm_UpdateMsgErr", StateOpenConfirm, false, EventUpdateMsgErr, StateIdle},
+		{"OpenConfirm_DampedStart", StateOpenConfirm, false, EventAutomaticStartWithDampPeerOscillations, StateIdle},
+		{"OpenConfirm_AutomaticStop", StateOpenConfirm, false, EventAutomaticStop, StateIdle},
+		{"OpenConfirm_OpenCollisionDump", StateOpenConfirm, false, EventOpenCollisionDump, StateIdle},
 
 		// === ESTABLISHED state ===
 		// RFC 4271 Section 8.2.2: KeepaliveMsg/UpdateMsg → Established,
@@ -450,6 +477,9 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{"Established_KeepaliveMsg", StateEstablished, false, EventKeepaliveMsg, StateEstablished},
 		{"Established_UpdateMsg", StateEstablished, false, EventUpdateMsg, StateEstablished},
 		{"Established_UpdateMsgErr", StateEstablished, false, EventUpdateMsgErr, StateIdle},
+		{"Established_DampedStart", StateEstablished, false, EventAutomaticStartWithDampPeerOscillations, StateIdle},
+		{"Established_AutomaticStop", StateEstablished, false, EventAutomaticStop, StateIdle},
+		{"Established_OpenCollisionDump", StateEstablished, false, EventOpenCollisionDump, StateIdle},
 	}
 
 	// errorArms is an independent oracle of the {state,event} pairs that land in
@@ -473,16 +503,19 @@ func TestFSMExhaustiveTransitions(t *testing.T) {
 		{StateActive, EventUpdateMsg}, {StateActive, EventUpdateMsgErr},
 		// OPENSENT default arm
 		{StateOpenSent, EventManualStart}, {StateOpenSent, EventConnectRetryTimerExpires},
+		{StateOpenSent, EventAutomaticStartWithDampPeerOscillations},
 		{StateOpenSent, EventKeepaliveTimerExpires}, {StateOpenSent, EventTCPConnectionConfirmed},
 		{StateOpenSent, EventKeepaliveMsg}, {StateOpenSent, EventUpdateMsg},
 		{StateOpenSent, EventUpdateMsgErr},
 		// OPENCONFIRM default arm
 		{StateOpenConfirm, EventManualStart}, {StateOpenConfirm, EventConnectRetryTimerExpires},
+		{StateOpenConfirm, EventAutomaticStartWithDampPeerOscillations},
 		{StateOpenConfirm, EventTCPConnectionConfirmed}, {StateOpenConfirm, EventBGPOpen},
 		{StateOpenConfirm, EventUpdateMsg}, {StateOpenConfirm, EventUpdateMsgErr},
 		// ESTABLISHED default arm (note: Established handles EventBGPHeaderErr
 		// explicitly but NOT EventBGPOpenMsgErr, so the latter is an error arm).
 		{StateEstablished, EventManualStart}, {StateEstablished, EventConnectRetryTimerExpires},
+		{StateEstablished, EventAutomaticStartWithDampPeerOscillations},
 		{StateEstablished, EventTCPConnectionConfirmed}, {StateEstablished, EventBGPOpen},
 		{StateEstablished, EventBGPOpenMsgErr},
 	} {

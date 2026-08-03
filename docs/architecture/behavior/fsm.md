@@ -165,6 +165,79 @@ transition = {
 - **To:** IDLE
 <!-- source: internal/component/bgp/fsm/state.go -- EventHoldTimerExpires, EventTCPConnectionFails, EventNotifMsg -->
 
+### Optional events ze implements
+
+RFC 4271 Section 8.1.2 and Section 8.1.5 mark these three optional. Ze
+implements them because the ConnectRetryCounter below cannot be correct
+without them: each carries a counter clause that differs from the mandatory
+event it would otherwise be folded into.
+
+| Event | Ze producer | Why it is not the mandatory event beside it |
+|-------|-------------|---------------------------------------------|
+| Event 6, `AutomaticStart_with_DampPeerOscillations` | `Session.StartDamped`, from every reconnect cycle after the first | Event 1 (ManualStart) sets the ConnectRetryCounter to zero. Ze fires a start event per cycle because each cycle builds a new FSM, so Event 1 there would zero the counter on every retry |
+| Event 8, `AutomaticStop` | `Session.TeardownAutomatic`, from a BFD session going down and from a forward-pool out-of-resources drop | Event 2 (ManualStop) zeroes the counter; Event 8 increments it. The operator did not ask for this stop |
+| Event 23, `OpenCollisionDump` | `Session.CloseWithNotification`, whose only caller is RFC 4271 Section 6.8 collision resolution | Same difference as Event 8: a connection lost to a collision is an attempt that failed |
+
+<!-- source: internal/component/bgp/fsm/state.go -- EventAutomaticStartWithDampPeerOscillations, EventAutomaticStop, EventOpenCollisionDump -->
+<!-- source: internal/component/bgp/reactor/session_connection.go -- TeardownAutomatic, CloseWithNotification -->
+
+---
+
+## ConnectRetryCounter
+
+RFC 4271 Section 8.1.1 makes the ConnectRetryCounter a MANDATORY session
+attribute and defines it as "the number of times a BGP peer has tried to
+establish a peer session". Section 8.2.2 says exactly when it moves: a small
+set of events set it to zero, and every teardown the RFC counts as a failed
+attempt increments it by one.
+
+### Where it lives, and why not in the FSM
+
+The RFC keeps one FSM per peer for the life of that peer. Ze does not:
+`Peer.runOnce` builds a new `Session`, and therefore a new `FSM`, on every
+connection cycle, because the peer-level reconnect loop replaces the RFC's
+ConnectRetryTimer. A counter held in FSM state would reset on every retry and
+could never count one.
+
+So the counter is its own type, `fsm.ConnectRetryCounter`, the `Peer` owns the
+value, and `runOnce` hands the same pointer to each cycle's FSM through
+`FSM.SetConnectRetryCounter`. The FSM handlers own every mutation; nothing
+else writes it.
+
+<!-- source: internal/component/bgp/fsm/connect_retry_counter.go -- ConnectRetryCounter -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce -->
+
+### When it moves
+
+| Direction | Events | Note |
+|-----------|--------|------|
+| set to zero | Event 1 (ManualStart) in Idle; Event 2 (ManualStop) in every other state | Only the operator ends a retry history |
+| increment by 1 | Events 8, 10, 18, 21, 22, 23, 24, 25, 28, and each state's "any other event" arm | Which events apply is per state, not global |
+| unchanged | Event 6 (damped restart), Events 26 and 27 (KEEPALIVE, UPDATE), Event 19 in OpenSent, Event 11, and every event in Idle | The success path and the ignores |
+
+Three of those are per-state rather than uniform, and the FSM handlers say so
+in each arm:
+
+- Event 24 (NotifMsgVerErr) increments in Connect, Active and Established, and
+  does NOT in OpenSent or OpenConfirm, where its action list has no counter
+  line.
+- Event 18 (TcpConnectionFails) increments in Active, OpenConfirm and
+  Established, and does NOT in Connect or OpenSent.
+- Event 10 (HoldTimer_Expires) applies only where the timer can be armed:
+  OpenSent, OpenConfirm and Established.
+
+<!-- source: internal/component/bgp/fsm/fsm.go -- handleIdle, handleConnect, handleActive, handleOpenSent, handleOpenConfirm, handleEstablished -->
+
+### Reading it
+
+`show bgp peer <address> detail` carries it as `connect-retry-counter`, and
+Prometheus publishes it as the `ze_bgp_connect_retry_counter` gauge
+(`docs/guide/monitoring.md`). It is a gauge rather than a counter because the
+zeroing clauses make the value go down, which a Prometheus counter may not do.
+
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- HandleBgpPeerDetail -->
+<!-- source: internal/component/bgp/reactor/reactor_metrics.go -- updatePeriodicMetrics -->
+
 ---
 
 ## Timers

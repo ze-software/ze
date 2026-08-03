@@ -298,6 +298,7 @@ option=<type>:key=value[:key=value...]
 | `timeout` | `value=<duration>` | Test timeout (e.g., `30s`). Overrides auto-timeout. |
 | `tcp_connections` | `value=<N>` | Number of TCP connections |
 | `linger` | `value=true` | Peer-block only: after all expectations complete, the check peer prints its success token and holds the session open (answering KEEPALIVEs) until test teardown. Without it a completed peer closes its connection, which ze correctly treats as session-down — withdrawing that peer's routes and racing any forwarding still in flight toward other peers. |
+| `silent` | `value=true` | Peer-block only, check mode only: the peer stops sending the automatic KEEPALIVE reply it otherwise writes for every message it receives. It holds the TCP connection open and keeps reading and matching expectations. Needed to reach ze's receive hold timer: ze sends its own KEEPALIVE every hold/3 seconds, each automatic reply resets ze's hold timer, and "the peer went quiet" is otherwise unexpressible. A closed connection is a different event on a different code path, so `action=close` does not substitute. **Explicit writes still happen**: `action=send`, `action=notification`, the OPEN handshake itself, and `option=linger`'s post-completion KEEPALIVE loop are unaffected, so `silent` with `linger` is not silent. Sink and echo modes ignore it. See `test/plugin/deadpeer-holddown.ci`. |
 | `open` | `value=<behavior>` | OPEN message behavior |
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |

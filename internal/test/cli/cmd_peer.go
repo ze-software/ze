@@ -215,6 +215,9 @@ func zeTestMergePeerFileConfig(config, fileConfig *peer.Config) {
 	if fileConfig.Linger {
 		config.Linger = true
 	}
+	if fileConfig.Silent {
+		config.Silent = true
+	}
 	if len(fileConfig.CapabilityOverrides) > 0 {
 		config.CapabilityOverrides = fileConfig.CapabilityOverrides
 	}

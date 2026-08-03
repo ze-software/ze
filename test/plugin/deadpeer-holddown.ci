@@ -1,0 +1,259 @@
+# Test: a peer that goes silent is torn down on its FIRST hold expiry.
+#
+# rfc-test-change-approved: 2026-08-03 -- Thomas approved two changes here.
+#   (1) He ruled for full RFC 4271 Section 8.2.2 Event 10 conformance and
+#       ordered the hold-timer grace removed, accepting that a CPU-congested
+#       daemon will now drop sessions it used to keep. This test asserted the
+#       grace ("one graced expiry then teardown") and is inverted to assert its
+#       absence: teardown on the first expiry, inside ONE hold time. The ruling
+#       supersedes spec Q-1 (2026-07-17), which settled only the grace duration.
+#   (2) The `is None` guards on api.wait_until at the two runtime_fail sites.
+#       API.wait_until is annotated `-> bool` (test/scripts/ze_api.py) and
+#       returns wait_until(...), never None, so both runtime_fail branches were
+#       dead and the OK: lines printed unconditionally. `not` makes them real
+#       assertions. Does not touch the expect=bgp: expectation.
+#
+# RFC requirement: RFC4271-8.2.2-1 positive -- the silent peer reads a byte-exact
+#   NOTIFICATION with Error Code Hold Timer Expired (4) off the wire, produced by
+#   the real daemon on a real socket, before ze drops the connection.
+#
+# VALIDATES: RFC 4271 Section 8.2.2, HoldTimer_Expires (Event 10) -- an
+# Established session whose peer stops sending is torn down on the FIRST hold
+# expiry, and the local system "sends a NOTIFICATION message with the error code
+# Hold Timer Expired" BEFORE it drops the TCP connection. There is no reprieve.
+#
+# PREVENTS: the reprieve returning. Ze granted one bounded grace window when the
+# read loop had seen traffic since the timer was armed, and tore down only on the
+# NEXT expiry. Because that flag was set on EVERY read, essentially every
+# Established session took the grace on its first expiry, so worst-case
+# dead-peer detection was two hold times fleet-wide rather than one. The
+# teardown deadline below is shorter than two hold times, so a restored grace
+# fails this test rather than merely running slower.
+#
+# Why a .ci and not only the unit tests: the reactor unit tests
+# (TestHoldExpiryTearsDownOnTheFirstFireAfterTraffic and its twin in
+# session_hold_expiry_test.go) drive the real callback, but on a Session with a
+# fake clock. They cannot show the wire: that the expiry actually produces a
+# NOTIFICATION a peer can read, on a real socket, with the hold time the daemon
+# negotiated for itself.
+#
+# THE PEER IS SILENT ON PURPOSE (option=silent). A check peer normally answers
+# every message it receives with a KEEPALIVE. Ze sends its own KEEPALIVEs every
+# hold/3 seconds, so each reply would reset ze's receive hold timer and the
+# "peer went quiet" condition would be unreachable from a .ci. Silent holds the
+# TCP connection open and answers nothing, which is exactly the condition the
+# receive hold timer exists to detect -- a closed connection is a DIFFERENT
+# event on a different code path (handleConnectionClose).
+#
+# Timing: receive-hold-time is 3 s, the RFC 4271 Section 4.2 floor, so the whole
+# run is short. The peer goes quiet as soon as the session is up and the single
+# expiry at ~3 s tears it down. The observer's teardown deadline is 5 s, which
+# is under the ~6 s a re-armed grace would take, so this run distinguishes the
+# conformant timing from the old one rather than merely tolerating both.
+
+# Fast metrics interval so the Prometheus scrape below sees the counter without
+# waiting for the 10 s default tick. Must live OUTSIDE the stdin=peer block --
+# option=env is consumed by the test runner, not ze-peer.
+option=env:var=ze.metrics.interval:value=1s
+
+# ze-peer expectations: establish, then say nothing at all.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=silent:value=true
+option=timeout:value=40s
+
+# End-of-RIB from ze once the (empty) initial sync completes.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# NOTIFICATION, Hold Timer Expired (4), subcode 0, no data: 21 bytes total.
+# Subcode 0 per RFC 4271 Section 6: "If no Error Subcode is specified, then a
+# zero MUST be used" -- code 4 defines none.
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030400
+EOF_PEER
+
+tmpfs=deadpeer-watch.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Assert the session dropped within ONE hold time of going quiet.
+
+rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
+removed for full RFC 4271 Section 8.2.2 Event 10 conformance, so the graced
+counter this observer polled no longer exists and the reprieve it measured is
+gone. The observer is inverted to assert the conformant timing instead.
+
+The wire expectation above proves the NOTIFICATION. It cannot prove WHEN the
+daemon sent it: a session granted a reprieve and torn down on its SECOND expiry
+produces the same bytes, one hold time later, and that timing is the whole
+difference Event 10 is about. The deadline below is what separates the two --
+5 s is more than the 3 s hold time and less than the ~6 s a re-armed grace
+would need, so the assertion fails on a restored reprieve rather than passing
+slowly.
+"""
+
+import json
+import sys
+
+from ze_api import API, result_text_data, runtime_fail
+
+
+def dispatch(api, command):
+    """Call dispatch-command and return the result dict."""
+    try:
+        resp = api._call_engine(
+            'ze-plugin-engine:dispatch-command', {'command': command})
+        return resp.get('result', {})
+    except RuntimeError as e:
+        print('WARN: dispatch(%r) failed: %s' % (command, e), file=sys.stderr)
+        return {'status': 'error', 'message': str(e)}
+
+
+def get_metrics(api):
+    """Fetch the Prometheus metrics text via dispatch."""
+    r = dispatch(api, 'show metrics values')
+    if r.get('status') != 'done':
+        return ''
+    data_str = result_text_data(r, '{}')
+    try:
+        data = json.loads(data_str) if isinstance(data_str, str) else data_str
+    except (json.JSONDecodeError, TypeError) as e:
+        print('WARN: JSON parse failed: %s' % e, file=sys.stderr)
+        data = {}
+    return data.get('metrics', '')
+
+
+def find_metric_value(metrics_text, prefix):
+    """Return the numeric value of the first metric line matching prefix."""
+    for line in metrics_text.split('\n'):
+        if line.startswith('#'):
+            continue
+        if prefix in line:
+            parts = line.rsplit(' ', 1)
+            if len(parts) == 2:
+                try:
+                    return float(parts[1])
+                except ValueError:
+                    pass
+    return None
+
+
+# rfc-test-change-approved: 2026-08-03 -- Thomas approved both edits below.
+# (1) The grace is removed for full RFC 4271 Section 8.2.2 Event 10 conformance,
+#     so ze_bgp_hold_expiry_graced_total no longer exists and the reprieve it
+#     measured is gone. The graced poll is replaced by a bounded teardown
+#     deadline, which asserts the conformant timing instead of the reprieve.
+# (2) `is None` on a bool-returning api.wait_until left the runtime_fail branch
+#     dead; `not` makes the OK: line a real assertion.
+# // test-relax: the graced-counter poll and its runtime_fail asserted a REMOVED
+#     branch over a REMOVED metric, so neither can be inverted in place. The
+#     teardown assertion that replaces them is strictly stronger: it was
+#     unbounded (120 attempts, 30 s) and is now bounded to 5 s, which is under
+#     the ~6 s the reprieve took, so the timing is asserted rather than
+#     tolerated.
+FLAPS = 'ze_peer_session_flaps_total{peer="127.0.0.1"}'
+
+# The negotiated receive-hold-time from the config below.
+HOLD_TIME = 3
+# Longer than one hold time, shorter than the two a reprieve would need. This
+# bound is the assertion: it is what makes the test fail on a restored grace
+# instead of passing a hold time late.
+TEARDOWN_DEADLINE = 5.0
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # The peer is silent from the moment it establishes, so the hold timer is
+    # running from then. Polled, not slept: the flap counter is monotonic, so
+    # polling cannot miss the event the way a state poll can.
+    def flapped():
+        v = find_metric_value(get_metrics(api), FLAPS)
+        return v is not None and v >= 1
+
+    attempts = int(TEARDOWN_DEADLINE / 0.25)
+    if not api.wait_until(flapped, attempts=attempts, delay=0.25):
+        runtime_fail(
+            'silent peer still up %.1fs after establishing, with a %ds hold '
+            'time: RFC 4271 Section 8.2.2 Event 10 tears the session down on '
+            'the FIRST expiry, so a session alive this long was granted a '
+            'reprieve the RFC does not allow'
+            % (TEARDOWN_DEADLINE, HOLD_TIME))
+    print('OK: silent peer torn down on its first hold expiry, within %.1fs'
+          % TEARDOWN_DEADLINE, file=sys.stderr)
+
+    dispatch(api, 'request shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external deadpeer-watch {
+		run ./deadpeer-watch.run
+		encoder json
+	}
+}
+
+telemetry {
+	prometheus {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT2;
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		# The RFC 4271 Section 4.2 floor. Keeps the two expiries this test needs
+		# inside a few seconds instead of three minutes.
+		timer {
+			receive-hold-time 3
+		}
+		behavior {
+			group-updates disable
+		}
+
+		process deadpeer-watch {
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=40s
+expect=exit:code=0
+# rfc-test-change-approved: 2026-08-03 -- Thomas ruled the grace removed; the
+# observer's OK: line changed with it, and now carries the real assertion
+# because the wait_until guard is no longer dead (`not`, not `is None`).
+expect=stderr:contains=OK: silent peer torn down on its first hold expiry
+reject=stderr:pattern=panic
+reject=stderr:pattern=fatal error

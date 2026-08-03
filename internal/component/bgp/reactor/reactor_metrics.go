@@ -45,6 +45,18 @@ type reactorMetrics struct {
 	notifRecv           metrics.CounterVec // labels: peer, code, subcode
 	sessionDuration     metrics.GaugeVec   // Seconds since session established
 
+	// connectRetryCounter is RFC 4271 §8.1.1 mandatory session attribute 2,
+	// "the number of times a BGP peer has tried to establish a peer session".
+	// A GAUGE, not a counter: the RFC's own §8.2.2 clauses reset it to zero on
+	// an operator start or stop, and a Prometheus counter that goes down is a
+	// counter reset to every consumer of rate().
+	connectRetryCounter metrics.GaugeVec // labels: peer
+
+	// An OPEN that arrived on a connection already in Established or OpenConfirm
+	// and was refused with a Cease (session_handlers.go, handleOpen's state
+	// gate). Non-zero names a peer that tried to re-negotiate mid-session.
+	openInEstablished metrics.CounterVec // labels: peer
+
 	// Forward pool events
 	fwdCongestionEvents  metrics.CounterVec // Channel full onset events (peer)
 	fwdCongestionResume  metrics.CounterVec // Channel resumed from congestion (peer)
@@ -122,6 +134,9 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		notifSent:           reg.CounterVec("ze_peer_notifications_sent_total", "NOTIFICATION messages sent.", []string{"peer", "code", "subcode"}),
 		notifRecv:           reg.CounterVec("ze_peer_notifications_received_total", "NOTIFICATION messages received.", []string{"peer", "code", "subcode"}),
 		sessionDuration:     reg.GaugeVec("ze_peer_session_duration_seconds", "Seconds since session established.", []string{"peer"}),
+		connectRetryCounter: reg.GaugeVec("ze_bgp_connect_retry_counter", "RFC 4271 ConnectRetryCounter: times this peer has tried to establish a session since the last operator start or stop.", []string{"peer"}),
+		openInEstablished: reg.CounterVec("ze_bgp_open_in_established_total",
+			"OPEN messages refused because the connection was already in Established or OpenConfirm.", []string{"peer"}),
 
 		// Forward pool events
 		fwdCongestionEvents:  reg.CounterVec("ze_forward_congestion_events_total", "Channel full events (onset).", []string{"peer"}),
@@ -205,12 +220,17 @@ func (r *Reactor) updatePeriodicMetrics() {
 	// Cache entries
 	m.cacheEntries.Set(float64(r.recentUpdates.Len()))
 
-	// Per-peer session duration
+	// Per-peer session duration, and the RFC 4271 §8.1.1 ConnectRetryCounter.
+	// The counter is refreshed here rather than at each FSM mutation because
+	// its producers live in the fsm package, which has no metrics registry;
+	// a snapshot gauge reads the same value with no coupling.
 	r.mu.RLock()
 	for _, peer := range r.peers {
+		label := peer.peerAddrLabel()
 		if est := peer.EstablishedAt(); !est.IsZero() {
-			m.sessionDuration.With(peer.peerAddrLabel()).Set(now.Sub(est).Seconds())
+			m.sessionDuration.With(label).Set(now.Sub(est).Seconds())
 		}
+		m.connectRetryCounter.With(label).Set(float64(peer.ConnectRetryCounter()))
 	}
 	r.mu.RUnlock()
 

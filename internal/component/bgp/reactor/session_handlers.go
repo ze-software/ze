@@ -59,6 +59,13 @@ func (s *Session) handleOpen(body []byte) error {
 	// in exactly these two states. What is NOT defensible either way is silently
 	// re-negotiating, which is what happened before this gate.
 	if state := s.fsm.State(); state == fsm.StateEstablished || state == fsm.StateOpenConfirm {
+		// Counted at the refusal, not after the send: what an operator needs to
+		// know is that this peer tried to re-negotiate mid-session, which is
+		// true whether or not the Cease made it onto a socket the peer may
+		// already have abandoned.
+		if s.prefixMetrics != nil {
+			s.prefixMetrics.openInEstablished.With(s.addrLabel).Inc()
+		}
 		s.mu.RLock()
 		conn := s.conn
 		s.mu.RUnlock()

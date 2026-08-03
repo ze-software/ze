@@ -155,10 +155,10 @@ TCP sockets are tuned for BGP: `TCP_NODELAY` (messages are application-framed),
 shutdown to ensure the remote peer reads pending NOTIFICATIONs.
 <!-- source: internal/component/bgp/reactor/session_connection.go -- connectionEstablished, closeConn -->
 
-Hold timer congestion extension: when the hold timer fires but data was recently
-read from the peer, Ze resets the timer instead of tearing down the session. This
-handles CPU congestion from processing other peers' UPDATEs.
-<!-- source: internal/component/bgp/reactor/session.go -- recentRead, hold timer callback -->
+Hold timer expiry: Ze grants no reprieve. Every expiry runs the action list of
+RFC 4271 Section 8.2.2, Event 10. Ze sends NOTIFICATION code 4 (Hold Timer
+Expired) and stops the session. A CPU-congested Ze drops the session.
+<!-- source: internal/component/bgp/reactor/session.go -- OnHoldTimerExpires callback -->
 
 ## Per-State Runbooks
 

@@ -159,6 +159,9 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) err
 	case "linger":
 		config.Linger = kv["value"] == optTrue
 
+	case "silent":
+		config.Silent = kv["value"] == optTrue
+
 	case "tcp_connections":
 		if v, err := strconv.Atoi(kv["value"]); err == nil {
 			config.TCPConnections = v

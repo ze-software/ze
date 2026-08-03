@@ -46,13 +46,15 @@ as long as it takes the process to cross the two function boundaries.
 
 | Event | Produced by | FSM reaction | Wire side effect | Next state |
 |-------|-------------|--------------|------------------|------------|
-| `EventManualStop` | `Session.Close/Teardown/CloseWithNotification` | cleanup in caller | Cease NOTIFICATION in caller | `Idle` |
+| `EventManualStop` | `Session.Close` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION in caller | `Idle` |
+| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.TeardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
 | `EventBGPOpen` | `handleOpen` after version + hold-time validation + capability negotiation | log transition | KEEPALIVE sent immediately after transition, hold timer reset to negotiated value | `OpenConfirm` |
-| `EventHoldTimerExpires` | hold-timer callback in `Session.newSession` | log transition | NOTIFICATION (HoldTimerExpired) in caller | `Idle` |
-| `EventBGPHeaderErr` | `session_read.readAndProcessMessage` on header parse / length error | log transition | NOTIFICATION in caller | `Idle` |
-| `EventBGPOpenMsgErr` | `handleOpen` on version, hold-time, or capability validation failure | log transition | NOTIFICATION in caller | `Idle` |
-| `EventNotifMsgVerErr` / `EventNotifMsg` | `handleNotification` | cleanup in caller | none | `Idle` |
-| `EventTCPConnectionFails` | `handleConnectionClose` on EOF / reset | cleanup in caller | none | `Idle` (RFC says `Active`, see deviation) |
+| `EventHoldTimerExpires` | hold-timer callback in `Session.newSession` | log transition; **increments ConnectRetryCounter** | NOTIFICATION (HoldTimerExpired) in caller | `Idle` |
+| `EventBGPHeaderErr` | `session_read.readAndProcessMessage` on header parse / length error | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
+| `EventBGPOpenMsgErr` | `handleOpen` on version, hold-time, or capability validation failure | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
+| `EventNotifMsg` | `handleNotification` | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
+| `EventNotifMsgVerErr` | `handleNotification` | cleanup in caller; ConnectRetryCounter untouched (RFC 4271 8.2.2 gives Event 24 no counter clause in this state) | none | `Idle` |
+| `EventTCPConnectionFails` | `handleConnectionClose` on EOF / reset | cleanup in caller; ConnectRetryCounter untouched (no counter clause in this state) | none | `Idle` (RFC says `Active`, see deviation) |
 | any other event | unexpected | log transition | none | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleOpenSent -->
@@ -107,20 +109,13 @@ In order:
 <!-- source: internal/component/bgp/reactor/session_connection.go — connectionEstablished calls StartHoldTimer -->
 <!-- source: internal/component/bgp/fsm/timer.go — StartHoldTimer, StopHoldTimer, StopAll -->
 
-### Hold timer expiry: congestion extension
+### Hold timer expiry
 
-Ze extends the RFC's hold-timer behavior with a "recent read" check. If
-`recentRead` (an atomic flag set whenever a message header is read from
-the TCP connection) is true when the hold timer fires, the session does
-**not** fire `EventHoldTimerExpires`. Instead it logs a congestion
-warning and resets the hold timer. Only if no data has been read in the
-hold window does the timer callback fire the FSM event.
+When the hold timer fires, the callback always fires
+`EventHoldTimerExpires`. Ze grants no reprieve, per RFC 4271
+Section 8.2.2, Event 10.
 
-<!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires callback recentRead.Swap -->
-<!-- source: internal/component/bgp/reactor/session_read.go — recentRead.Store(true) -->
-
-This is a ze-specific extension inspired by BIRD's technique, not part
-of RFC 4271.
+<!-- source: internal/component/bgp/reactor/session.go -- OnHoldTimerExpires callback -->
 
 ## Wire side effects
 
@@ -131,10 +126,11 @@ of RFC 4271.
 - **On exit to Idle via validation failure:** NOTIFICATION with the
   appropriate OpenMessage error code is sent via `logNotifyErr`. The
   connection is closed via `closeConn`.
-- **On exit to Idle via hold-timer expiry:** the caller is the hold-timer
-  callback, which signals `errChan` with `ErrHoldTimerExpired`. The
-  session Run loop observes the error and tears down. No NOTIFICATION
-  is sent from the callback itself; the teardown path may send one.
+- **On exit to Idle via hold-timer expiry:** the hold-timer callback
+  sends NOTIFICATION code 4 (Hold Timer Expired, subcode 0), then
+  signals `errChan` with `ErrHoldTimerExpired`. The session Run loop
+  observes the error and starts the teardown.
+  <!-- source: internal/component/bgp/reactor/session.go -- OnHoldTimerExpires sendNotificationWithin -->
 - **On exit to Idle via TCP read failure:** no NOTIFICATION (the peer
   is already gone).
 
@@ -171,8 +167,6 @@ of RFC 4271.
   backoff, not in an FSM-resident timer. Documented as a deliberate
   simplification in the file header of `fsm.go`.
   <!-- source: internal/component/bgp/fsm/fsm.go — VIOLATIONS section -->
-- **Hold timer congestion extension** (see Timers section above) is a
-  ze-specific extension not described by RFC 4271.
 
 ## Architectural notes
 

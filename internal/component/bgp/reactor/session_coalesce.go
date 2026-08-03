@@ -81,8 +81,6 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 		return err
 	}
 
-	s.recentRead.Store(true)
-
 	hdr, err := message.ParseHeader(buf.Buf[:message.HeaderLen])
 	if err != nil {
 		s.resetCoalesce()

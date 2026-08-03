@@ -48,8 +48,9 @@ about any of this. It only observes the state change.
 
 | Event | Produced by | FSM reaction | Wire side effect | Next state |
 |-------|-------------|--------------|------------------|------------|
-| `EventManualStart` | `Session.Start()` | passive flag decides next state | none | `Active` if `passive == true`, else `Connect` |
-| `EventManualStop` | n/a | ignored (per RFC 4271 8.2.2) | none | `Idle` |
+| `EventManualStart` | `Session.Start()` | passive flag decides next state; **sets ConnectRetryCounter to zero** | none | `Active` if `passive == true`, else `Connect` |
+| `EventAutomaticStartWithDampPeerOscillations` | `Session.StartDamped()`, from every reconnect cycle after the first | same branch as `EventManualStart`; ConnectRetryCounter untouched | none | `Active` if `passive == true`, else `Connect` |
+| `EventManualStop` / `EventAutomaticStop` | n/a | ignored (per RFC 4271 8.2.2); ConnectRetryCounter untouched | none | `Idle` |
 | any other event | n/a | ignored (per RFC 4271 8.2.2) | none | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleIdle -->

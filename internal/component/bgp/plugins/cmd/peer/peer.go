@@ -237,6 +237,9 @@ func HandleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plug
 			"connections-established": p.ConnectionsEstablished,
 			"connections-dropped":     p.ConnectionsDropped,
 			"flap-count":              p.FlapCount,
+			// RFC 4271 §8.1.1 mandatory session attribute 2: "the number of
+			// times a BGP peer has tried to establish a peer session".
+			"connect-retry-counter": p.ConnectRetryCounter,
 		}
 		if p.Name != "" {
 			row["name"] = p.Name

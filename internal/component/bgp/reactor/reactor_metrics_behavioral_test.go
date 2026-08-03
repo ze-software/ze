@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -200,4 +201,70 @@ func TestSessionReadIncrementsWireBytesCounter(t *testing.T) {
 	require.NotNil(t, bytesForPeer, "per-peer wire byte series must exist after reads")
 	assert.Equal(t, float64(len(openBytes)+len(keepaliveBytes)), bytesForPeer.Value(),
 		"wire bytes received must equal the OPEN + KEEPALIVE message lengths")
+}
+
+// rfc-test-change-approved: 2026-08-03 -- Thomas ruled the hold-timer grace
+// removed for full RFC 4271 Section 8.2.2 Event 10 conformance.
+// test-relax: TestGracedHoldExpiryIncrementsCounter lived here and asserted
+// that ze_bgp_hold_expiry_graced_total advanced on a graced expiry. Both the
+// grace branch and the counter are REMOVED -- with no reprieve to count, the
+// counter could only ever read zero, so it was deleted rather than left as a
+// flat line an operator would read as "no congestion" (ai/rules/no-layering.md).
+// Nothing here is inverted, because a test asserting the absence of a metric
+// would pass with the whole metrics subsystem deleted. The hold-expiry behavior
+// the test reached through is now covered where it is observable: the teardown
+// itself in session_hold_expiry_test.go, the wire NOTIFICATION in
+// rfc4271_test.go, and the running daemon in test/plugin/deadpeer-holddown.ci.
+
+// TestRefusedOpenIncrementsCounter drives handleOpen's Established state gate
+// and asserts the refusal advances its counter.
+//
+// VALIDATES: spec-fixit-bgp-session-fsm-lifecycle Q-5 --
+// ze_bgp_open_in_established_total is peer-labeled and incremented at the gate.
+// PREVENTS: the counter being registered with no producer, so the peer that
+// keeps trying to re-negotiate mid-session is invisible on a dashboard.
+func TestRefusedOpenIncrementsCounter(t *testing.T) {
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
+	settings.Connection = ConnectionPassive
+	settings.ReceiveHoldTime = 90 * time.Second
+
+	reg := newSpyRegistry()
+	session := NewSession(settings)
+	session.prefixMetrics = initReactorMetrics(reg, "test", "1.2.3.4", "65000")
+
+	// Put the FSM where the gate applies. Driving the states directly (rather
+	// than a handshake) keeps this test about the counter: the gate's protocol
+	// behavior is already covered byte-for-byte by
+	// TestSecondOpenOnEstablishedSessionIsRefused.
+	require.NoError(t, session.Start())
+	server, client := net.Pipe()
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			if _, err := client.Read(buf); err != nil {
+				return
+			}
+		}
+	}()
+	t.Cleanup(func() { _ = client.Close() })
+	_ = acceptWithReader(t, session, server, client)
+
+	vec := reg.counterVec("ze_bgp_open_in_established_total")
+	require.NotNil(t, vec, "ze_bgp_open_in_established_total must be registered")
+
+	// Before the gate is reachable the counter must be untouched: an OPEN in
+	// OpenSent is the NORMAL path and counting it would make the metric useless.
+	require.Equal(t, fsm.StateOpenSent, session.State(), "precondition: OPEN sent, awaiting theirs")
+	assert.Nil(t, vec.get(session.addrLabel),
+		"a legitimate OPEN in OpenSent must not be counted as a refusal")
+
+	require.NoError(t, session.fsm.Event(fsm.EventBGPOpen))
+	require.NoError(t, session.fsm.Event(fsm.EventKeepaliveMsg))
+	require.Equal(t, fsm.StateEstablished, session.State(), "precondition: Established")
+
+	require.Error(t, session.handleOpen(nil), "a second OPEN in Established must be refused")
+
+	refused := vec.get(session.addrLabel)
+	require.NotNil(t, refused, "the counter must carry a series for this peer")
+	assert.Equal(t, 1.0, refused.Value(), "one refused OPEN must advance the counter once")
 }

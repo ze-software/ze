@@ -39,6 +39,12 @@ type PeerStats struct {
 	ConnectionsEstablished uint32
 	ConnectionsDropped     uint32
 
+	// ConnectRetryCounter is RFC 4271 §8.1.1 mandatory session attribute 2,
+	// "the number of times a BGP peer has tried to establish a peer session".
+	// The FSM §8.2.2 handlers own it; ClearStats does not touch it, because
+	// only the RFC's own zero clauses (an operator start or stop) may reset it.
+	ConnectRetryCounter uint32
+
 	// Last notification details (survive ClearStats).
 	LastNotifCode    uint8
 	LastNotifSubcode uint8
@@ -101,6 +107,7 @@ func (p *Peer) Stats() PeerStats {
 		RefreshSent:            p.counters.refreshSent.Load(),
 		ConnectionsEstablished: p.counters.connectionsEstablished.Load(),
 		ConnectionsDropped:     p.counters.connectionsDropped.Load(),
+		ConnectRetryCounter:    p.connectRetryCounter.Load(),
 		LastNotifCode:          uint8(p.counters.lastNotifCode.Load()),
 		LastNotifSubcode:       uint8(p.counters.lastNotifSubcode.Load()),
 		LastNotifRecv:          p.counters.lastNotifRecv.Load(),

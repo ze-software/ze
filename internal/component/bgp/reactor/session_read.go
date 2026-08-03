@@ -89,10 +89,6 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 		return err
 	}
 
-	// Mark that data was read. Used by hold timer congestion extension:
-	// if the hold timer fires while recentRead is true, the daemon is
-	// CPU-congested (data arrived but wasn't processed in time).
-	s.recentRead.Store(true)
 	if s.onRead != nil {
 		s.onRead()
 	}

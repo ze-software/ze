@@ -264,8 +264,25 @@ func (p *Peer) runOnce() error {
 		p.setState(PeerStateActive)
 	}
 
-	// Start FSM
-	if err := session.Start(); err != nil {
+	// Start FSM.
+	//
+	// RFC 4271 §8.1.1 ConnectRetryCounter: hand this cycle's FSM the PEER's
+	// counter before the start event, so the §8.2.2 clauses land on a value
+	// that survives the cycle. A counter created here would be destroyed with
+	// the Session and could never count a retry.
+	session.SetConnectRetryCounter(&p.connectRetryCounter)
+
+	// The operator's start is Event 1 (ManualStart), whose §8.2.2 clause sets
+	// the ConnectRetryCounter to zero. Every cycle after it is a retry the
+	// backoff above already damped, which is Event 6
+	// (AutomaticStart_with_DampPeerOscillations) and carries no such clause.
+	// Firing Event 1 on every cycle would zero the counter before each attempt
+	// and leave it structurally unable to read more than one.
+	start := session.StartDamped
+	if !p.operatorStarted.Swap(true) {
+		start = session.Start
+	}
+	if err := start(); err != nil {
 		return err
 	}
 
