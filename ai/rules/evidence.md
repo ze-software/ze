@@ -60,6 +60,10 @@ Verification and citation are two decisions, and this rule owns the first.
 
 **A pinned tag does NOT make a line number safe. Measured 2026-08-03: four BIRD anchors in `docs/architecture/congestion-industry.md` pointed at unrelated code at the v3.2.0 tag they named, and a GoBGP anchor was off by six lines.** They were written against a different version and never re-read, so the citation was wrong from the day the dependency moved and nothing could detect it.
 
+**A line number in a document is legitimate only when a GENERATOR maintains it (owner directive, 2026-08-03). Hand-typing one is banned, because nothing refreshes it and nothing can tell it has gone wrong.** `ai/RFC-REQUIREMENTS.md` is the working example: its `file.go:line` entries are derived from `RFC requirement:` tags on every `make ze-rfc-index`, so they move when the tests move. A file earns this by declaring `GENERATED ... do not edit` in its first ten lines, and `c_line_number_ref` reads that declaration rather than a list of filenames.
+
+**So a location is either derived or absent. There is no third option.** If you want a document to point at a line, write the generator that keeps it current; if you will not write the generator, name the symbol and stop.
+
 **Name the symbol BEFORE removing a location, never after.** Two citations into one file collapse into the same link once their anchors go, and the distinction the anchor carried is lost with no way to recover it.
 
 A pasted line number proves nothing about what you read, and it goes stale at the
