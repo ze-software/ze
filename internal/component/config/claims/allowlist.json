@@ -1,0 +1,27 @@
+[
+  {
+    "path": "plugin",
+    "reason": "Plugin load configuration is read before any plugin runs, so no plugin can claim it. The config loader turns this subtree into the plugin list that the server then starts.",
+    "owner": "internal/component/config/loader.go ExtractPluginsFromTree"
+  },
+  {
+    "path": "pppoe",
+    "reason": "The hub reads this subtree directly and passes it to the PPPoE subsystem at startup. Delivery does not go through the plugin config RPC, so no WantsConfigRoots entry names it.",
+    "owner": "internal/component/l2tp/pppoe/config.go ExtractParameters, called from cmd/ze/hub/register_l2tp.go"
+  },
+  {
+    "path": "storage",
+    "reason": "The hub reads the SMART monitor settings directly from the config tree and builds the storage manager configuration. No plugin is involved.",
+    "owner": "cmd/ze/hub/main_system.go extractSmartConfig"
+  },
+  {
+    "path": "system",
+    "reason": "System settings are applied by components inside the daemon (kernel tuning, console, update, conntrack, authorization, archive), each reading the subtree from the config tree. No plugin RPC carries them.",
+    "owner": "internal/component/config/system/system.go ExtractTuningFromMap and its siblings in internal/component/config/system/"
+  },
+  {
+    "path": "telemetry",
+    "reason": "The telemetry exporter is a component, not a plugin. It reads its own subtree from the config tree when it starts.",
+    "owner": "internal/component/telemetry/exporter/server.go extractTelemetryConfig"
+  }
+]

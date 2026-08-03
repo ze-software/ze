@@ -39,6 +39,7 @@ var serviceYANG = map[string]string{
 	"web":             "internal/component/web/yang/ze-web-conf.yang",
 	"ssh":             "internal/component/ssh/yang/ze-ssh-conf.yang",
 	"mcp":             "internal/component/mcp/yang/ze-mcp-conf.yang",
+	"gnmi":            "internal/component/gnmi/yang/ze-gnmi-conf.yang",
 	"looking-glass":   "internal/component/lg/yang/ze-lg-conf.yang",
 	"api-server-rest": "internal/component/api/rest/yang/ze-rest-conf.yang",
 	"api-server-grpc": "internal/component/api/grpc/yang/ze-grpc-conf.yang",

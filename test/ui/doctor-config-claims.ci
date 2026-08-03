@@ -1,0 +1,91 @@
+# Test: ze doctor reports config that reaches no plugin and no handler.
+# Spec: plan/spec-improve-7-yang-handler-gate.md AC-7
+# VALIDATES: an operator whose config names a subtree this build delivers to
+#            nobody learns it from `ze doctor`, with a code `ze explain`
+#            describes. Server.reloadConfig accepts such a subtree, logs Info
+#            "config reload: no affected plugins, updating config" and stores it
+#            (internal/component/plugin/server/reload.go). This check is what
+#            makes that silence visible.
+#
+# Why ze-stripped: in a full build every config-schema root is claimed or
+# recorded in the claim allowlist, which is what the build-time gate
+# (internal/component/plugin/all/config_claims_test.go) enforces. So no config a
+# full binary accepts can reach this diagnostic. ze-stripped is built with
+# `ze_core ze_ssh` only, so the IKE plugin that declares the "pki" config root is
+# compiled out while internal/component/pki/yang stays always-on: the schema
+# still has the root, and nothing in the binary claims it. That is the operator
+# situation the check exists for. It needs the stripped binary, which only the
+# `ui` suite provides (ZE_TEST_DEPS_STRIPPED, mk/test-functional.mk).
+#
+# The commands run from python rather than from cmd=...:exec= lines because the
+# runner resolves a bare exec name against its OWN PATH, where only `ze` and
+# `ze-test` are shimmed. A child process inherits the shim directory, so
+# ze-stripped resolves there (test/ui/ze-stripped-surface.ci does the same).
+
+tmpfs=unclaimed.conf:terminator=EOF_UNCLAIMED
+pki {
+	ca test-ca {
+		certificate "cGxhY2Vob2xkZXI=";
+	}
+}
+EOF_UNCLAIMED
+
+tmpfs=claimed.conf:terminator=EOF_CLAIMED
+static {
+	route 10.0.0.0/8 {
+		next-hop 192.0.2.1;
+	}
+}
+EOF_CLAIMED
+
+tmpfs=run.py:terminator=EOF_PY
+import json
+import subprocess
+
+UNCLAIMED = 'doctor-config-root-unclaimed'
+
+
+def require(condition, message):
+    if not condition:
+        raise SystemExit('FAIL: ' + message)
+
+
+def doctor(path):
+    # check=False: the placeholder certificate also trips doctor-pki-cert, so
+    # the unclaimed run exits non-zero for a reason that is not the subject
+    # here. The diagnostics list is what this test judges.
+    proc = subprocess.run(
+        ['ze-stripped', 'doctor', '--json', path],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+    require(proc.stdout.strip() != '', 'ze doctor produced no output: ' + proc.stderr)
+    return json.loads(proc.stdout)['diagnostics']
+
+
+unclaimed = [d for d in doctor('unclaimed.conf') if d['code'] == UNCLAIMED]
+require(len(unclaimed) == 1,
+        'want one ' + UNCLAIMED + ' for the pki root, got ' + json.dumps(unclaimed) +
+        ' -- all diagnostics: ' + json.dumps(doctor('unclaimed.conf')))
+require('config under pki' in unclaimed[0]['message'],
+        'the diagnostic must name the subtree: ' + unclaimed[0]['message'])
+require(unclaimed[0]['severity'] == 'warning',
+        'want a warning, got ' + unclaimed[0]['severity'])
+
+# A root this build DOES claim stays silent, so the check is not reporting
+# every root it sees.
+claimed = [d for d in doctor('claimed.conf') if d['code'] == UNCLAIMED]
+require(claimed == [], 'the static root is claimed and must not be reported: ' + json.dumps(claimed))
+
+# The code an operator sees is one they can look up.
+explain = subprocess.run(['ze-stripped', 'explain', UNCLAIMED],
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                         text=True, check=False)
+require(explain.returncode == 0, 'ze explain ' + UNCLAIMED + ' failed: ' + explain.stderr)
+require('Config subtree delivered to nobody' in explain.stdout,
+        'ze explain does not describe the code: ' + explain.stdout)
+
+print('OK')
+EOF_PY
+
+cmd=foreground:seq=1:exec=python3 run.py
+expect=exit:code=0
+expect=stdout:contains=OK

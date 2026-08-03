@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 901 summaries
+Total: 906 summaries
 
 ## 400-499
 
@@ -960,4 +960,8 @@ Total: 901 summaries
 | 1324 | Poll Loop Gate | `plan/learned/1324-poll-loop-gate.md` |
 | 1325 | The review loop had no terminating state | `plan/learned/1325-review-loop-bounded-scope.md` |
 | 1326 | A deferral shard outlives the spec that opened it | `plan/learned/1326-deferral-shard-outlives-its-spec.md` |
+| 1327 | enabled-gate-discards-service-settings | `plan/learned/1327-enabled-gate-discards-service-settings.md` |
 | 1328 | Rule corpus merged to 26, and line numbers removed from prose | `plan/learned/1328-rule-corpus-merge-and-line-ref-strip.md` |
+| 1329 | gokrazy-init-bump | `plan/learned/1329-gokrazy-init-bump.md` |
+| 1330 | rfcgate-2-deferred-nonunit-evidence-backfill | `plan/learned/1330-rfcgate-2-deferred-nonunit-evidence-backfill.md` |
+| 1331 | Five config roots nobody claims, and the third delivery path | `plan/learned/1331-config-roots-nobody-claims.md` |

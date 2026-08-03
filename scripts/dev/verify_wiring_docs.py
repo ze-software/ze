@@ -76,6 +76,13 @@ WIRING_ALLOWLIST: set[tuple[str, str]] = {
     # test-only by design (a one-shot `ze` uses the real os.Stdin/os.Stdout); no
     # production caller. See internal/core/cliio/doc.go.
     ("internal/core/cliio/cliio.go", "SwapStreams"),
+    # Same shape as CheckSiblings above: the config claim audit compares the
+    # WHOLE config schema against the WHOLE claim union, which only a gate that
+    # links internal/component/plugin/all can assemble. Its production caller is
+    # scripts/checks/config_claims.go (make ze-config-claims-check, a verify
+    # stage), which has_production_reference does not count. The daemon-side
+    # entry point is AuditConfigured, called by the doctor check.
+    ("internal/component/config/claims/claims.go", "Audit"),
 }
 
 # User-facing area -> functional suite directory expected to change with it
@@ -356,9 +363,7 @@ def check_ci_sleep_justification(root: Path, changed: Iterable[str]) -> int:
         print(
             "  Add a `#` comment (poll interval, deliberate timer, needs-linux effect,"
         )
-        print(
-            "  or no queryable readiness signal). See ai/rules/testing.md."
-        )
+        print("  or no queryable readiness signal). See ai/rules/testing.md.")
         return 1
     if checked:
         print(f"ci-sleep justification OK ({checked} sleeps, all commented)")

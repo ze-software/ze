@@ -95,6 +95,26 @@ var newRouteNetlinkHandle = func() (routeNetlinkHandle, error) {
 	return netlink.NewHandle(unix.NETLINK_ROUTE)
 }
 
+// xfrmNetlinkProbe reports why the kernel holds no XFRM dataplane, or nil when it
+// holds one. A var so a unit test drives both answers without a kernel.
+var xfrmNetlinkProbe = openXFRMNetlink
+
+// openXFRMNetlink opens the XFRM netlink socket and closes it again.
+//
+// Opening the socket is the honest test of whether the kernel carries XFRM, and it
+// is the one /proc/modules cannot make: a built-in CONFIG_XFRM_USER=y appears in no
+// module list, which is the appliance case. The socket needs no CAP_NET_ADMIN, so
+// an unprivileged ze doctor still gets the right answer, and on a modular kernel
+// the open loads the module the same way any XFRM user would.
+func openXFRMNetlink() error {
+	h, err := netlink.NewHandle(unix.NETLINK_XFRM)
+	if err != nil {
+		return err
+	}
+	h.Close()
+	return nil
+}
+
 func checkVPPSocket(sockPath string) []diagnostic.Diagnostic {
 	if sockPath == "" {
 		sockPath = defaultVPPSocket
@@ -148,11 +168,10 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 
 		if getContainerPath(tree, "vpn", "ipsec") != nil {
 			hasIPsec = true
-			required = append(required, "xfrm_user", "xfrm_algo")
 		}
 	}
 
-	if len(required) == 0 && !l2tpRequired && !pppoeRequired {
+	if len(required) == 0 && !l2tpRequired && !pppoeRequired && !hasIPsec {
 		return nil
 	}
 
@@ -183,6 +202,29 @@ func checkKernelModules(tree *config.Tree) []diagnostic.Diagnostic {
 			Severity: diagnostic.SeverityError,
 			Message:  "PPPoE kernel module not loaded: pppoe",
 		})
+	}
+
+	// XFRM is asked about through netlink, not through /proc/modules.
+	//
+	// readLoadedModules parses /proc/modules, which lists LOADED MODULES ONLY. An
+	// appliance kernel builds XFRM in (CONFIG_XFRM_USER=y in
+	// gokrazy/kernel/kernel.config), so xfrm_user and xfrm_algo appear nowhere in
+	// that file and the module rows reported two missing modules for a dataplane
+	// that was present and working. ze doctor exited 1 on a healthy appliance.
+	//
+	// The check is not weakened: a host whose XFRM netlink socket cannot be opened
+	// holds no IPsec dataplane at all, and that is still an error. Only the
+	// evidence changed, from how the kernel was PACKAGED to whether the capability
+	// EXISTS.
+	if hasIPsec {
+		if err := xfrmNetlinkProbe(); err != nil {
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     "doctor-module-missing",
+				Severity: diagnostic.SeverityError,
+				Message: tb.Reset().Str("IPsec: the kernel holds no XFRM dataplane (xfrm_user, xfrm_algo): ").
+					Err(err).String(),
+			})
+		}
 	}
 
 	if hasIPsec && !loaded["ip_tables"] && !loaded["nf_tables"] {

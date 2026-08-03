@@ -12,7 +12,7 @@
 #
 .PHONY: ze-spec-status ze-spec-status-json ze-spec-citation-check
 .PHONY: ze-inventory ze-inventory-json ze-command-list ze-command-list-json
-.PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-rules-condensed ze-rules-condensed-check ze-rules-payload ze-rules-router-report ze-rules-router-report-json ze-rules-lint ze-discovery-index ze-discovery-index-check ze-learned-numbers-check ze-learned-numbers-fix ze-learned-normalise-check ze-learned-normalise-fix ze-learned-repath-check ze-learned-repath-apply ze-digest-check ze-learned-staleness ze-consistency
+.PHONY: ze-validate-commands ze-validate-commands-json ze-command-ownership-check ze-command-ownership-check-json ze-cli-grammar-check ze-cli-grammar-check-json ze-config-claims-check ze-config-claims-check-json ze-doc-drift ze-doc-test ze-doc-index ze-doc-check-stale ze-rules-index ze-rules-index-check ze-rules-condensed ze-rules-condensed-check ze-rules-payload ze-rules-router-report ze-rules-router-report-json ze-rules-lint ze-discovery-index ze-discovery-index-check ze-learned-numbers-check ze-learned-numbers-fix ze-learned-normalise-check ze-learned-normalise-fix ze-learned-repath-check ze-learned-repath-apply ze-digest-check ze-learned-staleness ze-consistency
 .PHONY: ze-verify-wiring-docs ze-wiki-update ze-wiki-commands
 .PHONY: ze-ste-check ze-ste-review ze-ste-review-changed ze-ste-review-json
 
@@ -75,6 +75,17 @@ ze-cli-grammar-check:
 
 ze-cli-grammar-check-json:
 	@$(GO_RUN) scripts/checks/cli_grammar.go --json
+
+# Config claim completeness gate (spec-improve-7): every config subtree an
+# operator can write is delivered to a plugin config root, a hub handler path,
+# or a recorded exception; and every declared config root names a real schema
+# node. GO_RUN carries the full feature tag set, which this needs: a reduced set
+# compiles modules out and shrinks the surface the gate can see.
+ze-config-claims-check:
+	@$(GO_RUN) scripts/checks/config_claims.go
+
+ze-config-claims-check-json:
+	@$(GO_RUN) scripts/checks/config_claims.go --json
 
 
 ze-verify-wiring-docs:

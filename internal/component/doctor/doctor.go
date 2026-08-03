@@ -159,8 +159,10 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic) {
 	diags = append(diags, checkUpdateBackendConfig(tree, platform)...)
 	diags = append(diags, checkArchiveDestinations(tree)...)
 	diags = append(diags, checkWritableDestinations(tree, platform)...)
+	diags = append(diags, checkBGPCaptureDirectory(tree)...)
 	diags = append(diags, checkResolvConfPath(tree, platform)...)
 	diags = append(diags, checkSmartEnabled(tree)...)
+	diags = append(diags, checkConfigClaims(tree)...)
 
 	return diags
 }

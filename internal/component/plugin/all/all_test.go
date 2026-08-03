@@ -89,7 +89,7 @@ func TestRegisteredPluginNames(t *testing.T) {
 
 	// linux-only plugins (e.g. iface-dhcp) are excluded from the
 	// cross-platform snapshot; TestPlatformPlugins covers them.
-	platformOnly := map[string]bool{"iface-dhcp": true}
+	platformOnly := map[string]bool{"iface-dhcp": true, "iface-ra": true}
 
 	var filtered []string
 	for _, n := range names {
@@ -215,15 +215,17 @@ func TestAllPluginsRegistered(t *testing.T) {
 // PREVENTS: Accidental non-Linux registration of Linux-only plugins.
 func TestPlatformPlugins(t *testing.T) {
 	names := registry.Names()
-	hasIfaceDHCP := slices.Contains(names, "iface-dhcp")
-	if runtime.GOOS == "linux" {
-		if !hasIfaceDHCP {
-			t.Error("linux-only plugin \"iface-dhcp\" not registered on linux")
+	for _, plugin := range []string{"iface-dhcp", "iface-ra"} {
+		present := slices.Contains(names, plugin)
+		if runtime.GOOS == "linux" {
+			if !present {
+				t.Errorf("linux-only plugin %q not registered on linux", plugin)
+			}
+			continue
 		}
-		return
-	}
-	if hasIfaceDHCP {
-		t.Errorf("linux-only plugin %q registered on %s", "iface-dhcp", runtime.GOOS)
+		if present {
+			t.Errorf("linux-only plugin %q registered on %s", plugin, runtime.GOOS)
+		}
 	}
 }
 
