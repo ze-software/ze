@@ -219,6 +219,16 @@ var builtinCodes = []CodeMeta{
 		Examples:    []string{"ze doctor --json"},
 	},
 	{
+		Code:  "doctor-tls-reference",
+		Title: "TLS certificate reference cannot serve",
+		Description: "A listener names a certificate in the PKI store that cannot serve TLS. " +
+			"The pki block defines no certificate with that name, or the entry has no private key, " +
+			"or its stored intermediate does not build a chain to a configured ca certificate. " +
+			"The listener does not start; ze never substitutes a self-signed certificate for a name the operator configured. " +
+			"Fix the name, add private { key ... } to the pki entry, or correct the intermediate.",
+		Examples: []string{"ze doctor --json", "ze explain doctor-tls-reference", "show pki certificate name <name>"},
+	},
+	{
 		Code:        "doctor-plugin-missing",
 		Title:       "Plugin binary not found",
 		Description: "An external plugin binary referenced in the config is not on PATH.",
@@ -341,6 +351,13 @@ var builtinCodes = []CodeMeta{
 		RelatedCodes: []string{"doctor-mpls-unavailable"},
 	},
 	{
+		Code:         "doctor-bgp-capture-directory",
+		Title:        "BGP capture directory not usable",
+		Description:  "A BGP peer sets capture{enabled true} but the configured capture directory cannot be created or written by the ze user. The session will still establish: protocol event capture is a diagnostic aid and never blocks BGP. It will simply record nothing, which is indistinguishable from a quiet peer unless doctor says so. Remedy: create the directory and give the ze user write access, name a writable path in the peer's capture{directory ...}, or set capture{enabled false}.",
+		Examples:     []string{"ze doctor --json", "ze explain doctor-bgp-capture-directory"},
+		RelatedCodes: []string{"doctor-write-destination"},
+	},
+	{
 		Code:        "doctor-mpls-unavailable",
 		Title:       "MPLS kernel support unavailable",
 		Description: "MPLS kernel modules (mpls_router, mpls_iptunnel) are not loaded. BGP labeled routes cannot be installed in the kernel FIB.",
@@ -399,6 +416,12 @@ var builtinCodes = []CodeMeta{
 		Title:       "Kernel macvlan support unavailable",
 		Description: "The kernel cannot create a bridge-mode macvlan device (CONFIG_MACVLAN). ze's owned-device mechanism -- plugin-requested macvlan devices on a parent interface -- needs it; without CONFIG_MACVLAN those devices fail at apply. Enable CONFIG_MACVLAN or load the macvlan module. If the probe instead reports a permission failure, it lacked CAP_NET_ADMIN.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-iface-macvlan"},
+	},
+	{
+		Code:        "doctor-iface-ra-forwarding",
+		Title:       "Router Advertisements sent while IPv6 forwarding is off",
+		Description: "A unit sends Router Advertisements (interface ... unit ... ipv6 router-advertisement enabled true) while net.ipv6.conf.<device>.forwarding is 0. Hosts on that link autoconfigure and install a default route through Ze, and the kernel then drops the off-link traffic they send, so the link looks configured and carries nothing. Set ipv6 forwarding true on the advertising unit, or set the sysctl through a profile. Ze reports this state and never changes it, because a kernel change outside declared config would hide the real setting. Advertising with forwarding off is deliberate in one case: router-lifetime 0, which says Ze is not a default router and advertises prefixes only.",
+		Examples:    []string{"ze doctor --json", "ze explain doctor-iface-ra-forwarding"},
 	},
 	{
 		Code:        "doctor-isis-raw-socket",
@@ -523,6 +546,18 @@ var builtinCodes = []CodeMeta{
 			"source addresses is off. Lower cookie-threshold to the responding-peer count or " +
 			"below, or leave it at the default of 0 to challenge every inbound initiation.",
 		Examples: []string{"ze doctor --json", "ze explain doctor-ipsec-cookie-threshold"},
+	},
+	{
+		Code:  "doctor-ipsec-xfrm-unavailable",
+		Title: "IPsec XFRM dataplane unavailable",
+		Description: "vpn ipsec is configured and the kernel XFRM dataplane did not answer. Ze " +
+			"installs every Child SA and every IPsec policy through XFRM, so a tunnel will " +
+			"negotiate to the point of success and then carry no traffic. The probe fails for two " +
+			"causes that need different action. The kernel can hold no XFRM at all, which needs " +
+			"CONFIG_XFRM_USER and CONFIG_INET_ESP. The process can lack CAP_NET_ADMIN, which the " +
+			"dump and every install call need. On a platform other than Linux there is no XFRM " +
+			"dataplane, and ze installs no SA there.",
+		Examples: []string{"ze doctor --json", "ze explain doctor-ipsec-xfrm-unavailable"},
 	},
 	{
 		Code:        "doctor-bgp-listen",
@@ -709,5 +744,19 @@ var builtinCodes = []CodeMeta{
 		Title:       "CoPP input chain not active",
 		Description: "Control-plane policing (CoPP) for BGP is configured but the nftables input chain protecting TCP/179 may not be installed. Verify the firewall backend is running and the copp plugin started successfully.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-copp-missing"},
+	},
+	{
+		Code:         "doctor-config-root-unclaimed",
+		Title:        "Config subtree delivered to nobody",
+		Description:  "A config subtree is stored but no plugin and no handler receives it, so it has no effect. The daemon selects plugins for a config change by matching the changed path against the config roots each plugin declares; a path that matches nothing is accepted and logged at Info level only. Either the owning plugin is not built into this binary, or it did not load, or its config root declaration is missing. Check `ze plugin list` for the owning plugin.",
+		Examples:     []string{"ze doctor --json", "ze explain doctor-config-root-unclaimed"},
+		RelatedCodes: []string{"doctor-config-claims-unavailable"},
+	},
+	{
+		Code:         "doctor-config-claims-unavailable",
+		Title:        "Config delivery could not be checked",
+		Description:  "The doctor could not build the list of config roots this build delivers, so it did not check whether the configured subtrees reach anything. This is reported rather than passed over: a check that cannot see its subject has cleared nothing.",
+		Examples:     []string{"ze doctor --json", "ze explain doctor-config-claims-unavailable"},
+		RelatedCodes: []string{"doctor-config-root-unclaimed"},
 	},
 }
