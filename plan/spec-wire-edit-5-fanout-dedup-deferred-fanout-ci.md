@@ -8,13 +8,13 @@
 | Phase | - |
 | Updated | 2026-08-02 |
 
-Deferral holder created at the closure of `plan/spec-wire-edit-5-fanout-dedup.md` on 2026-08-02
+Deferral holder created at the closure of `plan/learned/1321-wire-edit-5-fanout-dedup.md` on 2026-08-02
 (`ai/rules/deferral-tracking.md`, "Creating the Deferral Spec"). The source spec
 was removed by its closure commit, so the work below lives here.
 
 ## Task
 
-`plan/spec-wire-edit-5-fanout-dedup.md` shipped fan-out dedup with
+`plan/learned/1321-wire-edit-5-fanout-dedup.md` shipped fan-out dedup with
 mutation-verified Go coverage, including the cross-peer leak the design exists to
 prevent. Its socket-level proof did not ship: `wire-edit-fanout-dedup.ci` is
 unfinished and sits in `test/draft/plugin/`, which is gitignored, so it is in no

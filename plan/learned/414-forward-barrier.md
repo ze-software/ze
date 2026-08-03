@@ -39,4 +39,4 @@ Functional tests using Python plugin scripts had fragile `time.sleep()` calls be
 - `test/scripts/ze_api.py` -- `wait_for_ack()` sends flush RPC + post-flush delay
 - `internal/exabgp/migration/migrate_family.go` -- add default prefix maximum (10000) to migrated families
 - `internal/exabgp/migration/migrate_serialize.go` -- serialize family prefix blocks in migration output
-- `plan/spec-exabgp-bridge-muxconn.md` -- created (skeleton, bridge I/O fix)
+- `plan/learned/483-exabgp-bridge-muxconn.md` -- created (skeleton, bridge I/O fix)

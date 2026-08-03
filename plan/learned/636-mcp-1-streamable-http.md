@@ -63,8 +63,8 @@ several protocol edge cases. All resolved in the same landing:
 - `internal/component/mcp/session_test.go` — registry + session unit tests
 - `internal/component/mcp/streamable_test.go` — AC-1..AC-8 transport tests
 - `docs/architecture/mcp/overview.md` — transport shape, headers, session lifecycle, mount point, roadmap
-- `plan/spec-mcp-0-umbrella.md` — 5-phase umbrella spec
-- `plan/spec-mcp-1-streamable-http.md` — Phase 1 child spec (this landing)
+- `plan/learned/532-mcp-0-umbrella.md` — 5-phase umbrella spec
+- `plan/learned/636-mcp-1-streamable-http.md` — Phase 1 child spec (this landing)
 
 **Modified:**
 - `cmd/ze/hub/service_mcp.go` — `zemcp.Handler(...)` → `zemcp.NewStreamable(zemcp.StreamableConfig{...})`

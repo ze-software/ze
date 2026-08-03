@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | tooling |
 | Depends | - |
 | Phase | - |
 | Deferral shard | `plan/deferrals/knowledge-routing.md` |
-| Updated | 2026-08-02 |
+| Updated | 2026-08-03 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -19,7 +19,7 @@ removed. Steady state is near zero, not 889.
 
 ### Why the previous pass was not enough
 
-`plan/spec-knowledge-0-umbrella.md` (closed, see
+`plan/learned/1316-knowledge-0-umbrella.md` (closed, see
 `plan/learned/1316-knowledge-0-umbrella.md`) retired summaries 1-400 on an AGE
 band, because decay correlated with age: band 1-200 was 78% dead paths. That
 worked and 889 remain. But age was a PROXY. The real question for every summary

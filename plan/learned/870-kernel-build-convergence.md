@@ -56,7 +56,7 @@ The runtime gokrazy kernel and the installer kernel had diverged into two build 
 - `test/install/kernel-runtime-deps.ci`
 - `test/install/kernel-wiring.ci`
 - `test/install/ze-kernel-overlay.ci`
-- `plan/spec-kernel-build-convergence.md`
+- `plan/learned/870-kernel-build-convergence.md`
 
 ## Correction (kernel-build-consolidation)
 The `build.sh` referenced above (Decisions, and the Files entries

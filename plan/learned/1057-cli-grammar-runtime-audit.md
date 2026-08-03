@@ -82,4 +82,4 @@ pass) proved that design provably redundant and its central assumption broken.
 
 **Feeder 3:** `internal/component/plugin/server/grammar_audit_test.go` (new).
 **Docs:** `ai/rules/cli-grammar.md` (Feeder 3 row + rationale), `scripts/checks/cli_grammar.go` (header comment).
-**Spec:** `plan/spec-cli-grammar-runtime-audit.md` (Design Pivot, assumptions A-1/A-2 broken/moot, A-3 broken).
+**Spec:** `plan/learned/1057-cli-grammar-runtime-audit.md` (Design Pivot, assumptions A-1/A-2 broken/moot, A-3 broken).

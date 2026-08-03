@@ -7,6 +7,7 @@
 package dataplane
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net"
@@ -188,7 +189,12 @@ func (r *espFormReceiver) running() bool {
 
 // startLocked opens both sockets and starts the reader. r.mu must be held.
 func (r *espFormReceiver) startLocked() error {
-	conn, err := net.ListenPacket("ip4:esp", "0.0.0.0")
+	// (*net.ListenConfig).ListenPacket rather than net.ListenPacket: the package
+	// form takes no context and cannot be canceled, which `noctx` refuses. The
+	// socket is opened once at receiver start and lives until Close, so there is no
+	// deadline to carry and Background is the honest context here.
+	var lc net.ListenConfig
+	conn, err := lc.ListenPacket(context.Background(), "ip4:esp", "0.0.0.0")
 	if err != nil {
 		return err
 	}

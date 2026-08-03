@@ -36,5 +36,5 @@ Build `ze yang` CLI tool to automate prefix collision detection and command docu
 - `internal/component/config/yang/cli/main.go` -- CLI dispatch
 - `cmd/ze/main.go` -- added `yang` dispatch case
 - `test/ui/cli-yang-*.ci` -- 3 functional tests
-- `plan/spec-yang-analysis.md` -- this tool's spec
+- `plan/learned/462-yang-analysis.md` -- this tool's spec
 - `plan/spec-yang-command-tree.md` -- companion spec for YANG-native commands

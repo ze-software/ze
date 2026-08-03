@@ -1805,6 +1805,44 @@ One `make ze-verify*` (or `ze-chaos-verify`) at a time repo-wide -- parallel run
 | If "waiting for lock" appears, do other work | Start `go test` / `golangci-lint` / `bin/ze-test` in parallel (bypasses lock) |
 ### Running ze-verify
 Foreground with 240s timeout.
+### A SHARED CHECKOUT NEVER GIVES A CLEAN `ze-verify` (BLOCKING)
+**Several agents work this checkout at once. `make ze-verify` reads the WORKING
+TREE, so it reads their half-finished edits too, and a fully green run is unreachable by construction.
+**So the full gate is not the pre-commit evidence here. Evidence scoped to YOUR
+1. Run the narrow gate owning each surface you changed (the table below).
+2. Run the tests of each package you touched, with `make ze-test-pkg`.
+3. ATTRIBUTE every red you saw: name the file, and say whether it is yours. `git
+4. Prepare the script with `--unverified "<attribution>"`, giving the gates you ran
+**`--unverified` is the CORRECT path in a shared checkout, not a shortcut.** It
+**A deterministic STRUCTURAL gate is still never waved through** (see "Structural
+**Never edit the tree while a verify runs**, yours or anybody's. Regenerating an
+### ONCE, AT THE END. Never during development (BLOCKING)
+**`make ze-verify` is a 22-stage full gate and takes 25 to 30 minutes. Run it ONE
+time, when the work is finished and you are about to prepare the commit script.** Running it to "check in" mid-change is the single most expensive habit available in this repository, and it buys nothing a scoped check...
+**Run what the change touches.** Every surface has one owning target, and it costs
+**Go through `make`, or carry `GOCACHE` yourself.** `Makefile` exports
+| You changed | Run this |
+|-------------|----------|
+| A `.go` file | `make ze-test-pkg PKG=<that package>`, or the group target covering it (`ze-test-bgp`, `ze-test-core`, `ze-test-plugins`, `ze-test-config`, `ze-test-cli`, `ze-test-rest`). Then `make ze-lint-changed` (`ai/rules/lint-gate.md`) |
+| Reactor concurrency (`reactor/session*.go`, `forward_pool*.go`, `peer.go`) | `make ze-race-reactor` (`ai/rules/testing.md`) |
+| A `.ci` or `.et` test | its suite target: `make ze-plugin-test`, `ze-parse-test`, `ze-encode-test`, `ze-editor-test`, `ze-web-test`. Draft first in `test/draft/` |
+| Linux-only code (`//go:build linux`) | `make ze-qemu-integration-test`, or `make ze-qemu-needs-linux-test` for a `needs-linux` `.ci` (`ai/rules/qemu-testing.md`) |
+| `rfc/short/*.md`, an `RFC requirement:` tag, `rfc/extraction/*` | `make ze-rfc-check` |
+| `docs/**`, `ai/**`, `plan/**` | `make ze-doc-test`, and `make ze-verify-wiring-docs` for the changed-file gates |
+| `ai/rules/*.md` | `make ze-rules-condensed` then `make ze-rules-lint`, and commit all three digests with the rule |
+| A `*.yang` file or a `ze:command` | `make ze-doc-test`, `make ze-cli-grammar-check` |
+| A plugin `register.go`, or anything generated | `make generate`, `make ze-plugin-imports-check` |
+| A new package's placement | `make ze-tier-check` |
+| A `scripts/dev/*.py` tool | its sibling `*_test.py` directly (python needs no build cache), then `make ze-test-pkg PKG=./scripts/dev` |
+| Several of the above, and you want breadth | `make ze-verify-changed` |
+**When the table has no row for what you touched, derive it.** `mk/*.mk` names every
+**READ THE WHOLE FAILURE SUMMARY BEFORE YOU RE-RUN.** A verify run ends with
+- **`tail` on the log of a run that is still going.** The stage banner tells you
+- **Grepping for `--- FAIL` only.** Lint, tier, doc and inventory stages fail with
+**A second `ze-verify` cannot overlap the first: it blocks on the repo-wide lock**
+**A NARROW FAILURE GETS A NARROW RE-RUN, NEVER A SECOND FULL PASS.** When the
+**The status record is what forces the second pass, so plan the FIRST one to be
+**Do not stop to ask which way.** The operator is often not present, and a session
 ### Step 2: Always
 Unless Thomas Owner Override is active, never commit with lint issues and never commit without test evidence when code changed.
 ## Forbidden Without Permission
@@ -4695,6 +4733,7 @@ Test one logical area during development instead of all 349 packages:
 | `make ze-test-config` | `./internal/component/config/...` (13 pkgs) | ~20s |
 | `make ze-test-cli` | `./internal/component/cli/...` (3 pkgs) | ~10s |
 | `make ze-test-rest` | Everything not in a named group (~70 pkgs) | ~1:00 |
+| `make ze-test-pkg PKG=<pattern>` | ONE package, or any pattern. `RUN=<regexp>` narrows, `RACE=0` drops `-race` while iterating | seconds |
 ### Verification Targets
 | Target | Purpose |
 |--------|---------|
@@ -4770,8 +4809,8 @@ that can fail because of the changed file: direct Go test, matching `.ci`/`.et` 
 | Single encode test | `ze-test bgp encode N` | seconds |
 | Single editor test | `ze-test editor N` or `ze-test editor --pattern <name>` | seconds |
 | Single ExaBGP compatibility test | `ze-test exabgp N` or `ze-test exabgp --start N` | seconds |
-| Single Go test | `go test -race -run TestName ./pkg/...` | seconds |
-| Single package | `go test -race ./internal/component/bgp/reactor/...` | seconds |
+| Single Go test | `make ze-test-pkg PKG=./pkg/... RUN=TestName` | seconds |
+| Single package | `make ze-test-pkg PKG=./internal/component/bgp/reactor/` | seconds |
 | Component group | `make ze-test-bgp` (or core, plugins, config, cli, rest) | 10s-1:30 |
 | All unit tests | `make ze-unit-test` | ~5 min |
 | All editor tests | `make ze-editor-test` | ~30s |

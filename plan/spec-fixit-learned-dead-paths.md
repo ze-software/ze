@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 `plan/learned/` still cites 389 file paths that do not exist, across 306
 distinct paths. Down from 1,860 at the start of
-`plan/spec-knowledge-0-umbrella.md` (closed, see
+`plan/learned/1316-knowledge-0-umbrella.md` (closed, see
 `plan/learned/1316-knowledge-0-umbrella.md`), which retired band 1-400 and
 repaired 672 paths from git rename history.
 

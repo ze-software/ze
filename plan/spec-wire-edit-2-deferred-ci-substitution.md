@@ -17,7 +17,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 taken, not work to be done.** Nobody may answer it on his behalf, because the
 answer decides whether an already-closed spec closed correctly.
 
-`plan/spec-wire-edit-2-edit-apply.md` named three `.ci` files in its Wiring Test
+`plan/learned/1318-wire-edit-2-edit-apply.md` named three `.ci` files in its Wiring Test
 table and its Functional Tests table. None was ever created. Confirmed absent on
 2026-08-02:
 

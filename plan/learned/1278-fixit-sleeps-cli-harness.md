@@ -81,6 +81,6 @@ documents as a fail-open shape; and `test/vpp/007-fib-route-lookup.ci` cites a
 
 ## Files
 
-- `plan/spec-fixit-sleeps-cli-harness.md` -- removed by this closure; its `## STALE`
+- `spec-fixit-sleeps-cli-harness` -- the spec itself, removed by this closure; its `## STALE`
   section (commit `a95f0b7f8`) holds the per-premise verification
 - `test/.ci-sleep-baseline` -- the ratchet, unchanged

@@ -38,7 +38,7 @@ Ze had a flat config archive model: `archive { location X; }` with a single list
 - `internal/component/config/cli/main.go` -- updated usage text
 - `internal/component/cli/client/main.go` -- added archive cmd import
 - `internal/component/plugin/all/all.go` -- added archive schema import
-- `plan/spec-config-2-archive.md` -- added review checklists, updated status
+- `plan/learned/720-config-2-archive.md` -- added review checklists, updated status
 
 ### Created
 - `internal/component/config/archive/scheduler.go` -- time-based trigger scheduler

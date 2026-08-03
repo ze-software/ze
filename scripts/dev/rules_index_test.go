@@ -16,6 +16,17 @@ func TestRulesIndexCheckPasses(t *testing.T) {
 	mustContain(t, out, "up to date")
 }
 
+// isGeneratedDigest reports whether an ai/rules/ file is a generated digest rather
+// than a rule, by the repository's own convention: an ALL-CAPS stem.
+//
+// It mirrors the classification in scripts/dev/rules_index.py. Keep the two in
+// step; a name that only one of them treats as a digest is the drift this exists
+// to remove.
+func isGeneratedDigest(name string) bool {
+	stem := strings.TrimSuffix(name, ".md")
+	return stem != "" && stem == strings.ToUpper(stem)
+}
+
 // VALIDATES: the generated index references every ai/rules/*.md file.
 // PREVENTS: the generator silently skipping rules so they never appear in the overview.
 func TestRulesIndexCoversEveryRule(t *testing.T) {
@@ -33,9 +44,13 @@ func TestRulesIndexCoversEveryRule(t *testing.T) {
 	}
 	for _, e := range entries {
 		name := e.Name()
-		// INDEX.md and CONDENSED.md are generated digests, not rules; rules_index.py
-		// skips both (its SKIP set), so the coverage check must skip them too.
-		if e.IsDir() || !strings.HasSuffix(name, ".md") || name == "INDEX.md" || name == "CONDENSED.md" {
+		// A generated digest is not a rule. rules_index.py classifies one by its
+		// ALL-CAPS stem -- INDEX.md, CONDENSED.md, TRIGGERS.md, CORE.md -- and its
+		// comment records that the two-name list this mirrors is exactly what made
+		// TRIGGERS.md and CORE.md land in the index by mistake. The same rule is
+		// applied here rather than a second list of names, so the next digest needs
+		// no edit in either place (ai/rules/derive-not-hardcode.md).
+		if e.IsDir() || !strings.HasSuffix(name, ".md") || isGeneratedDigest(name) {
 			continue
 		}
 		if !strings.Contains(index, "ai/rules/"+name) {

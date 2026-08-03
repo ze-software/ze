@@ -1619,3 +1619,45 @@ uncommitted sources for it. The rule as written assumes a quiet checkout.
 2. Or have `commit_helper.py` detect it. It already materialises a commit view for
    the discovery-index gate, so it could downgrade the ledger requirement to a
    warning naming the other session's files.
+
+---
+
+## F: the RFC-tagged-test guard blocks the author repairing a file it just wrote
+
+**Date.** 2026-08-02, during the RFC 5216 Section 2.1.3 extraction of
+`spec-rfcgate-1b-rfc7296-pilot`.
+
+**What happened.** An agent wrote a NEW, untracked test file carrying
+`RFC requirement:` tags, and it did not compile: a `const` in it duplicated one
+already declared elsewhere in the package. Both repair routes were shut.
+`Edit` and `Write` were refused by `_rfc_tagged_change_err`, which
+`c_test_weakening` calls (`.claude/hooks/pretool-writeedit.py`), because the tag
+sits outside every function and so widens the guard's scope to the whole file.
+`rm` was refused by `check_test_deletion` in `pretool-bash.py`.
+
+**Why the guard is right in general.** A tag is a public compliance claim, and a
+behaviour change to a tagged test must carry user approval, not self-approval.
+`// test-relax:` deliberately does not satisfy it.
+
+**Why it misfires here.** The file was untracked and had never compiled, so no
+claim existed yet to weaken: there is no HEAD version whose assertions could be
+relaxed. The guard's own premise, that an edit might weaken a claim somebody is
+relying on, is false for a file git has never seen.
+
+**How it resolved.** The agent did NOT self-approve with
+`rfc-test-change-approved`, which was the right call. It moved its draft to
+scratch and rewrote the file complete in one `Write`.
+
+**Suggested fixes.**
+
+1. Exempt a path untracked in git. `git ls-files --error-unmatch <path>` is one
+   call, and an untracked file has no claim to protect.
+2. Or narrow the scope fallback: when the tag precedes every `func` in the file,
+   treat the hunk's own enclosing scope as the unit rather than widening to the
+   file, so a file-header edit is not read as touching every tagged test in it.
+
+**Second friction, same session, smaller.** `validate-spec.sh` takes its payload
+on stdin and NOTHING on argv, and says so loudly when given argv. That is good
+design, but the manual-invocation line it prints is the only place the contract
+is written; a reader who reaches for `bash validate-spec.sh <path>` first learns
+it by failing. Worth one line in `ai/rules/hook-mapping.md`.

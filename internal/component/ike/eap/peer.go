@@ -69,6 +69,20 @@ type PeerSession struct {
 	// tlsErr holds the TLS handshake goroutine's error, so a failure reports its
 	// cause rather than only the "no MSK" consequence.
 	tlsErr atomic.Pointer[error]
+
+	// pendingErr holds a TLS failure whose EAP-Response has already gone out, so
+	// the round that follows can report it.
+	//
+	// RFC 5216 Section 2.1.3 makes the authenticator WAIT: "To ensure that the peer
+	// receives the TLS alert message, the EAP server MUST wait for the peer to
+	// reply with an EAP-Response packet." A peer that reports its failure INSTEAD
+	// of replying leaves that wait unsatisfied, and the authenticator then sits
+	// until its stale-handshake reaper rather than sending EAP-Failure. So the
+	// reply goes out first and the cause is parked here.
+	//
+	// Written and read on the session's own goroutine, like state and identity
+	// beside it.
+	pendingErr error
 }
 
 type peerState uint8
@@ -109,6 +123,15 @@ func (ps *PeerSession) Process(request *Packet) PeerResult {
 	if ps.rounds > maxEAPRounds {
 		ps.state = peerStateFailed
 		return PeerResult{Err: ErrTooManyRounds}
+	}
+
+	// A parked TLS failure outranks whatever arrives next. The reply the RFC asks
+	// for has gone out, so this packet ends the exchange whatever it is, and the
+	// cause the operator needs is the handshake's rather than the generic "the
+	// authenticator sent Failure" that names only the symptom.
+	if ps.pendingErr != nil {
+		ps.state = peerStateFailed
+		return PeerResult{Err: ps.pendingErr}
 	}
 
 	switch request.Code {
@@ -371,6 +394,21 @@ func (ps *PeerSession) handleTLSRequest(req *Packet) PeerResult {
 	if ps.tlsDone.Load() {
 		msk, err := ps.deriveTLSMSK()
 		if err != nil {
+			// REPLY FIRST, REPORT ON THE NEXT ROUND. readAndSendTLS has already
+			// built the EAP-Response for this round, and RFC 5216 Section 2.1.3
+			// makes the authenticator wait for exactly that packet before it may
+			// send EAP-Failure. Returning the error here instead discards the
+			// response (the engine drops PeerResult.Response whenever Err is set),
+			// so the authenticator waits out its stale-handshake reaper rather than
+			// terminating in the round it would otherwise terminate in.
+			//
+			// Reachable whenever the authenticator's fatal alert lands before this
+			// side's handshake completes: a TLS 1.2 client-certificate rejection, or
+			// a rejection at ClientHello in any version.
+			if result.Err == nil && result.Response != nil {
+				ps.pendingErr = err
+				return result
+			}
 			ps.state = peerStateFailed
 			return PeerResult{Err: err}
 		}

@@ -4273,6 +4273,12 @@ class TestExtractionSignoff(unittest.TestCase):
         self.assertTrue(any("no source text" in e for e in errs), errs)
 
 
+# The phrase only the live-prose arm of `_relocation_errors` emits. The other
+# denying arms say "does not exist or cannot be read" and "still declares", so
+# asserting this one distinguishes them.
+_LIVE_PROSE_ARM = "in live prose"
+
+
 class TestRelocatedToSpec(unittest.TestCase):
     """The sixth exclusion kind, and the one that does not say "this binds nobody".
 
@@ -4344,6 +4350,204 @@ class TestRelocatedToSpec(unittest.TestCase):
             specs={_SPEC_NAME: "| `RFC9999-2-30` | MUST | a different obligation |\n"},
         )
         self.assertTrue(any("2:2" in e for e in errs), errs)
+
+    # ------------------------------------------------------------------
+    # The id must appear in LIVE prose. Every arm below is a file that still contains
+    # the characters and has stopped claiming the work, which is the one direction the
+    # raw-text search failed OPEN in: finding the id is what PASSES, so text that no
+    # longer binds anybody kept an obligation owed by nobody looking homed.
+    #
+    # Each case asserts _LIVE_PROSE_ARM, the phrase only THIS arm emits. Asserting
+    # `"2:2" in e and "RFC9999-2-3" in e` instead was vacuous: every denying arm
+    # embeds the site id and the requirement id, so a stub returning the
+    # spec-is-missing message satisfied all four while the feature was dead.
+    # ------------------------------------------------------------------
+
+    def test_a_commented_out_reservation_is_refused(self):
+        """An HTML comment renders as nothing. A row parked inside one is a row the spec
+        has stopped owing, and it is the cheapest way to make this tripwire green without
+        keeping the obligation."""
+        errs = self._errs(
+            _relocated_artifact(),
+            specs={
+                _SPEC_NAME: (
+                    "# Fixture spec\n\n"
+                    "<!-- | `RFC9999-2-3` | MUST | parked while we think -->\n"
+                )
+            },
+        )
+        self.assertTrue(any(_LIVE_PROSE_ARM in e for e in errs), errs)
+
+    def test_a_struck_through_reservation_is_refused(self):
+        """Strikethrough is this repository's own notation for superseded spec content
+        (ai/rules/planning.md, append-only editing). A struck row is a row that was
+        withdrawn, so reading it as a live reservation inverts the notation's meaning."""
+        errs = self._errs(
+            _relocated_artifact(),
+            specs={
+                _SPEC_NAME: "# Fixture spec\n\n~~| `RFC9999-2-3` | MUST | dropped~~\n"
+            },
+        )
+        self.assertTrue(any(_LIVE_PROSE_ARM in e for e in errs), errs)
+
+    def test_an_id_only_inside_a_code_fence_is_refused(self):
+        """A fenced block is an example, not a claim. Specs in this tree carry shell
+        snippets that name ids (`grep -o 'RFC7296-2\\.22-[0-9]*'`), so a search that
+        counts them would let a spec reserve an obligation by quoting a command."""
+        errs = self._errs(
+            _relocated_artifact(),
+            specs={
+                _SPEC_NAME: "# Fixture spec\n\n```\ngrep RFC9999-2-3 rfc/short/\n```\n"
+            },
+        )
+        self.assertTrue(any(_LIVE_PROSE_ARM in e for e in errs), errs)
+
+    def test_an_unterminated_comment_hides_the_reservation(self):
+        """The ambiguous input, resolved toward RED. A Markdown renderer swallows
+        everything after an unclosed `<!--`, and a reader of the rendered spec sees no
+        reservation. Stripping to end of file agrees with them, and it puts the one
+        undecidable case on the side that costs a look rather than an obligation."""
+        errs = self._errs(
+            _relocated_artifact(),
+            specs={
+                _SPEC_NAME: "# Fixture spec\n\n<!-- notes\n\n| `RFC9999-2-3` | MUST | owed |\n"
+            },
+        )
+        self.assertTrue(any(_LIVE_PROSE_ARM in e for e in errs), errs)
+
+    def test_an_id_only_inside_a_tilde_fence_is_refused(self):
+        """CommonMark accepts `~~~` as a fence delimiter as readily as ```` ``` ````, and
+        covering backticks alone left this OPEN in a way that also broke the strike rule:
+        `~~~` starts with `~~`, so the strike pass ate the two delimiter LINES and
+        published the block body as live prose."""
+        errs = self._errs(
+            _relocated_artifact(),
+            specs={
+                _SPEC_NAME: "# Fixture spec\n\n~~~\ngrep RFC9999-2-3 rfc/short/\n~~~\n"
+            },
+        )
+        self.assertTrue(any(_LIVE_PROSE_ARM in e for e in errs), errs)
+
+    def test_an_id_only_inside_an_indented_code_block_is_refused(self):
+        """The form both live destination specs actually use. `plan/spec-ipsec-ipcomp.md`
+        carries eleven four-space-indented shell lines and `plan/spec-ipsec-remote-access.md`
+        one, so this is the reachable shape of "reserving an obligation by example"."""
+        errs = self._errs(
+            _relocated_artifact(),
+            specs={
+                _SPEC_NAME: "# Fixture spec\n\nRun:\n\n    grep RFC9999-2-3 rfc/short/\n"
+            },
+        )
+        self.assertTrue(any(_LIVE_PROSE_ARM in e for e in errs), errs)
+
+    def test_an_unterminated_fence_hides_the_reservation(self):
+        """The fence fallback, pinned. An opener with no closer swallows the rest of the
+        file for a renderer, so it does here too. Without this case, deleting the
+        `|^ {0,3}(?:...)` branch left every other case green."""
+        errs = self._errs(
+            _relocated_artifact(),
+            specs={
+                _SPEC_NAME: "# Fixture spec\n\n```\nnotes\n\n| `RFC9999-2-3` | MUST | owed |\n"
+            },
+        )
+        self.assertTrue(any(_LIVE_PROSE_ARM in e for e in errs), errs)
+
+    def test_an_unterminated_strike_hides_the_rest_of_its_line(self):
+        """The strike fallback, pinned, and scoped to ONE line: strikethrough does not
+        span lines, so an unclosed `~~` must not swallow the file. Without this case,
+        deleting the `|~~.*$` branch left every other case green.
+
+        The id sits on the `~~` line and ANOTHER line follows it. With the id on the
+        last line, `$` matches whether or not the pattern carries `re.M`, so dropping
+        that flag -- which would make the fallback swallow the rest of the FILE --
+        killed nothing. The trailing line is what makes the scope observable.
+        """
+        errs = self._errs(
+            _relocated_artifact(),
+            specs={
+                _SPEC_NAME: "# Fixture spec\n\n~~withdrawn: `RFC9999-2-3`\nand the spec continues here.\n"
+            },
+        )
+        self.assertTrue(any(_LIVE_PROSE_ARM in e for e in errs), errs)
+
+    def test_an_id_after_a_closed_fence_still_reserves(self):
+        """The accept-twin for the fence's PAIRED branch. Without it, replacing the
+        pattern with its fallback-only form killed nothing, while a live row after a
+        closed fence silently stopped reserving: the opener would have swallowed the
+        rest of the file."""
+        self.assertEqual(
+            self._errs(
+                _relocated_artifact(),
+                specs={
+                    _SPEC_NAME: (
+                        "# Fixture spec\n\n```\ngrep something\n```\n\n"
+                        "| `RFC9999-2-3` | MUST | owed |\n"
+                    )
+                },
+            ),
+            [],
+        )
+
+    def test_an_id_after_a_closed_comment_still_reserves(self):
+        """The same twin for the comment's paired branch."""
+        self.assertEqual(
+            self._errs(
+                _relocated_artifact(),
+                specs={
+                    _SPEC_NAME: (
+                        "# Fixture spec\n\n<!-- an aside -->\n\n"
+                        "| `RFC9999-2-3` | MUST | owed |\n"
+                    )
+                },
+            ),
+            [],
+        )
+
+    def test_an_id_only_inside_a_tab_indented_block_is_refused(self):
+        """The `\\t` branch of the indented-code rule. A tab is a code block to a
+        renderer exactly as four spaces are, and pinning only the spaces branch left
+        the tab one able to reserve an obligation by example."""
+        errs = self._errs(
+            _relocated_artifact(),
+            specs={
+                _SPEC_NAME: "# Fixture spec\n\nRun:\n\n\tgrep RFC9999-2-3 rfc/short/\n"
+            },
+        )
+        self.assertTrue(any(_LIVE_PROSE_ARM in e for e in errs), errs)
+
+    def test_repeated_constructs_are_all_stripped(self):
+        """`sub` replaces every occurrence, never the first. `plan/spec-ipsec-remote-access.md`
+        carries six strikethrough lines, so a `count=1` on any of the three passes would
+        leave the later ones live while the earlier ones read as handled."""
+        errs = self._errs(
+            _relocated_artifact(),
+            specs={
+                _SPEC_NAME: (
+                    "# Fixture spec\n\n"
+                    "~~first withdrawal~~\n"
+                    "~~second withdrawal, `RFC9999-2-3`~~\n"
+                )
+            },
+        )
+        self.assertTrue(any(_LIVE_PROSE_ARM in e for e in errs), errs)
+
+    def test_a_live_row_beside_a_struck_one_is_accepted(self):
+        """The discriminating twin for all four refusals above. Without it, a strip that
+        deleted the whole file would pass every one of them while breaking the twelve live
+        relocations this kind exists to carry."""
+        self.assertEqual(
+            self._errs(
+                _relocated_artifact(),
+                specs={
+                    _SPEC_NAME: (
+                        "# Fixture spec\n\n"
+                        "~~| `RFC9999-2-3` | MUST | first attempt, withdrawn~~\n"
+                        "| `RFC9999-2-3` | MUST | re-stated, and owed |\n"
+                    )
+                },
+            ),
+            [],
+        )
 
     def test_a_reserved_id_the_summary_still_declares_is_refused(self):
         """A relocation ASSERTS the row left rfc/short/. If the summary still declares it,
@@ -10727,8 +10931,8 @@ class TestRealTree(unittest.TestCase):
 
     Spec: plan/spec-rfcgate-1b-rfc7296-pilot.md, "Wiring Test" and D-3. Deliberately not
     patched. What these prove is a fact about THIS repository -- the pilot grew
-    rfc/short/rfc7296.md from 23 rows to 223 and proved every gated one of them in both
-    polarities -- and a synthetic fixture would pass with all 200 landed rows absent, which
+    rfc/short/rfc7296.md from 23 rows to 227 and proved every gated one of them in both
+    polarities -- and a synthetic fixture would pass with all 204 landed rows absent, which
     is the whole failure the pilot exists to end.
 
     R-12 is why they arrive green rather than red-first. `make ze-rfc-check` runs
@@ -10783,7 +10987,12 @@ class TestRealTree(unittest.TestCase):
 
     # The pilot's landed figure. A floor, never an equality: a later row is welcome, and
     # deleting rows must not be the cheap way to keep this case green.
-    GATED_FLOOR = 218
+    #
+    # It must be the figure the tree ACTUALLY carries. A floor set below it is slack: at
+    # 218 against a tree of 222 the four MUSTs the extraction walk had just found could
+    # each be deleted without reding this case, which is the one move the floor exists to
+    # refuse. Raise it in the commit that raises the count.
+    GATED_FLOOR = 222
 
     @classmethod
     def setUpClass(cls):
@@ -10862,7 +11071,7 @@ class TestRealTree(unittest.TestCase):
             )
 
     def test_rfc7296_every_gated_row_is_proven_in_both_polarities(self):
-        """AC-2 and AC-4: 218 gated rows, every one proven positive AND negative, and not
+        """AC-2 and AC-4: 222 gated rows, every one proven positive AND negative, and not
         one annotation in the file.
 
         Owner ruling OR-1 gave this spec no annotation budget. Nothing mechanical enforces
@@ -10887,7 +11096,7 @@ class TestRealTree(unittest.TestCase):
         """AC-3, driving check_retired_requirements and check_coverage_ratchet.
 
         Both ratchets compare the working tree against HEAD, and HEAD sits well past the
-        pilot's start, so neither can still see the 23 -> 223 re-authoring they protect.
+        pilot's start, so neither can still see the 23 -> 227 re-authoring they protect.
         Feeding them the RECORDED pre-pilot baseline restores that reach. The polarity
         baseline claims BOTH for every gated pre-pilot id, which is the strongest claim a
         real loss could fail against.

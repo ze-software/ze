@@ -72,4 +72,4 @@ the firewall precedent turned out NOT to be packet-validated.
 - `test/scripts/vpp_stub.py` -- `classify_add_del_table` handler (returns NewTableIndex)
 - `scripts/evidence/effective-vpp.py` -- protocol evidence phase + 2 pre-existing bug fixes
 - `docs/features.md` -- VPP Traffic Control Backend row updated
-- `plan/spec-followup-vpp-traffic.md` -- assumption verdicts + progress log
+- `plan/learned/1097-followup-vpp-traffic.md` -- assumption verdicts + progress log

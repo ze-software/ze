@@ -38,4 +38,4 @@ OSPFv2 needed a raw IPv4 transport under `internal/plugins/ospf/transport/` befo
 - `docs/architecture/core-design.md`
 - `docs/plugin-development/metrics.md`
 - `docs/functional-tests.md`
-- `plan/spec-ospf-3-ip-transport.md`
+- `plan/learned/957-ospf-3-ip-transport.md`

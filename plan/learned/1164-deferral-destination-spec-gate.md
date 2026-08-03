@@ -48,4 +48,4 @@ gate that never fired was worth.
 - `scripts/dev/hook-fixture-check.py` - commit-gate deferral fixtures
 - `plan/deferrals.md` - 13 rows re-homed
 - `plan/spec-*-deferred-*.md` - eight new deferral specs
-- `plan/spec-fixit-local-asn-config-key.md` - bug found while homing a row
+- `plan/learned/1179-fixit-local-asn-config-key.md` - bug found while homing a row

@@ -45,7 +45,7 @@ unpinned Linux kernel.
 - Only the derived-parent defect was fixed here. Preparing for *every* build,
   making the out-of-tree kernel an explicit parameter, and collapsing the three
   copies of "prepare an instance elsewhere" stay in
-  `plan/spec-gokrazy-builddir-tmp.md`.
+  `plan/learned/1262-gokrazy-builddir-tmp.md`.
 
 ## Consequences
 
@@ -148,5 +148,5 @@ missing argument named). R-2 in the spec is closed.
 - `internal/appliance/kernelargs_test.go` -- rewritten derived-parent test plus
   fail-closed, isolation, and version-replace tests
 - `ai/rules/appliance-dep-bumps.md` -- module cache hygiene section
-- `plan/spec-gokrazy-builddir-tmp.md` -- A-1b confirmed, landed work recorded
+- `plan/learned/1262-gokrazy-builddir-tmp.md` -- A-1b confirmed, landed work recorded
 - `go.mod` -- `golang.org/x/mod` promoted to a direct dependency

@@ -194,6 +194,71 @@ func TestCommitHelperRequiresLessonsForWorkflowChanges(t *testing.T) {
 	mustContain(t, out, "lesson=Lesson: plan/learned/833-commit-helper.md")
 }
 
+// VALIDATES: an ALREADY-COMMITTED learned summary in a commit is not read as a
+// spec closure, so it demands no review artifact; a NEW one still is.
+// PREVENTS: the misfire measured on 2026-08-03. A commit that repointed dead
+// `## Files` paths in 23 learned summaries was accused of closing the spec of
+// whichever sorted first, and blocked for a review artifact nobody owed. A
+// summary is edited for many reasons that are not a closure; only its creation
+// is the closure signal (ai/rules/planning.md "Spec Closure").
+func TestCommitHelperTreatsOnlyANewLearnedSummaryAsAClosure(t *testing.T) {
+	root := makeCommitHelperFixture(t)
+	writeFixture(t, root, ".gitignore", "tmp/*\n")
+
+	// review_gate_problems returns [] when scripts/dev/review_gate.py is absent, so
+	// without this stub the twin below could not fire and the case would pass by
+	// checking nothing. The stub always refuses, naming the stem it was asked about.
+	writeFixture(t, root, "scripts/dev/review_gate.py",
+		"import sys\nprint('no artifact for', sys.argv[sys.argv.index('--spec') + 1])\nsys.exit(3)\n")
+
+	// A summary that ALREADY exists at HEAD, and a code file beside it.
+	writeFixture(t, root, "plan/learned/1015-old-spec.md", "# old\n")
+	writeFixture(t, root, "scripts/dev/tool.py", "print('one')\n")
+	runFixtureCommand(t, root, "add", "-A")
+	runFixtureCommand(t, root, "-c", "user.email=t@e", "-c", "user.name=t",
+		"commit", "-m", "seed", "--no-gpg-sign")
+
+	// Editing it is not a closure: no review artifact is owed.
+	writeFixture(t, root, "plan/learned/1015-old-spec.md", "# old\n\nrepointed\n")
+	writeFixture(t, root, "scripts/dev/tool.py", "print('two')\n")
+	out, stderr, code := runCommitHelper(t, root,
+		"--repo", root,
+		"create",
+		"--session", "aabbccdd",
+		"--subject", "docs: repoint a dead reference",
+		"--file", "plan/learned/1015-old-spec.md",
+		"--file", "scripts/dev/tool.py",
+		"--lesson-not-needed", "repoints a dead path, teaches nothing",
+		"--unverified", "fixture",
+		"--replace",
+	)
+	if code != 0 {
+		t.Fatalf("editing an existing learned summary was read as a spec closure\n"+
+			"stdout:\n%s\nstderr:\n%s", out, stderr)
+	}
+
+	// The twin: a summary that does NOT exist at HEAD still demands the artifact,
+	// or this case would pass by disabling the gate outright.
+	writeFixture(t, root, "plan/learned/1016-new-spec.md", "# new\n")
+	out, stderr, code = runCommitHelper(t, root,
+		"--repo", root,
+		"create",
+		"--session", "aabbccdd",
+		"--subject", "docs: close a spec",
+		"--file", "plan/learned/1016-new-spec.md",
+		"--file", "scripts/dev/tool.py",
+		"--unverified", "fixture",
+		"--replace",
+	)
+	if code == 0 {
+		t.Fatal("a NEW learned summary must still require an independent-review artifact")
+	}
+	// The stem it asked about, not merely that it refused: a refusal naming the
+	// WRONG spec is the defect this case exists to catch. `_LEARNED_STEM_RE` drops
+	// the NNN- prefix, so the stem is "new-spec".
+	mustContain(t, out+stderr, "new-spec")
+}
+
 // VALIDATES: ignored paths are rejected before a commit script is written.
 // PREVENTS: generated files under tmp/ or other ignored artifacts being added by the user-run script.
 func TestCommitHelperRejectsIgnoredPaths(t *testing.T) {

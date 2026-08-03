@@ -188,7 +188,7 @@ parses a route type today.
 |----------|--------|
 | What breaks if this is wrong? | Routes an operator expects relayed are silently dropped. Over-broad application breaks BGP-LS, where RFC 9552 requires propagation. Under-broad leaves the MUST unmet. |
 | How is it reverted? | Single commit revert, but a peer that stopped receiving routes will have withdrawn them downstream, so the control-plane effect outlives the revert. |
-| Who else touches this path? | `plan/spec-wire-edit-0-umbrella.md` child 1 rewrites the receive-time attribute walk, and this spec adds a decision to that same path. Sequence them. |
+| Who else touches this path? | `plan/learned/1322-wire-edit-0-umbrella.md` child 1 rewrites the receive-time attribute walk, and this spec adds a decision to that same path. Sequence them. |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 

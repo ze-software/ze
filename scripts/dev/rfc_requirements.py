@@ -6135,13 +6135,71 @@ def _relocation_errors(
             f"the spec must be there. If the work landed, map the site to its row in "
             f"rfc/short/{art.stem}.md instead"
         ]
-    if not _reserved_id_re(rid).search(text):
+    if not _reserved_id_re(rid).search(_live_reservation_text(text)):
         return [
-            f"{where} reserves {rid} in {rel}, and that file no longer names {rid}. The "
-            f"obligation is now owed by nobody: put the row back, or map the site if the "
-            f"requirement has landed in rfc/short/{art.stem}.md"
+            f"{where} reserves {rid} in {rel}, and that file no longer names {rid} in live "
+            f"prose. The obligation is now owed by nobody: put the row back, or map the site "
+            f"if the requirement has landed in rfc/short/{art.stem}.md. An id inside an HTML "
+            f"comment, a strikethrough span, a fenced block or an indented code block does "
+            f"not reserve it -- the first two are how this repository DISOWNS text "
+            f"(ai/rules/planning.md: superseded spec content is struck through), and the "
+            f"last two are examples rather than claims"
         ]
     return []
+
+
+# The Markdown constructs that make text stop being a live claim. Each falls back
+# to consuming the rest of the input when its terminator is missing, so an
+# unbalanced marker strips MORE rather than less. That direction is deliberate:
+# finding the id is what PASSES this check, so stripping too little fails OPEN and
+# leaves an obligation owed by nobody, while stripping too much reddens a gate that
+# names the file and the id for a human to look at (ai/rules/fail-closed-guards.md).
+_MD_COMMENT_RE = re.compile(r"<!--.*?-->|<!--.*", re.S)
+# Fenced code, both syntaxes. CommonMark accepts ``` or ~~~, three or more, indented
+# up to three spaces. Covering only backticks left `~~~` blocks live, and the strike
+# rule below then ate the two delimiter LINES and published the body -- the reverse
+# of what this is for. The `~{3,}` branch must therefore run BEFORE _MD_STRIKE_RE.
+_MD_FENCE_RE = re.compile(
+    r"^ {0,3}(?P<f>`{3,}|~{3,})[^\n]*\n.*?^ {0,3}(?P=f)[^\n]*$"
+    r"|^ {0,3}(?:`{3,}|~{3,})[^\n]*\n.*",
+    re.S | re.M,
+)
+# Indented code: four spaces or a tab at line start. Both destination specs already
+# carry shell snippets in this form (`plan/spec-ipsec-ipcomp.md` has eleven lines of
+# it), so an id quoted in one of them was reserving an obligation by example.
+_MD_INDENTED_CODE_RE = re.compile(r"^(?: {4}|\t)[^\n]*$", re.M)
+# Per line: GitHub-flavoured strikethrough does not span lines, and `$` is a line
+# end under re.M rather than the end of the file.
+_MD_STRIKE_RE = re.compile(r"~~.+?~~|~~.*$", re.M)
+
+
+def _live_reservation_text(text: str) -> str:
+    """The part of a destination spec that can RESERVE an obligation.
+
+    A relocation asserts that a named spec OWES the requirement. Searching the raw
+    file answers a weaker question -- do these characters appear anywhere -- and the
+    two differ exactly where it matters. Commenting the row out, striking it through,
+    or leaving the id in a shell example all keep the tripwire green while the spec
+    has stopped claiming the work.
+
+    Order matters twice. Comments go first, because a comment can hold a fence or a
+    `~~` that would otherwise pair with a live one further down. Fences go before
+    strikethrough, because `~~~` opens a fence and `~~` opens a strike, and the
+    shorter rule applied first splits the delimiter and leaves the block behind.
+
+    WHAT THIS IS NOT. It is a line-oriented approximation of Markdown, not a parser,
+    and the residue falls on both sides. It strips MORE than a renderer hides: any
+    four-space line is read as code, so a nested list item or a list continuation
+    paragraph stops reserving, and the gate reddens naming the file. It strips LESS
+    for constructs it does not know: `<del>` and `<s>` disown text and are not
+    removed, and an id that appears only inside a link target still reserves. The
+    known-less cases are the ones worth watching, because that direction leaves an
+    obligation owed by nobody rather than costing somebody a look.
+    """
+    text = _MD_COMMENT_RE.sub(" ", text)
+    text = _MD_FENCE_RE.sub(" ", text)
+    text = _MD_INDENTED_CODE_RE.sub(" ", text)
+    return _MD_STRIKE_RE.sub(" ", text)
 
 
 def _reserved_id_re(rid: str) -> "re.Pattern[str]":

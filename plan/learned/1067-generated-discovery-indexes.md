@@ -72,4 +72,4 @@ edit regenerates it and a stale index never ships. Motivating audit:
 - `scripts/dev/commit_helper.py` (+ `commit_helper_test.py`), `scripts/dev/verify_wiring_docs.py`
 - `mk/inventory.mk`, `Makefile` (`ze-discovery-index`, `ze-regen`, gate in `ze-doc-test`)
 - `ai/INDEX.md`, `ai/rules/discovery-updates.md`, `ai/rules/git-safety.md`
-- `AI-NAVIGATION-AUDIT.md` (audit), `plan/spec-generated-discovery-indexes.md`
+- `AI-NAVIGATION-AUDIT.md` (audit), `plan/learned/1067-generated-discovery-indexes.md`

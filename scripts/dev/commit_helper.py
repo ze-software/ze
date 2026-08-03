@@ -527,10 +527,15 @@ def lesson_comment(
         if not reason:
             evidence = _lesson_new_content(scoped) or "new lines in " + ", ".join(scope)
             raise UsageError(
-                "no learned summary is staged, and this commit adds content "
-                "rather than\n"
-                "  moving it, so the helper cannot tell whether a lesson was "
-                "lost.\n"
+                # "lesson-worthy paths changed" is the STABLE LEADING PHRASE for
+                # this failure kind (ai/rules/error-messages.md): it is what a
+                # scanner greps for and what commit_helper_test.go pins. Rewording
+                # the message around it is fine; dropping it is not.
+                "lesson-worthy paths changed: no learned summary is staged, and "
+                "this commit\n"
+                "  adds content rather than moving it, so the helper cannot tell "
+                "whether a\n"
+                "  lesson was lost.\n"
                 "  evidence: " + evidence + "\n"
                 "  expected: a plan/learned/NNN-<name>.md among the --file paths, "
                 "or an\n"
@@ -1935,18 +1940,44 @@ def _is_review_code(path: str) -> bool:
     )
 
 
+def _tracked_at_head(repo: Path, path: str) -> bool:
+    """Whether HEAD already carries this path."""
+    return (
+        subprocess.run(
+            ["git", "cat-file", "-e", f"HEAD:{path}"],
+            cwd=repo,
+            capture_output=True,
+        ).returncode
+        == 0
+    )
+
+
 def spec_closure_stem(
-    add_paths: tuple[str, ...], remove_paths: tuple[str, ...]
+    add_paths: tuple[str, ...],
+    remove_paths: tuple[str, ...],
+    repo: Path | None = None,
 ) -> str | None:
     """The spec-stem this commit closes, or None if it is not a closure commit.
 
-    Closure = commit A adds plan/learned/NNN-<stem>.md, or commit B removes
+    Closure = commit A adds a NEW plan/learned/NNN-<stem>.md, or commit B removes
     plan/spec-<stem>.md (ai/rules/planning.md "Spec Closure"). The <stem> is the
     key the review artifact (tmp/review/<stem>-<session-id>.md) is written under.
+
+    NEW is the load-bearing word, and `repo` is what makes it checkable. A commit
+    may carry a learned summary for a reason that is not a closure: repointing a
+    dead `## Files` path, correcting a citation, a sweep over many summaries at
+    once. Reading any such path as a closure picks whichever sorts first and then
+    demands a review artifact for a spec nobody is closing -- measured on a commit
+    that repointed 23 summaries and was accused of closing the first of them.
+    A summary already in HEAD is therefore not a closure signal.
+
+    With `repo` omitted the old behaviour stands, so a caller that cannot reach git
+    still fails CLOSED (every learned path counts) rather than silently letting a
+    real closure through unreviewed.
     """
     for p in add_paths:
         m = _LEARNED_STEM_RE.match(p)
-        if m:
+        if m and (repo is None or not _tracked_at_head(repo, p)):
             return m.group("stem")
     for p in remove_paths:
         m = _SPEC_STEM_RE.match(p)
@@ -1974,7 +2005,7 @@ def review_gate_problems(
     close with no review on record at all. Returns [] only when this is not a
     closure commit or when review_gate.py is absent.
     """
-    stem = spec_closure_stem(add_paths, remove_paths)
+    stem = spec_closure_stem(add_paths, remove_paths, repo)
     if stem is None:
         return []
     gate = repo / "scripts" / "dev" / "review_gate.py"
@@ -2111,7 +2142,7 @@ def create(args: argparse.Namespace) -> int:
     # generated script so an edit between `create` and `bash tmp/commit-*.sh` is
     # caught at commit-RUN time (TOCTOU), not only here at generation time.
     review_check = ""
-    closure_stem = spec_closure_stem(add_paths, remove_paths)
+    closure_stem = spec_closure_stem(add_paths, remove_paths, repo)
     if closure_stem is not None and not args.review_override:
         rc_code = tuple(p for p in add_paths if _is_review_code(p))
         review_check = (
@@ -2150,7 +2181,7 @@ def create(args: argparse.Namespace) -> int:
             print(f"verify=UNVERIFIED ({args.unverified})")
         else:
             print(f"verify={vstate.upper()} ({detail})")
-        if args.review_override and spec_closure_stem(add_paths, remove_paths):
+        if args.review_override and spec_closure_stem(add_paths, remove_paths, repo):
             print(f"review=OVERRIDDEN ({args.review_override})")
     if verdicts is None:
         # --stale-index-ok skipped the gate above, so nothing has been materialized

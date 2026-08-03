@@ -48,4 +48,4 @@ the default packages.
 ## Files
 
 - See child learned summaries: 576 (DHCP wiring), 577 (NTP), 578 (build), 579 (resilience)
-- `plan/spec-iface-route-priority.md` -- deferred configurable route priority
+- `plan/learned/582-iface-route-priority.md` -- deferred configurable route priority

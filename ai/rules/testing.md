@@ -157,6 +157,7 @@ Test one logical area during development instead of all 349 packages:
 | `make ze-test-config` | `./internal/component/config/...` (13 pkgs) | ~20s |
 | `make ze-test-cli` | `./internal/component/cli/...` (3 pkgs) | ~10s |
 | `make ze-test-rest` | Everything not in a named group (~70 pkgs) | ~1:00 |
+| `make ze-test-pkg PKG=<pattern>` | ONE package, or any pattern. `RUN=<regexp>` narrows, `RACE=0` drops `-race` while iterating | seconds |
 
 All groups run with `-race`. Use the group matching your change during iteration.
 
@@ -312,8 +313,8 @@ component group -> whole suite or `ze-verify`.
 | Single encode test | `ze-test bgp encode N` | seconds |
 | Single editor test | `ze-test editor N` or `ze-test editor --pattern <name>` | seconds |
 | Single ExaBGP compatibility test | `ze-test exabgp N` or `ze-test exabgp --start N` | seconds |
-| Single Go test | `go test -race -run TestName ./pkg/...` | seconds |
-| Single package | `go test -race ./internal/component/bgp/reactor/...` | seconds |
+| Single Go test | `make ze-test-pkg PKG=./pkg/... RUN=TestName` | seconds |
+| Single package | `make ze-test-pkg PKG=./internal/component/bgp/reactor/` | seconds |
 | Component group | `make ze-test-bgp` (or core, plugins, config, cli, rest) | 10s-1:30 |
 | All unit tests | `make ze-unit-test` | ~5 min |
 | All editor tests | `make ze-editor-test` | ~30s |
@@ -668,4 +669,8 @@ gomu has no `--tags` support. Files with custom build tags (`ze_test`,
 See `ai/rules/git-safety.md` for the full pre-commit workflow.
 
 `make ze-verify` is the ONLY acceptable pre-commit verification. Not `go test`. Not any subset.
-During development: `go test`, component groups (`make ze-test-bgp`), `make ze-unit-test` are fine for fast iteration.
+During development: `make ze-test-pkg PKG=<what you are changing>`, component groups
+(`make ze-test-bgp`), and `make ze-unit-test` are fine for fast iteration. A BARE `go test`
+is not: the Makefile exports `GOCACHE` to `cache/go-cache` into its own recipes only, so a
+shell run uses `~/.cache/go-build`, rebuilds cold, and shares nothing with `ze-verify`. It
+also drops the feature tags, which is the separate lie recorded above.

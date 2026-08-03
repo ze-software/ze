@@ -7,7 +7,7 @@ Given a design doc, the `.go` files that cite it in their `// Design:`
 header. The inverse of `ai/CODE-TO-DOCS.md` (which is built from doc-side
 `<!-- source: -->` anchors). See `ai/rules/design-doc-references.md`.
 
-Total: 306 design docs, 3188 files
+Total: 306 design docs, 3193 files
 
 ## `.claude/rules/buffer-first.md`
 
@@ -2256,15 +2256,6 @@ Total: 306 design docs, 3188 files
 - `internal/core/rib/locrib/change.go` -- Change.Forward handle for zero-copy forwarding
 - `internal/core/rib/locrib/manager.go` -- InsertForward threads a ForwardHandle to Change subscribers
 
-## `plan/handover/03-design-wp7.md`
-
-| File | Topic |
-|------|-------|
-| `internal/component/ike/engine/transport_mode.go` | USE_TRANSPORT_MODE negotiation |
-| `internal/component/ike/engine/ts_initiator_subset_test.go` | RFC 7296 Section 2.9 traffic-selector narrowing |
-| `internal/component/ike/engine/ts_narrow.go` | RFC 7296 Section 2.9 traffic-selector narrowing |
-| `internal/component/ike/ipsec/traffic_selector.go` | operator traffic-selector policy for IKEv2 narrowing |
-
 ## `plan/learned/1005-cp-survival-2-copp-port179.md`
 
 | File | Topic |
@@ -2719,6 +2710,20 @@ Total: 306 design docs, 3188 files
 | `internal/plugins/policyroute/netlinkint_linux_arm64.go` | netlink int width |
 | `internal/plugins/policyroute/netlinkint_linux_generic.go` | netlink int width |
 | `internal/plugins/policyroute/netlinkint_linux_test.go` | netlink int width |
+
+## `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md`
+
+| File | Topic |
+|------|-------|
+| `internal/component/ike/engine/transport_mode.go` | USE_TRANSPORT_MODE negotiation |
+| `internal/component/ike/engine/ts_initiator_subset_test.go` | RFC 7296 Section 2.9 traffic-selector narrowing |
+| `internal/component/ike/engine/ts_narrow.go` | RFC 7296 Section 2.9 traffic-selector narrowing |
+| `internal/component/ike/ipsec/traffic_selector.go` | operator traffic-selector policy for IKEv2 narrowing |
+
+## `plan/learned/1321-wire-edit-5-fanout-dedup.md`
+
+- `internal/component/bgp/filterapi/fingerprint.go` -- fingerprint the edit set, confirm by equality
+- `internal/component/bgp/reactor/forward_dedup.go` -- one materialization per policy group
 
 ## `plan/learned/415-prefix-data.md`
 
@@ -3260,6 +3265,7 @@ Total: 306 design docs, 3188 files
 | `internal/component/ike/dataplane/xfrm_other.go` | non-Linux dataplane stub |
 | `internal/component/ike/engine/bypass.go` | IKE control-plane bypass policies |
 | `internal/component/ike/engine/child.go` | Child SA creation and teardown |
+| `internal/component/ike/engine/child_policy_owner_test.go` | Child SA policy ownership |
 | `internal/component/ike/engine/delete.go` | Child SA teardown over INFORMATIONAL |
 | `internal/component/ike/engine/dpd.go` | Dead Peer Detection |
 | `internal/component/ike/engine/established.go` | established SA lifecycle |
@@ -3275,6 +3281,7 @@ Total: 306 design docs, 3188 files
 | `internal/component/ike/eap/eap_mschapv2_test.go` | EAP-MSCHAPv2 handler tests |
 | `internal/component/ike/eap/eap_test.go` | EAP framework tests |
 | `internal/component/ike/eap/eap_tls.go` | EAP-TLS method handler |
+| `internal/component/ike/eap/eap_tls_alert_flight_test.go` | EAP-TLS authenticator termination |
 | `internal/component/ike/eap/eap_tls_failure_report_test.go` | EAP-TLS authenticator failure reporting |
 | `internal/component/ike/eap/md4.go` | MD4 for MS-CHAPv2 NtPasswordHash |
 | `internal/component/ike/eap/mschapv2.go` | MS-CHAPv2 crypto primitives |
@@ -3283,6 +3290,8 @@ Total: 306 design docs, 3188 files
 | `internal/component/ike/eap/pool_release_test.go` | Virtual IP pool for road warrior clients |
 | `internal/component/ike/eap/pool_test.go` | Virtual IP pool tests |
 | `internal/component/ike/eap/rfc3748_test.go` | EAP framework (RFC 3748) |
+| `internal/component/ike/eap/rfc5216_success_flight_test.go` | EAP-TLS successful termination |
+| `internal/component/ike/eap/rfc5216_termination_test.go` | EAP-TLS termination, server side |
 | `internal/component/ike/eap/rfc7296_eap_result_test.go` | EAP framework tests |
 | `internal/component/ike/engine/eap_auth.go` | AUTH payload from EAP MSK |
 | `internal/component/ike/engine/eap_auth_test.go` | AUTH from MSK test |
@@ -3386,6 +3395,7 @@ Total: 306 design docs, 3188 files
 | `internal/component/ike/eap/eap_tls_trust_anchor_test.go` | EAP-TLS trust anchor handling |
 | `internal/component/ike/eap/peer.go` | EAP peer (client/initiator) side |
 | `internal/component/ike/eap/peer_test.go` | EAP peer session tests |
+| `internal/component/ike/eap/rfc5216_peer_wait_test.go` | EAP-TLS termination, peer side |
 
 ## `plan/learned/807-install-2-tftpserver.md`
 
@@ -4414,11 +4424,6 @@ Total: 306 design docs, 3188 files
 
 - `internal/plugins/iface/netlink/vlanqoslab_integration_linux_test.go` -- VLAN QoS wire-level lab tests
 - `internal/plugins/iface/netlink/vlanqoslab_tci_test.go` -- 802.1Q TCI decode/build helpers
-
-## `plan/spec-wire-edit-5-fanout-dedup.md`
-
-- `internal/component/bgp/filterapi/fingerprint.go` -- fingerprint the edit set, confirm by equality
-- `internal/component/bgp/reactor/forward_dedup.go` -- one materialization per policy group
 
 ## `rfc/short/rfc5880.md`
 

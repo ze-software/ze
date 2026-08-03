@@ -14,7 +14,7 @@ that no past task description in `plan/` would surface
 Every other rule is named in `ai/rules/TRIGGERS.md`. Read its file when its
 trigger matches.
 
-Rules: 12 of 98. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
+Rules: 10 of 98. Reasons: no past task would surface it, precedence rung 1/2, the ladder itself.
 
 ---
 
@@ -95,6 +95,44 @@ One `make ze-verify*` (or `ze-chaos-verify`) at a time repo-wide -- parallel run
 | If "waiting for lock" appears, do other work | Start `go test` / `golangci-lint` / `bin/ze-test` in parallel (bypasses lock) |
 ### Running ze-verify
 Foreground with 240s timeout.
+### A SHARED CHECKOUT NEVER GIVES A CLEAN `ze-verify` (BLOCKING)
+**Several agents work this checkout at once. `make ze-verify` reads the WORKING
+TREE, so it reads their half-finished edits too, and a fully green run is unreachable by construction.
+**So the full gate is not the pre-commit evidence here. Evidence scoped to YOUR
+1. Run the narrow gate owning each surface you changed (the table below).
+2. Run the tests of each package you touched, with `make ze-test-pkg`.
+3. ATTRIBUTE every red you saw: name the file, and say whether it is yours. `git
+4. Prepare the script with `--unverified "<attribution>"`, giving the gates you ran
+**`--unverified` is the CORRECT path in a shared checkout, not a shortcut.** It
+**A deterministic STRUCTURAL gate is still never waved through** (see "Structural
+**Never edit the tree while a verify runs**, yours or anybody's. Regenerating an
+### ONCE, AT THE END. Never during development (BLOCKING)
+**`make ze-verify` is a 22-stage full gate and takes 25 to 30 minutes. Run it ONE
+time, when the work is finished and you are about to prepare the commit script.** Running it to "check in" mid-change is the single most expensive habit available in this repository, and it buys nothing a scoped check...
+**Run what the change touches.** Every surface has one owning target, and it costs
+**Go through `make`, or carry `GOCACHE` yourself.** `Makefile` exports
+| You changed | Run this |
+|-------------|----------|
+| A `.go` file | `make ze-test-pkg PKG=<that package>`, or the group target covering it (`ze-test-bgp`, `ze-test-core`, `ze-test-plugins`, `ze-test-config`, `ze-test-cli`, `ze-test-rest`). Then `make ze-lint-changed` (`ai/rules/lint-gate.md`) |
+| Reactor concurrency (`reactor/session*.go`, `forward_pool*.go`, `peer.go`) | `make ze-race-reactor` (`ai/rules/testing.md`) |
+| A `.ci` or `.et` test | its suite target: `make ze-plugin-test`, `ze-parse-test`, `ze-encode-test`, `ze-editor-test`, `ze-web-test`. Draft first in `test/draft/` |
+| Linux-only code (`//go:build linux`) | `make ze-qemu-integration-test`, or `make ze-qemu-needs-linux-test` for a `needs-linux` `.ci` (`ai/rules/qemu-testing.md`) |
+| `rfc/short/*.md`, an `RFC requirement:` tag, `rfc/extraction/*` | `make ze-rfc-check` |
+| `docs/**`, `ai/**`, `plan/**` | `make ze-doc-test`, and `make ze-verify-wiring-docs` for the changed-file gates |
+| `ai/rules/*.md` | `make ze-rules-condensed` then `make ze-rules-lint`, and commit all three digests with the rule |
+| A `*.yang` file or a `ze:command` | `make ze-doc-test`, `make ze-cli-grammar-check` |
+| A plugin `register.go`, or anything generated | `make generate`, `make ze-plugin-imports-check` |
+| A new package's placement | `make ze-tier-check` |
+| A `scripts/dev/*.py` tool | its sibling `*_test.py` directly (python needs no build cache), then `make ze-test-pkg PKG=./scripts/dev` |
+| Several of the above, and you want breadth | `make ze-verify-changed` |
+**When the table has no row for what you touched, derive it.** `mk/*.mk` names every
+**READ THE WHOLE FAILURE SUMMARY BEFORE YOU RE-RUN.** A verify run ends with
+- **`tail` on the log of a run that is still going.** The stage banner tells you
+- **Grepping for `--- FAIL` only.** Lint, tier, doc and inventory stages fail with
+**A second `ze-verify` cannot overlap the first: it blocks on the repo-wide lock**
+**A NARROW FAILURE GETS A NARROW RE-RUN, NEVER A SECOND FULL PASS.** When the
+**The status record is what forces the second pass, so plan the FIRST one to be
+**Do not stop to ask which way.** The operator is often not present, and a session
 ### Step 2: Always
 Unless Thomas Owner Override is active, never commit with lint issues and never commit without test evidence when code changed.
 ## Forbidden Without Permission
@@ -263,42 +301,6 @@ Writing down the excuses so they become identifiable:
 If a file should be deleted but this rule requires permission, ask the user directly.
 
 <!-- always-on: precedence rung 1/2 -->
-
----
-
-## No Fabrication
-`ai/rules/no-fabrication.md`
-**When:** when stating what code does, or recommending work premised on a behavioral claim — **Severity:** blocking — **Related:** detail-budget, critical-review
-
-## Directives
-State only what the source explicitly says or does.
-## Rule
-If the source material does not contain the information needed to answer the question, say so.
-## Behavioral claims and recommendations
-A claim about what code *does* at runtime is not verified until you have read the code that produces the behavior.
-## Mechanical check
-Before answering a factual question about file content:
-1. Can I point to the text that states the answer? If yes, answer.
-2. If no: "The file doesn't say. [what's missing]."
-1. Name the single keystone fact the claim depends on (e.g. "a session-down yields `err == nil`").
-2. Read the function that *produces* that fact (returns or sets the value), not only the one that consumes it.
-3. If I have read only the consumer, label it a hypothesis, not a finding, and verify before recommending any action.
-## Banned
-| Pattern | Why |
-|---------|-----|
-| Inferring status from position in a list | The file may not encode status by position |
-| Inferring done/not-done without explicit markers | Fabrication dressed as analysis |
-| Presenting interpretation as fact | The user asked what the file says, not what you think |
-| Guessing what the user meant and presenting the guess as a conclusion | Say you don't know, ask |
-| Inferring a function's return value or behavior from its caller | Read the producer of the value, not the consumer |
-| Citing a code comment as the project's design intent | A comment is its author's belief, not a decision record; read `plan/deferrals/`, `plan/learned/`, specs |
-| Inferring a foreign system's semantics from a generated binding stub | The stub documents a field's existence, not what the system does with it; read that system's source (e.g. VPP's C, vendored at `third_party/vpp-linux-cp/`, not `binapi/*.ba.go`) |
-| Recommending work premised on an unverified behavioral claim | The premise is itself a claim; trace it to source first |
-| Treating a coherent narrative as verified | A self-consistent story is a hypothesis until the keystone fact is read |
-## Mechanical backstop
-The `design-without-lsp` check in `.claude/hooks/pretool-writeedit.py` blocks writing a `plan/spec-*.md` or `plan/design-*.md` file unless this session has investigated implementation source (read a `.go` under...
-
-<!-- always-on: no past task would surface it -->
 
 ---
 
@@ -505,22 +507,6 @@ Specs MUST NOT contain code snippets (any language).
 | Function implementation | Prose: numbered steps |
 | Code example | Text: input/output format |
 | State machine code | State transition table |
-
-<!-- always-on: no past task would surface it -->
-
----
-
-## Spec Preservation
-`ai/rules/spec-preservation.md`
-**When:** closing a completed spec — **Severity:** blocking
-
-## Directives
-Completed specs become learned summaries in `plan/learned/NNN-<name>.md`.
-**Extract into summary:** Context (problem + goal), decisions (with rejected alternatives), consequences (enables/constrains going forward), gotchas, files changed.
-**Discard:** Audit tables, checklists, post-compaction instructions, BLOCKING markers, status columns, template scaffolding.
-**Two-commit sequence (BLOCKING):**
-1. **Commit A:** code + tests + docs + completed spec (with filled audit tables). This preserves the spec in git history.
-2. **Commit B:** `git rm plan/spec-<name>.md` + add `plan/learned/NNN-<name>.md`. The learned summary replaces the spec.
 
 <!-- always-on: no past task would surface it -->
 

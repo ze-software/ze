@@ -37,6 +37,6 @@ Ze's route-server forwarding at 100k IPv4 prefixes runs at ~33k rps -- 16× behi
 - `test/perf/run.py` -- added `PPROF`, `PPROF_PORT`, `PPROF_CPU_SECONDS`, `PPROF_DIR`, `GCTRACE` env gates; `pprof_fetch` + `pprof_capture_thread` helpers; container stderr archival.
 - `test/plugin/bgp-rs-perf-pprof.ci` -- functional test: `ze --pprof` endpoint reachable, index lists expected profiles.
 - `rfc/short/rfc7947.md` -- new RFC summary for RS semantics.
-- `plan/spec-rs-fastpath-0-umbrella.md` -- AC-1 numeric target set (400k rps / ≤ 50 ms first-route, 200k rps floor).
+- `plan/learned/1138-rs-fastpath-0-umbrella.md` -- AC-1 numeric target set (400k rps / ≤ 50 ms first-route, 200k rps floor).
 - `plan/deferrals.md` -- three new rows (batch-flush `.ci` cancelled; CommandRegistry.All allocation, lower-size sweep open for child 3 verification).
 - Profile artefacts under `tmp/perf-run/pprof/100000/` and `tmp/perf-run/pprof-batch500/100000/` (not committed).

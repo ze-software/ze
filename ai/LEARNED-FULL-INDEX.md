@@ -8,7 +8,7 @@ reading: `ai/LEARNED-INDEX.md`. Meta-summaries: `DESIGN-HISTORY.md`
 (why the code is as it is), `RECURRING-PATTERNS.md` (known traps),
 `HOOK-FRICTION.md` (hook false positives).
 
-Total: 899 summaries
+Total: 900 summaries
 
 ## 400-499
 
@@ -946,6 +946,7 @@ Total: 899 summaries
 | 1310 | Phase gates: skills and model | `plan/learned/1310-phase-gates.md` |
 | 1311 | RFC compliance page, and the copies that rotted | `plan/learned/1311-rfc-compliance-docs.md` |
 | 1312 | UPDATE withdrawals run before announces | `plan/learned/1312-bgp-update-withdraw-order.md` |
+| 1313 | rfcgate-1b: the RFC 7296 pilot, and what a green gate was not measuring | `plan/learned/1313-rfcgate-1b-rfc7296-pilot.md` |
 | 1314 | A Rule Heading Inverted Its Own Directive | `plan/learned/1314-rule-heading-inverted-its-directive.md` |
 | 1315 | hotpath-alloc-round-4 | `plan/learned/1315-hotpath-alloc-round-4.md` |
 | 1316 | knowledge-0-umbrella | `plan/learned/1316-knowledge-0-umbrella.md` |

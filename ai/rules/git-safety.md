@@ -388,6 +388,131 @@ PID-backed -- no cleanup after a crash.
 Foreground with 240s timeout. No background execution, no polling
 loops. Wait for completion.
 
+### A SHARED CHECKOUT NEVER GIVES A CLEAN `ze-verify` (BLOCKING)
+
+**Several agents work this checkout at once. `make ze-verify` reads the WORKING
+TREE, so it reads their half-finished edits too, and a fully green run is
+unreachable by construction. Waiting for one is a strategy that cannot terminate.**
+
+It is worse than futile. The full gate saturates every core for half an hour, and
+that contention is what makes the functional suites flake -- so a run started to
+prove your own work reddens somebody else's at the same time.
+
+**So the full gate is not the pre-commit evidence here. Evidence scoped to YOUR
+files is.** Before preparing the commit script:
+
+1. Run the narrow gate owning each surface you changed (the table below).
+2. Run the tests of each package you touched, with `make ze-test-pkg`.
+3. ATTRIBUTE every red you saw: name the file, and say whether it is yours. `git
+   status --porcelain` plus a modification time settles it in seconds. A red in a
+   path your diff does not contain is not yours to chase.
+4. Prepare the script with `--unverified "<attribution>"`, giving the gates you ran
+   and their verdicts, and naming the concurrent session's paths you excluded.
+
+**`--unverified` is the CORRECT path in a shared checkout, not a shortcut.** It
+exists for exactly this: a full-tree gate whose red belongs to somebody else's
+in-flight work. Its own text names the owner override and a logged known-red;
+concurrent-session interference is the third case, and the reason has to say so.
+
+**A deterministic STRUCTURAL gate is still never waved through** (see "Structural
+Gates Are Never Known-Red"). Those read files, not a moving tree, so they are
+reproducible and yours to fix when your diff caused them: `ze-lint`,
+`ze-rules-lint`, `ze-doc-test`, `ze-rfc-check`, `ze-verify-wiring-docs`,
+`ze-tier-check`. Green those, always. It is the TEST stages -- unit, functional,
+web -- whose reds a concurrent tree can manufacture.
+
+**Never edit the tree while a verify runs**, yours or anybody's. Regenerating an
+index or touching a rule mid-run invalidates every stage that already read it, and
+the failures it produces look exactly like real ones. Measured: one such run
+reported five failing stages, all five self-inflicted, and none reproduced on the
+settled tree.
+
+### ONCE, AT THE END. Never during development (BLOCKING)
+
+**`make ze-verify` is a 22-stage full gate and takes 25 to 30 minutes. Run it ONE
+time, when the work is finished and you are about to prepare the commit script.**
+Running it to "check in" mid-change is the single most expensive habit available in
+this repository, and it buys nothing a scoped check does not.
+
+**Run what the change touches.** Every surface has one owning target, and it costs
+seconds to minutes rather than half an hour. Find yours in this table, run it after
+each edit, and keep `ze-verify` for the end.
+
+**Go through `make`, or carry `GOCACHE` yourself.** `Makefile` exports
+`GOCACHE := $(CURDIR)/cache/go-cache`, and that export reaches make RECIPES only. A
+bare `go test` typed into a shell uses the user's own `~/.cache/go-build` instead,
+so it rebuilds the world cold, shares nothing with `ze-verify`, and leaves the
+project cache no warmer than it found it. `Makefile` also defines the canonical
+invocation (`GO_TEST`, `GO_TEST_RACE`): the feature tags, the timeout, `GOMAXPROCS`
+and `CGO_ENABLED=1` for race. A bare `go test` drops all of it
+(`ai/rules/bash-output.md`, "Bare `go test` Lies").
+
+`make ze-test-pkg PKG=<pattern>` is the supported way to test ONE package while
+you develop it. It carries all of the above. Add `RUN=<regexp>` to narrow, and
+`RACE=0` to drop `-race` while iterating -- but a package tested without `-race`
+has not been tested the way `ze-verify` tests it, so put it back before the end.
+
+```
+make ze-test-pkg PKG=./internal/component/ike/eap
+make ze-test-pkg PKG=./internal/component/ike/... RUN=TestEAPTLS
+```
+
+| You changed | Run this |
+|-------------|----------|
+| A `.go` file | `make ze-test-pkg PKG=<that package>`, or the group target covering it (`ze-test-bgp`, `ze-test-core`, `ze-test-plugins`, `ze-test-config`, `ze-test-cli`, `ze-test-rest`). Then `make ze-lint-changed` (`ai/rules/lint-gate.md`) |
+| Reactor concurrency (`reactor/session*.go`, `forward_pool*.go`, `peer.go`) | `make ze-race-reactor` (`ai/rules/testing.md`) |
+| A `.ci` or `.et` test | its suite target: `make ze-plugin-test`, `ze-parse-test`, `ze-encode-test`, `ze-editor-test`, `ze-web-test`. Draft first in `test/draft/` |
+| Linux-only code (`//go:build linux`) | `make ze-qemu-integration-test`, or `make ze-qemu-needs-linux-test` for a `needs-linux` `.ci` (`ai/rules/qemu-testing.md`) |
+| `rfc/short/*.md`, an `RFC requirement:` tag, `rfc/extraction/*` | `make ze-rfc-check` |
+| `docs/**`, `ai/**`, `plan/**` | `make ze-doc-test`, and `make ze-verify-wiring-docs` for the changed-file gates |
+| `ai/rules/*.md` | `make ze-rules-condensed` then `make ze-rules-lint`, and commit all three digests with the rule |
+| A `*.yang` file or a `ze:command` | `make ze-doc-test`, `make ze-cli-grammar-check` |
+| A plugin `register.go`, or anything generated | `make generate`, `make ze-plugin-imports-check` |
+| A new package's placement | `make ze-tier-check` |
+| A `scripts/dev/*.py` tool | its sibling `*_test.py` directly (python needs no build cache), then `make ze-test-pkg PKG=./scripts/dev` |
+| Several of the above, and you want breadth | `make ze-verify-changed` |
+
+**When the table has no row for what you touched, derive it.** `mk/*.mk` names every
+target and what it runs, `make help` lists them, and `ai/rules/hook-mapping.md` maps
+each gate to the rule it enforces. A surface with no owning target is worth saying so
+in the report rather than reaching for the full gate.
+
+**READ THE WHOLE FAILURE SUMMARY BEFORE YOU RE-RUN.** A verify run ends with
+`FAIL N verify stage(s) failed` and one line per failing stage, and
+`tmp/ze-verify-failures.log` holds the same list. A re-run started from a partial
+read costs another half hour and usually reports the same stages. Two specific
+traps, both of which have cost a full run:
+
+- **`tail` on the log of a run that is still going.** The stage banner tells you
+  where it is (`### Stage 18/22`). Check `scripts/dev/verify-status.sh check` for
+  the verdict instead: it says FRESH, or names the failure and its time.
+- **Grepping for `--- FAIL` only.** Lint, tier, doc and inventory stages fail with
+  their own wording and no `FAIL` token, so a test-shaped grep reads a red lint
+  stage as a clean run. Read the summary block, not a pattern you chose.
+
+**A second `ze-verify` cannot overlap the first: it blocks on the repo-wide lock**
+and runs the whole thing again afterwards, so starting one while another is live
+does not overlap the work, it doubles the wall clock.
+
+**A NARROW FAILURE GETS A NARROW RE-RUN, NEVER A SECOND FULL PASS.** When the
+end-of-development run comes back with one or two failing stages and you fix
+exactly those, re-run the GATE THAT FAILED and the tests of the package you
+touched. Twenty-one green stages that nothing has touched since do not become
+more green by being run again.
+
+**The status record is what forces the second pass, so plan the FIRST one to be
+the last.** `commit_helper.py create` refuses unless
+`scripts/dev/verify-status.sh check` reports FRESH, and only a full `ze-verify`
+writes that record. A narrow fix therefore still needs one more full run before a
+commit, which is precisely why the full run must come AFTER every gate you can
+check cheaply is already green: `make ze-lint`, the touched packages' `go test`,
+and the gate owning each surface you changed. A run started before those are clean
+is a run you will pay for twice.
+
+**Do not stop to ask which way.** The operator is often not present, and a session
+that halts on this question has spent their time to save its own. Clear the cheap
+gates, run the full pass once, and commit.
+
 ### Step 2: Always
 
 ```

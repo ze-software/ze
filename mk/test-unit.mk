@@ -8,11 +8,12 @@
 #   make ze-test-config        Config only (~20s)
 #   make ze-test-cli           CLI only (~10s)
 #   make ze-test-rest          Everything else (~1:00)
+#   make ze-test-pkg PKG=...   ONE package or pattern, while developing it
 
 .PHONY: ze-unit-test ze-installer-unit-test ze-unit-test-cover ze-unit-test-cached ze-unit-test-race-changed
-.PHONY: ze-test-bgp ze-test-core ze-test-plugins ze-test-config ze-test-cli ze-test-rest
+.PHONY: ze-test-bgp ze-test-core ze-test-plugins ze-test-config ze-test-cli ze-test-rest ze-test-pkg
 
-ze-unit-test ze-unit-test-cover ze-unit-test-cached ze-unit-test-race-changed ze-test-rest: ze-ensure-links
+ze-unit-test ze-unit-test-cover ze-unit-test-cached ze-unit-test-race-changed ze-test-rest ze-test-pkg: ze-ensure-links
 
 # Component groups for scoped testing (ze-test-<group>).
 # "rest" = everything in ZE_PACKAGES not covered by a named group.
@@ -123,3 +124,35 @@ ze-test-cli:
 ze-test-rest:
 	@echo "Unit tests: rest group (everything not in a named group)..."
 	$(GO_TEST_RACE) $(ZE_GROUP_REST)
+
+# Test ONE package, or any package pattern, while you are developing it.
+#
+# This exists because a bare `go test ./internal/...` typed into a shell is NOT
+# the same command. GOCACHE is exported by the top-level Makefile to
+# cache/go-cache and that export reaches make RECIPES only, so a shell run uses
+# the user's own ~/.cache/go-build: it rebuilds cold, shares nothing with
+# ze-verify, and leaves the project cache no warmer than it found it. The feature
+# tags, the timeout, GOMAXPROCS and CGO_ENABLED for race come from GO_TEST /
+# GO_TEST_RACE and a shell run drops all of them (ai/rules/bash-output.md).
+#
+#   make ze-test-pkg PKG=./internal/component/ike/eap
+#   make ze-test-pkg PKG=./internal/component/ike/... RUN=TestEAPTLS
+#   make ze-test-pkg PKG=./scripts/dev RACE=0        # skip -race while iterating
+#
+# RACE defaults to 1, matching the group targets above: a package tested without
+# it has not been tested the way ze-verify tests it.
+RACE ?= 1
+
+# Nested makes must stay QUIET, exactly as they are under ze-verify, which runs
+# every stage with --no-print-directory. A test that shells out to make and
+# compares stdout byte for byte (scripts/dev/session_bin_suffix_test.py runs
+# `make ze-path`) otherwise sees a "make[1]: Entering directory" banner here and
+# not there, so the same package passes in ze-verify and fails in this target.
+# A scoped target whose verdict disagrees with the full gate is worse than no
+# scoped target at all.
+ze-test-pkg:
+ifndef PKG
+	$(error PKG is required, e.g. make ze-test-pkg PKG=./internal/component/ike/eap)
+endif
+	@echo "Unit tests: $(PKG)$(if $(RUN), -run $(RUN))$(if $(filter 0,$(RACE)), (no -race))..."
+	MAKEFLAGS=--no-print-directory $(if $(filter 0,$(RACE)),$(GO_TEST),$(GO_TEST_RACE)) $(if $(RUN),-run '$(RUN)') $(PKG)

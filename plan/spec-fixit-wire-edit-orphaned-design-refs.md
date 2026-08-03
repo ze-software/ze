@@ -13,34 +13,43 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-**THIS IS THE HIGHEST PRIORITY ITEM IN THE WIRE-EDIT TAIL. Do it first.**
+**THE TWO-LINE EDIT LANDED on 2026-08-02**, by the session closing
+`spec-rfcgate-1b-rfc7296-pilot.md`, which met this red on its own commit path and
+fixed it rather than routing around it (`ai/rules/no-parking.md`). The gate below
+is GREEN. What remains of this spec is its own closure: the audit, the
+verification tables, and commit B.
 
-`make ze-verify-wiring-docs` is RED right now, and this spec is the reason. The
-gate it runs, `python3 scripts/dev/check_doc_links.py --design-only`, exits 1
-with exactly two findings (re-run and confirmed on 2026-08-02):
+`make ze-verify-wiring-docs` was RED, and this spec was the reason. The gate it
+runs, `python3 scripts/dev/check_doc_links.py --design-only`, exited 1 with
+exactly two findings (re-run and confirmed on 2026-08-02):
 
-| File | Line | Broken reference |
-|------|------|------------------|
-| `internal/component/bgp/filterapi/fingerprint.go` | 1 | `plan/spec-wire-edit-5-fanout-dedup.md` |
-| `internal/component/bgp/reactor/forward_dedup.go` | 1 | `plan/spec-wire-edit-5-fanout-dedup.md` |
+| File | Line | Broken reference | Now |
+|------|------|------------------|-----|
+| `internal/component/bgp/filterapi/fingerprint.go` | 1 | `spec-wire-edit-5-fanout-dedup` (deleted) | `plan/learned/1321-wire-edit-5-fanout-dedup.md` |
+| `internal/component/bgp/reactor/forward_dedup.go` | 1 | `spec-wire-edit-5-fanout-dedup` (deleted) | `plan/learned/1321-wire-edit-5-fanout-dedup.md` |
 
-The spec they cite no longer exists. Commit `c181e0121` ("docs(plan): remove the
+The two dead targets are named above WITHOUT their `plan/` prefix on purpose.
+`scripts/dev/spec-citation-check.py` reads any `plan/spec-*.md` string in a spec
+as a live citation, so writing the path in full made this spec's own bug report
+count as three more dangling references and kept a second gate red.
+
+The spec they cited no longer exists. Commit `c181e0121` ("docs(plan): remove the
 closed wire-edit-5-fanout-dedup spec") removed it as closure commit B while both
-files still cited it. **This is a self-inflicted gate failure, not an inherited
-one.** It is finishing the closure that this repository's own rule requires:
+files still cited it. **This was a self-inflicted gate failure, not an inherited
+one.** The fix finished the closure that this repository's own rule requires:
 `ai/rules/planning.md` "Design references survive closure" says to grep for
 citations BEFORE commit B. That grep was not run.
 
-The work is a two-line edit. Re-point both `// Design:` lines at the learned
-summary that replaced the spec, `plan/learned/1321-wire-edit-5-fanout-dedup.md`,
-which exists and carries the design content. Keep each line's trailing topic
+Each `// Design:` line now points at the learned summary that replaced the spec,
+`plan/learned/1321-wire-edit-5-fanout-dedup.md`, and keeps its trailing topic
 annotation: "fingerprint the edit set, confirm by equality" for `fingerprint.go`,
 "one materialization per policy group" for `forward_dedup.go`.
 
 One more mention of the deleted spec exists and the design-only gate does NOT
-flag it: `internal/component/bgp/reactor/forward_dedup_bench_test.go:20` names
-the spec in prose ("A-1 in plan/spec-wire-edit-5-fanout-dedup.md is settled").
-Decide whether to correct it for accuracy. It does not block the gate.
+flag it: `internal/component/bgp/reactor/forward_dedup_bench_test.go:20` names it
+in prose ("A-1 in ... is settled"). Left alone: it is a `_test.go` file, exempt
+from the `// Design:` contract, and its sentence is a true statement about a spec
+that once existed. Decide at closure whether to correct it for accuracy.
 
 Source: `plan/deferrals/ad-hoc-2026-08-02-wire-edit-tail.md`, row 1. Filed rather
 than fixed because the closing session was told to stop expanding scope.

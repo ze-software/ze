@@ -1,4 +1,4 @@
-// Design: plan/spec-wire-edit-5-fanout-dedup.md -- one materialization per policy group
+// Design: plan/learned/1321-wire-edit-5-fanout-dedup.md -- one materialization per policy group
 // Related: reactor_api_forward.go -- forwardUpdateCore, the API rail's destination loop
 // Related: forward_rs.go -- reactorForwardRS, the route-server rail's destination loop
 // Related: forward_build.go -- buildModifiedPayload, the materialization being counted

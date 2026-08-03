@@ -234,7 +234,7 @@ of check.
 ## Files
 
 **Commit `e862dda4` (Section A, 4 files):**
-- `plan/spec-pkg-ze-bgp.md`, `plan/spec-bgp-4-bmp.md`,
+- `plan/spec-pkg-ze-bgp.md`, `plan/learned/574-bgp-4-bmp.md`,
   `plan/spec-rib-3-remote-client.md`,
   `plan/spec-docs-1-canonical.md`
 

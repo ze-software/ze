@@ -28,7 +28,12 @@ option=open:value=add-capability:code=1:hex=00010004
 # withdraws: a config-declared announce races the plugin's withdraw, and the
 # withdrawal of a route that has not reached the wire yet proves nothing.
 cmd=api:conn=1:seq=1:text=route-driver announces the labeled prefix
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000274001010040020602010000FDE940050400000064800E10000104040A0000020030003E810A0100
+# LOCAL_PREF is ABSENT on purpose. RFC 4271 Section 5.1.5 confines LOCAL_PREF to
+# IBGP, and this peer is eBGP (65001 -> 65002). Commit d33033872 made the sender
+# strip it and left this expectation encoding the old, non-conformant output; the
+# hex below is what ze now sends, corrected 2026-08-02. A test that pins a
+# violation is the violation with a green bar on top (ai/rules/rfc-compliance.md).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003702000000204001010040020602010000FDE9800E10000104040A0000020030003E810A0100
 cmd=api:conn=1:seq=2:text=route-driver withdraws it
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0024020000000D800F0A00010430003E810A0100
 EOF_PEER

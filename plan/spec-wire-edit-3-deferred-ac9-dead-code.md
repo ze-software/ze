@@ -15,7 +15,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 The AS-path fold that landed in `ddf04953a` and `e2037e598` moved eBGP AS-path
 prepending onto the edit-set path. The per-`ReceivedUpdate` EBGP wire cache it
-replaced was left in the tree. `plan/spec-wire-edit-3-aspath-fold.md` recorded
+replaced was left in the tree. `plan/learned/1319-wire-edit-3-aspath-fold.md` recorded
 its AC-9 as **Partial** for this reason, and closed. The learned summary is
 `plan/learned/1319-wire-edit-3-aspath-fold.md`.
 

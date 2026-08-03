@@ -8,13 +8,13 @@
 | Phase | - |
 | Updated | 2026-08-02 |
 
-Deferral holder created at the closure of `plan/spec-wire-edit-4-api-origin.md` on 2026-08-02
+Deferral holder created at the closure of `plan/learned/1320-wire-edit-4-api-origin.md` on 2026-08-02
 (`ai/rules/deferral-tracking.md`, "Creating the Deferral Spec"). The source spec
 was removed by its closure commit, so the work below lives here.
 
 ## Task
 
-`plan/spec-wire-edit-4-api-origin.md` converged the two announce rails on one
+`plan/learned/1320-wire-edit-4-api-origin.md` converged the two announce rails on one
 writer. Its interop row was not reached in the implementation session.
 
 The property is currently proven by unit tests over both rails and by

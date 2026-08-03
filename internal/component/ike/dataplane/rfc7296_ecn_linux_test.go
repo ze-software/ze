@@ -100,7 +100,11 @@ func TestEcnInstalledStateDisablesNothing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("xfrmStateFromParams: %v", err)
 	}
-	if state.Mode != netlink.Mode(netlink.XFRM_MODE_TUNNEL) {
+	// rfc-test-change-approved: 2026-08-02 Thomas approved deleting the redundant
+	// netlink.Mode(...) conversion here, which `unconvert` refuses and which reds
+	// make ze-lint at HEAD. XFRM_MODE_TUNNEL is already a netlink.Mode, so the
+	// comparison, its operands and its message are unchanged.
+	if state.Mode != netlink.XFRM_MODE_TUNNEL {
 		t.Fatalf("the state ze builds for a tunnel-mode SA has mode %v, want tunnel; "+
 			"Section 2.24 binds tunnel mode, so a non-tunnel state proves nothing", state.Mode)
 	}

@@ -104,7 +104,7 @@ against the code that produces it, linked from the README where quality is discu
 
 ## Files
 
-- `plan/spec-rfc-compliance-docs.md` (this spec, removed at closure)
+- `spec-rfc-compliance-docs` -- the spec itself, removed at closure and replaced by this summary
 - `README.md` -- corrected figures, links the page from Testing and Documentation
 - `ai/rules/simplified-technical-english.md`, `ai/rules/CONDENSED.md` -- the vocabulary
   directive

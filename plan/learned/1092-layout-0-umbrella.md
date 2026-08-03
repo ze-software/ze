@@ -56,7 +56,7 @@ architecture claim. This umbrella turned each gap into a sequenced child
 
 ## Files
 
-- `plan/spec-layout-0-umbrella.md` (closed; children 1088-1091 carry the code)
+- `plan/learned/1092-layout-0-umbrella.md` (closed; children 1088-1091 carry the code)
 - `plan/spec-reactor-split.md` (created: the candidate's destination)
 - children's key files: `scripts/dev/dep_audit.py`,
   `scripts/dev/core_import_baseline.txt`,

@@ -8,13 +8,13 @@
 | Phase | - |
 | Updated | 2026-08-02 |
 
-Deferral holder created at the closure of `plan/spec-wire-edit-3-aspath-fold.md` on 2026-08-02
+Deferral holder created at the closure of `plan/learned/1319-wire-edit-3-aspath-fold.md` on 2026-08-02
 (`ai/rules/deferral-tracking.md`, "Creating the Deferral Spec"). The source spec
 was removed by its closure commit, so the work below lives here.
 
 ## Task
 
-`plan/spec-wire-edit-3-aspath-fold.md` AC-9 asked for the two atomic eBGP wire
+`plan/learned/1319-wire-edit-3-aspath-fold.md` AC-9 asked for the two atomic eBGP wire
 slots to be gone once the AS-path rewrite became a generate slot. The rewrite
 landed; the deletion did not.
 

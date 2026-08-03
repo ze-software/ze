@@ -122,5 +122,5 @@ place to prove its wiring.
 - `internal/test/cli/cmd_vpp.go`, `cmd/ze-test/main.go` -- runner subcommand
 - `internal/test/cli/cmd_peer.go` -- `SendRoutes` merge fix
 - `test/vpp/001-boot.ci`, `test/vpp/002-fib-route.ci` -- first two wiring tests
-- `plan/spec-vpp-0-umbrella.md` -- child-spec row + MVP-backstop note
+- `plan/learned/704-vpp-0-umbrella.md` -- child-spec row + MVP-backstop note
 - `docs/guide/vpp.md`, `docs/features.md`, `docs/functional-tests.md` -- user-facing docs

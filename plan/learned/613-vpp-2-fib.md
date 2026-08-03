@@ -56,5 +56,5 @@ mirrors fib-kernel and fib-p4 structurally but targets VPP's IPRouteAddDel API.
 - `internal/plugins/fib/vpp/backend.go` -- unchanged (read for audit)
 - `internal/plugins/fib/vpp/register.go` -- unchanged (read for audit)
 - `internal/plugins/fib/vpp/stats.go` -- unchanged (read for audit)
-- `plan/spec-vpp-2-fib.md` -- filled audit, verification, implementation summary
+- `plan/learned/613-vpp-2-fib.md` -- filled audit, verification, implementation summary
 - `plan/deferrals.md` -- 6 vpp-7 deferral rows added

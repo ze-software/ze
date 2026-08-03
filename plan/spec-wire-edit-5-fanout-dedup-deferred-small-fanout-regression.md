@@ -8,13 +8,13 @@
 | Phase | - |
 | Updated | 2026-08-02 |
 
-Deferral holder created at the closure of `plan/spec-wire-edit-5-fanout-dedup.md` on 2026-08-02
+Deferral holder created at the closure of `plan/learned/1321-wire-edit-5-fanout-dedup.md` on 2026-08-02
 (`ai/rules/deferral-tracking.md`, "Creating the Deferral Spec"). The source spec
 was removed by its closure commit, so the work below lives here.
 
 ## Task
 
-`plan/spec-wire-edit-5-fanout-dedup.md` AC-11 asked for per-destination cost
+`plan/learned/1321-wire-edit-5-fanout-dedup.md` AC-11 asked for per-destination cost
 "no worse at 1 and 2". It is met at fan-out 2 within one group and NOT met at
 fan-out 2 with 2 groups.
 

@@ -8,13 +8,13 @@
 | Phase | - |
 | Updated | 2026-08-02 |
 
-Deferral holder created at the closure of `plan/spec-wire-edit-4-api-origin.md` on 2026-08-02
+Deferral holder created at the closure of `plan/learned/1320-wire-edit-4-api-origin.md` on 2026-08-02
 (`ai/rules/deferral-tracking.md`, "Creating the Deferral Spec"). The source spec
 was removed by its closure commit, so the work below lives here.
 
 ## Task
 
-`plan/spec-wire-edit-4-api-origin.md` AC-5 drops an announce whose attributes
+`plan/learned/1320-wire-edit-4-api-origin.md` AC-5 drops an announce whose attributes
 cannot fit the destination's message size, and names the route in a log line.
 `TestAnnounceOversizeDropsWithNamedLog` proves both rails refuse and both name
 the route, so the fail-closed behavior is implemented and tested.

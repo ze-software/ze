@@ -53,7 +53,7 @@ with a graceful fallback to the prior generic-flood behavior when no source exis
 - `internal/plugins/ddos/detect/detector_test.go` -- newDetector(cfg,bus,nil) + wg.Wait()
 - `test/.ci-sleep-baseline` -- 425 -> 436
 - `docs/guide/ddos-mitigation.md` -- corrected match-vector overclaim; trafficusage track-ip prerequisite; source anchor
-- `plan/spec-cp-survival-5-detect-5-characterization.md` -- in-progress 1/5; deviations D-1..D-8; review gate runs
+- `spec-cp-survival-5-detect-5-characterization` -- the spec itself, in-progress 1/5 when written; deviations D-1..D-8; review gate runs
 
 ---
 

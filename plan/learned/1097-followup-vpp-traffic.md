@@ -114,4 +114,4 @@ This work landed phase 3 (dscp) + phase 6 (multi-class steering), closing the sp
   `026-vpp-accept-multiclass.ci`
 - `scripts/evidence/effective-vpp.py` -- dscp + multi-class evidence phases
 - `docs/features.md` -- VPP Traffic Control Backend row (police-by-dscp, multi-class)
-- `plan/spec-followup-vpp-traffic.md` -- decisions, assumptions, review gate, closure
+- `plan/learned/1097-followup-vpp-traffic.md` -- decisions, assumptions, review gate, closure

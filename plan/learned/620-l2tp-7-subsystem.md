@@ -134,6 +134,6 @@ spec-l2tp-9 / spec-l2tp-10 so this spec stayed focused.
 - `internal/component/l2tp/cli/show.go` — offline forwarder
 - `test/plugin/show-l2tp-empty.ci` — wiring test
 - `docs/guide/l2tp.md` — operator guide
-- `plan/spec-l2tp-7b-ci-coverage.md`, `plan/spec-l2tp-7c-rib-inject.md`
+- `plan/learned/622-l2tp-7b-ci-coverage.md`, `plan/spec-l2tp-7c-rib-inject.md`
   — follow-up specs for deferrals
 - `plan/deferrals.md` — 3 new deferral rows
