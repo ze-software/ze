@@ -156,6 +156,21 @@ Review fixes from a review pass = one commit.
 
 ## Commit Ownership in Parallel Sessions (2026-07-10, owner decision)
 
+**A FAILED commit leaves the index STAGED, and the next session's commit inherits
+it. Clear it before you walk away.** The script stages first and commits second, so
+a commit that fails has already staged everything. On 2026-08-03 a GPG passphrase
+prompt with no TTY failed the signing step, eleven files sat staged in the shared
+index for roughly forty minutes, and a concurrent session's 1467-file commit took
+ten of them. Nothing was lost and every file's content was intact, but the work
+landed under another commit's message.
+
+**The failure mode is invisible from the failed run.** It exits non-zero, prints
+`failed to write commit object`, and reads as "nothing happened". The staging IS
+what happened. After ANY failed commit in a shared checkout, read
+`git diff --cached --name-only`, then either fix the cause and re-run at once or
+unstage your own paths. A signing failure is the usual trigger precisely because it
+fails LAST, after every gate has passed and every file is already staged.
+
 When several sessions work the same tree, each session MUST commit the
 features it is in charge of implementing -- never leave your own finished
 work uncommitted for another session to sweep or strand. Scope every commit
