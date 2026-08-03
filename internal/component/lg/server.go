@@ -9,11 +9,13 @@
 //
 // The looking glass exposes BGP session state and route information via
 // both an HTMX web UI and a birdwatcher-compatible REST API. It runs as
-// a separate HTTP server from the web UI, on its own port, with no
-// authentication (public, read-only).
+// a separate HTTP server from the web UI, on its own port. It is read-only,
+// and open unless LGConfig.Token is set: a looking glass is an intentionally
+// public surface, so the bearer gate in auth.go is opt-in.
 //
-// TLS is optional (looking glasses are often behind reverse proxies).
-// When TLS is enabled, the server uses the same self-signed certificate
+// TLS is on by default (LGConfig.TLS), because the server binds 0.0.0.0 and
+// publishes route data; a deployment behind a TLS-terminating proxy turns it
+// off. When TLS is enabled, the server uses the same self-signed certificate
 // infrastructure as the web UI.
 //
 // All BGP data is accessed via CommandDispatcher, preserving plugin
@@ -93,6 +95,12 @@ type LGConfig struct {
 	// DecorateASN resolves AS numbers to organization names via Team Cymru DNS.
 	// If nil, ASN names are not shown.
 	DecorateASN ASNDecorator
+
+	// Token is an optional bearer token gating every route. Empty (the default)
+	// leaves the looking glass open, which is its normal posture: a public
+	// read-only surface. When set, every request must carry
+	// `Authorization: Bearer <Token>`; see auth.go.
+	Token string
 
 	// Logger is the structured logger for the LG server.
 	// If nil, the package-level lg logger is used.
@@ -185,8 +193,11 @@ func NewLGServer(cfg LGConfig) (*LGServer, error) {
 		templates:   tpl,
 		server: &http.Server{
 			// Addr is informational; multi-listener serving uses Serve(ln).
-			Addr:    configured[0],
-			Handler: securityHeaders(mux),
+			Addr: configured[0],
+			// bearerAuth sits between the headers and the mux, so it gates
+			// every route the mux serves -- including any registered later.
+			// With no token it returns the mux unchanged (public looking glass).
+			Handler: securityHeaders(bearerAuth(cfg.Token, mux)),
 			// Timeouts prevent slow clients from holding connections indefinitely.
 			ReadHeaderTimeout: 10 * time.Second,
 			ReadTimeout:       30 * time.Second,

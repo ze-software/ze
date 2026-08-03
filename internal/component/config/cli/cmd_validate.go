@@ -343,6 +343,15 @@ func runValidation(input, path string) *validationResult {
 		}
 	}
 
+	// gNMI semantic validation: a non-loopback listener with no token accepts
+	// unauthenticated Get and Set. The daemon refuses to boot on it, so
+	// validation must report it rather than let the operator find out at start.
+	if gnmiCfg, ok := config.ExtractGNMIConfig(tree); ok {
+		if verr := gnmiCfg.Validate(); verr != nil {
+			result.addError("config-gnmi-invalid", verr.Error())
+		}
+	}
+
 	// Generic plugin config verification.
 	for _, verr := range config.VerifyPluginConfig(tree) {
 		result.addError("config-plugin-verify", verr.Error())

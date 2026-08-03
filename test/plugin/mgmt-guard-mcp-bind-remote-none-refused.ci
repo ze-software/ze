@@ -1,0 +1,28 @@
+# Test: MCP bind-remote with auth-mode none is refused at daemon startup
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-2(a) -- MCPListenConfig.
+# Validate already rejected `bind-remote true` with `auth-mode none`, but its
+# only callers were `ze config validate` and doctor. `ze start` ran neither:
+# LoadConfig does no semantic validation, so this config booted an accept-all
+# server. The boot path now runs the same check and reports the same message.
+# PREVENTS: a config the operator can validate as bad still starting, so the
+# offline checker and the daemon disagree about what is acceptable.
+
+option=exclusive:group=mgmt-guard
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	mcp {
+		enabled true
+		bind-remote true
+		auth-mode none
+		server main {
+			ip 127.0.0.1
+			port 18082
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=1
+expect=stderr:contains=environment.mcp: bind-remote requires auth-mode != none

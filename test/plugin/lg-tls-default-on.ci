@@ -1,0 +1,136 @@
+# Test: the looking glass serves TLS when no tls leaf is written
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-5 -- the looking-glass TLS
+# default is ON, and the documented `tls false` opt-out still serves plaintext.
+# The raw config tree carries no YANG defaults, so an absent leaf is simply
+# missing and the extractor must read it as true; flipping only the YANG default
+# would change nothing that reaches the daemon. `ze init` runs first because TLS
+# certificates live in blob storage, so this exercises the shipped path rather
+# than the no-storage fallback.
+# PREVENTS: a looking glass publishing route data and session state in the clear
+# because the operator wrote no tls leaf, and the opposite regression where the
+# opt-out stops being honored and a plaintext consumer breaks with no recourse.
+
+option=timeout:value=60s
+
+tmpfs=test-lg-tls-default.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+LG_PORT=$((21000 + ($$ % 9000)))
+SSH_PORT=$((31000 + ($$ % 9000)))
+ADMIN_DIR=$(mktemp -d)
+DAEMON_PID=""
+
+cleanup() {
+	rm -rf "$ADMIN_DIR"
+	if [ -n "$DAEMON_PID" ]; then
+		kill "$DAEMON_PID" 2>/dev/null || true
+		wait "$DAEMON_PID" 2>/dev/null || true
+	fi
+}
+trap cleanup EXIT
+
+# No tls leaf at all: the default decides.
+cat > lg-default.conf << ZECONF
+environment {
+	looking-glass {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $LG_PORT;
+		}
+	}
+}
+ZECONF
+
+# The documented opt-out (R-2): an existing plaintext birdwatcher client keeps
+# working by writing tls false.
+cat > lg-plaintext.conf << ZECONF
+environment {
+	looking-glass {
+		enabled true
+		tls false
+		server main {
+			ip 127.0.0.1;
+			port $LG_PORT;
+		}
+	}
+}
+ZECONF
+
+# Blob storage holds the looking glass's TLS certificate.
+printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
+
+start_daemon() {
+	CONF=$1
+	LOG=$2
+	ZE_CONFIG_DIR="$ADMIN_DIR" ze start "$CONF" 2>"$LOG" &
+	DAEMON_PID=$!
+	for i in $(seq 1 100); do
+		if grep -q "looking glass listening on" "$LOG" 2>/dev/null; then
+			return 0
+		fi
+		sleep 0.2
+	done
+	echo "FAIL: looking glass never announced a listener" >&2
+	cat "$LOG" >&2
+	exit 1
+}
+
+stop_daemon() {
+	kill $DAEMON_PID 2>/dev/null || true
+	wait $DAEMON_PID 2>/dev/null || true
+	DAEMON_PID=""
+}
+
+# --- AC-5: no tls leaf serves https ---
+start_daemon lg-default.conf default.log
+if ! grep -q "looking glass listening on https://127.0.0.1:$LG_PORT/" default.log; then
+	echo "FAIL: default looking glass did not announce https" >&2
+	cat default.log >&2
+	exit 1
+fi
+echo "OK: looking glass defaults to TLS" >&2
+
+# The banner is a claim; a completed TLS handshake is the proof. A plaintext
+# server would refuse this, and an https client would refuse a plaintext server.
+BODY=$(python3 -c '
+import ssl, sys, urllib.request
+ctx = ssl.create_default_context()
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
+url = "https://127.0.0.1:" + sys.argv[1] + "/api/looking-glass/status"
+print(urllib.request.urlopen(url, timeout=10, context=ctx).read().decode())
+' "$LG_PORT" 2>&1) || {
+	echo "FAIL: TLS request to the looking glass failed" >&2
+	echo "$BODY" >&2
+	exit 1
+}
+case "$BODY" in
+	*router_id*) echo "OK: TLS handshake completed and the API answered" >&2 ;;
+	*)
+		echo "FAIL: https status response did not carry router_id" >&2
+		echo "$BODY" >&2
+		exit 1
+		;;
+esac
+stop_daemon
+
+# --- AC-5: explicit tls false still serves plaintext ---
+start_daemon lg-plaintext.conf plaintext.log
+if ! grep -q "looking glass listening on http://127.0.0.1:$LG_PORT/" plaintext.log; then
+	echo "FAIL: tls false did not serve plaintext" >&2
+	cat plaintext.log >&2
+	exit 1
+fi
+echo "OK: the tls false opt-out is honored" >&2
+stop_daemon
+
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-lg-tls-default.sh:timeout=60s
+expect=exit:code=0
+expect=stderr:contains=OK: looking glass defaults to TLS
+expect=stderr:contains=OK: TLS handshake completed and the API answered
+expect=stderr:contains=OK: the tls false opt-out is honored

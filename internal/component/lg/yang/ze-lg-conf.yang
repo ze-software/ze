@@ -45,8 +45,23 @@ module ze-lg-conf {
 
             leaf tls {
                 type boolean;
-                default false;
-                description "Enable TLS (requires blob storage for certificates)";
+                default true;
+                description "Enable TLS (requires blob storage for certificates).
+                             Default true: the looking glass binds 0.0.0.0 and
+                             publishes route data. Set false to serve plaintext,
+                             for example behind a TLS-terminating proxy.
+                             Override with the ze.looking-glass.tls variable.";
+            }
+
+            leaf token {
+                type string;
+                ze:sensitive;
+                description "Bearer token that gates every /api/ and /lg/ route.
+                             Compared constant-time (sha256 +
+                             subtle.ConstantTimeCompare). Empty leaves the
+                             looking glass open, which is the default: a looking
+                             glass is a public read-only surface. Override with
+                             the ze.looking-glass.token variable.";
             }
         }
     }

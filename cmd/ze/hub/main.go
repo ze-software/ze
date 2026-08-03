@@ -327,9 +327,15 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	var (
 		webAddrs []string
 		lgAddrs  []string
-		lgTLS    bool
 		mcpAddrs []string
 	)
+	// The looking glass serves TLS by default: it binds 0.0.0.0 and publishes
+	// route data and session state. lgTLSSet records that the operator stated a
+	// choice through the environment, so an explicit `false` opts out instead of
+	// being overwritten by the config file's own default-true.
+	lgTLS := true
+	lgTLSSet := false
+	lgToken := env.Get("ze.looking-glass.token")
 	if webListenAddr != "" {
 		webAddrs = []string{webListenAddr}
 		webEnabled = true
@@ -347,8 +353,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			lgAddrs = append(lgAddrs, ep.String())
 		}
 	}
-	if env.IsEnabled("ze.looking-glass.tls") {
-		lgTLS = true
+	if env.Get("ze.looking-glass.tls") != "" {
+		lgTLS = env.GetBool("ze.looking-glass.tls", true)
+		lgTLSSet = true
 	}
 	if env.IsEnabled("ze.looking-glass.enabled") && len(lgAddrs) == 0 {
 		lgAddrs = []string{"0.0.0.0:8443"}
@@ -421,12 +428,29 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	if mcpCfgOK && mcpToken == "" && mcpCfg.Token != "" {
 		mcpToken = mcpCfg.Token
 	}
-	if lgCfg, ok := zeconfig.ExtractLGConfig(loadResult.Tree); ok {
-		if len(lgAddrs) == 0 {
-			lgAddrs = endpointsToAddrs(lgCfg.Servers)
-		}
-		if !lgTLS {
+	// Two questions, asked separately (the same split as ExtractMCPSettings).
+	//
+	// ADDRESSES come only from a block that asks for a listener, so
+	// `enabled false` still means "config does not start the looking glass".
+	if lgListenCfg, ok := zeconfig.ExtractLGConfig(loadResult.Tree); ok && len(lgAddrs) == 0 {
+		lgAddrs = endpointsToAddrs(lgListenCfg.Servers)
+	}
+	// SETTINGS (tls, token) apply whenever the block exists, whatever supplied
+	// the address. Gating them on `enabled` discarded the operator's TLS and
+	// token instruction when ze.looking-glass.enabled or ze.looking-glass.listen
+	// started the server, leaving a plaintext, open looking glass
+	// (ai/rules/protocol.md).
+	//
+	// Precedence: env var > config file > default-on. The config file's own TLS
+	// value already defaults true, so the config lowers TLS only when the
+	// operator wrote `tls false`, and an env var overrides both.
+	if lgCfg, ok := zeconfig.ExtractLGSettings(loadResult.Tree); ok {
+		if !lgTLSSet {
 			lgTLS = lgCfg.TLS
+			lgTLSSet = lgCfg.TLSExplicit
+		}
+		if lgToken == "" {
+			lgToken = lgCfg.Token
 		}
 	}
 
@@ -965,6 +989,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		Dispatch:          webDispatch,
 		LGAddrs:           lgAddrs,
 		LGTLS:             lgTLS,
+		LGTLSExplicit:     lgTLSSet,
+		LGToken:           lgToken,
 		WebEnabled:        webEnabled,
 		WebAddrs:          webAddrs,
 		InsecureWeb:       insecureWeb,

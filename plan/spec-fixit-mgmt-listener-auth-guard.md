@@ -188,6 +188,7 @@ names, `:351-404`); (b) all these checks are bind-availability probes
 - Loopback defaults where they already exist (MCP default bind loopback, `cmd/ze/hub/main.go`; MCP YANG clamp `loader_extract.go`; web YANG insecure clamp `:119-127`; `--insecure-web` flag clamp `ze_core_start.go`). These clamps run BEFORE the guard, so a clamped config never presents non-loopback to the guard: no behavior change on those paths.
 - Web's no-users fail-closed disable (`service_web.go`) stays; the guard adds refusal only for the insecure+non-loopback combination.
 - LG's all-or-nothing bind and reconfigure semantics.
+- A looking glass on a box with no blob storage keeps serving. TLS-on-by-default is a hardening default, not an operator instruction, so it degrades to plaintext with a warning rather than failing the build. An explicit `tls true` is an instruction and is still refused when it cannot be honored (`ai/rules/protocol.md`).
 
 **Behavior to change:**
 - Add the boot-time refusal for non-loopback + unauthenticated management listeners (gNMI, MCP, web-insecure, API kept as-is via the shared guard).
@@ -273,7 +274,7 @@ names, `:351-404`); (b) all these checks are bind-availability probes
 | AC-2 | MCP routable listen with no effective auth: (a) YANG `bind-remote true` + `auth-mode none`/unset, (b) `ze.mcp.listen=<routable>` env with no token | (a) hard-fails with the existing `environment.mcp: bind-remote requires auth-mode != none` message at boot; (b) hard-fails via the guard naming MCP |
 | AC-3 | `ze.web.insecure=true` while any web listen address is non-loopback | Startup hard-fails naming web-insecure and the remedy (`ze.web.listen=127.0.0.1:<port>` or drop the env var) |
 | AC-4 | Any of the above but bound to loopback only | Starts normally (unchanged); guard logs nothing |
-| AC-5 | LG enabled with no `tls` leaf and no `ze.looking-glass.tls` env | LG serves TLS (default flipped on); explicit `tls false` still serves plaintext; optional `token` leaf / `ze.looking-glass.token` gates every /api/ and /lg/ route with constant-time bearer auth when set |
+| AC-5 | LG enabled with no `tls` leaf and no `ze.looking-glass.tls` env | LG serves TLS (default flipped on); explicit `tls false` still serves plaintext; optional `token` leaf / `ze.looking-glass.token` gates every /api/ and /lg/ route with constant-time bearer auth when set. Certificates need blob storage: an EXPLICIT `tls true` without it is an error, while the inherited default yields to plaintext with a warning naming `ze init`, so a hardening default never removes a working looking glass |
 | AC-6 | `ze doctor --json` (and `ze config validate`) on a config exposing gNMI non-loopback without token, or MCP bind-remote without auth | Emits `config-gnmi-invalid` / `config-mcp-invalid` diagnostics; gNMI default endpoint appears in the bind-probe set |
 | AC-7 | Running daemon, SIGHUP reload moves a service built without authentication (e.g. insecure web) to a non-loopback address | `ReloadListeners` refuses that service's migration with an error naming it; daemon continues serving on the previous addresses |
 
@@ -287,16 +288,16 @@ reload path a boot-only guard cannot see fails open, so the reload gate is in-sc
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestMgmtGuardRefusesNonLoopbackUnauth` | `cmd/ze/hub/mgmt_guard_test.go` | AC-1..AC-3 classification + per-service error text | |
-| `TestMgmtGuardAllowsLoopback` | `cmd/ze/hub/mgmt_guard_test.go` | AC-4 | |
-| `TestMgmtGuardAllowsAuthenticatedNonLoopback` | `cmd/ze/hub/mgmt_guard_test.go` | token/users present passes | |
-| `TestMgmtGuardUnparseableHostIsNonLoopback` | `cmd/ze/hub/mgmt_guard_test.go` | fail-closed classifier (hostname, garbage, empty host) | |
-| `TestGNMIListenConfigValidate` | `internal/component/config/loader_extract_test.go` | non-loopback + empty token rejected; loopback + empty token allowed; token present allowed | |
-| `TestValidateSemanticsFlagsGNMI` | `internal/component/config/validate_semantic_test.go` | `config-gnmi-invalid` emitted through the semantic entry point (not only the helper) | |
-| `TestExtractLGConfigTLSDefaultOn` | `internal/component/config/loader_extract_test.go` | absent leaf reads true; explicit false honored | |
-| `TestLGTokenMiddleware` | `internal/component/lg/server_test.go` | token set: 401 without/with-wrong bearer on /api/ and /lg/; no token: open | |
-| `TestReloadListenersRefusesUnauthNonLoopback` | `cmd/ze/hub/listener_migrate_test.go` | AC-7 | |
-| `TestDoctorFlagsGnmiExposure` | `internal/component/doctor/checks_config_test.go` | AC-6 through the doctor check entry point | |
+| `TestMgmtGuardRefusesNonLoopbackUnauth` | `cmd/ze/hub/mgmt_guard_test.go` | AC-1..AC-3 classification + per-service error text |DONE (`TestCheckMgmtListeners`) |
+| `TestMgmtGuardAllowsLoopback` | `cmd/ze/hub/mgmt_guard_test.go` | AC-4 |DONE (`TestCheckMgmtListeners`) |
+| `TestMgmtGuardAllowsAuthenticatedNonLoopback` | `cmd/ze/hub/mgmt_guard_test.go` | token/users present passes |DONE (`TestCheckMgmtListeners`) |
+| `TestMgmtGuardUnparseableHostIsNonLoopback` | `cmd/ze/hub/mgmt_guard_test.go` | fail-closed classifier (hostname, garbage, empty host) |DONE (`TestListenAddrIsNonLoopback`) |
+| `TestGNMIListenConfigValidate` | `internal/component/config/loader_extract_test.go` | non-loopback + empty token rejected; loopback + empty token allowed; token present allowed |DONE (`internal/component/config/gnmi_validate_test.go`) |
+| `TestValidateSemanticsFlagsGNMI` | `internal/component/config/validate_semantic_test.go` | `config-gnmi-invalid` emitted through the semantic entry point (not only the helper) |DONE (`internal/component/config/validate_semantic_test.go`) |
+| `TestExtractLGConfigTLSDefaultOn` | `internal/component/config/loader_extract_test.go` | absent leaf reads true; explicit false honored |DONE (`internal/component/config/lg_extract_test.go`) |
+| `TestLGTokenMiddleware` | `internal/component/lg/server_test.go` | token set: 401 without/with-wrong bearer on /api/ and /lg/; no token: open |DONE (`internal/component/lg/auth_test.go`) |
+| `TestReloadListenersRefusesUnauthNonLoopback` | `cmd/ze/hub/listener_migrate_test.go` | AC-7 |DONE (`cmd/ze/hub/mgmt_guard_test.go`) |
+| `TestDoctorFlagsGnmiExposure` | `internal/component/doctor/checks_config_test.go` | AC-6 through the doctor check entry point |DONE (`internal/component/doctor/checks_config_test.go`) |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -306,15 +307,15 @@ reload path a boot-only guard cannot see fails open, so the reload gate is in-sc
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `mgmt-guard-gnmi-nonloopback-refused` | `test/plugin/*.ci` | operator enables gNMI on 0.0.0.0 with no token; daemon exits 1 with a clear error before binding | |
-| `mgmt-guard-gnmi-token-allowed` | `test/plugin/*.ci` | same config plus token boots normally | |
-| `mgmt-guard-mcp-env-nonloopback-refused` | `test/plugin/*.ci` | `ze.mcp.listen` routable + no token refused at boot (per-command `env=` directive) | |
-| `mgmt-guard-mcp-bind-remote-none-refused` | `test/plugin/*.ci` | YANG bind-remote + auth-mode none refused at boot with the Validate message | |
-| `mgmt-guard-web-insecure-env-refused` | `test/plugin/*.ci` | `ze.web.insecure` env with default 0.0.0.0 listen refused at boot | |
-| `mgmt-guard-loopback-allowed` | `test/plugin/*.ci` | loopback-bound unauthenticated gNMI+MCP+web boots, exit path clean | |
-| `doctor-gnmi-mcp-exposure` | `test/ui/*.ci` | `ze doctor --json` emits config-gnmi-invalid + config-mcp-invalid on an exposing config | |
-| `mgmt-guard-reload-refuses-nonloopback` | `test/reload/*.ci` | SIGHUP migration to non-loopback refused for unauth service, daemon keeps serving | |
-| `lg-tls-default-on` | `test/plugin/*.ci` | LG enabled with no tls leaf serves https (stderr banner `looking glass listening on https://`) | |
+| `mgmt-guard-gnmi-nonloopback-refused` | `test/plugin/*.ci` | operator enables gNMI on 0.0.0.0 with no token; daemon exits 1 with a clear error before binding |PASS |
+| `mgmt-guard-gnmi-token-allowed` | `test/plugin/*.ci` | same config plus token boots normally |PASS |
+| `mgmt-guard-mcp-env-nonloopback-refused` | `test/plugin/*.ci` | `ze.mcp.listen` routable + no token refused at boot (per-command `env=` directive) |PASS |
+| `mgmt-guard-mcp-bind-remote-none-refused` | `test/plugin/*.ci` | YANG bind-remote + auth-mode none refused at boot with the Validate message |PASS |
+| `mgmt-guard-web-insecure-env-refused` | `test/plugin/*.ci` | `ze.web.insecure` env with default 0.0.0.0 listen refused at boot |PASS |
+| `mgmt-guard-loopback-allowed` | `test/plugin/*.ci` | loopback-bound unauthenticated gNMI+MCP+web boots, exit path clean |PASS |
+| `doctor-gnmi-mcp-exposure` | `test/ui/*.ci` | `ze doctor --json` emits config-gnmi-invalid + config-mcp-invalid on an exposing config |PASS |
+| `mgmt-guard-reload-refuses-nonloopback` | `test/reload/*.ci` | SIGHUP migration to non-loopback refused for unauth service, daemon keeps serving |PASS |
+| `lg-tls-default-on` | `test/plugin/*.ci` | LG enabled with no tls leaf serves https (stderr banner `looking glass listening on https://`) |PASS |
 
 Note: no new suite directory. `test/plugin` boot-refusal tests follow
 `test/plugin/family-no-plugin-failure.ci` (foreground `ze -`, `expect=exit:code=1`,
@@ -391,6 +392,7 @@ natively (config/refusal only, no kernel features), so no `option=needs-linux`.
 
 ## Known Limitations
 - Env-var exposure (`ze.mcp.listen`, `ze.gnmi.*`, `ze.web.insecure`) is enforced by the boot guard only; `ze doctor` and `ze config validate` inspect a config file and cannot see another process's environment (R-5).
+- The same blindness runs the other way for gNMI: a config that binds gNMI non-loopback while the token comes from `ze.gnmi.token` boots correctly and is still reported `config-gnmi-invalid`, because the file alone describes an exposed listener. The message names both token sources so the operator can tell the two cases apart. Making the offline check read the daemon's environment is not possible; making it silent would lose the exposure it exists to report.
 - SSH, plugin hub, telemetry/Prometheus, and the managed server are out of the guard's declaration set by design (A-4): SSH authenticates by protocol, hub enforces min-32 secrets (`loader_extract.go`), Prometheus defaults loopback and is read-only metrics. Doctor bind probes still cover them.
 - gNMI token-over-plaintext (token set, no TLS) still boots: the guard enforces authentication, not transport secrecy. TLS-required-for-token is a possible follow-up (open question 4, resolved 2026-07-17: NOTED FOLLOW-UP, not this spec).
 - Auth-mode changes on SIGHUP reload do not take effect (servers are built once); AC-7 only prevents the address from moving into exposure. Full reload-time auth rebuild is out of scope.
@@ -418,10 +420,10 @@ natively (config/refusal only, no kernel features), so no `option=needs-linux`.
 
 ## Review Gate
 
-Scope of this pass: boot-guard core only (AC-1..AC-4, AC-7). AC-5 (LG) and AC-6
-(offline `ze config validate` / `ze doctor` gNMI parity) remain OPEN -- spec stays
-in-progress. Two independent reviewer subagents (security + correctness/wiring)
-reviewed the diff from the guard entry point.
+### Pass 1 (boot-guard core: AC-1..AC-4, AC-7)
+
+Two independent reviewer subagents (security + correctness/wiring) reviewed the
+diff from the guard entry point.
 
 - BLOCKER: 0
 - ISSUE: 2, both FIXED:
@@ -432,19 +434,77 @@ reviewed the diff from the guard entry point.
     (mirrors server effective-mode precedence); regression test
     `TestMcpListenerAuthenticated` incl. the none+token case.
   - [correctness] `GNMIListenConfig.Validate` doc comment claimed
-    validate/doctor/boot wiring that this phase defers (AC-6). Comment corrected
-    to state it is unwired pending AC-6.
+    validate/doctor/boot wiring that this phase defers (AC-6). Comment corrected.
 - NIT: 2, ACCEPTED:
   - Guard call site is before every in-scope management bind but after
     `eng.Start`/SSH/dropPrivileges (not a fail-open; hoisting further is higher
     regression risk than the NIT warrants).
-  - Three non-loopback classifiers across hub vs config packages (cannot share
-    without a new dependency; identical fail-closed netip rule).
+  - Non-loopback classifiers split across the hub and config packages (cannot
+    share without a new dependency; identical fail-closed netip rule).
 
-Verification: `go test` (config + hub packages, all feature tags) green including
-the new fail-open regression test; `golangci-lint` on the two changed packages: 0
-issues. `make ze-test` / QEMU boot-refusal + functional `.ci` refusal tests are
-part of the deferred close-out (Goal Gates remain unchecked).
+### Pass 2 (AC-5 looking glass, AC-6 offline parity, all functional tests)
+
+Two independent reviewer subagents (security + correctness/wiring) reviewed the
+whole diff. Every finding is FIXED; each fix carries a mutation-verified test.
+
+- BLOCKER: 2, both FIXED:
+  - [security] `ExtractLGConfig` returned before reading `tls` and `token`
+    whenever the block lacked `enabled true`, so a looking glass started by
+    `ze.looking-glass.enabled` or `ze.looking-glass.listen` ran PLAINTEXT and
+    OPEN while the operator's config asked for TLS and a bearer token. This is
+    the environment.mcp defect (Task finding 5) recurring on a second service.
+    Fixed with the same split: `extractLGBlock` reports "block exists" and
+    "block asks for a listener" separately, `ExtractLGSettings` serves the
+    settings question, and `cmd/ze/hub/main.go` takes addresses from one and
+    settings from the other. Test: `TestExtractLGSettingsSurviveDisabledBlock`.
+  - [security] The web config form read the `tls` toggle from the raw tree,
+    which carries no YANG defaults, so a config inheriting the new default-ON
+    rendered TLS as OFF; the toggle template always posts a companion hidden
+    `false`, so saving the Looking Glass form for any reason wrote `tls false`
+    and downgraded HTTPS to plaintext. Fixed by `configValueOrDefault` applying
+    the same default the extractor applies, and the missing `token` field was
+    added (password type). Test: `TestBuildLookingGlassFormDataTLSDefaultsOn`.
+- ISSUE: 7, all FIXED:
+  - AC-5 was narrowed by an undocumented plaintext fallback when TLS is on by
+    default and blob storage is absent. The behavior is correct (a hardening
+    default must not remove a working looking glass) but was unwritten and
+    untested. AC-5 and Behavior-to-preserve now state it; tests
+    `TestBuildLGService_ExplicitTLSWithoutBlobStorageFails` and
+    `TestBuildLGService_DefaultTLSWithoutBlobStorageServesPlaintext` pin both
+    directions, so the fallback can never widen to an explicit `tls true`.
+  - The looking-glass token was proven only by a unit test that built
+    `LGConfig` directly; nothing proved the env/YANG value reached the server.
+    Added `test/plugin/lg-token-gate.ci` (mutation-verified).
+  - `RegisterListenerDefault("gnmi", ...)` was exercised only through the
+    hardcoded fallback, which never consults the defaults map. Added
+    `TestDoctorGnmiDefaultEndpointIsProbed`, which drives the schema path and
+    also pins that the discovered service name really is `gnmi`.
+  - The `ze config validate` gNMI leg had no test (doctor reaches the check by
+    a different route). Added `internal/component/config/cli/cmd_validate_gnmi_test.go`.
+  - Three non-loopback classifiers existed, two of them byte-identical inside
+    `internal/component/config`. Folded into `anyEndpointNonLoopback`; both
+    `AnyListenerNonLoopback` methods now delegate. One rule per package remains,
+    with the hub's boot-guard copy documented as mirroring it.
+  - The offline gNMI check reports a config whose token comes from
+    `ze.gnmi.token`. The message now names both token sources, and Known
+    Limitations records the direction.
+  - Stale documentation from the TLS default flip and the new token, in
+    `docs/features/looking-glass.md`, `docs/guide/looking-glass-howto.md`,
+    `docs/guide/looking-glass.md`, `docs/architecture/config/environment.md`,
+    `docs/architecture/web-interface.md`, `ai/patterns/web-endpoint.md`, and the
+    `internal/component/lg` package doc.
+- NIT: 3, 2 FIXED and 1 RECORDED:
+  - The bearer scheme match was case-sensitive; RFC 7235 Section 2.1 makes the
+    auth-scheme case-insensitive, so a conforming `bearer <token>` was refused.
+    Fixed with `strings.EqualFold` over the scheme only; the token stays
+    case-sensitive. Test: `TestLGTokenMiddleware/scheme_is_case-insensitive`.
+  - A stale `startLGServer` doc anchor in `docs/guide/looking-glass.md`, fixed.
+  - `TestDoctorDependencyInventory` (`internal/component/doctor/doctor_test.go`)
+    has no `listener/gnmi` row. That file is owned by another concurrent session
+    and was off-limits; the row and the `expectedTotal` bump are outstanding.
+
+Mutation verification: 13 mutations, each reverting one guard, wiring, or
+default, and each confirmed to turn its own test red before restore.
 
 ## Notes
 - Skeleton captured from the 2026-07-16 repository audit; verifier V1 corrected both earlier passes (MCP guard exists but does not run at boot; the insecure-web YANG path is clamped, only the env path bypasses). Deepened to design 2026-07-16: all citations re-verified against the working tree; the doctor claim was corrected (MCP is present in the hardcoded fallback at `checks_listener.go`; the schema path already discovers gNMI; the actual gaps are the missing "gnmi" listener default, the missing gNMI semantic Validate, and bind-probe-vs-exposure semantics).

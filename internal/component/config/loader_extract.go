@@ -26,7 +26,10 @@ var (
 	errEnvironmentMcpTlsCertSetWithout        = errors.New("environment.mcp.tls: cert set without key")
 	errEnvironmentMcpTlsKeySetWithout         = errors.New("environment.mcp.tls: key set without cert")
 
-	errEnvironmentGnmiNonLoopbackRequiresToken = errors.New("environment.gnmi: non-loopback listener requires token")
+	// Names both sources of the token because this check reads a config FILE and
+	// cannot see the daemon's environment: a deployment that supplies the token
+	// through ze.gnmi.token boots fine and is still reported here.
+	errEnvironmentGnmiNonLoopbackRequiresToken = errors.New("environment.gnmi: non-loopback listener requires token (set the token leaf, or ze.gnmi.token in the daemon environment)")
 )
 
 // loaderLogger is the config loader subsystem logger (lazy initialization).
@@ -174,20 +177,30 @@ type MCPListenConfig struct {
 	TLS        MCPTLSConfig
 }
 
-// AnyListenerNonLoopback reports whether at least one Server entry binds to
-// a non-loopback address. Used by Validate to decide whether TLS is required.
-// A host that does not parse as an IP address (e.g. `localhost` or any
-// unresolvable hostname) is treated as non-loopback so operators cannot
-// smuggle remote reachability through a DNS name. netip.Addr.IsLoopback
-// covers the full 127.0.0.0/8 range and ::1.
-func (c MCPListenConfig) AnyListenerNonLoopback() bool {
-	for _, s := range c.Servers {
+// anyEndpointNonLoopback reports whether at least one endpoint binds to a
+// non-loopback address. It is THE non-loopback rule for this package: every
+// service's AnyListenerNonLoopback delegates here so exactly one definition of
+// "reachable from off-box" exists, and the hub's boot guard
+// (cmd/ze/hub/mgmt_guard.go listenAddrIsNonLoopback) mirrors it exactly.
+//
+// Fail-closed: a host that does not parse as an IP address (`localhost`, any
+// unresolvable name, an empty host) counts as non-loopback, so an operator
+// cannot smuggle remote reachability through a DNS name.
+// netip.Addr.IsLoopback covers the full 127.0.0.0/8 range and ::1.
+func anyEndpointNonLoopback(servers []ServerEndpoint) bool {
+	for _, s := range servers {
 		addr, err := netip.ParseAddr(s.Host)
 		if err != nil || !addr.IsLoopback() {
 			return true
 		}
 	}
 	return false
+}
+
+// AnyListenerNonLoopback reports whether at least one Server entry binds to
+// a non-loopback address. Used by Validate to decide whether TLS is required.
+func (c MCPListenConfig) AnyListenerNonLoopback() bool {
+	return anyEndpointNonLoopback(c.Servers)
 }
 
 // Validate returns a non-nil error when the config combination is internally
@@ -425,36 +438,85 @@ func extractLeafList(t *Tree, name string) []string {
 // Servers is guaranteed non-empty when ExtractLGConfig returns ok=true.
 type LGListenConfig struct {
 	Servers []ServerEndpoint
-	TLS     bool // Enable TLS on every listener
+	TLS     bool // Enable TLS on every listener (default ON)
+	// TLSExplicit records that the operator wrote the tls leaf. It separates
+	// "the operator demands TLS" from "TLS is the default nobody overrode",
+	// which decides whether a missing certificate store is a hard failure or a
+	// warned fallback to plaintext.
+	TLSExplicit bool
+	Token       string // Optional bearer token gating every route; empty leaves the LG open
+}
+
+// ExtractLGSettings returns the transport and authentication settings of an
+// environment.looking-glass block, whatever supplied the listen address.
+//
+// ok=true means "the block exists". It deliberately does NOT mean "config
+// starts a looking glass" -- see ExtractLGConfig for that half. The split
+// matters because ze.looking-glass.enabled and ze.looking-glass.listen start
+// the server without any `enabled true` leaf. Gating the settings on that leaf
+// discarded the operator's `tls true` and `token`, so a block that asked for
+// TLS and a bearer token produced a plaintext, open looking glass
+// (ai/rules/protocol.md; same defect as environment.mcp).
+func ExtractLGSettings(tree *Tree) (LGListenConfig, bool) {
+	cfg, _, present := extractLGBlock(tree)
+	if !present {
+		return LGListenConfig{}, false
+	}
+	return cfg, true
 }
 
 // ExtractLGConfig returns the environment.looking-glass config if enabled.
+//
+// ok=true means "config asks for a looking-glass listener".
 func ExtractLGConfig(tree *Tree) (LGListenConfig, bool) {
-	if tree == nil {
+	cfg, enabled, present := extractLGBlock(tree)
+	if !present || !enabled {
 		return LGListenConfig{}, false
+	}
+	return cfg, true
+}
+
+// extractLGBlock parses environment.looking-glass in full and reports both
+// whether the block exists (present) and whether it asks for a listener
+// (enabled). It applies no gate of its own; each caller above decides what its
+// own ok value means, and neither inherits the other's meaning.
+func extractLGBlock(tree *Tree) (LGListenConfig, bool, bool) {
+	if tree == nil {
+		return LGListenConfig{}, false, false
 	}
 	envBlock := tree.GetContainer("environment")
 	if envBlock == nil {
-		return LGListenConfig{}, false
+		return LGListenConfig{}, false, false
 	}
 	lg := envBlock.GetContainer("looking-glass")
 	if lg == nil {
-		return LGListenConfig{}, false
+		return LGListenConfig{}, false, false
 	}
 
-	// Service must be explicitly enabled (default false).
-	enabled, _ := lg.Get("enabled")
-	if enabled != configTrue {
-		return LGListenConfig{}, false
-	}
+	// Service must be explicitly enabled (default false) for config to START a
+	// looking glass. Reported, not enforced here: the settings below are parsed
+	// either way, so an address supplied by an env var still gets the operator's
+	// TLS and token.
+	enabledLeaf, _ := lg.Get("enabled")
+	enabled := enabledLeaf == configTrue
 
 	cfg := LGListenConfig{Servers: extractServerList(lg, "0.0.0.0", "8443")}
 
-	if v, ok := lg.Get("tls"); ok && v == configTrue {
-		cfg.TLS = true
+	// TLS defaults ON. The raw tree carries no YANG defaults, so an absent leaf
+	// must be read as true here; only an explicit `tls false` opts out. The
+	// looking glass binds 0.0.0.0 by default, so a plaintext default published
+	// route data and session state in the clear.
+	cfg.TLS = true
+	if v, ok := lg.Get("tls"); ok {
+		cfg.TLS = v == configTrue
+		cfg.TLSExplicit = true
 	}
 
-	return cfg, true
+	if v, ok := lg.Get("token"); ok {
+		cfg.Token = v
+	}
+
+	return cfg, enabled, true
 }
 
 // GNMIListenConfig holds parsed environment.gnmi settings.
@@ -468,19 +530,10 @@ type GNMIListenConfig struct {
 }
 
 // AnyListenerNonLoopback reports whether at least one gNMI Server entry binds
-// to a non-loopback address. A host that does not parse as an IP address (e.g.
-// `localhost` or any unresolvable hostname) is treated as non-loopback so an
-// operator cannot smuggle remote reachability through a DNS name. Mirrors
-// MCPListenConfig.AnyListenerNonLoopback so exactly one classification rule
-// exists across the config surfaces.
+// to a non-loopback address, including the 0.0.0.0:9339 default that
+// ExtractGNMIConfig synthesizes when the block names no server.
 func (c GNMIListenConfig) AnyListenerNonLoopback() bool {
-	for _, s := range c.Servers {
-		addr, err := netip.ParseAddr(s.Host)
-		if err != nil || !addr.IsLoopback() {
-			return true
-		}
-	}
-	return false
+	return anyEndpointNonLoopback(c.Servers)
 }
 
 // Validate returns a non-nil error when the gNMI config would expose an
@@ -488,12 +541,11 @@ func (c GNMIListenConfig) AnyListenerNonLoopback() bool {
 // 0.0.0.0:9339 default synthesized by ExtractGNMIConfig) with no token. gNMI's
 // interceptors are installed only when a token is set and checkAuth allows on
 // an empty token, so a tokenless non-loopback bind is an unauthenticated
-// read+write config surface. NOTE: not yet wired into `ze config validate` /
-// `ze doctor` / the boot semantic check (that offline parity is AC-6 of
-// plan/spec-fixit-mgmt-listener-auth-guard.md, a deferred follow-up phase);
-// boot-time exposure is currently caught by the hub management-listener guard,
-// which refuses the resolved (env-or-YANG) gNMI bind. Fail-closed per
-// .claude/rules/exact-or-reject.md.
+// read+write config surface. Called by ValidateSemantics (which `ze doctor`
+// reaches through checkSemanticValidation) and by `ze config validate`, so the
+// exposure is reported offline as well as refused at boot; the hub
+// management-listener guard refuses the resolved (env-or-YANG) gNMI bind.
+// Fail-closed per .claude/rules/exact-or-reject.md.
 func (c GNMIListenConfig) Validate() error {
 	if c.AnyListenerNonLoopback() && c.Token == "" {
 		return errEnvironmentGnmiNonLoopbackRequiresToken

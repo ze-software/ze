@@ -1,0 +1,30 @@
+# Test: ze doctor --json reports gNMI and MCP management-surface exposure
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-6 -- the offline checkers
+# agree with the boot guard. MCP exposure was already reported through
+# ValidateSemantics; gNMI had a Validate that no entry point called, so doctor
+# answered "ready" for a config the daemon refuses to start on. Both codes must
+# now appear for one config that exposes both.
+# PREVENTS: an operator validating a config clean, deploying it, and finding out
+# at boot that the daemon will not start.
+
+tmpfs=exposed.conf:terminator=EOF_CONF
+environment {
+    gnmi {
+        enabled true
+    }
+    mcp {
+        enabled true
+        bind-remote true
+        auth-mode none
+        server main {
+            ip 127.0.0.1
+            port 18087
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json exposed.conf
+expect=stdout:contains=config-gnmi-invalid
+expect=stdout:contains=config-mcp-invalid
+expect=stdout:contains=environment.gnmi: non-loopback listener requires token

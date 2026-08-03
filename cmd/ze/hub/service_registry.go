@@ -54,9 +54,17 @@ type ServiceDeps struct {
 	// it (rendering typed *plugin.Response at its edge via .JSON) internally.
 	Dispatch plugin.CommandDispatcher
 
-	// Looking-glass resolved binding (pilot).
+	// Looking-glass resolved binding (pilot). LGToken is a plain string (no lg
+	// import): empty leaves the looking glass open, which is its default
+	// posture as a public read-only surface.
 	LGAddrs []string
 	LGTLS   bool
+	// LGTLSExplicit reports that the operator wrote the tls setting, rather than
+	// inheriting the default-on. It decides what a missing certificate store
+	// means: a demand that cannot be met (error), or a default that yields to
+	// the prior plaintext behavior with a warning.
+	LGTLSExplicit bool
+	LGToken       string
 
 	// Web resolved bindings. These stay generic: no internal/component/web type
 	// crosses the always-on registry boundary.

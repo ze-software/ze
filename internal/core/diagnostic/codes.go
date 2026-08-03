@@ -66,6 +66,11 @@ var builtinCodes = []CodeMeta{
 		Description: "MCP auth-mode, bind-remote, OAuth, or TLS cross-leaf consistency check failed.",
 	},
 	{
+		Code:        "config-gnmi-invalid",
+		Title:       "gNMI config exposure failure",
+		Description: "A gNMI server listens on a non-loopback address with no token, so it accepts unauthenticated Get and Set requests.",
+	},
+	{
 		Code:        "config-bgp-resolve",
 		Title:       "BGP config resolution failure",
 		Description: "Template or BGP tree resolution failed during config validation.",

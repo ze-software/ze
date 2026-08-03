@@ -130,7 +130,7 @@ notation supported). See [configuration.md](../../guide/configuration.md).
 |--------|--------|---------|--------|-------|
 | Web | `ze.web.listen` | `ze.web.enabled`, `ze.web.insecure` | - | YANG |
 | MCP | `ze.mcp.listen` | `ze.mcp.enabled` | `ze.mcp.token` | YANG |
-| Looking glass | `ze.looking-glass.listen` | `ze.looking-glass.enabled`, `ze.looking-glass.tls` | - | YANG |
+| Looking glass | `ze.looking-glass.listen` | `ze.looking-glass.enabled`, `ze.looking-glass.tls` | `ze.looking-glass.token` | YANG |
 | API REST | `ze.api-server.rest.listen` | `ze.api-server.rest.enabled` | `ze.api-server.token` | YANG |
 | API gRPC | `ze.api-server.grpc.listen` | `ze.api-server.grpc.enabled` | `ze.api-server.token` | YANG |
 

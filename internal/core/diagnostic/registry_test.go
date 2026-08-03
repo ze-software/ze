@@ -61,6 +61,7 @@ func TestRegistryBuiltinCodesIncludeExpected(t *testing.T) {
 		"config-yang-range",
 		"config-plugin-verify",
 		"config-mcp-invalid",
+		"config-gnmi-invalid",
 		"config-bgp-resolve",
 		"config-bgp-peer",
 		"config-listener-conflict",

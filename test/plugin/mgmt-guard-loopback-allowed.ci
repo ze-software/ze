@@ -1,0 +1,44 @@
+# Test: loopback-bound unauthenticated management listeners still start
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-4 -- gNMI, MCP and the
+# looking glass bound to 127.0.0.1 with no token are reachable only from the
+# box, so the guard passes them unchanged and logs nothing. All three run here
+# together because the guard iterates one declaration slice: a per-service
+# regression would leave the others green.
+# PREVENTS: the guard breaking the normal single-box workflow, where an operator
+# reaches gNMI or MCP over an SSH tunnel with no credential configured.
+
+option=exclusive:group=mgmt-guard
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	gnmi {
+		enabled true
+		server main {
+			ip 127.0.0.1
+			port 19341
+		}
+	}
+	mcp {
+		enabled true
+		server main {
+			ip 127.0.0.1
+			port 18086
+		}
+	}
+	looking-glass {
+		enabled true
+		tls false
+		server main {
+			ip 127.0.0.1
+			port 18446
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=gNMI server listening on 127.0.0.1:19341
+expect=stderr:contains=gNMI server listening on 127.0.0.1:19341
+expect=stderr:contains=MCP server listening on http://127.0.0.1:18086/
+expect=stderr:contains=looking glass listening on http://127.0.0.1:18446/
+reject=stderr:pattern=refusing to start

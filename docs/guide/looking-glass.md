@@ -30,17 +30,38 @@ environment {
 | `enabled` | `false` | Enable the looking glass server. |
 | `server <name> { ip }` | `0.0.0.0` | Listen address. Set to `127.0.0.1` to restrict to local access. |
 | `server <name> { port }` | `8443` | Listen port. Must differ from the web UI port. |
-| `tls` | `false` | Enable TLS. Requires blob storage (`ze init`). |
+| `tls` | `true` | Serve HTTPS. Certificates come from blob storage (`ze init`). Set `false` to serve plaintext. |
+| `token` | (empty) | Bearer token. When set, every `/api/` and `/lg/` route needs `Authorization: Bearer <token>`. Empty leaves the looking glass open. |
 
-Environment variable overrides: `ze.looking-glass.listen=ip:port`, `ze.looking-glass.enabled=true`, `ze.looking-glass.tls=true`.
+Environment variable overrides: `ze.looking-glass.listen=ip:port`, `ze.looking-glass.enabled=true`, `ze.looking-glass.tls=false`, `ze.looking-glass.token=<token>`.
+
+### TLS is on by default
+
+The looking glass binds `0.0.0.0` and publishes route data and session state, so
+it serves HTTPS unless you turn TLS off. Two rules apply:
+
+- Write `tls false` (or set `ze.looking-glass.tls=false`) to serve plaintext,
+  for example behind a proxy that terminates TLS.
+- Without blob storage there is no certificate. If you wrote `tls true`, Ze
+  reports the error and does not start the looking glass. If you wrote nothing
+  and took the default, Ze serves plaintext and prints a warning that names
+  `ze init` as the remedy.
+
+### Optional bearer token
+
+A looking glass is normally public and read-only, so `token` is off by default.
+Set it to require a bearer token on every route. Ze compares the token
+constant-time over SHA-256 digests. A request with no token, a wrong token, or
+an `Authorization` header that is not `Bearer <token>` gets `401`.
 
 When the `looking-glass` block is absent, no HTTP server is started and no resources are consumed.
 
-<!-- source: cmd/ze/hub/main.go -- startLGServer -->
+<!-- source: cmd/ze/hub/service_lg.go -- buildLGService -->
 
 ## Web UI
 
-The HTMX web UI is available at `http://<host>:<port>/lg/`. No authentication is required.
+The HTMX web UI is available at `https://<host>:<port>/lg/` (`http://` when you
+set `tls false`). No authentication is required unless you set `token`.
 
 | Tab / View | URL | Description |
 |------------|-----|-------------|
@@ -93,12 +114,12 @@ sources:
   - name: "Ze Router"
     type: birdwatcher
     birdwatcher:
-      api: "http://ze-host:8443/api/looking-glass"
+      api: "https://ze-host:8443/api/looking-glass"
 ```
 
 ## Security
 
-The looking glass is designed for public IXP deployment. It is read-only and unauthenticated. Security measures include:
+The looking glass is designed for public IXP deployment. It is read-only, and open unless you set `token`. Security measures include:
 
 - Strict input validation on all query parameters (character allowlists, length limits).
 - `Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` headers.

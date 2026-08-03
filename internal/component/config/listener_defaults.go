@@ -9,6 +9,7 @@ func RegisterBuiltinListenerDefaults() {
 	RegisterListenerDefault("web", "0.0.0.0", "3443")
 	RegisterListenerDefault("ssh", "127.0.0.1", "2222")
 	RegisterListenerDefault("mcp", "0.0.0.0", "8080")
+	RegisterListenerDefault("gnmi", "0.0.0.0", "9339")
 	RegisterListenerDefault("looking-glass", "0.0.0.0", "8443")
 	RegisterListenerDefault("api-server-rest", "0.0.0.0", "8081")
 	RegisterListenerDefault("api-server-grpc", "0.0.0.0", "50051")

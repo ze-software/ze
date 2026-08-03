@@ -237,7 +237,7 @@ The birdwatcher API uses `snake_case` JSON keys (`router_id`, `neighbor_address`
 | Method | Config |
 |--------|--------|
 | Config | `environment { looking-glass { enabled true; server main { ip 0.0.0.0; port 8443; } } }` |
-| Env vars | `ze.looking-glass.listen=ip:port`, `ze.looking-glass.enabled=true`, `ze.looking-glass.tls=true` |
+| Env vars | `ze.looking-glass.listen=ip:port`, `ze.looking-glass.enabled=true`, `ze.looking-glass.tls=false` (TLS is on by default), `ze.looking-glass.token=<token>` |
 
 Started by `startLGServer()` in `cmd/ze/hub/main.go` alongside the web server, after engine startup.
 

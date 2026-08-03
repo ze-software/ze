@@ -1,0 +1,27 @@
+# Test: gNMI on a non-loopback address WITH a token starts normally
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-1 (negative half) -- the
+# guard refuses only UNAUTHENTICATED non-loopback listeners. The same config
+# that mgmt-guard-gnmi-nonloopback-refused.ci rejects boots once a token is set,
+# so the guard cannot be satisfied by simply refusing everything.
+# PREVENTS: an over-broad guard that breaks a properly authenticated remote
+# gNMI deployment, which would push operators to disable it entirely.
+
+option=exclusive:group=mgmt-guard
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	gnmi {
+		enabled true
+		token s3cret-gnmi-token
+		server main {
+			ip 0.0.0.0
+			port 19339
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=20s
+await=stderr:contains=gNMI server listening on
+expect=stderr:contains=gNMI server listening on
+reject=stderr:pattern=refusing to start gNMI

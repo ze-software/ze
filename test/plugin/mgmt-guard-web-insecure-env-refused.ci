@@ -1,0 +1,24 @@
+# Test: the boot guard refuses insecure web published by env var on 0.0.0.0
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-3 -- the --insecure-web FLAG
+# and the YANG insecure leaf both clamp the bind to loopback, but the
+# ze.web.insecure ENV VAR rewrites no address. With ze.web.listen left at its
+# 0.0.0.0:3443 default, the unauthenticated InsecureMiddleware served every
+# interface. The guard must refuse, and it must evaluate the address the web
+# server will ACTUALLY bind: the default is applied before the declaration, so
+# the guard cannot pass an empty address slice by iterating it zero times.
+# PREVENTS: two environment variables, with no config file and no CLI flag,
+# publishing a credential-free web UI that injects a username for every request.
+
+option=exclusive:group=mgmt-guard
+option=env:var=ze.web.enabled:value=1
+option=env:var=ze.web.insecure:value=1
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=1
+expect=stderr:contains=refusing to start web (insecure) on non-loopback listener "0.0.0.0:3443" without authentication
+expect=stderr:contains=bind ze.web.listen to 127.0.0.1

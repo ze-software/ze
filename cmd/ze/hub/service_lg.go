@@ -50,9 +50,27 @@ func buildLGService(deps ServiceDeps) (Service, error) {
 
 	dispatch := deps.Dispatch
 	resolvers := deps.Resolvers
+
+	// TLS is on by default. Certificates live in blob storage, which a
+	// file-config deployment that never ran `ze init` does not have. An operator
+	// who ASKED for TLS gets an error (their instruction cannot be honored, and
+	// silently serving plaintext would be the opposite of what they wrote). An
+	// operator who only inherited the default gets the prior plaintext behavior
+	// plus a warning naming the remedy, because a hardening default must not
+	// turn a working looking glass into a missing one.
+	useTLS := deps.LGTLS
+	if useTLS && !storage.IsBlobStorage(deps.Store) && !deps.LGTLSExplicit {
+		fmt.Fprintln(os.Stderr,
+			"warning: looking glass serving plaintext: TLS is on by default but needs blob storage for certificates")
+		fmt.Fprintln(os.Stderr,
+			"  run `ze init` to enable TLS, or set looking-glass tls false to silence this warning")
+		useTLS = false
+	}
+
 	cfg := lg.LGConfig{
 		ListenAddrs: deps.LGAddrs,
-		TLS:         deps.LGTLS,
+		TLS:         useTLS,
+		Token:       deps.LGToken,
 		// The unified dispatcher is passed through directly; the lg server
 		// renders each typed response at its edge with a zero-value caller.
 		Dispatch: dispatch,
@@ -70,7 +88,7 @@ func buildLGService(deps ServiceDeps) (Service, error) {
 	// fans out to all interface IPs when the host is 0.0.0.0. Build failures are
 	// returned as errors; buildServices logs them and leaves lg unstarted
 	// (best-effort, matching the prior non-fatal behavior).
-	if deps.LGTLS {
+	if useTLS {
 		if !storage.IsBlobStorage(deps.Store) {
 			return nil, errors.New("looking glass TLS requires blob storage (run ze init first)")
 		}

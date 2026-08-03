@@ -9,10 +9,18 @@ package hub
 
 import (
 	"context"
+	"strings"
 	"testing"
 
+	"github.com/ze-software/ze/internal/component/config/storage"
 	"github.com/ze-software/ze/internal/component/plugin"
 )
+
+func lgTestDispatch() plugin.CommandDispatcher {
+	return func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
+		return plugin.NewResponse(plugin.StatusDone, nil), nil
+	}
+}
 
 func TestParseASNForDecorator(t *testing.T) {
 	cases := []struct {
@@ -38,13 +46,56 @@ func TestParseASNForDecorator(t *testing.T) {
 
 func TestBuildLGService_NotConfigured(t *testing.T) {
 	// No listen addresses -> the factory skips (nil service, nil error).
-	svc, err := buildLGService(ServiceDeps{Dispatch: func(context.Context, plugin.CallerIdentity, string) (*plugin.Response, error) {
-		return plugin.NewResponse(plugin.StatusDone, nil), nil
-	}})
+	svc, err := buildLGService(ServiceDeps{Dispatch: lgTestDispatch()})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if svc != nil {
 		t.Fatalf("want nil service when not configured, got %#v", svc)
 	}
+}
+
+func TestBuildLGService_ExplicitTLSWithoutBlobStorageFails(t *testing.T) {
+	// VALIDATES: an operator who WROTE `tls true` (or set ze.looking-glass.tls)
+	// and has no certificate store gets an error, never a quiet plaintext
+	// looking glass. Their instruction cannot be honored, so it is refused
+	// rather than approximated (ai/rules/protocol.md).
+	// PREVENTS: the default-on fallback below widening into a downgrade of TLS
+	// the operator explicitly demanded.
+	_, err := buildLGService(ServiceDeps{
+		Dispatch:      lgTestDispatch(),
+		LGAddrs:       []string{"127.0.0.1:0"},
+		LGTLS:         true,
+		LGTLSExplicit: true,
+		Store:         storage.NewFilesystem(),
+	})
+	if err == nil {
+		t.Fatal("explicit TLS with no blob storage must fail, not fall back to plaintext")
+	}
+	if !strings.Contains(err.Error(), "blob storage") {
+		t.Fatalf("error must name the missing certificate store, got %v", err)
+	}
+}
+
+func TestBuildLGService_DefaultTLSWithoutBlobStorageServesPlaintext(t *testing.T) {
+	// VALIDATES: TLS-on-by-default yields to the prior plaintext behavior when
+	// there is no certificate store and the operator asked for nothing. A
+	// hardening default must not turn a working looking glass into a missing
+	// one; the warning on stderr names `ze init` as the remedy.
+	// PREVENTS: every file-config deployment that never ran `ze init` losing its
+	// looking glass to a silent build failure.
+	svc, err := buildLGService(ServiceDeps{
+		Dispatch:      lgTestDispatch(),
+		LGAddrs:       []string{"127.0.0.1:0"},
+		LGTLS:         true,
+		LGTLSExplicit: false,
+		Store:         storage.NewFilesystem(),
+	})
+	if err != nil {
+		t.Fatalf("defaulted TLS with no blob storage must still start: %v", err)
+	}
+	if svc == nil {
+		t.Fatal("want a running looking glass, got nil")
+	}
+	t.Cleanup(func() { _ = svc.Shutdown(context.Background()) })
 }

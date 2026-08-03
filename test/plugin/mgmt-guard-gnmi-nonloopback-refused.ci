@@ -1,0 +1,24 @@
+# Test: the boot guard refuses an unauthenticated non-loopback gNMI listener
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-1 -- gNMI enabled with no
+# token and no listen override binds the 0.0.0.0:9339 default, which serves
+# unauthenticated Get AND Set (gNMI installs its auth interceptors only when a
+# token is set, and checkAuth allows on an empty token). The daemon must exit 1
+# before anything binds, naming the service, the offending address, and the
+# remedy.
+# PREVENTS: an operator writing four lines of config and publishing a full
+# read-write configuration surface on every interface with no credential.
+
+option=exclusive:group=mgmt-guard
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	gnmi {
+		enabled true
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=1
+expect=stderr:contains=refusing to start gNMI on non-loopback listener "0.0.0.0:9339" without authentication
+expect=stderr:contains=set ze.gnmi.token

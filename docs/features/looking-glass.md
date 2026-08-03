@@ -1,6 +1,6 @@
 # Looking Glass
 
-Ze includes a built-in looking glass that exposes BGP session state and route information via both an HTMX web UI and a birdwatcher-compatible REST API. The looking glass runs as a separate HTTP server on its own port (default 8443), with no authentication (public, read-only). TLS is optional.
+Ze includes a built-in looking glass that exposes BGP session state and route information via both an HTMX web UI and a birdwatcher-compatible REST API. The looking glass runs as a separate HTTP server on its own port (default 8443). It is read-only and open by default, because a looking glass is a public surface. It serves TLS by default, and an optional bearer `token` gates every route when you set one.
 
 | Feature | Description |
 |---------|-------------|
@@ -11,7 +11,7 @@ Ze includes a built-in looking glass that exposes BGP session state and route in
 | AS path topology graph | Server-side SVG visualization of AS path DAGs |
 | Birdwatcher REST API | Alice-LG compatible JSON endpoints under `/api/looking-glass/` |
 | HTMX web UI | Server-rendered HTML pages under `/lg/` with fragment updates |
-| YANG configuration | `environment/looking-glass` block with enabled, server (ip, port), tls settings |
+| YANG configuration | `environment/looking-glass` block with enabled, server (ip, port), tls (default true), and token settings |
 
 <!-- source: internal/component/lg/server.go -- LGServer, HTTP lifecycle -->
 <!-- source: internal/component/lg/handler_api.go -- Birdwatcher REST API handlers -->

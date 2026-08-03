@@ -158,6 +158,11 @@ plugin {
 environment {
 	looking-glass {
 		enabled true
+		# TLS defaults ON since spec-fixit-mgmt-listener-auth-guard AC-5.
+		# This test asserts looking-glass CONTENT over plain HTTP, so it takes
+		# the documented opt-out rather than terminating a self-signed TLS
+		# handshake; the opt-out working is part of AC-5.
+		tls false
 		server main {
 			ip 127.0.0.1
 			port $PORT2

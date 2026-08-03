@@ -85,6 +85,11 @@ func collectHardcodedListeners(tree *config.Tree) []serviceListener {
 			listeners = append(listeners, tcpListener("mcp", s.Host, s.Port, "doctor-listen-unavailable"))
 		}
 	}
+	if gnmiCfg, ok := config.ExtractGNMIConfig(tree); ok {
+		for _, s := range gnmiCfg.Servers {
+			listeners = append(listeners, tcpListener("gnmi", s.Host, s.Port, "doctor-listen-unavailable"))
+		}
+	}
 	if lgCfg, ok := config.ExtractLGConfig(tree); ok {
 		for _, s := range lgCfg.Servers {
 			listeners = append(listeners, tcpListener("looking-glass", s.Host, s.Port, "doctor-listen-unavailable"))

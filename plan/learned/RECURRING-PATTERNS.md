@@ -327,6 +327,42 @@ was necessary and still missed the two sibling call sites needing the same fix.
 `ai/rules/planning.md`'s claim that self-review is not review is not
 theoretical.
 
+### An `enabled` gate on config extraction discards the service's security settings
+
+**Symptom.** An operator writes `token` or `tls true` in a service block, starts
+the service by env var or CLI flag rather than by config, and gets an
+unauthenticated plaintext listener. Nothing is logged, and reading the config
+back shows exactly what they wrote.
+
+**Cause.** The extractor answers "does config start this service?" and "what are
+this service's settings?" with one boolean. `enabled != true` returns early, so
+the settings behind that gate are never parsed, and the caller runs the service
+anyway on zero values. For every management surface in Ze, the zero value of the
+auth settings is *no authentication* (see "The zero value as a valid-looking
+answer", above -- this is the config-extraction form of it).
+
+**Two instances, on two services:**
+
+| Service | Found by | Fix |
+|---------|----------|-----|
+| `environment.mcp` (2026-07) | a strengthened `test/plugin/task-identity-scope.ci`; the old one asserted per-principal isolation while both principals were the same anonymous identity | `ExtractMCPSettings` / `ExtractMCPConfig` |
+| `environment.looking-glass` (2026-08) | a security reviewer subagent tracing the TLS flag end to end | `ExtractLGSettings` / `ExtractLGConfig` |
+
+**Fix.** One private `extractXBlock(tree) (Config, enabled, present bool)` that
+parses everything and gates nothing, plus two exported callers that each answer
+one question. Neither can inherit the other's meaning.
+
+**Why it recurs.** The second instance was written by someone who had read the
+first, recorded in the same spec file, one screen above the code being changed.
+The gate reads correctly at the call site; the loss is invisible unless you ask
+what a caller does with `ok=false`. Full detail:
+`plan/learned/1327-enabled-gate-discards-service-settings.md`.
+
+**Detection.** The unit test asserts on a block that is deliberately NOT enabled
+and checks the settings survived. A functional test that starts the service from
+the config file cannot see the defect; it has to start the listener the way the
+operator did.
+
 ## Testing traps
 
 ### Test passes against broken production path

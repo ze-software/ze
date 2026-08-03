@@ -88,7 +88,8 @@ var (
 	// Looking glass.
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.listen", Type: "string", Default: "0.0.0.0:8443", Description: "Looking glass listen address (ip:port)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.enabled", Type: "bool", Description: "Enable looking glass server"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.tls", Type: "bool", Description: "Enable TLS for looking glass"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.tls", Type: "bool", Default: "true", Description: "Enable TLS for looking glass (default true; set false to serve plaintext)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.token", Type: "string", Description: "Looking glass bearer token (empty leaves it open)", Secret: true})
 
 	// Gokrazy management proxy (mounted on ze web server at /gokrazy/).
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.gokrazy.enabled", Type: "bool", Description: "Enable gokrazy appliance mode: management proxy on web at /gokrazy/ and first-boot auto-init fallback"})

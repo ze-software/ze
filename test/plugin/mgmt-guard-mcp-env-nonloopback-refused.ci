@@ -1,0 +1,22 @@
+# Test: the boot guard refuses an MCP listener published by env var with no token
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-2(b) -- a bare
+# ze.mcp.listen=<routable> with no token reaches `ze start` without passing
+# through the config editor, and MCP's own fail-closed MCPListenConfig.Validate
+# never runs on that path (there is no config block to validate). The guard is
+# the only thing standing between that variable and an accept-all MCP server on
+# every interface, so it must refuse before anything binds.
+# PREVENTS: an environment variable in a unit file or container spec publishing
+# an unauthenticated tool-calling surface off-box.
+
+option=exclusive:group=mgmt-guard
+option=env:var=ze.mcp.listen:value=0.0.0.0:18081
+
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=1
+expect=stderr:contains=refusing to start MCP on non-loopback listener "0.0.0.0:18081" without authentication
+expect=stderr:contains=set ze.mcp.token

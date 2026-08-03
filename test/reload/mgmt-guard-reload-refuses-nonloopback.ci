@@ -1,0 +1,129 @@
+# Test: SIGHUP cannot migrate an unauthenticated listener to a routable address
+# VALIDATES: spec-fixit-mgmt-listener-auth-guard AC-7 -- the boot guard alone
+# fails open. A service's auth mode is fixed when it is built, and
+# ListenerMigrator.ReloadListeners moves listen addresses on SIGHUP with no auth
+# re-check, so a config swap could publish on 0.0.0.0 exactly what the boot
+# guard refused to publish. MCP starts here from ze.mcp.listen on loopback with
+# no token, so it is built unauthenticated; the reloaded config then asks for
+# 0.0.0.0 (bind-remote true skips the loopback clamp, so the address really does
+# reach the migrator). The migration must be refused BEFORE any change is
+# applied, and the daemon must keep serving on its previous listeners -- the BGP
+# session below staying up is that proof.
+# PREVENTS: a guard a single SIGHUP walks past.
+
+option=env:var=ze.mcp.listen:value=127.0.0.1:18088
+
+stdin=peer:terminator=EOF_PEER
+
+# Connection 1: the peer's route plus EOR, proving the session is established
+# before the reload is attempted.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Swap in a config whose MCP block asks for 0.0.0.0, then SIGHUP. The BGP half
+# of the config is byte-identical, so any peer disturbance would come from the
+# reload being applied rather than refused.
+action=rewrite:conn=1:seq=2:source=mcp-exposed.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF
+
+tmpfs=mcp-exposed.conf:terminator=EOF_CONF2
+environment {
+	mcp {
+		enabled true
+		bind-remote true
+		server main {
+			ip 0.0.0.0
+			port 18088
+		}
+	}
+}
+
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+				accept false
+			}
+		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart disable
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+	}
+}
+EOF_CONF2
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=stderr:contains=refusing to migrate mcp to non-loopback listener "0.0.0.0:18088" without authentication
