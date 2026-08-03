@@ -1,11 +1,16 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- RADIUS accounting
+// RFC: rfc/short/rfc2866.md -- Accounting-Request contents (Sections 4.1, 5)
+// RFC: rfc/short/rfc2865.md -- Framed-IP-Address (Section 5.8)
+// RFC: rfc/short/rfc2869.md -- NAS-Port-Id (Section 5.17), Gigawords (Section 5.1)
 // Related: handler.go -- RADIUS auth handler shares the client
+// Related: nasportid.go -- NAS-Port-Id template resolution
 
 package l2tpauthradius
 
 import (
 	"context"
 	"net"
+	"net/netip"
 	"sync"
 	"time"
 
@@ -20,15 +25,39 @@ import (
 var acctGetStats = iface.GetStats
 
 // acctSession tracks per-session accounting state.
+//
+// nasPortID is resolved once, when the session starts accounting, and every
+// record of that session then repeats it. Re-resolving per packet would let a
+// config reload move the text mid-session, and the text is what a billing
+// system joins the Start, Interim and Stop records by. It is stored for the
+// same reason acctSessID is.
 type acctSession struct {
 	tunnelID     uint16
 	sessionID    uint16
 	username     string
 	peerAddr     string
 	acctSessID   string
+	nasPortID    string
 	pppInterface string
 	startTime    time.Time
 	cancel       context.CancelFunc
+}
+
+// subscriberIPv4 parses a session's assigned address and returns its four
+// octets. It reports false for an empty value, an unparseable value, and an
+// IPv6 address: the reactor records an IPv6CP link-local in the same field, and
+// RFC 2865 Section 5.8 gives Framed-IP-Address four octets, so those cases have
+// no attribute to send. An IPv4-mapped form is an IPv4 address and is unwrapped.
+func subscriberIPv4(assigned string) ([]byte, bool) {
+	addr, err := netip.ParseAddr(assigned)
+	if err != nil {
+		return nil, false
+	}
+	if !addr.Is4() && !addr.Is4In6() {
+		return nil, false
+	}
+	v4 := addr.As4()
+	return v4[:], true
 }
 
 // splitGigawords splits a uint64 byte count into a uint32 octets value
@@ -40,14 +69,15 @@ func splitGigawords(bytes uint64) (octets, gigawords uint32) {
 
 // radiusAcct manages RADIUS accounting lifecycle.
 type radiusAcct struct {
-	mu            sync.Mutex
-	sessions      map[sessionKey]*acctSession
-	client        *radius.Client
-	nasID         string
-	sourceAddress net.IP
-	interval      time.Duration
-	nextSess      uint32
-	serverAddr    string
+	mu              sync.Mutex
+	sessions        map[sessionKey]*acctSession
+	client          *radius.Client
+	nasID           string
+	sourceAddress   net.IP
+	interval        time.Duration
+	nextSess        uint32
+	serverAddr      string
+	nasPortIDFormat string
 }
 
 type sessionKey struct {
@@ -62,13 +92,18 @@ func newRADIUSAcct() *radiusAcct {
 	}
 }
 
-func (a *radiusAcct) setClient(c *radius.Client, nasID string, interval time.Duration, serverAddr string, sourceAddr net.IP) {
+// setClient installs the RADIUS client and everything that must change with it.
+// The NAS-Port-Id format is one of those: applying it separately would leave a
+// window where a session authenticates under the new format and accounts under
+// the old one, and a billing system joins those two records by that text.
+func (a *radiusAcct) setClient(c *radius.Client, nasID string, interval time.Duration, serverAddr string, sourceAddr net.IP, nasPortIDFormat string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.client = c
 	a.nasID = nasID
 	a.sourceAddress = sourceAddr
 	a.serverAddr = serverAddr
+	a.nasPortIDFormat = nasPortIDFormat
 	if interval > 0 {
 		a.interval = interval
 	}
@@ -104,6 +139,7 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 	nasID := a.nasID
 	srcAddr := a.sourceAddress
 	interval := a.interval
+	portIDFormat := a.nasPortIDFormat
 	a.mu.Unlock()
 
 	if client == nil {
@@ -125,6 +161,7 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 		username:     payload.Username,
 		peerAddr:     payload.PeerAddr,
 		acctSessID:   acctSessID,
+		nasPortID:    resolveNASPortID(portIDFormat, nasPortIDFacts{nasID: nasID, tunnelID: payload.TunnelID, sessionID: payload.SessionID}),
 		pppInterface: payload.PppInterface,
 		startTime:    time.Now(),
 		cancel:       cancel,
@@ -190,6 +227,14 @@ func (a *radiusAcct) sendAcctInterimUpdate(client *radius.Client, sess *acctSess
 	a.sendAcctPacket(client, pkt, "interim", sess)
 }
 
+// buildAcctPacket assembles one Accounting-Request for a session.
+//
+// RFC 2866 Section 4.1: "If the Accounting-Request packet includes a
+// Framed-IP-Address, that attribute MUST contain the IP address of the user ...
+// the Framed-IP-Address (if any) in the Accounting-Request MUST contain the
+// actual IP address assigned or negotiated." sess.peerAddr holds exactly that:
+// the IPCP-negotiated peer address the reactor put on pppN, delivered by the
+// (l2tp, session-ip-assigned) event.
 func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, sourceAddr net.IP, statusType uint8, sessionTime uint32) *radius.Packet {
 	attrs := []radius.Attr{
 		{Type: radius.AttrUserName, Value: radius.AttrString(sess.username)},
@@ -207,6 +252,19 @@ func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, sourceAddr
 
 	if nasID != "" {
 		attrs = append(attrs, radius.Attr{Type: radius.AttrNASIdentifier, Value: radius.AttrString(nasID)})
+	}
+
+	// RFC 2869 Section 5.17: the text resolved when this session started
+	// accounting, repeated in every record of the session.
+	if attr, ok := nasPortIDAttrFromText(sess.nasPortID); ok {
+		attrs = append(attrs, attr)
+	}
+
+	// RFC 2865 Section 5.8: Framed-IP-Address is four octets, so only an IPv4
+	// assignment can be reported. A session with no address yet, or one whose
+	// only assignment is IPv6, sends no attribute rather than a wrong one.
+	if v4, ok := subscriberIPv4(sess.peerAddr); ok {
+		attrs = append(attrs, radius.Attr{Type: radius.AttrFramedIPAddress, Value: v4})
 	}
 
 	if statusType == radius.AcctStatusStop || statusType == radius.AcctStatusInterimUpdate {

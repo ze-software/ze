@@ -121,7 +121,7 @@ func TestRADIUSAcctStart(t *testing.T) {
 	defer client.Close() //nolint:errcheck // test cleanup
 
 	acct := newRADIUSAcct()
-	acct.setClient(client, "test-nas", 300*time.Second, addr, nil)
+	acct.setClient(client, "test-nas", 300*time.Second, addr, nil, "")
 
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
 		TunnelID:  1,
@@ -158,7 +158,7 @@ func TestRADIUSAcctStop(t *testing.T) {
 	defer client.Close() //nolint:errcheck // test cleanup
 
 	acct := newRADIUSAcct()
-	acct.setClient(client, "test-nas", 300*time.Second, addr, nil)
+	acct.setClient(client, "test-nas", 300*time.Second, addr, nil, "")
 
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
 		TunnelID:  1,
@@ -198,7 +198,7 @@ func TestRADIUSAcctInterim(t *testing.T) {
 	defer client.Close() //nolint:errcheck // test cleanup
 
 	acct := newRADIUSAcct()
-	acct.setClient(client, "test-nas", 200*time.Millisecond, addr, nil) // short interval for testing
+	acct.setClient(client, "test-nas", 200*time.Millisecond, addr, nil, "") // short interval for testing
 
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
 		TunnelID:  1,
@@ -410,7 +410,7 @@ func TestAcctSessionPppInterface(t *testing.T) {
 	defer client.Close() //nolint:errcheck // test cleanup
 
 	acct := newRADIUSAcct()
-	acct.setClient(client, "test-nas", 300*time.Second, addr, nil)
+	acct.setClient(client, "test-nas", 300*time.Second, addr, nil, "")
 
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
 		TunnelID:     1,

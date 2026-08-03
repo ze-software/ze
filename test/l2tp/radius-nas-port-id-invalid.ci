@@ -1,0 +1,32 @@
+# Test: a NAS-Port-Id template naming a placeholder ze cannot resolve is refused.
+# VALIDATES: spec-radius-subscriber-attributes AC-3 -- the config is rejected, and
+#            the error names the placeholders that ARE supported.
+# PREVENTS:  ze accepting a template it cannot expand and sending its own syntax to
+#            the RADIUS server as literal text, where no operator can undo it. An
+#            LNS has no access interface or VLAN at authentication time, so
+#            {interface} and {svlan} are exactly the plausible wrong answers.
+#
+# Offline: this is the same OnConfigVerify the daemon runs at boot, so a config
+# that fails here fails there.
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true;
+    auth {
+        radius {
+            nas-identifier lns1;
+            nas-port-id-format "{interface}:{svlan}.{cvlan}";
+            server main {
+                address 127.0.0.1;
+                port 11812;
+                shared-key testing123;
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=nas-port-id-format: unknown placeholder "interface"
+expect=stderr:contains=supported placeholders: {nas-id}, {tunnel-id}, {session-id}

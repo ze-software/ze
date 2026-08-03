@@ -1,0 +1,39 @@
+# Test: a NAS-Port-Id template is accepted by the config surface.
+# VALIDATES: spec-radius-subscriber-attributes AC-1 -- the operator can configure
+#            nas-port-id-format, and every placeholder ze offers resolves.
+# PREVENTS:  the leaf being emitted by the plugin but absent from the YANG module,
+#            which would reject the whole config an operator wrote for it.
+#
+# The RADIUS packets themselves are proven on the wire by the interop scenario
+# test/l2tp-interop/scenarios/04-radius-acct-attrs, which needs a real pppd peer
+# and kernel PPPoL2TP. This test owns the config surface: it runs the same
+# OnConfigVerify path the daemon runs at boot, offline, with no kernel needed.
+
+stdin=config:terminator=EOF_CONF
+l2tp {
+    enabled true;
+    auth {
+        radius {
+            nas-identifier lns1;
+            nas-port-id-format "{nas-id}:{tunnel-id}.{session-id}";
+            acct-interval 300;
+            server main {
+                address 127.0.0.1;
+                port 11812;
+                shared-key testing123;
+            }
+        }
+    }
+    pool {
+        ipv4 {
+            gateway 10.255.6.1;
+            start 10.255.6.10;
+            end 10.255.6.50;
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

@@ -103,7 +103,7 @@ func setupAuthWithAttrs(t *testing.T, sharedKey []byte, code uint8, attrs []radi
 	}
 
 	a := newRADIUSAuth()
-	a.swapClient(client, "test-nas", addr, nil)
+	a.swapClient(client, "test-nas", addr, nil, "")
 
 	resp := newFakeResponder()
 
@@ -128,7 +128,7 @@ func setupAuth(t *testing.T, sharedKey []byte, code uint8) (*radiusAuth, *fakeRe
 	}
 
 	a := newRADIUSAuth()
-	a.swapClient(client, "test-nas", addr, nil)
+	a.swapClient(client, "test-nas", addr, nil, "")
 
 	resp := newFakeResponder()
 
@@ -353,7 +353,7 @@ func TestRADIUSAuthTimeout(t *testing.T) {
 	defer client.Close() //nolint:errcheck // test cleanup
 
 	a := newRADIUSAuth()
-	a.swapClient(client, "test-nas", dead.LocalAddr().String(), nil)
+	a.swapClient(client, "test-nas", dead.LocalAddr().String(), nil, "")
 	resp := newFakeResponder()
 
 	result := a.handle(ppp.EventAuthRequest{
@@ -450,7 +450,7 @@ func TestRADIUSAuthNASIPAddress(t *testing.T) {
 
 	srcIP := net.IPv4(10, 20, 30, 40).To4()
 	a := newRADIUSAuth()
-	a.swapClient(client, "test-nas", addr, srcIP)
+	a.swapClient(client, "test-nas", addr, srcIP, "")
 	resp := newFakeResponder()
 
 	a.handle(ppp.EventAuthRequest{

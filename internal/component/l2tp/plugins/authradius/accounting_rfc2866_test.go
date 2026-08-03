@@ -50,7 +50,7 @@ func newDeadServerAcct(t *testing.T) *radiusAcct {
 	t.Cleanup(func() { client.Close() }) //nolint:errcheck // test cleanup
 
 	acct := newRADIUSAcct()
-	acct.setClient(client, "nas1", 300*time.Second, addr, nil)
+	acct.setClient(client, "nas1", 300*time.Second, addr, nil, "")
 	return acct
 }
 

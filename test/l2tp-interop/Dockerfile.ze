@@ -10,7 +10,15 @@ COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
 
-RUN CGO_ENABLED=0 go build -o /ze ./cmd/ze
+# The daemon personality (ze_core_dispatch.go, which registers the `start` root
+# command the lab launches ze with) and every compile-out-able feature are
+# tag-gated, so an untagged build has neither: it answers `start` with "unknown
+# command" and would not carry L2TP even if it booted. Derive the default-on
+# tags from feature-gates.txt -- the same single source of truth Makefile
+# ZE_FEATURES and test/interop/Dockerfile.ze read -- so this image cannot drift
+# from the shipped binary's feature set.
+RUN ZE_FEATURES="$(awk '$1 ~ /^ze_/ {print $1}' feature-gates.txt | sort -u | tr '\n' ' ')" && \
+    CGO_ENABLED=0 go build -tags "ze_core $ZE_FEATURES" -o /ze ./cmd/ze
 
 FROM alpine:3.21
 

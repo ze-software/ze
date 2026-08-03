@@ -57,6 +57,7 @@ const (
 	AttrNASPortType          = 61
 	AttrMessageAuthenticator = 80
 	AttrAcctInterimInterval  = 85
+	AttrNASPortID            = 87 // RFC 2869 Section 5.17: UTF-8 text, Length >= 3
 	AttrFramedPool           = 88
 	AttrFramedIPv6Route      = 99  // RFC 6911 Section 3.2
 	AttrErrorCause           = 101 // RFC 5176 Section 3.6

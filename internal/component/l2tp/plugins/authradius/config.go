@@ -1,5 +1,8 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- RADIUS plugin config
+// RFC: rfc/short/rfc2869.md -- NAS-Port-Id (Section 5.17)
+// RFC: rfc/short/rfc5176.md -- CoA/Disconnect listener port
 // Related: register.go -- plugin lifecycle callbacks
+// Related: nasportid.go -- nas-port-id-format validation
 
 package l2tpauthradius
 
@@ -8,6 +11,7 @@ import (
 	"net"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/radius"
@@ -16,13 +20,14 @@ import (
 
 // radiusConfig holds parsed RADIUS server configuration.
 type radiusConfig struct {
-	Servers       []radius.Server
-	Timeout       time.Duration
-	Retries       int
-	AcctInterval  time.Duration
-	NASIdentifier string
-	SourceAddress net.IP // bind outbound RADIUS socket to this IP; nil = any
-	CoAPort       int    // RFC 5176 CoA/DM listener port; 0 = disabled
+	Servers         []radius.Server
+	Timeout         time.Duration
+	Retries         int
+	AcctInterval    time.Duration
+	NASIdentifier   string
+	SourceAddress   net.IP // bind outbound RADIUS socket to this IP; nil = any
+	CoAPort         int    // RFC 5176 CoA/DM listener port; 0 = disabled
+	NASPortIDFormat string // RFC 2869 Section 5.17 template; "" = no attribute
 }
 
 // errNoRADIUSConfig is returned when the config tree has no auth.radius block.
@@ -50,6 +55,23 @@ func parseConfigFromTree(tree map[string]any) (*radiusConfig, error) {
 
 	if nasID, ok := radiusBlock["nas-identifier"].(string); ok {
 		cfg.NASIdentifier = nasID
+	}
+
+	// RFC 2869 Section 5.17: NAS-Port-Id is free text, so ze can only refuse
+	// what it cannot resolve. A format naming an unknown placeholder is
+	// rejected here, at commit time, rather than sent to the RADIUS server
+	// with its own syntax still in it.
+	if format, ok := radiusBlock["nas-port-id-format"].(string); ok {
+		if err := validateNASPortIDFormat(format); err != nil {
+			return nil, fmt.Errorf("%s: nas-port-id-format: %w", Name, err)
+		}
+		// A template whose only content is a placeholder ze will always resolve
+		// to nothing sends no attribute at all. Refuse it here rather than leave
+		// an operator looking for a NAS-Port-Id that never arrives.
+		if strings.Contains(format, "{nas-id}") && cfg.NASIdentifier == "" {
+			return nil, fmt.Errorf("%s: nas-port-id-format uses {nas-id} but nas-identifier is not set", Name)
+		}
+		cfg.NASPortIDFormat = format
 	}
 
 	if src, ok := radiusBlock["source-address"].(string); ok {

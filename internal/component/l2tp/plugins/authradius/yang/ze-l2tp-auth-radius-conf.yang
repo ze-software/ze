@@ -18,6 +18,18 @@ module ze-l2tp-auth-radius-conf {
                     type string;
                     description "NAS-Identifier sent in RADIUS requests.";
                 }
+                leaf nas-port-id-format {
+                    type string { length "1..253"; }
+                    description "Template for the NAS-Port-Id attribute (RFC 2869
+Section 5.17) sent in Access-Request and Accounting-Request packets. The
+placeholders are {nas-id}, {tunnel-id} and {session-id}; every other character is
+copied. All three are known before the session has an interface, so one session
+sends one text in its Access-Request and in all its accounting records, and a
+billing system can join them. The 253-octet limit is the largest value a RADIUS
+attribute can carry (RFC 2865 Section 5). An unknown placeholder, and a {nas-id}
+with no nas-identifier set, are both refused when the config is committed. Unset
+sends no attribute.";
+                }
                 leaf timeout {
                     type uint8 { range "1..30"; }
                     default 3;

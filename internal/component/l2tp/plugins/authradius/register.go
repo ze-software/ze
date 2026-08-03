@@ -181,8 +181,8 @@ func activateRadiusConfig(cfg *radiusConfig) error {
 	if len(cfg.Servers) > 0 {
 		primaryAddr = cfg.Servers[0].Address
 	}
-	oldClient := authInstance.swapClient(client, cfg.NASIdentifier, primaryAddr, cfg.SourceAddress)
-	acctInstance.setClient(client, cfg.NASIdentifier, cfg.AcctInterval, primaryAddr, cfg.SourceAddress)
+	oldClient := authInstance.swapClient(client, cfg.NASIdentifier, primaryAddr, cfg.SourceAddress, cfg.NASPortIDFormat)
+	acctInstance.setClient(client, cfg.NASIdentifier, cfg.AcctInterval, primaryAddr, cfg.SourceAddress, cfg.NASPortIDFormat)
 	if oldClient != nil {
 		oldClient.Close() //nolint:errcheck // best-effort on replaced client
 	}
